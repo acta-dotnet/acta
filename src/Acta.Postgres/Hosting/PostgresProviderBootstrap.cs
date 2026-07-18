@@ -1,4 +1,4 @@
-using Acta.Postgres;
+using Acta.Postgres.Schema;
 using Acta.Relational.Connections;
 
 namespace Acta;

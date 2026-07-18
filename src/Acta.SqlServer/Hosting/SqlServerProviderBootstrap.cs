@@ -1,5 +1,5 @@
 using Acta.Relational.Connections;
-using Acta.SqlServer;
+using Acta.SqlServer.Schema;
 
 namespace Acta;
 

@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Data.Common;
 using System.Text;
 using System.Text.Json;
+using Acta.Sqlite.Services;
 using Microsoft.Data.Sqlite;
 
 namespace Acta.Sqlite.Features.Shared;

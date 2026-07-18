@@ -1,5 +1,5 @@
 using System.Data;
-using Acta.SqlServer;
+using Acta.SqlServer.Schema;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
 using Xunit;

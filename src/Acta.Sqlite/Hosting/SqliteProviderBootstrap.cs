@@ -1,5 +1,5 @@
 using Acta.Relational.Connections;
-using Acta.Sqlite;
+using Acta.Sqlite.Schema;
 
 namespace Acta;
 

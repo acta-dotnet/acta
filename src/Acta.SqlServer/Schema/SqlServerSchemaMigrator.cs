@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using Acta.Relational.Schema;
 using Microsoft.Data.SqlClient;
 
-namespace Acta.SqlServer;
+namespace Acta.SqlServer.Schema;
 
 /// <summary>
 /// Applies <c>Mnnn_*.sql</c> migrations on SQL Server. The prelude turns

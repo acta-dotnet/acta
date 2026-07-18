@@ -93,7 +93,7 @@ public sealed class AotPolicyTests
         new(
             "C# transaction begin/open",
             new Regex(@"\b(BeginTransaction|OpenTransaction)\b", RegexOptions.Compiled),
-            Allow("src/Acta.Relational/Schema/SchemaMigrationRunner.cs", "src/Acta.Sqlite/SqliteDialect.cs")
+            Allow("src/Acta.Relational/Schema/SchemaMigrationRunner.cs", "src/Acta.Sqlite/Services/SqliteDialect.cs")
         ),
         // DbSession wraps execute-style calls in a write transaction ONLY for an inline-only provider
         // (SQLite) that has no stored routine to make its multi-statement write body atomic; routine

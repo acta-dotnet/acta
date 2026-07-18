@@ -2,7 +2,7 @@ using System.Data;
 using Acta.Relational.Schema;
 using Npgsql;
 
-namespace Acta.Postgres;
+namespace Acta.Postgres.Schema;
 
 /// <summary>
 /// Applies <c>Mnnn_*.sql</c> migrations on PostgreSQL. PG scripts execute as a single

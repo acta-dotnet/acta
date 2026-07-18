@@ -12,7 +12,7 @@ using Acta.Relational.Schema;
 using Microsoft.Data.Sqlite;
 using static Acta.Sqlite.Features.Shared.SqliteCommandParameters;
 
-namespace Acta.Sqlite;
+namespace Acta.Sqlite.Services;
 
 /// <summary>
 /// SQLite <see cref="ISqlDialect"/>: connection creation, generic parameter coercion, and inline-SQL

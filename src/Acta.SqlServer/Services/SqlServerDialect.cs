@@ -12,7 +12,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
 using static Acta.SqlServer.Features.Shared.SqlServerCommandParameters;
 
-namespace Acta.SqlServer;
+namespace Acta.SqlServer.Services;
 
 /// <summary>
 /// SQL Server <see cref="ISqlDialect"/>: connection creation, generic parameter coercion, and

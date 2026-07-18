@@ -13,7 +13,7 @@ using Npgsql;
 using NpgsqlTypes;
 using static Acta.Postgres.Features.Shared.PostgresCommandParameters;
 
-namespace Acta.Postgres;
+namespace Acta.Postgres.Services;
 
 /// <summary>
 /// PostgreSQL <see cref="ISqlDialect"/>: connection creation, generic parameter coercion, and

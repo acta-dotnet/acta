@@ -3,7 +3,7 @@ using System.Text;
 using Acta.Relational.Schema;
 using Microsoft.Data.Sqlite;
 
-namespace Acta.Sqlite;
+namespace Acta.Sqlite.Schema;
 
 /// <summary>
 /// Applies <c>Mnnn_*.sql</c> migrations on SQLite. SQLite has no stored routines and no schema

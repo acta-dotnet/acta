@@ -1,4 +1,4 @@
-using Acta.Sqlite;
+using Acta.Sqlite.Schema;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
