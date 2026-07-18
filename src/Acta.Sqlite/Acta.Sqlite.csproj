@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Acta.Sqlite</RootNamespace>
+    <Description>SQLite provider for Acta: embedded single-node stores, command binding, SQL, and migrations. Store commands run as inline SQL (no stored routines).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Acta\Acta.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Acta.Relational\Acta.Relational.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Acta.Tests" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Provider-owned migrations, schema commands, feature SQL, and service SQL. -->
+    <EmbeddedResource Include="Schema/**/*.sql;Features/**/*.sql;Services/**/*.sql" Exclude="$(DefaultItemExcludes)">
+      <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

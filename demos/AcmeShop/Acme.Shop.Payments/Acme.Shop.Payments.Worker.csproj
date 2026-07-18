@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Acme.Shop.Payments</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Acme.Shop.Payments.Contracts\Acme.Shop.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\Acme.Shop.Shipping.Contracts\Acme.Shop.Shipping.Contracts.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+</Project>

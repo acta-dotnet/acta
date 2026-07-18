@@ -1,0 +1,31 @@
+{
+  "profiles": {
+    "Anvil": {
+      "commandName": "Project",
+      "commandLineArgs": "--provider sqlite",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "http://127.0.0.1:5059"
+    },
+    "Anvil (PostgreSQL)": {
+      "commandName": "Project",
+      "commandLineArgs": "--provider postgres",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "http://127.0.0.1:5059"
+    },
+    "Anvil (SQL Server)": {
+      "commandName": "Project",
+      "commandLineArgs": "--provider sqlserver",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "http://127.0.0.1:5059"
+    }
+  }
+}

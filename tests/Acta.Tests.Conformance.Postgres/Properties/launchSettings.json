@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Reset acta schema (Postgres)": {
+      "commandName": "Project",
+      "commandLineArgs": "-explicit only -method \"Acta.Tests.Conformance.Postgres.DatabaseSetup.ResetActaSchema\"",
+      "environmentVariables": {
+        "ACTA_TEST_PG": "Host=localhost;Port=5432;Database=acta-test;Username=postgres"
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+using Acta.Features.Alerts;
+using Microsoft.Extensions.Logging;
+using Xunit;
+
+namespace Acta.Tests.Alerts;
+
+public sealed class LogAlertTransportTests
+{
+    [Fact]
+    public async Task SendAsync_logs_runbook_url_when_present()
+    {
+        var logger = new RecordingLogger();
+        var transport = new LogAlertTransport(logger);
+        var notification = new AlertNotification(
+            AlertId: 1,
+            JobNamespace: "orders",
+            JobId: 42,
+            Severity: AlertSeverityCode.Error,
+            Kind: AlertKindCode.FinalFailure,
+            Title: "Job failed",
+            Message: "boom",
+            RunbookUrl: "https://runbook.example/job-failed",
+            OccurrenceCount: 2,
+            CreatedAtUtc: new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+        );
+        var target = new AlertTarget(
+            ChannelName: "default",
+            TransportKind: LogAlertTransport.Kind,
+            Endpoint: "",
+            ConfigFormatId: 0,
+            Config: ReadOnlyMemory<byte>.Empty
+        );
+
+        var outcome = await transport.SendAsync(notification, target, CancellationToken.None);
+
+        Assert.Equal(AlertDeliveryOutcome.Delivered, outcome);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Contains("https://runbook.example/job-failed", entry.Message);
+        Assert.Contains(entry.Properties, p => p.Key == "RunbookUrl" && (string?)p.Value == "https://runbook.example/job-failed");
+    }
+
+    private sealed class RecordingLogger : ILogger<LogAlertTransport>
+    {
+        public List<Entry> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        )
+        {
+            var properties = state as IReadOnlyList<KeyValuePair<string, object?>> ?? [];
+            Entries.Add(new Entry(logLevel, formatter(state, exception), [.. properties]));
+        }
+    }
+
+    private sealed record Entry(LogLevel Level, string Message, IReadOnlyList<KeyValuePair<string, object?>> Properties);
+}

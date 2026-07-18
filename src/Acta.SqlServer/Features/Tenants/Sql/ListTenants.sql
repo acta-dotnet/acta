@@ -1,0 +1,35 @@
+SELECT TOP (@p_take) t.id, t.tenant_key, t.display_name, t.description, t.status_code, t.created_at_utc, t.modified_at_utc, t.version
+  FROM {{schema}}.tenants t
+ WHERE (@p_search IS NULL OR CHARINDEX(@p_search, LOWER(t.tenant_key)) > 0 OR CHARINDEX(@p_search, LOWER(t.display_name)) > 0 OR CHARINDEX(@p_search, LOWER(t.description)) > 0)
+   AND (@p_status_code IS NULL OR t.status_code = @p_status_code)
+AND (@p_tag_filters IS NULL OR NOT EXISTS (
+        SELECT 1
+          FROM OPENJSON(@p_tag_filters)
+               WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
+         WHERE NOT EXISTS (
+               SELECT 1 FROM {{schema}}.tags tg
+                WHERE tg.scope_code = 20 /* TagScopeCode.Tenant */ AND tg.scope_id = t.id
+                  AND tg.name = f.name
+                  AND (f.value_search IS NULL OR tg.value_search = f.value_search)
+         )
+        ))
+      AND (@p_cursor_tenant_key IS NULL OR t.tenant_key > @p_cursor_tenant_key)
+ ORDER BY t.tenant_key ASC;
+
+SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
+         SELECT COUNT(*)
+           FROM {{schema}}.tenants t
+          WHERE (@p_search IS NULL OR CHARINDEX(@p_search, LOWER(t.tenant_key)) > 0 OR CHARINDEX(@p_search, LOWER(t.display_name)) > 0 OR CHARINDEX(@p_search, LOWER(t.description)) > 0)
+            AND (@p_status_code IS NULL OR t.status_code = @p_status_code)
+            AND (@p_tag_filters IS NULL OR NOT EXISTS (
+                 SELECT 1
+                   FROM OPENJSON(@p_tag_filters)
+                        WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
+                  WHERE NOT EXISTS (
+                        SELECT 1 FROM {{schema}}.tags tg
+                         WHERE tg.scope_code = 20 /* TagScopeCode.Tenant */ AND tg.scope_id = t.id
+                           AND tg.name = f.name
+                           AND (f.value_search IS NULL OR tg.value_search = f.value_search)
+                  )
+                 ))
+       ) END;

@@ -1,0 +1,22 @@
+<Project>
+  <!-- Shared by every tutorial rung under concepts/ so each rung is just a tiny .csproj + one .cs.
+       The generator analyzer lives here once because analyzers do not flow transitively through
+       ProjectReference. Each rung explicitly references the local database helper project. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference
+      Include="$(MSBuildThisFileDirectory)..\src\Acta.Generators\Acta.Generators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\support\Acta.LocalHost\Acta.LocalHost.csproj" />
+    <!-- Web SDK rungs (022, 024) already get Hosting via the AspNetCore framework reference; NU1510. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Condition="'$(UsingMicrosoftNETSdkWeb)' != 'true'" />
+  </ItemGroup>
+</Project>

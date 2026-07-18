@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Acme Shop - order pipeline console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #E6E1D4; --card: #F3EFE6; --ink: #17140E; --soft: #6B6453; --line: #CBC4B2;
+      --accent: #0E5A60; --accent-ink: #F4F1E8; --hazard: #C98A1B; --danger: #A8392B;
+      --ok: #1F6E4E; --pending: #9A6A12; --bad: #A8392B; --idle: #6B6453;
+      --display: "Saira Condensed", "Arial Narrow", system-ui, sans-serif;
+      --body: "Inter", system-ui, -apple-system, sans-serif;
+      --mono: "Space Mono", ui-monospace, "Cascadia Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 24px 64px; }
+    .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 16px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark { width: 22px; height: 28px; background: var(--accent); display: inline-block; }
+    .brand h1 { font-family: var(--display); font-weight: 800; font-size: 40px; letter-spacing: 0.04em; text-transform: uppercase; margin: 0; line-height: 0.9; }
+    .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--soft); margin: 0 0 3px; }
+    .dash-link { font-family: var(--display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 15px; color: var(--accent); text-decoration: none; border: 1.5px solid var(--accent); padding: 9px 16px; background: transparent; }
+    .dash-link:hover { background: var(--accent); color: var(--accent-ink); }
+    .ticket { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; margin: 22px 0 28px; padding: 14px 18px; background: var(--card); border: 1.5px solid var(--line); }
+    .ticket .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--soft); display: block; margin-bottom: 4px; }
+    .ticket .value { font-family: var(--mono); font-weight: 700; font-size: 16px; color: var(--ink); }
+    .ticket .empty { font-family: var(--mono); font-size: 13px; color: var(--soft); }
+    .ticket .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); border: 1.5px solid var(--accent); padding: 3px 8px; margin-left: auto; }
+    .pipeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; position: relative; }
+    .pipeline::before { content: ""; position: absolute; left: 0; right: 0; top: 46px; height: 2px; background: repeating-linear-gradient(90deg, var(--line) 0 10px, transparent 10px 16px); }
+    .stage { background: var(--card); border: 1.5px solid var(--line); position: relative; padding: 20px 18px 22px; margin-right: -1.5px; }
+    .stage:last-child { margin-right: 0; }
+    .stage-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+    .stage-no { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent-ink); background: var(--ink); padding: 3px 7px; letter-spacing: 0.05em; }
+    .stage-title { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; font-size: 22px; }
+    .stage-note { font-size: 12px; color: var(--soft); margin: -8px 0 16px; min-height: 16px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--soft); margin-bottom: 5px; }
+    .field input { width: 100%; font-family: var(--mono); font-size: 14px; color: var(--ink); background: var(--paper); border: 1.5px solid var(--line); padding: 9px 10px; }
+    .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hint { font-size: 11px; color: var(--soft); margin-top: 6px; }
+    .btn { display: inline-block; width: 100%; cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 16px; text-transform: uppercase; letter-spacing: 0.06em; padding: 11px 14px; border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); margin-top: 6px; }
+    .btn:hover { background: #0b4a4f; border-color: #0b4a4f; }
+    .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+    .btn[disabled]:hover { background: var(--accent); border-color: var(--accent); }
+    .btn-amber { background: var(--hazard); border-color: var(--hazard); color: var(--ink); }
+    .btn-amber:hover { background: #b07914; border-color: #b07914; }
+    .btn-ghost-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+    .btn-ghost-danger:hover { background: var(--danger); border-color: var(--danger); color: var(--accent-ink); }
+    .op-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--hazard); margin: 18px 0 2px; }
+    .feed-head { display: flex; align-items: baseline; gap: 12px; margin: 36px 0 12px; border-bottom: 2px solid var(--ink); padding-bottom: 8px; }
+    .feed-head h2 { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; font-size: 20px; margin: 0; }
+    .feed-head .count { font-family: var(--mono); font-size: 12px; color: var(--soft); }
+    .feed { list-style: none; margin: 0; padding: 0; }
+    .feed li { border-bottom: 1px solid var(--line); padding: 12px 0; }
+    .feed .meta { display: flex; align-items: center; gap: 10px; }
+    .feed .verb { font-family: var(--mono); font-weight: 700; font-size: 11px; letter-spacing: 0.1em; padding: 2px 6px; border: 1.5px solid var(--ink); }
+    .feed .path { font-family: var(--mono); font-size: 13px; color: var(--ink); word-break: break-all; }
+    .feed .code { font-family: var(--mono); font-weight: 700; font-size: 12px; padding: 2px 8px; margin-left: auto; color: var(--accent-ink); }
+    .code.s-ok { background: var(--ok); } .code.s-warn { background: var(--pending); } .code.s-bad { background: var(--bad); } .code.s-idle { background: var(--idle); }
+    .feed pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.45; color: var(--ink); background: var(--paper); border-left: 2px solid var(--line); margin: 9px 0 0; padding: 8px 11px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+    .feed .empty { font-family: var(--mono); font-size: 13px; color: var(--soft); padding: 14px 0; }
+    @media (max-width: 760px) { .pipeline { grid-template-columns: 1fr; } .pipeline::before { display: none; } .stage { margin-right: 0; margin-bottom: -1.5px; } .brand h1 { font-size: 32px; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <p class="eyebrow">Order pipeline console</p>
+          <h1>Acme Shop</h1>
+        </div>
+      </div>
+      <a class="dash-link" href="/acta/jobs" target="_blank" rel="noopener">Open dashboard &#8599;</a>
+    </header>
+
+    <section class="ticket" aria-live="polite">
+      <div id="ticket-empty" class="empty">No active order &mdash; place one to begin.</div>
+      <div id="ticket-order" hidden><span class="label">Order</span><span class="value" id="t-order"></span></div>
+      <div id="ticket-job" hidden><span class="label">Payment job</span><span class="value" id="t-job"></span></div>
+      <span class="tag" id="ticket-customer" hidden></span>
+    </section>
+
+    <div class="pipeline">
+      <section class="stage">
+        <div class="stage-head"><span class="stage-no">01</span><span class="stage-title">Intake</span></div>
+        <p class="stage-note">Record the order, then enqueue payment work.</p>
+        <div class="field"><label for="userId">Customer</label><input id="userId" value="user-123" autocomplete="off" /></div>
+        <div class="field"><label for="orderId">Order id</label><input id="orderId" value="order-1001" autocomplete="off" /></div>
+        <div class="row2">
+          <div class="field"><label for="amount">Amount</label><input id="amount" value="49.90" inputmode="decimal" autocomplete="off" /></div>
+          <div class="field"><label for="qty">Qty</label><input id="qty" value="2" inputmode="numeric" autocomplete="off" /></div>
+        </div>
+        <div class="field"><label for="sku">SKU</label><input id="sku" value="coffee" autocomplete="off" /></div>
+        <button class="btn" id="btn-place">Place order</button>
+        <p class="hint">Amount &#8805; 500 holds for fraud review. Re-placing the same order id deduplicates.</p>
+      </section>
+
+      <section class="stage">
+        <div class="stage-head"><span class="stage-no">02</span><span class="stage-title">Payments</span></div>
+        <p class="stage-note">Acts on the active payment job.</p>
+        <button class="btn" id="btn-payment" data-needs="job" disabled>Check payment status</button>
+        <p class="op-label">Operator &mdash; fraud review</p>
+        <div class="field"><label for="reviewer">Reviewer</label><input id="reviewer" value="operator-1" autocomplete="off" /></div>
+        <button class="btn btn-amber" id="btn-approve" data-needs="job" disabled>Approve review</button>
+        <button class="btn btn-ghost-danger" id="btn-reject" data-needs="job" disabled>Reject review</button>
+      </section>
+
+      <section class="stage">
+        <div class="stage-head"><span class="stage-no">03</span><span class="stage-title">Shipping</span></div>
+        <p class="stage-note">Acts on the active order, scoped to its customer.</p>
+        <button class="btn" id="btn-shipping" data-needs="order" disabled>Track shipping</button>
+        <p class="hint">Shipping is enqueued by the payments worker after a successful charge, so it may report not found until payment completes.</p>
+      </section>
+    </div>
+
+    <div class="feed-head"><h2>Feed</h2><span class="count" id="feed-count">0 calls</span></div>
+    <ul class="feed" id="feed"><li class="empty">Responses appear here, newest first.</li></ul>
+  </div>
+
+  <script>
+    const state = { userId: null, jobRef: null, orderId: null };
+    let calls = 0;
+    const $ = (id) => document.getElementById(id);
+    const val = (id) => $(id).value.trim();
+
+    function codeClass(status) {
+      if (status === 0) return "s-bad";
+      if (status >= 200 && status < 300) return "s-ok";
+      if (status === 401 || status === 403 || status === 404) return "s-warn";
+      if (status >= 400) return "s-bad";
+      return "s-idle";
+    }
+    function pretty(text) {
+      if (!text) return "(no body)";
+      try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+    }
+    function log(verb, path, status, body) {
+      const feed = $("feed");
+      const placeholder = feed.querySelector(".empty");
+      if (placeholder) placeholder.remove();
+      const li = document.createElement("li");
+      const meta = document.createElement("div"); meta.className = "meta";
+      const v = document.createElement("span"); v.className = "verb"; v.textContent = verb;
+      const p = document.createElement("span"); p.className = "path"; p.textContent = path;
+      const c = document.createElement("span"); c.className = "code " + codeClass(status);
+      c.textContent = status === 0 ? "ERR" : status;
+      meta.append(v, p, c);
+      const pre = document.createElement("pre"); pre.textContent = pretty(body);
+      li.append(meta, pre);
+      feed.prepend(li);
+      calls += 1;
+      $("feed-count").textContent = calls + (calls === 1 ? " call" : " calls");
+    }
+    async function call(method, path, opts = {}) {
+      const headers = {};
+      if (opts.json !== undefined) headers["Content-Type"] = "application/json";
+      if (opts.userId) headers["X-User-Id"] = opts.userId;
+      try {
+        const res = await fetch(path, { method, headers, body: opts.json !== undefined ? JSON.stringify(opts.json) : undefined });
+        const text = await res.text();
+        log(method, path, res.status, text);
+        return { status: res.status, text };
+      } catch (e) {
+        log(method, path, 0, "network error: " + e.message);
+        return null;
+      }
+    }
+    function refreshButtons() {
+      document.querySelectorAll('[data-needs="job"]').forEach((b) => (b.disabled = !state.jobRef));
+      document.querySelectorAll('[data-needs="order"]').forEach((b) => (b.disabled = !(state.orderId && state.userId)));
+    }
+    function setTicket() {
+      const has = Boolean(state.orderId);
+      $("ticket-empty").hidden = has;
+      $("ticket-order").hidden = !has;
+      $("ticket-job").hidden = !state.jobRef;
+      $("ticket-customer").hidden = !has;
+      if (has) { $("t-order").textContent = state.orderId; $("ticket-customer").textContent = state.userId; }
+      if (state.jobRef) $("t-job").textContent = state.jobRef;
+      refreshButtons();
+    }
+    $("btn-place").addEventListener("click", async () => {
+      const userId = val("userId") || "user-123";
+      const orderId = val("orderId") || "order-1001";
+      const amount = Number(val("amount")) || 0;
+      const qty = parseInt(val("qty"), 10) || 1;
+      const sku = val("sku") || "item";
+      const r = await call("POST", "/orders", { userId, json: { orderId, amount, lines: [{ sku, quantity: qty }] } });
+      if (r && r.status === 202) {
+        try { const data = JSON.parse(r.text); state.userId = userId; state.orderId = orderId; state.jobRef = data.jobRef; setTicket(); } catch { /* keep state */ }
+      }
+    });
+    $("btn-payment").addEventListener("click", () => { if (state.jobRef) call("GET", "/orders/" + encodeURIComponent(state.jobRef)); });
+    function decide(approved) {
+      if (!state.jobRef) return;
+      const reviewer = val("reviewer") || "operator-1";
+      call("POST", "/admin/orders/" + encodeURIComponent(state.jobRef) + "/fraud-decision", { json: { approved, reviewer } });
+    }
+    $("btn-approve").addEventListener("click", () => decide(true));
+    $("btn-reject").addEventListener("click", () => decide(false));
+    $("btn-shipping").addEventListener("click", () => { if (state.orderId && state.userId) call("GET", "/orders/" + encodeURIComponent(state.orderId) + "/shipping", { userId: state.userId }); });
+    refreshButtons();
+  </script>
+</body>
+</html>

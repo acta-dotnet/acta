@@ -1,0 +1,56 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+    <PackageVersion Include="MessagePack" Version="3.1.7" />
+    <PackageVersion Include="Cronos" Version="0.13.0" />
+  </ItemGroup>
+  <!-- Build-time only: derives the package version from git tags (see Directory.Build.props). -->
+  <ItemGroup>
+    <PackageVersion Include="MinVer" Version="7.0.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
+  </ItemGroup>
+  <!-- Hosting + DI/Options surface. Acta depends on DI/Options abstractions to define
+       UseActa(IServiceCollection); consumers bring the full Hosting. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
+  </ItemGroup>
+  <!-- DB clients used by the provider migration runners + parameter binders. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <!-- 11.x references the patched SQLitePCLRaw 3.x; 10.0.9 pulled 2.1.11 with high-severity advisory
+         GHSA-2m69-gcr7-jv3q. -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0-preview.6.26359.118" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+  <!-- Redis client for the Acta.Redis wake transport. -->
+  <ItemGroup>
+    <PackageVersion Include="StackExchange.Redis" Version="3.0.11" />
+  </ItemGroup>
+  <!-- In-process host for Acta.AspNetCore endpoint tests. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+  </ItemGroup>
+  <!-- Testing: xunit v3 -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <!-- Attributes-only facade for shared spec libraries that aren't themselves test runners.
+         Avoids the Microsoft.Testing.Platform.MSBuild transitive that emits
+         AutoRegisteredExtensions.cs (the source of CS0436 duplicates on cross-project import). -->
+    <PackageVersion Include="xunit.v3.core" Version="3.2.2" />
+    <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>

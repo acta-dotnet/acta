@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Acta">
+  <rect width="64" height="64" rx="10" fill="#0B0E15"/>
+  <path fill="#E8EDF5" d="M10 50h8.4l3.7-9.4h20L45.8 50h8.7L35.9 14h-7.4L10 50Zm14.9-16.5 7.2-18.1 7.1 18.1H24.9Z"/>
+  <circle cx="51.5" cy="50" r="4.5" fill="#2FD6A8"/>
+</svg>

@@ -1,0 +1,22 @@
+<Project>
+  <!-- Self-contained for this demo: applies to every project subfolder under it (Api, Worker,
+       Contracts). The [Job] generator must be referenced per-project (analyzers do not flow
+       transitively through a ProjectReference), so it lives here once for the whole demo. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference
+      Include="$(MSBuildThisFileDirectory)..\..\src\Acta.Generators\Acta.Generators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Api' Or '$(MSBuildProjectName)' == 'Worker'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\support\Acta.LocalHost\Acta.LocalHost.csproj" />
+  </ItemGroup>
+</Project>

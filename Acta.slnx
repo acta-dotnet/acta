@@ -1,0 +1,190 @@
+<Solution>
+  <Folder Name="/concepts/" />
+  <Folder Name="/concepts/000-fundamentals/">
+    <Project Path="concepts/000-fundamentals/001-hello-acta/001-hello-acta.csproj" />
+    <Project Path="concepts/000-fundamentals/002-job-input/002-job-input.csproj" />
+    <Project Path="concepts/000-fundamentals/003-job-result/003-job-result.csproj" />
+    <Project Path="concepts/000-fundamentals/004-no-input-job/004-no-input-job.csproj" />
+    <Project Path="concepts/000-fundamentals/005-scalar-input/005-scalar-input.csproj" />
+    <Project Path="concepts/000-fundamentals/006-many-jobs-one-class/006-many-jobs-one-class.csproj" />
+    <Project Path="concepts/000-fundamentals/007-dependency-injection/007-dependency-injection.csproj" />
+    <Project Path="concepts/000-fundamentals/008-cancellation-token/008-cancellation-token.csproj" />
+    <Project Path="concepts/000-fundamentals/009-typed-enqueue/009-typed-enqueue.csproj" />
+    <Project Path="concepts/000-fundamentals/010-deduplication-key/010-deduplication-key.csproj" />
+    <Project Path="concepts/000-fundamentals/011-delayed-job/011-delayed-job.csproj" />
+    <Project Path="concepts/000-fundamentals/012-read-status/012-read-status.csproj" />
+    <Project Path="concepts/000-fundamentals/013-read-result/013-read-result.csproj" />
+    <Project Path="concepts/000-fundamentals/014-read-by-deduplication-key/014-read-by-deduplication-key.csproj" />
+    <Project Path="concepts/000-fundamentals/015-execute-vs-enqueue/015-execute-vs-enqueue.csproj" />
+    <Project Path="concepts/000-fundamentals/016-max-attempts/016-max-attempts.csproj" />
+    <Project Path="concepts/000-fundamentals/017-priority/017-priority.csproj" />
+    <Project Path="concepts/000-fundamentals/018-tags/018-tags.csproj" />
+    <Project Path="concepts/000-fundamentals/019-batch-enqueue/019-batch-enqueue.csproj" />
+    <Project Path="concepts/000-fundamentals/020-raw-enqueue/020-raw-enqueue.csproj" />
+    <Project Path="concepts/000-fundamentals/021-jobs-cli/021-jobs-cli.csproj" />
+    <Project Path="concepts/000-fundamentals/022-dashboard/022-dashboard.csproj" />
+    <Project Path="concepts/000-fundamentals/023-job-contract/023-job-contract.csproj" />
+    <Project Path="concepts/000-fundamentals/024-aspnet-enqueue-api/024-aspnet-enqueue-api.csproj" />
+    <Project Path="concepts/000-fundamentals/025-large-payload-reference/025-large-payload-reference.csproj" />
+    <Project Path="concepts/000-fundamentals/028-deduplication-time-buckets/028-deduplication-time-buckets.csproj" />
+  </Folder>
+  <Folder Name="/concepts/100-scheduling/">
+    <Project Path="concepts/100-scheduling/101-recurring-job/101-recurring-job.csproj" />
+    <Project Path="concepts/100-scheduling/102-interval-schedule/102-interval-schedule.csproj" />
+    <Project Path="concepts/100-scheduling/103-multiple-schedules/103-multiple-schedules.csproj" />
+    <Project Path="concepts/100-scheduling/104-timezone-schedule/104-timezone-schedule.csproj" />
+    <Project Path="concepts/100-scheduling/105-schedule-control/105-schedule-control.csproj" />
+    <Project Path="concepts/100-scheduling/106-schedule-misfire/106-schedule-misfire.csproj" />
+  </Folder>
+  <Folder Name="/concepts/200-durable-execution/">
+    <Project Path="concepts/200-durable-execution/201-durable-checkout/201-durable-checkout.csproj" />
+    <Project Path="concepts/200-durable-execution/202-durable-step/202-durable-step.csproj" />
+    <Project Path="concepts/200-durable-execution/203-durable-variable/203-durable-variable.csproj" />
+    <Project Path="concepts/200-durable-execution/204-wait-signal/204-wait-signal.csproj" />
+    <Project Path="concepts/200-durable-execution/205-durable-sleep/205-durable-sleep.csproj" />
+    <Project Path="concepts/200-durable-execution/206-step-chain/206-step-chain.csproj" />
+    <Project Path="concepts/200-durable-execution/207-run-with-lock/207-run-with-lock.csproj" />
+    <Project Path="concepts/200-durable-execution/208-progress/208-progress.csproj" />
+    <Project Path="concepts/200-durable-execution/209-exclusive-key/209-exclusive-key.csproj" />
+    <Project Path="concepts/200-durable-execution/210-step-retry/210-step-retry.csproj" />
+    <Project Path="concepts/200-durable-execution/211-child-jobs/211-child-jobs.csproj" />
+    <Project Path="concepts/200-durable-execution/212-fan-out-join/212-fan-out-join.csproj" />
+    <Project Path="concepts/200-durable-execution/213-execute-child/213-execute-child.csproj" />
+    <Project Path="concepts/200-durable-execution/214-reset-state/214-reset-state.csproj" />
+    <Project Path="concepts/200-durable-execution/215-map-parallel-join/215-map-parallel-join.csproj" />
+    <Project Path="concepts/200-durable-execution/216-variable-lifecycle/216-variable-lifecycle.csproj" />
+    <Project Path="concepts/200-durable-execution/217-absolute-time-controls/217-absolute-time-controls.csproj" />
+    <Project Path="concepts/200-durable-execution/218-global-lock/218-global-lock.csproj" />
+    <Project Path="concepts/200-durable-execution/219-child-failure-outcomes/219-child-failure-outcomes.csproj" />
+    <Project Path="concepts/200-durable-execution/220-at-most-once-step/220-at-most-once-step.csproj" />
+  </Folder>
+  <Folder Name="/concepts/300-failure-and-recovery/">
+    <Project Path="concepts/300-failure-and-recovery/301-fail-job/301-fail-job.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/302-cancel-job/302-cancel-job.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/303-pause-job/303-pause-job.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/304-execution-timeout/304-execution-timeout.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/305-operator-cancel/305-operator-cancel.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/306-reschedule/306-reschedule.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/307-deadline-strict/307-deadline-strict.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/308-deadline-advisory/308-deadline-advisory.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/309-operator-resume/309-operator-resume.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/310-operator-restart/310-operator-restart.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/311-execute-outcome-timeout/311-execute-outcome-timeout.csproj" />
+    <Project Path="concepts/300-failure-and-recovery/312-backoff-curve/312-backoff-curve.csproj" />
+  </Folder>
+  <Folder Name="/concepts/400-observability-and-alerts/">
+    <Project Path="concepts/400-observability-and-alerts/401-pipeline-behavior/401-pipeline-behavior.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/402-alerts/402-alerts.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/403-alert-channel/403-alert-channel.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/404-read-event-timeline/404-read-event-timeline.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/405-real-alert-routing/405-real-alert-routing.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/406-automatic-failure-alerts/406-automatic-failure-alerts.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/407-audit-level/407-audit-level.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/408-correlation-id/408-correlation-id.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/409-operator-queries/409-operator-queries.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/410-http-api-controls/410-http-api-controls.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/411-alert-escalation/411-alert-escalation.csproj" />
+    <Project Path="concepts/400-observability-and-alerts/412-tenant-scope/412-tenant-scope.csproj" />
+  </Folder>
+  <Folder Name="/concepts/500-payloads/">
+    <Project Path="concepts/500-payloads/501-payload-formats/501-payload-formats.csproj" />
+  </Folder>
+  <Folder Name="/concepts/600-job-composition/">
+    <Project Path="concepts/600-job-composition/601-fan-out/601-fan-out.csproj" />
+    <Project Path="concepts/600-job-composition/602-chained-jobs/602-chained-jobs.csproj" />
+  </Folder>
+  <Folder Name="/concepts/700-topology-and-deployment/">
+    <Project Path="concepts/700-topology-and-deployment/701-enqueue-only-reference/701-enqueue-only-reference.csproj" />
+    <Project Path="concepts/700-topology-and-deployment/703-multi-worker-process/703-multi-worker-process.csproj" />
+    <Project Path="concepts/700-topology-and-deployment/704-cross-namespace-child/704-cross-namespace-child.csproj" />
+    <Project Path="concepts/700-topology-and-deployment/705-worker-crash-recovery/705-worker-crash-recovery.csproj" />
+  </Folder>
+  <Folder Name="/concepts/800-testing/">
+    <Project Path="concepts/800-testing/801-testing-jobs/801-testing-jobs.csproj" />
+    <Project Path="concepts/800-testing/802-testing-durable-jobs/802-testing-durable-jobs.csproj" />
+  </Folder>
+  <Folder Name="/concepts/900-runtime-and-tuning/">
+    <Project Path="concepts/900-runtime-and-tuning/901-native-aot-json/901-native-aot-json.csproj" />
+    <Project Path="concepts/900-runtime-and-tuning/903-redis-wakeup/903-redis-wakeup.csproj" />
+    <Project Path="concepts/900-runtime-and-tuning/904-worker-tuning/904-worker-tuning.csproj" />
+  </Folder>
+  <Folder Name="/demos/" />
+  <Folder Name="/demos/ApiWorkerSplit/">
+    <Project Path="demos/ApiWorkerSplit/Contracts/Contracts.csproj" />
+    <Project Path="demos/ApiWorkerSplit/Api/Api.csproj" />
+    <Project Path="demos/ApiWorkerSplit/Worker/Worker.csproj" />
+  </Folder>
+  <Folder Name="/demos/AcmeShop/">
+    <Project Path="demos/AcmeShop/Acme.Shop.Payments.Contracts/Acme.Shop.Payments.Contracts.csproj" />
+    <Project Path="demos/AcmeShop/Acme.Shop.Shipping.Contracts/Acme.Shop.Shipping.Contracts.csproj" />
+    <Project Path="demos/AcmeShop/Acme.Shop.Api/Acme.Shop.Api.csproj" />
+    <Project Path="demos/AcmeShop/Acme.Shop.Payments/Acme.Shop.Payments.Worker.csproj" />
+    <Project Path="demos/AcmeShop/Acme.Shop.Shipping/Acme.Shop.Shipping.Worker.csproj" />
+  </Folder>
+  <Folder Name="/anvil/">
+    <Project Path="anvil/Anvil/Anvil.csproj" />
+    <Project Path="anvil/Anvil.Bench/Anvil.Bench.csproj" />
+  </Folder>
+  <Folder Name="/support/">
+    <Project Path="support/Acta.LocalHost/Acta.LocalHost.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Acta.Doctor/Acta.Doctor.csproj" />
+    <Project Path="tools/Acta.Emit/Acta.Emit.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Acta.Contracts/Acta.Contracts.csproj" />
+    <Project Path="src/Acta.Relational/Acta.Relational.csproj" />
+    <Project Path="src/Acta.AspNetCore/Acta.AspNetCore.csproj" />
+    <Project Path="src/Acta.Generators/Acta.Generators.csproj" />
+    <Project Path="src/Acta.Postgres/Acta.Postgres.csproj" />
+    <Project Path="src/Acta.Redis/Acta.Redis.csproj" />
+    <Project Path="src/Acta.Sqlite/Acta.Sqlite.csproj" />
+    <Project Path="src/Acta.SqlServer/Acta.SqlServer.csproj" />
+    <Project Path="src/Acta.Testing/Acta.Testing.csproj" />
+    <Project Path="src/Acta/Acta.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Acta.Tests/Acta.Tests.csproj" />
+    <Project Path="tests/Acta.Tests.Conformance/Acta.Tests.Conformance.csproj" />
+    <Project Path="tests/Acta.Tests.Conformance.Postgres/Acta.Tests.Conformance.Postgres.csproj" />
+    <Project Path="tests/Acta.Tests.Conformance.SqlServer/Acta.Tests.Conformance.SqlServer.csproj" />
+    <Project Path="tests/Acta.Tests.Conformance.Sqlite/Acta.Tests.Conformance.Sqlite.csproj" />
+    <Project Path="tests/Acta.Tests.TestJobs/Acta.Tests.TestJobs.csproj" />
+  </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/README.md" />
+    <File Path="docs/choosing-acta.md" />
+    <File Path="docs/engineering-labs.md" />
+    <File Path="docs/quickstart.md" />
+    <File Path="docs/release-notes.md" />
+  </Folder>
+  <Folder Name="/docs/benchmarks/">
+    <File Path="docs/benchmarks/baseline-20260714T182846Z.md" />
+    <File Path="docs/benchmarks/stress-tests.md" />
+  </Folder>
+  <Folder Name="/docs/guide/">
+    <File Path="docs/guide/concepts.md" />
+    <File Path="docs/guide/configuration.md" />
+    <File Path="docs/guide/contract-evolution.md" />
+    <File Path="docs/guide/failure-modes.md" />
+    <File Path="docs/guide/handler-contract.md" />
+    <File Path="docs/guide/operator-guide.md" />
+    <File Path="docs/guide/production.md" />
+    <File Path="docs/guide/schedule-operations.md" />
+    <File Path="docs/guide/scheduler-migration.md" />
+    <File Path="docs/guide/sql-recipes.md" />
+    <File Path="docs/guide/testing.md" />
+    <File Path="docs/guide/troubleshooting.md" />
+    <File Path="docs/guide/tutorials.md" />
+  </Folder>
+  <Folder Name="/docs/reference/">
+    <File Path="docs/reference/code-families.md" />
+    <File Path="docs/reference/conformance-contracts.md" />
+    <File Path="docs/reference/data-model.md" />
+  </Folder>
+  <Folder Name="/docs/technical/">
+    <File Path="docs/technical/architecture-diagrams.md" />
+    <File Path="docs/technical/known-limitations.md" />
+  </Folder>
+</Solution>

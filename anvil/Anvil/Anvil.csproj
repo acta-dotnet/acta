@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Anvil</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <!-- Must stay false: Microsoft.Data.SqlClient throws "Globalization Invariant Mode is not supported"
+         at startup, so the SQL Server provider path needs ICU. Costs a few MB in the AOT binary. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+    <!-- Build-time AOT/trim analysis so reflection is caught without the native linker (CI does the link). -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <!-- Reflection-free JSON: AnvilPayloadJsonContext (wired via j.UseJsonPayloads) supplies source-gen
+         metadata for every payload type, and the lab builds raw payloads through AnvilPayloads (the typed
+         JsonTypeInfo overload). This proves the runtime is AOT-clean under reflection-off. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- Embed wwwroot so the published AOT artifact is a single self-contained executable. -->
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+    <NoWarn>$(NoWarn);IDE0011</NoWarn>
+    <!-- Microsoft.Data.SqlClient (SQL Server provider) is not AOT/trim-clean, and SQL Server is not an
+         AOT target - Postgres and SQLite are. Keep its per-assembly trim (IL2104) and AOT (IL3053)
+         rollup warnings visible but non-fatal so the guardrail still proves our code plus the PG/SQLite
+         paths compile natively. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2104;IL3053</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference
+      Include="..\..\src\Acta.Generators\Acta.Generators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+    <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\support\Acta.LocalHost\Acta.LocalHost.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\**" />
+  </ItemGroup>
+</Project>

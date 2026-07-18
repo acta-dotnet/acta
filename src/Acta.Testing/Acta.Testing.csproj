@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Acta.Testing</RootNamespace>
+    <!-- Test host, diagnostics, and relational assertion/query helpers. -->
+    <Description>Acta.Testing provides ActaTestHost, a test-framework-agnostic harness (xUnit, NUnit, MSTest, TUnit) that stands up the full Acta runtime on a throwaway schema and drives [Job] handlers one tick at a time for deterministic end-to-end tests.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ActaTestHost builds a service provider to stand up a runtime for integrator tests. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Acta.Contracts\Acta.Contracts.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Acta.Relational\Acta.Relational.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Acta\Acta.csproj" PrivateAssets="none" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Acta.Tests" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance" />
+  </ItemGroup>
+</Project>

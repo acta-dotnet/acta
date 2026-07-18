@@ -1,0 +1,206 @@
+using System.Data.Common;
+using System.Globalization;
+using Acta.Features.Alerts;
+using Acta.Relational.Commands;
+using Acta.Relational.Connections;
+using Acta.Relational.Schema;
+
+namespace Acta.Relational.Stores;
+
+/// <summary>
+/// Shared relational <see cref="IAlertStore"/> over <see cref="IDbSession"/>. One implementation for
+/// every SQL provider: the dedupe-window raise, the generate/deliver reads, the delivery-outcome and
+/// auto-resolve writes, the operator acknowledge/resolve verbs, and the paged list are written once.
+/// Provider differences live behind the session (routine vs inline, result-set selection) and the
+/// dialect (parameter creation). The delivery-outcome and auto-resolve writes are inline SQL in every
+/// provider (no routine), so they load by literal path through the session's read seam.
+/// </summary>
+internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect dialect) : IAlertStore
+{
+    public async Task<int> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
+    {
+        try
+        {
+            var rows = await session.ExecuteAsync(
+                new StoreCommand("Alerts", "RaiseJobAlert"),
+                cmd => AddRaiseParameters(cmd, command),
+                reader => reader.IsDBNull(0) ? (int?)null : Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                ct
+            );
+
+            return rows.Count > 0 && rows[^1] is { } count
+                ? count
+                : throw new InvalidOperationException("raise_job_alert returned no occurrence_count.");
+        }
+        catch (DbException ex) when (ex.Message.Contains("ACTA:ALERT_UNKNOWN_JOB:", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("The referenced job id does not exist.", "jobId", ex);
+        }
+    }
+
+    public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
+        short namespaceId,
+        long cursorEventId,
+        int batchSize,
+        CancellationToken ct
+    ) =>
+        session.QueryAsync<IReadOnlyList<AlertableEvent>>(
+            "Features/Alerts/Sql/GetAlertableEvents.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.NamespaceId, namespaceId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorEventId, cursorEventId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AlertBatchSize, batchSize)));
+            },
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<AlertableEvent>();
+                var rows = new List<AlertableEvent>();
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(read(reader));
+                }
+
+                return rows;
+            },
+            ct
+        );
+
+    public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
+        session.QueryAsync<IReadOnlyList<DeliverableAlert>>(
+            "Features/Alerts/Sql/GetDeliverableAlerts.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.NamespaceId, namespaceId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AlertBatchSize, batchSize)));
+            },
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<DeliverableAlert>();
+                var rows = new List<DeliverableAlert>();
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(read(reader));
+                }
+
+                return rows;
+            },
+            ct
+        );
+
+    // Inline UPDATE in every provider (no routine), so it loads by literal path with no write
+    // transaction, matching the provider stores' ExecuteNonQuery-without-transaction shape.
+    public Task UpdateAlertDeliveryAsync(
+        long alertId,
+        AlertDeliveryStatusCode status,
+        byte retryCount,
+        DateTime? retryAfterUtc,
+        CancellationToken ct
+    ) =>
+        session.QueryAsync<object?>(
+            "Features/Alerts/Sql/UpdateAlertDelivery.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Id, alertId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeliveryStatusCode, (short)status)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.RetryCount, retryCount)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.RetryAfterUtc, retryAfterUtc)));
+            },
+            (reader, token) => Task.FromResult<object?>(null),
+            ct
+        );
+
+    // Inline UPDATE in every provider (no routine); the number of rows closed is the command's
+    // rows-affected count, read after draining the reader.
+    public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, CancellationToken ct) =>
+        session.QueryAsync(
+            "Features/Alerts/Sql/ResolveJobAlerts.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.NamespaceId, namespaceId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.JobId, jobId)));
+            },
+            async (reader, token) =>
+            {
+                while (await reader.NextResultAsync(token)) { }
+
+                return reader.RecordsAffected;
+            },
+            ct
+        );
+
+    public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
+        ControlAsync("AcknowledgeJobAlert", command, ct);
+
+    public Task<AlertControlOutcome> ResolveJobAlertManualAsync(AlertControlCommand command, CancellationToken ct) =>
+        ControlAsync("ResolveJobAlertManual", command, ct);
+
+    public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) =>
+        session.QueryAsync(
+            "Features/Alerts/Sql/ListJobAlerts.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, request.JobNamespace)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.JobId, request.JobId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.UnresolvedOnlyFlag, request.UnresolvedOnly)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.SeverityCode, request.SeverityAtLeast)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeliveryStatusCode, request.DeliveryStatus)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AcknowledgedFilter, request.Acknowledged)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorId, request.CursorId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
+                );
+            },
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<JobAlertListProjectionRow>();
+                var rows = new List<JobAlertListItem>(request.Take);
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(read(reader).ToItem());
+                }
+
+                long? total = null;
+                if (await reader.NextResultAsync(token) && await reader.ReadAsync(token) && !reader.IsDBNull(0))
+                {
+                    total = Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
+                }
+
+                return new AlertPage(rows, total);
+            },
+            ct
+        );
+
+    private void AddRaiseParameters(DbCommand cmd, RaiseJobAlertCommand command)
+    {
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceName, command.JobNamespace)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.JobId, command.JobId)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.OriginCode, (short)command.Origin)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.SeverityCode, (short)command.Severity)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.KindCode, (short)command.Kind)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Title, command.Title)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Message, command.Message)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.ChannelName, command.ChannelName)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeliveryStatusCode, (short)command.DeliveryStatus)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeduplicationKey, command.DeduplicationKey)));
+        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DedupeWindowStartUtc, command.DedupeWindowStartUtc)));
+    }
+
+    private async Task<AlertControlOutcome> ControlAsync(string operation, AlertControlCommand command, CancellationToken ct) =>
+        await session.ExecuteSingleAsync(
+            new StoreCommand("Alerts", operation),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Id, command.AlertId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+            },
+            DbProjectionResolver.Resolve<AlertControlOutcome>(),
+            ct
+        )
+        ?? throw new InvalidOperationException($"Control command '{operation}' returned no rows; it must return exactly one outcome row.");
+}

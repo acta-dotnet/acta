@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Acta</RootNamespace>
+    <AssemblyName>Acta.LocalHost</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Description>Local hosting and row-inspection helpers for Acta concepts, demos, and Anvil.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Acta.Postgres\Acta.Postgres.csproj" />
+    <ProjectReference Include="..\..\src\Acta.SqlServer\Acta.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
+  </ItemGroup>
+</Project>

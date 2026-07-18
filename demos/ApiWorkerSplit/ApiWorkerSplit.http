@@ -1,0 +1,17 @@
+@host = http://localhost:5000
+@jobRef = replace-with-job-ref-from-the-response
+
+### Enqueue through the API process
+POST {{host}}/welcome-emails
+Content-Type: application/json
+
+{
+  "userId": "learner-001",
+  "email": "learner@example.test",
+  "name": "Acta Learner"
+}
+
+### Read the durable status through the API process
+# Replace @jobRef above with the jobRef returned by the POST request.
+GET {{host}}/welcome-emails/{{jobRef}}
+Accept: application/json

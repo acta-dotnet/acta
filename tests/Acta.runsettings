@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  VS Test Explorer / dotnet test settings configuration.
+  Tells the test runner the connection strings for the integration tests.
+
+  Usage:
+    VS:  Test, Configure Run Settings, Select Solution Wide runsettings File, pick this file.
+    CLI: pass this file to `dotnet test` via the settings switch, pointing at this path.
+
+  Update the values below when the container ports / passwords change (run
+  `docker inspect sqllocal` / `docker inspect postgres` to verify).
+-->
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <ACTA_TEST_MSSQL>Server=127.0.0.1,1433;Initial Catalog=acta-test;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true</ACTA_TEST_MSSQL>
+      <ACTA_TEST_PG>Host=127.0.0.1;Port=5432;Database=acta-test;Username=postgres;Password=AbitMOREsecure_PASSWORD</ACTA_TEST_PG>
+      <ACTA_TEST_REDIS>127.0.0.1:6379</ACTA_TEST_REDIS>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

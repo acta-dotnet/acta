@@ -1,0 +1,55 @@
+<Project>
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Warnings are errors solution-wide so doc-comment cref rot, unused usings, and style drift cannot
+         accumulate. Per-project NoWarn (e.g. Acta.Contracts' 1591) still applies. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerDefaultPreReleaseIdentifiers>preview</MinVerDefaultPreReleaseIdentifiers>
+  </PropertyGroup>
+
+  <!-- SDK-only deep analysis profile. Enable with /p:EnableStrictAnalysis=true when you want
+       the built-in Roslyn/NET analyzers to report their full rule set without adding analyzer packages. -->
+  <PropertyGroup Condition="'$(EnableStrictAnalysis)' == 'true'">
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Acta's canonical identifiers, deduplication keys, slugs, and operator-facing tokens are
+         lowercase ASCII by design; CA1308's uppercase normalization guidance conflicts with that.
+         Code-family and transport enums intentionally use byte/short backing types to match
+         persisted catalog/storage widths; CA1028's int guidance conflicts with that contract. -->
+    <NoWarn>$(NoWarn);CA1308;CA1028</NoWarn>
+  </PropertyGroup>
+
+  <!-- Shared NuGet metadata; only the packable src libraries emit it at pack time. -->
+  <PropertyGroup>
+    <Authors>Marko Voncina</Authors>
+    <Company>useacta</Company>
+    <Product>Acta</Product>
+    <PackageTags>jobs;background-jobs;durable-work-ledger;durable-execution;workflow;sql;postgres;sqlserver;sqlite;dotnet;aot</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/acta-dotnet/acta</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/acta-dotnet/acta</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Reproducible builds + SourceLink so the shipped snupkg resolves original sources. -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' or '$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- Pack the repo README into every library so nuget.org renders a description tab. The metadata
+       and the packed file are gated on the same condition so they cannot drift into an NU5039. -->
+  <PropertyGroup Condition="Exists('$(MSBuildThisFileDirectory)README.md')">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)README.md')">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+</Project>

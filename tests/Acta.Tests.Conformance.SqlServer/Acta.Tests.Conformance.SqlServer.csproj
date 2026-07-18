@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Acta.Tests.Conformance.SqlServer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Acta.Tests.Conformance is a class library (NOT IsTestProject) publishing the
+         provider-neutral abstract spec base classes. Subclasses in this project inherit them and
+         supply a SqlServer-backed host. xUnit auto-discovers tests on the concrete subclasses in
+         this assembly. The shared-library shape avoids the CS0436 SelfRegisteredExtensions
+         duplicate that surfaces when two IsTestProject=true assemblies reference each other. -->
+    <ProjectReference Include="..\Acta.Tests.Conformance\Acta.Tests.Conformance.csproj" />
+    <ProjectReference Include="..\..\src\Acta.SqlServer\Acta.SqlServer.csproj" />
+  </ItemGroup>
+</Project>

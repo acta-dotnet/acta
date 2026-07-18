@@ -1,0 +1,99 @@
+using System.Globalization;
+using Acta.Features.Tags;
+using Acta.Querying;
+
+namespace Acta.Features.Events;
+
+/// <summary>
+/// Events feature behavior: validates the public query, owns keyset-cursor decode/encode and page
+/// math, and delegates the single-round-trip read to the store port. The IncludeTotal guard is the
+/// product rule that a global event count is unbounded work.
+/// </summary>
+internal sealed class EventsService(IEventStore store)
+{
+    private const string OrderCreatedDesc = "created_at_utc desc, id desc";
+    private const string OperationName = "ListJobEvents";
+
+    public async ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
+        query = query with { JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)) };
+        QueryValidation.ValidateEnum(query.EventCode, nameof(query.EventCode));
+        QueryValidation.ValidatePositiveId(query.JobId, nameof(query.JobId));
+        QueryValidation.ValidatePositiveId(query.LineageRootId, nameof(query.LineageRootId));
+        if (query.IncludeTotal && query.JobId is null)
+        {
+            throw new ArgumentException(
+                "IncludeTotal on ListJobEvents requires JobId; a global event count is unbounded work.",
+                nameof(query)
+            );
+        }
+
+        QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
+        QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
+        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListJobEventsQuery));
+
+        var filterHash = QueryFilterHash.Compute([
+            ("job", Num(query.JobId)),
+            ("root", Num(query.LineageRootId)),
+            ("ns", query.JobNamespace),
+            ("event", Num(query.EventCode)),
+            ("def", Num(query.JobDefinitionId)),
+            ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
+            ("worker", query.WorkerId?.ToString(CultureInfo.InvariantCulture)),
+            ("tags", tagFilters),
+        ]);
+
+        DateTime? cursorCreatedAtUtc = null;
+        long? cursorId = null;
+        if (query.Cursor is not null)
+        {
+            var keys = PageCursorCodec.Decode(
+                query.Cursor,
+                OperationName,
+                OrderCreatedDesc,
+                filterHash,
+                [CursorKeyKind.Utc, CursorKeyKind.Long]
+            );
+            cursorCreatedAtUtc = (DateTime)keys[0];
+            cursorId = (long)keys[1];
+        }
+
+        var page = await store.ListEventsAsync(
+            new EventPageRequest(
+                query.JobId,
+                query.LineageRootId,
+                query.JobNamespace,
+                query.EventCode,
+                query.JobDefinitionId,
+                query.TenantId,
+                query.WorkerId,
+                cursorCreatedAtUtc,
+                cursorId,
+                pageSize + 1,
+                query.IncludeTotal,
+                tagFilters
+            ),
+            ct
+        );
+
+        var rows = page.Rows;
+        var hasMore = rows.Count > pageSize;
+        var items = hasMore ? rows.Take(pageSize).ToList() : rows;
+
+        var nextCursor = hasMore
+            ? PageCursorCodec.Encode(OperationName, OrderCreatedDesc, filterHash, [items[^1].CreatedAtUtc, items[^1].JobEventId])
+            : null;
+
+        return new PagedResult<JobEventListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+    }
+
+    private static string? Num<T>(T? value)
+        where T : struct, Enum =>
+        value is null ? null : Convert.ToInt32(value.Value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+
+    private static string? Num(long? value) => value?.ToString(CultureInfo.InvariantCulture);
+
+    private static string? Num(int? value) => value?.ToString(CultureInfo.InvariantCulture);
+}

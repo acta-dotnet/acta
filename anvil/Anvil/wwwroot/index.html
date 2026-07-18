@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acta Anvil: load &amp; failure lab</title>
+    <link rel="icon" href="anvil.svg" />
+    <link rel="stylesheet" href="anvil.css" />
+  </head>
+  <body>
+    <div class="hud">
+      <div id="offline" class="offline" role="status" hidden>
+        ANVIL BACKEND OFFLINE: retaining the last successful view and reconnecting automatically.
+      </div>
+      <div id="dbnotice" class="offline" role="status" hidden></div>
+
+      <header class="appbar">
+        <div class="brand-q">
+          <div class="brand-mark" aria-label="Acta Anvil">
+            <span class="wm-acta">Acta</span> <span class="wm-anvil">Anvil</span><span class="wm-dot">.</span>
+          </div>
+          <div class="brand-sub">load &amp; failure lab</div>
+        </div>
+        <div class="topbar">
+          <div class="runinfo"><span class="ri-k">Scope:</span><code id="namespace-name">·</code></div>
+          <div class="leds">
+            <span class="led" id="led-ready"><i></i><span class="led-k">READY</span></span>
+            <span class="led" id="led-workers"><i></i><span class="led-k">WORKERS</span><span class="led-v" id="led-workers-v">0</span></span>
+          </div>
+          <div class="providerbar"><span class="led-k">DB</span><span class="provider-value" id="provider-current">·</span></div>
+          <a class="acta-link" id="acta-link" href="acta/jobs/#/" target="_blank" rel="noopener">ACTA ↗</a>
+        </div>
+      </header>
+
+      <div class="shell">
+        <aside class="console">
+          <section class="setup">
+            <h2>SETUP</h2>
+            <div class="field">
+              <span>Workload</span>
+              <div class="mode-switch workload-switch" id="workload-seg" role="group" aria-label="Workload">
+                <button class="mode-btn on" data-workload="noOp" aria-pressed="true">no-op</button>
+                <button class="mode-btn" data-workload="steady" aria-pressed="false">steady</button>
+                <button class="mode-btn" data-workload="crashRecovery" aria-pressed="false">crash</button>
+                <button class="mode-btn" data-workload="retryAndFailure" aria-pressed="false">retry</button>
+                <button class="mode-btn" data-workload="fanOut" aria-pressed="false">fan-out</button>
+              </div>
+            </div>
+            <p class="hint workload-hint" id="workload-hint"></p>
+            <label class="field"><span>Load</span><select id="sel-load"></select></label>
+            <label class="field">
+              <span>Workers</span>
+              <select id="sel-workers">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="4">4</option>
+                <option value="8">8</option>
+              </select>
+            </label>
+            <div class="readout" id="run-readout"></div>
+            <div class="setup-actions"><button id="btn-run" class="go">START RUN</button></div>
+            <div class="flashline"><span id="flash"></span></div>
+
+            <section class="seeding" id="seeding" hidden>
+              <div class="seeding-head"><span class="group-k">SEEDING</span><span id="seeding-v">0 / 0</span></div>
+              <div class="seeding-bar"><div class="seeding-fill" id="seeding-fill"></div></div>
+              <div class="seeding-rate" id="seeding-rate">0 jobs/s</div>
+              <div class="seeding-detail" id="seeding-detail"></div>
+            </section>
+          </section>
+
+          <section class="stress">
+            <h2>FAULTS</h2>
+            <div class="fault">
+              <div class="fault-head"><strong>Continuous crashes</strong><span id="fault-crashes-status"></span></div>
+              <p class="hint">Crashes one healthy worker every five seconds and starts a replacement.</p>
+              <button id="btn-fault-crashes">START</button>
+            </div>
+            <div class="fault">
+              <div class="fault-head"><strong>Queue pressure</strong><span id="fault-pressure-status"></span></div>
+              <p class="hint">Continuously adds no-op jobs until stopped.</p>
+              <label class="field"><span>Rate</span>
+                <select id="sel-pressure-rate">
+                  <option value="1000">1k / second</option>
+                  <option value="10000" selected>10k / second</option>
+                </select>
+              </label>
+              <button id="btn-fault-pressure">START</button>
+            </div>
+            <p class="fault-error" id="fault-error" hidden></p>
+          </section>
+        </aside>
+
+        <main>
+          <section class="lab-view big-q panel big">
+            <p class="center-seeding" id="center-seeding" hidden></p>
+            <section class="scopes">
+              <div class="scope">
+                <div class="scope-head"><span class="scope-k">THROUGHPUT</span><span class="scope-v" id="rd-throughput">0</span><span class="scope-u">durable completions / second</span></div>
+                <canvas id="scope-throughput" width="520" height="120" role="img" tabindex="0" aria-label="Throughput history"></canvas>
+              </div>
+              <div class="scope">
+                <div class="scope-head"><span class="scope-k">QUEUE DEPTH</span><span class="scope-v" id="rd-queue">0</span><span class="scope-u">ready</span></div>
+                <canvas id="scope-queue" width="520" height="120" role="img" tabindex="0" aria-label="Queue depth history"></canvas>
+              </div>
+              <div class="scope">
+                <div class="scope-head"><span class="scope-k">EXECUTING</span><span class="scope-v blue" id="rd-exec">0</span><span class="scope-u">in flight</span></div>
+                <canvas id="scope-exec" width="520" height="120" role="img" tabindex="0" aria-label="Executing jobs history"></canvas>
+              </div>
+              <div class="scope p99">
+                <div class="scope-head"><span class="scope-k">EXECUTION LATENCY</span><span class="latency-samples" id="latency-samples">NO SAMPLES</span></div>
+                <div class="latency-primary">
+                  <span class="latency-k">P99</span><span class="scope-v" id="rd-p99">·</span><span class="latency-unit" id="rd-p99-unit">ms</span>
+                </div>
+                <div class="latency-secondary" aria-label="Execution latency percentiles">
+                  <div class="latency-stat"><span class="latency-k">P50</span><strong id="rd-p50">·</strong><span class="latency-unit">ms</span></div>
+                  <div class="latency-stat"><span class="latency-k">P95</span><strong id="rd-p95">·</strong><span class="latency-unit">ms</span></div>
+                </div>
+                <div class="p99-note" id="p99-note">Waiting for completed attempt samples.</div>
+              </div>
+            </section>
+            <section class="counts" id="counts"></section>
+            <section class="subpanel activity-panel">
+              <div class="activity-head">
+                <div><h2>ACTIVITY</h2><p class="hint">Live highlights. Complete raw events remain in the Acta dashboard.</p></div>
+                <div class="activity-filters" id="activity-filters" role="group" aria-label="Activity filter">
+                  <button data-filter="important" aria-pressed="true">Important</button>
+                  <button data-filter="workers" aria-pressed="false">Workers</button>
+                  <button data-filter="failures" aria-pressed="false">Failures</button>
+                  <button data-filter="all" aria-pressed="false">All</button>
+                </div>
+              </div>
+              <ul id="events" class="ticker"></ul>
+            </section>
+          </section>
+        </main>
+
+        <aside class="rack-col">
+          <div class="rack-head"><h2>WORKERS</h2><div class="rack-actions"><button id="btn-spawn">SPAWN</button></div></div>
+          <p class="rack-status" id="rack-status"></p>
+          <p class="beats" id="beats"></p>
+          <div id="workers" class="rack"></div>
+        </aside>
+      </div>
+    </div>
+    <script src="anvil.js"></script>
+  </body>
+</html>

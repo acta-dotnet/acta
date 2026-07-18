@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Acta.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Provider-neutral: contracts, runtime, generators (referenced as a direct project,
+         NOT as an analyzer asset, so tests can drive the generator via Roslyn). -->
+    <ProjectReference Include="..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
+    <ProjectReference Include="..\..\tools\Acta.Emit\Acta.Emit.csproj" />
+    <ProjectReference Include="..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Generators\Acta.Generators.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Redis\Acta.Redis.csproj" />
+    <!-- All three SQL providers: the provider-resource parity gate compares their embedded inventories. -->
+    <ProjectReference Include="..\..\src\Acta.Postgres\Acta.Postgres.csproj" />
+    <ProjectReference Include="..\..\src\Acta.SqlServer\Acta.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
+    <ProjectReference Include="..\..\anvil\Anvil.Bench\Anvil.Bench.csproj" />
+    <!-- Abstract conformance specs + test infrastructure shared with per-provider projects. -->
+    <ProjectReference Include="..\Acta.Tests.Conformance\Acta.Tests.Conformance.csproj" />
+  </ItemGroup>
+</Project>

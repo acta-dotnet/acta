@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Reset acta schema (SQL Server)": {
+      "commandName": "Project",
+      "commandLineArgs": "-explicit only -method \"Acta.Tests.Conformance.SqlServer.DatabaseSetup.ResetActaSchema\"",
+      "environmentVariables": {
+        "ACTA_TEST_MSSQL": "Server=localhost,1433;Initial Catalog=acta-test;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
+      }
+    }
+  }
+}

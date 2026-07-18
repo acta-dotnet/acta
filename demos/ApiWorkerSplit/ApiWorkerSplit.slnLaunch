@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "API + worker",
+    "Projects": [
+      {
+        "Path": "Worker\\Worker.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Api\\Api.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

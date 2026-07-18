@@ -1,0 +1,1 @@
+SELECT (now() AT TIME ZONE 'UTC');

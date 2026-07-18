@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The one intentional assembly/name distinction: public contracts ship as Acta.Contracts but
+         live in the single flat Acta namespace; folders group by capability only. -->
+    <AssemblyName>Acta.Contracts</AssemblyName>
+    <PackageId>Acta.Contracts</PackageId>
+    <RootNamespace>Acta</RootNamespace>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+    <!-- Emit XML doc file so Acta.Emit can read summaries (e.g., JobPayloadFormat fields). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <Description>Acta contracts: [Job]/[JobSchedule] attributes, IJobs, JobContext, and code families. Ships the source generator and ACTA analyzers.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The generator/analyzer assembly rides this package (analyzers/dotnet/cs) so a single
+         provider PackageReference gives consumers [Job] generation and ACTA diagnostics; analyzer
+         assets flow transitively through package references, unlike ProjectReferences. -->
+    <None
+      Include="..\Acta.Generators\bin\$(Configuration)\netstandard2.0\Acta.Generators.dll"
+      Pack="true"
+      PackagePath="analyzers/dotnet/cs"
+      Visible="false"
+    />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- JobsApi (in Acta) builds JobOutcome via its private-ctor internal static factories. -->
+    <InternalsVisibleTo Include="Acta" />
+    <!-- Tests need access to internal validators and canonicalizers. -->
+    <InternalsVisibleTo Include="Acta.Tests" />
+  </ItemGroup>
+
+  <!-- Packing without the generator assembly would ship a package whose [Job] source generation
+       and ACTA analyzers silently never run; a build may proceed, a package must not. -->
+  <Target Name="RequireGeneratorForPack" BeforeTargets="GenerateNuspec;Pack">
+    <Error
+      Condition="!Exists('..\Acta.Generators\bin\$(Configuration)\netstandard2.0\Acta.Generators.dll')"
+      Text="Acta.Generators.dll is missing. Build src/Acta.Generators in $(Configuration) before packing Acta.Contracts."
+    />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!-- Generated per-handler invokers call ActivatorUtilities.CreateInstance<T>(IServiceProvider).
+         Carried transitively so consuming assemblies (concepts / user manifests) compile cleanly
+         without an explicit reference. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+</Project>

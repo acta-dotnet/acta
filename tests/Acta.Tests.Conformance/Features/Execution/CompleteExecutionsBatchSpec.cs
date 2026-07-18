@@ -1,0 +1,274 @@
+using Acta.Configuration;
+using Acta.Features.Execution;
+using Acta.Payloads;
+using Acta.Relational.Entities;
+using Acta.Tests.Conformance.Contracts;
+using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using TestJobs;
+using Xunit;
+
+namespace Acta.Tests.Conformance.Features.Execution;
+
+/// <summary>
+/// Conformance for <c>CompleteExecutionsBatch.Run</c>: the routine self-filters rows with a parent,
+/// declines mismatched-lease rows, and aligns the returned <c>bool[]</c> to the original input
+/// ordinals. Executing rows without a parent and with a matching lease are finalized — exclusive-key
+/// rows included, since the key's lock is released C#-side, independent of the completion write; all
+/// others are declined (caller must retry via the scalar path).
+/// </summary>
+[ConformanceSpec(
+    "complete-executions-batch.self-filter",
+    "CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals",
+    Area = "Execution",
+    Contract = "CompleteExecutionsBatch finalizes plain Executing rows including keyed ones and declines those with a parent or mismatched lease, one bool per ordinal.",
+    Arrange = "Plain, child, exclusive-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.",
+    Act = "CompleteExecutionsBatch runs over the Executing rows batched in interleaved order.",
+    Assert = "The returned bool list aligns to the original ordinals, finalizing eligible rows with true and declining the rest with false."
+)]
+[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionsBatchAsync))]
+public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
+    where TFixture : IConformanceFixture, new()
+{
+    // Large enough to never collide with a real execution_number (which starts at 1 and climbs slowly).
+    private const int StaleOffset = 999;
+
+    [Fact(
+        DisplayName = "Mixed batch [plain,child,excl,plain,stale] returns exact [true,false,true,true,false] aligned to original ordinals"
+    )]
+    public async Task Mixed_batch_plain_child_excl_plain_stale_ordinals_are_exact()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+
+        if (dialect.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompleteExecutionsBatch is not supported on SQLite (Bulk degrades to Direct there).");
+        }
+
+        // Seed: a non-terminal parent so the child enqueue is accepted, then the five probe jobs.
+        var parentEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(0, 0))),
+            ct
+        );
+        var childEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentId: parentEnq.JobId),
+            ct
+        );
+        var exclEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2))) { ExclusiveKey = TestKey("excl-1") },
+            ct
+        );
+        var plainAEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))),
+            ct
+        );
+        var plainBEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 4))),
+            ct
+        );
+        var staleEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(5, 5))),
+            ct
+        );
+
+        // Claim + start each probe into Executing (parentEnq stays Ready).
+        var child = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, childEnq.JobId, ct);
+        var excl = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, exclEnq.JobId, ct);
+        var plainA = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, plainAEnq.JobId, ct);
+        var plainB = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, plainBEnq.JobId, ct);
+        var stale = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, staleEnq.JobId, ct);
+
+        // Build batch: ordinal [0]=plainA, [1]=child, [2]=excl, [3]=plainB, [4]=stale-wrong-exec-num.
+        // Expected:          [true,          false,    true,     true,          false               ]
+        // The keyed row finalizes: its lock is released C#-side, so the batch needs no key handling.
+        var requests = new List<CompleteExecutionRequest>
+        {
+            MakeRequest(plainA, workerId),
+            MakeRequest(child, workerId),
+            MakeRequest(excl, workerId),
+            MakeRequest(plainB, workerId),
+            MakeRequest(stale, workerId, wrongExecutionNumber: true),
+        };
+
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
+
+        // Pin exact per-ordinal bool outcomes.
+        Assert.Equal(new[] { true, false, true, true, false }, results);
+
+        // Pin post-state: true → Done (100); false → still Executing (50).
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(childEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(exclEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainBEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(staleEnq.JobId, ct)).Status);
+    }
+
+    [Fact(
+        DisplayName = "Second permutation [child,plain,stale,plain] returns exact [false,true,false,true] proving alignment is not positional luck"
+    )]
+    public async Task Second_permutation_child_plain_stale_plain_proves_ordinal_alignment()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+
+        if (dialect.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompleteExecutionsBatch is not supported on SQLite (Bulk degrades to Direct there).");
+        }
+
+        var parentEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(0, 0))),
+            ct
+        );
+        var childEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentId: parentEnq.JobId),
+            ct
+        );
+        var plainAEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2))),
+            ct
+        );
+        var staleEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))),
+            ct
+        );
+        var plainBEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 4))),
+            ct
+        );
+
+        var child = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, childEnq.JobId, ct);
+        var plainA = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, plainAEnq.JobId, ct);
+        var stale = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, staleEnq.JobId, ct);
+        var plainB = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, plainBEnq.JobId, ct);
+
+        // Batch: ordinal [0]=child, [1]=plainA, [2]=stale-wrong-exec-num, [3]=plainB.
+        // Expected:          [false,   true,      false,                     true  ]
+        var requests = new List<CompleteExecutionRequest>
+        {
+            MakeRequest(child, workerId),
+            MakeRequest(plainA, workerId),
+            MakeRequest(stale, workerId, wrongExecutionNumber: true),
+            MakeRequest(plainB, workerId),
+        };
+
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
+
+        Assert.Equal(new[] { false, true, false, true }, results);
+
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(childEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(staleEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainBEnq.JobId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "All-plain batch finalizes all rows and returns all-true")]
+    public async Task All_plain_batch_finalizes_all_and_returns_all_true()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+
+        if (dialect.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompleteExecutionsBatch is not supported on SQLite (Bulk degrades to Direct there).");
+        }
+
+        var enqA = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enqB = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2))), ct);
+        var enqC = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))), ct);
+
+        var clA = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, enqA.JobId, ct);
+        var clB = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, enqB.JobId, ct);
+        var clC = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, enqC.JobId, ct);
+
+        var requests = new List<CompleteExecutionRequest>
+        {
+            MakeRequest(clA, workerId),
+            MakeRequest(clB, workerId),
+            MakeRequest(clC, workerId),
+        };
+
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
+
+        Assert.Equal(new[] { true, true, true }, results);
+
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqA.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqB.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqC.JobId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "Wrong-owner batch entry declines with false and scalar CompleteExecution returns NotOwner")]
+    public async Task Wrong_owner_batch_entry_declines_and_scalar_complete_returns_not_owner()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+
+        if (dialect.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompleteExecutionsBatch is not supported on SQLite (Bulk degrades to Direct there).");
+        }
+
+        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(10, 20))), ct);
+        var claimed = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, enq.JobId, ct);
+
+        // A request carrying a different (non-existent) worker id acts as a lease mismatch.
+        var fakeWorkerId = -workerId;
+        var wrongOwnerRequest = MakeRequest(claimed, fakeWorkerId);
+
+        // Batch declines: the runtime row's leased_by_worker_id is workerId but the request says fakeWorkerId.
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(new[] { wrongOwnerRequest }, ct);
+        Assert.Equal(new[] { false }, results);
+
+        // Job must still be Executing — the batch left it untouched.
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enq.JobId, ct)).Status);
+
+        // Scalar path with the same fake worker: the ownership guard sees a different
+        // leased_by_worker_id → NotOwner, proving the batch correctly declined an unowned row.
+        var scalar = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionAsync(wrongOwnerRequest, ct);
+        Assert.Equal(CompleteExecutionAction.NotOwner, scalar.Action);
+    }
+
+    // ---------- helpers ----------
+
+    private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, short Ns, int WorkerId)> DepsAsync(CancellationToken ct)
+    {
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var dialect = Services.GetRequiredService<ISqlDialect>();
+        var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
+        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        Assert.NotNull(worker);
+        return (Db, dialect, leaseTtl, ns, worker!.Id);
+    }
+
+    private async Task<ClaimedJob> ClaimAndStartAsync(
+        IDbSession db,
+        ISqlDialect dialect,
+        short ns,
+        int workerId,
+        int leaseTtl,
+        long jobId,
+        CancellationToken ct
+    )
+    {
+        var claimed = Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, leaseTtl, jobId, ct));
+        Assert.Equal(
+            StartExecutionAction.Started,
+            await Services
+                .GetRequiredService<IExecutionStore>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
+        );
+        return claimed;
+    }
+
+    private static CompleteExecutionRequest MakeRequest(ClaimedJob claimed, int workerId, bool wrongExecutionNumber = false) =>
+        new(
+            JobId: claimed.JobId,
+            WorkerId: workerId,
+            ExpectedExecutionNumber: claimed.ExecutionNumber + (wrongExecutionNumber ? StaleOffset : 0),
+            Outcome: ExecutionOutcome.Succeeded,
+            ResultFormatId: 0,
+            Result: ReadOnlyMemory<byte>.Empty
+        );
+}

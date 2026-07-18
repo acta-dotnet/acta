@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Acta.Concepts.AspNetEnqueueApi</RootNamespace>
+  </PropertyGroup>
+</Project>

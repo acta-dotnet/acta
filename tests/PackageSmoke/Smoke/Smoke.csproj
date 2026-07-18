@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- run.ps1 passes the freshly packed version via -p:ActaPackageVersion. The floating default
+         lets a manual IDE restore still resolve the single package in the local feed. -->
+    <ActaPackageVersion Condition="'$(ActaPackageVersion)' == ''">*-*</ActaPackageVersion>
+    <!-- run.ps1 consumes each provider in turn via -p:ActaProvider. The default keeps a manual IDE
+         restore pointed at the Postgres package. -->
+    <ActaProvider Condition="'$(ActaProvider)' == ''">Acta.Postgres</ActaProvider>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The whole point: ONE provider package, no project references. Compiling proves the
+         [Job] source generator and ACTA analyzers flow from the package's analyzer assets. -->
+    <PackageReference Include="$(ActaProvider)" Version="$(ActaPackageVersion)" />
+  </ItemGroup>
+</Project>

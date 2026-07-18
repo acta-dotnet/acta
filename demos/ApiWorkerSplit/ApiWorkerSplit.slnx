@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Start here/">
+    <File Path="README.md" />
+    <File Path="ApiWorkerSplit.http" />
+  </Folder>
+  <Project Path="Api/Api.csproj" />
+  <Project Path="Contracts/Contracts.csproj" />
+  <Project Path="Worker/Worker.csproj" />
+</Solution>

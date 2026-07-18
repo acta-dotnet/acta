@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Acta for .NET · The durable work ledger</title>
+  <meta name="description" content="Acta is a SQL-native durable background jobs library and work ledger for .NET: retries, schedules, signals, fan-out, recovery, and audit in the database you already run." />
+  <link rel="canonical" href="https://useacta.net/" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="Acta for .NET · The durable work ledger" />
+  <meta property="og:description" content="Durable background jobs for .NET, with SQL as the only durable source of truth." />
+  <meta property="og:url" content="https://useacta.net/" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Acta for .NET · The durable work ledger" />
+  <meta name="twitter:description" content="Durable background jobs for .NET, with SQL as the only durable source of truth." />
+  <meta name="twitter:image" content="https://useacta.net/assets/social-card.png" />
+  <meta name="twitter:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0B0E15;
+      --panel: #10151F;
+      --panel-2: #151B28;
+      --text: #E8EDF5;
+      --muted: #9BA7BA;
+      --faint: #7A899F;
+      --verdi: #2FD6A8;
+      --oxide: #D08A45;
+      --bad: #E8837B;
+      --hair: rgba(232, 237, 245, 0.10);
+      --hair-soft: rgba(232, 237, 245, 0.06);
+      --serif: "Fraunces", Georgia, serif;
+      --sans: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); font-size: 16px; line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: rgba(47, 214, 168, 0.3); color: #fff; }
+    :focus-visible { outline: 2px solid var(--verdi); outline-offset: 3px; border-radius: 2px; }
+    a { color: inherit; }
+    img { max-width: 100%; display: block; }
+    code { font-family: var(--mono); font-size: 0.92em; color: #CBD6E5; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .skip-link {
+      position: fixed; top: 0.7rem; left: 0.7rem; z-index: 100;
+      padding: 0.55rem 0.9rem; border-radius: 6px; background: var(--verdi); color: #06231A;
+      font-family: var(--mono); font-size: 0.78rem; font-weight: 600; text-decoration: none;
+      transform: translateY(-180%); transition: transform 0.15s ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .wrap { max-width: 1560px; margin: 0 auto; padding-inline: clamp(20px, 4vw, 64px); }
+
+    /* ---- chrome ---- */
+    .chrome {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: baseline; gap: 1.4rem;
+      padding: 0.6rem clamp(20px, 2.5vw, 40px);
+      background: rgba(11, 14, 21, 0.9); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+    }
+    .chrome .brand { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; color: var(--text); text-decoration: none; letter-spacing: 0; text-transform: none; }
+    .chrome .brand .dot { color: var(--verdi); }
+    .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
+    .chrome nav a { text-decoration: none; }
+    .chrome nav a:hover { color: var(--verdi); }
+    @media (max-width: 700px) { .chrome .meta { display: none; } }
+
+    /* ---- record line: the section device ---- */
+    .record {
+      display: flex; align-items: center; gap: 1.1rem;
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+      margin: 0 0 1.6rem;
+    }
+    .record::after { content: ""; flex: 1; border-top: 1px solid var(--hair); }
+    .record.centered { justify-content: center; }
+    .record.centered::before { content: ""; flex: 1; border-top: 1px solid var(--hair); }
+    .record.centered::before, .record.centered::after { max-width: 12rem; }
+    .record b { color: var(--verdi); font-weight: 400; }
+
+    /* ---- masthead hero ---- */
+    .hero { padding-top: clamp(1.6rem, 4vh, 3.2rem); }
+    .masthead {
+      font-family: var(--serif); font-weight: 600; font-optical-sizing: auto;
+      font-size: clamp(7rem, 18.5vw, 21rem);
+      line-height: 0.82; letter-spacing: -0.015em;
+      margin: 0 0 0 -0.05em;
+    }
+    .masthead .dot { color: var(--verdi); }
+    .mast-row { display: flex; align-items: flex-end; gap: clamp(2rem, 5vw, 6rem); justify-content: space-between; flex-wrap: wrap; }
+    .dict {
+      font-family: var(--serif); font-style: italic; font-size: clamp(1rem, 1.5vw, 1.3rem);
+      color: var(--muted); margin: 0 0 0.9em; max-width: 36ch; line-height: 1.55;
+    }
+    .dict b { font-style: normal; font-weight: 600; color: var(--text); }
+    @media (max-width: 980px) { .dict { margin-top: 1.1rem; } }
+    .hero-rule { border: 0; border-top: 1px solid var(--hair); margin: clamp(1.4rem, 3vh, 2.2rem) 0 0; }
+
+    .hero-grid {
+      display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(2rem, 5vw, 6rem);
+      padding: clamp(1.6rem, 3.5vh, 2.6rem) 0 clamp(1.4rem, 3vh, 2.4rem);
+      align-items: start;
+    }
+    .tagline {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2rem, 3.4vw, 3.1rem); line-height: 1.08; margin: 0;
+      text-wrap: balance;
+    }
+    .tagline em { font-style: normal; color: var(--verdi); }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.6rem; }
+    .button {
+      display: inline-flex; align-items: center; min-height: 2.7rem; padding: 0.6rem 1.3rem;
+      border: 1px solid var(--hair); border-radius: 999px; background: transparent; color: var(--text);
+      text-decoration: none; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+    .button.primary { background: var(--verdi); border-color: var(--verdi); color: #06231A; font-weight: 500; }
+    .button.primary:hover { background: #43E4BA; }
+    .button:not(.primary):hover { border-color: var(--verdi); color: var(--verdi); }
+    .qa { display: grid; gap: 1rem; margin-top: 1.3rem; }
+    .qa > div { display: grid; grid-template-columns: 3.4rem 1fr; gap: 0.9rem; align-items: baseline; }
+    .qa b {
+      font-family: var(--mono); font-weight: 500; font-size: 0.7rem; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--verdi);
+    }
+    .qa p { margin: 0; color: var(--muted); font-size: 1rem; max-width: 54ch; }
+    .qa p b, .qa p strong { color: var(--text); }
+
+    /* claims: a ruled table of contents, not a card */
+    .toc { border-top: 1px solid var(--hair); }
+    .toc-head {
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+      padding: 0.8rem 0 0.2rem;
+    }
+    .toc a {
+      display: block;
+      padding: 0.85rem 0; border-bottom: 1px solid var(--hair-soft);
+      text-decoration: none;
+    }
+    .toc a:hover .t { color: var(--verdi); }
+    .toc .t { font-family: var(--serif); font-weight: 500; font-size: clamp(1.05rem, 1.35vw, 1.3rem); line-height: 1.25; display: block; transition: color 0.15s ease; }
+    .toc .s { display: block; color: var(--faint); font-size: 0.85rem; margin-top: 0.15rem; }
+
+    /* stat strip closes the fold */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 1.2rem 2.5rem;
+      border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
+      padding: 1.3rem 0 1.4rem;
+    }
+    .stats b { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 2.4vw, 2.4rem); line-height: 1; color: var(--text); }
+    .stats b em { font-style: normal; color: var(--verdi); }
+    .stats span { display: block; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin-top: 0.45rem; }
+    @media (max-width: 1100px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } }
+    @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, auto); justify-content: start; } }
+
+    /* ---- sections ---- */
+    section { padding: clamp(3.4rem, 8vh, 5.6rem) 0; scroll-margin-top: 4rem; }
+    h2 {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2.1rem, 3.6vw, 3.2rem); line-height: 1.06;
+      margin: 0 0 1rem; text-wrap: balance; max-width: 24ch;
+    }
+    .center h2 { margin-inline: auto; }
+    .lede { color: var(--muted); max-width: 66ch; font-size: 1.04rem; margin: 0; }
+    .center { text-align: center; }
+    .center .lede { margin-inline: auto; }
+
+    /* code pair */
+    .pair { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
+    @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
+    .panel-tab {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 1.2rem; border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint);
+    }
+    .panel-tab::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--verdi); opacity: 0.8; }
+    pre { margin: 0; padding: 1.3rem 1.4rem; overflow-x: auto; font-family: var(--mono); font-size: 0.88rem; line-height: 1.7; color: #D3DCEA; }
+    .k { color: #7CB8F2; } .s { color: #93D9AE; } .a { color: var(--verdi); } .c { color: var(--faint); }
+    .pair-note { color: var(--muted); font-size: 0.95rem; margin: 1.1rem 0.2rem 0; }
+
+    /* how it runs: the execution model in one ruled band */
+    .hiw { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.9rem 1.5rem; margin: 0; }
+    .hiw b { font-family: var(--serif); font-weight: 500; font-size: clamp(1.05rem, 1.5vw, 1.3rem); white-space: nowrap; }
+    .hiw i { font-family: var(--mono); font-style: normal; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--verdi); white-space: nowrap; }
+    .hiw i::after { content: " ->"; }
+    .hiw-note { margin: 1.1rem 0 0; font-family: var(--mono); font-size: 0.78rem; color: var(--faint); max-width: 100ch; }
+
+    /* possible reference application */
+    .example-head { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.55fr); gap: clamp(2rem, 6vw, 7rem); align-items: end; }
+    .example-head h2 { max-width: 17ch; }
+    .example-subtitle { margin: 0.8rem 0 1.1rem; color: var(--verdi); font-family: var(--mono); font-size: clamp(0.92rem, 1.4vw, 1.12rem); letter-spacing: 0.025em; }
+    .example-note { padding: 1rem 0 0 1.3rem; border-left: 2px solid var(--verdi); color: var(--muted); }
+    .example-note b { display: block; margin-bottom: 0.35rem; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--verdi); }
+    .example-note p { margin: 0; }
+    .incident-flow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 2.4rem 0 0; border-block: 1px solid var(--hair); }
+    .incident-flow span { position: relative; padding: 0.9rem 0.6rem; text-align: center; font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+    .incident-flow span:not(:last-child)::after { content: "→"; position: absolute; right: -0.35em; color: var(--verdi); }
+    .incident-figure { margin: 1.4rem 0 0; border-bottom: 1px solid var(--hair); }
+    .incident-art { padding: clamp(0.6rem, 2vw, 1.6rem) 0 0; background: radial-gradient(circle at 50% 46%, rgba(47, 214, 168, 0.055), transparent 55%); }
+    .incident-art img { width: 100%; max-width: 1120px; height: auto; margin: 0 auto; }
+    .architecture-source { margin-left: auto; font-family: var(--mono); font-size: 0.7rem; color: var(--verdi); white-space: nowrap; }
+    .example-capabilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem 3rem; margin-top: 2.3rem; }
+    .example-capabilities div { padding-top: 1rem; border-top: 1px solid var(--hair); color: var(--muted); }
+    .example-capabilities b { display: block; margin-bottom: 0.3rem; color: var(--text); font-weight: 600; }
+    .possible-stamp { color: var(--verdi); border-color: rgba(47, 214, 168, 0.45); }
+    @media (max-width: 980px) {
+      .example-head { grid-template-columns: 1fr; }
+      .example-head h2 { max-width: 22ch; }
+      .incident-flow { grid-template-columns: repeat(4, 1fr); }
+      .incident-flow span:nth-child(4)::after { content: none; }
+      .example-capabilities { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 620px) {
+      .incident-flow { grid-template-columns: 1fr; }
+      .incident-flow span { text-align: left; padding-inline: 0; }
+      .incident-flow span::after { content: none !important; }
+      .example-capabilities { grid-template-columns: 1fr; }
+    }
+
+    /* dashboard figure with field-record stamp */
+    .shot { margin: 2.6rem auto 0; border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; box-shadow: 0 48px 120px rgba(0, 0, 0, 0.55); max-width: 1460px; }
+    .shot-media { overflow-x: hidden; background: #0e131c; scrollbar-color: var(--faint) var(--panel); }
+    .shot-media img { display: block; width: 100%; max-width: 100%; height: auto; }
+    figure { margin: 0; }
+    figcaption {
+      display: flex; gap: 1.2rem; align-items: baseline; text-align: left;
+      padding: 0.85rem 1.2rem; border-top: 1px solid var(--hair); background: var(--panel);
+      font-size: 0.92rem; color: var(--muted);
+    }
+    .stamp {
+      flex: none; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--oxide); border: 1px solid rgba(208, 138, 69, 0.45); border-radius: 4px; padding: 0.25em 0.6em;
+    }
+    @media (max-width: 700px) {
+      .shot-media { overflow-x: auto; }
+      .shot-media img { width: 1200px; max-width: none; }
+      figcaption { flex-direction: column; gap: 0.5rem; }
+    }
+
+    /* comparison: ruled rows, serif names */
+    .vs { margin-top: 2.4rem; border-top: 1px solid var(--hair); }
+    .vs-row { display: grid; grid-template-columns: minmax(15rem, 24rem) 1fr; gap: 1rem 3rem; padding: 1.6rem 0; border-bottom: 1px solid var(--hair); }
+    .vs-row .who b { font-family: var(--serif); font-weight: 500; font-size: clamp(1.35rem, 2vw, 1.7rem); display: block; line-height: 1.15; }
+    .vs-row .who span { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+    .vs-row .why { color: var(--muted); font-size: 1.02rem; align-self: center; max-width: 78ch; }
+    .vs-row .why b { color: var(--text); font-weight: 600; }
+    @media (max-width: 860px) { .vs-row { grid-template-columns: 1fr; gap: 0.4rem; } }
+
+    /* inventory */
+    .fgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.2rem 2.4rem; margin-top: 2.4rem; }
+    .fcol h3 { margin: 0 0 1rem; font-family: var(--serif); font-weight: 500; font-size: 1.32rem; }
+    .fcol h3::after { content: ""; display: block; width: 2.4rem; border-top: 2px solid var(--verdi); margin-top: 0.55rem; }
+    .fcol ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7rem; }
+    .fcol li { color: var(--muted); font-size: 0.95rem; line-height: 1.5; padding-left: 1.1em; position: relative; }
+    .fcol li::before { content: "·"; position: absolute; left: 0; color: var(--verdi); }
+    .fcol li b { color: var(--text); font-weight: 600; }
+    @media (max-width: 1250px) { .fgrid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 860px) { .fgrid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 620px) { .fgrid { grid-template-columns: 1fr; } }
+
+    /* numbers & boundaries */
+    .bench-line { display: flex; flex-wrap: wrap; gap: 1.4rem 4rem; margin-top: 2.2rem; }
+    .bench-line b { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(2rem, 3.4vw, 3rem); line-height: 1.05; color: var(--verdi); }
+    .bench-line span { display: block; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin-top: 0.4rem; max-width: 24ch; }
+    .bench-note { margin-top: 1.4rem; color: var(--faint); font-size: 0.86rem; max-width: 80ch; }
+    .nots { margin: 2rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 3.4rem; }
+    .nots li { padding-left: 1.6em; position: relative; color: var(--muted); font-size: 0.98rem; }
+    .nots li::before { content: "\00d7"; position: absolute; left: 0; color: var(--bad); }
+    .nots li b { color: var(--text); font-weight: 600; }
+    @media (max-width: 860px) { .nots { grid-template-columns: 1fr; } }
+
+    /* full reference table */
+    .ref { margin-top: 2.4rem; }
+    .ref-group {
+      display: flex; align-items: center; gap: 1.1rem; margin: 2.6rem 0 0.4rem;
+      font-family: var(--serif); font-weight: 500; font-size: 1.45rem;
+    }
+    .ref-group::after { content: ""; flex: 1; border-top: 1px solid var(--hair); }
+    .ref-row {
+      display: grid; grid-template-columns: minmax(14rem, 20rem) 1fr; gap: 0.6rem 3rem;
+      padding: 1rem 0; border-bottom: 1px solid var(--hair-soft);
+    }
+    .ref-row dt { margin: 0; font-weight: 600; color: var(--text); font-size: 1rem; }
+    .ref-row dt code { color: var(--verdi); font-size: 0.9em; }
+    .ref-row dd { margin: 0; color: var(--muted); font-size: 0.97rem; max-width: 88ch; }
+    .ref-row dd code { color: #CBD6E5; }
+    @media (max-width: 860px) { .ref-row { grid-template-columns: 1fr; gap: 0.25rem; } }
+
+    /* closer */
+    .term { margin: 2.2rem auto 0; border: 1px solid var(--hair); border-radius: 12px; background: var(--panel); overflow: hidden; max-width: 58rem; text-align: left; }
+    .term-bar { display: flex; gap: 0.45rem; align-items: center; padding: 0.55rem 1.1rem; border-bottom: 1px solid var(--hair); font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+    .term-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--hair); }
+    .term pre { font-size: 0.85rem; }
+    .term .p { color: var(--verdi); }
+    .term .out { color: var(--faint); }
+
+    footer {
+      padding: 2.4rem 0 3rem; color: var(--faint); text-align: center;
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--verdi); }
+    footer .sep { margin: 0 0.9em; opacity: 0.5; }
+
+    /* entrance: one orchestrated moment, then quiet */
+    @media (prefers-reduced-motion: no-preference) {
+      .hero > * , .hero-grid > * { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+      .hero > .record { animation-delay: 0.05s; }
+      .hero > .mast-row { animation-delay: 0.1s; }
+      .hero-grid > div { animation-delay: 0.32s; }
+      .hero-grid > nav { animation-delay: 0.42s; }
+      @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skip-link { transition: none; } }
+  </style>
+  <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Acta","description":"SQL-native durable background jobs and work ledger for .NET.","url":"https://useacta.net/","codeRepository":"https://github.com/acta-dotnet/acta","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"C#","runtimePlatform":".NET 10"}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="#">Acta<span class="dot">.</span></a>
+    <span class="meta">research preview · apache-2.0 · .net 10</span>
+    <nav aria-label="Primary links">
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap hero">
+      <p class="record"><b>--</b> anno mmxxvi · open source · postgres · sql server · sqlite</p>
+      <div class="mast-row">
+        <h1 class="masthead">Acta<span class="dot">.</span><span class="sr-only">: the durable work ledger for .NET</span></h1>
+        <p class="dict"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
+      </div>
+      <hr class="hero-rule" />
+      <div class="hero-grid">
+        <div>
+          <p class="tagline">The durable work ledger for <em>.NET</em>.</p>
+          <div class="qa">
+            <div>
+              <b>What</b>
+              <p>A background-jobs library where every job lives in the Postgres, SQL Server, or SQLite you already run: enqueue, schedule, retry, durable waits, fan-out, with recovery, a dashboard, and a CLI built in.</p>
+            </div>
+            <div>
+              <b>Why</b>
+              <p>Because production happens: workers die holding work, retries repeat side effects, jobs get "stuck" and nobody can say why. Acta makes every job, attempt, lease, and retry durable SQL state you can see, query, and act on: no broker, no sidecar, no workflow SaaS.</p>
+            </div>
+          </div>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
+            <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">5-minute quickstart</a>
+            <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering Labs</a>
+          </div>
+        </div>
+        <nav class="toc" aria-label="What you get">
+          <p class="toc-head">What you get</p>
+          <a href="#code"><span><span class="t">Durable jobs</span><span class="s">Fire-and-forget, delayed, recurring: they survive crashes, deploys, and restarts.</span></span></a>
+          <a href="#inventory"><span><span class="t">Retries &amp; recovery, built in</span><span class="s">Typed backoff; a dead worker's lease lapses and its jobs are reclaimed, leaderless.</span></span></a>
+          <a href="#inventory"><span><span class="t">Steps, sleeps &amp; signals</span><span class="s">Recorded step outcomes; wait hours or days without holding a worker thread.</span></span></a>
+          <a href="#inventory"><span><span class="t">Fan-out &amp; lineage</span><span class="s">Child jobs with traceable parents; results you can fetch.</span></span></a>
+          <a href="#dashboard"><span><span class="t">State you can SELECT</span><span class="s">Every job, attempt, and lease is a row, with a dashboard and CLI included.</span></span></a>
+          <a href="#model"><span><span class="t">A data model built to be read</span><span class="s">Hot runtime state split from job identity, an append-only event ledger, every column documented.</span></span></a>
+        </nav>
+      </div>
+      <div class="stats" aria-label="Key numbers">
+        <div><b><em>3</em></b><span>SQL providers: pg · mssql · sqlite</span></div>
+        <div><b><em>1</em></b><span>SQL round-trip per state change</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" style="text-decoration:none">88</a></b><span>runnable concepts &amp; labs</span></div>
+        <div><b>5 min</b><span>fresh clone → dashboard, zero Docker</span></div>
+      </div>
+    </header>
+
+    <section class="wrap" id="code">
+      <p class="record">The code</p>
+      <h2>A durable job in a dozen lines.</h2>
+      <p class="lede">The <code>[Job]</code> name is the durable, operator-facing contract; enqueue is typed, dispatch is source-generated. And the state it creates isn't hidden in a broker or a SaaS console: it's rows you <code>SELECT</code>.</p>
+      <div class="pair">
+        <div class="panel">
+          <div class="panel-tab">C# · the whole contract</div>
+          <pre><code><span class="k">public sealed record</span> DeliverWebhook(Guid DeliveryId, Uri Endpoint, <span class="k">string</span> Payload);
+
+<span class="k">public sealed class</span> WebhookJob(IWebhookSender sender)
+{
+    <span class="a">[Job(<span class="s">"deliver-webhook"</span>)]</span>
+    <span class="k">public</span> Task Handle(DeliverWebhook input, CancellationToken ct) =&gt;
+        sender.SendAsync(input.Endpoint, input.Payload,
+            idempotencyKey: input.DeliveryId.ToString(), ct);
+}
+
+<span class="c">// enqueue from anywhere in the host</span>
+<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> DeliverWebhook(
+    Guid.CreateVersion7(),
+    <span class="k">new</span> Uri(<span class="s">"https://partner.example.com/hooks/orders"</span>),
+    <span class="s">"""{"orderId":"ORD-1042","status":"shipped"}"""</span>), ct: ct);</code></pre>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-tab">SQL · the whole truth</div>
+            <pre><code><span class="c">-- In-flight work and who holds it.</span>
+<span class="k">select</span> job_id, job_name, status,
+       leased_by_worker_host,
+       lease_expires_at_utc
+<span class="k">from</span> acta.jobs_view
+<span class="k">where</span> status <span class="k">in</span> (<span class="s">'dispatched'</span>, <span class="s">'executing'</span>);</code></pre>
+          </div>
+          <p class="pair-note">Jobs, attempts, leases, events, schedules, checkpoints, workers, alerts: all rows, with curated operator views. A job that failed a month ago is still there to inspect, and to restart with its original input.</p>
+        </div>
+      </div>
+
+      <p class="record" style="margin-top: 3.2rem">How it runs</p>
+      <div class="hiw" aria-label="Execution model">
+        <b>your application</b><i>enqueue</i><b>one SQL ledger</b><i>claim + lease</i><b>peer workers</b><i>record &middot; checkpoint &middot; complete</i><b>the same ledger</b>
+      </div>
+      <p class="hiw-note">A dead worker's lease expires; any peer reclaims the job and continues from recorded state. Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
+    </section>
+
+    <section class="wrap" id="inventory">
+      <p class="record">Capabilities · quick reference</p>
+      <h2>The core inventory, in five columns.</h2>
+      <p class="lede">The one-line version of everything Acta does. Each item is expanded, with the API that does it, in <a href="#reference">the full reference</a> below.</p>
+      <div class="fgrid">
+        <div class="fcol">
+          <h3>Jobs &amp; scheduling</h3>
+          <ul>
+            <li><b>Fire-and-forget · delayed · recurring</b> under one model</li>
+            <li><b>Durable retries</b> with typed backoff: policy, not folklore</li>
+            <li><b>Persistent schedule cursors</b>: missed windows explicit; one stable job row</li>
+            <li><b>Deduplication keys</b> stop blind repeats at enqueue</li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3>Execution primitives</h3>
+          <ul>
+            <li><b>Named durable steps</b>: recorded outcomes return on re-entry</li>
+            <li><b><code>AtMostOnce()</code></b>: record intent before invocation; reconcile an interruption</li>
+            <li><b>Durable sleeps &amp; signals</b>: wait days, hold no thread</li>
+            <li><b>Checkpoint slots</b>: resume with intermediate results</li>
+            <li><b>Child jobs</b>: fan-out / fan-in, lineage</li>
+            <li><b>Exclusive keys &amp; locks</b></li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3>Failure &amp; recovery</h3>
+          <ul>
+            <li><b>Leases with automatic lapse</b>: leaderless reclaim &amp; retry</li>
+            <li><b>Survives crashes,</b> deployments, restarts</li>
+            <li><b>Explain</b>: a job tells you why, and what next</li>
+            <li><b>Restart month-old failures</b> with original input</li>
+            <li><b>Failure alerts</b>: queryable rows</li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3>Visibility &amp; ops</h3>
+          <ul>
+            <li><b>Everything SQL-visible</b>: with curated operator views</li>
+            <li><b>Append-only event ledger</b> per job</li>
+            <li><b>Embedded dashboard</b>: an operational tool</li>
+            <li><b>CLI in every host</b>: incl. <code>jobs debug</code> under a breakpoint</li>
+            <li><b>Opt-in controls</b>: pause, cancel, restart, signal</li>
+            <li><b>Tenants &amp; namespaces</b> with ownership metadata</li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3>Engineering quality</h3>
+          <ul>
+            <li><b>pg · mssql · sqlite</b>: one operational model</li>
+            <li><b>Generated dispatch,</b> NativeAOT, no reflection</li>
+            <li><b>1 SQL round-trip</b> per state change</li>
+            <li><b>Deterministic test host</b>: real-DB tests in tens of ms</li>
+            <li><b>Typed contracts</b>: <code>[Job]</code> is the durable name</li>
+            <li><b>Redis as a bell only</b>; JSON / MessagePack / gzip codecs</li>
+            <li><b>Anvil lab</b>: a million jobs, kill workers, watch recovery</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap" id="compare">
+      <p class="record">How it compares</p>
+      <h2>You know these tools. Here is the difference.</h2>
+      <div class="vs">
+        <div class="vs-row">
+          <div class="who"><b>Hangfire</b><span>background jobs</span></div>
+          <div class="why"><b>Keep Hangfire when its familiar persistent job runner is enough.</b> Consider Acta when job state should become first-class application data, with durable steps, signals, lineage, and curated SQL inspection.</div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>TickerQ</b><span>source-generated scheduler</span></div>
+          <div class="why"><b>Keep TickerQ when you want a source-generated scheduler with persistence, dashboard tooling, chaining, priorities, and concurrency controls.</b> Consider Acta when SQL must serve as the durable operational ledger for resumable work: checkpoints, signals, recovery evidence, and operator intervention.</div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>Quartz</b><span>scheduling</span></div>
+          <div class="why"><b>Keep Quartz when calendar sophistication, cron behavior, and misfire handling are the main problem.</b> Consider Acta when the execution lifecycle matters more than the calendar: durable steps, leases, waits, recovery, lineage, and operator controls.</div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>Temporal / Durable Task</b><span>replay engines</span></div>
+          <div class="why"><b>Keep a replay engine when deterministic event-history replay and orchestration semantics are requirements.</b> Consider Acta when you want ordinary re-entrant .NET handlers, checkpoints instead of replay, application-owned SQL state, and no separate orchestration service.</div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>A message bus</b><span>MassTransit, NServiceBus, …</span></div>
+          <div class="why"><b>Keep a message bus when you need distributed messaging, pub/sub, transport abstraction, or endpoint contracts.</b> Consider Acta when the problem is recording and operating the lifecycle of application-owned work rather than moving messages between systems.</div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>DIY queue table</b><span>+ hosted service</span></div>
+          <div class="why"><b>Keep a DIY queue table when enqueue, claim, and complete are genuinely enough, and you are prepared to own its failure modes.</b> Consider Acta before adding leases, retries, schedules, recovery, operator controls, a dashboard, and deterministic testing yourself.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap center" id="dashboard">
+      <p class="record centered">The dashboard</p>
+      <h2>See exactly what your jobs are doing.</h2>
+      <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default, with mutating verbs off until you enable them.</p>
+      <figure class="shot">
+        <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
+          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with action-needed banner, job counts, failed jobs, dead workers, and unresolved alerts" loading="lazy" width="3200" height="2000" />
+        </div>
+        <figcaption>
+          <span class="stamp">Field record · Anvil crash lab</span>
+          <span>Captured mid-experiment: 15 worker processes killed on purpose. The ledger shows what died, what failed, and what remains eligible for recovery. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Operator guide →</a></span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="wrap" id="boundaries">
+      <p class="record">Numbers &amp; boundaries</p>
+      <h2>Measured, not promised.</h2>
+      <div class="bench-line">
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260718T202454Z.md" style="text-decoration:none">38,664</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260718T202454Z.md" style="text-decoration:none">180,657</a></b><span>jobs/s batch enqueue · Postgres</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260718T202454Z.md" style="text-decoration:none">6.8 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
+        <div><b>0 Docker</b><span>fresh clone → running dashboard on embedded SQLite</span></div>
+      </div>
+      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 0.1.1-preview, for regression tracking and rough sizing, not capacity claims.</p>
+      <ul class="nots">
+        <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
+        <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
+        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome.</li>
+        <li><b>Not for every job</b>: disposable local loops belong in <code>BackgroundService</code> or cron.</li>
+      </ul>
+    </section>
+
+    <section class="wrap" id="reference">
+      <p class="record">Capabilities · in full</p>
+      <h2>Every capability, in plain terms.</h2>
+      <p class="lede">The quick reference above, expanded: what each piece does, how it behaves when things fail, and the API that does it.</p>
+
+      <div class="ref">
+        <h3 class="ref-group">Jobs &amp; scheduling</h3>
+        <dl>
+          <div class="ref-row"><dt>Fire-and-forget jobs</dt><dd>Mark a method with <code>[Job("name")]</code> and call <code>EnqueueAsync(input)</code>. Enqueue is typed, dispatch is source-generated from your project manifest, and the job name is the durable, operator-facing contract. The host that enqueues can also execute: no separate worker process to deploy unless you want one.</dd></div>
+          <div class="ref-row"><dt>Delayed jobs</dt><dd>Enqueue with a not-before time. The job is durable, SQL-visible state from the moment of enqueue and is dispatched when due: surviving any restarts in between.</dd></div>
+          <div class="ref-row"><dt>Recurring schedules</dt><dd><code>[JobSchedule]</code> with an interval (<code>5m</code>) or cron expression. One stable slot job carries moving schedule cursors instead of creating a job row per firing. Missed windows are visible and handled by explicit misfire policy, and schedules can be paused and resumed by operators.</dd></div>
+          <div class="ref-row"><dt>Deduplication keys</dt><dd>Enqueue with a caller-supplied key and a duplicate enqueue is refused instead of creating a second job: resubmitting the same form doesn't send the same email twice.</dd></div>
+          <div class="ref-row"><dt>Retries with typed backoff</dt><dd>Retry count and backoff are explicit, typed policy on the job, not folklore in a catch block. Every attempt is recorded, so "how many times did this run and when" is a query.</dd></div>
+        </dl>
+
+        <h3 class="ref-group">Durable execution</h3>
+        <dl>
+          <div class="ref-row"><dt>Durable steps</dt><dd>Wrap work in a named durable step. The outcome is recorded in the database; when the handler re-enters after a crash, retry, or suspend, a completed step returns its stored result. External side effects still need idempotency because a process can die after the effect but before its outcome is recorded. Checkpoints, not replay: no determinism rules on your code.</dd></div>
+          <div class="ref-row"><dt>At-most-once steps · <code>AtMostOnce()</code></dt><dd>For side effects where a duplicate is worse than an ambiguous interruption. If the process dies after Acta records the start, the body is not invoked again; it may have run zero or one times, and the handler must reconcile deliberately.</dd></div>
+          <div class="ref-row"><dt>Checkpoint slots</dt><dd>Save intermediate values mid-handler and read them back after a crash or restart: resume long work where it left off, with the evidence in a row.</dd></div>
+          <div class="ref-row"><dt>Durable sleep</dt><dd>Sleep for minutes or days without occupying a worker thread. The job leaves the worker, the timer is durable state, and the job is re-dispatched when it fires: surviving deploys in between.</dd></div>
+          <div class="ref-row"><dt>Signals</dt><dd>A job can suspend until a named signal arrives: a webhook, an approval, another job finishing. Deliver the signal from anywhere: code, CLI, or dashboard. No worker is held while waiting.</dd></div>
+          <div class="ref-row"><dt>Child jobs, fan-out / fan-in</dt><dd>Spawn jobs from a handler; parent lineage is recorded, so a batch that fans out into a thousand items stays traceable, and the parent can wait on the children's results.</dd></div>
+          <div class="ref-row"><dt>Exclusive keys &amp; locks</dt><dd>Serialize work that shares a key (one settlement run per account at a time) without blocking workers on unrelated jobs.</dd></div>
+          <div class="ref-row"><dt>Job results</dt><dd>Return a value from a handler and fetch it later by job reference: the result is durable state like everything else.</dd></div>
+        </dl>
+
+        <h3 class="ref-group">Failure &amp; recovery</h3>
+        <dl>
+          <div class="ref-row"><dt>Worker leases &amp; heartbeats</dt><dd>A claimed job carries a lease held by a live, heartbeating worker. Kill the process: the lease lapses on its own. You can watch it happen in the workers table.</dd></div>
+          <div class="ref-row"><dt>Leaderless recovery</dt><dd>Any surviving worker reclaims lapsed jobs and retries them. There is no coordinator, no leader election, no recovery service to run: recovery is itself ordinary durable work.</dd></div>
+          <div class="ref-row"><dt>Explain</dt><dd>Ask any job why it is in its current state and what happens next. The answer comes from its recorded rows, not from log archaeology.</dd></div>
+          <div class="ref-row"><dt>Restart with original input</dt><dd>A job that failed a month ago is still a row, with its input. Restart it as-is: no re-constructing the payload from logs.</dd></div>
+          <div class="ref-row"><dt>Failure alerts</dt><dd>Failures raise alert rows you can query, route, and resolve like everything else: on-failure visibility without bolting on a separate alerting pipeline.</dd></div>
+        </dl>
+
+        <h3 class="ref-group">Visibility &amp; operations</h3>
+        <dl>
+          <div class="ref-row"><dt>SQL-visible state</dt><dd>Jobs, attempts, leases, events, schedules, checkpoints, workers, and alerts are ordinary rows, with curated operator views (<code>acta.jobs_view</code> and friends) for the common questions: backlog, stuck jobs, worker liveness, pending alerts.</dd></div>
+          <div class="ref-row"><dt>Append-only event ledger</dt><dd>Every job carries a complete, append-only timeline of what happened to it (enqueued, claimed, retried, signaled, completed) as queryable rows.</dd></div>
+          <div class="ref-row"><dt>Embedded dashboard &amp; JSON API</dt><dd><code>Acta.AspNetCore</code> serves an operational dashboard and query API from inside your app. Local-only by default, no login system to configure, and every mutating verb is disabled until you explicitly enable it.</dd></div>
+          <div class="ref-row"><dt>Embedded CLI · including <code>jobs debug</code></dt><dd>Every host binary is also the admin tool. <code>jobs debug</code> claims any persisted job and steps through its real handler under your debugger: reproduce a production failure with a breakpoint, not printf.</dd></div>
+          <div class="ref-row"><dt>Operator verbs, opt-in</dt><dd>Pause, resume, cancel, restart, signal: explicit controls for humans running the system, off by default so exposure is a decision, not an accident.</dd></div>
+          <div class="ref-row"><dt>Tenants &amp; namespaces</dt><dd>Scope jobs by namespace with team-ownership metadata; run tenant-specific work and suspend a tenant without touching in-flight jobs elsewhere.</dd></div>
+        </dl>
+
+        <h3 class="ref-group">Engineering</h3>
+        <dl>
+          <div class="ref-row"><dt>Three SQL providers</dt><dd><code>Acta.Postgres</code>, <code>Acta.SqlServer</code>, <code>Acta.Sqlite</code>: one reference is enough, and all three share the same schema shape and operational model. Develop against an embedded SQLite file; ship the same code against your server.</dd></div>
+          <div class="ref-row"><dt>Source-generated dispatch, NativeAOT</dt><dd>Handlers are dispatched through generated code (no reflection on the hot path) and the runtime supports NativeAOT. One SQL round-trip per state change.</dd></div>
+          <div class="ref-row"><dt>Deterministic test host</dt><dd><code>Acta.Testing</code> drives the real runtime one tick at a time: no sleeps, no polling, no flaky waits. Real-database job tests run in tens of milliseconds.</dd></div>
+          <div class="ref-row"><dt>Payload codecs</dt><dd>JSON by default; MessagePack, gzip, or scalar payloads per job when size or speed matters.</dd></div>
+          <div class="ref-row"><dt>Redis as a bell, only</dt><dd>Optional <code>Acta.Redis</code> wakes idle workers faster. It is never a source of truth: lose Redis and you degrade to polling, not to data loss.</dd></div>
+          <div class="ref-row"><dt>Anvil · the failure lab</dt><dd>The bundled load-and-failure laboratory: enqueue a million jobs, kill real worker processes mid-flight, and watch leases lapse and recovery reclaim the work, on your machine.</dd></div>
+        </dl>
+
+        <h3 class="ref-group">Policy &amp; operations</h3>
+        <dl>
+          <div class="ref-row"><dt>Priorities &amp; reprioritization</dt><dd>Claim priority is per-definition policy, and operators can change it in place on a live job with <code>ReprioritizeAsync</code>, no cancel-and-re-enqueue dance.</dd></div>
+          <div class="ref-row"><dt>Execution timeouts &amp; deadlines</dt><dd>Per-definition execution timeout, plus whole-job deadlines in two honesties: a Strict deadline terminates the job; an Advisory one sets <code>ctx.IsOverdue</code> so the handler can degrade gracefully.</dd></div>
+          <div class="ref-row"><dt>Batch enqueue</dt><dd><code>EnqueueBatch</code> alongside single enqueue for high-volume producers, one round-trip for many jobs.</dd></div>
+          <div class="ref-row"><dt>Tags &amp; correlation keys</dt><dd>Attach searchable tags and a caller-supplied correlation key to any job, so operators can find work by what it means to the business, not just by id.</dd></div>
+          <div class="ref-row"><dt>Time-zone schedules</dt><dd>Recurring schedules run in a named time zone. Operators preview upcoming instants and override expression or zone with expected-version checks.</dd></div>
+          <div class="ref-row"><dt>Alert routing</dt><dd>Definitions route alerts to named channels; startup validation of that routing is a policy you choose. Off, Warn, or Fail.</dd></div>
+          <div class="ref-row"><dt>Audit levels &amp; retention</dt><dd>Audit level and retention are per-definition contract values; terminal job rows purge on schedule while events remain the audit ledger.</dd></div>
+          <div class="ref-row"><dt>Large payloads, by reference</dt><dd>Inline payloads are capped (256&nbsp;KB default; oversized writes are refused, not truncated). Big artifacts live in blob storage; the job carries a verified reference. URI, checksum, size, content type.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="wrap" id="model">
+      <p class="record">Possible reference application</p>
+      <div class="example-head">
+        <div>
+          <h2>One ledger. A web of peer workers.</h2>
+          <p class="example-subtitle">AI incident-response system powered by Acta</p>
+          <p class="lede">One incident becomes a durable root job. Service-owned namespaces fan out evidence collection and AI diagnostics, pause at deterministic policy and human approval gates, run bounded remediation, wait to verify recovery, and publish an auditable report: even when workers restart halfway through.</p>
+        </div>
+        <aside class="example-note">
+          <b>What you could build</b>
+          <p>Start as a read-only investigation copilot. Add predefined, human-approved actions later. Acta supplies the resumability, isolation, waits, lineage, and operational evidence; the application owns prompts, policy, and side-effect safety.</p>
+        </aside>
+      </div>
+
+      <div class="incident-flow" aria-label="Example incident response lifecycle">
+        <span>Detect</span>
+        <span>Collect</span>
+        <span>Diagnose</span>
+        <span>Approve</span>
+        <span>Remediate</span>
+        <span>Verify</span>
+        <span>Report</span>
+      </div>
+
+      <figure class="incident-figure">
+        <div class="incident-art">
+          <img src="assets/ai-incident-response-ring.svg" alt="Eight service-owned namespaces, each with its kebab-case jobs, arranged in a ring around one shared Acta SQL work ledger" loading="lazy" width="1600" height="1300" />
+        </div>
+        <figcaption>
+          <span class="stamp possible-stamp">Possible reference application</span>
+          <span>An architecture example, not a bundled product or a roadmap commitment.</span>
+          <a class="architecture-source" href="https://github.com/acta-dotnet/acta/blob/main/docs/designs/incident-response.md">Read the proposed design →</a>
+        </figcaption>
+      </figure>
+
+      <div class="example-capabilities">
+        <div><b>Service-owned boundaries.</b> Each deployable service owns one namespace; its replicas are peer workers that claim only that namespace's jobs.</div>
+        <div><b>One root, parallel evidence.</b> A durable incident job starts cross-namespace children for logs, metrics, traces, deployments, and specialist analysis, then joins their results.</div>
+        <div><b>Structured, resumable diagnosis.</b> Checkpoints preserve evidence references, hypotheses, confidence, and proposed actions instead of rebuilding an ever-growing chat transcript.</div>
+        <div><b>Humans remain a durable gate.</b> The root suspends on an approval signal without holding a worker; deterministic policy decides which actions may proceed automatically.</div>
+        <div><b>Remediation stays bounded.</b> Exclusive service keys serialize actions, while idempotency keys and reconciliation protect external effects under at-least-once execution.</div>
+        <div><b>Verify, recover, and explain.</b> Durable timers delay verification; expired leases are reclaimed by peers; events preserve the incident timeline through resolution or escalation.</div>
+      </div>
+    </section>
+
+    <section class="wrap center" id="run">
+      <p class="record centered">Run it</p>
+      <h2>Acta est. Now run it yourself.</h2>
+      <p class="lede">Fresh clone to a running durable job on embedded SQLite: then point the same code at Postgres or SQL Server when it matters. Apache-2.0: the runtime, dashboard, CLI, and all SQL providers are free.</p>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i>&nbsp;fresh clone → running durable job</div>
+        <pre><code><span class="p">$</span> git clone https://github.com/acta-dotnet/acta &amp;&amp; cd Acta
+<span class="p">$</span> dotnet run --project concepts/000-fundamentals/001-hello-acta
+<span class="out">Enqueued. The worker is running - press Ctrl+C to stop.
+Hello, World!</span>
+<span class="c"># press Ctrl+C, then:</span>
+<span class="p">$</span> dotnet run --project anvil/Anvil
+<span class="out">Anvil         : http://127.0.0.1:5059/</span></code></pre>
+      </div>
+      <div class="actions" style="justify-content:center">
+        <a class="button primary" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/docs">Read the docs</a>
+      </div>
+    </section>
+
+    <footer>
+      Early preview · built for evaluation and feedback
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
+    </footer>
+  </main>
+</body>
+</html>

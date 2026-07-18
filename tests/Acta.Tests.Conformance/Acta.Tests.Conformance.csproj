@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- xunit.v3.core's MSBuild targets force OutputType=Exe and inject an entry point that
+         references SelfRegisteredExtensions; both make sense for a runnable test project but
+         break a shared spec library. ExcludeAssets="build;buildTransitive" skips those targets
+         while keeping the compile (attributes) and runtime DLLs. -->
+    <PackageReference Include="xunit.v3.core" ExcludeAssets="build;buildTransitive" />
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Testing\Acta.Testing.csproj" />
+    <ProjectReference Include="..\Acta.Tests.TestJobs\Acta.Tests.TestJobs.csproj" />
+  </ItemGroup>
+</Project>

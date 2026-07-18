@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Acta.Demos.ApiWorkerSplit.Contracts</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
+  </ItemGroup>
+</Project>

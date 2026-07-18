@@ -1,0 +1,31 @@
+{
+  "name": "acta-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test:helpers": "node --test --experimental-strip-types src/api.test.ts src/format.test.ts src/theme/*.test.ts src/query.test.ts src/router.test.ts src/components/grid/paging.test.ts src/components/grid/virtualRows.test.ts src/lib/useControlMutation.test.ts src/lib/tagTokens.test.ts src/components/jobControlState.test.ts src/components/changeHistory.test.ts src/components/jobTimelineState.test.ts src/components/signalDrawerState.test.ts src/routes/job-detail/jobDetailState.test.ts src/routes/workerDetailState.test.ts src/routes/alertStateFilter.test.ts src/components/scheduleControlState.test.ts src/components/scheduleOverrides.test.ts src/routes/tenantAdmin.test.ts src/routes/namespaceAdmin.test.ts",
+    "test:components": "vitest run",
+    "test:smoke": "playwright test",
+    "test": "npm run test:helpers && npm run test:components"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@tanstack/query-core": "5.101.2",
+    "@tanstack/svelte-query": "^6.1.36",
+    "@tanstack/svelte-virtual": "^3.13.32",
+    "@testing-library/svelte": "^5.4.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.1.1",
+    "jsdom": "^29.1.1",
+    "svelte": "^5.56.5",
+    "svelte-check": "^4.7.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  }
+}

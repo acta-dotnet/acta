@@ -1,0 +1,18 @@
+#!/bin/sh
+# Auto-format staged C# files with CSharpier so commits match the CI
+# `dotnet csharpier check .` gate (see .github/workflows/ci.yml).
+#
+# One-time setup per clone (not tracked by git):
+#   git config core.hooksPath .githooks
+#
+# Caveat: a formatted file is re-staged in full, so if you staged only part of a
+# .cs file, the remaining hunks get staged too. Stage whole .cs files to avoid this.
+set -e
+
+# Bail early if no staged .cs files (also keeps xargs from running on empty input).
+git diff --cached --name-only --diff-filter=ACMR -- '*.cs' | grep -q . || exit 0
+
+# Format staged .cs files, then re-stage them. NUL-separated to tolerate spaces in
+# paths, piped straight to xargs because $(...) strips NUL bytes.
+git diff -z --cached --name-only --diff-filter=ACMR -- '*.cs' | xargs -0 dotnet csharpier format
+git diff -z --cached --name-only --diff-filter=ACMR -- '*.cs' | xargs -0 git add

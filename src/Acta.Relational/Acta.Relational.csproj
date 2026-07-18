@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Acta.Relational</RootNamespace>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <Description>Shared relational mechanics for Acta SQL providers: command execution, connections, resource discovery, schema installation, and migrations.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Acta.Postgres" />
+    <InternalsVisibleTo Include="Acta.SqlServer" />
+    <InternalsVisibleTo Include="Acta.Sqlite" />
+    <InternalsVisibleTo Include="Acta.Redis" />
+    <InternalsVisibleTo Include="Acta.Emit" />
+    <InternalsVisibleTo Include="Acta.Testing" />
+    <InternalsVisibleTo Include="Acta.Tests" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Acta.Contracts\Acta.Contracts.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Acta\Acta.csproj" />
+    <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+</Project>

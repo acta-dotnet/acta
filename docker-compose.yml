@@ -1,0 +1,64 @@
+# OPTIONAL local infra for the Postgres / SQL Server / Redis paths. Concepts, demos, and Anvil
+# default to embedded SQLite and need none of this; start containers only to run against a real
+# server (`ACTA_LOCAL_PROVIDER=postgres|sqlserver`) or the provider conformance tests.
+#   docker compose up -d                   # all three, loopback-only
+#   docker compose up -d postgres redis    # subset - skip services you already run locally
+#   docker compose ps                      # health (SQL Server needs ~20-30s to become healthy)
+# Already running your own Postgres/SQL Server/Redis? Point ACTA_TEST_PG / ACTA_TEST_MSSQL /
+# ACTA_TEST_REDIS at it instead. Default host ports taken? Override ACTA_PG_PORT / ACTA_MSSQL_PORT /
+# ACTA_REDIS_PORT (and passwords via ACTA_POSTGRES_PASSWORD / ACTA_MSSQL_SA_PASSWORD) in .env, then
+# adjust the connection strings to match. acta-dev is the everyday database (tests create acta-test);
+# Postgres and SQL Server both use password auth (parity with production).
+name: acta-dev
+
+services:
+  postgres:
+    image: postgres:18
+    command: postgres -c max_connections=500
+    ports:
+      - "127.0.0.1:${ACTA_PG_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ACTA_POSTGRES_PASSWORD:-AbitMOREsecure_PASSWORD}
+      POSTGRES_DB: acta-dev
+    volumes:
+      - acta-pg-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d acta-dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "127.0.0.1:${ACTA_MSSQL_PORT:-1433}:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${ACTA_MSSQL_SA_PASSWORD:-AbitMOREsecure_PASSWORD}"
+      # SQL Server otherwise targets most of the host RAM; on a ~6 GB CI runner that starves the
+      # test host. Bound it, but leave enough headroom for the aggressive-parallel conformance run
+      # (too tight and commands cancel under load with "A severe error occurred on the current command").
+      MSSQL_MEMORY_LIMIT_MB: "4096"
+    volumes:
+      - acta-mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $$MSSQL_SA_PASSWORD -C -Q 'SELECT 1' -b"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7
+    ports:
+      - "127.0.0.1:${ACTA_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  acta-pg-data:
+  acta-mssql-data:

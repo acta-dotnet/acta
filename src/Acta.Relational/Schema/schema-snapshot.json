@@ -1,0 +1,2336 @@
+{
+  "Current": {
+    "Entities": [
+      {
+        "Table": "alerts",
+        "PrimaryKey": "pk_alerts(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_ref",
+            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "origin_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-origin|values=10, 20"
+          },
+          {
+            "Name": "severity_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-severity|values=10, 20, 30, 40"
+          },
+          {
+            "Name": "kind_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind|values=10, 20, 30, 40, 50"
+          },
+          {
+            "Name": "title",
+            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "message",
+            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "channel_name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deduplication_key",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "dedupe_window_start_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "occurrence_count",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "resolved_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "acknowledged_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "delivery_status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-delivery-status|values=10, 20, 30, 100, 200"
+          },
+          {
+            "Name": "retry_count",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retry_after_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_alerts_delivery_due",
+            "Signature": "I|cols=namespace_id,delivery_status_code,retry_after_utc,id|inc=|desc=|filter="
+          },
+          {
+            "Name": "ix_alerts_namespace_created",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter="
+          },
+          {
+            "Name": "ix_alerts_namespace_unresolved",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=resolved_at_utc IS NULL"
+          },
+          {
+            "Name": "ux_alerts_dedupe",
+            "Signature": "U|cols=namespace_id,deduplication_key,dedupe_window_start_utc|inc=|desc=|filter=deduplication_key IS NOT NULL"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_alerts_dedupe_pair",
+            "Sql": "(deduplication_key IS NULL AND dedupe_window_start_utc IS NULL) OR (deduplication_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL)"
+          },
+          {
+            "Name": "ck_alerts_job_ref_pair",
+            "Sql": "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)"
+          },
+          {
+            "Name": "ck_alerts_occurrence_count",
+            "Sql": "occurrence_count \u003E= 1"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "checkpoints",
+        "PrimaryKey": "pk_checkpoints(job_id,kind_code,name)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "kind_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-checkpoint-kind|values=10, 20, 30, 40, 50"
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "state_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-state|values=10, 20, 100"
+          },
+          {
+            "Name": "due_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value_format_id",
+            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [],
+        "Checks": [
+          {
+            "Name": "ck_checkpoints_value_pair",
+            "Sql": "(value_format_id = 0 AND value IS NULL) OR (value_format_id \u003C\u003E 0 AND value IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_checkpoints_jobs",
+            "Signature": "job_id-\u003EActa.Relational.Entities.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "definitions",
+        "PrimaryKey": "pk_definitions(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-definition-status|values=10, 240"
+          },
+          {
+            "Name": "definition_hash",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "manifest_generation_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_type_name",
+            "Signature": "AsciiString|512|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_format_name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "output_type_name",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "output_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "output_format_name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "priority_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=priority|values=0, 50, 70, 85, 100"
+          },
+          {
+            "Name": "priority_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=priority|values=0, 50, 70, 85, 100"
+          },
+          {
+            "Name": "priority_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(priority_code_override, priority_code)|coded=True|codeKind=priority|values=0, 50, 70, 85, 100"
+          },
+          {
+            "Name": "max_attempts",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "max_attempts_override",
+            "Signature": "Int16|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "max_attempts_effective",
+            "Signature": "Int16|0|0|0|False|None|COALESCE(max_attempts_override, max_attempts)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "backoff",
+            "Signature": "UnicodeString|64|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "backoff_override",
+            "Signature": "UnicodeString|64|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "backoff_effective",
+            "Signature": "UnicodeString|64|0|0|False|None|COALESCE(backoff_override, backoff)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_timeout_seconds",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_timeout_seconds_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_timeout_seconds_effective",
+            "Signature": "Int32|0|0|0|False|None|COALESCE(execution_timeout_seconds_override, execution_timeout_seconds)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_seconds",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_seconds_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_seconds_effective",
+            "Signature": "Int32|0|0|0|False|None|COALESCE(deadline_seconds_override, deadline_seconds)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_behavior_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-deadline-behavior|values=10, 20"
+          },
+          {
+            "Name": "deadline_behavior_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-deadline-behavior|values=10, 20"
+          },
+          {
+            "Name": "deadline_behavior_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(deadline_behavior_code_override, deadline_behavior_code)|coded=True|codeKind=job-deadline-behavior|values=10, 20"
+          },
+          {
+            "Name": "retention_seconds",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retention_seconds_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retention_seconds_effective",
+            "Signature": "Int32|0|0|0|False|None|COALESCE(retention_seconds_override, retention_seconds)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "audit_level_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level|values=0, 10, 20"
+          },
+          {
+            "Name": "audit_level_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-audit-level|values=0, 10, 20"
+          },
+          {
+            "Name": "audit_level_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(audit_level_code_override, audit_level_code)|coded=True|codeKind=job-audit-level|values=0, 10, 20"
+          },
+          {
+            "Name": "alert_profile_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-alert-profile|values=0, 10, 20, 30, 40"
+          },
+          {
+            "Name": "alert_profile_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-alert-profile|values=0, 10, 20, 30, 40"
+          },
+          {
+            "Name": "alert_profile_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(alert_profile_code_override, alert_profile_code)|coded=True|codeKind=job-alert-profile|values=0, 10, 20, 30, 40"
+          },
+          {
+            "Name": "alert_channel_name",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "alert_channel_name_override",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "alert_channel_name_effective",
+            "Signature": "AsciiString|128|0|0|True|None|COALESCE(alert_channel_name_override, alert_channel_name)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "runbook_url",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "runbook_url_override",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "runbook_url_effective",
+            "Signature": "AsciiString|512|0|0|True|None|COALESCE(runbook_url_override, runbook_url)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "display_name",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "display_name_override",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "display_name_effective",
+            "Signature": "UnicodeString|128|0|0|True|None|COALESCE(display_name_override, display_name)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description_override",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description_effective",
+            "Signature": "UnicodeString|512|0|0|True|None|COALESCE(description_override, description)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_definitions_namespace_name",
+            "Signature": "U|cols=namespace_id,name|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_definitions_deadline",
+            "Sql": "deadline_seconds \u003E= 0"
+          },
+          {
+            "Name": "ck_definitions_deadline_override",
+            "Sql": "deadline_seconds_override IS NULL OR deadline_seconds_override \u003E= 0"
+          },
+          {
+            "Name": "ck_definitions_execution_timeout",
+            "Sql": "execution_timeout_seconds \u003E 0"
+          },
+          {
+            "Name": "ck_definitions_execution_timeout_override",
+            "Sql": "execution_timeout_seconds_override IS NULL OR execution_timeout_seconds_override \u003E 0"
+          },
+          {
+            "Name": "ck_definitions_max_attempts",
+            "Sql": "max_attempts \u003E= 1"
+          },
+          {
+            "Name": "ck_definitions_max_attempts_override",
+            "Sql": "max_attempts_override IS NULL OR max_attempts_override \u003E= 1"
+          },
+          {
+            "Name": "ck_definitions_retention",
+            "Sql": "retention_seconds \u003E= 0"
+          },
+          {
+            "Name": "ck_definitions_retention_override",
+            "Sql": "retention_seconds_override IS NULL OR retention_seconds_override \u003E= 0"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "events",
+        "PrimaryKey": "pk_events(id)|manual=False|seq=True",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "event_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=10, 11, 12, 20, 21, 22, 30, 40, 41, 50, 60, 61, 70, 71, 72, 73, 74, 75, 80, 81, 100, 101, 102, 103, 104, 120, 121, 122, 140, 141"
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "actor_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=actor|values=10, 20, 50, 70"
+          },
+          {
+            "Name": "actor_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_ref",
+            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_number",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lineage_root_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "definition_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "tenant_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "worker_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "from_status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10, 20, 30, 40, 50, 100, 200, 220"
+          },
+          {
+            "Name": "to_status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10, 20, 30, 40, 50, 100, 200, 220"
+          },
+          {
+            "Name": "execution_status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=execution-status|values=50, 100, 150, 151, 152, 200, 220, 230"
+          },
+          {
+            "Name": "duration_ms",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "reason_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10, 20, 21, 22, 23, 24, 30, 40, 41, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101"
+          },
+          {
+            "Name": "reason_message",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "detail_format_id",
+            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "detail",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_events_job_timeline",
+            "Signature": "I|cols=job_id,created_at_utc,id|inc=|desc=|filter=job_id IS NOT NULL"
+          },
+          {
+            "Name": "ix_events_lineage_timeline",
+            "Signature": "I|cols=lineage_root_id,created_at_utc,id|inc=|desc=|filter=lineage_root_id IS NOT NULL"
+          },
+          {
+            "Name": "ix_events_namespace_created",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter="
+          },
+          {
+            "Name": "ix_events_namespace_timeline",
+            "Signature": "I|cols=namespace_id,event_code,created_at_utc,id|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_events_detail_pair",
+            "Sql": "(detail_format_id = 0 AND detail IS NULL) OR (detail_format_id \u003C\u003E 0 AND detail IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "jobs",
+        "PrimaryKey": "pk_jobs(id)|manual=False|seq=True",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_ref",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "definition_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lineage_root_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "parent_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "tenant_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deduplication_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "correlation_key",
+            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "exclusive_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "audit_level_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level|values=0, 10, 20"
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_jobs_namespace_created",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter="
+          },
+          {
+            "Name": "ix_jobs_parent",
+            "Signature": "I|cols=parent_id|inc=|desc=|filter=parent_id IS NOT NULL"
+          },
+          {
+            "Name": "ux_jobs_deduplication_key_child",
+            "Signature": "U|cols=parent_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NOT NULL"
+          },
+          {
+            "Name": "ux_jobs_deduplication_key_root",
+            "Signature": "U|cols=namespace_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NULL"
+          },
+          {
+            "Name": "ux_jobs_ref",
+            "Signature": "U|cols=job_ref|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_jobs_input_pair",
+            "Sql": "(input_format_id = 0 AND input IS NULL) OR (input_format_id \u003C\u003E 0 AND input IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "leases",
+        "PrimaryKey": "pk_leases(lease_key)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "lease_key",
+            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "kind_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=lease-kind|values=10"
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expires_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_leases_reclaim_expired",
+            "Signature": "I|cols=kind_code,expires_at_utc|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "namespaces",
+        "PrimaryKey": "pk_namespaces(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "owner_team",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=namespace-status|values=10, 20"
+          },
+          {
+            "Name": "catalog_hash",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_namespaces_name",
+            "Signature": "U|cols=name|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "results",
+        "PrimaryKey": "pk_results(job_id,execution_number)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_number",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result",
+            "Signature": "BinaryPayload|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [],
+        "Checks": [
+          {
+            "Name": "ck_results_format_not_none",
+            "Sql": "result_format_id \u003C\u003E 0"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_results_jobs",
+            "Signature": "job_id-\u003EActa.Relational.Entities.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "runtimes",
+        "PrimaryKey": "pk_runtimes(job_id)|manual=True|seq=True",
+        "Columns": [
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-status|values=10, 20, 30, 40, 50, 100, 200, 220"
+          },
+          {
+            "Name": "priority_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=priority|values=0, 50, 70, 85, 100"
+          },
+          {
+            "Name": "next_run_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_number",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "failure_count",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "leased_by_worker_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lease_expires_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retention_until_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_runtimes_claim_ready",
+            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id|inc=|desc=priority_code|filter=status_code = 10"
+          },
+          {
+            "Name": "ix_runtimes_retention",
+            "Signature": "I|cols=namespace_id,retention_until_utc,job_id|inc=|desc=|filter=retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)"
+          },
+          {
+            "Name": "ix_runtimes_worker_inflight",
+            "Signature": "I|cols=leased_by_worker_id,status_code|inc=|desc=|filter=leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_runtimes_counters",
+            "Sql": "execution_number \u003E= 0 AND failure_count \u003E= 0"
+          },
+          {
+            "Name": "ck_runtimes_lease_consistency",
+            "Sql": "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_runtimes_jobs",
+            "Signature": "job_id-\u003EActa.Relational.Entities.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "schedules",
+        "PrimaryKey": "pk_schedules(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "definition_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "origin_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-origin|values=20, 40"
+          },
+          {
+            "Name": "expression",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expression_override",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expression_effective",
+            "Signature": "AsciiString|128|0|0|False|None|COALESCE(expression_override, expression)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "time_zone_id",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "time_zone_id_override",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "time_zone_id_effective",
+            "Signature": "AsciiString|128|0|0|False|None|COALESCE(time_zone_id_override, time_zone_id)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expression_kind_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-expression-kind|values=10, 20"
+          },
+          {
+            "Name": "misfire_strategy_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=misfire-strategy|values=10, 20"
+          },
+          {
+            "Name": "next_run_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "orphaned_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-status|values=10, 30, 230"
+          },
+          {
+            "Name": "paused_until_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "note",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_schedules_namespace_next",
+            "Signature": "I|cols=namespace_id,next_run_at_utc,id|inc=|desc=|filter=orphaned_at_utc IS NULL"
+          },
+          {
+            "Name": "ux_schedules_job_name",
+            "Signature": "U|cols=job_id,name|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": [
+          {
+            "Name": "fk_schedules_definitions",
+            "Signature": "definition_id-\u003EActa.Relational.Entities.JobDefinition.id|NoAction"
+          },
+          {
+            "Name": "fk_schedules_jobs",
+            "Signature": "job_id-\u003EActa.Relational.Entities.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "settings",
+        "PrimaryKey": "pk_settings(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "scope_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=setting-scope|values=10, 30, 40"
+          },
+          {
+            "Name": "scope_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_settings_global_name",
+            "Signature": "U|cols=scope_code,name|inc=|desc=|filter=scope_id IS NULL"
+          },
+          {
+            "Name": "ux_settings_scope_name",
+            "Signature": "U|cols=scope_code,scope_id,name|inc=|desc=|filter=scope_id IS NOT NULL"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_settings_value_pair",
+            "Sql": "(value_format_id = 0 AND value IS NULL) OR (value_format_id \u003C\u003E 0 AND value IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "steps",
+        "PrimaryKey": "pk_steps(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "state_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-state|values=10, 100, 200, 230"
+          },
+          {
+            "Name": "attempt_number",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "next_retry_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "reason_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10, 20, 21, 22, 23, 24, 30, 40, 41, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101"
+          },
+          {
+            "Name": "reason_message",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_steps_job_name",
+            "Signature": "U|cols=job_id,name|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_steps_attempt_number",
+            "Sql": "attempt_number \u003E= 1"
+          },
+          {
+            "Name": "ck_steps_result_pair",
+            "Sql": "(result_format_id = 0 AND result IS NULL) OR (result_format_id \u003C\u003E 0 AND result IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_steps_jobs",
+            "Signature": "job_id-\u003EActa.Relational.Entities.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "tags",
+        "PrimaryKey": "pk_tags(scope_code,scope_id,name)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "scope_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tag-scope|values=20, 30, 40, 50, 60, 70, 80, 90"
+          },
+          {
+            "Name": "scope_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value_search",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_tags_namespace_name_value_search",
+            "Signature": "I|cols=namespace_id,name,value_search,scope_code,scope_id|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_tags_namespace_id",
+            "Sql": "namespace_id IS NULL OR namespace_id \u003E 0"
+          },
+          {
+            "Name": "ck_tags_scope_id",
+            "Sql": "scope_id \u003E 0"
+          },
+          {
+            "Name": "ck_tags_scope_namespace",
+            "Sql": "(scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50, 60, 70, 80, 90) AND namespace_id IS NOT NULL)"
+          },
+          {
+            "Name": "ck_tags_value_search",
+            "Sql": "(value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "tenants",
+        "PrimaryKey": "pk_tenants(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "tenant_key",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tenant-status|values=10, 20"
+          },
+          {
+            "Name": "display_name",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_tenants_key",
+            "Signature": "U|cols=tenant_key|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "workers",
+        "PrimaryKey": "pk_workers(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=worker-status|values=10, 80, 100, 200"
+          },
+          {
+            "Name": "deployment_version",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "host",
+            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "engine_version",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "dotnet_version",
+            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "process_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "max_concurrency",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "last_seen_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_workers_namespace_last_seen",
+            "Signature": "I|cols=namespace_id,last_seen_at_utc,id|inc=|desc=last_seen_at_utc,id|filter="
+          },
+          {
+            "Name": "ix_workers_namespace_status_lastseen",
+            "Signature": "I|cols=namespace_id,status_code,last_seen_at_utc|inc=|desc=|filter="
+          },
+          {
+            "Name": "ix_workers_status_lastseen",
+            "Signature": "I|cols=status_code,last_seen_at_utc|inc=|desc=|filter="
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_workers_max_concurrency",
+            "Sql": "max_concurrency \u003E 0"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_workers_namespaces",
+            "Signature": "namespace_id-\u003EActa.Relational.Entities.JobNamespace.id|NoAction"
+          }
+        ]
+      }
+    ],
+    "CodeFamilies": [
+      {
+        "CodeKind": "actor",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "sys",
+            "Description": "Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. ActorKey = \u0022sys:{jobNamespace}:{jobName}\u0022 or \u0022sys:{component}\u0022.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "operator",
+            "Description": "A human or admin tool acting from outside any job context (endpoint, dashboard, admin script). ActorKey carries the authenticated principal name as-is (e.g. http.User.Identity.Name); null when the host did not authenticate.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "job",
+            "Description": "ctx.* throw-to-transition inside a user handler. ActorKey = \u0022{jobId}\u0022.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 70,
+            "Code": "worker",
+            "Description": "Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey = \u0022{workerId}\u0022.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "alert-channel-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "active",
+            "Description": "Channel accepts deliveries.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "disabled",
+            "Description": "Configured but intentionally muted; matching alerts are suppressed.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 240,
+            "Code": "deprecated",
+            "Description": "Configured but decommissioned; matching alerts are suppressed.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "alert-delivery-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "pending",
+            "Description": "Materialized; awaiting the first send attempt.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "retry-after",
+            "Description": "Send deferred until JobAlert.RetryAfterUtc instant.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "suppressed",
+            "Description": "Intentionally not sent because process-local channel policy rejected delivery.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "delivered",
+            "Description": "Successfully sent to the channel transport.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 200,
+            "Code": "failed",
+            "Description": "Send attempt failed; eligible for retry by the next sys.alerts system job tick.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "alert-kind",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "first-failure",
+            "Description": "First failure in a window; emitted by Automatic origin on non-terminal failure.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "threshold-reached",
+            "Description": "Threshold-bound emission (e.g., LostClaimAlertThreshold reached).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "final-failure",
+            "Description": "Terminal failure; emitted by Automatic origin on Status to Failed.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "manual",
+            "Description": "Hand-raised; ctx.AlertAsync from inside a handler.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "recovery",
+            "Description": "Recovery transition; emitted when a previously-failed Job succeeds.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "alert-origin",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "automatic",
+            "Description": "System-emitted from a state-mutating SP (failure / timeout / orphan / deadline).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "manual",
+            "Description": "ctx.AlertAsync from inside a user handler.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "alert-severity",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "info",
+            "Description": "Informational; not paging.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "warning",
+            "Description": "Non-terminal failure transition; dedupe-window collapses repeats.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "error",
+            "Description": "Terminal failure or operator-attention event.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "critical",
+            "Description": "Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel\u0027s transport and config.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "event",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "tenant.suspended",
+            "Description": "An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 11,
+            "Code": "tenant.resumed",
+            "Description": "An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 12,
+            "Code": "tenant.metadata-changed",
+            "Description": "An operator changed a tenant display name / description. ReasonMessage carries the reason.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "namespace.suspended",
+            "Description": "An operator suspended a namespace; enqueue into it is rejected. ReasonMessage carries the reason.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 21,
+            "Code": "namespace.resumed",
+            "Description": "An operator resumed a suspended namespace; enqueue into it is allowed again. ReasonMessage carries the reason.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 22,
+            "Code": "namespace.metadata-changed",
+            "Description": "An operator changed a namespace owner team / description. ReasonMessage carries the reason.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "definition.policy-changed",
+            "Description": "An operator changed a job definition\u0027s policy overrides; ReasonMessage summarizes the change.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "job.execution.started",
+            "Description": "Handler invocation began; paired with job.execution.finished on (JobId, ExecutionNumber).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 41,
+            "Code": "job.execution.finished",
+            "Description": "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "job.recurring.rolled-over",
+            "Description": "Recurring Job\u0027s NextRunAtUtc advanced to the next firing instant.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 60,
+            "Code": "job.suspended",
+            "Description": "Handler called ctx.SleepAsync; the Job re-armed to Ready with the sleep timer\u0027s due instant; budget-neutral.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 61,
+            "Code": "job.rescheduled",
+            "Description": "The job re-armed Ready with a new NextRunAtUtc: a handler reschedule or an operator RescheduleAsync; actor and reason distinguish.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 70,
+            "Code": "job.cancelled",
+            "Description": "Job was cancelled (Status to Cancelled, terminal).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 71,
+            "Code": "job.paused",
+            "Description": "Job was paused (Status to Paused).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 72,
+            "Code": "job.resumed",
+            "Description": "Job was resumed (Status to Ready).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 73,
+            "Code": "job.restarted",
+            "Description": "Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 74,
+            "Code": "job.reprioritized",
+            "Description": "Operator changed the job\u0027s claim priority; ReasonMessage carries the operator\u0027s reason, if any.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 75,
+            "Code": "job.purged",
+            "Description": "Operator hard-deleted a terminal job. job_id/job_ref are null (the row is gone); ReasonMessage carries the purged job\u0027s ref and name. Always emitted regardless of audit level.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 80,
+            "Code": "job.signal.raised",
+            "Description": "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 81,
+            "Code": "job.state-reset",
+            "Description": "Handler called ctx.ResetStateAsync; the Job\u0027s JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "schedule.paused",
+            "Description": "A recurring schedule was paused; ReasonMessage carries the schedule name.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 101,
+            "Code": "schedule.resumed",
+            "Description": "A recurring schedule was resumed; ReasonMessage carries the schedule name.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 102,
+            "Code": "schedule.pause-expired",
+            "Description": "A timed pause elapsed; the scheduler auto-resumed the schedule. ReasonMessage carries the schedule name.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 103,
+            "Code": "schedule.overrides-changed",
+            "Description": "Operator changed a schedule\u0027s expression/timezone overrides; ReasonMessage summarizes the change and carries the schedule name.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 104,
+            "Code": "schedule.triggered",
+            "Description": "Operator fired a schedule manually; the slot\u0027s cursor was pulled to now. ReasonMessage carries the schedule name.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 120,
+            "Code": "worker.started",
+            "Description": "Worker process registered; a workers row was appended (Status: Active).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 121,
+            "Code": "worker.stopped",
+            "Description": "Worker process shut down cleanly (Status: Active/Draining to Stopped).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 122,
+            "Code": "worker.dead",
+            "Description": "Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 140,
+            "Code": "alert.acknowledged",
+            "Description": "Operator acknowledged an alert; ReasonMessage carries the alert id and note.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 141,
+            "Code": "alert.resolved",
+            "Description": "Operator manually resolved an alert; ReasonMessage carries the alert id and note.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "execution-status",
+        "Values": [
+          {
+            "Id": 50,
+            "Code": "running",
+            "Description": "Handler in flight.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "succeeded",
+            "Description": "Handler returned successfully. Resets the runtime failure count.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 150,
+            "Code": "rescheduled",
+            "Description": "Handler threw RescheduleJobException; does not charge budget.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 151,
+            "Code": "suspended",
+            "Description": "Handler called ctx.SleepAsync; suspended until the sleep timer\u0027s due instant; does not charge budget.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 152,
+            "Code": "paused",
+            "Description": "Handler threw PauseJobException.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 200,
+            "Code": "failed",
+            "Description": "Handler threw or ctx.Fail called. Charges failure budget.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 220,
+            "Code": "cancelled",
+            "Description": "Handler ended via cancel; does not charge budget.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 230,
+            "Code": "orphaned",
+            "Description": "Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-alert-profile",
+        "Values": [
+          {
+            "Id": 0,
+            "Code": "none",
+            "Description": "No automatic failure alerts. ctx.AlertAsync still creates rows.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 10,
+            "Code": "on-failure",
+            "Description": "Default. Alerts on every failure transition; dedupe-window collapses repeats. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "info",
+            "Description": "Informational alerts on final failure only; low severity.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "on-terminal",
+            "Description": "Alert on terminal failure only (final exhaustion / orphan / deadline). Resolves on recovery.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "sys-critical",
+            "Description": "Reserved for system Jobs. Emits at Severity = Critical to the Job\u0027s channel, or the configured \u0022default\u0022 channel when none is declared.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-audit-level",
+        "Values": [
+          {
+            "Id": 0,
+            "Code": "off",
+            "Description": "No audit-filtered per-job events; always-on system/catalog events still emit.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 10,
+            "Code": "failures",
+            "Description": "Emit failed job.execution.finished only; suppress other audit-filtered per-job events.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "audit",
+            "Description": "Emit all audit-filtered per-job events. User Jobs default.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-checkpoint-kind",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "variable",
+            "Description": "User variable slot; UPSERT, last-writer-wins, no state machine.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "signal",
+            "Description": "Signal slot; Pending while awaited, Set once raised.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "timer",
+            "Description": "Durable sleep timer; Pending until due, Consumed on replay past the due instant.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "progress",
+            "Description": "Progress slot; UPSERT, last-writer-wins, one per job.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "child-latch",
+            "Description": "Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-checkpoint-state",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "pending",
+            "Description": "Awaited or armed; the slot has not been satisfied yet.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "set",
+            "Description": "Raised; the payload is stored and a waiting job proceeds.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "consumed",
+            "Description": "Due instant reached; the replayed handler consumed the timer and proceeded.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-deadline-behavior",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "strict",
+            "Description": "Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "advisory",
+            "Description": "Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-definition-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "active",
+            "Description": "Enqueue allowed; claim allowed.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 240,
+            "Code": "retired",
+            "Description": "Enqueue REJECTED; existing Ready rows cancelled with ReasonCode = \u0027definition-retired\u0027.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-event-reason",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "job.other",
+            "Description": "None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "job.unhandled-exception",
+            "Description": "Handler threw an exception that was not raised via ctx.Fail.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 21,
+            "Code": "job.lease-expired",
+            "Description": "Worker lease expired; the sys.recovery system job reclaimed the Job.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 22,
+            "Code": "job.execution-timeout",
+            "Description": "Execution exceeded JobDefinition.ExecutionTimeout for this attempt.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 23,
+            "Code": "job.non-retryable-exception",
+            "Description": "Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException); terminal Failed without consuming the retry budget.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 24,
+            "Code": "job.deadline-exceeded",
+            "Description": "Job passed its whole-job deadline; the engine terminated it Cancelled without consuming the retry budget.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "job.schedules-exhausted",
+            "Description": "Recurring slot has no live JobSchedule yielding a next instant; row is system-paused.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "job.control-manual",
+            "Description": "Operator-initiated control transition via an IJobs control verb (Cancel/Pause/Resume/Restart).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 41,
+            "Code": "job.parent-cancelled",
+            "Description": "Job was cancelled because an ancestor job in its lineage was cancelled (recursive cascade).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "job.handler-rescheduled",
+            "Description": "Handler called ctx.RescheduleAsync; attempt finalized as Rescheduled.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 51,
+            "Code": "job.handler-suspended",
+            "Description": "Handler called ctx.SleepAsync or ctx.WaitSignalAsync; attempt suspended (budget-neutral) until the sleep timer\u0027s due instant or a matching signal is raised.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 52,
+            "Code": "job.handler-failed",
+            "Description": "Handler called ctx.FailAsync; the attempt was finalized as a deliberate terminal Failed (no retry, budget untouched).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 53,
+            "Code": "job.handler-cancelled",
+            "Description": "Handler called ctx.CancelAsync; the attempt was finalized as a deliberate terminal Cancelled (no retry, budget untouched).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 54,
+            "Code": "job.handler-paused",
+            "Description": "Handler called ctx.PauseAsync; the Job was held in Paused until an external resume (budget untouched).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 60,
+            "Code": "job.signal-released",
+            "Description": "RaiseSignalAsync set a matching signal and moved a Suspended Job to Ready.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 61,
+            "Code": "job.step-retry-scheduled",
+            "Description": "An inline step failed within budget (or on replay still awaits its retry instant); the parent re-armed budget-neutral until the step\u0027s next_retry_at_utc.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 62,
+            "Code": "job.exclusive-key-held",
+            "Description": "A claimed exclusive-key job found its key lock held at execution admission; re-armed Ready after the fixed bounce delay (budget-neutral).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 63,
+            "Code": "job.step-interrupted",
+            "Description": "An at-most-once step was re-entered on replay before its outcome was recorded (worker died mid-flight); the body is not re-run and the parent lands terminal Failed. Non-retryable; the outcome is unknown and must be reconciled externally.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "worker.clean-shutdown",
+            "Description": "Worker process exited cleanly via SIGTERM / IHostedService.StopAsync.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 101,
+            "Code": "worker.heartbeat-stale",
+            "Description": "Worker heartbeat exceeded the liveness window; the sys.recovery system job flipped Status to Dead.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "ready",
+            "Description": "Eligible for claim; the claim path selects rows in this Status.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "suspended",
+            "Description": "Awaiting an external signal via ctx.WaitSignalAsync.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "paused",
+            "Description": "Not running, awaiting an external trigger to resume.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "dispatched",
+            "Description": "Claimed by a worker; lease active, handler invocation pending.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "executing",
+            "Description": "Handler is running. JobEvent(job.execution.started) has been appended; matching job.execution.finished pending.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "done",
+            "Description": "Terminal success.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 200,
+            "Code": "failed",
+            "Description": "Terminal failure: MaxAttempts exhausted, expiration fired, or ctx.Fail called.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 220,
+            "Code": "cancelled",
+            "Description": "Terminal cancellation by IJobs.CancelAsync or ctx.Cancel.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "job-step-state",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "pending",
+            "Description": "Step in flight or retrying within MaxAttempts / RetryWindow.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "succeeded",
+            "Description": "Step completed successfully; Result populated (or ResultFormatId = 0 for void steps).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 200,
+            "Code": "exhausted",
+            "Description": "Step exhausted retry budget; parent handler receives StepExhaustedException.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 230,
+            "Code": "interrupted",
+            "Description": "At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "lease-kind",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "lock",
+            "Description": "Mutual-exclusion lock row; steal-on-expiry acquire, version-CAS release.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "misfire-strategy",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "fire-once-catch-up",
+            "Description": "After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "skip",
+            "Description": "After downtime, skip all missed occurrences and resume from the first occurrence strictly after now.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "namespace-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "active",
+            "Description": "Namespace resolves at enqueue; enqueue allowed.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "suspended",
+            "Description": "Enqueue into the namespace is rejected. Reversible (operator hold). Existing in-flight jobs are unaffected.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "priority",
+        "Values": [
+          {
+            "Id": 0,
+            "Code": "bulk",
+            "Description": "Lowest practical priority; bulk-class workloads.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "normal",
+            "Description": "Default priority. Most jobs use this.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 70,
+            "Code": "high",
+            "Description": "Above normal; operator opt-in for time-sensitive work.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 85,
+            "Code": "critical",
+            "Description": "Critical priority; close-to-realtime operator workloads.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "realtime",
+            "Description": "Highest priority; always pages.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "schedule-expression-kind",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "cron",
+            "Description": "Cron expression (Cronos dialect). Set at compile time by the source generator.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "interval",
+            "Description": "Interval duration: human (e.g. \u00225m\u0022) or ISO 8601 (e.g. \u0022PT5M\u0022, \u0022P1D\u0022). Set at compile time by the source generator.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "schedule-origin",
+        "Values": [
+          {
+            "Id": 20,
+            "Code": "operator",
+            "Description": "Operator-driven schedule add/remove. No code path produces rows with this origin today.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "definition",
+            "Description": "Declared in [JobSchedule] attribute; refreshed by catalog upsert.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "schedule-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "active",
+            "Description": "Schedule is eligible to fire.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "paused",
+            "Description": "Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 230,
+            "Code": "orphaned",
+            "Description": "Origin declaration disappeared from the catalog; set by reconciliation alongside OrphanedAtUtc. Cannot fire or be paused/resumed.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "setting-scope",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "global",
+            "Description": "Deployment-wide setting; scope_id is NULL.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "namespace",
+            "Description": "Setting scoped to one namespace; scope_id = namespaces.id.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "definition",
+            "Description": "Setting scoped to one job definition; scope_id = definitions.id.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "tag-scope",
+        "Values": [
+          {
+            "Id": 20,
+            "Code": "tenant",
+            "Description": "Tag attached to one tenant.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "namespace",
+            "Description": "Tag attached to one namespace.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "definition",
+            "Description": "Tag attached to one job definition.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "job",
+            "Description": "Tag attached to one job.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 60,
+            "Code": "schedule",
+            "Description": "Tag attached to one schedule.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 70,
+            "Code": "worker",
+            "Description": "Tag attached to one worker.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 80,
+            "Code": "alert",
+            "Description": "Tag attached to one alert.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 90,
+            "Code": "event",
+            "Description": "Tag attached to one event.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "tenant-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "active",
+            "Description": "Tenant key resolves at enqueue; enqueue allowed.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "suspended",
+            "Description": "Tenant key does not resolve; enqueue rejected. Reversible (billing/abuse hold, admin pause). Existing in-flight jobs are unaffected.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "worker-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "active",
+            "Description": "Polling claim; accepting work.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 80,
+            "Code": "draining",
+            "Description": "Worker stopped polling; finishing in-flight.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "stopped",
+            "Description": "Worker shut down cleanly; terminal success.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 200,
+            "Code": "dead",
+            "Description": "Worker is dead; the sys.recovery system job reclaims leases.",
+            "Lifecycle": "Active"
+          }
+        ]
+      }
+    ]
+  },
+  "Previous": null
+}

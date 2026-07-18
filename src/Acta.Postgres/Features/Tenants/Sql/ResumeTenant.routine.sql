@@ -1,0 +1,48 @@
+CREATE OR REPLACE FUNCTION {{schema}}.resume_tenant(
+    p_tenant_key     VARCHAR,
+    p_actor_code     SMALLINT,
+    p_actor_key       VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE(action SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id      INT;
+    v_status  SMALLINT;
+    v_version INT;
+BEGIN
+    SELECT t.id, t.status_code, t.version
+      INTO v_id, v_status, v_version
+      FROM {{schema}}.tenants t
+     WHERE t.tenant_key = p_tenant_key
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF v_status = 10 /* TenantStatusCode.Active */ THEN
+        RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN;
+    END IF;
+
+    UPDATE {{schema}}.tenants AS t
+       SET status_code = 10 /* TenantStatusCode.Active */, modified_at_utc = now(), version = t.version + 1
+     WHERE t.id = v_id
+    RETURNING t.version INTO v_version;
+
+    -- namespace_id 1 is the seeded sys namespace (M001).
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id, actor_code, actor_key,
+        job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
+        from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message)
+    VALUES (
+        11 /* JobEventCode.TenantResumed */, now(), 1, p_actor_code, p_actor_key,
+        NULL, NULL, NULL, NULL, NULL, v_id, NULL,
+        NULL, NULL, NULL, NULL, NULL, p_reason_message);
+
+    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+END;
+$$;

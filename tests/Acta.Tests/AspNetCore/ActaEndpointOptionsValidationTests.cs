@@ -1,0 +1,43 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Xunit;
+
+namespace Acta.Tests.AspNetCore;
+
+/// <summary>
+/// A <see cref="ActaEndpointOptions.MaxReasonMessageLength"/> below 1 would reject every control
+/// request the confirmation-header guard lets through, so both mapping entry points reject it
+/// eagerly (a bootstrap guard: these options are constructed with <c>new()</c>, not through the
+/// DI options pipeline).
+/// </summary>
+public sealed class ActaEndpointOptionsValidationTests
+{
+    [Fact]
+    public async Task MapActa_rejects_non_positive_MaxReasonMessageLength()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            TestDashboardHost.StartAsync(configureDashboard: o => o.MaxReasonMessageLength = 0)
+        );
+    }
+
+    [Fact]
+    public void MapActaApi_rejects_non_positive_MaxReasonMessageLength()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<IJobs>(new TestDashboardHost.FakeJobs());
+        var app = builder.Build();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => app.MapActaApi("/acta/jobs/api", o => o.MaxReasonMessageLength = -1));
+    }
+
+    [Fact]
+    public async Task MapActa_accepts_the_default_MaxReasonMessageLength()
+    {
+        var (app, _) = await TestDashboardHost.StartAsync();
+        await using var _2 = app;
+    }
+}

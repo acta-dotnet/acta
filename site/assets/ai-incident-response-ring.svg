@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1300" font-family="'IBM Plex Mono', Consolas, monospace">
+  <title>AI incident-response demo on Acta: eight service-owned namespaces around one SQL work ledger</title>
+  <g stroke="#3A4456" stroke-width="1.2" stroke-dasharray="3 5">
+    <line x1="800" y1="650" x2="800" y2="200"/>
+    <line x1="800" y1="650" x2="1168" y2="332"/>
+    <line x1="800" y1="650" x2="1320" y2="650"/>
+    <line x1="800" y1="650" x2="1168" y2="968"/>
+    <line x1="800" y1="650" x2="800" y2="1100"/>
+    <line x1="800" y1="650" x2="432" y2="968"/>
+    <line x1="800" y1="650" x2="280" y2="650"/>
+    <line x1="800" y1="650" x2="432" y2="332"/>
+  </g>
+  <circle cx="800" cy="650" r="220" fill="none" stroke="#3A4456" stroke-width="1"/>
+  <circle cx="800" cy="650" r="200" fill="#10151F" stroke="#2FD6A8" stroke-width="2"/>
+  <text x="800" y="625" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="60" font-weight="600" fill="#E8EDF5">Acta<tspan fill="#2FD6A8">.</tspan></text>
+  <text x="800" y="666" text-anchor="middle" font-size="17" letter-spacing="3" fill="#2FD6A8">ONE SQL LEDGER</text>
+  <text x="800" y="700" text-anchor="middle" font-size="15" fill="#9BA7BA">jobs · leases · lineage</text>
+  <text x="800" y="724" text-anchor="middle" font-size="15" fill="#9BA7BA">signals · checkpoints · events</text>
+  <g>
+    <g transform="translate(620,114)">
+      <rect width="360" height="172" rx="12" fill="#10151F" stroke="#2FD6A8" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#2FD6A8">ns: incident-control</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">respond-to-incident</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">escalate-incident</text>
+      <text x="180" y="124" text-anchor="middle" font-size="20" fill="#E8EDF5">close-incident</text>
+      <text x="180" y="158" text-anchor="middle" font-size="13" fill="#66748A">3 peer workers</text>
+    </g>
+    <g transform="translate(988,232)">
+      <rect width="360" height="201" rx="12" fill="#10151F" stroke="#2A3242" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#2FD6A8">ns: evidence-collector</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">collect-logs</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">collect-metrics</text>
+      <text x="180" y="124" text-anchor="middle" font-size="20" fill="#E8EDF5">collect-traces</text>
+      <text x="180" y="153" text-anchor="middle" font-size="20" fill="#E8EDF5">collect-deployments</text>
+      <text x="180" y="187" text-anchor="middle" font-size="13" fill="#66748A">4 peer workers</text>
+    </g>
+    <g transform="translate(1140,564)">
+      <rect width="360" height="172" rx="12" fill="#10151F" stroke="#2A3242" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#2FD6A8">ns: ai-diagnostics</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">analyze-evidence</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">synthesize-diagnosis</text>
+      <text x="180" y="124" text-anchor="middle" font-size="20" fill="#E8EDF5">propose-remediation</text>
+      <text x="180" y="158" text-anchor="middle" font-size="13" fill="#66748A">3 peer workers</text>
+    </g>
+    <g transform="translate(988,897)">
+      <rect width="360" height="143" rx="12" fill="#10151F" stroke="#D08A45" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#D08A45">ns: approval-gateway</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">evaluate-action-policy</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">request-remediation-approval</text>
+      <text x="180" y="129" text-anchor="middle" font-size="13" fill="#66748A">2 peer workers</text>
+    </g>
+    <g transform="translate(620,1014)">
+      <rect width="360" height="172" rx="12" fill="#10151F" stroke="#2A3242" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#2FD6A8">ns: remediation-runner</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">execute-remediation</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">verify-recovery</text>
+      <text x="180" y="124" text-anchor="middle" font-size="20" fill="#E8EDF5">rollback-remediation</text>
+      <text x="180" y="158" text-anchor="middle" font-size="13" fill="#66748A">3 peer workers</text>
+    </g>
+    <g transform="translate(252,897)">
+      <rect width="360" height="143" rx="12" fill="#10151F" stroke="#2A3242" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#2FD6A8">ns: report-publisher</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">build-incident-report</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">publish-incident-report</text>
+      <text x="180" y="129" text-anchor="middle" font-size="13" fill="#66748A">2 peer workers</text>
+    </g>
+    <g transform="translate(100,579)">
+      <rect width="360" height="143" rx="12" fill="#10151F" stroke="#2A3242" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#2FD6A8">ns: messenger</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">notify-responders</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">send-incident-update</text>
+      <text x="180" y="129" text-anchor="middle" font-size="13" fill="#66748A">1 peer worker</text>
+    </g>
+    <g transform="translate(252,246)">
+      <rect width="360" height="172" rx="12" fill="#10151F" stroke="#2A3242" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" font-size="15" letter-spacing="2" fill="#2FD6A8">ns: incident-ingest</text>
+      <text x="180" y="66" text-anchor="middle" font-size="20" fill="#E8EDF5">receive-alert</text>
+      <text x="180" y="95" text-anchor="middle" font-size="20" fill="#E8EDF5">deduplicate-alert</text>
+      <text x="180" y="124" text-anchor="middle" font-size="20" fill="#E8EDF5">open-incident</text>
+      <text x="180" y="158" text-anchor="middle" font-size="13" fill="#66748A">2 peer workers</text>
+    </g>
+  </g>
+  <text x="800" y="1250" text-anchor="middle" font-size="14" fill="#66748A">each namespace is claimed by its own peer workers · the ledger is Acta state, not the services' business data</text>
+</svg>

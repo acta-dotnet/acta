@@ -1,0 +1,104 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Acta.AspNetCore</RootNamespace>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <Description>Acta.AspNetCore maps the Acta operator UI and HTTP API: query endpoints over IJobs, optional job-control endpoints over IJobs, and an embedded Svelte dashboard. The host owns authentication and authorization.</Description>
+    <PackageTags>jobs;background-jobs;durable-work-ledger;durable-execution;dashboard;operations;aspnetcore;dotnet</PackageTags>
+    <DashboardAppDir>$(MSBuildProjectDirectory)\DashboardApp</DashboardAppDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\Acta.Contracts\Acta.Contracts.csproj" PrivateAssets="none" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Svelte sources travel with the project but are not compile inputs. -->
+    <None Include="DashboardApp\**\*.*" Exclude="DashboardApp\node_modules\**;DashboardApp\dist\**" />
+  </ItemGroup>
+
+  <!-- Consumers of the NuGet package never need Node: the dist files are embedded at pack time.
+       Set ActaDashboardSkipNpm=true to bypass the frontend entirely (assets must already exist
+       under dist). -->
+  <Target Name="CheckDashboardNode" Condition="'$(ActaDashboardSkipNpm)' != 'true'">
+    <Exec
+      Command="node --version"
+      ContinueOnError="true"
+      StandardOutputImportance="low"
+      StandardErrorImportance="low"
+      IgnoreExitCode="true"
+    >
+      <Output TaskParameter="ExitCode" PropertyName="NodeExitCode" />
+    </Exec>
+    <Warning
+      Condition="'$(NodeExitCode)' != '0'"
+      Text="Node.js was not found; the embedded dashboard assets were not rebuilt. API endpoints are unaffected."
+    />
+  </Target>
+
+  <!-- Keep dependency restoration separate from the Vite build so package-lock changes are
+       installed without making every source edit rerun npm. npm install is intentionally used to
+       repair a partial node_modules tree: on Windows, git clean can leave a loaded native Vite
+       dependency behind, and npm ci cannot unlink that file while the dev server is running. -->
+  <Target
+    Name="RestoreDashboardAppDependencies"
+    DependsOnTargets="CheckDashboardNode"
+    Condition="'$(ActaDashboardSkipNpm)' != 'true' And '$(NodeExitCode)' == '0'"
+    Inputs="$(DashboardAppDir)\package.json;$(DashboardAppDir)\package-lock.json"
+    Outputs="$(DashboardAppDir)\node_modules\.package-lock.json"
+  >
+    <PropertyGroup>
+      <_DashboardNodeModulesPresent Condition="Exists('$(DashboardAppDir)\node_modules')">true</_DashboardNodeModulesPresent>
+    </PropertyGroup>
+    <Exec Condition="'$(_DashboardNodeModulesPresent)' != 'true'" WorkingDirectory="$(DashboardAppDir)" Command="npm ci" />
+    <Exec
+      Condition="'$(_DashboardNodeModulesPresent)' == 'true'"
+      WorkingDirectory="$(DashboardAppDir)"
+      Command="npm install --no-audit --no-fund"
+    />
+  </Target>
+
+  <!-- Builds the Vite app when Node is available and the dist output is stale. -->
+  <Target
+    Name="BuildDashboardApp"
+    BeforeTargets="PrepareForBuild"
+    DependsOnTargets="CheckDashboardNode;RestoreDashboardAppDependencies"
+    Condition="'$(ActaDashboardSkipNpm)' != 'true'"
+    Inputs="$(DashboardAppDir)\package.json;$(DashboardAppDir)\package-lock.json;$(DashboardAppDir)\vite.config.ts;$(DashboardAppDir)\tsconfig.json;$(DashboardAppDir)\index.html;@(DashboardAppSource)"
+    Outputs="$(DashboardAppDir)\dist\index.html"
+  >
+    <Exec Condition="'$(NodeExitCode)' == '0'" WorkingDirectory="$(DashboardAppDir)" Command="npm run build" />
+  </Target>
+
+  <ItemGroup>
+    <DashboardAppSource Include="$(DashboardAppDir)\src\**\*.*" />
+  </ItemGroup>
+
+  <!-- Packing without the compiled dashboard would ship routes that 404 on every asset; a local
+       build may proceed without Node, a package must not. -->
+  <Target Name="RequireDashboardAssetsForPack" BeforeTargets="GenerateNuspec;Pack">
+    <Error
+      Condition="!Exists('$(DashboardAppDir)\dist\index.html')"
+      Text="Dashboard assets are missing. Run npm ci and npm run build in DashboardApp, or build with Node available before packing."
+    />
+  </Target>
+
+  <!-- Embeds whatever dist files exist after BuildDashboardApp; logical names flatten directory
+       separators to dots so EmbeddedDashboardAssets can resolve request paths directly. -->
+  <Target Name="EmbedDashboardAssets" AfterTargets="BuildDashboardApp" BeforeTargets="PrepareForBuild">
+    <ItemGroup>
+      <_DashboardDistFile Include="DashboardApp\dist\**\*.*" />
+    </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="@(_DashboardDistFile)">
+        <LogicalName>Acta.AspNetCore.Web.Assets.$([System.String]::Copy('%(_DashboardDistFile.RecursiveDir)%(_DashboardDistFile.Filename)%(_DashboardDistFile.Extension)').Replace('\', '.').Replace('/', '.'))</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+</Project>

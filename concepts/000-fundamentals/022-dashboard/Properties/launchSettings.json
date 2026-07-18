@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "022-dashboard": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:61137;http://localhost:61138"
+    }
+  }
+}

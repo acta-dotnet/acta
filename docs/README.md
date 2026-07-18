@@ -1,0 +1,50 @@
+# Acta documentation
+
+Acta is a SQL-native durable work ledger for .NET: durable jobs, retries, schedules, checkpoints,
+signals, recovery, and operator control, recorded as rows in the PostgreSQL, SQL Server, or SQLite
+database you already run.
+
+## Start here
+
+| Document | What it answers |
+| --- | --- |
+| [Choosing Acta](./choosing-acta.md) | Whether Acta fits your problem, and when to keep what you have. |
+| [Quickstart](./quickstart.md) | Clone to a running durable job on embedded SQLite, then inspect the row. |
+| [Engineering Labs](./engineering-labs.md) | Runnable proof: crash recovery, durable steps, signals, the dashboard, deterministic tests. |
+| [Tutorials](./guide/tutorials.md) | The full concept ladder: 88 runnable projects in sequence. |
+| [Known limitations](./technical/known-limitations.md) | What the preview does not do yet. |
+| [Release notes](./release-notes.md) | What is in the current preview. |
+
+## Guide
+
+| Document | What it covers |
+| --- | --- |
+| [Concepts](./guide/concepts.md) | The vocabulary and model: jobs, executions, attempts, namespaces, durable slots. |
+| [Handler contract](./guide/handler-contract.md) | Execution semantics, valid handler shapes, DI, payload and result rules, cancellation. |
+| [Configuration](./guide/configuration.md) | `JobsOptions`, execution profiles, and where per-job policy lives. |
+| [Contract evolution](./guide/contract-evolution.md) | Evolving payloads, results, job names, and durable slot names without stranding work. |
+| [Testing](./guide/testing.md) | The deterministic test host and the test taxonomy. |
+| [Scheduler migration](./guide/scheduler-migration.md) | Concrete migration patterns from `BackgroundService`, cron, Hangfire, Quartz, and TickerQ. |
+
+## Operations
+
+| Document | What it covers |
+| --- | --- |
+| [Operator guide](./guide/operator-guide.md) | Verbs, dashboard, CLI, retention and purge, security and exposure. |
+| [Production](./guide/production.md) | Provider choice, sizing, leases, clocks, deployment, and the production checklist. |
+| [Failure modes](./guide/failure-modes.md) | What breaks, how it surfaces, and what to do. |
+| [Schedule operations](./guide/schedule-operations.md) | Pausing, previewing, and overriding recurring schedules. |
+| [Troubleshooting](./guide/troubleshooting.md) | Environment and startup problems. |
+| [SQL recipes](./guide/sql-recipes.md) | Ready queries for backlog, stuck jobs, worker liveness, and alerts. |
+
+## Reference
+
+Generated from source and drift-checked in CI: [Data model](./reference/data-model.md) and
+[Code families](./reference/code-families.md).
+
+## Internals
+
+Contributor-facing; not needed to use Acta: [design principles and settled decisions](./internals/design.md),
+[architecture diagrams](./technical/architecture-diagrams.md), [migration tooling](./internals/migrations.md),
+[releasing](./internals/releasing.md), [benchmarks](./benchmarks/stress-tests.md), and
+[proposed designs](./designs/incident-response.md).
