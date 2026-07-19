@@ -121,6 +121,12 @@ Each baseline captures comparability metadata:
 
 ## Recorded Baselines
 
+- [2026-07-19 full all-provider report](./baseline-20260719T135917Z.md): 105 cells, one warmup and
+  three measured repeats per cell; all 420 measurements completed. First baseline with the SQL Server
+  container started with `-T3979` (see docker-compose.yml), which removes the Linux-only forced
+  flush; SQL Server throughput, drain, latency, and single-call enqueue all improve substantially
+  over the 2026-07-18 baseline. The [source JSON](./baseline-20260719T135917Z.json) contains the
+  complete measurements and environment metadata.
 - [2026-07-18 full all-provider report](./baseline-20260718T202454Z.md): 105 cells, one warmup and
   three measured repeats per cell; all 420 measurements completed on the .NET 10.0.10 servicing
   baseline, on a clean commit after the flake-hardening pass. The
