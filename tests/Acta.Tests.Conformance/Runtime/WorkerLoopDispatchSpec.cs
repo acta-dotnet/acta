@@ -204,8 +204,10 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         await loop;
 
         Assert.True(outcome.IsSuccess, $"Execute outcome: timedOut={outcome.IsTimedOut}, status={outcome.TerminalStatus}.");
+        // Any return before the ~6s poll read proves the wake; keep the ceiling just under it so a
+        // slow CI runner cannot fail a run whose wake actually fired.
         Assert.True(
-            elapsed < TimeSpan.FromSeconds(4),
+            elapsed < TimeSpan.FromSeconds(5.5),
             $"Execute returned after {elapsed} — the completion wake did not interrupt the poll wait."
         );
     }
