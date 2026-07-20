@@ -252,16 +252,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         try
         {
-            await RetentionTestOps.PurgeAsync(
-                Services,
-                ns,
-                NoEventPurgeDays,
-                NoAlertPurgeDays,
-                NoWorkerPurgeSeconds,
-                1000,
-                50,
-                ct
-            );
+            await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
 
             // The reap is global (leases has no namespace), so a concurrent spec's purge may sweep the
             // dead row first and leave this call's count at 0 - assert only the per-key outcome.
