@@ -252,7 +252,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         try
         {
-            var result = await RetentionTestOps.PurgeAsync(
+            await RetentionTestOps.PurgeAsync(
                 Services,
                 ns,
                 NoEventPurgeDays,
@@ -263,9 +263,8 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
                 ct
             );
 
-            // The reap is global (leases has no namespace), so other specs' expired rows may also be
-            // swept - assert at least ours and pin the per-key outcome.
-            Assert.True(result.Locks >= 1);
+            // The reap is global (leases has no namespace), so a concurrent spec's purge may sweep the
+            // dead row first and leave this call's count at 0 - assert only the per-key outcome.
             Assert.Null(await Db.From<Lease>().Where(l => l.LeaseKey == deadKey).SingleOrDefaultAsync(ct));
             Assert.NotNull(await Db.From<Lease>().Where(l => l.LeaseKey == liveKey).SingleOrDefaultAsync(ct));
         }
