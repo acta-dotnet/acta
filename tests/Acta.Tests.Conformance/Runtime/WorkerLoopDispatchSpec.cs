@@ -191,11 +191,14 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         await Task.Delay(TimeSpan.FromSeconds(1), ct);
 
         // PollInterval is deliberately huge: without the JobCompletion wake the waiter's next
-        // status read would land at ~6s, so a fast return proves the wake, not polling.
+        // status read cannot land before ~15s, so any return under the 10s ceiling proves the wake,
+        // not polling. The 5s dead zone between them absorbs slow CI runners (a loaded runner has
+        // been observed taking 4.2s on the wake path); the wake path never waits on PollInterval,
+        // so the passing case stays wake-fast regardless of the interval.
         var startedAt = Stopwatch.GetTimestamp();
         var outcome = await Jobs.ExecuteAndWaitAsync(
             new AddNumbers(2, 3),
-            new JobExecutionOptions { PollInterval = TimeSpan.FromSeconds(6), WaitTimeout = TimeSpan.FromSeconds(20) },
+            new JobExecutionOptions { PollInterval = TimeSpan.FromSeconds(15), WaitTimeout = TimeSpan.FromSeconds(20) },
             ct
         );
         var elapsed = Stopwatch.GetElapsedTime(startedAt);
@@ -205,7 +208,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         Assert.True(outcome.IsSuccess, $"Execute outcome: timedOut={outcome.IsTimedOut}, status={outcome.TerminalStatus}.");
         Assert.True(
-            elapsed < TimeSpan.FromSeconds(4),
+            elapsed < TimeSpan.FromSeconds(10),
             $"Execute returned after {elapsed} — the completion wake did not interrupt the poll wait."
         );
     }
