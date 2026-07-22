@@ -520,7 +520,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10, 20, 21, 22, 23, 24, 30, 40, 41, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10, 20, 21, 22, 23, 24, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101"
           },
           {
             "Name": "reason_message",
@@ -1071,7 +1071,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10, 20, 21, 22, 23, 24, 30, 40, 41, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10, 20, 21, 22, 23, 24, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101"
           },
           {
             "Name": "reason_message",
@@ -1859,7 +1859,7 @@
           {
             "Id": 240,
             "Code": "retired",
-            "Description": "Enqueue REJECTED; existing Ready rows cancelled with ReasonCode = \u0027definition-retired\u0027.",
+            "Description": "Enqueue REJECTED; parked rows (Ready/Paused/Suspended) cancelled with ReasonCode = \u0027job.definition-retired\u0027; in-flight executions finish their attempt.",
             "Lifecycle": "Active"
           }
         ]
@@ -1919,6 +1919,12 @@
             "Id": 41,
             "Code": "job.parent-cancelled",
             "Description": "Job was cancelled because an ancestor job in its lineage was cancelled (recursive cascade).",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 42,
+            "Code": "job.definition-retired",
+            "Description": "Job was cancelled because its definition was retired by registration; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt.",
             "Lifecycle": "Active"
           },
           {

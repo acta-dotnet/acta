@@ -177,6 +177,85 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
         Assert.Equal(retired.Version, still.Version);
     }
 
+    [Fact(DisplayName = "Retirement cancels the definition's parked jobs with reason definition-retired")]
+    public async Task Retirement_cancels_parked_jobs_with_definition_retired_reason()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var keep = TestKey("ret-keep");
+        var gone = TestKey("ret-gone");
+
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [AuditedDef(keep), AuditedDef(gone)], ct);
+
+        var jobs = Services.GetRequiredService<IJobs>();
+        var payload = Services.GetRequiredService<IJobPayloadSerializerRegistry>().Resolve(JobPayloadFormat.Json.Id).Serialize(1);
+        var ready = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, gone, payload, null, null, null), ct);
+        var paused = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, gone, payload, null, null, null), ct);
+        Assert.Equal(JobControlAction.Applied, (await jobs.PauseAsync(paused, null, null, ct)).Action);
+        var kept = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, keep, payload, null, null, null), ct);
+
+        // Re-register without 'gone': the same transaction that retires the definition cancels its
+        // parked rows set-wise; the surviving definition's job is untouched.
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [AuditedDef(keep)], ct);
+
+        Assert.Equal(JobStatusCode.Ready, await jobs.GetStatusAsync(kept, ct));
+        foreach (var cancelled in new[] { ready, paused })
+        {
+            Assert.Equal(JobStatusCode.Cancelled, await jobs.GetStatusAsync(cancelled, ct));
+
+            var runtime = await Db.From<JobRuntime>().Where(r => r.Id == cancelled.JobId).SingleOrDefaultAsync(ct);
+            Assert.NotNull(runtime!.RetentionUntilUtc);
+
+            var ev = await Db.From<JobEvent>()
+                .Where(e => e.JobId == cancelled.JobId && e.EventCode == JobEventCode.JobCancelled)
+                .SingleOrDefaultAsync(ct);
+            Assert.NotNull(ev);
+            Assert.Equal(JobEventReasonCode.JobDefinitionRetired, ev!.ReasonCode);
+        }
+    }
+
+    [Fact(DisplayName = "A later registration does not re-cancel a re-armed job under an already-retired definition")]
+    public async Task Later_registration_does_not_resweep_an_already_retired_definition()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var keep = TestKey("resweep-keep");
+        var gone = TestKey("resweep-gone");
+
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [AuditedDef(keep), AuditedDef(gone)], ct);
+
+        var jobs = Services.GetRequiredService<IJobs>();
+        var payload = Services.GetRequiredService<IJobPayloadSerializerRegistry>().Resolve(JobPayloadFormat.Json.Id).Serialize(1);
+        var job = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, gone, payload, null, null, null), ct);
+
+        // First registration without 'gone' retires it and cancels its parked job.
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [AuditedDef(keep)], ct);
+        Assert.Equal(JobStatusCode.Cancelled, await jobs.GetStatusAsync(job, ct));
+
+        // Operator restarts the cancelled job: it is parked (Ready) again under the already-retired definition.
+        Assert.Equal(JobControlAction.Applied, (await jobs.RestartAsync(job, null, null, ct)).Action);
+        Assert.Equal(JobStatusCode.Ready, await jobs.GetStatusAsync(job, ct));
+
+        // A later registration that changes 'keep' runs the routine again, but 'gone' did not transition
+        // this call, so its re-armed job must not be re-swept. (Changing 'keep' defeats the no-op write gate.)
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [AuditedDef(keep, 2)], ct);
+
+        Assert.Equal(JobStatusCode.Ready, await jobs.GetStatusAsync(job, ct));
+
+        // Exactly one cancellation event exists (from the first registration); the later call emitted none.
+        var ev = await Db.From<JobEvent>()
+            .Where(e => e.JobId == job.JobId && e.EventCode == JobEventCode.JobCancelled)
+            .SingleOrDefaultAsync(ct);
+        Assert.NotNull(ev);
+    }
+
+    // Retirement cancel-sweep events are audit-gated like every control verb, so this needs a real
+    // audit level (Def's default(0) is not Audit) and a concrete retention for the stamp assert.
+    private static JobDescriptor AuditedDef(string name, short maxAttempts = 1) =>
+        Def(name, maxAttempts, typeof(int)) with
+        {
+            AuditLevel = JobAuditLevelCode.Audit,
+            JobRetentionSeconds = 3600,
+        };
+
     [Fact(DisplayName = "Fail-mode contract drift blocks before any registration write")]
     public async Task Fail_mode_blocks_before_any_registration_write()
     {

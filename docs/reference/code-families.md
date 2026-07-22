@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **29 families**, **151 values**.
+This release: **29 families**, **152 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -101,7 +101,7 @@ State machine code family.
 | Id | Code | Description | Lifecycle |
 |---:|---|---|---|
 | 10 | `active` | Enqueue allowed; claim allowed. | Active |
-| 240 | `retired` | Enqueue REJECTED; existing Ready rows cancelled with ReasonCode = 'definition-retired'. | Active |
+| 240 | `retired` | Enqueue REJECTED; parked rows (Ready/Paused/Suspended) cancelled with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt. | Active |
 
 ---
 
@@ -280,15 +280,15 @@ Stable family-local reason identifiers.
 | Code style | Taxonomy |
 | Appears in | [`events.reason_code`](./data-model.md#column-acta-events--reason-code), [`steps.reason_code`](./data-model.md#column-acta-steps--reason-code) |
 | Set by | System, worker, operator, or handler control flow. |
-| Consumed ids | 20 |
+| Consumed ids | 21 |
 | Held reserve | 0 |
-| Available ids | 234 |
+| Available ids | 233 |
 
 **Capacity**
 
 | Assigned | Deprecated | Retired | Permanently reserved | Held reserve | Available | Invalid sentinels |
 |---:|---:|---:|---:|---:|---:|---:|
-| 20 | 0 | 0 | 0 | 0 | 234 | 2 |
+| 21 | 0 | 0 | 0 | 0 | 233 | 2 |
 
 **Values**
 
@@ -303,6 +303,7 @@ Stable family-local reason identifiers.
 | 30 | `job.schedules-exhausted` | Recurring slot has no live JobSchedule yielding a next instant; row is system-paused. | Active |
 | 40 | `job.control-manual` | Operator-initiated control transition via an IJobs control verb (Cancel/Pause/Resume/Restart). | Active |
 | 41 | `job.parent-cancelled` | Job was cancelled because an ancestor job in its lineage was cancelled (recursive cascade). | Active |
+| 42 | `job.definition-retired` | Job was cancelled because its definition was retired by registration; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt. | Active |
 | 50 | `job.handler-rescheduled` | Handler called ctx.RescheduleAsync; attempt finalized as Rescheduled. | Active |
 | 51 | `job.handler-suspended` | Handler called ctx.SleepAsync or ctx.WaitSignalAsync; attempt suspended (budget-neutral) until the sleep timer's due instant or a matching signal is raised. | Active |
 | 52 | `job.handler-failed` | Handler called ctx.FailAsync; the attempt was finalized as a deliberate terminal Failed (no retry, budget untouched). | Active |

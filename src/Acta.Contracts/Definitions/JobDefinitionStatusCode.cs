@@ -12,6 +12,9 @@ public enum JobDefinitionStatusCode : byte
     [Code("active", "Enqueue allowed; claim allowed.")]
     Active = 10,
 
-    [Code("retired", "Enqueue REJECTED; existing Ready rows cancelled with ReasonCode = 'definition-retired'.")]
+    [Code(
+        "retired",
+        "Enqueue REJECTED; parked rows (Ready/Paused/Suspended) cancelled with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt."
+    )]
     Retired = 240,
 }

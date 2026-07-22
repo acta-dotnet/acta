@@ -51,6 +51,12 @@ public enum JobEventReasonCode : byte
     [Code("job.parent-cancelled", "Job was cancelled because an ancestor job in its lineage was cancelled (recursive cascade).")]
     JobParentCancelled = 41,
 
+    [Code(
+        "job.definition-retired",
+        "Job was cancelled because its definition was retired by registration; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt."
+    )]
+    JobDefinitionRetired = 42,
+
     [Code("job.handler-rescheduled", "Handler called ctx.RescheduleAsync; attempt finalized as Rescheduled.")]
     JobHandlerRescheduled = 50,
 

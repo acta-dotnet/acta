@@ -27,6 +27,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.register_job_definitions(
 RETURNS TABLE(def_name VARCHAR, def_id INT)
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_retired_ids INT[];
 BEGIN
     RETURN QUERY
     WITH batch AS (
@@ -121,13 +123,62 @@ BEGIN
               ON jd.namespace_id = p_namespace_id AND jd.name = b.name
      WHERE NOT EXISTS (SELECT 1 FROM upserted u WHERE u.name = b.name);
 
-    UPDATE {{schema}}.definitions
-       SET status_code = 240 /* JobDefinitionStatusCode.Retired */,
-           modified_at_utc = now(),
-           version = version + 1
-     WHERE namespace_id = p_namespace_id
-       AND status_code = 10 /* JobDefinitionStatusCode.Active */
-       AND manifest_generation_at_utc <= p_manifest_generation
-       AND name <> ALL(COALESCE(p_d_name, ARRAY[]::VARCHAR[]));
+    -- Retire definitions absent from the manifest and capture the ids this call actually flipped, so
+    -- the cancel-sweep can be scoped to exactly that set.
+    WITH retired AS (
+        UPDATE {{schema}}.definitions
+           SET status_code = 240 /* JobDefinitionStatusCode.Retired */,
+               modified_at_utc = now(),
+               version = version + 1
+         WHERE namespace_id = p_namespace_id
+           AND status_code = 10 /* JobDefinitionStatusCode.Active */
+           AND manifest_generation_at_utc <= p_manifest_generation
+           AND name <> ALL(COALESCE(p_d_name, ARRAY[]::VARCHAR[]))
+        RETURNING id
+    )
+    SELECT COALESCE(array_agg(id), ARRAY[]::INT[]) INTO v_retired_ids FROM retired;
+
+    -- Retirement cancel-sweep: parked rows of definitions this call transitioned to retired. Definitions
+    -- retired by an earlier call keep their parked jobs (a re-arm after retirement stays as the operator
+    -- left it). In-flight Dispatched/Executing rows finish their attempt untouched.
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id,
+        actor_code, actor_key,
+        job_id, job_ref, execution_number,
+        lineage_root_id, definition_id, tenant_id,
+        worker_id,
+        from_status_code, to_status_code,
+        execution_status_code, duration_ms,
+        reason_code, reason_message)
+    SELECT
+        70 /* JobEventCode.JobCancelled */, now(), j.namespace_id,
+        10 /* JobActorCode.Sys */, 'sys:register-definitions',
+        j.id, j.job_ref, r.execution_number,
+        COALESCE(j.lineage_root_id, j.id), j.definition_id, j.tenant_id,
+        NULL,
+        r.status_code, 220 /* JobStatusCode.Cancelled */,
+        NULL, NULL,
+        42 /* JobEventReasonCode.JobDefinitionRetired */, NULL
+      FROM {{schema}}.jobs j
+      JOIN {{schema}}.runtimes r ON r.job_id = j.id
+      JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
+     WHERE jd.namespace_id = p_namespace_id
+       AND jd.id = ANY(v_retired_ids)
+       AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+       AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */);
+
+    UPDATE {{schema}}.runtimes r
+       SET status_code          = 220 /* JobStatusCode.Cancelled */,
+           leased_by_worker_id  = NULL,
+           lease_expires_at_utc = NULL,
+           retention_until_utc  = now() + make_interval(secs => jd.retention_seconds_effective),
+           modified_at_utc      = now(),
+           version              = r.version + 1
+      FROM {{schema}}.jobs j
+      JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
+     WHERE j.id = r.job_id
+       AND jd.namespace_id = p_namespace_id
+       AND jd.id = ANY(v_retired_ids)
+       AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */);
 END;
 $$;

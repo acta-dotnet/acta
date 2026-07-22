@@ -206,6 +206,7 @@
   - Older generation does not retire a newer definition it omits
   - Equal or newer generation retires a genuinely removed definition
   - Older generation cannot reactivate or rewrite a newer retired definition
+  - Retirement cancels the definition's parked jobs with reason definition-retired
   - Fail-mode contract drift blocks before any registration write
 - **Store methods:**
   - `Acta.Features.Definitions.IDefinitionStore.GetDefinitionContractsAsync`
