@@ -643,8 +643,10 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Iso_duration_reports_ACTA0141()
+    public void Iso_durations_are_accepted_without_diagnostics()
     {
+        // ISO-8601 time-only durations are a first-class alternate spelling of the human syntax,
+        // not a nudge-worthy variant; they compile silently.
         var result = RunGenerator(
             """
             using Acta;
@@ -652,16 +654,14 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("legacy-iso", Backoff = "PT1M..PT8H x2 ~10%", ExecutionTimeout = "PT30S")]
+                [Job("iso-durations", Backoff = "PT1M..PT8H x2 ~10%", ExecutionTimeout = "PT30S")]
                 public static void Run() { }
             }
             """
         );
 
-        var infos = Of(result, "ACTA0141");
-        Assert.NotEmpty(infos);
-        Assert.All(infos, d => Assert.Equal(DiagnosticSeverity.Info, d.Severity));
-        Assert.Contains("legacy-iso", Assert.Single(result.GeneratedTrees).ToString());
+        Assert.Empty(result.Diagnostics);
+        Assert.Contains("iso-durations", Assert.Single(result.GeneratedTrees).ToString());
     }
 
     [Fact]

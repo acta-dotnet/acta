@@ -48,7 +48,7 @@ internal static class DurationSyntax
         }
     }
 
-    /// <summary>Parses canonical human syntax, with legacy ISO-8601 time-only strings as a read fallback.</summary>
+    /// <summary>Parses a duration: the human syntax (<c>1m</c>) or its ISO-8601 time-only equivalent (<c>PT1M</c>).</summary>
     public static TimeSpan ParseDuration(string text)
     {
         var s = text.Trim();

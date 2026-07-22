@@ -147,7 +147,7 @@ internal sealed class WorkerRuntimeInitializer
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
         // throws here (before register), Warn logs and continues. The SQL routine remains the
         // authoritative generation gate for the policy write itself.
-        var manifestGenerationUtc = ManifestGenerationResolver.Resolve(_options.Value, Assembly.GetEntryAssembly());
+        var manifestGenerationUtc = ManifestGenerationResolver.Resolve(_options.Value, Assembly.GetEntryAssembly(), _log);
         var storedContracts = await _definitionStore.GetDefinitionContractsAsync(namespaceId, ct);
         var contractDrifts = ContractDriftDetector.Detect(manifestGenerationUtc, allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);

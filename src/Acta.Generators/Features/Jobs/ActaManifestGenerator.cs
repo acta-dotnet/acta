@@ -512,14 +512,11 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             return null;
         }
 
-        var legacyIso = new List<(string Iso, string Human)>();
-        if (!BackoffExpressionValidator.TryParseBackoff(text, legacyIso, out _, out var error))
+        if (!BackoffExpressionValidator.TryParseBackoff(text, out _, out var error))
         {
             ReportDurationSyntaxError(named.Key, text, error, diagnostics, location);
             return null;
         }
-
-        ReportLegacyIso(diagnostics, legacyIso, location);
 
         if (text.Length > 64)
         {
@@ -532,8 +529,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return text;
     }
 
-    // [Job] canonicalizes durations as human strings (e.g. "1m"), with legacy ISO-8601 as a read
-    // fallback. The descriptor and DB carry whole seconds.
+    // [Job] durations accept both the human syntax (e.g. "1m") and its ISO-8601 time-only
+    // equivalent (e.g. "PT1M"). The descriptor and DB carry whole seconds.
     private static int? ReadDurationSeconds(
         KeyValuePair<string, TypedConstant> named,
         List<DiagnosticRecord> diagnostics,
@@ -545,26 +542,16 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             return null;
         }
 
-        var legacyIso = new List<(string Iso, string Human)>();
         if (
-            BackoffExpressionValidator.TryParseDuration(text, legacyIso, out var span, out var error)
+            BackoffExpressionValidator.TryParseDuration(text, out var span, out var error)
             && BackoffExpressionValidator.TryToWholeSeconds(span, out var seconds)
         )
         {
-            ReportLegacyIso(diagnostics, legacyIso, location);
             return seconds;
         }
 
         ReportDurationSyntaxError(named.Key, text, error, diagnostics, location);
         return null;
-    }
-
-    private static void ReportLegacyIso(List<DiagnosticRecord> diagnostics, List<(string Iso, string Human)> legacyIso, Location location)
-    {
-        foreach (var token in legacyIso)
-        {
-            diagnostics.Add(Diagnostics.LegacyIsoDuration(token.Iso, token.Human, location));
-        }
     }
 
     private static void ReportDurationSyntaxError(
@@ -1368,7 +1355,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.For(record.Id), record.Location, record.Message));
     }
 
-    private static bool HasBlockingDiagnostics(DiscoveredJob job) => job.Diagnostics.Any(static d => d.Id != "ACTA0141");
+    private static bool HasBlockingDiagnostics(DiscoveredJob job) => job.Diagnostics.Any();
 
     // Manifest type name = the assembly's area (RootNamespace's last segment). Non-"Jobs" areas get
     // the short "{Area}Jobs" (e.g. "HelloActa" to "HelloActaJobs"). An area already ending in "Jobs"
@@ -1850,15 +1837,6 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             isEnabledByDefault: true
         );
 
-        private static readonly DiagnosticDescriptor LegacyIsoDurationDescriptor = new(
-            id: "ACTA0141",
-            title: "ISO 8601 durations are legacy in [Job] policy",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Info,
-            isEnabledByDefault: true
-        );
-
         private static readonly DiagnosticDescriptor InvalidDurationUnitDescriptor = new(
             id: "ACTA0142",
             title: "Acta durations must use lowercase non-calendar units",
@@ -1882,7 +1860,6 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 "ACTA0123" => ScheduledInputCtor,
                 "ACTA0131" => InvalidPayloadFormat,
                 "ACTA0132" => InvalidPayloadFormatUsage,
-                "ACTA0141" => LegacyIsoDurationDescriptor,
                 "ACTA0142" => InvalidDurationUnitDescriptor,
                 _ => throw new InvalidOperationException($"Unknown ACTA01xx descriptor '{id}'."),
             };
@@ -1998,9 +1975,6 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 $"`[Job]` argument `{argument}` value `\"{value}\"` is not a valid non-negative Acta duration (e.g. `\"30s\"`, `\"1m\"`, `\"2h\"`). The framework default is used until corrected.",
                 location
             );
-
-        public static DiagnosticRecord LegacyIsoDuration(string iso, string human, Location location) =>
-            new("ACTA0141", $"ISO 8601 duration \"{iso}\" is legacy; use \"{human}\".", location);
 
         public static DiagnosticRecord InvalidDurationUnit(string unit, Location location) =>
             new("ACTA0142", $"Unit '{unit}' is not valid. Use '1m' for minutes. (Acta durations have no calendar units.)", location);
