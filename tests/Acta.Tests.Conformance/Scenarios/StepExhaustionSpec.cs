@@ -180,7 +180,7 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(JobStepStateCode.Exhausted, stepAfterExhaust.State);
         Assert.Equal((short)2, stepAfterExhaust.AttemptNumber);
         Assert.Null(stepAfterExhaust.NextRetryAtUtc);
-        // Body ran exactly twice — once per in-budget attempt.
+        // Body ran exactly twice: once per in-budget attempt.
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
         // Make the parent immediately claimable regardless of backoff jitter.
@@ -191,7 +191,7 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         //   parent attempt 2 fails (FailureCount=2, MaxAttempts=2) → RunOnceOutcome.Failed.
         Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        // Body invocation count must NOT have increased — body was never called on re-entry.
+        // Body invocation count must NOT have increased: body was never called on re-entry.
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
         // Step row is still Exhausted, unchanged by the re-entry (StartStep is read-only on Exhausted slots).

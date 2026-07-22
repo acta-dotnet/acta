@@ -5,8 +5,8 @@ using Acta.Emit.Shared.Sql;
 
 namespace Acta.Emit.Features.Migrations;
 
-/// <summary>Emits the next migration M{N} for every provider — a delta where the provider already has
-/// history, a full baseline where it does not (genesis, or a late-joining provider) — then advances
+/// <summary>Emits the next migration M{N} for every provider: a delta where the provider already has
+/// history, a full baseline where it does not (genesis, or a late-joining provider), then advances
 /// the snapshot and regenerates docs.</summary>
 internal static class SchemaAddCommand
 {

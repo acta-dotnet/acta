@@ -32,7 +32,7 @@ public sealed class ProviderMigrationOwnershipTests
             Assert.NotEmpty(migrations);
             foreach (var file in migrations)
             {
-                // Bare M{nnn}_{name}.sql — no dialect suffix (the package is the dialect).
+                // Bare M{nnn}_{name}.sql: no dialect suffix (the package is the dialect).
                 Assert.Matches(@"^M[0-9]{3}_[a-z0-9_]+\.sql$", Path.GetFileName(file));
             }
         }

@@ -111,7 +111,7 @@ internal sealed class JobTypeIndex
     private static InvalidOperationException AmbiguousWithinNamespace(Type inputType, string ns, IReadOnlyList<JobRoute> scoped) =>
         new(
             $"Input type '{inputType.FullName}' maps to multiple jobs in namespace '{ns}' "
-                + $"({string.Join(", ", scoped.Select(r => r.JobName))}) — typically several no-input jobs sharing "
+                + $"({string.Join(", ", scoped.Select(r => r.JobName))}): typically several no-input jobs sharing "
                 + "NoInput. Enqueue these via the raw JobEnqueueRequest path, which names the job."
         );
 }

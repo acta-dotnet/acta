@@ -178,7 +178,7 @@ public static class IdentifierSyntax
         if (StartsWithSystemPrefix(value))
         {
             throw new ArgumentException(
-                $"Identifier '{value}' uses the reserved system prefix '{SystemPrefix}' — reserved for system-internal names.",
+                $"Identifier '{value}' uses the reserved system prefix '{SystemPrefix}': reserved for system-internal names.",
                 paramName
             );
         }
@@ -275,7 +275,7 @@ public static class IdentifierSyntax
         if (StartsWithSystemPrefix(canonical))
         {
             throw new ArgumentException(
-                $"Key '{value.Trim()}' uses the reserved system prefix '{SystemPrefix}' — reserved for system-internal names.",
+                $"Key '{value.Trim()}' uses the reserved system prefix '{SystemPrefix}': reserved for system-internal names.",
                 paramName
             );
         }

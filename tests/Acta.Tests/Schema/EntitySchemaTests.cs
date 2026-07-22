@@ -158,7 +158,7 @@ public class EntitySchemaTests
     public void Schedule_TimeZoneId_Has_No_ServerDefault()
     {
         // The registration routine always supplies time_zone_id (defaulting to 'UTC' in code), so the
-        // column carries no server DEFAULT — the value is caller-owned, not DB-owned.
+        // column carries no server DEFAULT: the value is caller-owned, not DB-owned.
         var c = ActaSchema.For<JobSchedule>().Column("time_zone_id");
 
         Assert.Equal(DbDefault.None, c.Default);

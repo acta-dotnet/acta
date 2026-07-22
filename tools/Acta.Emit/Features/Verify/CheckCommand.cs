@@ -9,7 +9,7 @@ namespace Acta.Emit.Features.Verify;
 /// <summary>
 /// Drift gate. Verifies the generated reference docs are current and that the committed snapshot still
 /// equals the live model (i.e. no entity/routine change is missing a `schema add`). It does NOT
-/// drift-check migration SQL — M001+ is frozen, hand-edited history; the round-trip conformance test
+/// drift-check migration SQL: M001+ is frozen, hand-edited history; the round-trip conformance test
 /// is what proves the applied history reconstructs the model.
 /// </summary>
 internal static class CheckCommand
@@ -47,7 +47,7 @@ internal static class CheckCommand
         var snapshotPath = SnapshotFile.Path(repoRoot);
         if (!File.Exists(snapshotPath))
         {
-            Console.Error.WriteLine($"  MISSING: {snapshotPath} — no migrations; run `schema add`.");
+            Console.Error.WriteLine($"  MISSING: {snapshotPath}: no migrations; run `schema add`.");
             drifted++;
         }
         else
@@ -56,7 +56,7 @@ internal static class CheckCommand
             var committed = SnapshotPair.Load(snapshotPath).Current;
             if (Canon(live) != Canon(committed))
             {
-                Console.Error.WriteLine("  DRIFT:   snapshot != live model — run `schema add` (or `schema amend`).");
+                Console.Error.WriteLine("  DRIFT:   snapshot != live model: run `schema add` (or `schema amend`).");
                 drifted++;
             }
             else

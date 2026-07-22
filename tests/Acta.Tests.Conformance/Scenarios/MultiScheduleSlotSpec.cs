@@ -21,7 +21,7 @@ internal static class MultiSchedulePingHandler
 }
 
 /// <summary>
-/// Hand-written manifest for the multi-schedule ping job — two interval schedules on one slot.
+/// Hand-written manifest for the multi-schedule ping job: two interval schedules on one slot.
 /// Kept isolated from <c>TestJobsManifest</c> so sibling specs that count schedules/slots are unaffected.
 /// </summary>
 public sealed class MultiScheduleSlotManifest : IActaManifest
@@ -160,7 +160,7 @@ public abstract class MultiScheduleSlotSpec<TFixture> : ActaRuntimeTestBase<TFix
         var fastCursor = await ScheduleCursorAsync(slotId, FastName, ct);
         var slowCursor = await ScheduleCursorAsync(slotId, SlowName, ct);
         Assert.Equal(T0 + Fast + Fast, fastCursor); // T0+60s
-        Assert.Equal(T0 + Slow, slowCursor); // T0+50s — not due, not advanced
+        Assert.Equal(T0 + Slow, slowCursor); // T0+50s: not due, not advanced
 
         // Slot re-arms to the new MIN: now the slow schedule.
         var slot = await ReadJobAsync(slotId, ct);
@@ -174,7 +174,7 @@ public abstract class MultiScheduleSlotSpec<TFixture> : ActaRuntimeTestBase<TFix
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
 
-        // Advance clock to T0+60s: fast was due at T0+30s, slow at T0+50s — both overdue.
+        // Advance clock to T0+60s: fast was due at T0+30s, slow at T0+50s. Both overdue.
         Clock.AdvanceTo(T0 + TimeSpan.FromSeconds(60));
         var outcome = await Runtime.RunOnceAsync(slotId, ct);
         Assert.NotEqual(RunOnceOutcome.NothingClaimed, outcome);

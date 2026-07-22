@@ -6,12 +6,12 @@ namespace Acta.Tests.Conformance.Sql;
 /// <summary>
 /// Guards that a dialect's embedded SQL never leaks another provider's syntax (a pg file with T-SQL's
 /// <c>TOP</c>/bracket-quoting, an mssql file with pg's <c>::</c> cast or <c>RETURNING</c>, etc.). Runs
-/// per dialect against <see cref="ProviderSqlResources.EnumerateIncludingViews"/> — views included,
+/// per dialect against <see cref="ProviderSqlResources.EnumerateIncludingViews"/>: views included,
 /// unlike most other SQL-policy checks, because a view is exactly where a copy-pasted foreign fragment
 /// tends to survive unnoticed. Because <see cref="SqlResolver"/> resolution already picks the most
 /// specific physical file for the dialect being scanned, a dialect-neutral (bare, unsuffixed) file is
 /// automatically re-scanned under every provider's own banned-token table across the three provider test
-/// projects — together equivalent to banning the union of every provider-specific token in shared files,
+/// projects: together equivalent to banning the union of every provider-specific token in shared files,
 /// with no extra bookkeeping needed here.
 /// </summary>
 public static class DialectLeakageAssert

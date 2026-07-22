@@ -180,7 +180,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("gone", soon)], JobStatusCode.Ready, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, null, [], JobStatusCode.Paused, ct);
 
-        // Capture all (including orphaned) via LiveOnly=false — independent of the liveOnly filter
+        // Capture all (including orphaned) via LiveOnly=false: independent of the liveOnly filter
         var allItems = (
             await Queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, LiveOnly: false), ct)
         ).Items;

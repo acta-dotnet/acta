@@ -109,12 +109,12 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     /// so no system jobs and no schedules) and pins all overview counters to exact values.
     /// <para>
     /// <list type="bullet">
-    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount — driven via enqueue + claim + StartExecution + CompleteExecution.</item>
-    ///   <item>SystemJobCount — 0: no system job definitions registered.</item>
-    ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount — 2 / 1: one Error + one Critical raised via RaiseJobAlert.</item>
-    ///   <item>DeadWorkerCount — 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
-    ///   <item>StaleWorkerCount — threshold flip: W2 aged 3 h; staleAfterSeconds=3600 → 1, staleAfterSeconds=14400 → 0.</item>
-    ///   <item>DueSoonScheduleCount — 0: dueSoonSeconds=0 and the slot cursors are parked a day out, so the zero window can never include them.</item>
+    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + StartExecution + CompleteExecution.</item>
+    ///   <item>SystemJobCount · 0: no system job definitions registered.</item>
+    ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseJobAlert.</item>
+    ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
+    ///   <item>StaleWorkerCount · threshold flip: W2 aged 3 h; staleAfterSeconds=3600 → 1, staleAfterSeconds=14400 → 0.</item>
+    ///   <item>DueSoonScheduleCount · 0: dueSoonSeconds=0 and the slot cursors are parked a day out, so the zero window can never include them.</item>
     /// </list>
     /// </para>
     /// </summary>
@@ -235,7 +235,7 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
             ct
         );
         // Stamp W2 Draining + stale rather than Active + stale. StaleWorkerCount counts both Active and
-        // Draining workers, but the global MarkDeadWorkers reaper only sweeps Active — so a Draining stale
+        // Draining workers, but the global MarkDeadWorkers reaper only sweeps Active, so a Draining stale
         // worker is still counted stale yet is immune to a concurrent global sweep that would otherwise
         // flip it Dead and inflate DeadWorkerCount (the off-by-one flake).
         await Db.From<JobWorker>()

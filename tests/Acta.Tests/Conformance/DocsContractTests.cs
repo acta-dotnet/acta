@@ -172,7 +172,7 @@ public sealed class DocsContractTests
             File.WriteAllText(path, generated);
         }
 
-        Assert.True(File.Exists(path), "docs/reference/conformance-contracts.md missing — run with ACTA_EMIT_DOCS=1.");
+        Assert.True(File.Exists(path), "docs/reference/conformance-contracts.md missing: run with ACTA_EMIT_DOCS=1.");
         var actual = File.ReadAllText(path).ReplaceLineEndings("\n");
         Assert.True(
             actual == generated,

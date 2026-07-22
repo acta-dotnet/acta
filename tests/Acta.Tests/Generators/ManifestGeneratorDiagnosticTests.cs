@@ -41,7 +41,7 @@ public class ManifestGeneratorDiagnosticTests
     private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => result.Diagnostics.Where(d => d.Id == id).ToArray();
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0101 — duplicate job name
+    // ACTA0101: duplicate job name
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -75,7 +75,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0102 — invalid job name
+    // ACTA0102: invalid job name
     // ----------------------------------------------------------------------------------------
 
     [Theory]
@@ -184,7 +184,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0103 — invalid handler signature (all variants share the ID)
+    // ACTA0103: invalid handler signature (all variants share the ID)
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -386,7 +386,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0104 — duplicate input type (warning)
+    // ACTA0104: duplicate input type (warning)
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -448,7 +448,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0105 — invalid policy value
+    // ACTA0105: invalid policy value
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -746,7 +746,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0121 — invalid schedule declaration
+    // ACTA0121: invalid schedule declaration
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -850,7 +850,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0122 — invalid schedule expression
+    // ACTA0122: invalid schedule expression
     // ----------------------------------------------------------------------------------------
 
     [Theory]
@@ -970,7 +970,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0123 — scheduled input not constructible
+    // ACTA0123: scheduled input not constructible
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -996,7 +996,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0131 — invalid payload format declaration
+    // ACTA0131: invalid payload format declaration
     // ----------------------------------------------------------------------------------------
 
     private const string SerializerBody = """
@@ -1125,7 +1125,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0132 — invalid [Job] payload-format usage
+    // ACTA0132: invalid [Job] payload-format usage
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -1288,7 +1288,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0106 — contract member name collision (separators removed, case-insensitive)
+    // ACTA0106: contract member name collision (separators removed, case-insensitive)
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -1317,7 +1317,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // Misfire default — an unset [JobSchedule] misfire emits Skip (forward-only, drop missed),
+    // Misfire default: an unset [JobSchedule] misfire emits Skip (forward-only, drop missed),
     // matching the production scheduler's default; FireOnceCatchUp is opt-in.
     // ----------------------------------------------------------------------------------------
 
@@ -1386,7 +1386,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // Deadline policy — [Job] Deadline and DeadlineBehavior flow through to the emitted descriptor
+    // Deadline policy: [Job] Deadline and DeadlineBehavior flow through to the emitted descriptor
     // ----------------------------------------------------------------------------------------
 
     [Fact]

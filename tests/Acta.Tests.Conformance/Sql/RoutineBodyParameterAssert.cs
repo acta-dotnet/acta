@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Sql;
 /// parameter is either leftover cruft or a sign the body silently stopped honoring an input it still
 /// accepts. mssql: every <c>@p_*</c> in the header (before the first top-level <c>AS</c>) must appear at
 /// least once after it. pg: every <c>p_*</c> in the <c>FUNCTION(...)</c> signature must appear in the
-/// <c>$$</c>-delimited body. Inline (non-routine) files are exempt —
+/// <c>$$</c>-delimited body. Inline (non-routine) files are exempt:
 /// <see cref="SqlParameterCoverage"/> and the provider-store binding gate cover inline commands,
 /// which have no separate header/body indirection to drift.
 /// </summary>
@@ -25,7 +25,7 @@ public static class RoutineBodyParameterAssert
     {
         if (dialectToken != "mssql" && dialectToken != "pg")
         {
-            return; // sqlite is inline-only — SqlResolver never resolves a ".routine.sql" body for it
+            return; // sqlite is inline-only: SqlResolver never resolves a ".routine.sql" body for it
         }
 
         var failures = new List<string>();
@@ -87,7 +87,7 @@ public static class RoutineBodyParameterAssert
     }
 
     // pg: parameters are the leading identifier of each top-level item in the "FUNCTION name(...)"
-    // parameter list (the file's first '(' — nothing before it in a CREATE FUNCTION header can carry
+    // parameter list (the file's first '(': nothing before it in a CREATE FUNCTION header can carry
     // one); the body is the text between the first and second "$$" dollar-quote delimiters.
     private static (IReadOnlyList<string> Declared, string Body) SplitPg(string masked)
     {

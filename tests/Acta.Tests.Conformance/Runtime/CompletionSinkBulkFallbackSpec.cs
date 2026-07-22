@@ -67,7 +67,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 
-        // Primary assertions — DB state is the source of truth.
+        // Primary assertions: DB state is the source of truth.
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(child.Id, ct)).Status);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parentEnq.JobId, ct)).Status);
 
@@ -111,10 +111,10 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 
-        // Exact terminal status — same as scalar CompleteExecution.Run would produce.
+        // Exact terminal status: same as scalar CompleteExecution.Run would produce.
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(child.Id, ct)).Status);
 
-        // Exact lifecycle event — one JobExecutionFinished with ExecutionStatus Succeeded.
+        // Exact lifecycle event: one JobExecutionFinished with ExecutionStatus Succeeded.
         var evt = await ReadSingleEventAsync(child.Id, JobEventCode.JobExecutionFinished, ct);
         Assert.Equal(ExecutionStatusCode.Succeeded, evt.ExecutionStatus);
     }

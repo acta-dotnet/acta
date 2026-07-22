@@ -123,7 +123,7 @@ public class SchemaGeneratorDiagnosticTests
     private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => result.Diagnostics.Where(d => d.Id == id).ToArray();
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0401 — schema declarations must be complete
+    // ACTA0401: schema declarations must be complete
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -355,7 +355,7 @@ public class SchemaGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0402 — column mappings must match the CLR type
+    // ACTA0402: column mappings must match the CLR type
     // ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -462,7 +462,7 @@ public class SchemaGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // ACTA0403 — column defaults must match the kind and not fight allocation
+    // ACTA0403: column defaults must match the kind and not fight allocation
     // ----------------------------------------------------------------------------------------
 
     [Fact]

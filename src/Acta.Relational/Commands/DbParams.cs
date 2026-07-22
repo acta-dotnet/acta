@@ -81,7 +81,7 @@ internal static class DbParams
                 if (p.Size is null)
                 {
                     throw new InvalidOperationException(
-                        $"SQL parameter '{p.Name}' (DbKind.{p.Kind}) requires explicit Size — bind via DbParams.For(...) with generated metadata."
+                        $"SQL parameter '{p.Name}' (DbKind.{p.Kind}) requires explicit Size: bind via DbParams.For(...) with generated metadata."
                     );
                 }
                 break;
@@ -90,7 +90,7 @@ internal static class DbParams
                 if (p.Precision is null || p.Scale is null)
                 {
                     throw new InvalidOperationException(
-                        $"SQL decimal parameter '{p.Name}' requires Precision and Scale — bind via DbParams.For(...) so the column's precision/scale flow through."
+                        $"SQL decimal parameter '{p.Name}' requires Precision and Scale: bind via DbParams.For(...) so the column's precision/scale flow through."
                     );
                 }
                 break;

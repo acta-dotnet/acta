@@ -84,7 +84,7 @@ public sealed class RedisWakeupTests
     public async Task Two_di_wired_hosts_relay_wakes_through_redis()
     {
         var configuration = Environment.GetEnvironmentVariable("ACTA_TEST_REDIS");
-        Assert.SkipWhen(string.IsNullOrWhiteSpace(configuration), "ACTA_TEST_REDIS not set — no Redis server to test against.");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(configuration), "ACTA_TEST_REDIS not set: no Redis server to test against.");
 
         var prefix = "acta-test-" + Guid.NewGuid().ToString("N");
         using var receiverHost = BuildHost(configuration!, prefix);
@@ -151,7 +151,7 @@ public sealed class RedisWakeupTests
     public async Task A_wake_published_by_one_instance_reaches_waiters_on_another()
     {
         var configuration = Environment.GetEnvironmentVariable("ACTA_TEST_REDIS");
-        Assert.SkipWhen(string.IsNullOrWhiteSpace(configuration), "ACTA_TEST_REDIS not set — no Redis server to test against.");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(configuration), "ACTA_TEST_REDIS not set: no Redis server to test against.");
 
         using var redis = await ConnectionMultiplexer.ConnectAsync(configuration!);
         var prefix = UniquePrefix();

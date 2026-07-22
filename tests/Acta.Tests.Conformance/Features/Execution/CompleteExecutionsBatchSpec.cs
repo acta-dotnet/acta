@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
 /// <summary>
 /// Conformance for <c>CompleteExecutionsBatch.Run</c>: the routine self-filters rows with a parent,
 /// declines mismatched-lease rows, and aligns the returned <c>bool[]</c> to the original input
-/// ordinals. Executing rows without a parent and with a matching lease are finalized — exclusive-key
+/// ordinals. Executing rows without a parent and with a matching lease are finalized: exclusive-key
 /// rows included, since the key's lock is released C#-side, independent of the completion write; all
 /// others are declined (caller must retry via the scalar path).
 /// </summary>
@@ -221,7 +221,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(new[] { wrongOwnerRequest }, ct);
         Assert.Equal(new[] { false }, results);
 
-        // Job must still be Executing — the batch left it untouched.
+        // Job must still be Executing: the batch left it untouched.
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enq.JobId, ct)).Status);
 
         // Scalar path with the same fake worker: the ownership guard sees a different

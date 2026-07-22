@@ -75,7 +75,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Far inside the 20s safety sleep the loop was committed to - only the raise's wakeup
         // publish can have interrupted it.
-        Assert.True(elapsed < TimeSpan.FromSeconds(8), $"Released job ran after {elapsed} — the raise did not wake the idle loop.");
+        Assert.True(elapsed < TimeSpan.FromSeconds(8), $"Released job ran after {elapsed}: the raise did not wake the idle loop.");
     }
 
     [Fact(DisplayName = "Wait lands Suspended with a Pending slot and no NextRunAtUtc")]

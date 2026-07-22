@@ -78,7 +78,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
     public override string TableTrailingOptions(EntityModel e) => e.PageCompression ? " WITH (DATA_COMPRESSION = PAGE)" : "";
 
     // OPTIMIZE_FOR_SEQUENTIAL_KEY targets last-page insert contention on a monotonic clustered key,
-    // so it is opted in per-PK via [DbPrimaryKey(OptimizeForSequentialKey = true)] — only on the
+    // so it is opted in per-PK via [DbPrimaryKey(OptimizeForSequentialKey = true)]: only on the
     // high-insert sequence-keyed tables (jobs, events), not blanket on every index.
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) =>
         pk.OptimizeForSequentialKey ? " WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)" : "";

@@ -49,7 +49,7 @@ internal static partial class MigrationFiles
 
     internal static int NextVersion(string repoRoot) => CurrentMaxVersion(repoRoot) + 1;
 
-    /// <summary>True when this provider already has a migration below <paramref name="version"/> —
+    /// <summary>True when this provider already has a migration below <paramref name="version"/>:
     /// i.e. it should get a delta, not a fresh full baseline.</summary>
     internal static bool ProviderHasFilesBelow(string repoRoot, string suffix, int version)
     {

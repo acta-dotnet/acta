@@ -170,7 +170,7 @@ internal sealed class JobRunner
                     if (invocation.Result is null)
                     {
                         throw new InvalidOperationException(
-                            "Handler returned null for a non-null result type. Acta results cannot be null — "
+                            "Handler returned null for a non-null result type. Acta results cannot be null: "
                                 + "use Task for no result, or wrap optional data in a non-null object."
                         );
                     }

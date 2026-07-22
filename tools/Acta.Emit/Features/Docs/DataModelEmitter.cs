@@ -7,7 +7,7 @@ namespace Acta.Emit.Features.Docs;
 
 /// <summary>
 /// Emits <c>docs/reference/data-model.md</c> from the entity-model graph. Every structural fact is read
-/// from the model; all prose is the XML-doc summary already written on each entity and column —
+/// from the model; all prose is the XML-doc summary already written on each entity and column:
 /// the emitter invents no per-table narrative.
 /// </summary>
 internal static class DataModelEmitter

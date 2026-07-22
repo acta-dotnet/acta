@@ -102,7 +102,7 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
     {
         // SQLite stores all integers as 64-bit; emit the 0..255 range CHECK for plain Byte columns so
         // out-of-range ids fail at the DB layer (parity with the Postgres smallint range check). Coded
-        // (enum-backed) byte columns are excluded — their enum IN (...) CHECK already constrains the value.
+        // (enum-backed) byte columns are excluded: their enum IN (...) CHECK already constrains the value.
         foreach (var c in e.Columns.Where(c => c.Kind == DbKind.Byte && !c.IsCoded))
         {
             sb.AppendLine(

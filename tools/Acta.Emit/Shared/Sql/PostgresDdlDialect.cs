@@ -83,7 +83,7 @@ internal sealed class PostgresDdlDialect : SqlDdlDialect
     public override void EmitProviderColumnChecks(StringBuilder sb, EntityModel e)
     {
         // Postgres has no tinyint; emit a range CHECK 0..255 for every plain Byte column so out-of-range
-        // ids fail at the DB layer. Coded (enum-backed) byte columns are excluded — their enum IN (...)
+        // ids fail at the DB layer. Coded (enum-backed) byte columns are excluded: their enum IN (...)
         // CHECK already constrains the value, so a byte-range CHECK would be redundant.
         foreach (var c in e.Columns.Where(c => c.Kind == DbKind.Byte && !c.IsCoded))
         {

@@ -81,7 +81,7 @@ public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
         Assert.NotNull(tokenB);
 
         // Post-steal: the new owner is the stealer. We do NOT assert the version strictly
-        // increased — a concurrent PurgeExpiredData can reap the back-dated (expired) lease before the
+        // increased: a concurrent PurgeExpiredData can reap the back-dated (expired) lease before the
         // steal, in which case TryAcquireAsync re-inserts a fresh lease (version resets) rather than
         // updating it in place.
         {

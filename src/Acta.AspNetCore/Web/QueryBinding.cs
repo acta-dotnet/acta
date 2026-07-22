@@ -51,8 +51,8 @@ internal static class QueryBinding
     }
 
     /// <summary>
-    /// Binds a <see cref="JobEventCode"/> from its exact dotted-kebab wire name — the <c>[Code]</c>
-    /// string the API emits and accepts (e.g. "definition.policy-changed") — rather than the .NET
+    /// Binds a <see cref="JobEventCode"/> from its exact dotted-kebab wire name: the <c>[Code]</c>
+    /// string the API emits and accepts (e.g. "definition.policy-changed"), rather than the .NET
     /// member name that the generic <see cref="TryEnum{TEnum}"/> would try to parse. An unknown code is
     /// a caller error mapped to 400.
     /// </summary>

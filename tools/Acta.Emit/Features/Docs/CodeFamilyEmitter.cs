@@ -120,7 +120,7 @@ internal static class CodeFamilyEmitter
     {
         var groups = families.GroupBy(f => CodeFamilyInference.DomainFor(f.Name)).ToDictionary(g => g.Key, g => g.ToList());
 
-        // Payload domain is special — JobPayloadFormat is the only family.
+        // Payload domain is special: JobPayloadFormat is the only family.
         if (!groups.ContainsKey(CodeFamilyInference.CodeDomain.Payloads))
         {
             groups[CodeFamilyInference.CodeDomain.Payloads] = new List<CodeFamilyModel>();

@@ -2,7 +2,7 @@ using Acta.Emit.Shared;
 
 namespace Acta.Emit.Features.Migrations;
 
-/// <summary>Deletes every committed migration and the snapshot — and nothing else. The next
+/// <summary>Deletes every committed migration and the snapshot, and nothing else. The next
 /// `schema add` recreates the baseline. The one destructive command, so it is `--force`-gated.</summary>
 internal static class SchemaResetCommand
 {

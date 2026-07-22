@@ -106,7 +106,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // Pickup must be wakeup-driven: far inside the 8s safety interval the sleeping loop was
         // otherwise committed to.
-        Assert.True(elapsed < TimeSpan.FromSeconds(4), $"Pickup took {elapsed} — the enqueue publish did not interrupt the idle sleep.");
+        Assert.True(elapsed < TimeSpan.FromSeconds(4), $"Pickup took {elapsed}: the enqueue publish did not interrupt the idle sleep.");
     }
 
     [Fact(DisplayName = "A delayed enqueue refreshes the sleeping loop's horizon")]
@@ -142,7 +142,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         // and sleeps to the due instant instead of finishing the original 8s safety sleep.
         Assert.True(
             elapsed < TimeSpan.FromSeconds(6),
-            $"Pickup took {elapsed} — the delayed enqueue did not refresh the sleeping loop's horizon."
+            $"Pickup took {elapsed}: the delayed enqueue did not refresh the sleeping loop's horizon."
         );
     }
 
@@ -177,7 +177,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         // the lower bound proves the poll, not a signal, found the row.
         Assert.True(
             elapsed >= TimeSpan.FromMilliseconds(500),
-            $"Pickup took only {elapsed} — expected safety-poll discovery, not a wakeup."
+            $"Pickup took only {elapsed}: expected safety-poll discovery, not a wakeup."
         );
     }
 
@@ -209,7 +209,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.True(outcome.IsSuccess, $"Execute outcome: timedOut={outcome.IsTimedOut}, status={outcome.TerminalStatus}.");
         Assert.True(
             elapsed < TimeSpan.FromSeconds(10),
-            $"Execute returned after {elapsed} — the completion wake did not interrupt the poll wait."
+            $"Execute returned after {elapsed}: the completion wake did not interrupt the poll wait."
         );
     }
 
@@ -235,7 +235,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         await loopCts.CancelAsync();
         await loop;
 
-        Assert.True(elapsed < TimeSpan.FromSeconds(6), $"Recovery took {elapsed} — the re-arming completion did not wake the loop.");
+        Assert.True(elapsed < TimeSpan.FromSeconds(6), $"Recovery took {elapsed}: the re-arming completion did not wake the loop.");
     }
 
     private static async Task WaitUntilAllDoneAsync(IJobStore store, IReadOnlyList<long> ids, CancellationToken ct)
@@ -258,6 +258,6 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
             }
             await Task.Delay(50, ct);
         }
-        Assert.Fail("Backlog did not drain to Done within the timeout — the dispatch loop stalled.");
+        Assert.Fail("Backlog did not drain to Done within the timeout: the dispatch loop stalled.");
     }
 }

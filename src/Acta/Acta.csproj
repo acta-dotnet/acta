@@ -16,7 +16,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <!-- Cron parsing for recurring schedules (6-field seconds support). Used by
-         NextOccurrenceCalculator only — never in SQL. -->
+         NextOccurrenceCalculator only, never in SQL. -->
     <PackageReference Include="Cronos" />
   </ItemGroup>
 

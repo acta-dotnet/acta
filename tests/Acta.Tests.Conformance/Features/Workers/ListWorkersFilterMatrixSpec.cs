@@ -54,7 +54,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
         await Services.GetRequiredService<IWorkerStore>().StopWorkerAsync(ns, wStoppedId, ct);
 
         // W_dead: start, then direct-stamp Dead. Using the global MarkDeadWorkers reaper here is racy on
-        // the shared parallel schema — a concurrent global sweep can reap this worker before our own call
+        // the shared parallel schema: a concurrent global sweep can reap this worker before our own call
         // runs, leaving our sweep with nothing (the `swept >= 1` assertion then flaked). Direct-stamping
         // the exact status is deterministic; this is a filter test, so how it became Dead is irrelevant.
         var (_, wDeadId) = await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-d", "v1", null, null, 1002, 1, ct);
@@ -116,7 +116,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
         // Add a second worker to TestNamespace so ns1 has 2 workers total
         var (_, w2Id) = await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-ns1-b", "v1", null, null, 2001, 1, ct);
 
-        // Second namespace: one worker — StartWorker.Run upserts the namespace automatically
+        // Second namespace: one worker. StartWorker.Run upserts the namespace automatically
         var ns2Name = TestKey("ns2");
         var (_, w3Id) = await WorkerTestOps.StartAsync(Services, ns2Name, "test", null, "host-ns2", "v1", null, null, 2002, 1, ct);
 

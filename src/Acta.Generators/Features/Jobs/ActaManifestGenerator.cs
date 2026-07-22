@@ -183,7 +183,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         // Symmetric to the input rule: a parameterless data-less TOut (e.g. `Task<Acked>` where
         // `Acked` is a marker record) carries no information. Collapse it to "no result" so the
-        // descriptor matches a `Task`-returning handler — no `results` row, no SerializeOutput
+        // descriptor matches a `Task`-returning handler: no `results` row, no SerializeOutput
         // delegate emitted. The handler still runs and the Task<T> is still awaited.
         if (outputType is not null && IsParameterlessDataLess(outputType))
         {
@@ -194,7 +194,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         var inputExplicit = policy.Format ?? policy.InputFormat;
         var outputExplicit = policy.Format ?? policy.OutputFormat;
 
-        // ACTA0132 — a per-side output override on a handler that produces no result. `Format` is
+        // ACTA0132: a per-side output override on a handler that produces no result. `Format` is
         // exempt: on a void handler it silently applies to the input only.
         if (outputType is null && policy.OutputFormat is not null)
         {
@@ -252,7 +252,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         );
     }
 
-    // Framework defaults — keep aligned with JobAttribute's defaults.
+    // Framework defaults: keep aligned with JobAttribute's defaults.
     private const short DefaultMaxAttempts = 15;
     private const string DefaultPriorityName = "Normal";
     private const string DefaultAuditLevelName = "Audit";
@@ -470,7 +470,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             }
         }
 
-        // ACTA0132 — `Format` is the both-sides shorthand; pairing it with a per-side override is
+        // ACTA0132: `Format` is the both-sides shorthand; pairing it with a per-side override is
         // ambiguous. The void-output and unknown-name variants are raised later, where the handler's
         // result shape and the validated format set are known.
         if (format is not null)
@@ -572,7 +572,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         );
     }
 
-    // Enum-typed attribute arguments box as their underlying type — byte for the code-family enums
+    // Enum-typed attribute arguments box as their underlying type: byte for the code-family enums
     // (JobPriorityCode / JobAuditLevelCode / JobAlertProfileCode), so an `is int` pattern silently
     // misses them. Read whatever integral the constant carries and narrow to byte.
     private static bool TryGetEnumByte(TypedConstant constant, out byte value)
@@ -650,7 +650,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         // The input is the first parameter UNLESS that parameter is itself a framework parameter
         // (JobContext / CancellationToken), in which case the handler is zero-input. Any other first
-        // type — including a forbidden one (IServiceProvider, Task, ref-like) — is treated as the
+        // type, including a forbidden one (IServiceProvider, Task, ref-like), is treated as the
         // input candidate and rejected downstream by IsForbiddenInputType (ACTA0103).
         ITypeSymbol? inputType = null;
         var scanFrom = 0;
@@ -712,7 +712,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         var returnType = method.ReturnType;
         var returnName = TypeFullName(returnType);
 
-        // void / Task / ValueTask — no durable result.
+        // void / Task / ValueTask: no durable result.
         if (returnType.SpecialType == SpecialType.System_Void)
         {
             CheckSyncContext(method, parameters, location, diagnostics);
@@ -729,7 +729,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             return new ReturnTypeModel(OutputType: null, InvocationKind: JobInvocationKind.ValueTask);
         }
 
-        // Task<T> / ValueTask<T> — async typed result.
+        // Task<T> / ValueTask<T>: async typed result.
         if (returnType is INamedTypeSymbol named && named.IsGenericType)
         {
             var constructedFrom = TypeFullName(named.ConstructedFrom);
@@ -859,7 +859,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         }
 
         // Value types always have an implicit parameterless ctor (or one explicit). For reference
-        // types require an accessible parameterless instance ctor — public or internal.
+        // types require an accessible parameterless instance ctor: public or internal.
         var hasAccessibleParameterlessCtor =
             type.IsValueType
             || nt.InstanceConstructors.Any(c =>
@@ -1000,7 +1000,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         var name = TypeFullName(type);
 
         // A parameterless data-less contract (e.g. `public sealed record FetchJoke;`) is a pure
-        // dispatch key — no fields, no settable props, no required members. Serializing it to `{}`
+        // dispatch key: no fields, no settable props, no required members. Serializing it to `{}`
         // is wasted bytes; map it to `none`. The dispatch class fabricates `new T()` at execute
         // time so the handler still receives a non-null instance.
         if (isInput && IsParameterlessDataLess(type))
@@ -1090,7 +1090,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             }
         }
 
-        // ACTA0102 / ACTA0121 / ACTA0122 — name and schedule validity. Runs here rather than in
+        // ACTA0102 / ACTA0121 / ACTA0122: name and schedule validity. Runs here rather than in
         // the transform because the `acta.` gate needs the RootNamespace.
         var invalid = new HashSet<DiscoveredJob>();
         foreach (var job in jobs.Where(j => !HasBlockingDiagnostics(j)))
@@ -1104,7 +1104,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             {
                 invalid.Add(job);
             }
-            // ACTA0132 — an explicit Format/InputFormat/OutputFormat naming a format that is neither
+            // ACTA0132: an explicit Format/InputFormat/OutputFormat naming a format that is neither
             // built-in nor a declared custom. Inferred names are always built-in, so only explicit
             // names can land here.
             if (!validFormatNames.Contains(job.InputPayloadFormatName))
@@ -1119,7 +1119,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             }
         }
 
-        // ACTA0101 — duplicate [Job] name.
+        // ACTA0101: duplicate [Job] name.
         var nameGroups = jobs.Where(j => !HasBlockingDiagnostics(j) && !invalid.Contains(j))
             .GroupBy(j => j.JobName, StringComparer.Ordinal)
             .Where(g => g.Count() > 1)
@@ -1139,7 +1139,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             .OrderBy(j => j.JobName, StringComparer.Ordinal)
             .ToArray();
 
-        // ACTA0104 — duplicate input type (warning only; the jobs still emit). Zero-input handlers
+        // ACTA0104: duplicate input type (warning only; the jobs still emit). Zero-input handlers
         // carry a null InputType (the NoInput sentinel is substituted at emit time), so they are
         // exempt by construction.
         var inputGroups = valid
@@ -1154,7 +1154,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             }
         }
 
-        // ACTA0106 — job names whose contract member names collide once separators are removed and
+        // ACTA0106: job names whose contract member names collide once separators are removed and
         // case is ignored (e.g. "send-mail"/"sendmail", or "job-1"/"job1"). Compared case-insensitively
         // so members that differ only by a capital (SendMail vs Sendmail) also count as a collision.
         // Warn and omit those members; Descriptors and the typed/raw enqueue paths are unaffected.
@@ -1175,7 +1175,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
     private static readonly string[] BuiltinFormatNames = ["json", "text", "bytes", "none"];
 
-    // ACTA0131 — declaration validity; returns the name-to-id map of the clean declarations.
+    // ACTA0131: declaration validity; returns the name-to-id map of the clean declarations.
     private static Dictionary<string, byte> ValidatePayloadFormats(SourceProductionContext spc, ImmutableArray<CustomPayloadFormat> formats)
     {
         var result = new Dictionary<string, byte>(StringComparer.Ordinal);
@@ -1226,7 +1226,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return result;
     }
 
-    // ACTA0121 / ACTA0122 — declaration and expression validity for every [JobSchedule].
+    // ACTA0121 / ACTA0122: declaration and expression validity for every [JobSchedule].
     private static bool ValidateSchedules(SourceProductionContext spc, DiscoveredJob job, bool isFrameworkAssembly)
     {
         if (job.Schedules.IsDefaultOrEmpty)
@@ -1578,7 +1578,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             var inputTypeName = InputTypeExpr(j);
             // "none" format means a parameterless data-less contract (or a zero-input handler whose
             // input slot is the NoInput sentinel). Fabricate `new TIn()` instead
-            // of deserializing — the descriptor declared no payload, so the runtime never asks a
+            // of deserializing: the descriptor declared no payload, so the runtime never asks a
             // serializer to materialize this type.
             var fabricateInput = j.InputPayloadFormatName == "none";
 
@@ -1622,7 +1622,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     {
         var handlerType = DisplayName(j.HandlerType!);
 
-        // Zero-input handlers (j.InputType is null) take no request parameter — the runtime still
+        // Zero-input handlers (j.InputType is null) take no request parameter: the runtime still
         // passes the fabricated NoInput sentinel as `request`, but the handler signature omits it.
         var args = new List<string>();
         if (j.InputType is not null)
@@ -1872,7 +1872,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 _ => throw new InvalidOperationException($"Unknown ACTA01xx descriptor '{id}'."),
             };
 
-        // ACTA0101 — duplicate [Job] name within the manifest.
+        // ACTA0101: duplicate [Job] name within the manifest.
         public static DiagnosticRecord DuplicateJobName(DiscoveredJob job) =>
             new(
                 "ACTA0101",
@@ -1880,7 +1880,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0102 — invalid [Job] name.
+        // ACTA0102: invalid [Job] name.
         public static DiagnosticRecord InvalidJobName(DiscoveredJob job) =>
             new(
                 "ACTA0102",
@@ -1888,7 +1888,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0103 — invalid handler signature; one ID, per-variant messages.
+        // ACTA0103: invalid handler signature; one ID, per-variant messages.
         public static DiagnosticRecord InvalidParameterOrder(IMethodSymbol method, Location location) =>
             new(
                 "ACTA0103",
@@ -1906,7 +1906,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         public static DiagnosticRecord NestedAwaitableReturn(IMethodSymbol method, ITypeSymbol resultType, Location location) =>
             new(
                 "ACTA0103",
-                $"`[Job]` method `{method.Name}` returns a nested awaitable (`{resultType.ToDisplayString()}`). Unwrap the inner task — return `Task<T>` / `ValueTask<T>` where `T` is the durable result.",
+                $"`[Job]` method `{method.Name}` returns a nested awaitable (`{resultType.ToDisplayString()}`). Unwrap the inner task: return `Task<T>` / `ValueTask<T>` where `T` is the durable result.",
                 location
             );
 
@@ -1959,7 +1959,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 location
             );
 
-        // ACTA0104 — duplicate input type within the manifest (warning; the manifest still emits).
+        // ACTA0104: duplicate input type within the manifest (warning; the manifest still emits).
         public static DiagnosticRecord DuplicateInputType(DiscoveredJob job, string inputTypeName) =>
             new(
                 "ACTA0104",
@@ -1967,7 +1967,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0106 — contract member name collision within the manifest (warning; the jobs stay
+        // ACTA0106: contract member name collision within the manifest (warning; the jobs stay
         // valid, only their contract members are omitted).
         public static DiagnosticRecord ContractMemberCollision(DiscoveredJob job, string memberName) =>
             new(
@@ -1976,7 +1976,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0105 — invalid [Job] policy value; one ID, per-variant messages.
+        // ACTA0105: invalid [Job] policy value; one ID, per-variant messages.
         public static DiagnosticRecord InvalidDuration(string argument, string value, Location location) =>
             new(
                 "ACTA0105",
@@ -1994,7 +1994,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 location
             );
 
-        // ACTA0121 — invalid [JobSchedule] declaration; one ID, per-variant messages.
+        // ACTA0121: invalid [JobSchedule] declaration; one ID, per-variant messages.
         public static DiagnosticRecord ScheduleWithoutJob(IMethodSymbol method, Location location) =>
             new(
                 "ACTA0121",
@@ -2030,7 +2030,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0122 — invalid schedule expression.
+        // ACTA0122: invalid schedule expression.
         public static DiagnosticRecord InvalidScheduleExpression(DiscoveredJob job, string scheduleName, string expression) =>
             new(
                 "ACTA0122",
@@ -2038,7 +2038,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0123 — scheduled handler whose input cannot be default-constructed.
+        // ACTA0123: scheduled handler whose input cannot be default-constructed.
         public static DiagnosticRecord ScheduledInputNotConstructible(IMethodSymbol method, ITypeSymbol inputType, Location location) =>
             new(
                 "ACTA0123",
@@ -2046,7 +2046,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 location
             );
 
-        // ACTA0131 — invalid [JobPayloadFormatDeclaration]; one ID, per-variant messages.
+        // ACTA0131: invalid [JobPayloadFormatDeclaration]; one ID, per-variant messages.
         public static DiagnosticRecord PayloadFormatIdReserved(CustomPayloadFormat format) =>
             new(
                 "ACTA0131",
@@ -2075,7 +2075,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 format.Location
             );
 
-        // ACTA0132 — invalid [Job] payload-format usage; one ID, per-variant messages.
+        // ACTA0132: invalid [Job] payload-format usage; one ID, per-variant messages.
         public static DiagnosticRecord PayloadFormatConflict(string other, Location location) =>
             new(
                 "ACTA0132",
@@ -2107,7 +2107,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     internal readonly record struct CustomPayloadFormat(byte Id, string Name, bool ImplementsSerializer, Location Location);
 
     /// <summary>
-    /// Generator-side mirror of the runtime <c>JobInvocationKind</c> — duplicated because source
+    /// Generator-side mirror of the runtime <c>JobInvocationKind</c>: duplicated because source
     /// generators can't reference the runtime assembly.
     /// </summary>
     internal enum JobInvocationKind

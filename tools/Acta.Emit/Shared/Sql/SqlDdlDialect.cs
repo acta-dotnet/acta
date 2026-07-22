@@ -110,13 +110,13 @@ internal abstract class SqlDdlDialect
     /// <summary>
     /// Provider table-type (TVP) definitions appended verbatim after the entity schema. These are
     /// request-shape table types consumed by hot-path routines (enqueue / claim / schedule batches),
-    /// not domain entities — so they live as a dialect literal rather than in the entity model that
+    /// not domain entities, so they live as a dialect literal rather than in the entity model that
     /// drives the data-model docs. Null when the provider needs none (Postgres uses typed arrays).
     /// </summary>
     public virtual string? TrailingTypeDefinitions => null;
 
     /// <summary>
-    /// Bootstrap rows emitted immediately after a given table's DDL (without a trailing terminator —
+    /// Bootstrap rows emitted immediately after a given table's DDL (without a trailing terminator:
     /// the emitter appends it). Only the <c>namespaces</c> table returns a value: the reserved system
     /// namespace (id 1, 'sys') that cross-namespace audit events reference. Generated here rather than
     /// hand-appended so <c>schema reset</c> + <c>add</c> reproduces it. Null for every other table.

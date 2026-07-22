@@ -32,7 +32,7 @@ public static class SqlCommentPolicyAssert
 
     /// <summary>
     /// Returns a same-length copy of <paramref name="sql"/> with every single-quoted string literal and
-    /// every comment (<c>--</c> line, <c>/* … */</c> block) blanked to spaces — newlines preserved, so
+    /// every comment (<c>--</c> line, <c>/* … */</c> block) blanked to spaces: newlines preserved, so
     /// line numbers still line up. Shared by the dialect-leakage and unsafe-DML scanners so a quoted or
     /// commented-out token/keyword never false-positives; one string/comment walker instead of a
     /// half-parser per scanner.

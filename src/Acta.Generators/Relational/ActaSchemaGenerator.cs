@@ -31,7 +31,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     private const string DbConcurrencyTokenAttr = "Acta.Relational.Schema.DbConcurrencyTokenAttribute";
     private const string CodeKindAttr = "Acta.CodeKindAttribute";
 
-    // ACTA04xx diagnostics — see docs/internals/design.md § AOT and SQL parameter metadata policy.
+    // ACTA04xx diagnostics: see docs/internals/design.md § AOT and SQL parameter metadata policy.
     // Messages are fully formatted at the check site; every descriptor passes them through.
     private static readonly DiagnosticDescriptor SchemaDeclaration = new(
         id: "ACTA0401",
@@ -154,7 +154,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
             var propTypeFqn = prop.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             var nonNullableFqn = nonNullableType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-            // ACTADB diagnostics — gate every column before emit so a violation surfaces at build
+            // ACTADB diagnostics: gate every column before emit so a violation surfaces at build
             // time on the property declaration rather than as an obscure runtime parameter-bind
             // failure deep in a provider executor.
             var propLocation = prop.Locations.FirstOrDefault();
@@ -277,7 +277,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
                 );
             }
 
-            // ACTA0403 — the DEFAULT clause must suit the kind and must not sit on a column whose
+            // ACTA0403: the DEFAULT clause must suit the kind and must not sit on a column whose
             // value the provider allocates (identity), where it would never fire.
             if (defaultName != "None")
             {
@@ -382,7 +382,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
             foreignKeys.Add(new ForeignKeyInfo(name, column, targetFqn, targetColumn, onDeleteName));
         }
 
-        // ACTA0401 — declaration completeness for everything visible on this entity alone; the
+        // ACTA0401: declaration completeness for everything visible on this entity alone; the
         // cross-entity facts (duplicate tables, FK targets) live in Emit.
         var classLocation = cls.Locations.FirstOrDefault();
         var classLoc = classLocation is null ? default : LocationInfo.From(classLocation);
@@ -478,7 +478,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
             }
         }
 
-        // ACTA0401 — identifier length: PostgreSQL truncates identifiers past 63 bytes (NAMEDATALEN),
+        // ACTA0401, identifier length: PostgreSQL truncates identifiers past 63 bytes (NAMEDATALEN),
         // silently breaking cross-provider name parity. Identifiers may contain non-ASCII characters,
         // so the guard measures UTF-8 byte count directly rather than char count.
         // Synthetic names mirror SqlSchemaEmitter / provider dialects: coded columns get
@@ -569,7 +569,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
             "Decimal" => type.SpecialType == SpecialType.System_Decimal,
             "AsciiString" or "UnicodeString" => type.SpecialType == SpecialType.System_String,
             "Bytes" or "BinaryPayload" => type is IArrayTypeSymbol a && a.ElementType.SpecialType == SpecialType.System_Byte,
-            _ => true, // unknown kind — let the downstream check report it
+            _ => true, // unknown kind: let the downstream check report it
         };
     }
 
@@ -674,7 +674,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         {
             return (false, t);
         }
-        // Reference type — read NRT annotation. NullableAnnotation.Annotated means `T?`.
+        // Reference type: read NRT annotation. NullableAnnotation.Annotated means `T?`.
         return (t.NullableAnnotation == NullableAnnotation.Annotated, t);
     }
 
@@ -691,7 +691,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
 
         var sorted = entities.Sort(static (a, b) => string.CompareOrdinal(a.EntityName, b.EntityName));
 
-        // ACTA0401 — cross-entity facts: table names collide, FK targets resolve.
+        // ACTA0401, cross-entity facts: table names collide, FK targets resolve.
         foreach (var group in sorted.GroupBy(e => e.TableName, StringComparer.Ordinal).Where(g => g.Count() > 1))
         {
             foreach (var entity in group)
@@ -838,7 +838,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         }
         sb.AppendLine();
 
-        // The DbEntitySpec literal — assembled in the constructor (after columns are bound).
+        // The DbEntitySpec literal: assembled in the constructor (after columns are bound).
         sb.AppendLine("        public DbEntitySpec Entity { get; }");
         sb.AppendLine();
         sb.AppendLine("        /// <summary>");
@@ -1117,7 +1117,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     );
 
     /// <summary>
-    /// Equatable diagnostic payload — the incremental pipeline replays it on cache hits.
+    /// Equatable diagnostic payload: the incremental pipeline replays it on cache hits.
     /// </summary>
     private readonly record struct DiagnosticInfo(string DescriptorId, LocationInfo Location, string Message)
     {

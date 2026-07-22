@@ -36,14 +36,14 @@ internal sealed class SqlProviderOptionsValidator<TOptions> : IValidateOptions<T
         if (options.DeadlockRetryAttempts is < 1 or > SqlProviderOptions.MaxDeadlockRetryAttempts)
         {
             failures.Add(
-                $"{prefix}.DeadlockRetryAttempts must be between 1 and {SqlProviderOptions.MaxDeadlockRetryAttempts} — set 1 to disable retry."
+                $"{prefix}.DeadlockRetryAttempts must be between 1 and {SqlProviderOptions.MaxDeadlockRetryAttempts}: set 1 to disable retry."
             );
         }
 
         if (options.CommandTimeout <= TimeSpan.Zero)
         {
             failures.Add(
-                $"{prefix}.CommandTimeout must be > 0 — 0 is ADO.NET's infinite-timeout sentinel, which conflicts with the lease model."
+                $"{prefix}.CommandTimeout must be > 0: 0 is ADO.NET's infinite-timeout sentinel, which conflicts with the lease model."
             );
         }
         else if (options.CommandTimeout.TotalSeconds > int.MaxValue)
