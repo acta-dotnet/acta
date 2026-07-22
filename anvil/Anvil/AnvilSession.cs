@@ -39,17 +39,29 @@ public sealed record RunIdentity(string RunId, string Schema, string Namespace)
     public static RunIdentity NewDashboard(DateTime utcNow, string? schema = null, string? @namespace = null, string? suffix = null)
     {
         suffix ??= NewSuffix();
-        return new RunIdentity(NewRunId(utcNow, suffix), schema ?? DefaultDashboardSchema, @namespace ?? NewNamespace(utcNow, suffix));
+        return new RunIdentity(NewRunId(utcNow, suffix), schema ?? DefaultDashboardSchema, @namespace ?? NewNamespace(utcNow));
     }
 
-    // Both the run id and the namespace carry the random suffix so two runs started in the same wall-clock
-    // second (parallel agents, a quick restart) cannot collide on one namespace within the shared dashboard
-    // schema and intermix their jobs/workers/events. The fixed-width timestamp leads in both, so
-    // name-ascending order stays chronological - the newest run sorts last in the dashboard scope dropdown.
+    // The run id carries the random suffix so two runs started in the same wall-clock second (parallel
+    // agents, a quick restart) cannot collide within the shared dashboard schema and intermix their
+    // jobs/workers/events. The fixed-width timestamp leads, so name-ascending order stays chronological -
+    // the newest run sorts last in the dashboard scope dropdown. The namespace has no suffix, so two runs
+    // in the same second do collide there (accepted: local tool).
     private static string NewRunId(DateTime utcNow, string suffix) => $"r{utcNow:yyyyMMdd-HHmmss}-{suffix}";
 
-    private static string NewNamespace(DateTime utcNow, string suffix) => $"anvil-{utcNow:yyyyMMdd-HHmmss}-{suffix}";
+    private static string NewNamespace(DateTime utcNow) => $"anvil-{utcNow:yyyyMMdd-HHmmss}";
 
     // 6 hex chars of uniqueness for the run id; a same-second collision is otherwise possible.
     private static string NewSuffix() => Guid.NewGuid().ToString("N")[..6];
+}
+
+/// <summary>Demo tenants the dashboard registers at boot so tenant-scoped dashboard views have data.</summary>
+public static class AnvilTenants
+{
+    public static readonly (string Key, string DisplayName)[] All =
+    [
+        ("acme", "Acme Corp"),
+        ("globex", "Globex Corporation"),
+        ("initech", "Initech"),
+    ];
 }

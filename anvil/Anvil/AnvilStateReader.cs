@@ -64,11 +64,6 @@ public sealed class AnvilStateReader(
         );
 
         telemetry.Record(now, done, overview.ReadyCount, overview.ExecutingCount);
-        var durationTicks = events
-            .Items.Where(e => e.DurationMs is >= 0)
-            .Select(e => (long)(e.DurationMs!.Value * Stopwatch.Frequency / 1000L))
-            .ToArray();
-        var percentiles = Stats.Percentiles(durationTicks);
 
         return new AnvilState(
             NamespaceName: _namespaceName,
@@ -76,7 +71,6 @@ public sealed class AnvilStateReader(
             Provider: session.Provider,
             Ready: workerRows.Items.Count > 0,
             Counts: counts,
-            Latency: new AnvilLatency(percentiles.P50, percentiles.P95, percentiles.P99, durationTicks.Length),
             Beats: new AnvilBeats(_heartbeatSeconds, _leaseTtlSeconds, staleAfterSeconds),
             WorkerSummary: SummarizeWorkers(workers),
             Workers: workers,
@@ -97,7 +91,6 @@ public sealed class AnvilStateReader(
             Provider: session.Provider,
             Ready: false,
             Counts: null,
-            Latency: null,
             Beats: new AnvilBeats(_heartbeatSeconds, _leaseTtlSeconds, (int)_workerDeadAfter.TotalSeconds),
             WorkerSummary: SummarizeWorkers(workers),
             Workers: workers,
@@ -313,7 +306,6 @@ public sealed record AnvilState(
     string Provider,
     bool Ready,
     AnvilCounts? Counts,
-    AnvilLatency? Latency,
     AnvilBeats Beats,
     AnvilWorkerSummary WorkerSummary,
     IReadOnlyList<AnvilWorker> Workers,
@@ -325,8 +317,6 @@ public sealed record AnvilState(
 );
 
 public sealed record AnvilCounts(long Total, long SystemJobs, long Ready, long Executing, long Done, long Failed, long ExpectedFailed);
-
-public sealed record AnvilLatency(double P50, double P95, double P99, int Samples);
 
 public sealed record AnvilBeats(int HeartbeatSeconds, int LeaseTtlSeconds, int DeadAfterSeconds);
 

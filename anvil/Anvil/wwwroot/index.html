@@ -17,12 +17,12 @@
       <header class="appbar">
         <div class="brand-q">
           <div class="brand-mark" aria-label="Acta Anvil">
-            <span class="wm-acta">Acta</span> <span class="wm-anvil">Anvil</span><span class="wm-dot">.</span>
+            <span class="wm-acta">Acta</span><span class="wm-dot">.</span> <span class="wm-anvil">Anvil</span>
           </div>
           <div class="brand-sub">load &amp; failure lab</div>
         </div>
         <div class="topbar">
-          <div class="runinfo"><span class="ri-k">Scope:</span><code id="namespace-name">·</code></div>
+          <div class="runinfo"><span class="ri-k">Namespace:</span><code id="namespace-name">·</code></div>
           <div class="leds">
             <span class="led" id="led-ready"><i></i><span class="led-k">READY</span></span>
             <span class="led" id="led-workers"><i></i><span class="led-k">WORKERS</span><span class="led-v" id="led-workers-v">0</span></span>
@@ -106,17 +106,6 @@
               <div class="scope">
                 <div class="scope-head"><span class="scope-k">EXECUTING</span><span class="scope-v blue" id="rd-exec">0</span><span class="scope-u">in flight</span></div>
                 <canvas id="scope-exec" width="520" height="120" role="img" tabindex="0" aria-label="Executing jobs history"></canvas>
-              </div>
-              <div class="scope p99">
-                <div class="scope-head"><span class="scope-k">EXECUTION LATENCY</span><span class="latency-samples" id="latency-samples">NO SAMPLES</span></div>
-                <div class="latency-primary">
-                  <span class="latency-k">P99</span><span class="scope-v" id="rd-p99">·</span><span class="latency-unit" id="rd-p99-unit">ms</span>
-                </div>
-                <div class="latency-secondary" aria-label="Execution latency percentiles">
-                  <div class="latency-stat"><span class="latency-k">P50</span><strong id="rd-p50">·</strong><span class="latency-unit">ms</span></div>
-                  <div class="latency-stat"><span class="latency-k">P95</span><strong id="rd-p95">·</strong><span class="latency-unit">ms</span></div>
-                </div>
-                <div class="p99-note" id="p99-note">Waiting for completed attempt samples.</div>
               </div>
             </section>
             <section class="counts" id="counts"></section>
