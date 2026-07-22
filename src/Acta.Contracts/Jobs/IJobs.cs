@@ -293,30 +293,6 @@ public interface IJobs
     ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Apply <paramref name="action"/> to every job in <paramref name="targets"/>, positionally: the
-    /// returned list's element <c>i</c> is the outcome for <c>targets[i]</c>. Loops over the single-job
-    /// control verb rather than a dedicated batch routine - control verbs are low-frequency operator
-    /// actions on tens-to-hundreds of rows, each single verb is one already-proven round trip, and a
-    /// TVP/array batch routine for seven verbs would triple the SQL surface for no operator-visible
-    /// latency win at these volumes. Per-item independence (one <see cref="JobControlAction.Rejected"/>
-    /// doesn't disturb siblings) falls out of the loop for free; cancelling <paramref name="ct"/> mid-loop
-    /// abandons the remaining targets and discards completed items' results, though already-applied
-    /// transitions stay applied. <paramref name="options"/>.NextRunAtUtc is required when <paramref
-    /// name="action"/> is <see cref="JobBatchAction.Reschedule"/> and <paramref name="options"/>.Priority
-    /// is required when <see cref="JobBatchAction.Reprioritize"/> (both throw <see cref="ArgumentException"/>
-    /// otherwise, before any target is touched); other actions ignore irrelevant option fields.
-    /// <paramref name="targets"/> is capped at 1000 entries (throws otherwise). <paramref name="actorKey"/>
-    /// is recorded on each audit event as the operator identity; null when unknown.
-    /// </summary>
-    ValueTask<IReadOnlyList<JobControlResult>> ControlBatchAsync(
-        JobBatchAction action,
-        IReadOnlyList<JobLookup> targets,
-        JobBatchOptions? options = null,
-        string? actorKey = null,
-        CancellationToken ct = default
-    );
-
-    /// <summary>
     /// Raise the presence-only signal <paramref name="name"/> on the job identified by
     /// <paramref name="job"/>. Sets the <c>(job_id, name)</c> slot to <c>Set</c> (last-writer-wins) and,
     /// when the job is <c>Suspended</c> on a matching <c>ctx.WaitSignalAsync</c>, moves it to

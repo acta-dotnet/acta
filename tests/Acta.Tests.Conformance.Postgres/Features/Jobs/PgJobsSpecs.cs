@@ -44,5 +44,3 @@ public sealed class PgResolveJobIdByDeduplicationKeySpec : ResolveJobIdByDedupli
 public sealed class PgResolveJobIdByRefSpec : ResolveJobIdByRefSpec<PgConformanceFixture>;
 
 public sealed class PgTenantEnqueueSpec : TenantEnqueueSpec<PgConformanceFixture>;
-
-public sealed class PgJobControlBatchSpec : JobControlBatchSpec<PgConformanceFixture>;

@@ -415,50 +415,6 @@ internal sealed class JobsApi(
     public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default) =>
         jobsService.PurgeAsync(lookup, actorKey, ct);
 
-    public async ValueTask<IReadOnlyList<JobControlResult>> ControlBatchAsync(
-        JobBatchAction action,
-        IReadOnlyList<JobLookup> targets,
-        JobBatchOptions? options = null,
-        string? actorKey = null,
-        CancellationToken ct = default
-    )
-    {
-        ArgumentNullException.ThrowIfNull(targets);
-        if (targets.Count > MaxControlBatch)
-        {
-            throw new ArgumentException($"Batch exceeds {MaxControlBatch} targets ({targets.Count}).", nameof(targets));
-        }
-        if (action == JobBatchAction.Reschedule && options?.NextRunAtUtc is null)
-        {
-            throw new ArgumentException("Reschedule requires JobBatchOptions.NextRunAtUtc.", nameof(options));
-        }
-        if (action == JobBatchAction.Reprioritize && options?.Priority is null)
-        {
-            throw new ArgumentException("Reprioritize requires JobBatchOptions.Priority.", nameof(options));
-        }
-
-        var reason = options?.ReasonMessage;
-        var results = new List<JobControlResult>(targets.Count);
-        foreach (var target in targets)
-        {
-            ct.ThrowIfCancellationRequested();
-            results.Add(
-                action switch
-                {
-                    JobBatchAction.Cancel => await CancelAsync(target, reason, actorKey, ct),
-                    JobBatchAction.Pause => await PauseAsync(target, reason, actorKey, ct),
-                    JobBatchAction.Resume => await ResumeAsync(target, reason, actorKey, ct),
-                    JobBatchAction.Restart => await RestartAsync(target, reason, actorKey, ct),
-                    JobBatchAction.Reschedule => await RescheduleAsync(target, options!.NextRunAtUtc!.Value, reason, actorKey, ct),
-                    JobBatchAction.Reprioritize => await ReprioritizeAsync(target, options!.Priority!.Value, reason, actorKey, ct),
-                    JobBatchAction.Purge => await PurgeAsync(target, actorKey, ct),
-                    _ => throw new ArgumentOutOfRangeException(nameof(action)),
-                }
-            );
-        }
-        return results;
-    }
-
     public ValueTask<JobControlResult> RaiseSignalAsync(
         JobLookup job,
         string name,
@@ -501,8 +457,6 @@ internal sealed class JobsApi(
         string? actorKey,
         CancellationToken ct
     ) => signalService.RaiseAsync(job, name, valueFormatId, value, actorKey, ct);
-
-    private const int MaxControlBatch = 1000;
 
     public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
         jobsService.ListJobsAsync(query, ct);

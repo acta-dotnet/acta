@@ -44,5 +44,3 @@ public sealed class SqlServerResolveJobIdByDeduplicationKeySpec : ResolveJobIdBy
 public sealed class SqlServerResolveJobIdByRefSpec : ResolveJobIdByRefSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerTenantEnqueueSpec : TenantEnqueueSpec<SqlServerConformanceFixture>;
-
-public sealed class SqlServerJobControlBatchSpec : JobControlBatchSpec<SqlServerConformanceFixture>;
