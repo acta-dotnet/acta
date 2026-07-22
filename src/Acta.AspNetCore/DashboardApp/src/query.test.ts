@@ -36,11 +36,11 @@ test('capabilitiesQuery is keyed and cached for the process lifetime', () => {
 
 test('canControl fails closed when capabilities is undefined or controls are off', () => {
   assert.equal(canControl(undefined), false);
-  assert.equal(canControl({ controlsEnabled: false, version: '1.0', provider: 'pg', confirmationHeader: 'X-Acta-Control' }), false);
+  assert.equal(canControl({ controlsEnabled: false, version: '1.0', provider: 'pg', schema: 'acta', confirmationHeader: 'X-Acta-Control' }), false);
 });
 
 test('canControl is true only when the server says controls are enabled', () => {
-  assert.equal(canControl({ controlsEnabled: true, version: '1.0', provider: 'pg', confirmationHeader: 'X-Acta-Control' }), true);
+  assert.equal(canControl({ controlsEnabled: true, version: '1.0', provider: 'pg', schema: 'acta', confirmationHeader: 'X-Acta-Control' }), true);
 });
 
 test('detail polling stops when live updates are paused or the entity is inactive', () => {

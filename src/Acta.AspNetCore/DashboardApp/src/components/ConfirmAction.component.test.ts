@@ -4,12 +4,23 @@ import { describe, expect, it, vi } from 'vitest';
 import ConfirmAction from './ConfirmAction.svelte';
 
 describe('ConfirmAction', () => {
-  it('puts initial focus on the safe action for a dangerous operation', async () => {
+  it('puts initial focus on the reason field when it is shown', async () => {
     const opener = document.createElement('button');
     document.body.append(opener);
     opener.focus();
 
     render(ConfirmAction, { title: 'Delete?', danger: true });
+
+    const reason = screen.getByRole('textbox');
+    await waitFor(() => expect(document.activeElement).toBe(reason));
+  });
+
+  it('falls back to the safe action for a dangerous operation with no reason field', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+
+    render(ConfirmAction, { title: 'Delete?', danger: true, showReason: false });
 
     const cancel = screen.getByRole('button', { name: 'Keep as is' });
     await waitFor(() => expect(document.activeElement).toBe(cancel));
@@ -31,7 +42,7 @@ describe('ConfirmAction', () => {
     const cancel = screen.getByRole('button', { name: 'Keep as is' });
     const confirm = screen.getByRole('button', { name: 'Confirm' });
 
-    await waitFor(() => expect(document.activeElement).toBe(cancel));
+    await waitFor(() => expect(document.activeElement).toBe(reason));
     confirm.focus();
     await fireEvent.keyDown(confirm, { key: 'Tab' });
     expect(document.activeElement).toBe(reason);

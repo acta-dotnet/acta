@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, ApiError, type Paged } from '../api.ts';
+  import { api, ApiError, type JobDetailView } from '../api.ts';
   import { TERMINAL_STATUSES, statusClass, displayFormatter } from '../format.ts';
   import { keys } from '../query.ts';
   import { scope } from '../scope.ts';
@@ -20,9 +20,14 @@
   import JobMetadata from './job-detail/JobMetadata.svelte';
   import JobSummary from './job-detail/JobSummary.svelte';
   import JobWorkerEvidence from './job-detail/JobWorkerEvidence.svelte';
+  import JobInputPanel from './job-detail/JobInputPanel.svelte';
+  import JobResultPanel from './job-detail/JobResultPanel.svelte';
+  import JobCheckpointsPanel from './job-detail/JobCheckpointsPanel.svelte';
+  import JobSchedulesPanel from './job-detail/JobSchedulesPanel.svelte';
   import { buildIncidentSummary, latestMeaningfulEvent } from './job-detail/jobDetailState.ts';
-  import type { JobEvent, JobExplanation, JobLineage as JobLineageData, JobSnapshot, JobWorker } from './job-detail/types.ts';
+  import type { JobEvent, JobExplanation } from './job-detail/types.ts';
   import { routes } from '../routes.ts';
+  import { capabilitiesQuery, canControl } from '../query.ts';
   import { detailRefetchInterval, livePaused } from '../polling.ts';
 
   let { jobRef }: { jobRef: string } = $props();
@@ -31,100 +36,41 @@
   let eventsPanel: { refresh(): void } | undefined = $state();
   let events: JobEvent[] = $state([]);
 
-  const jobQuery = createQuery(() => {
-    // Read the store while building the options so pausing immediately cancels the active interval.
+  // One aggregate read renders the whole screen: snapshot plus explain, lineage, eligible workers, the
+  // definition link, this job's schedules, and the input/result/checkpoint payloads. Only the unbounded
+  // event history keeps its own query (JobEventsPanel). Polls on the same paused/terminal rules the
+  // snapshot poll used; read the store while building the options so pausing cancels the interval.
+  const detailQuery = createQuery(() => {
     const paused = $livePaused;
     return {
       queryKey: keys.detail('jobs', jobRef),
-      queryFn: async ({ signal }: { signal: AbortSignal }): Promise<JobSnapshot | null> => {
+      queryFn: async ({ signal }: { signal: AbortSignal }): Promise<JobDetailView | null> => {
         try {
-          return await api<JobSnapshot>(`jobs/${jobRef}`, {}, { signal });
+          return await api<JobDetailView>(`jobs/${jobRef}/detail`, {}, { signal });
         } catch (error) {
           if (error instanceof ApiError && error.status === 404) return null;
           throw error;
         }
       },
       refetchInterval: (query) => {
-        const job = query.state.data;
-        return detailRefetchInterval(!!job && !TERMINAL_STATUSES.includes(job.status), paused);
+        const snapshot = query.state.data?.snapshot;
+        return detailRefetchInterval(!!snapshot && !TERMINAL_STATUSES.includes(snapshot.status), paused);
       }
     };
   });
 
-  let job = $derived(jobQuery.data ?? null);
+  let detail = $derived(detailQuery.data ?? null);
+  let job = $derived(detail?.snapshot ?? null);
 
-  const explanationQuery = createQuery(() => ({
-    queryKey: keys.detail('job-explanation', jobRef),
-    queryFn: ({ signal }: { signal: AbortSignal }) => api<JobExplanation>(`jobs/${jobRef}/explain`, {}, { signal }),
-    enabled: !!job
-  }));
+  // canControl gates only the mutating affordances (Clone/enqueue and the input amend edit); the
+  // payload panels themselves render for everyone, since the detail read is on the open read surface.
+  const capabilities = createQuery(() => capabilitiesQuery());
+  let canControlNow = $derived(canControl(capabilities.data));
 
-  const lineageQuery = createQuery(() => ({
-    queryKey: keys.detail('job-lineage', jobRef),
-    queryFn: ({ signal }: { signal: AbortSignal }) =>
-      api<JobLineageData>(`jobs/${jobRef}/lineage`, { childLimit: 100 }, { signal }),
-    enabled: !!job
-  }));
-
-  const workersQuery = createQuery(() => {
-    const snapshot = job;
-    return {
-      queryKey: keys.list('job-eligible-workers', {
-        jobRef,
-        jobNamespace: snapshot?.jobNamespace ?? ''
-      }),
-      queryFn: ({ signal }: { signal: AbortSignal }) =>
-        api<Paged<JobWorker>>('workers', { jobNamespace: snapshot!.jobNamespace, pageSize: 50 }, { signal }),
-      enabled: snapshot?.status === 'ready'
-    };
-  });
-
-  // The job snapshot owns the polling cadence. After every successful snapshot refresh, update the
-  // evidence derived from that snapshot as one coordinated set. This also performs one final evidence
-  // refresh when a live job becomes terminal and its snapshot polling turns off.
-  let synchronizedJobUpdatedAt = 0;
-  $effect(() => {
-    const updatedAt = jobQuery.dataUpdatedAt;
-    const snapshot = job;
-    if (!snapshot || updatedAt <= synchronizedJobUpdatedAt) return;
-
-    const initialLoad = synchronizedJobUpdatedAt === 0;
-    synchronizedJobUpdatedAt = updatedAt;
-    // The enabled queries fetch on the initial snapshot; avoid immediately restarting those requests.
-    if (initialLoad) return;
-
-    void explanationQuery.refetch();
-    void lineageQuery.refetch();
-    if (snapshot.status === 'ready') void workersQuery.refetch();
-  });
-
-  // Jobs carry no definition id, so the definition link resolves by namespace + name through the
-  // definitions list (same guard-loop idiom ScheduleDetail uses); best-effort, link renders when found.
-  const definitionQuery = createQuery(() => ({
-    queryKey: keys.detail('job-definition', job ? `${job.jobNamespace}/${job.jobName}` : ''),
-    queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      let cursor: string | undefined;
-      for (let guard = 0; guard < 100; guard++) {
-        const page = await api<Paged<{ jobDefinitionId: number; jobName: string }>>(
-          'definitions',
-          { jobNamespace: job!.jobNamespace, pageSize: 100, cursor },
-          { signal }
-        );
-        const match = page.items.find((item) => item.jobName === job!.jobName);
-        if (match) return match;
-        if (!page.hasMore || !page.nextCursor) break;
-        cursor = page.nextCursor;
-      }
-      return null;
-    },
-    enabled: !!job,
-    staleTime: 5 * 60 * 1000
-  }));
-
-  let missing = $derived(!jobQuery.isPending && !jobQuery.error && jobQuery.data === null);
-  let explanation = $derived(explanationQuery.data ?? null);
-  let lineage = $derived(lineageQuery.data ?? null);
-  let workers = $derived(workersQuery.data?.items ?? null);
+  let missing = $derived(!detailQuery.isPending && !detailQuery.error && detailQuery.data === null);
+  let explanation = $derived(detail?.explain ?? null);
+  let lineage = $derived(detail?.lineage ?? null);
+  let workers = $derived(detail?.workers ?? null);
   let lastEvent = $derived(latestMeaningfulEvent(events));
   let backHref = $derived(routes.jobs({ namespace: $scope }));
   let incidentSummary = $derived(
@@ -136,7 +82,7 @@
   }
 
   function reload(): void {
-    void jobQuery.refetch();
+    void detailQuery.refetch();
     eventsPanel?.refresh();
   }
 
@@ -162,20 +108,23 @@
 <Page title={job?.jobName ?? 'Job'}>
   {#snippet breadcrumb()}<a href={backHref}><Icon name="chevron-left" />Jobs</a>{/snippet}
   {#snippet actions()}
+    {#if canControlNow && job}
+      <a class="clone-action" href={routes.enqueue({ namespace: job.jobNamespace, jobName: job.jobName, from: job.jobRef })}><Icon name="copy" />Clone</a>
+    {/if}
     <CopyButton value={jobRef} label="Copy ref" />
     <PageFreshness
-      dataUpdatedAt={jobQuery.dataUpdatedAt}
-      isFetching={jobQuery.isFetching}
-      isError={!!jobQuery.error}
+      dataUpdatedAt={detailQuery.dataUpdatedAt}
+      isFetching={detailQuery.isFetching}
+      isError={!!detailQuery.error}
       polling={!!job && !TERMINAL_STATUSES.includes(job.status)}
       onRefresh={reload} />
   {/snippet}
 
   {#if missing}
     <div class="panel"><StateView emptyText="Job not found." /></div>
-  {:else if jobQuery.error}
-    <div class="panel"><StateView error={errorMessage(jobQuery.error)} onRetry={() => jobQuery.refetch()} /></div>
-  {:else if job}
+  {:else if detailQuery.error}
+    <div class="panel"><StateView error={errorMessage(detailQuery.error)} onRetry={() => detailQuery.refetch()} /></div>
+  {:else if job && detail}
     {#if explanation?.headline}
       {@const tone = statusClass(job.status) === 'bad' ? 'bad' : ['warn', 'held'].includes(statusClass(job.status)) ? 'warn' : 'ok'}
       <div class="verdict {tone}">
@@ -198,22 +147,14 @@
 
     <div class="detail-workspace">
       <div class="detail-main">
-        <JobLineage
-          {job}
-          {lineage}
-          loading={lineageQuery.isPending}
-          error={errorMessage(lineageQuery.error)} />
-        <JobSummary {job} {lastEvent} />
-        <JobDiagnosis
-          jobNamespace={job.jobNamespace}
-          {explanation}
-          loading={explanationQuery.isPending}
-          error={errorMessage(explanationQuery.error)} />
-        <JobWorkerEvidence
-          {job}
-          {workers}
-          loading={workersQuery.isPending && workersQuery.fetchStatus === 'fetching'}
-          error={errorMessage(workersQuery.error)} />
+        <JobLineage {job} {lineage} />
+        <JobSummary {job} tenantKey={detail.tenantKey} {lastEvent} />
+        <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
+        <JobWorkerEvidence {job} {workers} />
+        <JobSchedulesPanel schedules={detail.schedules} onChanged={reload} />
+        <JobInputPanel input={detail.input} {jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
+        <JobResultPanel result={detail.result} />
+        <JobCheckpointsPanel checkpoints={detail.checkpoints} />
       </div>
 
       <aside class="detail-rail">
@@ -222,7 +163,7 @@
         <section class="detail-panel go-to" aria-label="Go to">
           <p class="detail-kicker">Go to</p>
           <nav>
-            {#if definitionQuery.data}<a href={routes.definition(definitionQuery.data.jobDefinitionId, { namespace: job.jobNamespace })}>Definition</a>{/if}
+            {#if detail.jobDefinitionId}<a href={routes.definition(detail.jobDefinitionId, { namespace: job.jobNamespace })}>Definition</a>{/if}
             <a href={routes.jobs({ jobName: job.jobName, namespace: job.jobNamespace })}>Similar jobs</a>
             <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>Namespace</a>
             <a href={routes.workers({ namespace: job.jobNamespace })}>Workers</a>
@@ -251,6 +192,16 @@
 
 <style>
   .support-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .clone-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    color: var(--ink);
+  }
+  .clone-action:hover { border-color: var(--accent); color: var(--accent); }
   @container (max-width: 700px) {
     .detail-rail :global(#job-actions) { position: sticky; top: 8px; z-index: 3; }
   }

@@ -59,7 +59,7 @@ export function buildIncidentSummary(
     lines.push('Latest events:');
     for (const event of latest) {
       const reason = event.reasonMessage ?? event.reasonCode;
-      lines.push(`- ${event.createdAtUtc} ${event.eventCode}${reason ? ` — ${reason}` : ''}`);
+      lines.push(`- ${event.createdAtUtc} ${event.eventCode}${reason ? `: ${reason}` : ''}`);
     }
   }
   lines.push(`Dashboard: ${dashboardUrl}`);

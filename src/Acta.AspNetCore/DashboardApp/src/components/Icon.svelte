@@ -1,5 +1,5 @@
 <script>
-  // Radix Icons (15×15, MIT) inlined as a name→path map — no CDN/runtime fetch.
+  // Radix Icons (15×15, MIT) inlined as a name→path map: no CDN/runtime fetch.
   // currentColor fill, so each icon tracks its control's text color (incl. light/dark tokens).
   let { name, label = '' } = $props(); // label gives icon-only controls an accessible name + tooltip
   const P = {

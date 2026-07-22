@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { advanceNow } from './time.ts';
+import type { JobSnapshot, JobExplanation, JobLineage, JobWorker } from './routes/job-detail/types.ts';
 
 export const online = writable(true);
 
@@ -151,6 +152,7 @@ export interface Capabilities {
   controlsEnabled: boolean;
   version: string;
   provider: string;
+  schema: string;
   confirmationHeader: string;
 }
 
@@ -352,4 +354,126 @@ export async function previewSchedule(
   count = 10
 ): Promise<SchedulePreview> {
   return api<SchedulePreview>('schedules/preview', { jobNamespace, jobName, scheduleName, count });
+}
+
+// Format-dispatched payload projection served by the input/result/checkpoint reads (part of the
+// always-on read surface). The consumer reads whichever body field the `format` names: json -> parsed
+// JSON, text -> decoded string, none -> no body field, any other format (bytes or a consumer-defined
+// id) -> base64. A payload past the server's size cap ships no body field: `truncated` is true and
+// `byteLength` carries its stored size. PayloadView.svelte dispatches on `format` and renders the match.
+export interface JobPayloadView {
+  format: string;
+  formatId: number;
+  json?: unknown;
+  text?: string;
+  base64?: string;
+  byteLength?: number;
+  truncated?: boolean;
+}
+
+// One schedule bound to a job's recurring slot, as it appears inside the aggregate detail (the same
+// shape the /schedules list returns; JobSchedulesPanel reads this subset).
+export interface JobScheduleView {
+  jobScheduleId: number;
+  jobNamespace: string;
+  jobName: string;
+  scheduleName: string;
+  expressionKind: string;
+  expression: string;
+  timeZone: string;
+  nextRunAtUtc: string | null;
+  status: string;
+  pausedUntilUtc: string | null;
+  version: number;
+}
+
+// GET /jobs/{jobRef}/detail: the whole job screen in one aggregate so a lightweight job renders from a
+// single request. Composed server-side after one job-id resolution; the input/result/checkpoint
+// payloads are size-capped exactly like the standalone reads were. An absent result / empty schedule or
+// worker set / unmatched definition is a null/empty field. The unbounded event history keeps its own
+// paged endpoint (JobEventsPanel), so it is not part of this shape.
+export interface JobDetailView {
+  snapshot: JobSnapshot;
+  input: JobPayloadView;
+  result: JobPayloadView | null;
+  checkpoints: JobCheckpoint[];
+  explain: JobExplanation | null;
+  lineage: JobLineage | null;
+  schedules: JobScheduleView[];
+  jobDefinitionId: number | null;
+  tenantKey?: string;
+  workers: JobWorker[] | null;
+}
+
+// One checkpoint row (variable/signal/timer/progress/child-latch); kind and state are kebab code
+// strings. `value` carries the format-dispatched payload shape when the checkpoint holds one.
+export interface JobCheckpoint {
+  kind: string;
+  name: string;
+  state?: string;
+  dueAtUtc?: string;
+  value?: JobPayloadView;
+  createdAtUtc: string;
+  modifiedAtUtc: string;
+}
+
+// GET /jobs/input-template: the compile-time shape of a job's input. `template` is raw JSON (the
+// skeleton) and is null when the input is not json-formatted or this host has no descriptor for the
+// job, in which case `inputTypeName` is null and `format` is 'none'.
+export interface JobInputTemplate {
+  jobNamespace: string;
+  jobName: string;
+  inputTypeName: string | null;
+  format: string;
+  template: unknown;
+}
+
+// POST /jobs enqueue outcome: the assigned public ref and the coarse action ('inserted' for a fresh
+// row, 'deduplicated' when a deduplicationKey matched an existing job).
+export interface JobEnqueueResult {
+  jobRef: string;
+  action: 'inserted' | 'deduplicated';
+}
+
+export interface EnqueueJobRequest {
+  jobNamespace: string;
+  jobName: string;
+  input?: unknown;
+  text?: string;
+  deduplicationKey?: string | null;
+  correlationKey?: string | null;
+  tenantKey?: string | null;
+  priority?: string | null;
+  delaySeconds?: number | null;
+  nextRunAtUtc?: string | null;
+}
+
+// Enqueue a job through POST /jobs. A 201 returns the ref + action; validation (400), an enqueue
+// rejection (409), and an over-size input (413) all throw an ApiError carrying the problem detail so
+// the form can surface it inline. The input is format-faithful: `input` (raw JSON) or `text` (a text
+// job, e.g. a text clone); only the field the caller sets travels, so an absent input stays absent.
+export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueResult> {
+  const { response, body } = await request<JobEnqueueResult>({
+    path: 'jobs',
+    method: 'POST',
+    headers: controlHeaders(),
+    body: {
+      jobNamespace: spec.jobNamespace.trim(),
+      jobName: spec.jobName.trim(),
+      input: spec.input ?? undefined,
+      text: spec.text ?? undefined,
+      deduplicationKey: spec.deduplicationKey?.trim() || null,
+      correlationKey: spec.correlationKey?.trim() || null,
+      tenantKey: spec.tenantKey?.trim() || null,
+      priority: spec.priority || null,
+      delaySeconds: spec.delaySeconds ?? null,
+      nextRunAtUtc: spec.nextRunAtUtc || null
+    }
+  });
+
+  if (response.ok && body && typeof body === 'object' && 'jobRef' in (body as object)) {
+    return body;
+  }
+
+  throw new ApiError(response.status, 'Invalid response.', null, null);
 }

@@ -1,5 +1,5 @@
 <script module>
-  // Per-instance unique ids for aria wiring (no Math.random — a module counter is deterministic).
+  // Per-instance unique ids for aria wiring (no Math.random: a module counter is deterministic).
   let seq = 0;
 </script>
 
@@ -43,6 +43,7 @@
   let submitting = $state(false);
 
   let boxEl: HTMLDivElement | null = $state(null);
+  let reasonEl: HTMLTextAreaElement | null = $state(null);
   let cancelEl: HTMLButtonElement | null = $state(null);
   let confirmEl: HTMLButtonElement | null = $state(null);
   let opener: HTMLElement | null = null;
@@ -50,11 +51,12 @@
   let phraseOk = $derived(confirmPhrase === '' || typed.trim() === confirmPhrase);
   let blocked = $derived(submitting || (requireReason && reason.trim().length === 0) || !phraseOk);
 
-  // Focus management: capture the opener, move focus into the dialog (Cancel for destructive actions
-  // so the safe choice is default), and restore focus to the opener when the dialog closes.
+  // Focus management: capture the opener, move focus into the dialog (the reason textarea when
+  // shown, else Cancel for destructive actions so the safe choice is default), and restore focus
+  // to the opener when the dialog closes.
   $effect(() => {
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    tick().then(() => (danger ? cancelEl : confirmEl)?.focus());
+    tick().then(() => (reasonEl ?? (danger ? cancelEl : confirmEl))?.focus());
     return () => opener?.focus?.();
   });
 
@@ -113,7 +115,7 @@
     {#if showReason}
       <label class="control-reason">
         {requireReason ? 'Reason (required, recorded in job events)' : 'Reason (optional, recorded in job events)'}
-        <textarea rows="2" maxlength="512" bind:value={reason} disabled={submitting}></textarea>
+        <textarea bind:this={reasonEl} rows="2" maxlength="512" bind:value={reason} disabled={submitting}></textarea>
       </label>
     {/if}
 

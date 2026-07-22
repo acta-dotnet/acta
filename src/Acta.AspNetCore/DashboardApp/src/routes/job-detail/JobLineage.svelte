@@ -10,10 +10,8 @@
 
   let {
     job,
-    lineage = null,
-    loading = false,
-    error = null
-  }: { job: JobSnapshot; lineage?: JobLineage | null; loading?: boolean; error?: string | null } = $props();
+    lineage = null
+  }: { job: JobSnapshot; lineage?: JobLineage | null } = $props();
 
   let hasLineage = $derived(
     !!lineage &&
@@ -23,11 +21,7 @@
   const isSignal = (kind: string) => kind.toLowerCase() === 'signal';
 </script>
 
-{#if error}
-  <section class="panel"><h2>Lineage</h2><p class="control-message warn">Job state is current. Lineage could not be loaded: {error}</p></section>
-{:else if loading}
-  <section class="panel"><h2>Lineage</h2><p class="dim">Loading lineage…</p></section>
-{:else if lineage && hasLineage}
+{#if lineage && hasLineage}
   <section class="panel lineage-map" id="job-lineage-evidence" aria-labelledby="job-lineage-heading">
     <h2 id="job-lineage-heading">Lineage map</h2>
     <ul class="tree">
@@ -41,7 +35,7 @@
         <StatusBadge status={job.status} /><span class="mono">{job.jobName}</span><span class="dim">this job</span>
       </li>
       {#each lineage.steps as step (step.name)}
-        <li class="node step" style={'--depth:' + (lineage.ancestors.length + 1)}><span class="mono">{step.name}</span> <span class="dim">— {step.explanation}</span></li>
+        <li class="node step" style={'--depth:' + (lineage.ancestors.length + 1)}><span class="mono">{step.name}</span><span class="dim">: {step.explanation}</span></li>
       {/each}
       {#if lineage.activeWait}
         <li class="node wait" style={'--depth:' + (lineage.ancestors.length + 1)}>

@@ -2,6 +2,7 @@ export type RouteName =
   | 'overview'
   | 'jobs'
   | 'job-detail'
+  | 'enqueue'
   | 'events'
   | 'definitions'
   | 'definition-detail'
@@ -34,6 +35,7 @@ export const routeRegistry: RouteMetadata[] = [
   { name: 'overview', label: 'Overview', section: 'Operate', detail: false, fullHeight: false, activeNav: 'overview', navPath: '', navOrder: 0 },
   { name: 'jobs', label: 'Jobs', section: 'Operate', detail: false, fullHeight: true, activeNav: 'jobs', navPath: 'jobs', navOrder: 1 },
   { name: 'job-detail', label: 'Job', section: 'Operate', detail: true, fullHeight: false, activeNav: 'jobs' },
+  { name: 'enqueue', label: 'Enqueue job', section: 'Operate', detail: true, fullHeight: false, activeNav: 'jobs' },
   { name: 'alerts', label: 'Alerts', section: 'Operate', detail: false, fullHeight: true, activeNav: 'alerts', navPath: 'alerts', navOrder: 2 },
   { name: 'workers', label: 'Workers', section: 'Operate', detail: false, fullHeight: true, activeNav: 'workers', navPath: 'workers', navOrder: 3 },
   { name: 'worker-detail', label: 'Worker', section: 'Operate', detail: true, fullHeight: false, activeNav: 'workers' },
@@ -81,6 +83,8 @@ export const routes = {
   jobs: (options: { namespace?: string | null; status?: string | null; jobName?: string | null; correlationKey?: string | null; tenantId?: number | string | null; pageSize?: number | string | null } = {}) =>
     href('jobs', { ns: ns(options.namespace), status: options.status, jobName: options.jobName, correlationKey: options.correlationKey, tenantId: options.tenantId, pageSize: options.pageSize }),
   job: (jobRef: string, options: { namespace?: string | null } = {}) => href(`jobs/${encodeURIComponent(jobRef)}`, { ns: ns(options.namespace) }),
+  enqueue: (options: { namespace?: string | null; jobName?: string | null; from?: string | null } = {}) =>
+    href('enqueue', { ns: ns(options.namespace), jobName: options.jobName, from: options.from }),
   events: (options: { namespace?: string | null } = {}) => href('events', { ns: ns(options.namespace) }),
   workers: (options: { namespace?: string | null; status?: string | null } = {}) => href('workers', { ns: ns(options.namespace), status: options.status }),
   worker: (workerId: number, options: { namespace?: string | null } = {}) => href(`workers/${workerId}`, { ns: ns(options.namespace) }),

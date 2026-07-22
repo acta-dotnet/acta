@@ -4,6 +4,6 @@
 </script>
 
 <details class="panel raw">
-  <summary>Raw snapshot (metadata only; payload bodies are never returned)</summary>
+  <summary>Raw snapshot (the job's metadata record)</summary>
   <pre class="mono">{JSON.stringify(job, null, 2)}</pre>
 </details>

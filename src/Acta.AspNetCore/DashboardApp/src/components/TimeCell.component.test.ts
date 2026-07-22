@@ -15,7 +15,7 @@ describe('TimeCell', () => {
   });
 
   it('renders the empty text for missing values', () => {
-    render(TimeCell, { value: null, emptyText: '—' });
-    expect(screen.getByText('—')).toBeTruthy();
+    render(TimeCell, { value: null, emptyText: '·' });
+    expect(screen.getByText('·')).toBeTruthy();
   });
 });

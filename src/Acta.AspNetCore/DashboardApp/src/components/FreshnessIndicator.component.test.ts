@@ -19,7 +19,7 @@ describe('FreshnessIndicator', () => {
   it('shows an update error', () => {
     render(FreshnessIndicator, { isError: true });
 
-    expect(screen.getByText('Update failed — retrying')).toBeTruthy();
+    expect(screen.getByText('Update failed, retrying')).toBeTruthy();
   });
 
   it('calls the manual refresh callback', async () => {

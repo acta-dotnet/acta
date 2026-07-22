@@ -94,7 +94,7 @@
   }
 
   function displayPolicyValue(field, value) {
-    if (value === null || value === undefined) return '—';
+    if (value === null || value === undefined) return '·';
     return (field.kind === 'int' || field.kind === 'dec') && typeof value === 'number' ? displayFormatter.number(value) : value;
   }
 
@@ -214,8 +214,8 @@
         <section class="detail-panel">
           <h2>Contract</h2>
           <dl class="detail-readonly">
-            <div><dt>Input</dt><dd class="mono">{def.inputTypeName ?? '—'}</dd></div>
-            <div><dt>Output</dt><dd class="mono">{def.outputTypeName ?? '—'}</dd></div>
+            <div><dt>Input</dt><dd class="mono">{def.inputTypeName ?? '·'}</dd></div>
+            <div><dt>Output</dt><dd class="mono">{def.outputTypeName ?? '·'}</dd></div>
           </dl>
         </section>
       </aside>

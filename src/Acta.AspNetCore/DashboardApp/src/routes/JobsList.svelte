@@ -2,7 +2,9 @@
   import Icon from '../components/Icon.svelte';
   import JobRef from '../components/JobRef.svelte';
   import { get } from 'svelte/store';
+  import { createQuery } from '@tanstack/svelte-query';
   import { api } from '../api';
+  import { capabilitiesQuery, canControl } from '../query.ts';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
@@ -13,6 +15,8 @@
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import { createUrlFilters } from '../urlFilters.ts';
   import { parseTagTokens } from '../lib/tagTokens.ts';
+  import { jobsListSql, COPY_SQL_TITLE } from '../lib/copyAsSql.ts';
+  import CopyButton from '../components/CopyButton.svelte';
   import { routes } from '../routes.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
   import { displayFormatter } from '../format.ts';
@@ -35,6 +39,8 @@
     { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantId: 'tenantId', tags: 'tags' },
     { status: '', jobName: '', correlationKey: '', tenantId: '', tags: '' }
   );
+  const capabilities = createQuery(() => capabilitiesQuery());
+  let canControlNow = $derived(canControl(capabilities.data));
   let jump = $state('');
   let jumpError = $state('');
   let showMore = $state(!!(initial.get('correlationKey') || initial.get('tags')));
@@ -71,6 +77,21 @@
     setScope('');
   }
 
+  // The applied filters as ad-hoc SQL against the jobs operator view (mirrors the grid filters below;
+  // tags are omitted, they are not a jobs_view column).
+  let copySql = $derived(
+    jobsListSql(
+      {
+        namespace: $scope,
+        status: $filters.status,
+        jobName: $scope ? $filters.jobName.trim() : '',
+        correlationKey: $filters.correlationKey.trim(),
+        tenantId: $filters.tenantId
+      },
+      { provider: capabilities.data?.provider, schema: capabilities.data?.schema }
+    )
+  );
+
   async function quickJump() {
     jumpError = '';
     const value = jump.trim();
@@ -104,6 +125,11 @@
 </script>
 
 <Page title="Jobs">
+  {#snippet actions()}
+    {#if canControlNow}
+      <a class="enqueue-action" href={routes.enqueue({ namespace: $scope })}><Icon name="plus" />Enqueue job</a>
+    {/if}
+  {/snippet}
   <div class="panel fill">
     <FilterBar>
       <label>
@@ -152,6 +178,7 @@
       {#if $filters.tenantId}
         <button class="chip" onclick={clearTenant} title="Clear tenant filter" aria-label="Clear tenant filter">Tenant: {$filters.tenantId} <Icon name="x" /></button>
       {/if}
+      <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
     </FilterBar>
 
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />
@@ -190,3 +217,16 @@
       cells={{ job: jobCell, status: statusCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }} />
   </div>
 </Page>
+
+<style>
+  .enqueue-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    color: var(--ink);
+  }
+  .enqueue-action:hover { border-color: var(--accent); color: var(--accent); }
+</style>
