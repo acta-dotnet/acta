@@ -1,3 +1,4 @@
+using Acta.Features.Execution;
 using Acta.Payloads;
 using Xunit;
 
@@ -120,6 +121,31 @@ public sealed class BackoffTests
         var backoff = Backoff.Exponential(TimeSpan.FromSeconds(5), TimeSpan.FromMinutes(10)).WithJitter(0.3);
 
         Assert.Equal(0.3, backoff.Jitter);
+    }
+
+    [Fact]
+    public void ComputeDelaySeconds_rounds_a_sub_second_delay_up_instead_of_collapsing_to_immediate_retry()
+    {
+        var backoff = Backoff.Fixed(TimeSpan.FromMilliseconds(500));
+
+        Assert.Equal(1, BackoffSchedule.ComputeDelaySeconds(1, backoff));
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void Exponential_rejects_a_non_finite_multiplier(double multiplier)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Backoff.Exponential(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(10), multiplier)
+        );
+    }
+
+    [Fact]
+    public void WithJitter_rejects_a_non_finite_fraction()
+    {
+        var backoff = Backoff.Default;
+        Assert.Throws<ArgumentOutOfRangeException>(() => backoff.WithJitter(double.NaN));
     }
 
     [Fact]

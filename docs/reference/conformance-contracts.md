@@ -751,6 +751,7 @@
   - A handler returning a null result fails the job and stores no result
   - ExecuteAndWaitAsync enqueues, waits for completion and returns the typed result
   - ExecuteAndWaitAsync throws when a Done job stored no typed result
+  - ExecuteAndWaitAsync honors WaitTimeout when PollInterval exceeds it
   - ExecuteAndWaitAsync rejects non-positive wait options before enqueue
 - **Store methods:**
   - `Acta.Features.Jobs.IJobStore.EnqueueBatchAsync`

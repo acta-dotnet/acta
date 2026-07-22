@@ -161,8 +161,8 @@ internal sealed class JobExecutor
             var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
             var stepRetryDefaults = new StepRetryDefaults(
                 descriptor.MaxAttempts,
-                (int)backoff.InitialDelay.TotalSeconds,
-                (int)backoff.MaxDelay.TotalSeconds,
+                DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
+                DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
                 (decimal)backoff.Multiplier,
                 (decimal)backoff.Jitter
             );

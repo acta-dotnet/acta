@@ -335,12 +335,13 @@ internal sealed class JobsApi(
                 }
             }
 
-            if (Stopwatch.GetElapsedTime(start) >= options.WaitTimeout)
+            var remaining = options.WaitTimeout - Stopwatch.GetElapsedTime(start);
+            if (remaining <= TimeSpan.Zero)
             {
                 return (last, true);
             }
 
-            await wakeup.WaitAsync(channel, options.PollInterval, ct);
+            await wakeup.WaitAsync(channel, remaining < options.PollInterval ? remaining : options.PollInterval, ct);
         }
     }
 
@@ -458,15 +459,6 @@ internal sealed class JobsApi(
         return results;
     }
 
-    // Control verbs address a job by lookup, so the namespace name is not cheaply in scope. Applied
-    // transitions to ready wake every known namespace's idle loop; these verbs are low frequency,
-    // only idle loops react, and signals coalesce. A resumed recurring slot may carry a scheduled run
-    // time; the wake still fires so sleeping loops re-read their horizon.
-    private ValueTask PublishControlWakeAsync(JobControlResult result, CancellationToken ct) =>
-        result is { Action: JobControlAction.Applied, Status: JobStatusCode.Ready }
-            ? wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct)
-            : ValueTask.CompletedTask;
-
     public ValueTask<JobControlResult> RaiseSignalAsync(
         JobLookup job,
         string name,
@@ -510,14 +502,7 @@ internal sealed class JobsApi(
         CancellationToken ct
     ) => signalService.RaiseAsync(job, name, valueFormatId, value, actorKey, ct);
 
-    // A recurring slot is detected by having live schedules rows; recompute the misfire-aware slot
-    // MIN over them and pass it. A job with no live schedules is non-recurring (false, null is run-now).
     private const int MaxControlBatch = 1000;
-
-    private static JobControlActor Operator(string? actorKey) =>
-        new(JobActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
-
-    private const string OrderCreatedDesc = "created_at_utc desc, id desc";
 
     public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
         jobsService.ListJobsAsync(query, ct);
@@ -530,10 +515,4 @@ internal sealed class JobsApi(
 
     public ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
         Namespaces.ListAsync(query, ct);
-
-    private static string? Num<T>(T? value)
-        where T : struct, Enum =>
-        value is null ? null : Convert.ToInt32(value.Value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
-
-    private static string? Num(long? value) => value?.ToString(CultureInfo.InvariantCulture);
 }

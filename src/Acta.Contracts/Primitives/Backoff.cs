@@ -65,9 +65,9 @@ public readonly record struct Backoff
         {
             throw new ArgumentOutOfRangeException(nameof(max), max, "Max delay must not be less than the initial delay.");
         }
-        if (multiplier < 1.0)
+        if (!double.IsFinite(multiplier) || multiplier < 1.0)
         {
-            throw new ArgumentOutOfRangeException(nameof(multiplier), multiplier, "Multiplier must be at least 1.0.");
+            throw new ArgumentOutOfRangeException(nameof(multiplier), multiplier, "Multiplier must be a finite number of at least 1.0.");
         }
         return new Backoff(initial, max, multiplier, jitter: 0.0);
     }
@@ -77,7 +77,7 @@ public readonly record struct Backoff
     /// </summary>
     public Backoff WithJitter(double fraction)
     {
-        if (fraction is < 0.0 or > 1.0)
+        if (!double.IsFinite(fraction) || fraction is < 0.0 or > 1.0)
         {
             throw new ArgumentOutOfRangeException(nameof(fraction), fraction, "Jitter must be in [0, 1].");
         }

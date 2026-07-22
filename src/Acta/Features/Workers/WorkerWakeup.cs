@@ -173,10 +173,12 @@ internal sealed class InProcessWakeup : IWorkerWakeup
 
 /// <summary>
 /// The publish-side seam every waking call site uses, never <see cref="IWorkerWakeup"/> directly.
-/// Centralizes what no transport can be trusted to promise: a wake never breaks its caller
-/// (non-cancellation transport failures are caught, logged, and counted), and publish metrics are
-/// recorded once here so swapped transports cannot skew the counters. The wait side (claim loops,
-/// completion waits) consumes <see cref="IWorkerWakeup"/> directly.
+/// Centralizes what no transport can be trusted to promise: a wake never breaks its caller (all
+/// failures, including the caller's own cancellation, are caught, logged, and counted), and publish
+/// metrics are recorded once here so swapped transports cannot skew the counters. Every wake is
+/// published after its durable mutation committed, so surfacing cancellation here would report
+/// failure for an operation that already succeeded; delivery is best-effort and waiters keep a poll
+/// floor. The wait side (claim loops, completion waits) consumes <see cref="IWorkerWakeup"/> directly.
 /// </summary>
 internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<WorkerWakeupPublisher>? log = null, JobMetrics? metrics = null)
 {
@@ -188,10 +190,6 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
         try
         {
             await wakeup.WakeAsync(channel, reason, ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
         }
         catch (Exception ex)
         {

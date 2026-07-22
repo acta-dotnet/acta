@@ -317,6 +317,18 @@ public sealed class WorkerWakeupTests
     }
 
     [Fact]
+    public async Task A_cancelled_caller_token_never_breaks_the_publishing_caller()
+    {
+        // Every wake is published after its durable mutation committed; surfacing the caller's
+        // cancellation here would report failure for an operation that already succeeded.
+        var publisher = new WorkerWakeupPublisher(new CancellationHonoringWakeup());
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await publisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WorkerWakeupReason.WorkAvailable, cts.Token);
+    }
+
+    [Fact]
     public async Task Publisher_records_an_attempt_per_wake()
     {
         using var metrics = new JobMetrics();
@@ -376,6 +388,18 @@ public sealed class WorkerWakeupTests
         Assert.True(WorkerWakeupChannel.WorkerNamespace("billing").AllocatesOnPublish);
         Assert.True(WorkerWakeupChannel.AllWorkerNamespaces.AllocatesOnPublish);
         Assert.False(WorkerWakeupChannel.JobCompletion(42).AllocatesOnPublish);
+    }
+
+    private sealed class CancellationHonoringWakeup : IWorkerWakeup
+    {
+        public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
+            throw new InvalidOperationException("wait not used");
     }
 
     private sealed class ThrowingWakeup : IWorkerWakeup

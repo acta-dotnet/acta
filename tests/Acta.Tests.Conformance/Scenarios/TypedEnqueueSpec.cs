@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Acta.Features.Execution;
 using Acta.Features.Jobs;
 using Acta.Tests.Conformance.Contracts;
@@ -225,6 +226,25 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
             }
             catch (OperationCanceledException) { }
         }
+    }
+
+    [Fact(DisplayName = "ExecuteAndWaitAsync honors WaitTimeout when PollInterval exceeds it")]
+    public async Task ExecuteAndWaitAsync_returns_at_wait_timeout_when_poll_interval_is_longer()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // No worker drives ticks, so the job never terminates; the wait must end at WaitTimeout even
+        // though a full PollInterval sleep would overshoot it many times over.
+        var start = Stopwatch.GetTimestamp();
+        var outcome = await Jobs.ExecuteAndWaitAsync<AddNumbers, AddNumbersResult>(
+            new AddNumbers(1, 2),
+            new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(500), PollInterval = TimeSpan.FromSeconds(30) },
+            ct
+        );
+
+        Assert.True(outcome.IsTimedOut);
+        var elapsed = Stopwatch.GetElapsedTime(start);
+        Assert.True(elapsed < TimeSpan.FromSeconds(5), $"ExecuteAndWaitAsync took {elapsed} against a 500ms WaitTimeout");
     }
 
     [Fact(DisplayName = "ExecuteAndWaitAsync rejects non-positive wait options before enqueue")]
