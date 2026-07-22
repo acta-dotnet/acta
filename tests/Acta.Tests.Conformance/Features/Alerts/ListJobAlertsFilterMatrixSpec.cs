@@ -172,7 +172,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             kind: AlertKindCode.FirstFailure
         );
 
-        // Alert B: Manual — ResolveJobAlerts ignores it
+        // Alert B: Manual: ResolveJobAlerts ignores it
         await RaiseAsync(Db, null, AlertSeverityCode.Warning, AlertDeliveryStatusCode.Pending, ct);
 
         // Capture IDs before resolving (via origin discrimination, independent of unresolvedOnly filter)

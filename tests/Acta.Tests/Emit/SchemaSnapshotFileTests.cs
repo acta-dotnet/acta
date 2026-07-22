@@ -14,7 +14,7 @@ public sealed class SchemaSnapshotFileTests
     private static string Canon(SchemaSnapshot s) =>
         JsonSerializer.Serialize(s, SchemaSnapshotJsonContext.Default.SchemaSnapshot).ReplaceLineEndings("\n");
 
-    // The committed snapshot's Current must equal the live model — the unit-test form of `check`.
+    // The committed snapshot's Current must equal the live model: the unit-test form of `check`.
     [Fact]
     public void Committed_snapshot_matches_live_model()
     {

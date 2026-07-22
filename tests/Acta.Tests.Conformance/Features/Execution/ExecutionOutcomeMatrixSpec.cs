@@ -91,7 +91,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(StartExecutionAction.AlreadyTerminal, action);
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        // Count must remain at 1 — no second started event written by the no-op.
+        // Count must remain at 1: no second started event written by the no-op.
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionStarted, ct));
     }
 
@@ -159,12 +159,12 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         var finishedBefore = await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
         Assert.Equal(1, finishedBefore);
 
-        // Second complete — same worker and execution_number.
+        // Second complete: same worker and execution_number.
         var result2 = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionAsync(req, ct);
 
         Assert.Equal(CompleteExecutionAction.AlreadyTerminal, result2.Action);
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        // Event count must be unchanged — no second finished event.
+        // Event count must be unchanged: no second finished event.
         Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct));
     }
 
@@ -219,7 +219,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(CompleteExecutionAction.NotOwner, result.Action);
         Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        // Count unchanged — the stale attempt wrote no additional finished event.
+        // Count unchanged: the stale attempt wrote no additional finished event.
         Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct));
     }
 

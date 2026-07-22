@@ -2,7 +2,7 @@
 # Relative-link checker for the repo's Markdown. Resolves every relative link and
 # image target against the filesystem the way GitHub does, and fails if any point
 # at a path that does not exist. External URLs, mailto:, and bare #anchors are not
-# checked (no network, no flake) — this guards against path rot, the failure mode
+# checked (no network, no flake): this guards against path rot, the failure mode
 # that silently breaks docs when files move.
 set -euo pipefail
 
@@ -12,7 +12,7 @@ checked=0
 
 # All tracked Markdown, excluding vendored/build output.
 while IFS= read -r file; do
-  # Inline links and images: ](target) — strip an optional "title" and #anchor.
+  # Inline links and images: ](target): strip an optional "title" and #anchor.
   while IFS= read -r raw; do
     link=${raw#*](}
     link=${link%)}

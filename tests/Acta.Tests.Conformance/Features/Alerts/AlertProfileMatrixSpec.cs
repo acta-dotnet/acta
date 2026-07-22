@@ -47,7 +47,7 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
 
-        // Attempt 1: non-terminal failure. OnTerminal suppresses it — zero alerts.
+        // Attempt 1: non-terminal failure. OnTerminal suppresses it: zero alerts.
         await RunUntilAttemptsAsync(job, () => OnTerminalProbe.Attempts(TestNamespace), 1, ct);
         await RunAlertsAsync(job.JobId, ct);
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
@@ -72,7 +72,7 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "info-alert-probe", JobPayload.None), ct);
 
-        // Attempt 1: non-terminal failure. Info suppresses it — zero alerts.
+        // Attempt 1: non-terminal failure. Info suppresses it: zero alerts.
         await RunUntilAttemptsAsync(job, () => InfoAlertProbe.Attempts(TestNamespace), 1, ct);
         await RunAlertsAsync(job.JobId, ct);
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));

@@ -262,7 +262,7 @@ public sealed class CommentStyleTests
 
         AssertClean(
             stale,
-            "comment-style allowlist has stale entries — a listed file was moved, renamed, or deleted. "
+            "comment-style allowlist has stale entries: a listed file was moved, renamed, or deleted. "
                 + "Update or remove the entry so the ratchet keeps tightening."
         );
     }
@@ -271,7 +271,7 @@ public sealed class CommentStyleTests
     {
         if (failures.Count > 0)
         {
-            Assert.Fail($"Comment-style violation — {message}\n\n{string.Join("\n", failures)}");
+            Assert.Fail($"Comment-style violation: {message}\n\n{string.Join("\n", failures)}");
         }
     }
 

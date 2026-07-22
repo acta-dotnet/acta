@@ -130,7 +130,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
 
             // [CodeKind("kebab-name")] is required on every [Code]-bearing enum. Every
             // persisted name in Acta is explicit on its attribute; the catalog discriminator is no
-            // exception. The generator derives nothing from the C# enum name — that decoupling
+            // exception. The generator derives nothing from the C# enum name: that decoupling
             // protects operator queries against silent C# renames (see proposal 0008).
             var codeKindAttr = enumType.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "CodeKindAttribute");
             string codeKind;
@@ -150,7 +150,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                         Fatal: true
                     )
                 );
-                codeKind = enumType.Name; // Placeholder — emission skips on diagnostic anyway.
+                codeKind = enumType.Name; // Placeholder: emission skips on diagnostic anyway.
             }
             else if (!IsValidCodeShape(declaredKind))
             {
@@ -740,7 +740,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         }
 
         var md = new StringBuilder();
-        md.AppendLine("# 98 — Codes (mechanical reference)");
+        md.AppendLine("# 98 · Codes (mechanical reference)");
         md.AppendLine();
         md.AppendLine("Auto-generated from `[Code]` decorations on each source-generated code family in `Acta.Contracts` domain folders.");
         md.AppendLine("Edit the attributes, not this file. Regenerate via `dotnet run --project tools/Acta.Emit -- docs`.");
@@ -753,7 +753,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
             var storageName = StorageKeyword(f.Storage);
             md.Append("## `")
                 .Append(f.StructName)
-                .Append("` — `")
+                .Append("` · `")
                 .Append(f.CodeKind)
                 .Append("` (")
                 .Append(storageName)

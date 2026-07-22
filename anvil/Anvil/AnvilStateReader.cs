@@ -294,7 +294,7 @@ public sealed class AnvilStateReader(
 
     private static string DbReason(Exception ex)
     {
-        var message = ex is OperationCanceledException ? "database read timed out — server unreachable or overloaded" : ex.Message;
+        var message = ex is OperationCanceledException ? "database read timed out: server unreachable or overloaded" : ex.Message;
         var line = message.Split('\n', '\r')[0].Trim();
         return line.Length > 160 ? line[..160] : line;
     }

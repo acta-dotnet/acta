@@ -364,7 +364,7 @@ internal sealed class RuntimeJobContext : JobContext
         {
             // Null contract: an step result is never null (same rule as a handler Task<T> result).
             throw new InvalidOperationException(
-                $"Step '{name}' returned null for a non-null result type. Acta results cannot be null — "
+                $"Step '{name}' returned null for a non-null result type. Acta results cannot be null: "
                     + "use the non-result RunStepAsync overload, or wrap optional data in a non-null object."
             );
         }

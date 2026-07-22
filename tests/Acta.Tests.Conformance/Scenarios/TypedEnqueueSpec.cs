@@ -150,7 +150,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
                 {
                     // Teardown cancels an in-flight tick; under a slow SQL Server SqlClient can surface
                     // that as a SqlException ("Operation cancelled by user") rather than
-                    // OperationCanceledException — both are expected once we are shutting down.
+                    // OperationCanceledException: both are expected once we are shutting down.
                     return;
                 }
             }
@@ -197,7 +197,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
                 {
                     // Teardown cancels an in-flight tick; under a slow SQL Server SqlClient can surface
                     // that as a SqlException ("Operation cancelled by user") rather than
-                    // OperationCanceledException — both are expected once we are shutting down.
+                    // OperationCanceledException: both are expected once we are shutting down.
                     return;
                 }
             }

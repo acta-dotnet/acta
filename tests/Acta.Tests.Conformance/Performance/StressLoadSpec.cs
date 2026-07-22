@@ -107,7 +107,7 @@ public abstract class StressLoadSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
     {
         if (Environment.GetEnvironmentVariable("ACTA_PERF_PROBE") is null)
         {
-            Assert.Skip("diagnostic — set ACTA_PERF_PROBE=1 to run");
+            Assert.Skip("diagnostic: set ACTA_PERF_PROBE=1 to run");
         }
 
         var ct = TestContext.Current.CancellationToken;

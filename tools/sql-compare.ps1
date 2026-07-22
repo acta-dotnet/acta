@@ -131,7 +131,7 @@ if ($ChangedSince) {
             }
             $relativePath = [IO.Path]::GetRelativePath($repoRoot, $inventories[$token][$logical]).Replace('\', '/')
             $state = if ($changed[$logical].Contains($token)) { '**changed**' } else { 'unchanged' }
-            "$state — ``$relativePath``"
+            "$state · ``$relativePath``"
         }
         Write-Output "| ``$logical`` | $($cells[0]) | $($cells[1]) | $($cells[2]) |"
     }

@@ -14,8 +14,8 @@ internal sealed record TagUpsertRequest(string? Name, string? Value);
 /// entity, and control-gated POST (upsert) / DELETE (remove) verbs. Patterns and route parameters are
 /// spelled out per endpoint so the Request Delegate Generator can bind them; shared logic lives in the
 /// read/mutate helpers. A syntactically invalid target reads as 404 (it cannot exist). On mutation an
-/// invalid catalog identifier (namespace/tenant/schedule) is a 400, while a malformed job ref is a 404
-/// — matching how every other job endpoint treats an unparseable ref.
+/// invalid catalog identifier (namespace/tenant/schedule) is a 400, while a malformed job ref is a 404,
+/// matching how every other job endpoint treats an unparseable ref.
 /// </summary>
 internal static class TagEndpoints
 {

@@ -162,7 +162,7 @@ public abstract class IntervalScheduleFireSpec<TFixture> : ActaRuntimeTestBase<T
         var outcome = await Runtime.RunOnceAsync(slotId, ct);
         Assert.NotEqual(RunOnceOutcome.NothingClaimed, outcome);
 
-        // Exactly one execution despite 3.5 missed periods — Skip coalesces them.
+        // Exactly one execution despite 3.5 missed periods: Skip coalesces them.
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(1, slot.ExecutionNumber);
 
@@ -193,7 +193,7 @@ public abstract class IntervalScheduleFireSpec<TFixture> : ActaRuntimeTestBase<T
         Assert.Single(claim1);
         Assert.Equal(1, claim1[0].ExecutionNumber);
 
-        // Worker 2 attempts the same slot — finds it Dispatched, not Ready.
+        // Worker 2 attempts the same slot: finds it Dispatched, not Ready.
         var claim2 = (
             await Services
                 .GetRequiredService<IExecutionStore>()

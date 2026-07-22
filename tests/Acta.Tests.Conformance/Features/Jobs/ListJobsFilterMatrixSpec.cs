@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
 
 /// <summary>
 /// Conformance for <c>ListJobs</c> filter dimensions: each filter scopes the result set to exactly
-/// the matching rows. One fact per filter — status, parentJobId, tenantId, namespace, jobName.
+/// the matching rows. One fact per filter: status, parentJobId, tenantId, namespace, jobName.
 /// </summary>
 [ConformanceSpec(
     "list-jobs.filter-matrix",

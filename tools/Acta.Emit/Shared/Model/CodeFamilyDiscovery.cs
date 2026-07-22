@@ -4,7 +4,7 @@ using System.Reflection;
 namespace Acta.Emit.Shared.Model;
 
 /// <summary>
-/// One discovered code family (Code or meta-enum) — name, storage width, and its values.
+/// One discovered code family (Code or meta-enum): name, storage width, and its values.
 /// </summary>
 internal sealed record CodeFamilyModel(
     string Name,

@@ -38,7 +38,7 @@ public abstract class RegisterTenantSpec<TFixture> : ActaStorageTestBase<TFixtur
     public async Task New_tenant_inserts()
     {
         var ct = TestContext.Current.CancellationToken;
-        // A normalized tenant key with uppercase — Acta keys fold to lowercase at write.
+        // A normalized tenant key with uppercase: Acta keys fold to lowercase at write.
         var key = $"550E8400-{TestKey("tenant-new")}";
         var canonical = key.ToLowerInvariant();
 

@@ -515,7 +515,7 @@ public sealed class EnqueueScenario : IScenario
 /// jobs a fleet can insert under shared-table write contention (index leaf latches, identity/sequence, the
 /// parent lock, tempdb TVP materialization on SQL Server). Isolates the batch path the per-call
 /// <see cref="EnqueueScenario"/> never exercises and that throughput only touches in a sub-second,
-/// drain-overlapped window — so a batch-routine regression surfaces as a gated jobs/sec drop.
+/// drain-overlapped window, so a batch-routine regression surfaces as a gated jobs/sec drop.
 /// </summary>
 public sealed class EnqueueBatchScenario : IScenario
 {
@@ -960,7 +960,7 @@ public sealed class PurgeScenario : IScenario
 /// <summary>
 /// Standard load-test shapes over the paced producer. constant = soak (fixed rate for a duration; reports
 /// latency drift, last-decile p95 vs first-decile p95); ramp = capacity/breakpoint (step the rate up; max
-/// sustainable = the highest step whose backlog still keeps up — queue-growth knee); spike = idle then a
+/// sustainable = the highest step whose backlog still keeps up, queue-growth knee); spike = idle then a
 /// single burst (reports peak queue depth + recover-to-baseline seconds). Reuses the audit-off bench-run
 /// handler, so the headline measures framework overhead, not handler work.
 /// </summary>

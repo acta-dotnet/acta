@@ -102,7 +102,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         Assert.Equal((byte)2, row2.RetryCount);
         Assert.Null(row2.RetryAfterUtc);
 
-        // Pass 3: Failed is terminal — a further pass leaves it unchanged.
+        // Pass 3: Failed is terminal: a further pass leaves it unchanged.
         await RunDeliveryAsync(maxRetries: 2, ct);
         var row3 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row3.DeliveryStatusCode);

@@ -7,8 +7,8 @@ namespace Acta.Tests.Conformance.Sql;
 /// Guards two accidental-blast-radius shapes in embedded <c>UPDATE</c>/<c>DELETE</c> statements: a
 /// statement with neither a <c>WHERE</c> nor a correlating <c>JOIN</c> (so it touches every row of a
 /// real table), and a comma-style <c>FROM</c>/<c>USING</c> join (implicit cross join) instead of an
-/// explicit <c>JOIN ... ON</c>. Views are included (same reasoning as <see cref="DialectLeakageAssert"/>
-/// — a view is exactly where an unreviewed fragment survives). A statement whose target is an mssql
+/// explicit <c>JOIN ... ON</c>. Views are included (same reasoning as <see cref="DialectLeakageAssert"/>:
+/// a view is exactly where an unreviewed fragment survives). A statement whose target is an mssql
 /// table variable (<c>DELETE @del</c>) is exempt: it clears local scratch state, never persisted data. A
 /// <c>FOR UPDATE</c> row-locking clause and an <c>ON CONFLICT (...) DO UPDATE SET</c> upsert are not
 /// standalone DML statements and are skipped.
@@ -21,7 +21,7 @@ public static class UnsafeDmlAssert
         RegexOptions.Compiled | RegexOptions.IgnoreCase
     );
 
-    // The tokenizer only checks for the presence of a JOIN keyword — it cannot evaluate ON predicates,
+    // The tokenizer only checks for the presence of a JOIN keyword: it cannot evaluate ON predicates,
     // so a constant-true join (e.g. "ON 1=1") still counts as a guard here. Accepted limitation.
     private static readonly Regex WhereOrJoin = new(@"\b(WHERE|JOIN)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex FromOrUsing = new(@"\b(FROM|USING)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -67,14 +67,14 @@ public static class UnsafeDmlAssert
             var targetMatch = Target.Match(stmt[start.Length..]);
             if (targetMatch.Success && targetMatch.Groups["target"].Value.StartsWith('@'))
             {
-                continue; // mssql table variable — local scratch state, not persisted data
+                continue; // mssql table variable: local scratch state, not persisted data
             }
 
             var line = LineOf(masked, start.Index);
 
             if (!WhereOrJoin.IsMatch(TopLevel(stmt)) && !IsAllowlisted(logicalPath, "no-guard"))
             {
-                yield return $"{logicalPath}:{line}: {start.Value} statement has neither WHERE nor a correlating JOIN — touches every row";
+                yield return $"{logicalPath}:{line}: {start.Value} statement has neither WHERE nor a correlating JOIN: touches every row";
             }
 
             if (HasCommaJoin(stmt) && !IsAllowlisted(logicalPath, "comma-join"))

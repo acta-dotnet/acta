@@ -172,7 +172,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         await SetJobNextRunAsync(Db, enqueued.JobId, past, ct);
         await SetStepNextRetryAtAsync(Db, enqueued.JobId, StepName, past, ct);
 
-        // Tick 3: at/after retry instant — body re-invoked (attempt 2 succeeds), parent Done.
+        // Tick 3: at/after retry instant, body re-invoked (attempt 2 succeeds), parent Done.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body invoked twice total.

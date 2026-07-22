@@ -6,7 +6,7 @@ internal static class Usage
     {
         Console.WriteLine(
             """
-            Acta.Emit — emits committed repo artifacts from the IEntity source of truth.
+            Acta.Emit: emits committed repo artifacts from the IEntity source of truth.
 
             Usage:
               dotnet run --project tools/Acta.Emit -- docs

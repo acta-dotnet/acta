@@ -45,7 +45,7 @@ public abstract class M001InstallSpec<TFixture> : IntegrationSpec<TFixture>
     public async Task InstallsExactlyTheModelledColumns()
     {
         // Round-trip: applying the whole committed migration history must reconstruct the model's
-        // columns per table — the backstop against a hand-edited delta drifting from ActaSchema.
+        // columns per table: the backstop against a hand-edited delta drifting from ActaSchema.
         foreach (var entity in ActaSchema.Entities)
         {
             var cols = await Fixture.ListColumnsAsync(Schema.SchemaName, entity.TableName);

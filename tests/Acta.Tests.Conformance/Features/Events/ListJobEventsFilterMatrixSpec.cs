@@ -110,7 +110,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         Assert.NotEmpty(childEvents);
         Assert.NotEmpty(unrelatedEvents);
 
-        // events.lineage_root_id = COALESCE(job.lineage_root_id, job.id) — so both root and child
+        // events.lineage_root_id = COALESCE(job.lineage_root_id, job.id), so both root and child
         // events share lineage_root_id = rootId; unrelated events carry their own id.
         var lineagePage = await queries.ListJobEventsAsync(
             new ListJobEventsQuery(LineageRootId: rootId, JobNamespace: TestNamespace, PageSize: 100),
@@ -145,7 +145,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         var ns1Page = await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, JobNamespace: TestNamespace, PageSize: 100), ct);
         Assert.Equal(j1Events, ns1Page.Items.Select(e => e.JobEventId).ToHashSet());
 
-        // Filtering by ns2 + j1 returns nothing — j1 is not in ns2
+        // Filtering by ns2 + j1 returns nothing: j1 is not in ns2
         var ns2Page = await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, JobNamespace: ns2Name, PageSize: 100), ct);
         Assert.Equal(new HashSet<long>(), ns2Page.Items.Select(e => e.JobEventId).ToHashSet());
     }
@@ -231,7 +231,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         Assert.Equal(j2Events, def2Page.Items.Select(e => e.JobEventId).ToHashSet());
 
         // Count scope: with jobId + matching definition, TotalCount equals the filtered row count.
-        // The COUNT query applies all filters uniformly — definition filter affects the total as it does rows.
+        // The COUNT query applies all filters uniformly: definition filter affects the total as it does rows.
         var j1Count = (long)j1Events.Count;
         var withCountPage = await queries.ListJobEventsAsync(
             new ListJobEventsQuery(JobId: j1, JobDefinitionId: j1DefId, IncludeTotal: true, PageSize: 100),

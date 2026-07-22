@@ -37,7 +37,7 @@ internal sealed class XmlDocSource
         return src;
     }
 
-    // Renders inline XML to Markdown — XElement.Value alone strips empty elements like <see/>.
+    // Renders inline XML to Markdown: XElement.Value alone strips empty elements like <see/>.
     private static string RenderXmlContent(XElement element)
     {
         var sb = new StringBuilder();

@@ -78,7 +78,7 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             ct
         );
 
-        // One global sweep — no namespace argument.
+        // One global sweep: no namespace argument.
         var marked = await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
         Assert.True(marked >= 2, $"expected at least the two aged workers marked; got {marked}.");
 

@@ -167,7 +167,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
 
-        // Claim then start with a live (future) lease — the row lands Executing(50) with lease_expires_at_utc > now.
+        // Claim then start with a live (future) lease: the row lands Executing(50) with lease_expires_at_utc > now.
         const int LiveLeaseTtl = 30;
         var claimed = Assert.Single(
             await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
@@ -177,7 +177,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
             .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
         Assert.Equal(StartExecutionAction.Started, started);
 
-        // One direct reclaim pass — must NOT touch the live-lease Executing row.
+        // One direct reclaim pass: must NOT touch the live-lease Executing row.
         var result = await Services.GetRequiredService<IExecutionStore>().ReclaimStuckJobsAsync(ns, ct);
         Assert.Equal(0, result.Reclaimed);
 

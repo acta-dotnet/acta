@@ -29,7 +29,7 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
             .OrderBy(e => e.Table, StringComparer.Ordinal)
             .ToList();
 
-        // Catalog-backed families only, keyed by the stable CodeKind discriminator — never the CLR enum
+        // Catalog-backed families only, keyed by the stable CodeKind discriminator, never the CLR enum
         // type name, so renaming an enum is not read as schema drift. Meta-enums (CodeKind == null) are
         // omitted; their CHECK-value drift is captured per-column by the column signature's value list.
         var codeFamilies = families
@@ -52,7 +52,7 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
         ?? throw new InvalidOperationException($"Empty or invalid schema snapshot at {path}.");
 
     // Coded identity is carried by the emitted CHECK value list (the real SQL artifact), plus IsCoded and
-    // the stable CodeKind — never EnumTypeName, so a CLR enum rename is not treated as persistence drift.
+    // the stable CodeKind, never EnumTypeName, so a CLR enum rename is not treated as persistence drift.
     private static string ColumnSignature(ColumnModel c) =>
         $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|values={SqlSchemaEmitter.EnumValueList(c)}";
 

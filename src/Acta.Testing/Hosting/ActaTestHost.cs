@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.Testing;
 
 /// <summary>
-/// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync"/> tick — the public mirror of the
+/// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync"/> tick: the public mirror of the
 /// runtime's internal run outcome, so integrators can assert on what a single drive did.
 /// </summary>
 public enum ActaRunOutcome : byte
@@ -50,7 +50,7 @@ public sealed class ActaTestHostOptions
 
 /// <summary>
 /// A running Acta runtime for tests: enqueue jobs, drive them deterministically with
-/// <see cref="RunOnceAsync"/>, and assert through the <see cref="Jobs"/> read surface. Provider-agnostic —
+/// <see cref="RunOnceAsync"/>, and assert through the <see cref="Jobs"/> read surface. Provider-agnostic:
 /// the integrator wires their own <c>UseSqlServer</c> / <c>UsePostgres</c> in the start callback.
 /// </summary>
 public interface IActaTestHost : IAsyncDisposable
@@ -58,7 +58,7 @@ public interface IActaTestHost : IAsyncDisposable
     /// <summary>The schema this host's runtime targets.</summary>
     string Schema { get; }
 
-    /// <summary>The built service provider — escape hatch for resolving anything the runtime registered.</summary>
+    /// <summary>The built service provider: escape hatch for resolving anything the runtime registered.</summary>
     IServiceProvider Services { get; }
 
     /// <summary>The public job control / enqueue surface.</summary>

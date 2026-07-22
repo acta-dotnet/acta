@@ -318,7 +318,7 @@ public class CodeGeneratorDiagnosticTests
     }
 
     // Regression for a bug where `Lifecycle = CodeLifecycleCode.Deprecated` was read via
-    // `named.Value.Value is int lc` — but CodeLifecycleCode is byte-backed, so Roslyn boxes the
+    // `named.Value.Value is int lc`, but CodeLifecycleCode is byte-backed, so Roslyn boxes the
     // TypedConstant as byte and the pattern never matched, silently emitting "Active" for every
     // family regardless of the declared lifecycle (F24).
     [Fact]

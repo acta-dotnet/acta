@@ -4,7 +4,7 @@ using Xunit;
 namespace Acta.Tests.Jobs;
 
 /// <summary>
-/// Unit tests for the dashboard/list-filter validators in <see cref="QueryValidation"/> — the
+/// Unit tests for the dashboard/list-filter validators in <see cref="QueryValidation"/>: the
 /// lookup-permissive canonicalization path. Unlike the registration validators, these must keep
 /// accepting the bare <c>sys</c> namespace and <c>sys.*</c> job names so operators can filter to the
 /// seeded system namespace's audit events.

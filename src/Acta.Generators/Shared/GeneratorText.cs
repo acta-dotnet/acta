@@ -3,7 +3,7 @@ using System.Text;
 namespace Acta.Generators.Shared;
 
 /// <summary>
-/// Shared text helpers for the three Acta source generators. Kept intentionally small — only what
+/// Shared text helpers for the three Acta source generators. Kept intentionally small: only what
 /// is genuinely duplicated across the schema, code, and job-manifest generators.
 /// </summary>
 internal static class GeneratorText

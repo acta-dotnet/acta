@@ -20,7 +20,7 @@ namespace Acta.Tests.Api;
 /// <summary>
 /// Validation behavior of the facade read methods with no database: filter dependencies, identifier
 /// shape, page-size bounds, the events total guard, and cursor envelope rejection. Each read is
-/// exercised on its owner — job/event reads on <see cref="JobsApi"/>, schedules on <see cref="SchedulesApi"/>,
+/// exercised on its owner: job/event reads on <see cref="JobsApi"/>, schedules on <see cref="SchedulesApi"/>,
 /// alerts on <see cref="AlertsApi"/>. The store stub returns empty pages so cursor checks run before
 /// any data access matters; the JobsApi facade's unused collaborators are null because the read path
 /// only touches the store.

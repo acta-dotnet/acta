@@ -23,7 +23,7 @@ internal sealed record JobEventRecord(
 /// Test-support read: all <c>events</c> rows for a job id in ascending timeline order
 /// (<c>created_at_utc, id</c>). A thin projection over the production <see cref="IEventStore"/>
 /// read, which returns the newest-first keyset page; the rows are reversed here to the ascending
-/// order specs assert on. Not a production operation — no live caller reads a job's whole event
+/// order specs assert on. Not a production operation: no live caller reads a job's whole event
 /// timeline outside conformance.
 /// </summary>
 internal static class GetEventsByJobId

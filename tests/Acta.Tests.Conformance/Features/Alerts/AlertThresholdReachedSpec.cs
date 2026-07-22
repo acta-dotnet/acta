@@ -97,7 +97,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Contains("threshold-reached", threshold.DeduplicationKey);
 
         // FirstFailure.OccurrenceCount == 2 proves the above-threshold occurrence was processed
-        // but did not emit a second ThresholdReached — the suppression guard ran.
+        // but did not emit a second ThresholdReached: the suppression guard ran.
         var first = Assert.Single(alerts, a => a.Kind == AlertKindCode.FirstFailure);
         Assert.Equal(2, first.OccurrenceCount);
     }
@@ -128,7 +128,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Enqueue a job to get a real jobId; not run — only the id is needed for alert rows.
+        // Enqueue a job to get a real jobId; not run: only the id is needed for alert rows.
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         var jobId = job.JobId;
 

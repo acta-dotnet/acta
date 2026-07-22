@@ -8,7 +8,7 @@ namespace Acta.Tests.Emit;
 public sealed class SchemaSnapshotTests
 {
     // Records with IReadOnlyList members lack structural equality, so compare via canonical
-    // (newline-normalized) JSON — also immune to on-disk line-ending differences.
+    // (newline-normalized) JSON: also immune to on-disk line-ending differences.
     private static string Canon(SchemaSnapshot s) =>
         JsonSerializer.Serialize(s, SchemaSnapshotJsonContext.Default.SchemaSnapshot).ReplaceLineEndings("\n");
 

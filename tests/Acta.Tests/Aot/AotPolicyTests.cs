@@ -158,7 +158,7 @@ public sealed class AotPolicyTests
         if (failures.Count > 0)
         {
             Assert.Fail(
-                "AOT policy violation — runtime source touches reflection APIs outside the documented allowlist. "
+                "AOT policy violation: runtime source touches reflection APIs outside the documented allowlist. "
                     + "Either route through a source generator or, if the reflection use is intentional and bounded, "
                     + "add the file to the matching pattern's Allowlist in AotPolicyTests with a justifying comment.\n\n"
                     + string.Join("\n", failures)
@@ -184,7 +184,7 @@ public sealed class AotPolicyTests
         if (failures.Count > 0)
         {
             Assert.Fail(
-                "AOT policy violation — runtime source uses parameter-binding APIs the policy bans "
+                "AOT policy violation: runtime source uses parameter-binding APIs the policy bans "
                     + "(see docs/internals/design.md § AOT and SQL parameter metadata policy).\n\n"
                     + string.Join("\n", failures)
             );
@@ -209,7 +209,7 @@ public sealed class AotPolicyTests
         if (failures.Count > 0)
         {
             Assert.Fail(
-                "Data-access policy violation — runtime source uses APIs outside the supported DbSession + named SQL + DbParams.For surface.\n\n"
+                "Data-access policy violation: runtime source uses APIs outside the supported DbSession + named SQL + DbParams.For surface.\n\n"
                     + string.Join("\n", failures)
             );
         }
@@ -233,7 +233,7 @@ public sealed class AotPolicyTests
         if (failures.Count > 0)
         {
             Assert.Fail(
-                "AOT policy violation — runtime projection rows must use generated [DbProjection] binders, "
+                "AOT policy violation: runtime projection rows must use generated [DbProjection] binders, "
                     + "not constructor/property discovery or ad hoc projection materializers.\n\n"
                     + string.Join("\n", failures)
             );
@@ -258,7 +258,7 @@ public sealed class AotPolicyTests
         if (failures.Count > 0)
         {
             Assert.Fail(
-                "Surface-discipline violation — runtime source contains placeholder / stub markers "
+                "Surface-discipline violation: runtime source contains placeholder / stub markers "
                     + "the supported-surface policy forbids. Either delete the stub, implement it, or park the "
                     + "intent under docs/ideas/ and remove the source-level claim. If the gap is intentional "
                     + "and tracked, extend the matching SupportedSurfacePatterns allowlist in "
@@ -288,7 +288,7 @@ public sealed class AotPolicyTests
         if (stale.Count > 0)
         {
             Assert.Fail(
-                "AOT-policy allowlist has stale entries — a listed file was moved, renamed, or deleted. "
+                "AOT-policy allowlist has stale entries: a listed file was moved, renamed, or deleted. "
                     + "Update or remove the entry so the ratchet keeps tightening.\n\n"
                     + string.Join("\n", stale)
             );

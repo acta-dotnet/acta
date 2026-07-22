@@ -22,28 +22,28 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         // Retention windows are destructive: a value below one unit purges live data.
         if (options.JobEventsRetentionDays < 1)
         {
-            failures.Add("JobsOptions.JobEventsRetentionDays must be >= 1 — retention is destructive.");
+            failures.Add("JobsOptions.JobEventsRetentionDays must be >= 1: retention is destructive.");
         }
 
         if (options.AlertRetentionDays < 1)
         {
-            failures.Add("JobsOptions.AlertRetentionDays must be >= 1 — retention is destructive.");
+            failures.Add("JobsOptions.AlertRetentionDays must be >= 1: retention is destructive.");
         }
 
         if (options.WorkerRetention < TimeSpan.FromDays(1))
         {
-            failures.Add("JobsOptions.WorkerRetention must be >= 1 day — retention is destructive.");
+            failures.Add("JobsOptions.WorkerRetention must be >= 1 day: retention is destructive.");
         }
 
         // Idle claim-loop pacing.
         if (options.SafetyPollInterval < TimeSpan.FromSeconds(1))
         {
-            failures.Add("JobsOptions.SafetyPollInterval must be >= 1s — it is the idle claim loop's DB-traffic bound.");
+            failures.Add("JobsOptions.SafetyPollInterval must be >= 1s: it is the idle claim loop's DB-traffic bound.");
         }
 
         if (options.MinPollFloor <= TimeSpan.Zero || options.MinPollFloor > options.SafetyPollInterval)
         {
-            failures.Add("JobsOptions.MinPollFloor must be > 0 and <= SafetyPollInterval — it is the anti-spin clamp on idle sleep.");
+            failures.Add("JobsOptions.MinPollFloor must be > 0 and <= SafetyPollInterval: it is the anti-spin clamp on idle sleep.");
         }
 
         if (options.ClaimIdleJitterMax < TimeSpan.Zero || options.ClaimIdleJitterMax > TimeSpan.FromSeconds(1))
@@ -54,63 +54,63 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         // Per-process throughput and payload limits.
         if (options.ClaimBatchSize < 1)
         {
-            failures.Add("JobsOptions.ClaimBatchSize must be >= 1 — it is the per-poll claim count.");
+            failures.Add("JobsOptions.ClaimBatchSize must be >= 1: it is the per-poll claim count.");
         }
 
         if (options.MaxConcurrentExecutors < 1)
         {
-            failures.Add("JobsOptions.MaxConcurrentExecutors must be >= 1 — a worker with no executors claims nothing.");
+            failures.Add("JobsOptions.MaxConcurrentExecutors must be >= 1: a worker with no executors claims nothing.");
         }
 
         if (options.ExclusiveKeyBounceDelaySeconds < 0)
         {
             failures.Add(
-                "JobsOptions.ExclusiveKeyBounceDelaySeconds must be >= 0 — it is the re-arm delay for a keyed job whose key lock is held."
+                "JobsOptions.ExclusiveKeyBounceDelaySeconds must be >= 0: it is the re-arm delay for a keyed job whose key lock is held."
             );
         }
 
         if (options.MaxInlinePayloadBytes < 1)
         {
-            failures.Add("JobsOptions.MaxInlinePayloadBytes must be >= 1 — it is the hard cap on inline payload size.");
+            failures.Add("JobsOptions.MaxInlinePayloadBytes must be >= 1: it is the hard cap on inline payload size.");
         }
 
         // Bulk-profile group-commit knobs. Validated unconditionally (harmless on other profiles); the
         // flush-interval-vs-lease relationship keeps a buffered-but-unflushed job from losing its lease.
         if (options.BatchCompletionSize < 1)
         {
-            failures.Add("JobsOptions.BatchCompletionSize must be >= 1 — it is the Bulk-profile group-commit batch size.");
+            failures.Add("JobsOptions.BatchCompletionSize must be >= 1: it is the Bulk-profile group-commit batch size.");
         }
 
         if (options.BatchCompletionMaxBytes < 1)
         {
-            failures.Add("JobsOptions.BatchCompletionMaxBytes must be >= 1 — it is the Bulk-profile result-byte flush budget.");
+            failures.Add("JobsOptions.BatchCompletionMaxBytes must be >= 1: it is the Bulk-profile result-byte flush budget.");
         }
 
         if (options.BatchCompletionInterval <= TimeSpan.Zero)
         {
-            failures.Add("JobsOptions.BatchCompletionInterval must be > 0 — it is the Bulk-profile forced-flush cadence.");
+            failures.Add("JobsOptions.BatchCompletionInterval must be > 0: it is the Bulk-profile forced-flush cadence.");
         }
         else if (options.LeaseTtlSeconds > 0 && options.BatchCompletionInterval > TimeSpan.FromSeconds(options.LeaseTtlSeconds / 4.0))
         {
             failures.Add(
-                "JobsOptions.BatchCompletionInterval must be <= LeaseTtlSeconds / 4 — a slower flush risks a buffered Bulk completion losing its lease before it is committed."
+                "JobsOptions.BatchCompletionInterval must be <= LeaseTtlSeconds / 4: a slower flush risks a buffered Bulk completion losing its lease before it is committed."
             );
         }
 
         // Alert delivery and escalation.
         if (options.AlertDeliveryMaxRetries < 1)
         {
-            failures.Add("JobsOptions.AlertDeliveryMaxRetries must be >= 1 — at least one delivery attempt must be allowed.");
+            failures.Add("JobsOptions.AlertDeliveryMaxRetries must be >= 1: at least one delivery attempt must be allowed.");
         }
 
         if (options.AlertFailureThreshold < 1)
         {
-            failures.Add("JobsOptions.AlertFailureThreshold must be >= 1 — it is the failure count that escalates severity.");
+            failures.Add("JobsOptions.AlertFailureThreshold must be >= 1: it is the failure count that escalates severity.");
         }
 
         if (options.AlertDedupeWindow <= TimeSpan.Zero)
         {
-            failures.Add("JobsOptions.AlertDedupeWindow must be > 0 — it is the alert rate-limit bucket width.");
+            failures.Add("JobsOptions.AlertDedupeWindow must be > 0: it is the alert rate-limit bucket width.");
         }
 
         // Coordination invariants. Each base value must be positive on its own before the cross-field
@@ -123,37 +123,37 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
 
         if (!leaseValid)
         {
-            failures.Add("JobsOptions.LeaseTtlSeconds must be > 0 — it is the worker-wide lease window.");
+            failures.Add("JobsOptions.LeaseTtlSeconds must be > 0: it is the worker-wide lease window.");
         }
 
         if (!heartbeatValid)
         {
-            failures.Add("JobsOptions.HeartbeatInterval must be > 0 — it is the lease-refresh cadence.");
+            failures.Add("JobsOptions.HeartbeatInterval must be > 0: it is the lease-refresh cadence.");
         }
 
         if (options.WorkerDeadAfter <= TimeSpan.Zero)
         {
-            failures.Add("JobsOptions.WorkerDeadAfter must be > 0 — it is the no-heartbeat window before a worker is marked Dead.");
+            failures.Add("JobsOptions.WorkerDeadAfter must be > 0: it is the no-heartbeat window before a worker is marked Dead.");
         }
 
         if (leaseValid && heartbeatValid && leaseTtl < heartbeat * 2)
         {
             failures.Add(
-                "JobsOptions.LeaseTtlSeconds must be >= 2x HeartbeatInterval — a lease at or below twice the heartbeat reclaims a live worker's own jobs mid-run (double execution); 4x is the recommended margin."
+                "JobsOptions.LeaseTtlSeconds must be >= 2x HeartbeatInterval: a lease at or below twice the heartbeat reclaims a live worker's own jobs mid-run (double execution); 4x is the recommended margin."
             );
         }
 
         if (heartbeatValid && options.WorkerDeadAfter < heartbeat * 3)
         {
             failures.Add(
-                "JobsOptions.WorkerDeadAfter must be >= 3x HeartbeatInterval — a smaller window retires a worker that has only missed a beat or two."
+                "JobsOptions.WorkerDeadAfter must be >= 3x HeartbeatInterval: a smaller window retires a worker that has only missed a beat or two."
             );
         }
 
         if (leaseValid && options.WorkerDeadAfter > TimeSpan.Zero && options.WorkerDeadAfter <= leaseTtl)
         {
             failures.Add(
-                "JobsOptions.WorkerDeadAfter must be > LeaseTtlSeconds — a worker whose leases just lapsed must not be retired while it might still recover."
+                "JobsOptions.WorkerDeadAfter must be > LeaseTtlSeconds: a worker whose leases just lapsed must not be retired while it might still recover."
             );
         }
 
@@ -177,7 +177,7 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
 
         if (options.SafetyPollInterval > TimeSpan.FromHours(1))
         {
-            failures.Add("JobsOptions.SafetyPollInterval must be <= 1h — it bounds discovery of work with no delivered wake.");
+            failures.Add("JobsOptions.SafetyPollInterval must be <= 1h: it bounds discovery of work with no delivered wake.");
         }
 
         if (options.ClaimBatchSize > 10_000)
@@ -197,13 +197,13 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
 
         if (options.MaxInlinePayloadBytes > 256 * 1024 * 1024)
         {
-            failures.Add("JobsOptions.MaxInlinePayloadBytes must be <= 256 MB — larger payloads belong behind a blob reference.");
+            failures.Add("JobsOptions.MaxInlinePayloadBytes must be <= 256 MB: larger payloads belong behind a blob reference.");
         }
 
         if (options.LeaseTtlSeconds > 86_400)
         {
             failures.Add(
-                "JobsOptions.LeaseTtlSeconds must be <= 86400 (1 day) — long-running handlers stay alive through heartbeating, not a giant lease."
+                "JobsOptions.LeaseTtlSeconds must be <= 86400 (1 day): long-running handlers stay alive through heartbeating, not a giant lease."
             );
         }
 
