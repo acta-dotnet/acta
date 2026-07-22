@@ -19,6 +19,11 @@
 
   let { tenantKey = null }: { tenantKey?: string | null } = $props();
   let creating = $derived(!tenantKey);
+  let newKeyEl: HTMLInputElement | null = $state(null);
+
+  $effect(() => {
+    if (creating) newKeyEl?.focus();
+  });
 
   async function loadTenant(signal: AbortSignal): Promise<TenantListItem | null> {
     if (!tenantKey) return null;
@@ -232,15 +237,15 @@
           <form onsubmit={(event) => { event.preventDefault(); submitRegister(); }}>
             <label class="detail-field">
               <span>Tenant key</span>
-              <input bind:value={newKey} placeholder="Opaque key, GUID, or customer code" disabled={!canControlNow || registerBusy} />
+              <input bind:this={newKeyEl} bind:value={newKey} maxlength="128" placeholder="Opaque key, GUID, or customer code" disabled={!canControlNow || registerBusy} />
             </label>
             <label class="detail-field">
               <span>Display name</span>
-              <input bind:value={newDisplayName} placeholder="Human display label (optional)" disabled={!canControlNow || registerBusy} />
+              <input bind:value={newDisplayName} maxlength="128" placeholder="Human display label (optional)" disabled={!canControlNow || registerBusy} />
             </label>
             <label class="detail-field">
               <span>Description</span>
-              <textarea bind:value={newDescription} rows="4" placeholder="Human-readable context (optional)" disabled={!canControlNow || registerBusy}></textarea>
+              <textarea bind:value={newDescription} rows="4" maxlength="512" placeholder="Human-readable context (optional)" disabled={!canControlNow || registerBusy}></textarea>
             </label>
             <div class="detail-form-actions">
               <button class="primary" type="submit" disabled={!canControlNow || registerBusy || !newKey.trim()}>
@@ -281,15 +286,15 @@
           <form onsubmit={(event) => { event.preventDefault(); saveMetadata(); }}>
             <label class="detail-field">
               <span>Display name</span>
-              <input bind:value={displayNameInput} placeholder="Human display label" disabled={!canControlNow || metadataMutation.isPending} />
+              <input bind:value={displayNameInput} maxlength="128" placeholder="Human display label" disabled={!canControlNow || metadataMutation.isPending} />
             </label>
             <label class="detail-field">
               <span>Description</span>
-              <textarea bind:value={descriptionInput} rows="4" placeholder="Operator-readable description" disabled={!canControlNow || metadataMutation.isPending}></textarea>
+              <textarea bind:value={descriptionInput} rows="4" maxlength="512" placeholder="Operator-readable description" disabled={!canControlNow || metadataMutation.isPending}></textarea>
             </label>
             <label class="detail-field">
               <span>Audit note</span>
-              <input bind:value={metadataNote} placeholder="Why are you changing this?" disabled={!canControlNow || metadataMutation.isPending} />
+              <input bind:value={metadataNote} maxlength="512" placeholder="Why are you changing this?" disabled={!canControlNow || metadataMutation.isPending} />
             </label>
             <div class="detail-form-actions">
               {#if metadataNeedsReload}<button type="button" onclick={reloadMetadata}>Reload current values</button>{/if}

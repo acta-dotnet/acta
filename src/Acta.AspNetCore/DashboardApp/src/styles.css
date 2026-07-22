@@ -459,6 +459,9 @@ main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-ty
   grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
   gap: 20px;
   align-items: start;
+  /* Panels that follow the workspace (the job timeline) carry margin-bottom only, so without this the
+     workspace's last panel butts straight into them. */
+  margin-bottom: 16px;
 }
 .detail-main,
 .detail-rail { min-width: 0; }
@@ -485,7 +488,8 @@ main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-ty
   text-transform: uppercase;
 }
 .detail-field { display: grid; gap: 7px; margin-top: 18px; color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
-.detail-field input,
+.detail-field input:not([type='checkbox']),
+.detail-field select,
 .detail-field textarea {
   width: 100%;
   padding: 9px 11px;
@@ -497,10 +501,60 @@ main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-ty
   font-weight: 400;
 }
 .detail-field textarea { resize: vertical; min-height: 92px; line-height: 1.45; }
+/* Selects wear the app's own chevron (the .filters select idiom) rather than native chrome, so a
+   form's pickers and text fields read as one control family at one height. */
+.detail-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 30px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) calc(50% - 2px),
+    calc(100% - 10px) calc(50% - 2px);
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+}
 .detail-field input:hover,
+.detail-field select:hover,
 .detail-field textarea:hover { border-color: var(--accent); }
 .detail-field input:focus,
+.detail-field select:focus,
 .detail-field textarea:focus { outline: none; border-color: var(--accent); }
+/* Checkboxes are not text fields: they take the same custom box the filter bar uses instead of the
+   full-width padded control above. */
+.detail-field input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  cursor: pointer;
+  position: relative;
+  flex: none;
+}
+.detail-field input[type='checkbox']:hover { border-color: var(--accent); }
+.detail-field input[type='checkbox']:checked { background: var(--accent-solid); border-color: var(--accent-solid); }
+.detail-field input[type='checkbox']:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+/* A disabled control has to look disabled: the job picker waits on a namespace choice. */
+.detail-field input:disabled,
+.detail-field select:disabled,
+.detail-field textarea:disabled { opacity: 0.55; cursor: not-allowed; }
 .detail-form-actions {
   display: flex;
   justify-content: flex-start;
@@ -780,12 +834,15 @@ main.fill-page { display: flex; flex-direction: column; }
 table.data th { position: sticky; top: 0; background: var(--panel); z-index: 1; }
 
 .verdict {
-  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius-panel);
   padding: 12px 16px; margin-bottom: 16px; background: var(--panel);
 }
-.verdict-label { font-size: var(--text-verdict); font-weight: 600; }
-.verdict-reason { color: var(--muted); }
+/* verdict-label is inline-flex (icon + text, see :has(.ic) rule above) so align-items: baseline
+   on .verdict would synthesize its baseline from the box edge instead of the text; center keeps
+   it level with verdict-reason's plain text baseline. */
+.verdict-label { font-size: var(--text-verdict); font-weight: 600; line-height: 1.3; }
+.verdict-reason { color: var(--muted); line-height: 1.3; }
 .verdict.ok { border-left-color: var(--ok); }
 .verdict.ok .verdict-label { color: var(--ok); }
 .verdict.warn { border-left-color: var(--warn); }
@@ -807,7 +864,20 @@ a.metric:hover { border-color: var(--accent); text-decoration: none; }
 .metric.warn .metric-value { color: var(--warn); }
 .metric.bad .metric-value { color: var(--bad); }
 
-button.copy { padding: 1px 8px; font-size: var(--text-sm); color: var(--muted); }
+/* Copy affordances are bare icons: an extension of the text they sit beside (grid cells, detail
+   values), never a boxed button. Muted at rest, accent on hover; the global :focus-visible ring
+   still marks keyboard focus. The filter-bar instance gets a slightly larger glyph so it holds
+   its own beside the inputs. */
+button.copy {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  vertical-align: middle;
+}
+button.copy:hover { color: var(--accent); }
+.filters button.copy .ic { width: 18px; height: 18px; }
 
 /* Every row lights on hover for a consistent affordance; only rowlink rows get the pointer cursor
    and keyboard focus-within parity, since only they drill in on click. */

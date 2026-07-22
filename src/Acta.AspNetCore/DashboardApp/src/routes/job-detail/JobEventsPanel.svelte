@@ -74,9 +74,9 @@
         <tbody>
           {#each events as event (event.jobEventId)}
             <tr>
-              <td>{displayFormatter.rowTimestamp(event.createdAtUtc)}</td><td>{event.eventCode}</td><td>{event.executionNumber == null ? '—' : displayFormatter.number(event.executionNumber)}</td>
-              <td>{event.fromStatus ?? '—'}</td><td>{event.toStatus ?? '—'}</td><td>{event.executionStatus ?? '—'}</td>
-              <td>{event.durationMs != null ? displayFormatter.milliseconds(event.durationMs) : '—'}</td><td>{event.reasonMessage ?? event.reasonCode ?? '—'}</td>
+              <td>{displayFormatter.rowTimestamp(event.createdAtUtc)}</td><td>{event.eventCode}</td><td>{event.executionNumber == null ? '·' : displayFormatter.number(event.executionNumber)}</td>
+              <td>{event.fromStatus ?? '·'}</td><td>{event.toStatus ?? '·'}</td><td>{event.executionStatus ?? '·'}</td>
+              <td>{event.durationMs != null ? displayFormatter.milliseconds(event.durationMs) : '·'}</td><td>{event.reasonMessage ?? event.reasonCode ?? '·'}</td>
             </tr>
           {/each}
         </tbody>

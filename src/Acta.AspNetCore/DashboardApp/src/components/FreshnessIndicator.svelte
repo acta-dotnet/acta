@@ -31,10 +31,10 @@
   let previousPaused = false;
 
   let label = $derived.by(() => {
-    if (!$online) return stampIso ? 'Offline — showing data from ' + displayFormatter.timestamp(stampIso) : 'Offline';
+    if (!$online) return stampIso ? 'Offline, showing data from ' + displayFormatter.timestamp(stampIso) : 'Offline';
     if (polling && $livePaused) return 'Live updates paused';
     if (isFetching) return 'Updating…';
-    if (isError) return polling ? 'Update failed — retrying' : 'Update failed';
+    if (isError) return polling ? 'Update failed, retrying' : 'Update failed';
     if (stampIso) return 'Updated ' + displayFormatter.relativeTime(stampIso, displayedNow);
     return '';
   });

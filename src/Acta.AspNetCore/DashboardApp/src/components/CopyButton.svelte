@@ -1,6 +1,6 @@
 <script>
   import Icon from './Icon.svelte';
-  let { value, label = 'Copy', showLabel = false } = $props();
+  let { value, label = 'Copy', showLabel = false, title = null } = $props();
 
   let copied = $state(false);
 
@@ -15,7 +15,7 @@
   }
 </script>
 
-<button type="button" class="copy" title={copied ? 'Copied' : 'Copy to clipboard'} aria-label={copied ? 'Copied' : label} onclick={copy}>
+<button type="button" class="copy" title={copied ? 'Copied' : (title ?? 'Copy to clipboard')} aria-label={copied ? 'Copied' : label} onclick={copy}>
   <Icon name={copied ? 'check-circle' : 'copy'} />
   {#if showLabel}<span>{copied ? 'Copied' : label}</span>{/if}
 </button>

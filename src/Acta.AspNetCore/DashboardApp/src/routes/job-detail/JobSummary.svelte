@@ -8,7 +8,7 @@
   import { routes } from '../../routes.ts';
   import JobRef from '../../components/JobRef.svelte';
 
-  let { job, lastEvent = null }: { job: JobSnapshot; lastEvent?: JobEvent | null } = $props();
+  let { job, tenantKey = undefined, lastEvent = null }: { job: JobSnapshot; tenantKey?: string; lastEvent?: JobEvent | null } = $props();
 </script>
 
 <section class="panel" aria-labelledby="job-summary-heading">
@@ -17,7 +17,7 @@
   <dl class="kv">
     <dt>Name</dt><dd>{job.jobName}</dd>
     <dt>Namespace</dt><dd><a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>{job.jobNamespace}</a></dd>
-    <dt>Tenant</dt><dd>{#if job.tenantId != null}<a href={routes.jobs({ tenantId: job.tenantId, namespace: job.jobNamespace })}>{job.tenantId}</a>{:else}-{/if}</dd>
+    <dt>Tenant</dt><dd>{#if tenantKey}<a href={routes.tenant(tenantKey, { namespace: job.jobNamespace })} class="mono">{tenantKey}</a>{:else if job.tenantId != null}{job.tenantId}{:else}-{/if}</dd>
     <dt>Priority</dt><dd>{job.priority}</dd>
     <dt>Input</dt><dd>{payloadFormatLabel(job.inputFormatId)}</dd>
   </dl>

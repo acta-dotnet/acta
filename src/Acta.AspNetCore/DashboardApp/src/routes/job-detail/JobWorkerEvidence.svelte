@@ -6,10 +6,8 @@
 
   let {
     job,
-    workers = null,
-    loading = false,
-    error = null
-  }: { job: JobSnapshot; workers?: JobWorker[] | null; loading?: boolean; error?: string | null } = $props();
+    workers = null
+  }: { job: JobSnapshot; workers?: JobWorker[] | null } = $props();
 
   let dueInFuture = $derived(job.nextRunAtUtc ? new Date(job.nextRunAtUtc).getTime() > Date.now() : false);
   let liveWorkerCount = $derived(workers?.filter((worker) => worker.status === 'active' || worker.status === 'draining').length ?? null);
@@ -19,11 +17,7 @@
   <section class="panel" aria-labelledby="job-worker-heading">
     <h2 id="job-worker-heading">Why isn’t this running?</h2>
     {#if dueInFuture}
-      <p>Scheduled to run <RelativeTime value={job.nextRunAtUtc} /> — it is waiting for its next-run time, not stuck.</p>
-    {:else if error}
-      <p class="control-message warn">Job state is current. Worker evidence could not be loaded: {error}</p>
-    {:else if loading}
-      <p class="dim">Loading eligible workers…</p>
+      <p>Scheduled to run <RelativeTime value={job.nextRunAtUtc} />: it is waiting for its next-run time, not stuck.</p>
     {:else if workers && liveWorkerCount === 0}
       <p>This job is <strong>ready</strong> but no live worker can claim it in namespace <span class="mono">{job.jobNamespace}</span> ({workers.length === 0 ? 'no workers seen' : displayFormatter.number(workers.length) + ' worker(s), none active'}).</p>
       <p class="dim">Start a worker for this namespace, or inspect the <a href={routes.workers({ namespace: job.jobNamespace })}>workers page</a>.</p>

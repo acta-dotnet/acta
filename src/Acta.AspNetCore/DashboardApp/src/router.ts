@@ -39,6 +39,8 @@ export function parseRouteHash(hash: string): Route {
     case 'jobs':
       if (parts.length === 1) return { name: 'jobs' };
       return parts.length === 2 ? { name: 'job-detail', jobRef: decoded(parts, 1) } : { name: 'not-found' };
+    case 'enqueue':
+      return parts.length === 1 ? { name: 'enqueue' } : { name: 'not-found' };
     case 'events':
       return parts.length === 1 ? { name: 'events' } : { name: 'not-found' };
     case 'definitions':

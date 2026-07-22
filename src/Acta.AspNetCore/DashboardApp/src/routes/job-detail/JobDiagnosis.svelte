@@ -5,27 +5,16 @@
 
   let {
     jobNamespace = null,
-    explanation = null,
-    loading = false,
-    error = null
+    explanation = null
   }: {
     jobNamespace?: string | null;
     explanation?: JobExplanation | null;
-    loading?: boolean;
-    error?: string | null;
   } = $props();
 
   const isSignal = (kind: string) => kind.toLowerCase() === 'signal';
 </script>
 
-{#if error}
-  <section class="panel" aria-labelledby="job-diagnosis-heading">
-    <h2 id="job-diagnosis-heading">Evidence</h2>
-    <p class="control-message warn">Job state is current. Explanation could not be loaded: {error}</p>
-  </section>
-{:else if loading}
-  <section class="panel"><h2>Evidence</h2><p class="dim">Loading explanation…</p></section>
-{:else if explanation}
+{#if explanation}
   <section class="panel explain" id="job-explain" aria-labelledby="job-diagnosis-heading">
     <h2 id="job-diagnosis-heading">Evidence</h2>
 
@@ -43,7 +32,7 @@
       {/if}
       {#if explanation.steps.length > 0}
         <dt>Steps</dt>
-        <dd id="job-step-evidence">{#each explanation.steps as step}<div><span class="mono">{step.name}</span> — {step.explanation}</div>{/each}</dd>
+        <dd id="job-step-evidence">{#each explanation.steps as step}<div><span class="mono">{step.name}</span>: {step.explanation}</div>{/each}</dd>
       {/if}
       {#if explanation.reason}
         <dt>Reason</dt><dd id="job-reason-evidence" class="dim">{explanation.reason}</dd>

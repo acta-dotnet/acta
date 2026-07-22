@@ -1,5 +1,7 @@
 <script lang="ts">
   import { get } from 'svelte/store';
+  import { createQuery } from '@tanstack/svelte-query';
+  import { capabilitiesQuery } from '../query.ts';
   import Icon from '../components/Icon.svelte';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
@@ -12,6 +14,8 @@
   import { now } from '../time';
   import { createUrlFilters } from '../urlFilters.ts';
   import { parseTagTokens } from '../lib/tagTokens.ts';
+  import { schedulesListSql, COPY_SQL_TITLE } from '../lib/copyAsSql.ts';
+  import CopyButton from '../components/CopyButton.svelte';
   import { routes } from '../routes.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
 
@@ -42,6 +46,17 @@
     filters.clear();
     setScope('');
   }
+
+  const capabilities = createQuery(() => capabilitiesQuery());
+
+  // The applied filters as ad-hoc SQL against the schedules operator view (mirrors the grid filters
+  // below; tags are omitted, they are not a schedules_view column).
+  let copySql = $derived(
+    schedulesListSql(
+      { namespace: $scope, jobName: $scope ? $filters.jobName.trim() : '', liveOnly: $filters.live !== '0' },
+      { provider: capabilities.data?.provider, schema: capabilities.data?.schema }
+    )
+  );
 
   const columns: ColumnDef<ScheduleRow>[] = [
     { key: 'scheduleName', header: 'Schedule' },
@@ -94,9 +109,10 @@
         Live only
       </label>
       <span class="dim schedule-help">
-        Schedules aren't created here — they're declared in code with a <span class="mono">[JobSchedule]</span> attribute on a
+        Schedules aren't created here - they're declared in code with a <span class="mono">[JobSchedule]</span> attribute on a
         <span class="mono">[Job]</span> handler and synced at host startup.
       </span>
+      <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
     </FilterBar>
 
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />

@@ -224,7 +224,7 @@
       {@const repeat = col.dimRepeats && prev !== null &&
         (item as Record<string, unknown>)[String(col.key)] === (prev as Record<string, unknown>)[String(col.key)]}
       <td class="{col.class ?? ''}{col.align === 'right' ? ' col-num' : ''}{repeat ? ' cell-repeat' : ''}" data-label={col.header}>
-        {#if cell}{@render cell(item)}{:else}{(item as Record<string, unknown>)[String(col.key)] ?? '—'}{/if}
+        {#if cell}{@render cell(item)}{:else}{(item as Record<string, unknown>)[String(col.key)] ?? '·'}{/if}
       </td>
     {/each}
   </tr>
@@ -243,7 +243,7 @@
 {/if}
 {#if display.showTable}
   {#if isFeed && newCount > 0 && !onNewCount}
-    <button class="chip feed-new" onclick={jumpToTop}>{newLabel} new — jump to top</button>
+    <button class="chip feed-new" onclick={jumpToTop}>{newLabel} new: jump to top</button>
   {/if}
   <div class="table-wrap" bind:this={scrollEl} onscroll={onScroll}>
     <table class="data" class:mobile-cards={mobileCards}>
@@ -289,7 +289,7 @@
   {#if feed?.isFetchingNextPage}
     <div class="state">Loading more...</div>
   {:else if !feed?.hasNextPage && items.length > 0}
-    <div class="state dim">— end of results —</div>
+    <div class="state dim">· end of results ·</div>
   {/if}
 {/if}
 

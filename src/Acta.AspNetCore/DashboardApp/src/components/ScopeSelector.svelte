@@ -33,8 +33,13 @@
 </script>
 
 <label class="scope">
-  Scope
-  <select value={$scope} onchange={(e) => setScope(e.currentTarget.value)} title={$scope || 'All namespaces'}>
+  <!-- No visible label: the first option names the control. The accessible name has to come from
+       somewhere, so it rides aria-label, and title doubles as the hover hint. -->
+  <select
+    value={$scope}
+    onchange={(e) => setScope(e.currentTarget.value)}
+    aria-label="Namespace"
+    title={$scope || 'All namespaces'}>
     <option value="">All namespaces</option>
     {#if $scope && !namespaces.includes($scope)}
       <option value={$scope}>{$scope}</option>

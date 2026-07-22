@@ -8,6 +8,7 @@
   import Overview from './routes/Overview.svelte';
   import JobsList from './routes/JobsList.svelte';
   import JobDetail from './routes/JobDetail.svelte';
+  import EnqueueJob from './routes/EnqueueJob.svelte';
   import EventsList from './routes/EventsList.svelte';
   import DefinitionsList from './routes/DefinitionsList.svelte';
   import DefinitionDetail from './routes/DefinitionDetail.svelte';
@@ -74,7 +75,7 @@
 <QueryClientProvider client={queryClient}>
 {#if !$online}
   <div class="offline-banner" role="status">
-    Acta dashboard backend offline — the dashboard process is not responding. Reconnecting automatically.
+    Acta dashboard backend offline: the dashboard process is not responding. Reconnecting automatically.
   </div>
 {/if}
 
@@ -128,6 +129,8 @@
       {#key $route.jobRef}
         <JobDetail jobRef={$route.jobRef} />
       {/key}
+    {:else if $route.name === 'enqueue'}
+      <EnqueueJob />
     {:else if $route.name === 'events'}
       <EventsList />
     {:else if $route.name === 'definitions'}

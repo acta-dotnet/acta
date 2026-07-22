@@ -86,7 +86,7 @@
     {#if nameError}<div class="field-error">{nameError}</div>{/if}
 
     <label class="detail-field">
-      <span>JSON payload <span class="field-hint">optional — leave empty for a presence-only signal</span></span>
+      <span>JSON payload <span class="field-hint">optional: leave empty for a presence-only signal</span></span>
       <textarea class="mono" rows="5" bind:value={payloadText} placeholder={'{ "key": "value" }'}></textarea>
     </label>
     {#if !payloadResult.ok}<div class="field-error">{payloadResult.error}</div>{/if}

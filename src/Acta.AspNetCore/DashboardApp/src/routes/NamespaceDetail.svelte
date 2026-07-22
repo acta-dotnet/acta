@@ -209,10 +209,10 @@
         <section class="detail-panel">
           <h2>Metadata</h2>
           {#if systemNamespace}
-            <p class="detail-help">Seeded system namespace — protected, not editable.</p>
+            <p class="detail-help">Seeded system namespace: protected, not editable.</p>
             <dl class="detail-readonly">
-              <div><dt>Owner team</dt><dd>{namespace.ownerTeam ?? '—'}</dd></div>
-              <div><dt>Description</dt><dd>{namespace.description ?? '—'}</dd></div>
+              <div><dt>Owner team</dt><dd>{namespace.ownerTeam ?? '·'}</dd></div>
+              <div><dt>Description</dt><dd>{namespace.description ?? '·'}</dd></div>
             </dl>
           {:else}
             <p class="detail-help">Operator-owned context for this namespace. Its identity remains runtime-owned.</p>

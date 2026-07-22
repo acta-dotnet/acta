@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
+  import ZonePicker from './ZonePicker.svelte';
   import { previewSchedule, type ScheduleControlResponse, type SchedulePreview } from '../api.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import { scheduleControlState } from './scheduleControlState.ts';
@@ -110,6 +111,7 @@
   let previewData = $state<SchedulePreview | null>(null);
   let previewError = $state('');
   let previewLoading = $state(false);
+  let previewNowMs = $state(0);
 
   // nextRunsUtc are UTC instants. The two views are the operator's IANA zone and raw UTC; the fixed
   // timestamp format includes both numeric offset and effective IANA zone.
@@ -126,6 +128,7 @@
     previewError = '';
     try {
       previewData = await previewSchedule(jobNamespace, jobName, scheduleName, 10);
+      previewNowMs = Date.now();
     } catch (e) {
       previewError = (e as Error).message;
     } finally {
@@ -152,11 +155,12 @@
     timeZoneInput = timeZone;
   });
 
-  function openOverrides() {
+  function toggleOverrides() {
+    overridesOpen = !overridesOpen;
+    if (!overridesOpen) return;
     overridesNote = '';
     overridesMessage = '';
     overridesReloadRequired = false;
-    overridesOpen = true;
   }
 
   async function saveOverrides() {
@@ -207,7 +211,7 @@
     {/if}
   {/if}
   {#if showEditor && canControlNow}
-    <button disabled={busy} onclick={openOverrides}><Icon name="chevron-right" />Overrides</button>
+    <button disabled={busy} onclick={toggleOverrides}><Icon name="chevron-right" />{overridesOpen ? 'Hide' : 'Show'} overrides</button>
   {/if}
   {#if showEditor}
     <button onclick={togglePreview}><Icon name="clock" />{previewOpen ? 'Hide' : 'Preview'} next 10 runs</button>
@@ -263,7 +267,10 @@
       {:else}
         <ol class="preview-runs">
           {#each previewData.nextRunsUtc as runAtUtc}
-            <li>{displayFormatter.timestampInZone(runAtUtc, displayZone)}</li>
+            <li>
+              <span class="mono preview-run-time">{displayFormatter.rowTimestampInZone(runAtUtc, displayZone)}</span>
+              <span class="dim preview-run-relative">{displayFormatter.relativeTime(runAtUtc, previewNowMs)}</span>
+            </li>
           {/each}
         </ol>
       {/if}
@@ -277,10 +284,10 @@
       <span class="until-text">Expression override</span>
       <input bind:value={expressionInput} placeholder="blank clears the override" />
     </label>
-    <label class="until-field">
+    <div class="until-field">
       <span class="until-text">Time zone override</span>
-      <input bind:value={timeZoneInput} placeholder="blank clears the override" />
-    </label>
+      <ZonePicker bind:value={timeZoneInput} disabled={busy} />
+    </div>
     <label class="until-field">
       <span class="until-text">Note</span>
       <input bind:value={overridesNote} placeholder="recorded on the audit event" />
@@ -371,11 +378,21 @@
   }
   .preview-runs {
     margin: 0;
-    padding-left: 18px;
-    font-variant-numeric: tabular-nums;
+    padding: 0;
+    list-style: none;
   }
   .preview-runs li {
-    padding: 1px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .preview-runs li:last-child {
+    border-bottom: none;
+  }
+  .preview-run-time {
+    min-width: 19ch;
   }
 </style>
 
