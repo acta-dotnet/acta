@@ -47,8 +47,8 @@ internal static class BackoffSchedule
     public static int ComputeDelaySeconds(int attemptNumber, Backoff backoff) =>
         ComputeDelaySeconds(
             attemptNumber,
-            (int)backoff.InitialDelay.TotalSeconds,
-            (int)backoff.MaxDelay.TotalSeconds,
+            DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
+            DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
             (decimal)backoff.Multiplier,
             (decimal)backoff.Jitter
         );
