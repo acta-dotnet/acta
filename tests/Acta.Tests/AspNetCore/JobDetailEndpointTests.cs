@@ -78,6 +78,67 @@ public sealed class JobDetailEndpointTests
     }
 
     [Fact]
+    public async Task Detail_resolves_the_snapshot_tenant_id_to_its_key()
+    {
+        // The fake tenant list knows id 1 as "cust-001"; the aggregate resolves the id to that key.
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 1 });
+        await using var host = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantKey").GetString());
+    }
+
+    [Fact]
+    public async Task Detail_for_a_tenant_less_job_emits_no_tenant_key()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs());
+        await using var host = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(doc.RootElement.TryGetProperty("tenantKey", out _));
+    }
+
+    [Fact]
+    public async Task Detail_for_an_unresolvable_tenant_id_emits_no_tenant_key()
+    {
+        // A tenant id the list does not carry resolves to null, never an error, so the field is absent.
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 999 });
+        await using var host = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(doc.RootElement.TryGetProperty("tenantKey", out _));
+    }
+
+    [Fact]
+    public async Task Detail_with_an_unavailable_tenants_surface_still_answers_without_a_tenant_key()
+    {
+        // A throwing tenants read degrades to no key; it never fails the whole aggregate.
+        var (app, client) = await TestDashboardHost.StartAsync(
+            jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 1, TenantsListThrows = true }
+        );
+        await using var host = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(doc.RootElement.TryGetProperty("tenantKey", out _));
+    }
+
+    [Fact]
     public async Task Detail_for_a_missing_or_malformed_job_is_404()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
