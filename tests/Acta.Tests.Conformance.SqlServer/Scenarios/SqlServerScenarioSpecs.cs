@@ -51,6 +51,8 @@ public sealed class SqlServerIntervalScheduleFireSpec : IntervalScheduleFireSpec
 
 public sealed class SqlServerMultiScheduleSlotSpec : MultiScheduleSlotSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerScheduledSlotPrioritySpec : ScheduledSlotPrioritySpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerStepDeferredRetrySpec : StepDeferredRetrySpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerStepExhaustionSpec : StepExhaustionSpec<SqlServerConformanceFixture>;

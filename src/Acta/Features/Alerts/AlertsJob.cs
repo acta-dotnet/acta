@@ -67,7 +67,12 @@ internal sealed class AlertsJob
     /// <c>alerts</c> rows, then delivers the rows that are due. <c>AuditLevel.Failures</c> keeps idle
     /// ticks out of <c>events</c>.
     /// </summary>
-    [Job("sys.alerts", AuditLevel = JobAuditLevelCode.Failures, AlertProfile = JobAlertProfileCode.SysCritical)]
+    [Job(
+        "sys.alerts",
+        Priority = JobPriorityCode.Critical,
+        AuditLevel = JobAuditLevelCode.Failures,
+        AlertProfile = JobAlertProfileCode.SysCritical
+    )]
     [JobSchedule("default", Cron.EveryMinute)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {

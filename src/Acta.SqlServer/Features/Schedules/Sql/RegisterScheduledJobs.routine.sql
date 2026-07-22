@@ -30,14 +30,17 @@ BEGIN
          WHERE j.namespace_id = @p_namespace_id
            AND j.parent_id IS NULL;
 
+        -- Re-registration re-asserts the definition's declared priority onto the slot, overwriting any operator reprioritize.
         UPDATE r
            SET status_code      = d.slot_status_code,
+               priority_code    = jd.priority_code_effective,
                next_run_at_utc  = d.slot_next_run_at_utc,
                modified_at_utc  = @now,
                version          = r.version + 1
           FROM {{schema}}.runtimes AS r
           INNER JOIN {{schema}}.jobs AS j ON j.id = r.job_id
           INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
+          INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
          WHERE j.namespace_id = @p_namespace_id
            AND j.parent_id IS NULL;
 
@@ -66,7 +69,7 @@ BEGIN
             execution_number, failure_count, retention_until_utc,
             modified_at_utc, version)
         SELECT
-            j.id, @p_namespace_id, d.slot_status_code, 50 /* JobPriorityCode.Normal */, d.slot_next_run_at_utc,
+            j.id, @p_namespace_id, d.slot_status_code, jd.priority_code_effective, d.slot_next_run_at_utc,
             0, 0, NULL,
             @now, 0
           FROM @p_definitions AS d
@@ -74,6 +77,7 @@ BEGIN
                   ON j.namespace_id = @p_namespace_id
                  AND j.deduplication_key = d.deduplication_key
                  AND j.parent_id IS NULL
+          INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
          WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes AS r WHERE r.job_id = j.id);
 
         DECLARE @slots TABLE (definition_id INT NOT NULL PRIMARY KEY, slot_id BIGINT NOT NULL);

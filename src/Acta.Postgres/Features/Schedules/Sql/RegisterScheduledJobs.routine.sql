@@ -60,15 +60,18 @@ BEGIN
         execution_number, failure_count, retention_until_utc,
         modified_at_utc, version)
     SELECT
-        sl.slot_id, p_namespace_id, d.slot_status, 50 /* JobPriorityCode.Normal */, d.slot_next_run,
+        sl.slot_id, p_namespace_id, d.slot_status, jd.priority_code_effective, d.slot_next_run,
         0, 0, NULL,
         now(), 0
       FROM unnest(
           p_d_definition_id, p_d_slot_status, p_d_slot_next_run_at_utc)
         AS d(definition_id, slot_status, slot_next_run)
       INNER JOIN _reg_slots AS sl ON sl.definition_id = d.definition_id
+      INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
+    -- Re-registration re-asserts the definition's declared priority onto the slot, overwriting any operator reprioritize.
     ON CONFLICT (job_id) DO UPDATE SET
         status_code     = EXCLUDED.status_code,
+        priority_code   = EXCLUDED.priority_code,
         next_run_at_utc = EXCLUDED.next_run_at_utc,
         modified_at_utc = now(),
         version         = {{schema}}.runtimes.version + 1;
