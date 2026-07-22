@@ -116,6 +116,13 @@ internal static class TestDashboardHost
         /// <summary>Checkpoints the found job (id 42) carries; empty by default.</summary>
         public IReadOnlyList<JobCheckpointItem> StoredCheckpoints { get; set; } = [];
 
+        /// <summary>Tenant id the found job (id 42) snapshot carries; null (no tenant) by default. Id 1 is
+        /// the only tenant the fake list knows ("cust-001"), so any other value resolves to no key.</summary>
+        public int? SnapshotTenantId { get; set; }
+
+        /// <summary>When true the fake tenants list read throws, modelling an unavailable tenants surface.</summary>
+        public bool TenantsListThrows { get; set; }
+
         /// <summary>Recorded UpdateJobInputAsync payloads (the format-resolved payload the endpoint built).</summary>
         public List<JobPayload> InputAmendCalls { get; } = [];
 
@@ -184,7 +191,7 @@ internal static class TestDashboardHost
 
         public FakeJobs()
         {
-            Tenants = new FakeTenants(TenantCalls, SuspendResumeTenantCalls);
+            Tenants = new FakeTenants(TenantCalls, SuspendResumeTenantCalls, () => TenantsListThrows);
             Namespaces = new FakeNamespaces(NamespaceAdminCalls);
             Schedules = new FakeSchedules(SetOverridesCalls, TriggerCalls);
             Alerts = new FakeAlerts(AcknowledgeCalls, ResolveCalls);
@@ -278,7 +285,7 @@ internal static class TestDashboardHost
                 || (lookup.JobNamespace == "billing" && lookup.DeduplicationKey == "ck-1")
             )
             {
-                return ValueTask.FromResult<JobSnapshot?>(Snapshot(42, "billing", "send-invoice"));
+                return ValueTask.FromResult<JobSnapshot?>(Snapshot(42, "billing", "send-invoice", SnapshotTenantId));
             }
 
             // An enqueued ref resolves to its recorded request so the aggregate detail read can compose
@@ -287,13 +294,13 @@ internal static class TestDashboardHost
             if (id is { } enqueuedId && enqueuedId - 101 is >= 0 and var i && i < EnqueueRequests.Count)
             {
                 var request = EnqueueRequests[(int)i];
-                return ValueTask.FromResult<JobSnapshot?>(Snapshot(enqueuedId, request.JobNamespace, request.JobName));
+                return ValueTask.FromResult<JobSnapshot?>(Snapshot(enqueuedId, request.JobNamespace, request.JobName, null));
             }
 
             return ValueTask.FromResult<JobSnapshot?>(null);
         }
 
-        private static JobSnapshot Snapshot(long jobId, string jobNamespace, string jobName) =>
+        private static JobSnapshot Snapshot(long jobId, string jobNamespace, string jobName, int? tenantId) =>
             new(
                 JobId: jobId,
                 JobRef: jobId == 42 ? FoundJobRef : JobRef.New(),
@@ -305,7 +312,7 @@ internal static class TestDashboardHost
                 CorrelationKey: null,
                 JobNamespace: jobNamespace,
                 JobName: jobName,
-                TenantId: null,
+                TenantId: tenantId,
                 Status: JobStatusCode.Ready,
                 Priority: JobPriorityCode.Normal,
                 ExecutionNumber: 0,
@@ -846,7 +853,8 @@ internal static class TestDashboardHost
 
         private sealed class FakeTenants(
             List<(string TenantKey, string? DisplayName, string? Description, TenantStatusCode Status)> tenantCalls,
-            List<(string TenantKey, string? ReasonMessage, string? ActorKey)> suspendResumeCalls
+            List<(string TenantKey, string? ReasonMessage, string? ActorKey)> suspendResumeCalls,
+            Func<bool> listThrows
         ) : ITenants
         {
             public ValueTask<int> RegisterAsync(
@@ -868,15 +876,17 @@ internal static class TestDashboardHost
             }
 
             public ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
-                ValueTask.FromResult(
-                    new PagedResult<TenantListItem>(
-                        [new TenantListItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)],
-                        null,
-                        false,
-                        50,
-                        null
-                    )
-                );
+                listThrows()
+                    ? throw new InvalidOperationException("Tenants surface unavailable.")
+                    : ValueTask.FromResult(
+                        new PagedResult<TenantListItem>(
+                            [new TenantListItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)],
+                            null,
+                            false,
+                            50,
+                            null
+                        )
+                    );
 
             public ValueTask<AdminControlResult> SuspendAsync(
                 string tenantKey,
