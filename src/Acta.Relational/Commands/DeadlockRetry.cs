@@ -12,7 +12,8 @@ internal static class DeadlockRetry
         Func<CancellationToken, Task<T>> action,
         Func<Exception, bool> isTransient,
         int maxAttempts,
-        CancellationToken ct
+        CancellationToken ct,
+        Func<Exception, bool>? isCancellation = null
     )
     {
         for (var attempt = 1; ; attempt++)
@@ -24,6 +25,14 @@ internal static class DeadlockRetry
             catch (Exception ex) when (attempt < maxAttempts && isTransient(ex))
             {
                 await Task.Delay(BackoffMs(attempt), ct);
+            }
+            catch (Exception ex) when (ct.IsCancellationRequested && isCancellation?.Invoke(ex) is true)
+            {
+                // SqlClient surfaces a token-cancelled command as SqlException ("severe error on the
+                // current command" / batch aborted 3980), not OperationCanceledException. Translate
+                // only when the caller's token really is cancelled: a genuine severe error arriving
+                // while a token happens to be cancelled must still surface as itself.
+                throw new OperationCanceledException("The provider aborted the command because the caller's token was cancelled.", ex, ct);
             }
         }
     }

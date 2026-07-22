@@ -58,6 +58,15 @@ internal interface ISqlDialect
     /// </summary>
     bool IsTransientConflict(Exception exception) => false;
 
+    /// <summary>
+    /// Whether an exception is the provider's way of reporting that the command was aborted by the
+    /// caller's own cancellation (SqlClient throws <c>SqlException</c> rather than
+    /// <c>OperationCanceledException</c>). Consulted only when the token is already cancelled; the
+    /// default treats nothing as cancellation-shaped. Providers whose ADO.NET client honors the
+    /// token with a real <c>OperationCanceledException</c> need no override.
+    /// </summary>
+    bool IsCancellation(Exception exception) => false;
+
     DbConnection CreateConnection(string connectionString);
 
     DbParameter CreateParameter(DbParameterSpec spec);
