@@ -163,7 +163,7 @@ CREATE TABLE {{schema}}.events (
     , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_execution_status_code CHECK (execution_status_code IS NULL OR execution_status_code IN (50, 100, 150, 151, 152, 200, 220, 230))
-    , CONSTRAINT ck_events_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 30, 40, 41, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
+    , CONSTRAINT ck_events_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
 ) WITH (DATA_COMPRESSION = PAGE);
 CREATE INDEX ix_events_lineage_timeline ON {{schema}}.events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
 CREATE INDEX ix_events_namespace_timeline ON {{schema}}.events (namespace_id, event_code, created_at_utc, id);
@@ -377,7 +377,7 @@ CREATE TABLE {{schema}}.steps (
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
     , CONSTRAINT ck_steps_state_code CHECK (state_code IN (10, 100, 200, 230))
-    , CONSTRAINT ck_steps_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 30, 40, 41, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
+    , CONSTRAINT ck_steps_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX ux_steps_job_name ON {{schema}}.steps (job_id, name);
