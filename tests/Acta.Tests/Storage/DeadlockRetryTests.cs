@@ -96,6 +96,52 @@ public class DeadlockRetryTests
         Assert.Equal(1, attempts);
     }
 
+    private sealed class ProviderCancelException : Exception { }
+
+    private static bool IsCancellation(Exception ex) => ex is ProviderCancelException;
+
+    [Fact]
+    public async Task Translates_cancellation_shaped_exception_when_token_is_cancelled()
+    {
+        // SqlClient surfaces a token-cancelled command as SqlException ("severe error" / batch
+        // aborted), not OperationCanceledException; the funnel translates so callers see a normal
+        // cancellation instead of logging a fake provider failure.
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var oce = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            DeadlockRetry.RunAsync<int>(_ => throw new ProviderCancelException(), IsTransient, maxAttempts: 5, cts.Token, IsCancellation)
+        );
+
+        Assert.IsType<ProviderCancelException>(oce.InnerException);
+    }
+
+    [Fact]
+    public async Task Does_not_translate_when_token_is_not_cancelled()
+    {
+        // A genuine severe error without caller cancellation must surface untouched.
+        await Assert.ThrowsAsync<ProviderCancelException>(() =>
+            DeadlockRetry.RunAsync<int>(
+                _ => throw new ProviderCancelException(),
+                IsTransient,
+                maxAttempts: 5,
+                CancellationToken.None,
+                IsCancellation
+            )
+        );
+    }
+
+    [Fact]
+    public async Task Does_not_translate_unshaped_exceptions_under_a_cancelled_token()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            DeadlockRetry.RunAsync<int>(_ => throw new InvalidOperationException(), IsTransient, maxAttempts: 5, cts.Token, IsCancellation)
+        );
+    }
+
     [Fact]
     public async Task Stops_retrying_when_cancelled()
     {

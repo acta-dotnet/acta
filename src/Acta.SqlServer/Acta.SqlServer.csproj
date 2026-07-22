@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Acta.Tests" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
   </ItemGroup>
 

@@ -29,6 +29,15 @@ internal sealed class SqlServerDialect : ISqlDialect
     // 1205: deadlock victim. 2801: an installed routine changed during concurrent bootstrap.
     public bool IsTransientConflict(Exception exception) => exception is SqlException { Number: 1205 or 2801 };
 
+    // A token-cancelled command surfaces as SqlException Number 0 ("A severe error occurred on the
+    // current command") at severity Class 11, the attention signal. 3980 ("the batch is aborted" by
+    // a client abort signal) is an unambiguous cancellation code. Number 0 is SqlClient's catch-all
+    // for a severe error, so a connection-fatal fault (KILL, transport reset) can also carry it, but
+    // at Class 20+; excluding the fatal classes keeps a genuine transport fault racing a cancelled
+    // token surfacing as the error it is. The retry funnel consults this only under a cancelled token.
+    public bool IsCancellation(Exception exception) =>
+        exception is SqlException { Number: 3980 } or SqlException { Number: 0, Class: < 20 };
+
     public DbConnection CreateConnection(string connectionString) => new SqlConnection(connectionString);
 
     public DbParameter CreateParameter(DbParameterSpec spec)

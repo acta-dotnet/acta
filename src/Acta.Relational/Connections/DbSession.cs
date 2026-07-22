@@ -218,5 +218,5 @@ internal sealed class DbSession : IDbSession
     public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) => Run(action, ct);
 
     private Task<T> Run<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
-        DeadlockRetry.RunAsync(action, _dialect.IsTransientConflict, _retryAttempts, ct);
+        DeadlockRetry.RunAsync(action, _dialect.IsTransientConflict, _retryAttempts, ct, _dialect.IsCancellation);
 }
