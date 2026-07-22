@@ -203,8 +203,15 @@ function countCard(label, value, note = "", style = "") {
 }
 
 function renderCounts(counts) {
-  const failureStyle = counts.failed > counts.expectedFailed ? "bad" : counts.failed > 0 && counts.expectedFailed === 0 ? "bad" : counts.expectedFailed > 0 ? "expected" : "";
-  const expected = counts.expectedFailed > 0 ? `/ ${number(counts.expectedFailed)} expected` : "";
+  // Healthy means failed EXACTLY matches expected: a probe that should have failed but did not is
+  // as wrong as an unexpected failure. Expected failures are counted upfront at seed time while
+  // actual failures accrue as jobs run, so a shortfall only reads bad once the queue has settled.
+  const settled = counts.ready === 0 && counts.executing === 0;
+  const failureStyle =
+    counts.failed > counts.expectedFailed ? "bad"
+    : counts.failed < counts.expectedFailed ? (settled ? "bad" : "")
+    : counts.expectedFailed > 0 ? "expected" : "";
+  const expected = `/ ${number(counts.expectedFailed)} expected`;
   el("counts").innerHTML = [
     countCard("Total", counts.total),
     countCard("Ready", counts.ready),
@@ -217,18 +224,6 @@ function renderCounts(counts) {
 function renderMetrics(state) {
   renderScopes(state.telemetry);
   renderCounts(state.counts);
-  const samples = state.latency.samples || 0;
-  const hasSamples = samples > 0;
-  el("rd-p99").textContent = hasSamples ? number(Math.round(state.latency.p99)) : "·";
-  el("rd-p50").textContent = hasSamples ? number(Math.round(state.latency.p50)) : "·";
-  el("rd-p95").textContent = hasSamples ? number(Math.round(state.latency.p95)) : "·";
-  el("rd-p99-unit").hidden = !hasSamples;
-  el("latency-samples").textContent = hasSamples ? `${number(samples)} samples` : "No samples";
-  el("p99-note").textContent = hasSamples
-    ? "Attempt start through durable completion. Not queue latency."
-    : selectedWorkload === "noOp" && state.counts.done > 0
-      ? "No-op skips attempt audit writes to preserve the throughput baseline."
-      : "Waiting for completed attempt samples.";
 }
 
 function renderProvider(provider) {

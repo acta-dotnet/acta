@@ -1,12 +1,4 @@
 /* Acta Anvil: one fixed, quiet workbench theme with no runtime theme machinery. */
-@font-face {
-  font-family: "Fraunces";
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url("fraunces.woff2") format("woff2");
-}
-
 :root {
   color-scheme: light;
 
@@ -36,7 +28,6 @@
   --shadow: rgba(24, 31, 42, 0.08);
 
   --mono: Consolas, "Cascadia Code", ui-monospace, SFMono-Regular, monospace;
-  --serif: "Fraunces", Georgia, serif;
   --radius-panel: 8px;
   --radius-control: 6px;
   --console-w: 292px;
@@ -92,16 +83,17 @@ h1, h2, p { margin-top: 0; }
   border-right: 1px solid var(--line);
 }
 .brand-mark { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+/* The logotype matches the operator dashboard's brand: the UI sans stack, weight 500, tight tracking. */
 .wm-acta,
 .wm-dot {
-  font: 500 31px/1 var(--serif);
-  font-optical-sizing: auto;
-  font-variation-settings: "opsz" 144;
+  font-size: 31px;
+  line-height: 1;
+  font-weight: 500;
   letter-spacing: -0.035em;
 }
 .wm-anvil { font-size: 15px; font-weight: 650; letter-spacing: 0.02em; }
 .wm-dot { margin-left: -6px; color: var(--accent); }
-.brand-sub { color: var(--muted); font: italic 400 13px var(--serif); }
+.brand-sub { color: var(--muted); font-style: italic; font-size: 13px; }
 
 .topbar {
   display: flex;
@@ -277,7 +269,7 @@ button.danger:hover:not(:disabled) { border-color: var(--bad); background: var(-
 
 .panel { background: transparent; }
 .big-q { display: flex; flex-direction: column; gap: 16px; }
-.scopes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.scopes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .scope {
   min-width: 0;
   padding: 13px 14px;
@@ -290,23 +282,6 @@ button.danger:hover:not(:disabled) { border-color: var(--bad); background: var(-
 .scope-v { color: var(--accent); font-size: 27px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .scope-u { margin-left: auto; color: var(--muted); font-size: 10px; line-height: 1.3; text-align: right; text-transform: uppercase; letter-spacing: 0.03em; }
 .scope canvas { display: block; width: 100%; height: 86px; }
-.scope.p99 { display: flex; flex-direction: column; }
-.latency-samples { margin-left: auto; color: var(--muted); font: 10px var(--mono); text-transform: uppercase; letter-spacing: 0.03em; }
-.latency-primary { display: flex; align-items: baseline; gap: 6px; }
-.latency-k { color: var(--muted); font: 600 10px var(--mono); letter-spacing: 0.04em; }
-.latency-unit { color: var(--muted); font: 10px var(--mono); }
-.latency-secondary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 7px 0 8px;
-  padding: 7px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-.latency-stat { display: flex; align-items: baseline; gap: 5px; }
-.latency-stat + .latency-stat { padding-left: 10px; border-left: 1px solid var(--line); }
-.latency-stat strong { color: var(--ink); font-size: 16px; font-variant-numeric: tabular-nums; }
-.p99-note { margin-top: auto; color: var(--muted); font-size: 11px; line-height: 1.35; }
 
 .counts {
   display: grid;

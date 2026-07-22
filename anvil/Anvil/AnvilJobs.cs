@@ -117,6 +117,19 @@ public static class FanOutJob
     }
 }
 
+/// <summary>Payload-less recurring pulse: keeps the schedules view alive even with no workload seeded.</summary>
+public readonly record struct Pulse;
+
+public static class PulseJob
+{
+    // Two independently moving schedule cursors on one recurring slot (an ISO interval plus a cron
+    // sweep), so the dashboard always has live recurring executions to show.
+    [Job("pulse")]
+    [JobSchedule("pulse", "PT1M")]
+    [JobSchedule("cron-sweep", Cron.Every5Minutes)]
+    public static void Handle(Pulse input) { }
+}
+
 /// <summary>
 /// Reflection-free payload builders for the lab's job inputs: each selects the source-generated
 /// JsonTypeInfo from <see cref="AnvilPayloadJsonContext"/> so enqueue serialization needs no reflection
@@ -158,6 +171,7 @@ internal static class AnvilPayloads
 [JsonSerializable(typeof(AlwaysFails))]
 [JsonSerializable(typeof(NoOp))]
 [JsonSerializable(typeof(FanOut))]
+[JsonSerializable(typeof(Pulse))]
 // Job outputs.
 [JsonSerializable(typeof(string))]
 // Durable variable + progress scalars (FlakyOnce primes a bool; SlowSuccess reports int progress).
