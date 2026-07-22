@@ -51,6 +51,8 @@ public sealed class PgIntervalScheduleFireSpec : IntervalScheduleFireSpec<PgConf
 
 public sealed class PgMultiScheduleSlotSpec : MultiScheduleSlotSpec<PgConformanceFixture>;
 
+public sealed class PgScheduledSlotPrioritySpec : ScheduledSlotPrioritySpec<PgConformanceFixture>;
+
 public sealed class PgStepDeferredRetrySpec : StepDeferredRetrySpec<PgConformanceFixture>;
 
 public sealed class PgStepExhaustionSpec : StepExhaustionSpec<PgConformanceFixture>;

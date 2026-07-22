@@ -49,6 +49,8 @@ public sealed class SqliteIntervalScheduleFireSpec : IntervalScheduleFireSpec<Sq
 
 public sealed class SqliteMultiScheduleSlotSpec : MultiScheduleSlotSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteScheduledSlotPrioritySpec : ScheduledSlotPrioritySpec<SqliteConformanceFixture>;
+
 public sealed class SqliteStepDeferredRetrySpec : StepDeferredRetrySpec<SqliteConformanceFixture>;
 
 public sealed class SqliteStepExhaustionSpec : StepExhaustionSpec<SqliteConformanceFixture>;

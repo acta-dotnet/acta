@@ -21,7 +21,7 @@ INSERT INTO {{schema}}.runtimes (
     execution_number, failure_count, retention_until_utc,
     modified_at_utc, version)
 SELECT
-    j.id, @p_namespace_id, json_extract(d.value, '$.slot_status_code'), 50 /* JobPriorityCode.Normal */,
+    j.id, @p_namespace_id, json_extract(d.value, '$.slot_status_code'), jd.priority_code_effective,
     json_extract(d.value, '$.slot_next_run_at_utc'),
     0, 0, NULL,
     {{now}}, 0
@@ -30,8 +30,12 @@ SELECT
     ON j.namespace_id = @p_namespace_id
    AND j.parent_id IS NULL
    AND j.deduplication_key = json_extract(d.value, '$.deduplication_key')
+  JOIN {{schema}}.definitions jd
+    ON jd.id = json_extract(d.value, '$.definition_id')
+-- Re-registration re-asserts the definition's declared priority onto the slot, overwriting any operator reprioritize.
 ON CONFLICT (job_id) DO UPDATE SET
     status_code     = excluded.status_code,
+    priority_code   = excluded.priority_code,
     next_run_at_utc = excluded.next_run_at_utc,
     modified_at_utc = {{now}},
     version         = {{schema}}.runtimes.version + 1;
