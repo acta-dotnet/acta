@@ -541,16 +541,6 @@
 - **Store methods:**
   - `Acta.Features.Execution.IExecutionStore.CompleteExecutionAsync`
 
-### ControlBatchAsync applies one verb to many jobs with positional outcomes.
-- **Contract:** ControlBatchAsync loops the single-job verb over every target, aligning outcomes to input order, validating required options first.
-- **Arrange:** A Ready job, a completed job, and an unknown job id.
-- **Act:** ControlBatchAsync(Cancel, [ready, done, unknown]) is invoked once.
-- **Assert:** Results are [Applied, Rejected, NotFound] positionally and the ready job is durably cancelled.
-- **Guarantees:**
-  - ControlBatchAsync cancels positionally: applied, rejected, notFound
-  - ControlBatchAsync reschedule without NextRunAtUtc throws before touching any target
-  - ControlBatchAsync rejects a batch over the 1000-target cap
-
 ### Operator purge hard-deletes a terminal job.
 - **Contract:** PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs.
 - **Arrange:** A Done job with its own events and an alert, an Executing job, a Done parent with child jobs, no job for an unknown lookup.

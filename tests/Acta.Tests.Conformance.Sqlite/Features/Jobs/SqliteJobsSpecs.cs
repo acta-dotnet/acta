@@ -44,5 +44,3 @@ public sealed class SqliteResolveJobIdByDeduplicationKeySpec : ResolveJobIdByDed
 public sealed class SqliteResolveJobIdByRefSpec : ResolveJobIdByRefSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteTenantEnqueueSpec : TenantEnqueueSpec<SqliteConformanceFixture>;
-
-public sealed class SqliteJobControlBatchSpec : JobControlBatchSpec<SqliteConformanceFixture>;

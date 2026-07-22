@@ -303,14 +303,6 @@ public class CliRunnerClipboardTests
         public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<IReadOnlyList<JobControlResult>> ControlBatchAsync(
-            JobBatchAction action,
-            IReadOnlyList<JobLookup> targets,
-            JobBatchOptions? options = null,
-            string? actorKey = null,
-            CancellationToken ct = default
-        ) => throw new NotSupportedException();
-
         public ValueTask<JobControlResult> RaiseSignalAsync(
             JobLookup job,
             string name,

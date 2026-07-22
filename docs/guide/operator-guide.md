@@ -119,8 +119,7 @@ Cancel of a parent cancels the whole non-terminal subtree (descendants carry rea
 `parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
 is never a replacement row. Reschedule applies to Paused/Suspended/Ready rows and re-arms them
 Ready; purge refuses a non-terminal job and a job that has child jobs (purge the children first).
-`ControlBatchAsync` applies one verb across up to 1000 targets with per-item outcomes. Every verb
-returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
+Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
 ### Schedule controls
 

@@ -473,19 +473,6 @@ internal static class TestDashboardHost
             return ValueTask.FromResult(ResultFor(lookup));
         }
 
-        public ValueTask<IReadOnlyList<JobControlResult>> ControlBatchAsync(
-            JobBatchAction action,
-            IReadOnlyList<JobLookup> targets,
-            JobBatchOptions? options = null,
-            string? actorKey = null,
-            CancellationToken ct = default
-        )
-        {
-            IReadOnlyList<JobControlResult> results = targets.Select(ResultFor).ToArray();
-
-            return ValueTask.FromResult(results);
-        }
-
         public ValueTask<JobControlResult> RaiseSignalAsync(
             JobLookup job,
             string name,
