@@ -158,7 +158,7 @@ CREATE TABLE {{schema}}.events (
     detail varbinary(max) NULL
     , CONSTRAINT pk_events PRIMARY KEY (id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
-    , CONSTRAINT ck_events_event_code CHECK (event_code IN (10, 11, 12, 20, 21, 22, 30, 40, 41, 50, 60, 61, 70, 71, 72, 73, 74, 75, 80, 81, 100, 101, 102, 103, 104, 120, 121, 122, 140, 141))
+    , CONSTRAINT ck_events_event_code CHECK (event_code IN (10, 11, 12, 20, 21, 22, 30, 40, 41, 50, 60, 61, 70, 71, 72, 73, 74, 75, 76, 80, 81, 100, 101, 102, 103, 104, 120, 121, 122, 140, 141))
     , CONSTRAINT ck_events_actor_code CHECK (actor_code IN (10, 20, 50, 70))
     , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))

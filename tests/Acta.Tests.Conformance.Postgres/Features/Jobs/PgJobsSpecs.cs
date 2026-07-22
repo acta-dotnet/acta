@@ -25,6 +25,8 @@ public sealed class PgGetJobStatusSpec : GetJobStatusSpec<PgConformanceFixture>;
 
 public sealed class PgIdentifierCaseFoldingSpec : IdentifierCaseFoldingSpec<PgConformanceFixture>;
 
+public sealed class PgJobPayloadReadsSpec : JobPayloadReadsSpec<PgConformanceFixture>;
+
 public sealed class PgJobPurgeSpec : JobPurgeSpec<PgConformanceFixture>;
 
 public sealed class PgJobReprioritizeSpec : JobReprioritizeSpec<PgConformanceFixture>;
@@ -44,3 +46,5 @@ public sealed class PgResolveJobIdByDeduplicationKeySpec : ResolveJobIdByDedupli
 public sealed class PgResolveJobIdByRefSpec : ResolveJobIdByRefSpec<PgConformanceFixture>;
 
 public sealed class PgTenantEnqueueSpec : TenantEnqueueSpec<PgConformanceFixture>;
+
+public sealed class PgUpdateJobInputSpec : UpdateJobInputSpec<PgConformanceFixture>;

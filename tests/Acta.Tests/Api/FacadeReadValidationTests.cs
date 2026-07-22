@@ -34,6 +34,7 @@ public sealed class FacadeReadValidationTests
             null!,
             null!,
             null!,
+            null!,
             Options.Create(new JobsOptions()),
             null!,
             null!,
@@ -59,8 +60,13 @@ public sealed class FacadeReadValidationTests
 
         public ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct) => ValueTask.FromResult<JobStatusCode?>(null);
 
+        public Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct) => Task.FromResult<JobInputRecord?>(null);
+
         public Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
             Task.FromResult<JobResultRecord?>(null);
+
+        public Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<JobCheckpointItem>>([]);
 
         public ValueTask<JobExplainData?> GetJobExplanationAsync(long jobId, CancellationToken ct) =>
             ValueTask.FromResult<JobExplainData?>(null);
@@ -104,6 +110,13 @@ public sealed class FacadeReadValidationTests
             long jobId,
             JobPriorityCode priority,
             JobControlInput input,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
+        public Task<JobControlOutcome> UpdateJobInputAsync(
+            long jobId,
+            JobPayload input,
+            JobControlInput controlInput,
             CancellationToken ct
         ) => throw new NotSupportedException();
 

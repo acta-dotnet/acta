@@ -81,7 +81,10 @@ public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TF
         var timeline = (
             await Services
                 .GetRequiredService<IEventStore>()
-                .ListEventsAsync(new EventPageRequest(jobId, null, null, null, null, null, null, null, null, 100, false), ct)
+                .ListEventsAsync(
+                    new EventPageRequest(jobId, null, null, null, null, null, null, null, null, null, null, null, null, 100, false),
+                    ct
+                )
         ).Rows;
         Assert.NotEmpty(timeline);
         Assert.All(timeline, row => Assert.Equal<JobRef?>(jobRef, row.JobRef));

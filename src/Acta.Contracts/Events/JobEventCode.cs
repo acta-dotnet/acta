@@ -86,6 +86,12 @@ public enum JobEventCode : byte
     )]
     JobPurged = 75,
 
+    [Code(
+        "job.input-amended",
+        "Operator amended a job's stored input payload; the full previous payload is preserved in the event Detail and ReasonMessage carries the why."
+    )]
+    JobInputAmended = 76,
+
     // ---------- Substrate ----------
 
     [Code("job.signal.raised", "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.")]

@@ -23,7 +23,139 @@ internal static class ActaControlEndpoints
         MapVerb(group, options, "purge", static (jobs, lookup, _, actorKey, ct) => jobs.PurgeAsync(lookup, actorKey, ct));
         MapReschedule(group, options);
         MapReprioritize(group, options);
+        MapInput(group, options);
         MapSignal(group, options);
+    }
+
+    // POST /jobs/{jobRef}/input: amend a job's stored input, round-tripping the job's own payload format.
+    // The body carries exactly one of "input" (raw JSON, stored as json), "text" (stored as text), or
+    // "base64" (stored under the job's current binary format id). The chosen field must match the stored
+    // format, except that "input" is a json fallback for any non-none format (the runner decodes by the
+    // stored id). A no-input job has nothing to amend (409); an over-size payload surfaces as 413; an
+    // in-flight job is rejected (409) by the verb.
+    private static void MapInput(RouteGroupBuilder group, ActaEndpointOptions options)
+    {
+        group.MapPost(
+            "/jobs/{jobRef}/input",
+            async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            {
+                if (!JobRef.TryParse(jobRef, out var parsed))
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                }
+
+                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                {
+                    return confirmationError;
+                }
+
+                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                    http,
+                    DashboardJsonContext.Default.JobInputRequest,
+                    ct
+                );
+                if (error is not null)
+                {
+                    return error;
+                }
+
+                var hasInput =
+                    body!.Input.ValueKind is not (System.Text.Json.JsonValueKind.Undefined or System.Text.Json.JsonValueKind.Null);
+                if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) != 1)
+                {
+                    return ControlEndpointValidation.Problem(
+                        StatusCodes.Status400BadRequest,
+                        "Invalid request.",
+                        "Exactly one of input, text, or base64 is required."
+                    );
+                }
+
+                var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
+                if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
+                {
+                    return reasonError;
+                }
+
+                // Resolve the job's current stored format before building the payload so every format
+                // round-trips as itself; a job with no stored input (none) has nothing to amend.
+                var jobId = await jobs.ResolveJobIdAsync(JobLookup.ByRef(parsed), ct);
+                if (jobId is null)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                }
+
+                var current = await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct);
+                if (current is not { } stored)
+                {
+                    return ControlEndpointValidation.Problem(
+                        StatusCodes.Status409Conflict,
+                        "No input to amend.",
+                        "The job has no input to amend."
+                    );
+                }
+
+                var storedFormat = stored.Format;
+                JobPayload payload;
+                if (body.Text is not null)
+                {
+                    if (storedFormat.Id != JobPayloadFormat.Text.Id)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Format mismatch.",
+                            $"text can only amend a text-format job; this job's input format is {storedFormat.Name}."
+                        );
+                    }
+
+                    payload = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes(body.Text));
+                }
+                else if (body.Base64 is not null)
+                {
+                    if (storedFormat.Id != JobPayloadFormat.Bytes.Id && storedFormat.Id < 128)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Format mismatch.",
+                            $"base64 can only amend a binary-format job; this job's input format is {storedFormat.Name}."
+                        );
+                    }
+
+                    byte[] decoded;
+                    try
+                    {
+                        decoded = Convert.FromBase64String(body.Base64);
+                    }
+                    catch (FormatException)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid request.",
+                            "base64 is not valid base64."
+                        );
+                    }
+
+                    payload = JobPayload.FromBytes(storedFormat, decoded);
+                }
+                else
+                {
+                    // Json fallback: accepted for any non-none stored format; the runner decodes by the stored id.
+                    payload = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes(body.Input.GetRawText()));
+                }
+
+                // Operator identity for the audit trail comes from the authenticated principal, never the
+                // body; the verb stamps actor = Operator.
+                var actorKey = http.User?.Identity?.Name;
+                try
+                {
+                    var result = await jobs.UpdateJobInputAsync(JobLookup.ByRef(parsed), payload, reason, actorKey, ct);
+                    return ToResult("input", parsed, result);
+                }
+                catch (PayloadTooLargeException ex)
+                {
+                    return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Input too large.", ex.Message);
+                }
+            }
+        );
     }
 
     // POST /jobs/{jobRef}/reschedule: unlike the other verbs, the target instant travels in the body

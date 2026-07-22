@@ -25,6 +25,8 @@ public sealed class SqlServerGetJobStatusSpec : GetJobStatusSpec<SqlServerConfor
 
 public sealed class SqlServerIdentifierCaseFoldingSpec : IdentifierCaseFoldingSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerJobPayloadReadsSpec : JobPayloadReadsSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerJobPurgeSpec : JobPurgeSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerJobReprioritizeSpec : JobReprioritizeSpec<SqlServerConformanceFixture>;
@@ -44,3 +46,5 @@ public sealed class SqlServerResolveJobIdByDeduplicationKeySpec : ResolveJobIdBy
 public sealed class SqlServerResolveJobIdByRefSpec : ResolveJobIdByRefSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerTenantEnqueueSpec : TenantEnqueueSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerUpdateJobInputSpec : UpdateJobInputSpec<SqlServerConformanceFixture>;

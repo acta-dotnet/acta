@@ -233,6 +233,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             MaxAttempts: policy.MaxAttempts,
             AuditLevelName: auditLevelName,
             AlertProfileName: policy.AlertProfileName,
+            // Operator-tooling shape hint, json inputs only: any other format has no object shape to
+            // seed, and a zero-input handler (NoInput) has no members at all.
+            InputTemplateJson: inputFormatName == "json" && inputType is not null ? InputTemplateJson.Build(inputType) : null,
             RecurringResultCap: policy.RecurringResultCap,
             Backoff: policy.Backoff,
             ExecutionTimeoutSeconds: policy.ExecutionTimeoutSeconds,
@@ -1471,6 +1474,11 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 policyLines.Add($"Description = {FormatString(description)},");
             }
 
+            if (j.InputTemplateJson is { } inputTemplate)
+            {
+                policyLines.Add($"InputTemplateJson = {FormatString(inputTemplate)},");
+            }
+
             var hasSchedules = !j.Schedules.IsDefaultOrEmpty;
             if (policyLines.Count == 0 && !hasSchedules)
             {
@@ -2128,6 +2136,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         short MaxAttempts,
         string AuditLevelName,
         string AlertProfileName,
+        string? InputTemplateJson,
         int RecurringResultCap,
         string? Backoff,
         int? ExecutionTimeoutSeconds,

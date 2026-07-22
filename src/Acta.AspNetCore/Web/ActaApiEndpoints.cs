@@ -1,8 +1,11 @@
 using System.Reflection;
+using Acta.Relational.Connections;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Acta.AspNetCore.Web;
 
@@ -81,15 +84,25 @@ internal static class ActaApiEndpoints
 
         if (options.EnableControls)
         {
-            ActaControlEndpoints.Map(group, options);
-            ScheduleControlEndpoints.Map(group, options);
-            DefinitionControlEndpoints.Map(group, options);
-            TenantControlEndpoints.Map(group, options);
-            NamespaceControlEndpoints.Map(group, options);
-            AlertControlEndpoints.Map(group, options);
-            Features.Tags.TagEndpoints.MapControls(group, options);
+            // A nested group (empty prefix, same routes) rather than mapping straight onto `group`: it
+            // gives the authorization filter below a scope that covers every control endpoint and no
+            // read endpoint, without touching the endpoint families' own Map methods.
+            var controls = group.MapGroup("");
+            ControlAuthorizationFilter.Attach(controls);
+            ActaControlEndpoints.Map(controls, options);
+            Features.Jobs.JobDepthEndpoints.MapControls(controls, options);
+            ScheduleControlEndpoints.Map(controls, options);
+            DefinitionControlEndpoints.Map(controls, options);
+            TenantControlEndpoints.Map(controls, options);
+            NamespaceControlEndpoints.Map(controls, options);
+            AlertControlEndpoints.Map(controls, options);
+            Features.Tags.TagEndpoints.MapControls(controls, options);
         }
 
+        // The depth payload reads (input/result/checkpoints/input-template) are part of the always-on
+        // read surface: Acta operators see everything, so they map unconditionally alongside the other
+        // reads. A size cap inside the endpoints is the only payload-read guard; mutations gate above.
+        Features.Jobs.JobDepthEndpoints.MapReads(group, options);
         Features.Tags.TagEndpoints.MapReads(group, options);
 
         group.MapGet(
@@ -165,47 +178,27 @@ internal static class ActaApiEndpoints
             }
         );
 
+        // One aggregate that renders the whole job screen: the snapshot plus every depth read a
+        // lightweight job needs (input/result/checkpoints/explain/lineage/schedules/definition
+        // link/eligible workers), composed from the IJobs reads off one snapshot GET. The
+        // unbounded event history keeps its own paged endpoint below.
         group.MapGet(
-            "/jobs/{jobRef}/explain",
-            async (string jobRef, IJobs jobs, CancellationToken ct) =>
+            "/jobs/{jobRef}/detail",
+            async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
             {
                 if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                 {
                     return NotFound();
                 }
 
-                var explanation = await jobs.ExplainAsync(lookup, ct);
-                return explanation is null ? NotFound() : Results.Json(explanation, DashboardJsonContext.Default.JobExplanation);
-            }
-        );
-
-        group.MapGet(
-            "/jobs/{jobRef}/lineage",
-            (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
-            {
-                if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
+                var snapshot = await jobs.GetAsync(lookup, ct);
+                if (snapshot is null)
                 {
-                    return Task.FromResult(NotFound());
+                    return NotFound();
                 }
 
-                string? error = null;
-                if (!QueryBinding.TryInt(http.Request.Query, "childLimit", out var childLimit, ref error))
-                {
-                    return Task.FromResult(BadRequest(error));
-                }
-                if (childLimit is { } limit && limit < 1)
-                {
-                    return Task.FromResult(BadRequest("Query parameter 'childLimit' must be a positive integer."));
-                }
-
-                return Guard(
-                    http,
-                    async () =>
-                    {
-                        var map = await jobs.GetLineageMapAsync(lookup, childLimit is { } l ? new JobLineageMapOptions(l) : null, ct);
-                        return map is null ? NotFound() : Results.Json(map, DashboardJsonContext.Default.JobLineageMap);
-                    }
-                );
+                var detail = await JobDetailResponse.ComposeAsync(jobs, snapshot, jobsOptions.Value.MaxInlinePayloadBytes, ct);
+                return Results.Json(detail, DashboardJsonContext.Default.JobDetailResponse);
             }
         );
 
@@ -346,6 +339,22 @@ internal static class ActaApiEndpoints
                     || !QueryBinding.TryLong(http.Request.Query, "jobId", out var jobId, ref error)
                     || !QueryBinding.TryInt(http.Request.Query, "tenantId", out var tenantId, ref error)
                     || !QueryBinding.TryInt(http.Request.Query, "workerId", out var workerId, ref error)
+                    || !QueryBinding.TryCode<JobActorCode>(
+                        http.Request.Query,
+                        "actorCode",
+                        JobActorCodeExtensions.FromCode,
+                        out var actorCode,
+                        ref error
+                    )
+                    || !QueryBinding.TryCode<JobEventReasonCode>(
+                        http.Request.Query,
+                        "reasonCode",
+                        JobEventReasonCodeExtensions.FromCode,
+                        out var reasonCode,
+                        ref error
+                    )
+                    || !QueryBinding.TryDateTime(http.Request.Query, "createdFromUtc", out var createdFromUtc, ref error)
+                    || !QueryBinding.TryDateTime(http.Request.Query, "createdToUtc", out var createdToUtc, ref error)
                 )
                 {
                     return Task.FromResult(BadRequest(error));
@@ -357,6 +366,10 @@ internal static class ActaApiEndpoints
                     EventCode: eventCode,
                     TenantId: tenantId,
                     WorkerId: workerId,
+                    ActorCode: actorCode,
+                    ReasonCode: reasonCode,
+                    CreatedFromUtc: createdFromUtc,
+                    CreatedToUtc: createdToUtc,
                     PageSize: pageSize,
                     Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
                     Tags: QueryBinding.Tags(http.Request.Query)
@@ -524,7 +537,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/capabilities",
-            (IJobs jobs) =>
+            (HttpContext http, IJobs jobs) =>
             {
                 var provider = jobs.Provider switch
                 {
@@ -537,10 +550,15 @@ internal static class ActaApiEndpoints
                     typeof(IJobs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                     ?? typeof(IJobs).Assembly.GetName().Version?.ToString()
                     ?? "unknown";
+                // The configured Acta schema qualifies the operator views the dashboard's Copy-SQL emits.
+                // Resolved optionally so a host that maps the API without a registered provider still answers
+                // (the provider package registers SqlProviderOptions); the default matches the option default.
+                var schema = http.RequestServices.GetService<SqlProviderOptions>()?.Schema ?? "acta";
                 var body = new CapabilitiesResponse(
                     ControlsEnabled: options.EnableControls,
                     Version: version,
                     Provider: provider,
+                    Schema: schema,
                     ConfirmationHeader: options.ControlConfirmationHeaderName
                 );
                 return Results.Json(body, DashboardJsonContext.Default.CapabilitiesResponse);

@@ -456,7 +456,7 @@
           },
           {
             "Name": "event_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=10, 11, 12, 20, 21, 22, 30, 40, 41, 50, 60, 61, 70, 71, 72, 73, 74, 75, 80, 81, 100, 101, 102, 103, 104, 120, 121, 122, 140, 141"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=10, 11, 12, 20, 21, 22, 30, 40, 41, 50, 60, 61, 70, 71, 72, 73, 74, 75, 76, 80, 81, 100, 101, 102, 103, 104, 120, 121, 122, 140, 141"
           },
           {
             "Name": "created_at_utc",
@@ -1585,6 +1585,12 @@
             "Id": 75,
             "Code": "job.purged",
             "Description": "Operator hard-deleted a terminal job. job_id/job_ref are null (the row is gone); ReasonMessage carries the purged job\u0027s ref and name. Always emitted regardless of audit level.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 76,
+            "Code": "job.input-amended",
+            "Description": "Operator amended a job\u0027s stored input payload; the full previous payload is preserved in the event Detail and ReasonMessage carries the why.",
             "Lifecycle": "Active"
           },
           {

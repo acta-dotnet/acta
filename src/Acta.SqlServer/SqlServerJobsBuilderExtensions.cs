@@ -53,7 +53,11 @@ public static class SqlServerJobsBuilderExtensions
         builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<SqlServerProviderOptions>>().Value);
         builder.Services.AddSingleton<SqlServerDialect>();
         builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<SqlServerDialect>());
-        builder.Services.AddSingleton<DbSession>();
+        builder.Services.AddSingleton(static sp => new DbSession(
+            sp.GetRequiredService<SqlProviderOptions>(),
+            sp.GetRequiredService<ISqlDialect>(),
+            sp.GetRequiredService<SqlResourceCatalog>()
+        ));
         builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
         builder.Services.AddSingleton<IProviderBootstrap, SqlServerProviderBootstrap>();
 

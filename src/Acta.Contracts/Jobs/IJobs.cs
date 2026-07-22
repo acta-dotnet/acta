@@ -170,12 +170,27 @@ public interface IJobs
     ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default);
 
     /// <summary>
+    /// Fetch the stored input payload the job identified by <paramref name="lookup"/> was enqueued with,
+    /// or <c>null</c> when no row matches or the job carries no input (a no-input job). Non-blocking
+    /// point-in-time read: it does not wait for completion and reflects any <see cref="UpdateJobInputAsync"/>
+    /// amendment already applied.
+    /// </summary>
+    ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct = default);
+
+    /// <summary>
     /// Fetch the latest result payload the job identified by <paramref name="lookup"/> has produced, or
     /// <c>null</c> when it has produced none (still running, failed, or a handler with no return value).
     /// Non-blocking point-in-time read: it does not wait for completion. To await the answer, poll
     /// <see cref="GetStatusAsync"/> until terminal and then read here.
     /// </summary>
     ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default);
+
+    /// <summary>
+    /// List the durable checkpoint slots (variables, signals, sleep timers, the progress slot, child
+    /// latches) recorded for the job identified by <paramref name="lookup"/>, ordered by kind then name.
+    /// Returns an empty list when the job has no slots or no row matches. Non-blocking point-in-time read.
+    /// </summary>
+    ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct = default);
 
     /// <summary>
     /// Typed variant of <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
@@ -279,6 +294,24 @@ public interface IJobs
     );
 
     /// <summary>
+    /// Amend the stored input payload of the job identified by <paramref name="lookup"/>. Allowed in any
+    /// status except <c>Dispatched</c>/<c>Executing</c> (a mid-flight handler may already have read the
+    /// input); an in-flight job is <see cref="JobControlAction.Rejected"/> and a missing job is
+    /// <see cref="JobControlAction.NotFound"/>. On success the job's input and format are replaced and
+    /// the transition is audited (job.input-amended), with the full previous payload preserved in the
+    /// event detail so the old value stays provable. <paramref name="reasonMessage"/> is recorded on the
+    /// audit event and <paramref name="actorKey"/> is recorded on the audit event as the operator
+    /// identity (e.g. the authenticated principal name); null when unknown.
+    /// </summary>
+    ValueTask<JobControlResult> UpdateJobInputAsync(
+        JobLookup lookup,
+        JobPayload input,
+        string? reasonMessage = null,
+        string? actorKey = null,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// Hard-delete the terminal job identified by <paramref name="lookup"/>: deletes its <c>events</c>
     /// and <c>alerts</c> rows, then the job row itself (CASCADEs to its
     /// runtime/schedule/step/result/checkpoint/tag rows). Only a terminal job (<c>Done</c>/<c>Failed</c>/
@@ -350,6 +383,13 @@ public interface IJobs
 
     /// <summary>List registered namespace names alphabetically, optionally restricted to a name prefix.</summary>
     ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default);
+
+    /// <summary>
+    /// The input contract of a registered job, read from the in-process generated manifest: no
+    /// database round-trip, no reflection. Returns null when this host has not registered the job's
+    /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly.
+    /// </summary>
+    JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName);
 
     /// <summary>Schedules domain (pause/resume/list). See <see cref="ISchedules"/>.</summary>
     ISchedules Schedules { get; }

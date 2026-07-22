@@ -24,6 +24,10 @@ internal sealed class RelationalEventStore(IDbSession session, ISqlDialect diale
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.DefinitionId, request.JobDefinitionId)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.TenantId, request.TenantId)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.WorkerId, request.WorkerId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, request.ActorCode)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonCode, request.ReasonCode)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.EventCreatedFromUtc, request.CreatedFromUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.EventCreatedToUtc, request.CreatedToUtc)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorId, request.CursorId)));

@@ -17,3 +17,17 @@ internal sealed record JobRescheduleRequest(DateTime NextRunAtUtc = default, str
 /// deserialization (400). The framework stamps the actor and reason code itself.
 /// </summary>
 internal sealed record JobReprioritizeRequest(JobPriorityCode Priority, string? ReasonMessage = null);
+
+/// <summary>
+/// Body of a job-input-amend POST. Exactly one of <c>Input</c> (raw JSON, stored as json), <c>Text</c>
+/// (raw text, stored as text), or <c>Base64</c> (stored as the job's current binary format) must be
+/// present. The chosen field must match the job's stored input format, except that <c>Input</c> is
+/// accepted as a json fallback for any non-none format. <c>ReasonMessage</c> carries the operator's why;
+/// the framework stamps the actor and reason code itself.
+/// </summary>
+internal sealed record JobInputRequest(
+    System.Text.Json.JsonElement Input = default,
+    string? Text = null,
+    string? Base64 = null,
+    string? ReasonMessage = null
+);

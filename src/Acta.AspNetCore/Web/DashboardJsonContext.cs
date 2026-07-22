@@ -32,6 +32,7 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(JobControlResponse))]
 [JsonSerializable(typeof(JobRescheduleRequest))]
 [JsonSerializable(typeof(JobReprioritizeRequest))]
+[JsonSerializable(typeof(JobInputRequest))]
 [JsonSerializable(typeof(TenantRegistrationRequest))]
 [JsonSerializable(typeof(TenantRegistrationResponse))]
 [JsonSerializable(typeof(SchedulePauseRequest))]
@@ -52,6 +53,12 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(IReadOnlyList<TagItem>))]
 [JsonSerializable(typeof(TagUpsertRequest))]
 [JsonSerializable(typeof(CapabilitiesResponse))]
+[JsonSerializable(typeof(Features.Jobs.JobDetailResponse))]
+[JsonSerializable(typeof(Features.Jobs.JobPayloadResponse))]
+[JsonSerializable(typeof(IReadOnlyList<Features.Jobs.JobCheckpointResponse>))]
+[JsonSerializable(typeof(Features.Jobs.JobEnqueueApiRequest))]
+[JsonSerializable(typeof(Features.Jobs.JobEnqueueResponse))]
+[JsonSerializable(typeof(Features.Jobs.JobInputTemplateResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
 internal sealed partial class DashboardJsonContext : JsonSerializerContext;
 

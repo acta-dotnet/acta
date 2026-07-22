@@ -147,6 +147,42 @@ internal sealed record JobLineageData(
 /// </summary>
 internal sealed record JobResultRecord(int ExecutionNumber, JobPayloadFormat Format, ReadOnlyMemory<byte> Data, DateTime CreatedAtUtc);
 
+/// <summary>The stored input format id and buffer for one job; None format id means no input.</summary>
+internal sealed record JobInputRecord(byte FormatId, ReadOnlyMemory<byte> Data);
+
+/// <summary>Flat input row (input_format_id, input); the input buffer is NULL for a no-input job.</summary>
+internal sealed record JobInputRow(byte FormatId, byte[]? Input)
+{
+    public JobInputRecord ToRecord() => new(FormatId, Input ?? ReadOnlyMemory<byte>.Empty);
+}
+
+/// <summary>
+/// Flat <c>checkpoints</c> row for the job read surface, in SELECT order; value bytes reconstitute a
+/// <see cref="JobPayload"/> after binding (None format id / null value means no payload).
+/// </summary>
+internal sealed record JobCheckpointReadRow(
+    JobCheckpointKindCode Kind,
+    string Name,
+    JobCheckpointStateCode? State,
+    DateTime? DueAtUtc,
+    byte ValueFormatId,
+    byte[]? Value,
+    DateTime CreatedAtUtc,
+    DateTime ModifiedAtUtc
+)
+{
+    public JobCheckpointItem ToItem() =>
+        new(
+            Kind,
+            Name,
+            State,
+            DueAtUtc,
+            ValueFormatId == 0 ? null : JobPayload.FromBytes(JobPayloadFormat.ForId(ValueFormatId), Value ?? []),
+            CreatedAtUtc,
+            ModifiedAtUtc
+        );
+}
+
 /// <summary>
 /// Flat result row; resolves the payload format registry value after binding.
 /// </summary>

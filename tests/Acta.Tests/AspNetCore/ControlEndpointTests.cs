@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -640,6 +641,257 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    // ---- format-aware input amend (POST /jobs/{ref}/input) ----
+
+    private static HttpRequestMessage AmendInput(object body, bool confirm = true)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{Found}/input");
+        if (confirm)
+        {
+            request.Headers.Add(Confirm, "true");
+        }
+        request.Content = JsonContent.Create(body);
+        return request;
+    }
+
+    private static TestDashboardHost.FakeJobs JobWithInput(JobPayload? stored) => new() { StoredInput = stored };
+
+    [Fact]
+    public async Task Amend_text_job_with_text_applies_and_reads_back_as_text()
+    {
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes("old")));
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(AmendInput(new { text = "new body" }), ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
+
+        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        Assert.Contains("\"format\":\"text\"", body);
+        Assert.Contains("\"formatId\":3", body);
+        Assert.Contains("\"text\":\"new body\"", body);
+    }
+
+    [Fact]
+    public async Task Amend_binary_job_with_base64_preserves_the_custom_format_id()
+    {
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Custom(200, "proto"), new byte[] { 9 }));
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var bytes = new byte[] { 1, 2, 3, 4 };
+        var response = await client.SendAsync(AmendInput(new { base64 = Convert.ToBase64String(bytes) }), ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var amended = Assert.Single(jobs.InputAmendCalls);
+        Assert.Equal(200, amended.Format.Id);
+        Assert.Equal(bytes, amended.Data.ToArray());
+
+        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        Assert.Contains("\"formatId\":200", body);
+        Assert.Contains($"\"base64\":\"{Convert.ToBase64String(bytes)}\"", body);
+    }
+
+    [Fact]
+    public async Task Amend_json_job_with_input_still_applies_as_json()
+    {
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"a\":1}")));
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(AmendInput(new { input = new { b = 2 } }), ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
+
+        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        Assert.Contains("\"format\":\"json\"", body);
+    }
+
+    [Fact]
+    public async Task Amend_text_job_with_input_falls_back_to_json()
+    {
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes("old")));
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(AmendInput(new { input = new { b = 2 } }), ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
+
+        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        Assert.Contains("\"format\":\"json\"", body);
+    }
+
+    [Fact]
+    public async Task Amend_json_job_with_text_is_400()
+    {
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}")));
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        var response = await client.SendAsync(AmendInput(new { text = "x" }), TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(jobs.InputAmendCalls);
+    }
+
+    [Fact]
+    public async Task Amend_with_two_body_fields_is_400()
+    {
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}")));
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        var response = await client.SendAsync(AmendInput(new { input = new { a = 1 }, text = "x" }), TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(jobs.InputAmendCalls);
+    }
+
+    [Fact]
+    public async Task Amend_invalid_base64_is_400()
+    {
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Bytes, new byte[] { 1 }));
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        var response = await client.SendAsync(AmendInput(new { base64 = "not valid base64!" }), TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(jobs.InputAmendCalls);
+    }
+
+    [Fact]
+    public async Task Amend_no_input_job_is_409()
+    {
+        var jobs = JobWithInput(null);
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        var response = await client.SendAsync(AmendInput(new { input = new { a = 1 } }), TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Empty(jobs.InputAmendCalls);
+    }
+
+    // ---- format-aware enqueue (POST /jobs) ----
+
+    private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/jobs");
+        if (confirm)
+        {
+            request.Headers.Add(Confirm, "true");
+        }
+        request.Content = JsonContent.Create(body);
+        return request;
+    }
+
+    [Fact]
+    public async Task Enqueue_with_text_creates_and_reads_back_as_text()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(
+            PostEnqueue(
+                new
+                {
+                    jobNamespace = "billing",
+                    jobName = "send-invoice",
+                    text = "hello",
+                }
+            ),
+            ct
+        );
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(jobs.EnqueueRequests).Input.Format.Id);
+
+        var jobRef = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct)).RootElement.GetProperty("jobRef").GetString();
+        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
+        Assert.Contains("\"format\":\"text\"", body);
+        Assert.Contains("\"text\":\"hello\"", body);
+    }
+
+    [Fact]
+    public async Task Enqueue_with_base64_and_format_id_creates_and_reads_back_as_bytes()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var bytes = new byte[] { 5, 6, 7 };
+        var response = await client.SendAsync(
+            PostEnqueue(
+                new
+                {
+                    jobNamespace = "billing",
+                    jobName = "send-invoice",
+                    base64 = Convert.ToBase64String(bytes),
+                    formatId = 2,
+                }
+            ),
+            ct
+        );
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var enqueued = Assert.Single(jobs.EnqueueRequests);
+        Assert.Equal(JobPayloadFormat.Bytes.Id, enqueued.Input.Format.Id);
+        Assert.Equal(bytes, enqueued.Input.Data.ToArray());
+
+        var jobRef = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct)).RootElement.GetProperty("jobRef").GetString();
+        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
+        Assert.Contains($"\"base64\":\"{Convert.ToBase64String(bytes)}\"", body);
+    }
+
+    [Fact]
+    public async Task Enqueue_base64_without_format_id_is_400()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            PostEnqueue(
+                new
+                {
+                    jobNamespace = "billing",
+                    jobName = "send-invoice",
+                    base64 = Convert.ToBase64String(new byte[] { 1 }),
+                }
+            ),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(jobs.EnqueueRequests);
+    }
+
+    [Fact]
+    public async Task Enqueue_format_id_without_base64_is_400()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            PostEnqueue(
+                new
+                {
+                    jobNamespace = "billing",
+                    jobName = "send-invoice",
+                    formatId = 2,
+                }
+            ),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(jobs.EnqueueRequests);
+    }
+
     private static HttpRequestMessage PostTenant(object body, bool confirm = true)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/tenants");
@@ -846,6 +1098,57 @@ public sealed class ControlEndpointTests
         var calls = verb == "acknowledge" ? jobs.AcknowledgeCalls : jobs.ResolveCalls;
         var call = Assert.Single(calls);
         Assert.Equal((7L, (string?)null, (string?)null), call);
+    }
+
+    [Fact]
+    public async Task Input_template_inlines_the_skeleton_as_raw_json()
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync(
+            "/acta/jobs/api/jobs/input-template?jobNamespace=billing&jobName=send-invoice",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("\"inputTypeName\":\"Billing.SendInvoice\"", body);
+        Assert.Contains("\"format\":\"json\"", body);
+        Assert.Contains("\"template\":{\"invoiceId\":0,\"note\":null}", body);
+    }
+
+    // A dashboard can point at a ledger whose job assemblies it never loaded; the form degrades to an
+    // empty editor rather than showing an error.
+    [Fact]
+    public async Task Input_template_for_a_job_this_host_does_not_know_is_200_with_a_null_template()
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync(
+            "/acta/jobs/api/jobs/input-template?jobNamespace=billing&jobName=unknown",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("\"template\":null", body);
+        Assert.Contains("\"format\":\"none\"", body);
+    }
+
+    [Fact]
+    public async Task Input_template_without_a_job_name_is_404()
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync(
+            "/acta/jobs/api/jobs/input-template?jobNamespace=billing",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Theory]

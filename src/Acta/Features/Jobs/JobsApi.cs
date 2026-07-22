@@ -33,6 +33,7 @@ internal sealed class JobsApi(
     IJobPayloadSerializerRegistry serializers,
     JobTypeIndex typeIndex,
     JobContractIndex contractIndex,
+    JobDescriptorIndex descriptorIndex,
     IOptions<JobsOptions> options,
     WorkerWakeupPublisher wakeupPublisher,
     IWorkerWakeup wakeup,
@@ -362,8 +363,13 @@ internal sealed class JobsApi(
     public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default) =>
         jobsService.GetStatusAsync(lookup, ct);
 
+    public ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct = default) => jobsService.GetInputAsync(lookup, ct);
+
     public ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default) =>
         jobsService.GetResultAsync(lookup, ct);
+
+    public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct = default) =>
+        jobsService.GetCheckpointsAsync(lookup, ct);
 
     public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct = default) =>
         jobsService.GetResultAsync<TResult>(lookup, ct);
@@ -411,6 +417,14 @@ internal sealed class JobsApi(
         string? actorKey = null,
         CancellationToken ct = default
     ) => jobsService.ReprioritizeAsync(lookup, priority, reasonMessage, actorKey, ct);
+
+    public ValueTask<JobControlResult> UpdateJobInputAsync(
+        JobLookup lookup,
+        JobPayload input,
+        string? reasonMessage = null,
+        string? actorKey = null,
+        CancellationToken ct = default
+    ) => jobsService.UpdateJobInputAsync(lookup, input, reasonMessage, actorKey, ct);
 
     public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default) =>
         jobsService.PurgeAsync(lookup, actorKey, ct);
@@ -469,4 +483,13 @@ internal sealed class JobsApi(
 
     public ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
         Namespaces.ListAsync(query, ct);
+
+    public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
+        descriptorIndex.Find(jobNamespace, jobName) is { } descriptor
+            ? new JobInputTemplate(
+                descriptor.InputType.FullName ?? descriptor.InputType.Name,
+                descriptor.InputPayloadFormat,
+                descriptor.InputTemplateJson
+            )
+            : null;
 }
