@@ -150,6 +150,83 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
+    public void SafetyPollInterval_above_one_hour_fails()
+    {
+        // A likely ms-vs-s unit mistake: an hour-plus idle poll means lost-wake work sits undiscovered.
+        var result = Validate(o => o.SafetyPollInterval = TimeSpan.FromHours(2));
+        Assert.True(result.Failed);
+        Assert.Contains("SafetyPollInterval", result.FailureMessage);
+    }
+
+    [Fact]
+    public void ClaimBatchSize_above_max_fails()
+    {
+        var result = Validate(o => o.ClaimBatchSize = 10_001);
+        Assert.True(result.Failed);
+        Assert.Contains("ClaimBatchSize", result.FailureMessage);
+    }
+
+    [Fact]
+    public void MaxConcurrentExecutors_above_max_fails()
+    {
+        var result = Validate(o => o.MaxConcurrentExecutors = 100_000);
+        Assert.True(result.Failed);
+        Assert.Contains("MaxConcurrentExecutors", result.FailureMessage);
+    }
+
+    [Fact]
+    public void LeaseTtlSeconds_above_one_day_fails()
+    {
+        var result = Validate(o => o.LeaseTtlSeconds = 90_000);
+        Assert.True(result.Failed);
+        Assert.Contains("LeaseTtlSeconds must be <=", result.FailureMessage);
+    }
+
+    [Fact]
+    public void WorkerDeadAfter_and_WorkerRetention_beyond_ceiling_fail()
+    {
+        // Extreme TimeSpans would overflow the int-second conversions in recovery and retention.
+        var result = Validate(o =>
+        {
+            o.WorkerDeadAfter = TimeSpan.FromDays(31);
+            o.WorkerRetention = TimeSpan.FromDays(4000);
+        });
+        Assert.True(result.Failed);
+        Assert.Contains("WorkerDeadAfter must be <=", result.FailureMessage);
+        Assert.Contains("WorkerRetention must be <=", result.FailureMessage);
+    }
+
+    [Fact]
+    public void Retention_days_above_ten_years_fail()
+    {
+        var result = Validate(o =>
+        {
+            o.JobEventsRetentionDays = 40_000;
+            o.AlertRetentionDays = 40_000;
+        });
+        Assert.True(result.Failed);
+        Assert.Contains("JobEventsRetentionDays", result.FailureMessage);
+        Assert.Contains("AlertRetentionDays", result.FailureMessage);
+    }
+
+    [Fact]
+    public void Undefined_enum_values_fail()
+    {
+        // Config binding accepts any numeric literal; an undefined value would otherwise flow into
+        // switches as a silent no-match.
+        var result = Validate(o =>
+        {
+            o.AlertChannelValidationMode = (AlertChannelValidationMode)99;
+            o.PayloadContractDriftMode = (PayloadContractDriftMode)99;
+            o.ExecutionProfile = (ExecutionProfile)99;
+        });
+        Assert.True(result.Failed);
+        Assert.Contains("AlertChannelValidationMode", result.FailureMessage);
+        Assert.Contains("PayloadContractDriftMode", result.FailureMessage);
+        Assert.Contains("ExecutionProfile", result.FailureMessage);
+    }
+
+    [Fact]
     public void Multiple_violations_are_all_reported()
     {
         var result = Validate(o =>

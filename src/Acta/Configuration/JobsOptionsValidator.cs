@@ -157,6 +157,83 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             );
         }
 
+        // Upper bounds. Generous plausibility ceilings, not policy: they catch unit mistakes
+        // (milliseconds bound where seconds were meant, ticks, ms-vs-days) before a huge value
+        // overflows an int-second conversion or parks data for decades.
+        if (options.JobEventsRetentionDays > 3650)
+        {
+            failures.Add("JobsOptions.JobEventsRetentionDays must be <= 3650 (10 years).");
+        }
+
+        if (options.AlertRetentionDays > 3650)
+        {
+            failures.Add("JobsOptions.AlertRetentionDays must be <= 3650 (10 years).");
+        }
+
+        if (options.WorkerRetention > TimeSpan.FromDays(3650))
+        {
+            failures.Add("JobsOptions.WorkerRetention must be <= 3650 days (10 years).");
+        }
+
+        if (options.SafetyPollInterval > TimeSpan.FromHours(1))
+        {
+            failures.Add("JobsOptions.SafetyPollInterval must be <= 1h — it bounds discovery of work with no delivered wake.");
+        }
+
+        if (options.ClaimBatchSize > 10_000)
+        {
+            failures.Add("JobsOptions.ClaimBatchSize must be <= 10000.");
+        }
+
+        if (options.MaxConcurrentExecutors > 1024)
+        {
+            failures.Add("JobsOptions.MaxConcurrentExecutors must be <= 1024.");
+        }
+
+        if (options.ExclusiveKeyBounceDelaySeconds > 3600)
+        {
+            failures.Add("JobsOptions.ExclusiveKeyBounceDelaySeconds must be <= 3600 (1 hour).");
+        }
+
+        if (options.MaxInlinePayloadBytes > 256 * 1024 * 1024)
+        {
+            failures.Add("JobsOptions.MaxInlinePayloadBytes must be <= 256 MB — larger payloads belong behind a blob reference.");
+        }
+
+        if (options.LeaseTtlSeconds > 86_400)
+        {
+            failures.Add(
+                "JobsOptions.LeaseTtlSeconds must be <= 86400 (1 day) — long-running handlers stay alive through heartbeating, not a giant lease."
+            );
+        }
+
+        if (options.WorkerDeadAfter > TimeSpan.FromDays(30))
+        {
+            failures.Add("JobsOptions.WorkerDeadAfter must be <= 30 days.");
+        }
+
+        if (options.BatchCompletionSize > 100_000)
+        {
+            failures.Add("JobsOptions.BatchCompletionSize must be <= 100000.");
+        }
+
+        // Config binding accepts any numeric literal for an enum; an undefined value would otherwise
+        // flow into switches as a silent no-match.
+        if (!Enum.IsDefined(options.AlertChannelValidationMode))
+        {
+            failures.Add($"JobsOptions.AlertChannelValidationMode has undefined value {(byte)options.AlertChannelValidationMode}.");
+        }
+
+        if (!Enum.IsDefined(options.PayloadContractDriftMode))
+        {
+            failures.Add($"JobsOptions.PayloadContractDriftMode has undefined value {(byte)options.PayloadContractDriftMode}.");
+        }
+
+        if (!Enum.IsDefined(options.ExecutionProfile))
+        {
+            failures.Add($"JobsOptions.ExecutionProfile has undefined value {(byte)options.ExecutionProfile}.");
+        }
+
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }

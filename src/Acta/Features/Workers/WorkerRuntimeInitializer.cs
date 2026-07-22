@@ -140,6 +140,8 @@ internal sealed class WorkerRuntimeInitializer
         // call would retire the others' jobs. An empty combined set skips the call entirely (the
         // RegisterJobDefinitions.Run early-return), so an enqueue-only / module-less worker never sweeps.
         ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
+        ValidateHasDescriptors(ns, allDescriptors);
+        ValidateUniqueJobNames(allDescriptors);
         ValidateScheduleTimeZones(allDescriptors);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
@@ -199,6 +201,42 @@ internal sealed class WorkerRuntimeInitializer
         );
 
         return validator.ValidateAsync(namespaceName, ct);
+    }
+
+    // A module-less worker with framework jobs disabled would claim namespace jobs it can never
+    // dispatch; the claimed rows would rot until lease recovery. Enqueue-only deployments don't call
+    // Run() and never reach this initializer.
+    internal static void ValidateHasDescriptors(string namespaceName, ImmutableArray<JobDescriptor> descriptors)
+    {
+        if (descriptors.IsEmpty)
+        {
+            throw new InvalidOperationException(
+                $"Worker namespace '{namespaceName}' registers no job descriptors, so it would claim jobs it can never "
+                    + "dispatch. Register at least one module on the worker builder, enable "
+                    + "JobsOptions.RegisterFrameworkJobs, or use the enqueue-only registration instead of Run()."
+            );
+        }
+    }
+
+    // The generator rejects duplicate job names only within one generated manifest; a worker combines
+    // the framework manifest plus every registered module, so the combined set must be validated
+    // before any catalog write. A collision would otherwise register last-writer-wins and dispatch an
+    // arbitrary one of the colliding handlers.
+    internal static void ValidateUniqueJobNames(ImmutableArray<JobDescriptor> descriptors)
+    {
+        var duplicates = descriptors
+            .GroupBy(d => d.JobName, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"'{g.Key}' ({string.Join(", ", g.Select(d => $"{d.HandlerType.FullName}.{d.MethodName}"))})")
+            .ToArray();
+        if (duplicates.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "Duplicate job names across combined manifests: "
+                    + string.Join("; ", duplicates)
+                    + ". Job names must be unique within a worker namespace."
+            );
+        }
     }
 
     // Fail fast on an unresolvable schedule timezone before any catalog write. A bad identifier would
