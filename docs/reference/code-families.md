@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **29 families**, **152 values**.
+This release: **29 families**, **153 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -963,15 +963,15 @@ Stable family-local event identifiers.
 | Code style | Taxonomy |
 | Appears in | [`events.event_code`](./data-model.md#column-acta-events--event-code) |
 | Set by | System - every emission site picks its event kind. |
-| Consumed ids | 30 |
+| Consumed ids | 31 |
 | Held reserve | 31 |
-| Available ids | 193 |
+| Available ids | 192 |
 
 **Capacity**
 
 | Assigned | Deprecated | Retired | Permanently reserved | Held reserve | Available | Invalid sentinels |
 |---:|---:|---:|---:|---:|---:|---:|
-| 30 | 0 | 0 | 0 | 31 | 193 | 2 |
+| 31 | 0 | 0 | 0 | 31 | 192 | 2 |
 
 **Values**
 
@@ -995,6 +995,7 @@ Stable family-local event identifiers.
 | 73 | `job.restarted` | Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged). | Active |
 | 74 | `job.reprioritized` | Operator changed the job's claim priority; ReasonMessage carries the operator's reason, if any. | Active |
 | 75 | `job.purged` | Operator hard-deleted a terminal job. job_id/job_ref are null (the row is gone); ReasonMessage carries the purged job's ref and name. Always emitted regardless of audit level. | Active |
+| 76 | `job.input-amended` | Operator amended a job's stored input payload; the full previous payload is preserved in the event Detail and ReasonMessage carries the why. | Active |
 | 80 | `job.signal.raised` | Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed. | Active |
 | 81 | `job.state-reset` | Handler called ctx.ResetStateAsync; the Job's JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new. | Active |
 | 100 | `schedule.paused` | A recurring schedule was paused; ReasonMessage carries the schedule name. | Active |

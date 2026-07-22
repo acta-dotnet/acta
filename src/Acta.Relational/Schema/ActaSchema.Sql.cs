@@ -513,6 +513,25 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
+        // ListJobEvents created-instant range: inclusive lower bound / exclusive upper bound; NULL skips each.
+        public static readonly DbValueSpec<DateTime?> EventCreatedFromUtc = new(
+            ParameterName: "p_created_from_utc",
+            Kind: DbKind.UtcInstant,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
+        public static readonly DbValueSpec<DateTime?> EventCreatedToUtc = new(
+            ParameterName: "p_created_to_utc",
+            Kind: DbKind.UtcInstant,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         public static readonly DbValueSpec<long?> CursorId = new(
             ParameterName: "p_cursor_id",
             Kind: DbKind.Int64,

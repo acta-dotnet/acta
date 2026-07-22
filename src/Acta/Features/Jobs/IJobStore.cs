@@ -14,8 +14,14 @@ internal interface IJobStore
     /// <summary>The current status by id, or null when no row matches.</summary>
     ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct);
 
+    /// <summary>The stored input payload and its format for a job, or null when no row matches.</summary>
+    Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct);
+
     /// <summary>The stored result payload for the latest (or a specific) execution, or null.</summary>
     Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct);
+
+    /// <summary>Every checkpoint slot for a job, ordered by kind then name; empty when the job has none.</summary>
+    Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct);
 
     /// <summary>The explanation header plus step and checkpoint sets in one round trip, or null.</summary>
     ValueTask<JobExplainData?> GetJobExplanationAsync(long jobId, CancellationToken ct);
@@ -65,6 +71,9 @@ internal interface IJobStore
 
     /// <summary>Changes a waiting job's priority.</summary>
     Task<JobControlOutcome> ReprioritizeJobAsync(long jobId, JobPriorityCode priority, JobControlInput input, CancellationToken ct);
+
+    /// <summary>Amends a job's stored input; the previous payload is preserved in the audit event detail.</summary>
+    Task<JobControlOutcome> UpdateJobInputAsync(long jobId, JobPayload input, JobControlInput controlInput, CancellationToken ct);
 
     /// <summary>Hard-deletes a terminal job; the surviving events carry the public ref.</summary>
     Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct);

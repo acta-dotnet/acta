@@ -23,6 +23,8 @@
     typeof(global::Acta.Features.Jobs.CancelJobOutcomeRow),
     typeof(global::Acta.Features.Jobs.EnqueueOutcomeRow),
     typeof(global::Acta.Features.Jobs.ExplainCheckpointRow),
+    typeof(global::Acta.Features.Jobs.JobCheckpointReadRow),
+    typeof(global::Acta.Features.Jobs.JobInputRow),
     typeof(global::Acta.Features.Jobs.ExplainHeaderRow),
     typeof(global::Acta.Features.Jobs.ExplainStepRow),
     typeof(global::Acta.Features.Jobs.JobControlOutcome),

@@ -97,6 +97,21 @@ internal sealed class JobsService(
         return data is null ? null : JobLineageMapper.Map(data, childLimit);
     }
 
+    public async ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct)
+    {
+        var jobId = await ResolveJobIdAsync(lookup, ct);
+        if (jobId is null)
+        {
+            return null;
+        }
+
+        var record = await store.GetJobInputAsync(jobId.Value, ct);
+        // A None-format row carries no input; surface it as null like a missing job.
+        return record is null || record.FormatId == 0
+            ? null
+            : JobPayload.FromBytes(JobPayloadFormat.ForId(record.FormatId), record.Data.ToArray());
+    }
+
     public async ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct)
     {
         var jobId = await ResolveJobIdAsync(lookup, ct);
@@ -107,6 +122,12 @@ internal sealed class JobsService(
 
         var record = await store.GetJobResultAsync(jobId.Value, executionNumber: null, ct);
         return record is null ? null : JobPayload.FromBytes(record.Format, record.Data.ToArray());
+    }
+
+    public async ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct)
+    {
+        var jobId = await ResolveJobIdAsync(lookup, ct);
+        return jobId is null ? [] : await store.GetJobCheckpointsAsync(jobId.Value, ct);
     }
 
     public async ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct)
@@ -451,6 +472,18 @@ internal sealed class JobsService(
         );
         await PublishControlWakeAsync(result, ct);
         return result;
+    }
+
+    public ValueTask<JobControlResult> UpdateJobInputAsync(
+        JobLookup lookup,
+        JobPayload input,
+        string? reasonMessage,
+        string? actorKey,
+        CancellationToken ct
+    )
+    {
+        EnsureInlineSize("update input", input);
+        return ApplyControlAsync(lookup, (id, c) => store.UpdateJobInputAsync(id, input, Input(reasonMessage, actorKey), c), ct);
     }
 
     public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey, CancellationToken ct) =>

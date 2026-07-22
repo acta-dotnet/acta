@@ -99,6 +99,13 @@ public sealed record JobDescriptor(
 
     /// <summary>Operator-facing description from the attribute; null when unset.</summary>
     public string? Description { get; init; }
+
+    /// <summary>
+    /// Compile-time JSON skeleton of <see cref="InputType"/>: a shape hint for operator tooling (the
+    /// dashboard seeds its enqueue editor with it), never a contract and never a default value. Every
+    /// value is an empty stand-in. Emitted for Json-format inputs with settable members; null otherwise.
+    /// </summary>
+    public string? InputTemplateJson { get; init; }
 }
 
 /// <summary>

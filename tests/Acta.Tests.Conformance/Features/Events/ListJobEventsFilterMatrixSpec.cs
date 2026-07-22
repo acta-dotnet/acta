@@ -297,4 +297,85 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         );
         Assert.Equal(tcEvents, t2Page.Items.Select(e => e.JobEventId).ToHashSet());
     }
+
+    [Fact(DisplayName = "ActorCode filter partitions the timeline by each actor present on it")]
+    public async Task ActorCode_filter_partitions_by_actor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var queries = Services.GetRequiredService<IJobs>();
+
+        // Cancelling a Ready job stamps an Operator-actor event alongside the enqueue-time actor.
+        var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
+        var j1 = outcomes[0].JobId;
+        await queries.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
+
+        var all = (await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
+        Assert.NotEmpty(all);
+        Assert.Contains(all, e => e.ActorCode == JobActorCode.Operator);
+
+        var union = new HashSet<long>();
+        foreach (var actor in all.Select(e => e.ActorCode).Distinct())
+        {
+            var expected = all.Where(e => e.ActorCode == actor).Select(e => e.JobEventId).ToHashSet();
+            var page = await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, ActorCode: actor, PageSize: 100), ct);
+            var got = page.Items.Select(e => e.JobEventId).ToHashSet();
+            Assert.Equal(expected, got);
+            Assert.All(page.Items, e => Assert.Equal(actor, e.ActorCode));
+            union.UnionWith(got);
+        }
+
+        Assert.Equal(all.Select(e => e.JobEventId).ToHashSet(), union);
+    }
+
+    [Fact(DisplayName = "ReasonCode filter returns only events carrying that reason and excludes reasonless ones")]
+    public async Task ReasonCode_filter_returns_exact_reason_partition()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var queries = Services.GetRequiredService<IJobs>();
+
+        var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
+        var j1 = outcomes[0].JobId;
+        await queries.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
+
+        var all = (await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
+        Assert.Contains(all, e => e.ReasonCode == JobEventReasonCode.JobControlManual);
+
+        var expected = all.Where(e => e.ReasonCode == JobEventReasonCode.JobControlManual).Select(e => e.JobEventId).ToHashSet();
+        var page = await queries.ListJobEventsAsync(
+            new ListJobEventsQuery(JobId: j1, ReasonCode: JobEventReasonCode.JobControlManual, PageSize: 100),
+            ct
+        );
+        Assert.Equal(expected, page.Items.Select(e => e.JobEventId).ToHashSet());
+        Assert.All(page.Items, e => Assert.Equal(JobEventReasonCode.JobControlManual, e.ReasonCode));
+    }
+
+    [Fact(DisplayName = "CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant")]
+    public async Task Created_range_filters_split_at_boundary()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var queries = Services.GetRequiredService<IJobs>();
+
+        var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
+        var j1 = outcomes[0].JobId;
+        await Runtime.RunOnceAsync(j1, ct);
+
+        var all = (await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
+        Assert.NotEmpty(all);
+        var boundary = all.Max(e => e.CreatedAtUtc);
+
+        var fromIds = (
+            await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, CreatedFromUtc: boundary, PageSize: 100), ct)
+        ).Items;
+        var toIds = (await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, CreatedToUtc: boundary, PageSize: 100), ct)).Items;
+
+        // Inclusive lower bound keeps the boundary instant; exclusive upper bound drops it.
+        Assert.All(fromIds, e => Assert.True(e.CreatedAtUtc >= boundary));
+        Assert.All(toIds, e => Assert.True(e.CreatedAtUtc < boundary));
+        Assert.NotEmpty(fromIds);
+
+        var fromSet = fromIds.Select(e => e.JobEventId).ToHashSet();
+        var toSet = toIds.Select(e => e.JobEventId).ToHashSet();
+        Assert.Empty(fromSet.Intersect(toSet));
+        Assert.Equal(all.Select(e => e.JobEventId).ToHashSet(), fromSet.Union(toSet).ToHashSet());
+    }
 }

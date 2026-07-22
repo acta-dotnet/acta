@@ -207,6 +207,7 @@
   - Equal or newer generation retires a genuinely removed definition
   - Older generation cannot reactivate or rewrite a newer retired definition
   - Retirement cancels the definition's parked jobs with reason definition-retired
+  - A later registration does not re-cancel a re-armed job under an already-retired definition
   - Fail-mode contract drift blocks before any registration write
 - **Store methods:**
   - `Acta.Features.Definitions.IDefinitionStore.GetDefinitionContractsAsync`
@@ -579,6 +580,20 @@
   - RescheduleAsync returns NotFound for an unknown lookup
 - **Store methods:**
   - `Acta.Features.Jobs.IJobStore.RescheduleJobAsync`
+
+### Operator update-input amends stored input and preserves the previous payload.
+- **Contract:** UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with the full previous payload in the detail.
+- **Arrange:** A Ready job, an executing job, a dispatched job, a failed job, and no job for an unknown lookup.
+- **Act:** UpdateJobInput is invoked with a new payload against each job, and a restarted failed job is re-run.
+- **Assert:** Ready and failed jobs adopt the new input with an audited old-payload event, in-flight jobs are rejected unchanged, and the unknown lookup is NotFound.
+- **Guarantees:**
+  - UpdateJobInput amends a Ready job's input and audits the previous payload in the event detail
+  - UpdateJobInput rejects a Dispatched or Executing job and leaves its input unchanged
+  - UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync
+  - UpdateJobInput stores the new payload's format id, so a text job amends as text
+  - UpdateJobInput returns NotFound for an unknown lookup
+- **Store methods:**
+  - `Acta.Features.Jobs.IJobStore.UpdateJobInputAsync`
 
 ## Enqueue
 
@@ -1109,6 +1124,20 @@
 - **Store methods:**
   - `Acta.Features.Workers.IWorkerStore.GetWorkerAsync`
 
+### GetJobInput reads stored input and GetJobCheckpoints lists a job's slots
+- **Contract:** GetJobInput returns a job's stored input payload and format or null when no row matches, and GetJobCheckpoints lists slots ordered by kind then name.
+- **Arrange:** A job is enqueued with a known input, and a separate job is seeded with a variable and a signal checkpoint.
+- **Act:** GetJobInput reads the enqueued input and a missing id, and GetJobCheckpoints reads the seeded and an empty job.
+- **Assert:** Input equals what was enqueued and is null for a missing id, and the checkpoint list round-trips kind, state, and value and is empty for a job with none.
+- **Guarantees:**
+  - GetJobInput returns the payload the job was enqueued with
+  - GetJobInput returns null when no job row matches the id
+  - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
+  - GetJobCheckpoints returns an empty list for a job with no slots and a missing id
+- **Store methods:**
+  - `Acta.Features.Jobs.IJobStore.GetJobCheckpointsAsync`
+  - `Acta.Features.Jobs.IJobStore.GetJobInputAsync`
+
 ### ListJobAlerts filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Arrange:** Alert rows are seeded per-test in isolation along the filtered dimension.
@@ -1170,6 +1199,9 @@
   - EventCode filter returns only events of that code and excludes all other codes
   - JobDefinitionId filter partitions events and applies uniformly to the row count
   - TenantId filter returns only events for that tenant and excludes other tenants
+  - ActorCode filter partitions the timeline by each actor present on it
+  - ReasonCode filter returns only events carrying that reason and excludes reasonless ones
+  - CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant
 - **Store methods:**
   - `Acta.Features.Events.IEventStore.ListEventsAsync`
 
@@ -1885,7 +1917,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejections carry a typed reason for namespace and tenant guards<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejections carry a typed reason for namespace and tenant guards<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.GetJobAsync` | GetJob returns the snapshot for a known id and null for an unknown id |
+| `IJobStore.GetJobCheckpointsAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
 | `IJobStore.GetJobExplanationAsync` | Explain reports live Suspended and Done states through the facade<br>GetJobExplanation returns explain sets for a known id and null otherwise |
+| `IJobStore.GetJobInputAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
 | `IJobStore.GetJobLineageMapAsync` | GetJobLineageMap returns the focus job with ancestors and children or null |
 | `IJobStore.GetJobResultAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Contract enqueue names the job explicitly and resolves its route<br>GetJobResult returns null before completion and the typed result after<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.GetJobStatusAsync` | GetJobStatus returns the status for a known id and null for an unknown id |
@@ -1899,6 +1933,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.ResolveJobIdByRefAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null |
 | `IJobStore.RestartJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
 | `IJobStore.ResumeJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
+| `IJobStore.UpdateJobInputAsync` | Operator update-input amends stored input and preserves the previous payload. |
 | `INamespaceStore.ListNamespaceItemsAsync` | ListNamespaceItems pages namespaces with status, metadata, and version |
 | `INamespaceStore.ListNamespacesAsync` | ListNamespaces pages namespaces name-ascending with an opt-in total |
 | `INamespaceStore.ResumeNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
@@ -1972,7 +2007,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Jobs/EnqueueBatch` | yes | yes | yes |
 | `Jobs/EnqueueOne` | yes | yes | yes |
 | `Jobs/GetJob` | yes | yes | yes |
+| `Jobs/GetJobCheckpoints` | yes | yes | yes |
 | `Jobs/GetJobExplanation` | yes | yes | yes |
+| `Jobs/GetJobInput` | yes | yes | yes |
 | `Jobs/GetJobLineageMap` | yes | yes | yes |
 | `Jobs/GetJobResult` | yes | yes | yes |
 | `Jobs/GetJobStatus` | yes | yes | yes |
@@ -1987,6 +2024,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Jobs/ResolveJobIdByRef` | yes | yes | yes |
 | `Jobs/RestartJob` | yes | yes | yes |
 | `Jobs/ResumeJob` | yes | yes | yes |
+| `Jobs/UpdateJobInput` | yes | yes | yes |
 | `Namespaces/ListNamespaceItems` | yes | yes | yes |
 | `Namespaces/ListNamespaces` | yes | yes | yes |
 | `Namespaces/ResumeNamespace` | yes | yes | yes |

@@ -16,6 +16,8 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Acta.Contracts\Acta.Contracts.csproj" PrivateAssets="none" />
+    <!-- SqlProviderOptions.Schema qualifies the operator views the /capabilities read reports. -->
+    <ProjectReference Include="..\Acta.Relational\Acta.Relational.csproj" PrivateAssets="none" />
   </ItemGroup>
 
   <ItemGroup>

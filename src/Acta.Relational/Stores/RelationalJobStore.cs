@@ -31,6 +31,14 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             ct
         );
 
+    public Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct) =>
+        session.QueryAsync<JobInputRecord?>(
+            "Features/Jobs/Sql/GetJobInput.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId))),
+            async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobInputRow>()(reader).ToRecord() : null,
+            ct
+        );
+
     public Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
         session.QueryAsync<JobResultRecord?>(
             "Features/Jobs/Sql/GetJobResult.sql",
@@ -40,6 +48,24 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobResult.ExecutionNumber, executionNumber)));
             },
             async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobResultRow>()(reader).ToRecord() : null,
+            ct
+        );
+
+    public async Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct) =>
+        await session.QueryAsync<IReadOnlyList<JobCheckpointItem>>(
+            "Features/Jobs/Sql/GetJobCheckpoints.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.JobId, jobId))),
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<JobCheckpointReadRow>();
+                var rows = new List<JobCheckpointItem>();
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(read(reader).ToItem());
+                }
+
+                return rows;
+            },
             ct
         );
 
@@ -289,6 +315,19 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.PriorityCode, priority)));
                 AddActorParameters(cmd, input, includeReasonMessage: true);
+            },
+            ct
+        );
+
+    public Task<JobControlOutcome> UpdateJobInputAsync(long jobId, JobPayload input, JobControlInput controlInput, CancellationToken ct) =>
+        ControlAsync(
+            "UpdateJobInput",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.InputFormatId, input.Format.Id)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Input, input.IsNone ? null : input.Data.ToArray())));
+                AddActorParameters(cmd, controlInput, includeReasonMessage: true);
             },
             ct
         );

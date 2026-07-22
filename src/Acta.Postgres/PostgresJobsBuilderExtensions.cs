@@ -53,7 +53,11 @@ public static class PostgresJobsBuilderExtensions
         builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<PostgresProviderOptions>>().Value);
         builder.Services.AddSingleton<PostgresDialect>();
         builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<PostgresDialect>());
-        builder.Services.AddSingleton<DbSession>();
+        builder.Services.AddSingleton(static sp => new DbSession(
+            sp.GetRequiredService<SqlProviderOptions>(),
+            sp.GetRequiredService<ISqlDialect>(),
+            sp.GetRequiredService<SqlResourceCatalog>()
+        ));
         builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
         builder.Services.AddSingleton<IProviderBootstrap, PostgresProviderBootstrap>();
 

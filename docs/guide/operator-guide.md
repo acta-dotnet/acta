@@ -11,9 +11,10 @@ dashboard, or a SQL query over the events timeline to find why.
 
 Curated operator views cover the common read paths: `acta.jobs_view`, `acta.events_view`,
 `acta.checkpoints_view`, `acta.steps_view`, `acta.schedules_view`, `acta.alerts_view`,
-`acta.workers_view`, `acta.definitions_view`, and `acta.tags_view`. Views are stable enough for operator use, but
-they are not the storage contract. Runtime code does not depend on them, and migrations do not
-derive from them.
+`acta.workers_view`, `acta.definitions_view`, and `acta.tags_view`. Views are for ad-hoc inspection
+and learning the schema; they are not a stable integration API. Do not build pipelines, ETL, or
+external tooling on them: their shape may change in any release. Runtime code does not depend on
+them, and migrations do not derive from them.
 
 Reference docs: [`data-model.md`](../reference/data-model.md) (every table and column),
 [`code-families.md`](../reference/code-families.md) (every status / reason / event code),

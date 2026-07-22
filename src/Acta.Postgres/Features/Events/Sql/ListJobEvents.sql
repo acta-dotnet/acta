@@ -15,6 +15,10 @@ SELECT e.id, e.event_code, e.created_at_utc, ns.name, e.job_id, e.lineage_root_i
    AND (@p_definition_id IS NULL OR e.definition_id = @p_definition_id)
    AND (@p_tenant_id IS NULL OR e.tenant_id = @p_tenant_id)
    AND (@p_worker_id IS NULL OR e.worker_id = @p_worker_id)
+   AND (@p_actor_code IS NULL OR e.actor_code = @p_actor_code)
+   AND (@p_reason_code IS NULL OR e.reason_code = @p_reason_code)
+   AND (@p_created_from_utc IS NULL OR e.created_at_utc >= @p_created_from_utc)
+   AND (@p_created_to_utc IS NULL OR e.created_at_utc < @p_created_to_utc)
 AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1
           FROM jsonb_array_elements(@p_tag_filters::jsonb) AS f(value)
@@ -42,6 +46,10 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
             AND (@p_definition_id IS NULL OR e.definition_id = @p_definition_id)
             AND (@p_tenant_id IS NULL OR e.tenant_id = @p_tenant_id)
             AND (@p_worker_id IS NULL OR e.worker_id = @p_worker_id)
+            AND (@p_actor_code IS NULL OR e.actor_code = @p_actor_code)
+            AND (@p_reason_code IS NULL OR e.reason_code = @p_reason_code)
+            AND (@p_created_from_utc IS NULL OR e.created_at_utc >= @p_created_from_utc)
+            AND (@p_created_to_utc IS NULL OR e.created_at_utc < @p_created_to_utc)
             AND (@p_tag_filters IS NULL OR NOT EXISTS (
                  SELECT 1
                    FROM jsonb_array_elements(@p_tag_filters::jsonb) AS f(value)

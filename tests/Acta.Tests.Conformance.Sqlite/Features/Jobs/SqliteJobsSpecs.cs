@@ -25,6 +25,8 @@ public sealed class SqliteGetJobStatusSpec : GetJobStatusSpec<SqliteConformanceF
 
 public sealed class SqliteIdentifierCaseFoldingSpec : IdentifierCaseFoldingSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteJobPayloadReadsSpec : JobPayloadReadsSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteJobPurgeSpec : JobPurgeSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteJobReprioritizeSpec : JobReprioritizeSpec<SqliteConformanceFixture>;
@@ -44,3 +46,5 @@ public sealed class SqliteResolveJobIdByDeduplicationKeySpec : ResolveJobIdByDed
 public sealed class SqliteResolveJobIdByRefSpec : ResolveJobIdByRefSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteTenantEnqueueSpec : TenantEnqueueSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteUpdateJobInputSpec : UpdateJobInputSpec<SqliteConformanceFixture>;

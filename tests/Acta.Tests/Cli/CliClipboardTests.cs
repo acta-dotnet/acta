@@ -188,6 +188,8 @@ public class CliRunnerClipboardTests
         public ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) => null;
+
         public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
             TInput input,
             JobEnqueueOptions? options = null,
@@ -251,7 +253,12 @@ public class CliRunnerClipboardTests
         public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct = default) => throw new NotSupportedException();
+
         public ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct = default) =>
+            throw new NotSupportedException();
 
         public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct = default) =>
             throw new NotSupportedException();
@@ -295,6 +302,14 @@ public class CliRunnerClipboardTests
         public ValueTask<JobControlResult> ReprioritizeAsync(
             JobLookup lookup,
             JobPriorityCode priority,
+            string? reasonMessage = null,
+            string? actorKey = null,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public ValueTask<JobControlResult> UpdateJobInputAsync(
+            JobLookup lookup,
+            JobPayload input,
             string? reasonMessage = null,
             string? actorKey = null,
             CancellationToken ct = default

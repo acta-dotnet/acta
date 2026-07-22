@@ -153,59 +153,21 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
     }
 
+    // Explain, lineage, and the per-panel input/result/checkpoint reads folded into GET /jobs/{ref}/detail
+    // (JobDetailEndpointTests) and were removed per the pre-1.0 no-deprecated-code rule; the standalone
+    // routes no longer exist. The snapshot, /detail, and events routes remain.
     [Fact]
-    public async Task Explain_endpoint_returns_explanation_or_404()
+    public async Task Folded_in_per_panel_read_routes_are_gone()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/explain", ct);
-        var missing = await client.GetAsync($"/acta/jobs/api/jobs/{Missing}/explain", ct);
-        var body = await known.Content.ReadAsStringAsync(ct);
-
-        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
-        Assert.Equal("no-store", known.Headers.CacheControl?.ToString());
-        Assert.Contains("\"status\":\"ready\"", body);
-        Assert.Contains("\"headline\":", body);
-        Assert.Contains("\"nextActions\":", body);
-        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-    }
-
-    [Fact]
-    public async Task Lineage_endpoint_returns_map_or_404_and_hides_internal_ids()
-    {
-        var (app, client) = await TestDashboardHost.StartAsync();
-        await using var _ = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var known = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/lineage", ct);
-        var missing = await client.GetAsync($"/acta/jobs/api/jobs/{Missing}/lineage", ct);
-        var malformed = await client.GetAsync("/acta/jobs/api/jobs/42/lineage", ct);
-        var body = await known.Content.ReadAsStringAsync(ct);
-
-        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
-        Assert.Equal("no-store", known.Headers.CacheControl?.ToString());
-        Assert.Contains($"\"jobRef\":\"{Found}\"", body);
-        Assert.Contains($"\"jobRef\":\"{TestDashboardHost.ChildJobRef}\"", body);
-        Assert.Contains("\"childrenHasMore\":false", body);
-        Assert.DoesNotContain("\"jobId\"", body);
-        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
-    }
-
-    [Fact]
-    public async Task Lineage_endpoint_rejects_invalid_child_limit_with_400()
-    {
-        var (app, client) = await TestDashboardHost.StartAsync();
-        await using var _ = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var notInteger = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/lineage?childLimit=abc", ct);
-        var notPositive = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/lineage?childLimit=0", ct);
-
-        Assert.Equal(HttpStatusCode.BadRequest, notInteger.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, notPositive.StatusCode);
+        foreach (var segment in new[] { "explain", "lineage", "input", "result", "checkpoints" })
+        {
+            var response = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/{segment}", ct);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
     }
 
     [Fact]

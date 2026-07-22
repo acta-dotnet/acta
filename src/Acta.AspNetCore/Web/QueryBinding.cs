@@ -77,6 +77,65 @@ internal static class QueryBinding
         }
     }
 
+    /// <summary>
+    /// Binds a <c>[Code]</c>-family enum from its exact dotted-kebab wire name via the family's generated
+    /// <c>FromCode</c> parser (e.g. <c>JobActorCodeExtensions.FromCode</c>), rather than the .NET member
+    /// name. An unknown code is a caller error mapped to 400.
+    /// </summary>
+    public static bool TryCode<TEnum>(
+        IQueryCollection query,
+        string name,
+        Func<string, TEnum> fromCode,
+        out TEnum? value,
+        ref string? error
+    )
+        where TEnum : struct, Enum
+    {
+        value = null;
+        var raw = query[name];
+        if (raw.Count == 0 || string.IsNullOrEmpty(raw[0]))
+        {
+            return true;
+        }
+
+        try
+        {
+            value = fromCode(raw[0]!);
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            error = $"Query parameter '{name}' is not a valid {typeof(TEnum).Name} value.";
+            return false;
+        }
+    }
+
+    public static bool TryDateTime(IQueryCollection query, string name, out DateTime? value, ref string? error)
+    {
+        value = null;
+        var raw = query[name];
+        if (raw.Count == 0 || string.IsNullOrEmpty(raw[0]))
+        {
+            return true;
+        }
+
+        if (
+            DateTime.TryParse(
+                raw[0],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                out var parsed
+            )
+        )
+        {
+            value = parsed;
+            return true;
+        }
+
+        error = $"Query parameter '{name}' is not a valid ISO-8601 timestamp.";
+        return false;
+    }
+
     public static bool TryLong(IQueryCollection query, string name, out long? value, ref string? error)
     {
         value = null;

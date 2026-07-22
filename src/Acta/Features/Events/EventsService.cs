@@ -20,6 +20,8 @@ internal sealed class EventsService(IEventStore store)
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
         query = query with { JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)) };
         QueryValidation.ValidateEnum(query.EventCode, nameof(query.EventCode));
+        QueryValidation.ValidateEnum(query.ActorCode, nameof(query.ActorCode));
+        QueryValidation.ValidateEnum(query.ReasonCode, nameof(query.ReasonCode));
         QueryValidation.ValidatePositiveId(query.JobId, nameof(query.JobId));
         QueryValidation.ValidatePositiveId(query.LineageRootId, nameof(query.LineageRootId));
         if (query.IncludeTotal && query.JobId is null)
@@ -42,6 +44,10 @@ internal sealed class EventsService(IEventStore store)
             ("def", Num(query.JobDefinitionId)),
             ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
             ("worker", query.WorkerId?.ToString(CultureInfo.InvariantCulture)),
+            ("actor", Num(query.ActorCode)),
+            ("reason", Num(query.ReasonCode)),
+            ("from", query.CreatedFromUtc?.ToString("O", CultureInfo.InvariantCulture)),
+            ("to", query.CreatedToUtc?.ToString("O", CultureInfo.InvariantCulture)),
             ("tags", tagFilters),
         ]);
 
@@ -69,6 +75,10 @@ internal sealed class EventsService(IEventStore store)
                 query.JobDefinitionId,
                 query.TenantId,
                 query.WorkerId,
+                query.ActorCode,
+                query.ReasonCode,
+                query.CreatedFromUtc,
+                query.CreatedToUtc,
                 cursorCreatedAtUtc,
                 cursorId,
                 pageSize + 1,

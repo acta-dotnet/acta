@@ -106,6 +106,25 @@ internal static class TestDashboardHost
         /// <summary>Recorded signal raises with the delivered payload format and bytes (null when presence-only).</summary>
         public List<(JobRef JobRef, string Name, byte FormatId, byte[]? Value, string? ActorKey)> SignalCalls { get; } = [];
 
+        /// <summary>Input the found job (id 42) carries. The amend endpoint reads it for the stored format
+        /// and writes the amended payload back, and the detail read projects it. Null means a no-input job.</summary>
+        public JobPayload? StoredInput { get; set; }
+
+        /// <summary>Result the found job (id 42) has produced; null means it has produced none (detail result null).</summary>
+        public JobPayload? StoredResult { get; set; }
+
+        /// <summary>Checkpoints the found job (id 42) carries; empty by default.</summary>
+        public IReadOnlyList<JobCheckpointItem> StoredCheckpoints { get; set; } = [];
+
+        /// <summary>Recorded UpdateJobInputAsync payloads (the format-resolved payload the endpoint built).</summary>
+        public List<JobPayload> InputAmendCalls { get; } = [];
+
+        /// <summary>Recorded enqueue requests; EnqueueAsync stores each input under a fresh ref for read-back.</summary>
+        public List<JobEnqueueRequest> EnqueueRequests { get; } = [];
+
+        private readonly Dictionary<Guid, long> _enqueuedRefs = new();
+        private readonly Dictionary<long, JobPayload?> _enqueuedInputs = new();
+
         /// <summary>Recorded tenant register/suspend calls. A key of "bad key" reports an invalid opaque key.</summary>
         public List<(string TenantKey, string? DisplayName, string? Description, TenantStatusCode Status)> TenantCalls { get; } = [];
 
@@ -226,6 +245,12 @@ internal static class TestDashboardHost
         public ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
             ValueTask.FromResult(new PagedResult<string>(["billing", "reports"], null, false, 50, null));
 
+        /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
+        public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
+            jobNamespace == "billing" && jobName == "send-invoice"
+                ? new JobInputTemplate("Billing.SendInvoice", JobPayloadFormat.Json, """{"invoiceId":0,"note":null}""")
+                : null;
+
         // --- IJobs verbs ---
 
         private static JobControlResult ResultFor(JobLookup lookup) =>
@@ -245,37 +270,54 @@ internal static class TestDashboardHost
             return ValueTask.FromResult(ResultFor(lookup));
         }
 
-        public ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default) =>
-            ValueTask.FromResult<JobSnapshot?>(
+        public ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default)
+        {
+            if (
                 lookup.JobRef == FoundJobRef
                 || lookup.JobId == 42
                 || (lookup.JobNamespace == "billing" && lookup.DeduplicationKey == "ck-1")
-                    ? new JobSnapshot(
-                        JobId: 42,
-                        JobRef: FoundJobRef,
-                        LineageRootId: null,
-                        LineageRootJobRef: null,
-                        ParentJobId: null,
-                        ParentJobRef: null,
-                        DeduplicationKey: "ck-1",
-                        CorrelationKey: null,
-                        JobNamespace: "billing",
-                        JobName: "send-invoice",
-                        TenantId: null,
-                        Status: JobStatusCode.Ready,
-                        Priority: JobPriorityCode.Normal,
-                        ExecutionNumber: 0,
-                        FailureCount: 0,
-                        InputFormatId: 0,
-                        NextRunAtUtc: null,
-                        LeasedByWorkerId: null,
-                        LeaseExpiresAtUtc: null,
-                        ExclusiveKey: null,
-                        RetentionUntilUtc: null,
-                        CreatedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
-                        ModifiedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
-                    )
-                    : null
+            )
+            {
+                return ValueTask.FromResult<JobSnapshot?>(Snapshot(42, "billing", "send-invoice"));
+            }
+
+            // An enqueued ref resolves to its recorded request so the aggregate detail read can compose
+            // it (id = 101 + insertion index); every other ref is unknown.
+            var id = Resolve(lookup);
+            if (id is { } enqueuedId && enqueuedId - 101 is >= 0 and var i && i < EnqueueRequests.Count)
+            {
+                var request = EnqueueRequests[(int)i];
+                return ValueTask.FromResult<JobSnapshot?>(Snapshot(enqueuedId, request.JobNamespace, request.JobName));
+            }
+
+            return ValueTask.FromResult<JobSnapshot?>(null);
+        }
+
+        private static JobSnapshot Snapshot(long jobId, string jobNamespace, string jobName) =>
+            new(
+                JobId: jobId,
+                JobRef: jobId == 42 ? FoundJobRef : JobRef.New(),
+                LineageRootId: null,
+                LineageRootJobRef: null,
+                ParentJobId: null,
+                ParentJobRef: null,
+                DeduplicationKey: "ck-1",
+                CorrelationKey: null,
+                JobNamespace: jobNamespace,
+                JobName: jobName,
+                TenantId: null,
+                Status: JobStatusCode.Ready,
+                Priority: JobPriorityCode.Normal,
+                ExecutionNumber: 0,
+                FailureCount: 0,
+                InputFormatId: 0,
+                NextRunAtUtc: null,
+                LeasedByWorkerId: null,
+                LeaseExpiresAtUtc: null,
+                ExclusiveKey: null,
+                RetentionUntilUtc: null,
+                CreatedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                ModifiedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
             );
 
         public ValueTask<JobExplanation?> ExplainAsync(JobLookup lookup, CancellationToken ct = default) =>
@@ -339,8 +381,15 @@ internal static class TestDashboardHost
                     : null
             );
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
-            throw new NotSupportedException();
+        public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default)
+        {
+            EnqueueRequests.Add(request);
+            var id = 100 + EnqueueRequests.Count;
+            var jobRef = JobRef.New();
+            _enqueuedRefs[jobRef.Value] = id;
+            _enqueuedInputs[id] = request.Input.IsNone ? null : request.Input;
+            return ValueTask.FromResult(new JobEnqueueOutcome(id, jobRef, JobEnqueueAction.Inserted));
+        }
 
         public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
             TInput input,
@@ -401,16 +450,32 @@ internal static class TestDashboardHost
         ) => throw new NotSupportedException();
 
         public ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct = default) =>
-            ValueTask.FromResult<long?>(
-                lookup.Kind == JobLookupKind.JobId ? lookup.JobId
-                : lookup.JobRef == FoundJobRef ? 42
-                : null
-            );
+            ValueTask.FromResult(Resolve(lookup));
+
+        private long? Resolve(JobLookup lookup) =>
+            lookup.Kind == JobLookupKind.JobId ? lookup.JobId
+            : lookup.JobRef == FoundJobRef ? 42
+            : _enqueuedRefs.TryGetValue(lookup.JobRef.Value, out var id) ? id
+            : null;
 
         public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct = default)
+        {
+            var id = Resolve(lookup);
+            return ValueTask.FromResult(
+                id is null ? null
+                : id == 42 ? StoredInput
+                : _enqueuedInputs.GetValueOrDefault(id.Value)
+            );
+        }
+
+        public ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default) =>
+            ValueTask.FromResult(Resolve(lookup) == 42 ? StoredResult : null);
+
+        public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct = default) =>
+            ValueTask.FromResult(Resolve(lookup) == 42 ? StoredCheckpoints : []);
 
         public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct = default) =>
             throw new NotSupportedException();
@@ -465,6 +530,24 @@ internal static class TestDashboardHost
         {
             ReprioritizeCalls.Add((lookup.JobRef, priority, reasonMessage, actorKey));
             return ValueTask.FromResult(ResultFor(lookup));
+        }
+
+        public ValueTask<JobControlResult> UpdateJobInputAsync(
+            JobLookup lookup,
+            JobPayload input,
+            string? reasonMessage = null,
+            string? actorKey = null,
+            CancellationToken ct = default
+        )
+        {
+            InputAmendCalls.Add(input);
+            var result = ResultFor(lookup);
+            if (result.Action == JobControlAction.Applied)
+            {
+                StoredInput = input;
+            }
+
+            return ValueTask.FromResult(result);
         }
 
         public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default)
@@ -660,8 +743,34 @@ internal static class TestDashboardHost
             public ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct = default) =>
                 ValueTask.FromResult<JobDefinitionDetail?>(null);
 
+            // The billing namespace carries one definition (id 5) so the aggregate detail read can resolve
+            // the definition link for ("billing", "send-invoice") the way the dashboard's link used to.
             public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default) =>
-                ValueTask.FromResult(new PagedResult<JobDefinitionListItem>([], null, false, 50, null));
+                ValueTask.FromResult(
+                    query.JobNamespace == "billing"
+                        ? new PagedResult<JobDefinitionListItem>(
+                            [
+                                new JobDefinitionListItem(
+                                    5,
+                                    "billing",
+                                    "send-invoice",
+                                    JobDefinitionStatusCode.Active,
+                                    "Billing.SendInvoice",
+                                    null,
+                                    null,
+                                    JobPriorityCode.Normal,
+                                    null,
+                                    3,
+                                    new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
+                                ),
+                            ],
+                            null,
+                            false,
+                            50,
+                            null
+                        )
+                        : new PagedResult<JobDefinitionListItem>([], null, false, 50, null)
+                );
         }
 
         private sealed class FakeWorkers : IWorkers

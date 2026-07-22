@@ -58,7 +58,11 @@ public static class SqliteJobsBuilderExtensions
             sp.GetRequiredService<IOptions<JobsOptions>>().Value.ExecutionProfile
         ));
         builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<SqliteDialect>());
-        builder.Services.AddSingleton<DbSession>();
+        builder.Services.AddSingleton(static sp => new DbSession(
+            sp.GetRequiredService<SqlProviderOptions>(),
+            sp.GetRequiredService<ISqlDialect>(),
+            sp.GetRequiredService<SqlResourceCatalog>()
+        ));
         builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
         builder.Services.AddSingleton<IProviderBootstrap, SqliteProviderBootstrap>();
 
