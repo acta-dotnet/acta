@@ -29,8 +29,11 @@
   <!-- DB clients used by the provider migration runners + parameter binders. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
-    <!-- 11.x references the patched SQLitePCLRaw 3.x; 10.0.9 pulled 2.1.11 with high-severity advisory
-         GHSA-2m69-gcr7-jv3q. -->
+    <!-- Deliberate preview pin: the 11.x line references the patched SQLitePCLRaw 3.x. Every stable
+         Microsoft.Data.Sqlite (through 10.0.10, checked 2026-07-22) still pulls SQLitePCLRaw 2.1.11,
+         which carries high-severity advisory GHSA-2m69-gcr7-jv3q with NO patched 2.x release (the
+         fixed SQLite 3.50.2 only ships in SQLitePCLRaw 3.x). Do not downgrade to stable; re-check
+         when Microsoft.Data.Sqlite 11 ships stable or SQLitePCLRaw patches 2.x. -->
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0-preview.6.26359.118" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
   </ItemGroup>

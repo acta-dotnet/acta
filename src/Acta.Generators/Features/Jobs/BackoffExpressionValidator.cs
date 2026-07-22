@@ -17,12 +17,7 @@ internal static class BackoffExpressionValidator
 
     public readonly record struct ParsedBackoff(int InitialSeconds, int MaxSeconds, decimal Multiplier, decimal Jitter);
 
-    public static bool TryParseBackoff(
-        string expression,
-        List<(string Iso, string Human)> legacyIso,
-        out ParsedBackoff backoff,
-        out Error error
-    )
+    public static bool TryParseBackoff(string expression, out ParsedBackoff backoff, out Error error)
     {
         backoff = default;
         error = default;
@@ -37,8 +32,8 @@ internal static class BackoffExpressionValidator
         var dots = range.IndexOf("..", StringComparison.Ordinal);
         var ranged = dots >= 0;
         if (
-            !TryParseDuration(ranged ? range.Substring(0, dots) : range, legacyIso, out var initial, out error)
-            || !TryParseDuration(ranged ? range.Substring(dots + 2) : range, legacyIso, out var max, out error)
+            !TryParseDuration(ranged ? range.Substring(0, dots) : range, out var initial, out error)
+            || !TryParseDuration(ranged ? range.Substring(dots + 2) : range, out var max, out error)
             || max < initial
         )
         {
@@ -79,7 +74,7 @@ internal static class BackoffExpressionValidator
         return true;
     }
 
-    public static bool TryParseDuration(string text, List<(string Iso, string Human)> legacyIso, out TimeSpan span, out Error error)
+    public static bool TryParseDuration(string text, out TimeSpan span, out Error error)
     {
         var s = text.Trim();
         span = default;
@@ -104,7 +99,6 @@ internal static class BackoffExpressionValidator
                     error = new Error(ErrorKind.Invalid, text);
                     return false;
                 }
-                legacyIso.Add((s, FormatDuration(span)));
                 return true;
             }
             catch (FormatException)

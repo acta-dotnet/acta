@@ -16,7 +16,6 @@ ACTA0122 | Acta | Error | Invalid schedule expression (cron or positive ISO 8601
 ACTA0123 | Acta | Error | Scheduled input has no accessible parameterless constructor
 ACTA0131 | Acta | Error | Invalid [JobPayloadFormatDeclaration]
 ACTA0132 | Acta | Error | Invalid [Job] payload-format usage (Format vs Input/OutputFormat, output on void, unknown name)
-ACTA0141 | Acta | Info | ISO 8601 duration used in [Job] policy
 ACTA0142 | Acta | Error | Invalid Acta duration unit (uppercase or calendar unit)
 ACTA0201 | ActaCodes | Error | Invalid code-family declaration
 ACTA0202 | ActaCodes | Error | Invalid [Code] value (shape or short range)

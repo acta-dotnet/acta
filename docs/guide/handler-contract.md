@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Canonical contract for declaring, discovering, validating, and invoking Acta job handlers. Reference for application developers writing handlers and for framework contributors implementing the generator, runtime invoker, diagnostics, and MediatR handling.
+Canonical contract for declaring, discovering, validating, and invoking Acta job handlers. Reference for application developers writing handlers and for framework contributors implementing the generator, runtime invoker, and diagnostics.
 
 A handler is valid when its `[Job]` placement and compile-time signature match one of the supported forms below.
 
@@ -74,19 +74,12 @@ public sealed class JobAttribute : Attribute
 Do not place `[Job]` on:
 
 * Handler classes.
-* MediatR request DTOs.
+* Request DTOs.
 * Marker interfaces.
 * Base classes.
 * Module classes.
 
-## Handler categories
-
-Two categories; `[Job]` is on the handler method in both.
-
-| Use case                           | `[Job]` placement                                       |
-| ---------------------------------- | ------------------------------------------------------- |
-| App job (pure, or DI dependencies) | On the executable method                                |
-| MediatR app                        | On the `Handle` method implementing `IRequestHandler<>` |
+## Handler shapes
 
 Instance handlers resolve through DI, so constructor-injected dependencies are available without any marker interface. A static method handler covers the tiny pure case.
 
@@ -128,33 +121,6 @@ public sealed class SendReceiptJob
 * `[Job]` goes on the handler method.
 * Constructor injection is the dependency mechanism; instance handlers resolve through DI.
 * `JobContext` and `CancellationToken` are optional parameters (see the method matrix below).
-
-## MediatR handlers
-
-MediatR handling is built into core `Acta`. `[Job]` is placed on the handler method implementing `IRequestHandler<>` or `IRequestHandler<,>`. The request DTO is never decorated.
-
-```csharp
-public sealed record SendReceipt(Guid OrderId) : IRequest<ReceiptResult>;
-
-public sealed class SendReceiptHandler
-    : IRequestHandler<SendReceipt, ReceiptResult>
-{
-    private readonly JobContext _context;
-
-    public SendReceiptHandler(JobContext context)
-    {
-        _context = context;
-    }
-
-    [Job("send-receipt")]
-    public Task<ReceiptResult> Handle(SendReceipt request, CancellationToken ct)
-    {
-        // Work happens here.
-    }
-}
-```
-
-The handler resolves from the per-attempt DI scope and its `Handle` method is invoked through the generated delegate. `JobContext` is supplied by constructor injection. The request type remains a domain contract; durable job identity belongs to the handler method.
 
 ## Pipeline behaviors
 
@@ -470,12 +436,10 @@ The handler honors the token; the framework records the cause and chooses the fi
 
 The generator discovers handlers from method-level `[Job]` attributes.
 
-| `[Job]` placement   | Valid when                                                                             | Meaning                        |
-| ------------------- | -------------------------------------------------------------------------------------- | ------------------------------ |
-| Method              | Method has a valid handler signature                                                   | This method is one job         |
-| Method              | Method implements `IRequestHandler<TIn>.Handle` or `IRequestHandler<TIn, TOut>.Handle` | This method is one MediatR job |
-| Type                | Any type-level placement                                                               | Invalid                        |
-| MediatR request DTO | Any DTO-level placement                                                                | Invalid                        |
+| `[Job]` placement | Valid when                           | Meaning                |
+| ----------------- | ------------------------------------ | ---------------------- |
+| Method            | Method has a valid handler signature | This method is one job |
+| Type              | Any type-level placement             | Invalid                |
 
 ## Lifecycle and visibility
 
@@ -520,21 +484,6 @@ Invocation kinds:
 
 The generator emits a per-handler invoker delegate; reflection stays off the per-attempt path.
 
-## MediatR integration
-
-MediatR handling is built into core `Acta`.
-
-* The same method-level `[Job]` attribute is used.
-* `[Job]` goes on the handler method implementing `IRequestHandler<>` or `IRequestHandler<,>`.
-* The request DTO is never decorated.
-* `TIn` and `TOut` come from the handler interface generic arguments.
-* The handler resolves from the attempt DI scope and its `Handle` method is invoked through the generated delegate.
-* `JobContext` is supplied by constructor injection.
-* `MediatR.Unit` means no durable result.
-* `INotification` is out of scope.
-
-The request type is a domain contract usable by direct MediatR dispatch, tests, or other application paths. Durable job identity belongs to the handler method that Acta discovers.
-
 ## Diagnostics
 
 The generators reserve `ACTA01xx` for the `[Job]` surface, `ACTA02xx` for code families, `ACTA04xx` for the schema model, and `ACTA05xx` for database projections. All are errors unless noted; an erroring job is excluded from the generated manifest.
@@ -560,7 +509,7 @@ The generators reserve `ACTA01xx` for the `[Job]` surface, `ACTA02xx` for code f
 | `ACTA0403` | Column DEFAULT incompatible with its kind, or placed on a provider-allocated (identity/sequence) column.                                                                                                          |
 | `ACTA0501` | Invalid `[DbProjection]` materializer shape (unsupported constructor/type, unsupported parameter type, or missing partial containing type for private nested projections).                                          |
 
-Placement on anything but a method (for example a MediatR request DTO) is rejected by `[AttributeUsage(AttributeTargets.Method)]` at compile time, not by a diagnostic.
+Placement on anything but a method (for example a request DTO) is rejected by `[AttributeUsage(AttributeTargets.Method)]` at compile time, not by a diagnostic.
 
 ## Serializer validation
 
@@ -597,8 +546,6 @@ payload formats. It is not a full JSON schema compatibility checker. See
 | Generator       | Scans for method-level `[Job]`, validates signatures, emits descriptors and invokers. |
 | Manifest        | Carries descriptors to runtime startup.                                               |
 | Runtime invoker | Dispatches through generated delegates.                                               |
-
-MediatR descriptors dispatch through the same generated invoker; the handler resolves from the attempt DI scope and its `Handle` method runs.
 
 ## Runtime invocation sequence
 
