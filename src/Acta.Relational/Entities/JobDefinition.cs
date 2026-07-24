@@ -137,8 +137,8 @@ internal sealed class JobDefinition : IEntity<int>
     public JobPriorityCode PriorityEffective { get; internal set; }
 
     /// <summary>
-    /// Cap on consecutive failures before terminal <c>Status = Failed</c>; resets on success and on
-    /// recurring failure exhaustion.
+    /// Cap on consecutive failures before terminal <c>Status = Failed</c> for one-off jobs; resets on
+    /// success. Recurring slots never terminalize on the count (MaxAttempts is the one-off budget only).
     /// </summary>
     [DbColumn("max_attempts", DbKind.Int16)]
     public short MaxAttempts { get; internal set; }

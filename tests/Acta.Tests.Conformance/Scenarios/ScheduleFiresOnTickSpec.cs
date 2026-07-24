@@ -187,19 +187,23 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
         }
     }
 
-    [Fact(DisplayName = "Exhausted failure budget ends the slot in Failed at MaxAttempts")]
-    public async Task Exhausted_failure_budget_ends_in_failed()
+    [Fact(DisplayName = "Consecutive failures past MaxAttempts never terminalize a recurring slot")]
+    public async Task Consecutive_failures_never_terminalize_the_recurring_slot()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
 
-        // Fail every fire; MaxAttempts = 2 => the second consecutive failure is terminal.
+        // Fail every fire well past MaxAttempts = 2: a recurring slot re-arms Ready regardless of the
+        // consecutive-failure count. MaxAttempts is the one-off retry budget only and never terminalizes a slot.
         RecurringPingHandler.FailWhileSequenceAtMost[TestNamespace] = 99;
         await FireOnceAsync(slotId, ct); // failure_count 1 -> Ready
-        await FireOnceAsync(slotId, ct); // failure_count 2 -> Failed
+        await FireOnceAsync(slotId, ct); // failure_count 2 -> Ready (would have been terminal under a budget)
+        await FireOnceAsync(slotId, ct); // failure_count 3 -> Ready
 
-        Assert.Equal(JobStatusCode.Failed, await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct));
+        var slot = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, slot.Status);
+        Assert.Equal((short)3, slot.FailureCount);
     }
 
     [Fact(DisplayName = "Handler cancel terminates the whole slot to Cancelled and stops the schedule")]

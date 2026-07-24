@@ -695,11 +695,12 @@ internal sealed class JobRunner
     private static bool IsRetryable(JobEventReasonCode? reason) =>
         reason is JobEventReasonCode.JobUnhandledException or JobEventReasonCode.JobExecutionTimeout;
 
-    // Recurring completion outcome, computed in C# from the attempt result, the current
-    // failure budget, and the planned slot MIN. Exhausted schedules pause regardless of outcome; an
-    // in-budget failure (or success) re-arms to Ready with the reason cleared; an exhausted budget
-    // fails terminally keeping the failure reason.
-    private static (
+    // Recurring completion outcome, computed in C# from the attempt result and the planned slot MIN.
+    // A recurring slot re-arms Ready on failure regardless of the consecutive-failure count: MaxAttempts
+    // is the one-off retry budget only and never terminalizes a recurring slot. Exhausted schedules pause
+    // regardless of outcome; a success resets the failure counter to zero, a failure bumps it (saturating
+    // at short.MaxValue so a long outage cannot overflow it into the negatives).
+    internal static (
         JobStatusCode FinalStatus,
         short FailureCount,
         JobEventReasonCode? ReasonCode,
@@ -713,16 +714,15 @@ internal sealed class JobRunner
         string? failureMessage
     )
     {
-        var failureCount = outcome == ExecutionOutcome.Succeeded ? (short)0 : (short)(job.FailureCount + 1);
+        // Saturate at short.MaxValue so a long outage cannot overflow the counter into the negatives.
+        var failureCount =
+            outcome == ExecutionOutcome.Succeeded ? (short)0
+            : job.FailureCount >= short.MaxValue ? short.MaxValue
+            : (short)(job.FailureCount + 1);
 
         if (fire.SlotMinNextRunAtUtc is null)
         {
             return (JobStatusCode.Paused, failureCount, JobEventReasonCode.JobSchedulesExhausted, null);
-        }
-
-        if (outcome == ExecutionOutcome.Failed && failureCount >= descriptor.MaxAttempts)
-        {
-            return (JobStatusCode.Failed, failureCount, failureReason, failureMessage);
         }
 
         return (JobStatusCode.Ready, failureCount, null, null);
