@@ -248,6 +248,69 @@ SELECT t.scope_id AS job_id, j.job_ref, j.namespace, j.job_name, j.status, t.tag
    AND t.tag_value = 'gold';
 ```
 
+## Quarantined Outbox Rows
+
+These recipes run against the **producer** database's external-outbox table, not the `acta` ledger
+schema. The default physical name is `acta_outbox` in the provider's default schema; substitute your
+configured table/schema. Status codes are `10` Pending, `20` Claimed, `90` Quarantined. Only requeue or
+delete rows the relay has quarantined (`status_code = 90`); leave Pending and Claimed rows to the relay.
+Background: [transactional enqueue and the external outbox](./transactional-enqueue-and-outbox.md#retry-and-quarantine).
+
+Inspect quarantined rows:
+
+```sql
+SELECT outbox_id, job_namespace, job_name, deduplication_key, failure_count, last_error, created_at_utc
+  FROM acta_outbox
+ WHERE status_code = 90
+ ORDER BY created_at_utc;
+```
+
+Requeue a quarantined row: reset it to Pending, clear the failure budget, make it immediately eligible on
+the database clock, and clear the claim and error fields. Requeue only after fixing the underlying cause
+(for example registering the missing job definition).
+
+**PostgreSQL**:
+
+```sql
+UPDATE acta_outbox
+   SET status_code = 10, failure_count = 0, next_attempt_at_utc = now(),
+       claim_token = NULL, claim_until_utc = NULL, last_error = NULL
+ WHERE status_code = 90
+   AND outbox_id = :outbox_id;
+```
+
+**SQL Server**:
+
+```sql
+UPDATE acta_outbox
+   SET status_code = 10, failure_count = 0, next_attempt_at_utc = SYSUTCDATETIME(),
+       claim_token = NULL, claim_until_utc = NULL, last_error = NULL
+ WHERE status_code = 90
+   AND outbox_id = @outbox_id;
+```
+
+**SQLite** (its clock is already UTC):
+
+```sql
+UPDATE acta_outbox
+   SET status_code = 10, failure_count = 0, next_attempt_at_utc = datetime('now'),
+       claim_token = NULL, claim_until_utc = NULL, last_error = NULL
+ WHERE status_code = 90
+   AND outbox_id = :outbox_id;
+```
+
+Delete a quarantined row that should never be delivered (the payload is wrong and there is no fix):
+
+```sql
+DELETE FROM acta_outbox
+ WHERE status_code = 90
+   AND outbox_id = :outbox_id;
+```
+
+The `status_code = 90` guard keeps a requeue or delete from racing a row the relay currently owns: a
+Claimed row is finalized by token CAS, so a stale operator write against it would not match anyway, but
+scoping to Quarantined makes the intent explicit and the statement idempotent.
+
 ## Identifier Casing In Raw SQL
 
 Acta-owned identifier and key columns store canonical lowercase. Opaque keys (tenant, idempotency,

@@ -13,6 +13,11 @@ First public preview of Acta: the SQL-native durable work ledger for .NET.
   embedded dashboard and JSON API, the embedded CLI including `jobs debug`.
 - Providers: PostgreSQL, SQL Server, SQLite with one operational model; source-generated dispatch;
   NativeAOT support; deterministic test host.
+- Atomic enqueue with business data: transactional `IJobs` enqueue overloads that join a caller-owned
+  `DbTransaction` (same database), and provider-package outbox staging (`AddToActaOutboxAsync` on the
+  caller's own transaction) plus an Acta-owned `sys.outbox` relay for a different database. Neither is a
+  universal exactly-once guarantee.
+  See [transactional enqueue and the external outbox](./guide/transactional-enqueue-and-outbox.md).
 
 APIs, schema, and behavior may change without deprecation during the preview. Known gaps are
 tracked in [known limitations](./technical/known-limitations.md).

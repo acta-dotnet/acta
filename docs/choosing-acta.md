@@ -77,6 +77,22 @@ scheduling.
 | Operators need control | Pause, resume, cancel, restart, signal, debug, explain, and schedule pause/resume |
 | Teams do not want more infrastructure | The worker is the app process; durable state is the app database |
 
+## Atomic Enqueue With Business Data
+
+When a business-data change and an Acta enqueue must commit or roll back together, the path depends on
+where the two live:
+
+| Situation | Use |
+| --- | --- |
+| Business data and the Acta ledger share one database, and you own an explicit transaction | Direct transactional `IJobs` enqueue: pass your `DbTransaction` to the enqueue overload |
+| The business data is in a different database | The external outbox: stage an `acta_outbox` row with `AddToActaOutboxAsync` on your provider transaction, and an Acta-owned relay ingests it |
+| An EF Core application, either of the above | The same two paths, holding the transaction via `Database.GetDbTransaction()`. There is no Acta EF package |
+| Any ORM wrapping the provider transaction | The same two paths, once the ORM exposes or unwraps the native transaction (OrmLite: `ToDbTransaction()` then a concrete cast) |
+| You want a single universal exactly-once guarantee | Neither. Execution is at-least-once; handlers own idempotency for external side effects |
+
+Full walkthrough, including the canonical table, cadence, and quarantine policy:
+[Transactional enqueue and the external outbox](./guide/transactional-enqueue-and-outbox.md).
+
 ## If You Already Use Hangfire, Quartz, Or TickerQ
 
 If Hangfire, Quartz, or TickerQ already makes your background work boring, visible, and consistent,

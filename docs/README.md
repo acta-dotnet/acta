@@ -21,6 +21,7 @@ database you already run.
 | --- | --- |
 | [Concepts](./guide/concepts.md) | The vocabulary and model: jobs, executions, attempts, namespaces, durable slots. |
 | [Handler contract](./guide/handler-contract.md) | Execution semantics, valid handler shapes, DI, payload and result rules, cancellation. |
+| [Transactional enqueue and outbox](./guide/transactional-enqueue-and-outbox.md) | Committing an enqueue with business data: same-database transactional `IJobs` and the cross-database external outbox. |
 | [Configuration](./guide/configuration.md) | `JobsOptions`, execution profiles, and where per-job policy lives. |
 | [Contract evolution](./guide/contract-evolution.md) | Evolving payloads, results, job names, and durable slot names without stranding work. |
 | [Testing](./guide/testing.md) | The deterministic test host and the test taxonomy. |
@@ -47,4 +48,4 @@ Generated from source and drift-checked in CI: [Data model](./reference/data-mod
 Contributor-facing; not needed to use Acta: [design principles and settled decisions](./internals/design.md),
 [architecture diagrams](./technical/architecture-diagrams.md), [migration tooling](./internals/migrations.md),
 [releasing](./internals/releasing.md), [benchmarks](./benchmarks/stress-tests.md), and
-[proposed designs](./designs/incident-response.md).
+design decisions: [incident response](./designs/incident-response.md).
