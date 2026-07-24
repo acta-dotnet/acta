@@ -90,10 +90,19 @@ public sealed class AotPolicyTests
         // SqliteDialect begins an immediate transaction so the inline-only provider's multi-statement
         // write body is atomic (same rationale as the commit/rollback allowlist below); the migration
         // runner opens one to apply DDL. Routine providers (PG/MSSQL) never take this path.
+        // The independent external-outbox source session wraps its two-statement claim (recover-expired
+        // then claim-due) in one write transaction per provider: the shared source dialect begins it for
+        // PG/MSSQL, and the SQLite source dialect begins IMMEDIATE. This is the narrow, justified source
+        // session the outbox plan permits; the ledger routine providers still never take this path.
         new(
             "C# transaction begin/open",
             new Regex(@"\b(BeginTransaction|OpenTransaction)\b", RegexOptions.Compiled),
-            Allow("src/Acta.Relational/Schema/SchemaMigrationRunner.cs", "src/Acta.Sqlite/Services/SqliteDialect.cs")
+            Allow(
+                "src/Acta.Relational/Schema/SchemaMigrationRunner.cs",
+                "src/Acta.Sqlite/Services/SqliteDialect.cs",
+                "src/Acta.Relational/Connections/OutboxSourceDialect.cs",
+                "src/Acta.Sqlite/Hosting/SqliteOutboxSource.cs"
+            )
         ),
         // DbSession wraps execute-style calls in a write transaction ONLY for an inline-only provider
         // (SQLite) that has no stored routine to make its multi-statement write body atomic; routine

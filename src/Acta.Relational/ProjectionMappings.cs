@@ -20,6 +20,7 @@
     typeof(global::Acta.Features.Execution.StartStepDecision),
     typeof(global::Acta.Features.Execution.Timers.SleepDecision),
     typeof(global::Acta.Features.Namespaces.NamespaceListRow),
+    typeof(global::Acta.Features.Outbox.OutboxRow),
     typeof(global::Acta.Features.Jobs.CancelJobOutcomeRow),
     typeof(global::Acta.Features.Jobs.EnqueueOutcomeRow),
     typeof(global::Acta.Features.Jobs.ExplainCheckpointRow),

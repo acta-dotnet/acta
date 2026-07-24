@@ -17,6 +17,9 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Acta.Tests" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
+    <!-- The one mixed-provider case (a SQLite outbox source relayed into a Postgres ledger) builds the
+         internal SQLite source store through SqliteOutboxSource.CreateStore. -->
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
   </ItemGroup>
 
   <ItemGroup>

@@ -31,5 +31,8 @@
          duplicate that surfaces when two IsTestProject=true assemblies reference each other. -->
     <ProjectReference Include="..\Acta.Tests.Conformance\Acta.Tests.Conformance.csproj" />
     <ProjectReference Include="..\..\src\Acta.Postgres\Acta.Postgres.csproj" />
+    <!-- Source-only reference for the one mixed-provider case: a SQLite outbox source relayed into the
+         Postgres ledger, proving the source and target provider registrations are independent. -->
+    <ProjectReference Include="..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
   </ItemGroup>
 </Project>

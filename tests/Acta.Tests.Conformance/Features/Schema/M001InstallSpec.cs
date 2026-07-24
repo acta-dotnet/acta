@@ -24,12 +24,24 @@ public abstract class M001InstallSpec<TFixture> : IntegrationSpec<TFixture>
     // is not an entity in the model, so it is the one base table permitted beyond the entity set.
     private const string MigrationHistoryTable = "migrations";
 
+    // Business probe tables the transactional-enqueue specs create in the shared schema (SQLite has one
+    // database for the whole run) are test artifacts, not modelled entities. They all use this prefix.
+    private const string BusinessProbePrefix = "acta_txn";
+
+    // External-outbox source tables the outbox specs create per test are producer-owned artifacts, not
+    // ledger entities, so they are never part of the modelled Acta schema.
+    private const string OutboxProbePrefix = "acta_outbox";
+
     [Fact(DisplayName = "Schema base tables equal the ActaSchema entity set with nothing missing or extra")]
     public async Task InstallsExactlyTheModelledEntityTables()
     {
         var expected = ActaSchema.Entities.Select(e => e.TableName).OrderBy(n => n, StringComparer.Ordinal).ToList();
         var actual = (await Fixture.ListTablesAsync(Schema.SchemaName))
-            .Where(t => t != MigrationHistoryTable)
+            .Where(t =>
+                t != MigrationHistoryTable
+                && !t.StartsWith(BusinessProbePrefix, StringComparison.Ordinal)
+                && !t.StartsWith(OutboxProbePrefix, StringComparison.Ordinal)
+            )
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToList();
 

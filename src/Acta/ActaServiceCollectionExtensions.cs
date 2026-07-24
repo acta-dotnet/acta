@@ -6,6 +6,7 @@ using Acta.Features.Events;
 using Acta.Features.Execution;
 using Acta.Features.Jobs;
 using Acta.Features.Namespaces;
+using Acta.Features.Outbox;
 using Acta.Features.Overview;
 using Acta.Features.Signals;
 using Acta.Features.Tags;
@@ -16,6 +17,7 @@ using Acta.Services.Locks;
 using Acta.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Acta;
@@ -168,6 +170,18 @@ public static class ActaServiceCollectionExtensions
         foreach (var worker in builder.Workers)
         {
             services.AddSingleton(sp => WorkerRuntime.Create(sp, worker));
+        }
+
+        // Per-namespace outbox relay resolution: sys.outbox, executing under a namespace, resolves ITS
+        // registration + a source store/service bound to it (schema/table/factory/threshold) from the
+        // declared workers. Registered only when a relay exists, so a non-relay process stays untouched.
+        if (builder.Workers.Any(w => w.Relay is not null))
+        {
+            services.AddSingleton(sp => new OutboxRelayRegistry(
+                builder.Workers,
+                sp.GetRequiredService<IOutboxTarget>(),
+                sp.GetService<ILoggerFactory>()
+            ));
         }
 
         // CLI mode: a process started as `myapp jobs <verb> ...` runs the verb and exits instead of

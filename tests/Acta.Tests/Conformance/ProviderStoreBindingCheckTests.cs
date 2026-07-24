@@ -210,7 +210,7 @@ internal static partial class ProviderStoreBindingCheck
             || (declaring == "Acta.Relational.Resources.SqlResourceCatalog" && method.Name == "Load")
             || (
                 declaring == "Acta.Relational.Connections.IDbSession"
-                && method.Name is "QueryAsync" or "ExecuteAsync" or "ExecuteSingleAsync"
+                && method.Name is "QueryAsync" or "ExecuteAsync" or "ExecuteSingleAsync" or "ExecuteInTransactionAsync"
             )
             || (
                 declaring == "Acta.Relational.Commands.ISqlDialect"

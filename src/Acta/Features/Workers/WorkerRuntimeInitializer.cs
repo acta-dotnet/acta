@@ -128,9 +128,22 @@ internal sealed class WorkerRuntimeInitializer
         // descriptors land under this one worker's namespace.
         var perNamespaceDefIds = new Dictionary<string, int>(StringComparer.Ordinal);
         var manifests = new List<JobDescriptorManifest>();
+
+        // The automatic framework set registers when RegisterFrameworkJobs is on; an explicit relay adds
+        // its sys.outbox/sys.recovery/sys.alerts subset even when that flag is off, without forcing
+        // sys.retention. Both are subsets of the one generated ActaJobs manifest, filtered by name.
+        var frameworkNames = new HashSet<string>(StringComparer.Ordinal);
         if (_options.Value.RegisterFrameworkJobs)
         {
-            manifests.Add(ActaJobs.Descriptors);
+            frameworkNames.UnionWith(FrameworkJobs.AutomaticNames);
+        }
+        if (_workerRegistration.Relay is not null)
+        {
+            frameworkNames.UnionWith(FrameworkJobs.RelayNames);
+        }
+        if (frameworkNames.Count > 0)
+        {
+            manifests.Add(new JobDescriptorManifest([.. ActaJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))]));
         }
         manifests.AddRange(_workerRegistration.Modules.Select(r => r.GetDescriptors()));
 
