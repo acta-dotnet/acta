@@ -1,9 +1,11 @@
+using System.Data.Common;
 using Acta;
 using Acta.Features.Jobs;
 using Acta.Features.Namespaces;
 using Acta.Features.Shared;
 using Acta.Features.Tenants;
 using Acta.Payloads;
+using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,15 +14,15 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Jobs;
 
-/// <summary>Conformance for the enqueue rejection taxonomy: suspended namespace/tenant and unknown tenant map to typed reasons, and unrelated provider errors rethrow untouched.</summary>
+/// <summary>Conformance for the enqueue rejection taxonomy: suspended namespace/tenant, unknown tenant, unknown route, and retired definition map to typed reasons, and unrelated provider errors rethrow untouched.</summary>
 [ConformanceSpec(
     "enqueue-rejection.taxonomy",
-    "Enqueue rejections carry a typed reason for namespace and tenant guards",
+    "Typed enqueue rejection reasons for namespace, tenant, route, and definition",
     Area = "Enqueue",
-    Contract = "The enqueue facade throws EnqueueRejectedException with NamespaceSuspended/TenantSuspended/TenantUnknown reasons, and rethrows other provider errors untouched.",
+    Contract = "Maps suspended namespace/tenant, unknown tenant, unknown route, and retired definition to EnqueueRejectedException reasons, preserving the provider exception.",
     Arrange = "The worker registers the test namespace and a suspended tenant.",
-    Act = "Enqueues are attempted into a suspended namespace, with a suspended tenant, with an unknown tenant, and against an unknown job.",
-    Assert = "Each guarded case throws EnqueueRejectedException with the matching reason, and the unknown-job case throws a non-EnqueueRejectedException provider error."
+    Act = "Enqueues are attempted into a suspended namespace, with a suspended tenant, with an unknown tenant, against an unknown job, and against a retired definition.",
+    Assert = "Each guarded case throws EnqueueRejectedException with the matching reason, including RouteUnknown and DefinitionRetired, and the provider exception as inner."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
@@ -78,11 +80,27 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
         Assert.Equal(EnqueueRejectionReasonCode.NamespaceSuspended, ex.Reason);
     }
 
-    [Fact(DisplayName = "An unknown job rejection rethrows untouched (not EnqueueRejectedException)")]
-    public async Task Unknown_job_rethrows_untouched()
+    [Fact(DisplayName = "An unknown job rejection throws RouteUnknown")]
+    public async Task Unknown_job_throws_route_unknown()
     {
         var ct = TestContext.Current.CancellationToken;
-        var ex = await Assert.ThrowsAnyAsync<Exception>(async () => await Jobs.EnqueueAsync(Request(jobName: "no-such-job"), ct));
-        Assert.IsNotType<EnqueueRejectedException>(ex);
+        var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
+            await Jobs.EnqueueAsync(Request(jobName: "no-such-job"), ct)
+        );
+        Assert.Equal(EnqueueRejectionReasonCode.RouteUnknown, ex.Reason);
+        Assert.IsAssignableFrom<DbException>(ex.InnerException);
+    }
+
+    [Fact(DisplayName = "Enqueue against a retired definition throws DefinitionRetired")]
+    public async Task Retired_definition_throws_definition_retired()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        await Db.From<JobDefinition>()
+            .Where(d => d.NamespaceId == ns && d.Name == "add-numbers")
+            .UpdateOnlyAsync(() => new JobDefinition { Status = JobDefinitionStatusCode.Retired }, ct);
+        var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(), ct));
+        Assert.Equal(EnqueueRejectionReasonCode.DefinitionRetired, ex.Reason);
+        Assert.IsAssignableFrom<DbException>(ex.InnerException);
     }
 }

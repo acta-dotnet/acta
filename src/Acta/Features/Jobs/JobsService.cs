@@ -206,7 +206,35 @@ internal sealed class JobsService(
         return new PagedResult<JobListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
-    public async ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct)
+    // Acta-owned single enqueue: shares the whole pipeline with the caller-transaction twin and, unlike
+    // it, publishes the post-enqueue wakeup.
+    public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct) =>
+        EnqueueOneCoreAsync(request, (row, jobRef, token) => store.EnqueueOneAsync(row, jobRef, token), publishWake: true, ct);
+
+    // Caller-transaction single enqueue: same normalization, size, canonicalization, validation, and
+    // exception translation as the owned path, but inserts through the supplied transaction and never
+    // wakes a worker (Acta cannot know whether or when the caller commits).
+    public ValueTask<JobEnqueueOutcome> EnqueueInTransactionAsync(
+        DbTransaction transaction,
+        JobEnqueueRequest request,
+        CancellationToken ct
+    )
+    {
+        ArgumentNullException.ThrowIfNull(transaction);
+        return EnqueueOneCoreAsync(
+            request,
+            (row, jobRef, token) => store.EnqueueOneInTransactionAsync(transaction, row, jobRef, token),
+            publishWake: false,
+            ct
+        );
+    }
+
+    private async ValueTask<JobEnqueueOutcome> EnqueueOneCoreAsync(
+        JobEnqueueRequest request,
+        Func<JobEnqueueRow, Guid, CancellationToken, Task<IReadOnlyList<EnqueueOutcomeRow>>> execute,
+        bool publishWake,
+        CancellationToken ct
+    )
     {
         request = JobEnqueueRequestValidation.NormalizeAndValidate(request, nameof(request));
         EnsureInlineSize("enqueue input", request.Input);
@@ -218,7 +246,7 @@ internal sealed class JobsService(
         IReadOnlyList<EnqueueOutcomeRow> rows;
         try
         {
-            rows = await store.EnqueueOneAsync(row, jobRef, ct);
+            rows = await execute(row, jobRef, ct);
         }
         catch (DbException ex)
         {
@@ -237,7 +265,7 @@ internal sealed class JobsService(
         }
 
         var outcome = new JobEnqueueOutcome(rows[0].JobId, new JobRef(rows[0].JobRef), rows[0].Action);
-        if (EnqueueWakeReason(request, outcome.Action) is { } reason)
+        if (publishWake && EnqueueWakeReason(request, outcome.Action) is { } reason)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(request.JobNamespace), reason, ct);
         }
@@ -245,8 +273,39 @@ internal sealed class JobsService(
         return outcome;
     }
 
-    public async ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+    // Acta-owned batch enqueue: publishes one wakeup per distinct due namespace.
+    public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(IReadOnlyList<JobEnqueueRequest> requests, CancellationToken ct) =>
+        EnqueueBatchCoreAsync(
+            requests,
+            r => EnqueueAsync(r, ct),
+            (rows, jobRefs, token) => store.EnqueueBatchAsync(rows, jobRefs, token),
+            publishWake: true,
+            ct
+        );
+
+    // Caller-transaction batch enqueue: the whole batch inserts through the supplied transaction and no
+    // wakeup is published.
+    public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchInTransactionAsync(
+        DbTransaction transaction,
         IReadOnlyList<JobEnqueueRequest> requests,
+        CancellationToken ct
+    )
+    {
+        ArgumentNullException.ThrowIfNull(transaction);
+        return EnqueueBatchCoreAsync(
+            requests,
+            r => EnqueueInTransactionAsync(transaction, r, ct),
+            (rows, jobRefs, token) => store.EnqueueBatchInTransactionAsync(transaction, rows, jobRefs, token),
+            publishWake: false,
+            ct
+        );
+    }
+
+    private async ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchCoreAsync(
+        IReadOnlyList<JobEnqueueRequest> requests,
+        Func<JobEnqueueRequest, ValueTask<JobEnqueueOutcome>> executeOne,
+        Func<IReadOnlyList<JobEnqueueRow>, IReadOnlyList<Guid>, CancellationToken, Task<IReadOnlyList<EnqueueOutcomeRow>>> executeBatch,
+        bool publishWake,
         CancellationToken ct
     )
     {
@@ -260,7 +319,7 @@ internal sealed class JobsService(
         // One row dispatches to the scalar path; the outcomes are contractually identical.
         if (requests.Count == 1)
         {
-            return [await EnqueueAsync(requests[0], ct)];
+            return [await executeOne(requests[0])];
         }
 
         if (requests.Count > MaxBatchRows)
@@ -307,7 +366,7 @@ internal sealed class JobsService(
         IReadOnlyList<EnqueueOutcomeRow> outcomeRows;
         try
         {
-            outcomeRows = await store.EnqueueBatchAsync(rows, jobRefs, ct);
+            outcomeRows = await executeBatch(rows, jobRefs, ct);
         }
         catch (DbException ex)
         {
@@ -330,6 +389,11 @@ internal sealed class JobsService(
         foreach (var row in outcomeRows)
         {
             outcomes[row.Ordinal] = new JobEnqueueOutcome(row.JobId, new JobRef(row.JobRef), row.Action);
+        }
+
+        if (!publishWake)
+        {
+            return outcomes;
         }
 
         // One wake per distinct namespace in the batch; a due-now row's WorkAvailable outranks a
@@ -499,6 +563,8 @@ internal sealed class JobsService(
         ("ACTA:ENQ_NS_SUSPENDED:", EnqueueRejectionReasonCode.NamespaceSuspended),
         ("ACTA:ENQ_TENANT_SUSPENDED:", EnqueueRejectionReasonCode.TenantSuspended),
         ("ACTA:ENQ_TENANT_UNKNOWN:", EnqueueRejectionReasonCode.TenantUnknown),
+        ("ACTA:ENQ_ROUTE_UNKNOWN:", EnqueueRejectionReasonCode.RouteUnknown),
+        ("ACTA:ENQ_DEF_RETIRED:", EnqueueRejectionReasonCode.DefinitionRetired),
     ];
 
     private static EnqueueRejectedException? TryTranslateEnqueue(DbException ex)

@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Postgres.Testing;
 /// <see cref="PgIntegrationSchema"/>, catalog queries, and the public
 /// test read factories.
 /// </summary>
-public sealed class PgConformanceFixture : IConformanceFixture
+public sealed partial class PgConformanceFixture : IConformanceFixture
 {
     /// <summary>
     /// The user tables in <paramref name="schemaName"/> via the Postgres information_schema.
@@ -214,5 +214,18 @@ public sealed class PgConformanceFixture : IConformanceFixture
             opts.ConnectionString = sb.ConnectionString;
             opts.Schema = schemaName;
         });
+    }
+
+    public async ValueTask<string> EnsureBusinessProbeTableAsync(
+        System.Data.Common.DbConnection connection,
+        string schemaName,
+        string tableName
+    )
+    {
+        var qualified = $"{schemaName}.{tableName}";
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"CREATE TABLE IF NOT EXISTS {qualified} (marker varchar(128) NOT NULL);";
+        await cmd.ExecuteNonQueryAsync();
+        return qualified;
     }
 }

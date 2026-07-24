@@ -69,6 +69,22 @@ internal interface ISqlDialect
 
     DbConnection CreateConnection(string connectionString);
 
+    /// <summary>
+    /// Whether <paramref name="connection"/> is this provider's concrete ADO.NET connection type. Used
+    /// to reject a caller-owned transaction from a different provider before any command executes. This
+    /// is a structural check, not a database-identity probe.
+    /// </summary>
+    bool OwnsConnection(DbConnection connection);
+
+    /// <summary>
+    /// Prepares a caller-owned connection for a transactional enqueue: installs any connection-local SQL
+    /// functions the provider's enqueue body requires and verifies its non-negotiable invariants. Routine
+    /// providers need nothing (their routines join the caller's transaction as-is), so the default is a
+    /// no-op. SQLite installs its blob/error functions and verifies <c>foreign_keys</c> is enabled without
+    /// altering the caller's busy timeout, synchronous mode, or transaction kind.
+    /// </summary>
+    void PrepareCallerConnection(DbConnection connection) { }
+
     DbParameter CreateParameter(DbParameterSpec spec);
 
     void ConfigureRoutineCommand(DbCommand command, string schema, string routineName);

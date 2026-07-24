@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -71,6 +72,62 @@ internal sealed class JobsApi(
         IReadOnlyList<JobEnqueueRequest> requests,
         CancellationToken ct = default
     ) => jobsService.EnqueueBatchAsync(requests, ct);
+
+    // Transactional twins: build the same wire request as the owned overloads, then insert it through
+    // the caller's transaction with no wakeup (see IJobs). The fluent typed twin is a default interface
+    // method that forwards here after building its options.
+    public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+        DbTransaction transaction,
+        JobEnqueueRequest request,
+        CancellationToken ct = default
+    ) => jobsService.EnqueueInTransactionAsync(transaction, request, ct);
+
+    public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+        DbTransaction transaction,
+        IReadOnlyList<JobEnqueueRequest> requests,
+        CancellationToken ct = default
+    ) => jobsService.EnqueueBatchInTransactionAsync(transaction, requests, ct);
+
+    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        DbTransaction transaction,
+        TInput input,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        return EnqueueAsync(transaction, BuildTypedRequest(input, options), ct);
+    }
+
+    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        DbTransaction transaction,
+        JobContract<TInput> job,
+        TInput input,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        return EnqueueAsync(transaction, BuildContractRequest(job, input, options), ct);
+    }
+
+    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
+        DbTransaction transaction,
+        JobContract<TInput, TResult> job,
+        TInput input,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull => EnqueueAsync(transaction, (JobContract<TInput>)job, input, options, ct);
+
+    public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+        DbTransaction transaction,
+        JobContract<NoInput> job,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    ) => EnqueueAsync(transaction, BuildContractRequest(job, default(NoInput), options), ct);
 
     public async ValueTask<JobOutcome> ExecuteAndWaitAsync<TInput>(
         TInput input,

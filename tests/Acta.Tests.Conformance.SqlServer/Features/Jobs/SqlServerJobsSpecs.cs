@@ -47,4 +47,8 @@ public sealed class SqlServerResolveJobIdByRefSpec : ResolveJobIdByRefSpec<SqlSe
 
 public sealed class SqlServerTenantEnqueueSpec : TenantEnqueueSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerTransactionalEnqueueContractSpec : TransactionalEnqueueContractSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerTransactionalEnqueueSmokeSpec : TransactionalEnqueueSmokeSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerUpdateJobInputSpec : UpdateJobInputSpec<SqlServerConformanceFixture>;

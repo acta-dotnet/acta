@@ -26,11 +26,17 @@ BEGIN
     DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
     DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
 
+    -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
+    -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
+    -- on error rethrow and let the caller roll back the whole transaction.
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+
     -- Server-generate the job ref when the caller omits it (a proc default cannot be NEWID()).
     SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
 
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
 
         SELECT @ns_id = ns.id, @ns_status = ns.status_code, @def_id = jd.id,
                @def_priority = jd.priority_code_effective,
@@ -44,7 +50,7 @@ BEGIN
 
         IF @def_id IS NULL
         BEGIN
-            THROW 50001, 'Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?', 1;
+            THROW 50001, 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?', 1;
         END;
 
         IF @ns_status <> 10 /* JobNamespaceStatusCode.Active */
@@ -54,7 +60,7 @@ BEGIN
 
         IF @def_status <> 10 /* JobDefinitionStatusCode.Active */
         BEGIN
-            THROW 50003, 'Enqueue rejected: the job definition is retired.', 1;
+            THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
         END;
 
         IF @p_tenant_key IS NOT NULL
@@ -144,10 +150,11 @@ BEGIN
               FROM @p_tag_batch t;
         END;
 
-        COMMIT TRANSACTION;
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
         BEGIN
             ROLLBACK TRANSACTION;
         END;

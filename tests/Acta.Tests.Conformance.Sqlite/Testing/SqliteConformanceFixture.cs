@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Sqlite.Testing;
 /// supports the migration story but NOT stored routines (operations run inline) nor multi-node
 /// concurrency. Stateless dispatcher into <see cref="SqliteIntegrationSchema"/>.
 /// </summary>
-public sealed class SqliteConformanceFixture : IConformanceFixture
+public sealed partial class SqliteConformanceFixture : IConformanceFixture
 {
     public async ValueTask<IReadOnlyList<(string Name, bool Nullable)>> ListColumnsAsync(string schemaName, string tableName)
     {
@@ -158,5 +158,18 @@ public sealed class SqliteConformanceFixture : IConformanceFixture
             opts.ConnectionString = SqliteIntegrationSchema.BootstrappedConnectionString;
             opts.Schema = schemaName;
         });
+    }
+
+    // SQLite has no schema container (everything lives in main); the table is unqualified.
+    public async ValueTask<string> EnsureBusinessProbeTableAsync(
+        System.Data.Common.DbConnection connection,
+        string schemaName,
+        string tableName
+    )
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"CREATE TABLE IF NOT EXISTS {tableName} (marker TEXT NOT NULL);";
+        await cmd.ExecuteNonQueryAsync();
+        return tableName;
     }
 }

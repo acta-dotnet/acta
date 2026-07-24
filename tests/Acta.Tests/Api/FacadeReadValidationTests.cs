@@ -91,6 +91,20 @@ public sealed class FacadeReadValidationTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
+        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneInTransactionAsync(
+            System.Data.Common.DbTransaction transaction,
+            JobEnqueueRow row,
+            Guid jobRef,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchInTransactionAsync(
+            System.Data.Common.DbTransaction transaction,
+            IReadOnlyList<JobEnqueueRow> rows,
+            IReadOnlyList<Guid> jobRefs,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
         public Task<CancelJobOutcome> CancelJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
             throw new NotSupportedException();
 

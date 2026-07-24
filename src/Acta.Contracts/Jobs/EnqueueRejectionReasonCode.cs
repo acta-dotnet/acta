@@ -14,4 +14,10 @@ public enum EnqueueRejectionReasonCode : byte
 
     /// <summary>The referenced tenant key does not resolve.</summary>
     TenantUnknown = 3,
+
+    /// <summary>The target namespace/job route does not resolve (the owning worker has not registered it).</summary>
+    RouteUnknown = 4,
+
+    /// <summary>The target job definition is retired and no longer accepts enqueues.</summary>
+    DefinitionRetired = 5,
 }

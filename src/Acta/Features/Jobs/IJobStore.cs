@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta.Features.Jobs;
 
 /// <summary>
@@ -49,6 +51,28 @@ internal interface IJobStore
     /// and outcomes carry the input ordinal.
     /// </summary>
     Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchAsync(
+        IReadOnlyList<JobEnqueueRow> rows,
+        IReadOnlyList<Guid> jobRefs,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// One-row enqueue executed through the caller's already-started <paramref name="transaction"/>
+    /// (its connection is used and left open; Acta neither commits, rolls back, nor retries it).
+    /// </summary>
+    Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneInTransactionAsync(
+        DbTransaction transaction,
+        JobEnqueueRow row,
+        Guid jobRef,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Whole-batch enqueue executed through the caller's already-started <paramref name="transaction"/>;
+    /// jobRefs align positionally with rows and outcomes carry the input ordinal.
+    /// </summary>
+    Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchInTransactionAsync(
+        DbTransaction transaction,
         IReadOnlyList<JobEnqueueRow> rows,
         IReadOnlyList<Guid> jobRefs,
         CancellationToken ct

@@ -8,8 +8,14 @@ BEGIN
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 
+    -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
+    -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
+    -- on error rethrow and let the caller roll back the whole transaction.
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
 
         DECLARE @resolved TABLE (
             ordinal         INT PRIMARY KEY,
@@ -35,7 +41,7 @@ BEGIN
 
         IF (SELECT COUNT(*) FROM @resolved) < (SELECT COUNT(*) FROM @p_batch)
         BEGIN
-            THROW 50001, 'Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?', 1;
+            THROW 50001, 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?', 1;
         END;
 
         IF EXISTS (SELECT 1 FROM @resolved WHERE ns_status <> 10 /* JobNamespaceStatusCode.Active */)
@@ -45,7 +51,7 @@ BEGIN
 
         IF EXISTS (SELECT 1 FROM @resolved WHERE def_status <> 10 /* JobDefinitionStatusCode.Active */)
         BEGIN
-            THROW 50003, 'Enqueue rejected: the job definition is retired.', 1;
+            THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
         END;
 
         IF EXISTS (SELECT 1 FROM @p_batch WHERE tenant_key IS NOT NULL)
@@ -170,10 +176,11 @@ BEGIN
           INNER JOIN @map m     ON m.job_ref = b.job_ref
           INNER JOIN @resolved  r ON r.ordinal = t.ordinal;
 
-        COMMIT TRANSACTION;
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
         BEGIN
             ROLLBACK TRANSACTION;
         END;

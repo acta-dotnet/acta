@@ -1,4 +1,4 @@
-SELECT acta_error('Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?')
+SELECT acta_error('ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?')
 WHERE NOT EXISTS (
     SELECT 1 FROM {{schema}}.namespaces ns
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
@@ -12,7 +12,7 @@ WHERE EXISTS (
       AND ns.status_code <> 10 /* JobNamespaceStatusCode.Active */
 );
 
-SELECT acta_error('Enqueue rejected: the job definition is retired.')
+SELECT acta_error('ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.')
 WHERE EXISTS (
     SELECT 1 FROM {{schema}}.namespaces ns
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
