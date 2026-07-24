@@ -12,6 +12,9 @@ public static class Cron
 {
     // Sub-minute (six-field, seconds-leading)
 
+    /// <summary>Every 5 seconds.</summary>
+    public const string Every5Seconds = "*/5 * * * * *";
+
     /// <summary>Every 15 seconds.</summary>
     public const string Every15Seconds = "*/15 * * * * *";
 

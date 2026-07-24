@@ -9,7 +9,7 @@ public class FrameworkJobPrioritySpec
     {
         var names = ActaJobs.Descriptors.Descriptors.Select(d => d.JobName).OrderBy(static n => n, StringComparer.Ordinal).ToArray();
 
-        Assert.Equal(["sys.alerts", "sys.recovery", "sys.retention"], names);
+        Assert.Equal(["sys.alerts", "sys.outbox", "sys.recovery", "sys.retention"], names);
         Assert.All(
             names,
             static name =>

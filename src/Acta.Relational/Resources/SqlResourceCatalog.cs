@@ -16,15 +16,17 @@ internal sealed class SqlResourceCatalog
 {
     private readonly Assembly _assembly;
     private readonly string _prefix;
-    private readonly string _schema;
+    private readonly string? _schema;
+    private readonly string? _table;
     private readonly HashSet<string> _resources;
     private readonly ConcurrentDictionary<string, string> _rendered = new(StringComparer.Ordinal);
 
-    public SqlResourceCatalog(Assembly assembly, string schema)
+    public SqlResourceCatalog(Assembly assembly, string? schema, string? table = null)
     {
         _assembly = assembly;
         _prefix = assembly.GetName().Name + ".";
         _schema = schema;
+        _table = table;
         _resources = assembly
             .GetManifestResourceNames()
             .Where(n =>
@@ -93,10 +95,21 @@ internal sealed class SqlResourceCatalog
 
                 using var stream = _assembly.GetManifestResourceStream(name)!;
                 using var reader = new StreamReader(stream);
+                // {{table}} and {{table_ref}} are substituted only for the external-outbox source catalog,
+                // whose commands target a producer-owned table whose name is configurable; ledger resources
+                // never use them. {{table_ref}} is the DML table reference: schema-qualified when a schema
+                // override is supplied, otherwise the bare table so the database default schema (the login
+                // default on SQL Server, the search_path first match on PostgreSQL) resolves it.
+                var table = _table ?? "acta_outbox";
+                // The single home of the outbox schema/table concatenation (also validates the identifiers,
+                // already-validated upstream so it never throws here for a ledger catalog).
+                var tableRef = OutboxIdentifier.Qualify(table, _schema);
                 return CodeDecodeSql.RenderDecodeTokens(
                     reader
                         .ReadToEnd()
-                        .Replace("{{schema}}", _schema)
+                        .Replace("{{schema}}", _schema ?? "")
+                        .Replace("{{table_ref}}", tableRef)
+                        .Replace("{{table}}", table)
                         .Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)")
                 );
             }

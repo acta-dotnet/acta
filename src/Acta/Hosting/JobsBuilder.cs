@@ -70,7 +70,7 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
         namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
         ArgumentNullException.ThrowIfNull(configure);
 
-        var builder = new WorkerBuilder();
+        var builder = new WorkerBuilder(Services);
         configure(builder);
 
         if (builder.OwnerTeam is not null && string.IsNullOrWhiteSpace(builder.OwnerTeam))
@@ -88,7 +88,16 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
             );
         }
 
-        _workers.Add(new WorkerRegistration(namespaceName, builder.OwnerTeam, builder.Description, builder.Modules, builder.AlertChannels));
+        _workers.Add(
+            new WorkerRegistration(
+                namespaceName,
+                builder.OwnerTeam,
+                builder.Description,
+                builder.Modules,
+                builder.AlertChannels,
+                builder.Relay
+            )
+        );
         return this;
     }
 

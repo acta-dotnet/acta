@@ -658,17 +658,49 @@
   - `Acta.Features.Jobs.IJobStore.EnqueueBatchAsync`
   - `Acta.Features.Jobs.IJobStore.EnqueueOneAsync`
 
-### Enqueue rejections carry a typed reason for namespace and tenant guards
-- **Contract:** The enqueue facade throws EnqueueRejectedException with NamespaceSuspended/TenantSuspended/TenantUnknown reasons, and rethrows other provider errors untouched.
+### Transactional enqueue commits or rolls back with the business write
+- **Contract:** A caller-transaction enqueue joins the supplied DbTransaction, so a business write and the enqueue persist together on commit and vanish together on rollback.
+- **Arrange:** The test namespace is registered and a one-column business probe table exists in the Acta schema.
+- **Act:** A business row is inserted and a job is enqueued on one caller-owned transaction through the transactional IJobs overloads, then committed or rolled back.
+- **Assert:** After commit both the business row and the job row are durable, and after rollback neither the business row nor the provisional job row exists.
+- **Guarantees:**
+  - Commit persists both the business row and the single transactional enqueue
+  - Rollback discards both the business row and the provisional transactional enqueue
+  - A batch transactional enqueue commits and rolls back atomically with the business insert
+- **Store methods:**
+  - `Acta.Features.Jobs.IJobStore.EnqueueBatchInTransactionAsync`
+  - `Acta.Features.Jobs.IJobStore.EnqueueOneInTransactionAsync`
+
+### Transactional enqueue is provisional, validated, wake-free, and caller-owned
+- **Contract:** Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller.
+- **Arrange:** The test namespace is registered and a one-column business probe table exists in the Acta schema.
+- **Act:** Typed, contract, deduplicated, rejected, and invalid transactional enqueues run against a caller transaction with a recording wakeup seam installed.
+- **Assert:** Each overload persists or vanishes with the caller transaction, invalid transactions throw before executing, and no wakeup is published.
+- **Guarantees:**
+  - Typed and explicit-contract transactional overloads persist and vanish with the caller transaction
+  - A deduplicated transactional outcome is provisional so rollback leaves no durable row
+  - A null transaction throws ArgumentNullException before any work
+  - A detached transaction is rejected with the shared committed-rolled-back-or-disposed message and a disposed one also fails
+  - A transaction bound to a foreign provider connection is rejected as a provider mismatch
+  - A transaction on a closed connection of the right provider is rejected as not open
+  - An enqueue rejection inside the caller transaction requires full caller rollback and persists nothing
+  - A transactional enqueue publishes no wakeup while the owned path publishes one
+- **Store methods:**
+  - `Acta.Features.Jobs.IJobStore.EnqueueBatchInTransactionAsync`
+  - `Acta.Features.Jobs.IJobStore.EnqueueOneInTransactionAsync`
+
+### Typed enqueue rejection reasons for namespace, tenant, route, and definition
+- **Contract:** Maps suspended namespace/tenant, unknown tenant, unknown route, and retired definition to EnqueueRejectedException reasons, preserving the provider exception.
 - **Arrange:** The worker registers the test namespace and a suspended tenant.
-- **Act:** Enqueues are attempted into a suspended namespace, with a suspended tenant, with an unknown tenant, and against an unknown job.
-- **Assert:** Each guarded case throws EnqueueRejectedException with the matching reason, and the unknown-job case throws a non-EnqueueRejectedException provider error.
+- **Act:** Enqueues are attempted into a suspended namespace, with a suspended tenant, with an unknown tenant, against an unknown job, and against a retired definition.
+- **Assert:** Each guarded case throws EnqueueRejectedException with the matching reason, including RouteUnknown and DefinitionRetired, and the provider exception as inner.
 - **Guarantees:**
   - Enqueue into a suspended namespace throws NamespaceSuspended
   - Enqueue with a suspended tenant throws TenantSuspended
   - Enqueue with an unknown tenant throws TenantUnknown
   - A batch into a suspended namespace throws NamespaceSuspended
-  - An unknown job rejection rethrows untouched (not EnqueueRejectedException)
+  - An unknown job rejection throws RouteUnknown
+  - Enqueue against a retired definition throws DefinitionRetired
 - **Store methods:**
   - `Acta.Features.Jobs.IJobStore.EnqueueBatchAsync`
   - `Acta.Features.Jobs.IJobStore.EnqueueOneAsync`
@@ -1004,6 +1036,145 @@
   - Live token release returns true and deletes the lease row, a stale token returns false, and the freed key is re-acquirable
 - **Store methods:**
   - `Acta.Services.Locks.ILockStore.ReleaseAsync`
+
+## Outbox
+
+### A claim recovers an expired lease and reclaims it, leaving a live lease alone
+- **Contract:** ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease.
+- **Arrange:** A source row is Claimed with an expired lease, and another is Claimed with a live lease.
+- **Act:** ClaimDue runs with a fresh token.
+- **Assert:** The expired row is reclaimed under the new token while the live-lease row keeps its owner and token.
+- **Guarantees:**
+  - An expired lease is recovered and reclaimed under the new token
+  - A live lease is not stolen by a competing claim
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.ClaimDueAsync`
+
+### Claim takes a bounded urgent-first batch under one token, no double claim
+- **Contract:** ClaimDue claims a bounded urgent-first batch of due Pending rows, stamps one token and a database-clock lease, and claims no row twice.
+- **Arrange:** A source outbox table holds several due Pending rows of differing priority plus a future row.
+- **Act:** ClaimDue runs with a batch smaller than the due set, then again with a fresh token.
+- **Assert:** The urgent rows are claimed first, each claimed row is disjoint and leased, and the future row stays Pending.
+- **Guarantees:**
+  - Claim prefers higher priority and leaves the rest Pending
+  - At equal priority the older row claims first
+  - Two claims split the backlog disjointly and never double claim a row
+  - Two simultaneous claimers split the backlog with no overlap
+  - A row whose next attempt is in the future is not claimed
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.ClaimDueAsync`
+
+### Generated outbox DDL yields a working relay source table
+- **Contract:** The DDL API emits a canonical outbox table the real relay store can claim, reschedule, quarantine, and delete against, proving the shape by behavior.
+- **Arrange:** The provider DDL CreateScript output is applied to the test database to create the canonical outbox table.
+- **Act:** The relay store claims a seeded row and finalizes seeded rows by delete, reschedule, and quarantine.
+- **Assert:** The claimed row deletes, the rescheduled row returns to pending with an incremented failure count, and the quarantined row moves to status ninety.
+- **Guarantees:**
+  - The generated canonical table supports claim, delete, reschedule, and quarantine
+
+### Delete removes a claimed row only under its token, a stale token no-ops
+- **Contract:** DeleteClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing.
+- **Arrange:** A source row is claimed under one token.
+- **Act:** DeleteClaimed runs first with a stale token, then with the owning token.
+- **Assert:** The stale delete leaves the claimed row intact and the owning delete removes it.
+- **Guarantees:**
+  - A stale token deletes nothing and the owning token deletes the row
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.DeleteClaimedAsync`
+
+### Quarantine retains a claimed row at status 90 and excludes it from claims
+- **Contract:** Quarantine retains a claimed row at status 90 with its error and clears the claim pair, only under its token, excluding it from claims.
+- **Arrange:** A source row is claimed under one token.
+- **Act:** Quarantine runs first with a stale token, then with the owning token.
+- **Assert:** The stale quarantine is a no-op and the owning quarantine retains the row at status 90 and it is never reclaimed.
+- **Guarantees:**
+  - A stale token no-ops and the owning token quarantines and retains the row
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.QuarantineAsync`
+
+### Release returns a claimed row to Pending, attempt unchanged, reclaimable
+- **Contract:** Release returns a claimed row to Pending with its next attempt unchanged so it is immediately reclaimable, only under its token.
+- **Arrange:** A due source row is claimed under one token.
+- **Act:** Release runs first with a stale token, then with the owning token, and a fresh claim follows.
+- **Assert:** The stale release is a no-op and the owning release makes the row Pending and immediately reclaimable.
+- **Guarantees:**
+  - A stale token no-ops and the owning token releases the row for immediate reclaim
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.ReleaseClaimedAsync`
+
+### Reschedule returns a claimed row to Pending with backoff, only under its token
+- **Contract:** Reschedule returns a claimed row to Pending with a bumped failure count, a future attempt, and the error, only under its token.
+- **Arrange:** A source row is claimed under one token.
+- **Act:** Reschedule runs first with a stale token, then with the owning token and a backoff duration.
+- **Assert:** The stale reschedule is a no-op and the owning reschedule makes the row Pending, unclaimed, and due only after source_db_now plus the backoff.
+- **Guarantees:**
+  - A stale token no-ops and the owning token reschedules with backoff
+  - An error longer than 512 characters is truncated to 512 on the reschedule write
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.RescheduleAsync`
+
+### The source store round-trips with no Acta ledger configured
+- **Contract:** The external-outbox source store claims and deletes purely against its source database, needing no Acta ledger IJobs or session.
+- **Arrange:** A source outbox table holds a due row and the container has no Acta ledger registered.
+- **Act:** The source store claims the row and deletes it under the claim token.
+- **Assert:** No ledger IJobs is resolvable, the claim succeeds, and the deleted row leaves the source table empty.
+- **Guarantees:**
+  - The source store round-trips with no ledger IJobs configured
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.ClaimDueAsync`
+  - `Acta.Features.Outbox.IOutboxRelayStore.DeleteClaimedAsync`
+
+### Provider outbox staging commits or rolls back with the business write
+- **Contract:** The staging extension writes one canonical outbox row on the caller transaction, so it commits or rolls back with the business write and is then claimable.
+- **Arrange:** A per-test outbox table exists and a request carries a payload, correlation key, priority, and tags.
+- **Act:** A business row and the staged outbox row are written on one caller transaction, then committed or rolled back.
+- **Assert:** On commit both rows persist and the staged row claims once with failure count zero and reconstructs the request, on rollback neither row exists.
+- **Guarantees:**
+  - A committed stage persists the business row and a claimable, reconstructable outbox row
+  - A rolled-back stage discards both the business row and the outbox row
+
+### AddOutboxRelay dispatches sys.outbox and a broken source fails only it
+- **Contract:** A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick.
+- **Arrange:** A worker registers the relay against a source table that does not exist, with automatic framework jobs off.
+- **Act:** The runtime initializes, an ordinary job runs, and the due sys.outbox slot is dispatched.
+- **Assert:** sys.outbox is registered without the automatic jobs, its tick fails on the broken source, and other jobs still complete.
+- **Guarantees:**
+  - The relay registers sys.outbox (and sys.recovery) but not the automatic-only sys.retention
+  - A broken source fails only the sys.outbox tick while ordinary jobs still complete
+
+### Relay crash windows never lose a row or duplicate a target job
+- **Contract:** A relay tick that fails before target enqueue reclaims the row, and one that fails after enqueue still yields exactly one target job.
+- **Arrange:** A live ledger with the echo route and a live source table hold one or more due producer rows.
+- **Act:** The relay ticks with a failure injected before the target enqueue, after the source finalize, or not at all.
+- **Assert:** Each row is delivered exactly once, duplicates coalesce, all source rows delete, and a deleted row is never recreated.
+- **Guarantees:**
+  - A failure before target enqueue releases the claim and a later tick delivers the row exactly once
+  - A finalize failure after the target commit still leaves exactly one target job and cleans the source on retry
+  - A retry after the source row is deleted never recreates it
+  - Duplicate source rows for one key coalesce to a single target job and all delete
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.ClaimDueAsync`
+  - `Acta.Features.Outbox.IOutboxRelayStore.DeleteClaimedAsync`
+  - `Acta.Features.Outbox.IOutboxRelayStore.ReleaseClaimedAsync`
+
+### Threshold and contract failures quarantine with one bounded summary
+- **Contract:** The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately.
+- **Arrange:** A live source table holds a row toward an unregistered route, or rows carrying malformed meta, an oversized payload, or an unsupported format id.
+- **Act:** The relay ticks five times against the unresolved route, or once with rows the reconstruction rejects before the target.
+- **Assert:** Every offending row is quarantined and the tick raises exactly one summarized failure covering all of them.
+- **Guarantees:**
+  - The fifth routing rejection quarantines the row and raises one summarized failure, earlier ticks staying quiet
+  - Malformed meta, an oversized payload, and an unsupported format id quarantine immediately without touching the target
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.QuarantineAsync`
+
+### An unknown route reschedules quietly and delivers after the route is registered
+- **Contract:** A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered.
+- **Arrange:** A live source table holds one due row targeting a namespace and job not yet registered in the ledger.
+- **Act:** The relay ticks before the route exists, a worker then registers it, the row is rewound to due, and the relay ticks again.
+- **Assert:** The first tick throws nothing and leaves the row Pending with failure_count 1 and a future attempt, and the second tick delivers exactly one target job.
+- **Guarantees:**
+  - A row toward an unregistered route reschedules quietly, then delivers exactly once after the route is registered
 
 ## Payloads
 
@@ -1925,8 +2096,10 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IJobStore.CancelJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
-| `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejections carry a typed reason for namespace and tenant guards<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
-| `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejections carry a typed reason for namespace and tenant guards<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
+| `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
+| `IJobStore.EnqueueBatchInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
+| `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
+| `IJobStore.EnqueueOneInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
 | `IJobStore.GetJobAsync` | GetJob returns the snapshot for a known id and null for an unknown id |
 | `IJobStore.GetJobCheckpointsAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
 | `IJobStore.GetJobExplanationAsync` | Explain reports live Suspended and Done states through the facade<br>GetJobExplanation returns explain sets for a known id and null otherwise |
@@ -1950,6 +2123,11 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `INamespaceStore.ResumeNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
 | `INamespaceStore.SuspendNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
 | `INamespaceStore.UpdateNamespaceMetadataAsync` | Namespace metadata update writes owner_team/description under a version CAS |
+| `IOutboxRelayStore.ClaimDueAsync` | A claim recovers an expired lease and reclaims it, leaving a live lease alone<br>Claim takes a bounded urgent-first batch under one token, no double claim<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
+| `IOutboxRelayStore.DeleteClaimedAsync` | Delete removes a claimed row only under its token, a stale token no-ops<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
+| `IOutboxRelayStore.QuarantineAsync` | Quarantine retains a claimed row at status 90 and excludes it from claims<br>Threshold and contract failures quarantine with one bounded summary |
+| `IOutboxRelayStore.ReleaseClaimedAsync` | Relay crash windows never lose a row or duplicate a target job<br>Release returns a claimed row to Pending, attempt unchanged, reclaimable |
+| `IOutboxRelayStore.RescheduleAsync` | Reschedule returns a claimed row to Pending with backoff, only under its token |
 | `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |
 | `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Purge reaps expired jobs events alerts and dead workers within batches |
 | `IScheduleStore.GetLiveSchedulesAsync` | A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator manually fires a schedule now without disturbing its cadence<br>Operator pause and resume control a schedule and recompute the owning slot<br>Operator sets a CAS-guarded full-set schedule expression/time-zone override |
@@ -2041,6 +2219,11 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Namespaces/ResumeNamespace` | yes | yes | yes |
 | `Namespaces/SuspendNamespace` | yes | yes | yes |
 | `Namespaces/UpdateNamespaceMetadata` | yes | yes | yes |
+| `Outbox/ClaimDueRows` | yes | yes | yes |
+| `Outbox/DeleteClaimedRow` | yes | yes | yes |
+| `Outbox/QuarantineRow` | yes | yes | yes |
+| `Outbox/ReleaseClaimedRow` | yes | yes | yes |
+| `Outbox/RescheduleRow` | yes | yes | yes |
 | `Overview/GetOverview` | yes | yes | yes |
 | `Retention/PurgeExpiredData` | yes | yes | yes |
 | `Schedules/GetLiveSchedules` | yes | yes | yes |

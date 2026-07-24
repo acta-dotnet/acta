@@ -1,5 +1,6 @@
 using Acta.Features.Alerts;
 using Acta.Features.Definitions;
+using Acta.Features.Outbox;
 
 namespace Acta.Features.Workers;
 
@@ -22,5 +23,6 @@ internal sealed record WorkerRegistration(
     string? OwnerTeam,
     string? Description,
     IReadOnlyList<ModuleRegistration> Modules,
-    IReadOnlyList<AlertChannelDeclaration> AlertChannels
+    IReadOnlyList<AlertChannelDeclaration> AlertChannels,
+    OutboxRelayRegistration? Relay = null
 );

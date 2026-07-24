@@ -27,6 +27,11 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Acta.Tests" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance" />
+    <!-- The provider conformance heads build the internal outbox source store through the provider
+         factory, so they must see the internal IOutboxRelayStore return type. -->
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
     <InternalsVisibleTo Include="Acta.Postgres" />
     <InternalsVisibleTo Include="Acta.SqlServer" />
     <InternalsVisibleTo Include="Acta.Sqlite" />

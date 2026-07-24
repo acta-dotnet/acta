@@ -12,6 +12,7 @@ namespace Acta.Tests.Conformance;
 /// </summary>
 public sealed class StoreContractCoverageTests
 {
+    // Every store method is covered by a live conformance spec; there is no allowlist backlog.
     private static readonly HashSet<string> NotYetCovered = new(StringComparer.Ordinal);
 
     private static readonly Regex StoreInterfaceName = new(@"^I\w+Store$", RegexOptions.Compiled);
