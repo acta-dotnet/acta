@@ -248,6 +248,51 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
+        public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+            System.Data.Common.DbTransaction transaction,
+            JobEnqueueRequest request,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+            System.Data.Common.DbTransaction transaction,
+            TInput input,
+            JobEnqueueOptions? options = null,
+            CancellationToken ct = default
+        )
+            where TInput : notnull => throw new NotSupportedException();
+
+        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+            System.Data.Common.DbTransaction transaction,
+            JobContract<TInput> job,
+            TInput input,
+            JobEnqueueOptions? options = null,
+            CancellationToken ct = default
+        )
+            where TInput : notnull => throw new NotSupportedException();
+
+        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
+            System.Data.Common.DbTransaction transaction,
+            JobContract<TInput, TResult> job,
+            TInput input,
+            JobEnqueueOptions? options = null,
+            CancellationToken ct = default
+        )
+            where TInput : notnull => throw new NotSupportedException();
+
+        public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+            System.Data.Common.DbTransaction transaction,
+            JobContract<NoInput> job,
+            JobEnqueueOptions? options = null,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+            System.Data.Common.DbTransaction transaction,
+            IReadOnlyList<JobEnqueueRequest> requests,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
         public ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct = default) => throw new NotSupportedException();
 
         public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default) =>

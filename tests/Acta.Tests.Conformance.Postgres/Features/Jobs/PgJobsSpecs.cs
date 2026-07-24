@@ -47,4 +47,8 @@ public sealed class PgResolveJobIdByRefSpec : ResolveJobIdByRefSpec<PgConformanc
 
 public sealed class PgTenantEnqueueSpec : TenantEnqueueSpec<PgConformanceFixture>;
 
+public sealed class PgTransactionalEnqueueContractSpec : TransactionalEnqueueContractSpec<PgConformanceFixture>;
+
+public sealed class PgTransactionalEnqueueSmokeSpec : TransactionalEnqueueSmokeSpec<PgConformanceFixture>;
+
 public sealed class PgUpdateJobInputSpec : UpdateJobInputSpec<PgConformanceFixture>;

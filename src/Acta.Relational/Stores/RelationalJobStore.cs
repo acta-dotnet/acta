@@ -249,6 +249,36 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             ct
         );
 
+    // Transactional twins reuse the same StoreCommand, dialect binders, and outcome projection as the
+    // owned path; only the execute seam differs (the caller's transaction, no wake, no retry).
+    public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneInTransactionAsync(
+        DbTransaction transaction,
+        JobEnqueueRow row,
+        Guid jobRef,
+        CancellationToken ct
+    ) =>
+        session.ExecuteInTransactionAsync(
+            transaction,
+            new StoreCommand("Jobs", "EnqueueOne"),
+            cmd => dialect.BindEnqueueOne(cmd, row, jobRef, session.Schema),
+            DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
+            ct
+        );
+
+    public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchInTransactionAsync(
+        DbTransaction transaction,
+        IReadOnlyList<JobEnqueueRow> rows,
+        IReadOnlyList<Guid> jobRefs,
+        CancellationToken ct
+    ) =>
+        session.ExecuteInTransactionAsync(
+            transaction,
+            new StoreCommand("Jobs", "EnqueueBatch"),
+            cmd => dialect.BindEnqueueBatch(cmd, rows, jobRefs, session.Schema),
+            DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
+            ct
+        );
+
     public async Task<CancelJobOutcome> CancelJobAsync(long jobId, JobControlInput input, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(

@@ -40,7 +40,7 @@ BEGIN
              AND jd.name = b.job_name;
 
     IF batch_count IS DISTINCT FROM resolved_count THEN
-        RAISE EXCEPTION 'Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
+        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -64,7 +64,7 @@ BEGIN
           INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
          WHERE jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
     ) THEN
-        RAISE EXCEPTION 'Enqueue rejected: the job definition is retired.'
+        RAISE EXCEPTION 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.'
             USING ERRCODE = 'P0001';
     END IF;
 

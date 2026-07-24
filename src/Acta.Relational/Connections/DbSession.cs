@@ -40,6 +40,22 @@ internal sealed class DbSession : IDbSession
 
     public async Task<DbConnection> OpenConnectionAsync(CancellationToken ct)
     {
+        // Acta-owned connections never enlist in an ambient System.Transactions scope: the driver defaults
+        // (Enlist=true) would silently give an owned enqueue the transactional contract, and a second
+        // connection in the scope forces distributed-transaction escalation the providers cannot honor.
+        // The explicit paths (ExecuteInTransactionAsync, the staging extensions) supply their transaction
+        // directly and never reach here, so only owned opens are rejected.
+        if (System.Transactions.Transaction.Current is not null)
+        {
+            throw new InvalidOperationException(
+                "An ambient System.Transactions.TransactionScope is active, and Acta-owned connections never "
+                    + "enlist in one. Rewrite to one of: pass the open transaction to the transactional IJobs "
+                    + "enqueue overload for an atomic commit in the same database; stage through the provider "
+                    + "outbox primitive (AddToActaOutboxAsync) for a different database; or wrap this call in a "
+                    + "TransactionScope(TransactionScopeOption.Suppress) for a deliberate independent Acta commit."
+            );
+        }
+
         var connection = _dialect.CreateConnection(_connectionString);
         try
         {
@@ -144,6 +160,52 @@ internal sealed class DbSession : IDbSession
             ct
         );
 
+    // Caller-transaction execute: joins the supplied transaction rather than owning one. No connection
+    // open/dispose, no BeginWriteTransaction, no commit/rollback, and no DeadlockRetry - Acta never
+    // retries inside the caller's transaction; any failure requires the caller to roll it back.
+    public Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
+        DbTransaction transaction,
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    )
+    {
+        var connection = ValidateCallerTransaction(transaction);
+        _dialect.PrepareCallerConnection(connection);
+        // Single attempt (Acta never retries inside the caller's transaction) but through the same
+        // IsCancellation funnel the owned paths use: a token-cancelled provider command (SqlClient surfaces
+        // it as SqlException 3980/0, not OperationCanceledException) is translated here too.
+        return DeadlockRetry.RunAsync(
+            async token =>
+            {
+                await using var cmd = CreateBoundWriteCommand(connection, transaction, command, bind);
+                return await ReadPrimaryRowsAsync(cmd, mapRow, token);
+            },
+            static _ => false,
+            maxAttempts: 1,
+            ct,
+            _dialect.IsCancellation
+        );
+    }
+
+    // Structural validation only (no database-identity probe): the transaction must be attached to an
+    // open connection of this provider's concrete ADO.NET type. Fails before any command executes.
+    private DbConnection ValidateCallerTransaction(DbTransaction transaction)
+    {
+        var connection = CallerTransaction.RequireOpenConnection(transaction);
+        if (!_dialect.OwnsConnection(connection))
+        {
+            throw new ArgumentException(
+                $"The supplied transaction is bound to a '{connection.GetType().Name}', which is not the {Provider} provider this "
+                    + "Acta client is configured for.",
+                nameof(transaction)
+            );
+        }
+
+        return connection;
+    }
+
     public Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) =>
         Run<object?>(
             async token =>
@@ -172,6 +234,10 @@ internal sealed class DbSession : IDbSession
     {
         var cmd = conn.CreateCommand();
         cmd.CommandTimeout = _commandTimeoutSeconds;
+        // Join whatever transaction the caller passes. On the owned path this is the inline write
+        // transaction (SQLite) or null (routine providers, already single-CALL atomic); on the
+        // caller-transaction path it is the supplied transaction for every provider.
+        cmd.Transaction = tx;
         if (_dialect.SupportsRoutines)
         {
             bind(cmd);
@@ -179,7 +245,6 @@ internal sealed class DbSession : IDbSession
         }
         else
         {
-            cmd.Transaction = tx;
             cmd.CommandText = _sql.Load(command.SqlPath);
             bind(cmd);
         }

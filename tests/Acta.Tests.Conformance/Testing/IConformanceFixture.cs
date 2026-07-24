@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta.Tests.Conformance.Testing;
 
 public readonly record struct DbIndexInfo(string Name, bool IsUnique, IReadOnlyList<string> Columns);
@@ -60,4 +62,61 @@ public interface IConformanceFixture
     /// <c>Testing/</c> bases that own DI construction directly (no fixture-built session factory).
     /// </summary>
     void ApplyProvider(Acta.IJobsBuilder builder, string schemaName);
+
+    /// <summary>
+    /// Ensure a one-column (<c>marker</c>) business probe table named <paramref name="tableName"/> exists
+    /// in the Acta schema, using provider-specific idempotent DDL executed on <paramref name="connection"/>
+    /// (auto-commit, before the caller's transaction begins), and return the table's provider-qualified
+    /// name for the spec's INSERT/SELECT. Lets the transactional-enqueue specs prove that a business insert
+    /// and an Acta enqueue commit or roll back on one caller-owned transaction.
+    /// </summary>
+    ValueTask<string> EnsureBusinessProbeTableAsync(DbConnection connection, string schemaName, string tableName);
+
+    /// <summary>
+    /// Create the external-outbox source table named <paramref name="table"/> in the test schema by
+    /// executing the provider's <c>{Provider}OutboxDdl.CreateScript</c> output against the test database
+    /// (replacing any prior table of that name), so the DDL API is single-sourced and every relay-store
+    /// spec is proof the generated shape works. Per-test table names keep parallel specs from claiming
+    /// each other's rows; the DDL derives constraint/index names from the table so they stay unique.
+    /// </summary>
+    ValueTask ApplyOutboxDdlAsync(string table);
+
+    /// <summary>
+    /// Open a native provider connection and transaction, insert one business probe row and stage
+    /// <paramref name="request"/> through the provider's <c>AddToActaOutboxAsync</c> extension on that
+    /// transaction, then commit or roll back the single transaction. Returns the business-row and
+    /// outbox-row counts observed afterward on a fresh connection, so a spec can prove the two writes
+    /// share one commit boundary.
+    /// </summary>
+    ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
+        string outboxTable,
+        Acta.JobEnqueueRequest request,
+        bool commit
+    );
+
+    /// <summary>
+    /// Build the provider's external-outbox source store (an internal <c>IOutboxRelayStore</c>, returned
+    /// as <see cref="object"/> so the public fixture surface does not leak the internal port) over
+    /// <paramref name="table"/>.
+    /// </summary>
+    object CreateOutboxStore(string table);
+
+    /// <summary>Insert one producer row into <paramref name="table"/> with the seeded column values.</summary>
+    ValueTask SeedOutboxRowAsync(string table, OutboxSeed seed);
+
+    /// <summary>Read one row's relay-visible state back from <paramref name="table"/>.</summary>
+    ValueTask<OutboxRowState> ReadOutboxRowAsync(string table, Guid outboxId);
+
+    /// <summary>Count the rows present in <paramref name="table"/>.</summary>
+    ValueTask<int> CountOutboxAsync(string table);
+
+    /// <summary>Rewind every Pending row's next attempt into the past so the next claim finds it due.</summary>
+    ValueTask RewindOutboxAsync(string table);
+
+    /// <summary>
+    /// Wire this provider's outbox-relay source (<c>source.UseSqlite/UsePostgres/UseSqlServer</c>) at the
+    /// fixture's own connection and schema onto <paramref name="source"/>, so a wired <c>sys.outbox</c>
+    /// spec can point the relay at a table in the shared test database. The spec sets the source table.
+    /// </summary>
+    void ApplyOutboxSource(Acta.IOutboxSourceBuilder source);
 }

@@ -43,7 +43,7 @@ BEGIN
      WHERE ns.name = p_namespace_name;
 
     IF v_def_id IS NULL THEN
-        RAISE EXCEPTION 'Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
+        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -53,7 +53,7 @@ BEGIN
     END IF;
 
     IF v_def_status <> 10 /* JobDefinitionStatusCode.Active */ THEN
-        RAISE EXCEPTION 'Enqueue rejected: the job definition is retired.'
+        RAISE EXCEPTION 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.'
             USING ERRCODE = 'P0001';
     END IF;
 

@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>
@@ -122,6 +124,101 @@ public interface IJobs
     /// <see cref="JobEnqueueAction"/>.
     /// </summary>
     ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+        IReadOnlyList<JobEnqueueRequest> requests,
+        CancellationToken ct = default
+    );
+
+    // ---- Transactional enqueue ----
+    // Each fire-and-forget enqueue shape has a twin that takes the caller's already-started
+    // <see cref="DbTransaction"/> as its first argument and inserts the job through that transaction, so
+    // a same-database business mutation and the enqueue share one commit outcome. The caller owns the
+    // transaction lifecycle; Acta never opens, commits, rolls back, disposes, or independently retries
+    // it. Unlike the Acta-owned path these publish NO worker wakeup: normal polling is the pickup path,
+    // since Acta cannot know whether or when the caller commits. The returned <see cref="JobEnqueueOutcome"/>
+    // (its <c>JobId</c>/<c>JobRef</c>) is provisional until the caller commits; a rollback means that
+    // identity never became durable. Any transactional-enqueue exception requires the caller to roll back
+    // the complete business transaction. There is deliberately no transactional <c>ExecuteAndWaitAsync</c>:
+    // the job is invisible to other connections until commit, so waiting inside would be misleading.
+
+    /// <summary>
+    /// Transactional twin of <see cref="EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>: inserts
+    /// the job through <paramref name="transaction"/> and publishes no wakeup.
+    /// </summary>
+    ValueTask<JobEnqueueOutcome> EnqueueAsync(DbTransaction transaction, JobEnqueueRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Transactional twin of <see cref="EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/>.
+    /// </summary>
+    ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        DbTransaction transaction,
+        TInput input,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull;
+
+    /// <summary>
+    /// Transactional twin of the fluent typed enqueue; the default implementation builds the options and
+    /// forwards to the transactional typed overload.
+    /// </summary>
+    ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        DbTransaction transaction,
+        TInput input,
+        Action<JobEnqueueOptionsBuilder> configure,
+        CancellationToken ct = default
+    )
+        where TInput : notnull
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var builder = new JobEnqueueOptionsBuilder();
+        configure(builder);
+        return EnqueueAsync(transaction, input, builder.Build(), ct);
+    }
+
+    /// <summary>
+    /// Transactional twin of the input-contract enqueue
+    /// (<see cref="EnqueueAsync{TInput}(JobContract{TInput}, TInput, JobEnqueueOptions, CancellationToken)"/>).
+    /// </summary>
+    ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        DbTransaction transaction,
+        JobContract<TInput> job,
+        TInput input,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull;
+
+    /// <summary>
+    /// Transactional twin of the result-bearing contract enqueue used fire-and-forget
+    /// (<see cref="EnqueueAsync{TInput, TResult}(JobContract{TInput, TResult}, TInput, JobEnqueueOptions, CancellationToken)"/>).
+    /// </summary>
+    ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
+        DbTransaction transaction,
+        JobContract<TInput, TResult> job,
+        TInput input,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull;
+
+    /// <summary>
+    /// Transactional twin of the no-input contract enqueue
+    /// (<see cref="EnqueueAsync(JobContract{NoInput}, JobEnqueueOptions, CancellationToken)"/>).
+    /// </summary>
+    ValueTask<JobEnqueueOutcome> EnqueueAsync(
+        DbTransaction transaction,
+        JobContract<NoInput> job,
+        JobEnqueueOptions? options = null,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Transactional twin of <see cref="EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>:
+    /// the whole batch inserts through <paramref name="transaction"/> atomically and publishes no wakeup.
+    /// </summary>
+    ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+        DbTransaction transaction,
         IReadOnlyList<JobEnqueueRequest> requests,
         CancellationToken ct = default
     );

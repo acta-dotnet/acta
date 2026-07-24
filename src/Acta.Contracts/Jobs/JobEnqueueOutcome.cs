@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Per-row outcome from <see cref="IJobs.EnqueueBatchAsync"/>. Positionally aligned with the
+/// Per-row outcome from <see cref="IJobs.EnqueueBatchAsync(System.Collections.Generic.IReadOnlyList{JobEnqueueRequest}, System.Threading.CancellationToken)"/>. Positionally aligned with the
 /// caller's request list: <c>outcomes[i]</c> corresponds to <c>requests[i]</c>. Carries the
 /// internal <see cref="JobId"/> and the public <see cref="JobRef"/>; callers read
 /// <see cref="Action"/> to distinguish a fresh insert from a <see cref="JobEnqueueRequest.DeduplicationKey"/>-based dedup match.

@@ -32,6 +32,8 @@ internal sealed class PostgresDialect : ISqlDialect
 
     public DbConnection CreateConnection(string connectionString) => new NpgsqlConnection(connectionString);
 
+    public bool OwnsConnection(DbConnection connection) => connection is NpgsqlConnection;
+
     public DbParameter CreateParameter(DbParameterSpec spec)
     {
         DbParams.Validate(spec);

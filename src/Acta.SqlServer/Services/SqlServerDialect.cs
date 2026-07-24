@@ -40,6 +40,8 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public DbConnection CreateConnection(string connectionString) => new SqlConnection(connectionString);
 
+    public bool OwnsConnection(DbConnection connection) => connection is SqlConnection;
+
     public DbParameter CreateParameter(DbParameterSpec spec)
     {
         DbParams.Validate(spec);

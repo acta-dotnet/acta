@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using Acta.Configuration;
 using Acta.Features.Definitions;
 using Acta.Features.Execution;
@@ -59,6 +60,41 @@ internal sealed class SqliteDialect : ISqlDialect
         return connection;
     }
 
+    public bool OwnsConnection(DbConnection connection) => connection is SqliteConnection;
+
+    // Caller connections we have already prepared, so repeat transactional enqueues on one long-lived
+    // connection skip re-registering the functions and the foreign_keys PRAGMA round trip. Keyed weakly so
+    // a collected caller connection drops out; Microsoft.Data.Sqlite re-applies CreateFunction on reopen,
+    // so a prepared connection stays valid across the caller's own close/reopen.
+    private static readonly ConditionalWeakTable<DbConnection, object> PreparedCallerConnections = new();
+
+    // Caller-transaction preparation: the caller made this SqliteConnection itself, so our StateChange
+    // hook never ran. Install only the two connection-local functions the inline enqueue SQL needs and
+    // verify foreign_keys is ON; never touch the busy timeout, synchronous mode, or transaction kind.
+    public void PrepareCallerConnection(DbConnection connection)
+    {
+        if (PreparedCallerConnections.TryGetValue(connection, out _))
+        {
+            return;
+        }
+
+        var sqlite = (SqliteConnection)connection;
+        InstallFunctions(sqlite);
+
+        using var pragma = sqlite.CreateCommand();
+        pragma.CommandText = "PRAGMA foreign_keys;";
+        var enabled = Convert.ToInt64(pragma.ExecuteScalar(), CultureInfo.InvariantCulture) != 0;
+        if (!enabled)
+        {
+            throw new InvalidOperationException(
+                "The caller-owned SQLite connection has foreign_keys disabled; Acta's enqueue relies on foreign-key enforcement. "
+                    + "Open the connection with 'PRAGMA foreign_keys = ON' before starting the transaction."
+            );
+        }
+
+        PreparedCallerConnections.AddOrUpdate(connection, connection);
+    }
+
     private void OnStateChange(object? sender, StateChangeEventArgs e)
     {
         if (e.CurrentState != ConnectionState.Open || sender is not SqliteConnection connection)
@@ -66,6 +102,15 @@ internal sealed class SqliteDialect : ISqlDialect
             return;
         }
 
+        InstallFunctions(connection);
+
+        using var pragma = connection.CreateCommand();
+        pragma.CommandText = _connectionPragmas;
+        pragma.ExecuteNonQuery();
+    }
+
+    private static void InstallFunctions(SqliteConnection connection)
+    {
         connection.CreateFunction<string?, byte[]?>(
             "acta_blob",
             static text => text is null ? null : Convert.FromBase64String(text),
@@ -78,10 +123,6 @@ internal sealed class SqliteDialect : ISqlDialect
             static message => throw new SqliteException(message, 1),
             isDeterministic: true
         );
-
-        using var pragma = connection.CreateCommand();
-        pragma.CommandText = _connectionPragmas;
-        pragma.ExecuteNonQuery();
     }
 
     public DbParameter CreateParameter(DbParameterSpec spec)
@@ -94,7 +135,7 @@ internal sealed class SqliteDialect : ISqlDialect
     public void ConfigureRoutineCommand(DbCommand command, string schema, string routineName) =>
         throw new NotSupportedException("SQLite has no stored routines; store commands run as inline SQL.");
 
-    private static object ToSqliteValue(DbKind kind, object value)
+    internal static object ToSqliteValue(DbKind kind, object value)
     {
         if (value is DBNull)
         {

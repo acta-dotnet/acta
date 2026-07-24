@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.SqlServer.Testing;
 /// <see cref="SqlServerIntegrationSchema"/>, catalog queries, and the public
 /// test read factories.
 /// </summary>
-public sealed class SqlServerConformanceFixture : IConformanceFixture
+public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 {
     /// <summary>
     /// The user tables in <paramref name="schemaName"/> via the SQL Server information_schema.
@@ -228,5 +228,19 @@ public sealed class SqlServerConformanceFixture : IConformanceFixture
             opts.ConnectionString = sb.ConnectionString;
             opts.Schema = schemaName;
         });
+    }
+
+    // SQL Server has no CREATE TABLE IF NOT EXISTS; guard with an OBJECT_ID existence check.
+    public async ValueTask<string> EnsureBusinessProbeTableAsync(
+        System.Data.Common.DbConnection connection,
+        string schemaName,
+        string tableName
+    )
+    {
+        var qualified = $"{schemaName}.{tableName}";
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"IF OBJECT_ID('{qualified}', 'U') IS NULL CREATE TABLE {qualified} (marker varchar(128) NOT NULL);";
+        await cmd.ExecuteNonQueryAsync();
+        return qualified;
     }
 }

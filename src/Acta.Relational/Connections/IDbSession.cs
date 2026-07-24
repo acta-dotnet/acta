@@ -44,6 +44,22 @@ internal interface IDbSession
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Runs a write command through the caller's already-started <paramref name="transaction"/> and maps
+    /// every row of its primary result set. Validates the transaction and provider up front, creates the
+    /// command on <see cref="DbTransaction.Connection"/> and joins it to the transaction, then reuses the
+    /// same binders and primary-result reader as the owned path. It never opens/disposes a connection or
+    /// transaction, never begins/commits/rolls back, and applies no transient retry: the caller owns the
+    /// transaction lifecycle and, on any failure, must roll back the whole transaction.
+    /// </summary>
+    Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
+        DbTransaction transaction,
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    );
+
     /// <summary>Runs a write command and maps the single primary-set row, or null when none.</summary>
     Task<T?> ExecuteSingleAsync<T>(StoreCommand command, Action<DbCommand> bind, Func<DbDataReader, T> mapRow, CancellationToken ct)
         where T : class;
