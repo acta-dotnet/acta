@@ -9,8 +9,9 @@ namespace Acta.Tests.Conformance.Runtime;
 /// <summary>
 /// Conformance for one-shot retry/backoff. A failed one-shot (unhandled exception) re-arms to Ready
 /// with the failure budget incremented while attempts remain, then lands terminal Failed once
-/// <c>MaxAttempts</c> is reached - mirroring the recurring failure-budget path for non-recurring jobs.
-/// <c>retry-probe</c> uses a zero initial backoff so each tick re-claims immediately.
+/// <c>MaxAttempts</c> is reached. <c>MaxAttempts</c> is the one-off retry budget only; a recurring slot
+/// never terminalizes on its consecutive-failure count. <c>retry-probe</c> uses a zero initial backoff
+/// so each tick re-claims immediately.
 /// </summary>
 [ConformanceSpec(
     "one-shot-retry.budget",

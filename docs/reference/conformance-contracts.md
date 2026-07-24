@@ -1504,7 +1504,7 @@
   - Audit level emits started, finished and rolled-over events
   - Result ring buffer trims to the cap keeping the newest entries
   - In-budget failure re-arms Ready and a later success resets the failure count
-  - Exhausted failure budget ends the slot in Failed at MaxAttempts
+  - Consecutive failures past MaxAttempts never terminalize a recurring slot
   - Handler cancel terminates the whole slot to Cancelled and stops the schedule
 - **Store methods:**
   - `Acta.Features.Execution.IExecutionStore.ClaimBatchAsync`
