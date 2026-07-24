@@ -34,6 +34,8 @@
     <InternalsVisibleTo Include="Acta" />
     <!-- Tests need access to internal validators and canonicalizers. -->
     <InternalsVisibleTo Include="Acta.Tests" />
+    <!-- The outbox staging core reuses the shared enqueue normalization/validation. -->
+    <InternalsVisibleTo Include="Acta.Relational" />
   </ItemGroup>
 
   <!-- Packing without the generator assembly would ship a package whose [Job] source generation

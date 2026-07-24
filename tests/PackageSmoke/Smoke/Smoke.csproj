@@ -10,6 +10,11 @@
     <!-- run.ps1 consumes each provider in turn via -p:ActaProvider. The default keeps a manual IDE
          restore pointed at the Postgres package. -->
     <ActaProvider Condition="'$(ActaProvider)' == ''">Acta.Postgres</ActaProvider>
+    <!-- The outbox on-ramp receiver and DDL class are provider-specific; select them by build constant so
+         the one consumer file compiles unchanged against whichever provider package run.ps1 packs. -->
+    <DefineConstants Condition="'$(ActaProvider)' == 'Acta.Postgres'">$(DefineConstants);SMOKE_POSTGRES</DefineConstants>
+    <DefineConstants Condition="'$(ActaProvider)' == 'Acta.Sqlite'">$(DefineConstants);SMOKE_SQLITE</DefineConstants>
+    <DefineConstants Condition="'$(ActaProvider)' == 'Acta.SqlServer'">$(DefineConstants);SMOKE_SQLSERVER</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <!-- The whole point: ONE provider package, no project references. Compiling proves the

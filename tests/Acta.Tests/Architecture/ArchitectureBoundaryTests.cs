@@ -85,6 +85,80 @@ public sealed class ArchitectureBoundaryTests
         Assert.True(exposed.Length == 0, "Relational implementation types are public:\n" + string.Join("\n", exposed));
     }
 
+    /// <summary>
+    /// EF Core is gone from the repository. With the former EF-based producer outbox package removed the
+    /// producer story is the provider-package staging primitives, so no project anywhere (src, tests, tools)
+    /// may reference an EF Core package: this walks every project's direct package references and its full
+    /// ProjectReference closure and fails on any transitive EF package.
+    /// </summary>
+    [Fact]
+    public void EntityFrameworkCore_stays_out_of_every_repository_project()
+    {
+        var repoRoot = ResolveRepoRoot();
+        var failures = new List<string>();
+        foreach (var projectFile in Directory.EnumerateFiles(repoRoot, "*.csproj", SearchOption.AllDirectories))
+        {
+            var directory = Path.GetDirectoryName(projectFile)!;
+            if (
+                directory.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || directory.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            )
+            {
+                continue;
+            }
+
+            var project = Path.GetFileNameWithoutExtension(projectFile);
+            var leaks = ProjectPackageClosure(projectFile)
+                .Where(package => package.Contains("EntityFrameworkCore", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(package => package, StringComparer.Ordinal);
+            failures.AddRange(leaks.Select(package => $"{project} references '{package}'"));
+        }
+
+        Assert.True(
+            failures.Count == 0,
+            "EF Core leaked into the repository (it must be absent everywhere after the EF outbox package removal):\n"
+                + string.Join("\n", failures)
+        );
+    }
+
+    private static IEnumerable<string> ProjectPackageClosure(string projectFile)
+    {
+        var packages = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pending = new Stack<string>();
+        pending.Push(projectFile);
+
+        while (pending.Count > 0)
+        {
+            var path = Path.GetFullPath(pending.Pop());
+            if (!File.Exists(path) || !visited.Add(path))
+            {
+                continue;
+            }
+
+            var document = XDocument.Load(path);
+            foreach (var package in PackageReferenceNames(document))
+            {
+                packages.Add(package);
+            }
+
+            var projectDirectory = Path.GetDirectoryName(path)!;
+            foreach (var reference in document.Descendants("ProjectReference"))
+            {
+                var include = reference.Attribute("Include")?.Value;
+                if (!string.IsNullOrEmpty(include))
+                {
+                    pending.Push(Path.Combine(projectDirectory, include.Replace('\\', Path.DirectorySeparatorChar)));
+                }
+            }
+        }
+
+        return packages;
+    }
+
+    private static IEnumerable<string> PackageReferenceNames(XDocument project) =>
+        project.Descendants("PackageReference").Select(reference => reference.Attribute("Include")?.Value).OfType<string>();
+
     [Fact]
     public void Source_layout_respects_feature_and_provider_ownership()
     {
