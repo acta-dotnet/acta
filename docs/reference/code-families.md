@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **29 families**, **153 values**.
+This release: **30 families**, **156 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -60,6 +60,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `job-deadline-behavior` | `byte` | Catalog metadata | Taxonomy | · |
 | [`LeaseKindCode`](#code-family-leasekindcode) | `lease-kind` | `byte` | Catalog metadata | Taxonomy | · |
 | [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` | Catalog metadata | Taxonomy | · |
+| [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` | Catalog metadata | Taxonomy | · |
 | [`SettingScopeCode`](#code-family-settingscopecode) | `setting-scope` | `byte` | Catalog metadata | Taxonomy | · |
 | [`TagScopeCode`](#code-family-tagscopecode) | `tag-scope` | `byte` | Catalog metadata | Taxonomy | · |
 | [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` | Payloads | Registry | Catalog (system formats) and consumer apps (custom formats 128..255). |
@@ -1016,6 +1017,7 @@ Stable family-local event identifiers.
 - [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) · `job-deadline-behavior` (byte-backed). Taxonomy.
 - [`LeaseKindCode`](#code-family-leasekindcode) · `lease-kind` (byte-backed). Taxonomy.
 - [`MisfireStrategyCode`](#code-family-misfirestrategycode) · `misfire-strategy` (byte-backed). Taxonomy.
+- [`OutboxStatusCode`](#code-family-outboxstatuscode) · `outbox-status` (byte-backed). Taxonomy.
 - [`SettingScopeCode`](#code-family-settingscopecode) · `setting-scope` (byte-backed). Taxonomy.
 - [`TagScopeCode`](#code-family-tagscopecode) · `tag-scope` (byte-backed). Taxonomy.
 
@@ -1117,6 +1119,41 @@ Taxonomy code family.
 |---:|---|---|---|
 | 10 | `fire-once-catch-up` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
 | 20 | `skip` | After downtime, skip all missed occurrences and resume from the first occurrence strictly after now. | Active |
+
+---
+
+#### `OutboxStatusCode` · `outbox-status` <a id="code-family-outboxstatuscode"></a>
+
+Taxonomy code family.
+
+`Taxonomy`
+
+| At a glance | |
+|---|---|
+| Backing type | `byte` |
+| Code kind | `outbox-status` |
+| Source | `[Code]` enum |
+| Domain | Catalog metadata |
+| Code style | Taxonomy |
+| Appears in | · |
+| Set by | · |
+| Consumed ids | 3 |
+| Held reserve | 0 |
+| Available ids | 251 |
+
+**Capacity**
+
+| Assigned | Deprecated | Retired | Permanently reserved | Held reserve | Available | Invalid sentinels |
+|---:|---:|---:|---:|---:|---:|---:|
+| 3 | 0 | 0 | 0 | 0 | 251 | 2 |
+
+**Values**
+
+| Id | Code | Description | Lifecycle |
+|---:|---|---|---|
+| 10 | `pending` | Due for relay claim; the claim path selects rows in this status once next_attempt_at_utc is reached. | Active |
+| 20 | `claimed` | Leased by a relay claim; claim_token and claim_until_utc are set until the lease finalizes or expires. | Active |
+| 90 | `quarantined` | Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete. | Active |
 
 ---
 

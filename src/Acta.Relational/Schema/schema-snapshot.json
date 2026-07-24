@@ -2129,6 +2129,29 @@
         ]
       },
       {
+        "CodeKind": "outbox-status",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "pending",
+            "Description": "Due for relay claim; the claim path selects rows in this status once next_attempt_at_utc is reached.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "claimed",
+            "Description": "Leased by a relay claim; claim_token and claim_until_utc are set until the lease finalizes or expires.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 90,
+            "Code": "quarantined",
+            "Description": "Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
         "CodeKind": "priority",
         "Values": [
           {
