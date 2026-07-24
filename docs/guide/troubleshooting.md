@@ -135,6 +135,43 @@ Check the signal name and target identity:
 
 The handler resumes when it is claimed again, so also check worker liveness and `next_run_at_utc`.
 
+## An Outbox Row Is Not Reaching Acta
+
+If a producer staged an `acta_outbox` row and no Acta job appeared, check the relay before the row:
+
+- A worker must register the source with `worker.AddOutboxRelay(...)`; without it, `sys.outbox` never
+  runs and no row is claimed.
+- `sys.outbox` runs on a five-second cadence and sends no cross-database wakeup, so a few seconds of delay
+  is normal. After a worker crash a claimed row can stay invisible until its lease (`LeaseTtlSeconds`,
+  180 s default) expires and another relay reclaims it.
+- Connectivity and table-shape problems fail inside `sys.outbox` and raise a `SysCritical` alert rather
+  than blocking unrelated jobs. Check `acta.alerts_view` and the `sys.outbox` event timeline.
+- A row the relay could not deliver is quarantined in place (`status_code = 90`) and excluded from claims.
+  Inspect, requeue, or delete it with the
+  [quarantine SQL recipes](./sql-recipes.md#quarantined-outbox-rows). Recoverable rejections (for example
+  an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once.
+- Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.ResolveJobIdAsync`; a null
+  result means the request has not been relayed yet, not that it was lost.
+
+Background: [Transactional enqueue and the external outbox](./transactional-enqueue-and-outbox.md).
+
+## An Enqueue Throws About An Ambient TransactionScope
+
+An Acta-owned call (a normal enqueue, a maintenance write, any owned path) opening a connection inside an
+active `System.Transactions.TransactionScope` fails fast:
+
+```text
+An ambient System.Transactions.TransactionScope is active, and Acta-owned connections never enlist in one.
+```
+
+Acta-owned connections never enlist in an ambient transaction, because a second connection in the scope
+would force distributed-transaction escalation the providers cannot honor. Rewrite to one of the two atomic
+paths: pass the open transaction to the transactional `IJobs` enqueue overload (same database), or stage
+through `AddToActaOutboxAsync` on your provider transaction (different database). If you deliberately want
+an independent Acta commit inside a scope, wrap the call in `TransactionScope(TransactionScopeOption.Suppress)`.
+The caller-transaction overloads and the staging primitives are unaffected: their transaction is supplied
+explicitly. See [Transactional enqueue and the external outbox](./transactional-enqueue-and-outbox.md#ambient-systemtransactions-scopes-are-rejected).
+
 ## The Dashboard Or API Is Not Reachable Remotely
 
 `MapActa(...)` and `MapActaApi(...)` are local-only by default. Remote clients receive 403 until the

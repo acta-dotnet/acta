@@ -70,7 +70,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `WorkerRetention` | 90 days | cluster data | Dead worker row retention. Must be at least one day. |
 | `JobEventsRetentionDays` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetentionDays` | 90 | cluster data | Retention for settled alert rows. In-flight alert delivery rows are not purged by age. |
-| `RegisterFrameworkJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. |
+| `RegisterFrameworkJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |
 | `MaxInlinePayloadBytes` | 256 KB | cluster data | Hard cap for caller-controlled inline writes: enqueue inputs, variables, progress, step results, and signal values. Handler results warn-and-persist when larger. |
 | `AlertDedupeWindow` | 1 hour | cluster data | Bucket width for deduped manual and automatic alerts. Must be positive. |
 | `AlertDeliveryMaxRetries` | 5 | cluster data | Delivery retries before an alert lands terminal Failed. |
@@ -117,6 +117,22 @@ Tune profiles together with `MaxConcurrentExecutors`, `ClaimBatchSize`, and the 
 `BatchCompletionSize` / `BatchCompletionInterval` / `BatchCompletionMaxBytes`. Measure after each
 change: throughput gains that overload the database, downstream APIs, or the connection pool are
 not real capacity.
+
+## External Outbox Relay
+
+A worker that relays an external `acta_outbox` table attaches one source to a namespace with
+`worker.AddOutboxRelay(sourceName, source => ...)`. The relay has no interval option of its own: the
+`sys.outbox` slot runs every five seconds and its cadence is managed through the durable schedule controls
+for `sys.outbox/default`. The source claim lease reuses `LeaseTtlSeconds` (180 s) rather than adding an
+outbox-specific window, so a worker crash can leave claimed source rows invisible for up to that lease.
+`QuarantineThreshold` on the source builder is the recoverable-failure count at which a row quarantines
+(default 5); malformed and oversize rows quarantine immediately regardless.
+
+Registering a relay adds `sys.outbox` plus its `sys.recovery` and `sys.alerts` dependencies even when
+`RegisterFrameworkJobs` is `false`, because those are dependencies of a relay you asked for, not
+automatically added framework jobs. It never forces `sys.retention`. The source provider is selected on
+the builder and is independent of the ledger provider. Full guide:
+[Transactional enqueue and the external outbox](./transactional-enqueue-and-outbox.md).
 
 ## Handler Policy Lives Elsewhere
 

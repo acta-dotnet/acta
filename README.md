@@ -95,7 +95,7 @@ More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [`docs/gu
 
 ## Capabilities and boundaries
 
-**You get:** fire-and-forget, delayed, and recurring jobs; durable retries with typed backoff; named run-once steps; durable sleeps; signals into suspended jobs; child jobs with fan-out / fan-in; result retrieval; job lineage; an append-only SQL event ledger; a test host that drives the real runtime one deterministic tick at a time (no sleeps, no polling, real-database tests in tens of milliseconds); a control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint; and an optional operator dashboard/query API whose mutating controls are explicitly enabled.
+**You get:** fire-and-forget, delayed, and recurring jobs; durable retries with typed backoff; named run-once steps; durable sleeps; signals into suspended jobs; child jobs with fan-out / fan-in; result retrieval; job lineage; an append-only SQL event ledger; transactional enqueue that joins a caller-owned `DbTransaction` and an external EF Core outbox for atomic handoff from a different database; a test host that drives the real runtime one deterministic tick at a time (no sleeps, no polling, real-database tests in tens of milliseconds); a control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint; and an optional operator dashboard/query API whose mutating controls are explicitly enabled.
 
 **You do not get:** deterministic event-history replay, BPMN or a visual workflow designer, a message bus, a sidecar, a hosted control plane, or workflow SaaS orchestration.
 
@@ -122,7 +122,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Packages
 
-**Planned NuGet package IDs** (the preview is source-only; packages are not published yet): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (runtime), `Acta.Contracts` (public API), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
+**Planned NuGet package IDs** (the preview is source-only; packages are not published yet): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (runtime), `Acta.Contracts` (public API), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
 
 **Repository tooling** (not published to NuGet): `Acta.Emit` (doc/migration emitter) and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
 
