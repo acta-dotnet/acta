@@ -37,7 +37,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
 
     private sealed record OutboxGroup(OutboxRow Representative, IReadOnlyList<OutboxRow> Rows)
     {
-        // Materialized once at construction (read on both the finalize and quarantine paths).
+        // Materialized once at construction (read on both the finalize and release paths).
         public IReadOnlyList<Guid> Ids { get; } = Rows.Select(r => r.OutboxId).ToList();
     }
 
@@ -158,26 +158,22 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
             throw;
         }
 
+        var safeIds = new List<Guid>();
+        var quarantines = new List<OutboxQuarantine>();
+        var reschedules = new List<OutboxReschedule>();
+
         foreach (var (group, error) in immediateQuarantine)
         {
             // Malformed/oversize is a pre-target contract failure: quarantine at once, leaving each row's
             // existing failure count untouched (no retry budget was consumed).
-            await store.QuarantineAsync(
-                new QuarantineOutboxCommand(
-                    token,
-                    group.Rows.Select(r => new OutboxQuarantine(r.OutboxId, r.FailureCount, error)).ToList()
-                ),
-                ct
-            );
-            quarantinedIds.AddRange(group.Ids);
+            quarantines.AddRange(group.Rows.Select(r => new OutboxQuarantine(r.OutboxId, r.FailureCount, error)));
         }
 
-        var reschedules = new List<OutboxReschedule>();
         foreach (var (group, outcome) in results)
         {
             if (outcome == GroupOutcome.Safe)
             {
-                await store.DeleteClaimedAsync(new FinalizeOutboxCommand(token, group.Ids), ct);
+                safeIds.AddRange(group.Ids);
                 continue;
             }
 
@@ -185,13 +181,14 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
             // Retry/quarantine state is row-specific and monotonic: each claimed row of the group advances
             // its OWN failure count, so a group can partially quarantine (over-threshold rows quarantine,
             // under-threshold rows reschedule) rather than inheriting one representative's count.
-            var quarantines = new List<OutboxQuarantine>();
+            var groupQuarantined = 0;
             foreach (var row in group.Rows)
             {
                 var failureCount = row.FailureCount + 1;
                 if (failureCount >= options.QuarantineThreshold)
                 {
                     quarantines.Add(new OutboxQuarantine(row.OutboxId, failureCount, error));
+                    groupQuarantined++;
                 }
                 else
                 {
@@ -206,20 +203,26 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
                 }
             }
 
-            if (quarantines.Count > 0)
-            {
-                await store.QuarantineAsync(new QuarantineOutboxCommand(token, quarantines), ct);
-                quarantinedIds.AddRange(quarantines.Select(q => q.OutboxId));
-            }
-
             _log.LogInformation(
                 "ACTA sys.outbox: source '{Source}' row group ({Namespace}/{DedupKey}) rejected; {Rescheduled} rescheduled, {Quarantined} quarantined.",
                 options.SourceName,
                 group.Representative.JobNamespace,
                 group.Representative.DeduplicationKey,
-                group.Rows.Count - quarantines.Count,
-                quarantines.Count
+                group.Rows.Count - groupQuarantined,
+                groupQuarantined
             );
+        }
+
+        // Finalization is one store round trip per outcome kind for the whole batch, not one per group.
+        if (safeIds.Count > 0)
+        {
+            await store.DeleteClaimedAsync(new FinalizeOutboxCommand(token, safeIds), ct);
+        }
+
+        if (quarantines.Count > 0)
+        {
+            await store.QuarantineAsync(new QuarantineOutboxCommand(token, quarantines), ct);
+            quarantinedIds.AddRange(quarantines.Select(q => q.OutboxId));
         }
 
         if (reschedules.Count > 0)
