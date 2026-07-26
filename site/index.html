@@ -339,7 +339,7 @@
   <a class="skip-link" href="#content">Skip to content</a>
   <div class="chrome">
     <a class="brand" href="#">Acta<span class="dot">.</span></a>
-    <span class="meta">research preview · apache-2.0 · .net 10</span>
+    <span class="meta">early preview · apache-2.0 · .net 10</span>
     <nav aria-label="Primary links">
       <a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
@@ -349,7 +349,7 @@
 
   <main id="content">
     <header class="wrap hero">
-      <p class="record"><b>--</b> anno mmxxvi · open source · postgres · sql server · sqlite</p>
+      <p class="record"><b>--</b> early preview · open source · postgres · sql server · sqlite</p>
       <div class="mast-row">
         <h1 class="masthead">Acta<span class="dot">.</span><span class="sr-only">: the durable work ledger for .NET</span></h1>
         <p class="dict"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
@@ -448,6 +448,7 @@
             <li><b>Durable retries</b> with typed backoff: policy, not folklore</li>
             <li><b>Persistent schedule cursors</b>: missed windows explicit; one stable job row</li>
             <li><b>Deduplication keys</b> stop blind repeats at enqueue</li>
+            <li><b>Atomic enqueue with your data</b>: one transaction, or the external outbox</li>
           </ul>
         </div>
         <div class="fcol">
@@ -479,7 +480,7 @@
             <li><b>Embedded dashboard</b>: an operational tool</li>
             <li><b>CLI in every host</b>: incl. <code>jobs debug</code> under a breakpoint</li>
             <li><b>Opt-in controls</b>: pause, cancel, restart, signal</li>
-            <li><b>Tenants &amp; namespaces</b> with ownership metadata</li>
+            <li><b>Namespaces &amp; tenants</b>: who runs the work, who it is about</li>
           </ul>
         </div>
         <div class="fcol">
@@ -574,6 +575,7 @@
           <div class="ref-row"><dt>Recurring schedules</dt><dd><code>[JobSchedule]</code> with an interval (<code>5m</code>) or cron expression. One stable slot job carries moving schedule cursors instead of creating a job row per firing. Missed windows are visible and handled by explicit misfire policy, and schedules can be paused and resumed by operators.</dd></div>
           <div class="ref-row"><dt>Deduplication keys</dt><dd>Enqueue with a caller-supplied key and a duplicate enqueue is refused instead of creating a second job: resubmitting the same form doesn't send the same email twice.</dd></div>
           <div class="ref-row"><dt>Retries with typed backoff</dt><dd>Retry count and backoff are explicit, typed policy on the job, not folklore in a catch block. Every attempt is recorded, so "how many times did this run and when" is a query.</dd></div>
+          <div class="ref-row"><dt>Atomic enqueue with your data</dt><dd>Enqueue on the transaction you already opened, so the job and the business write commit or roll back together in the same database. When the job belongs to a different database, stage the handoff in your own transaction with <code>AddToActaOutboxAsync</code> and the built-in <code>sys.outbox</code> relay moves it into the ledger, deduplicating and quarantining as it goes. Neither is a universal exactly-once guarantee: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/transactional-enqueue-and-outbox.md">the guide</a> states exactly what each one buys.</dd></div>
         </dl>
 
         <h3 class="ref-group">Durable execution</h3>
@@ -604,7 +606,7 @@
           <div class="ref-row"><dt>Embedded dashboard &amp; JSON API</dt><dd><code>Acta.AspNetCore</code> serves an operational dashboard and query API from inside your app. Local-only by default, no login system to configure, and every mutating verb is disabled until you explicitly enable it.</dd></div>
           <div class="ref-row"><dt>Embedded CLI · including <code>jobs debug</code></dt><dd>Every host binary is also the admin tool. <code>jobs debug</code> claims any persisted job and steps through its real handler under your debugger: reproduce a production failure with a breakpoint, not printf.</dd></div>
           <div class="ref-row"><dt>Operator verbs, opt-in</dt><dd>Pause, resume, cancel, restart, signal: explicit controls for humans running the system, off by default so exposure is a decision, not an accident.</dd></div>
-          <div class="ref-row"><dt>Tenants &amp; namespaces</dt><dd>Scope jobs by namespace with team-ownership metadata; run tenant-specific work and suspend a tenant without touching in-flight jobs elsewhere.</dd></div>
+          <div class="ref-row"><dt>Namespaces &amp; tenants</dt><dd>Two questions, one job row. A namespace answers who owns and runs the work: routing, team-ownership metadata, and the peer workers that drain it. A tenant answers who the work is about: registered once by an opaque business key, resolved at enqueue, inherited by child jobs, carried into the event timeline, and readable beside every job in <code>acta.jobs_view</code>. Definitions can require or forbid tenant scope, and suspending a tenant rejects new work at the enqueue commit boundary without touching jobs already admitted. A tenant is an audit, query, and runtime dimension, not a security or database-isolation boundary.</dd></div>
         </dl>
 
         <h3 class="ref-group">Engineering</h3>
