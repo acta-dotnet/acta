@@ -15,7 +15,8 @@ internal static class AnvilWorkerPreset
 /// Owns the real child processes used by the lab. Worker-count changes are reconciled in place: existing
 /// healthy processes remain, excess processes drain gracefully, and only missing processes are spawned.
 /// </summary>
-public sealed class WorkerProcessLauncher(string runId, string schema, string provider, string namespaceName) : IDisposable
+public sealed class WorkerProcessLauncher(string runId, string schema, string provider, string namespaceName, string outboxSourcePath)
+    : IDisposable
 {
     private const int ExitedWorkerRetention = 3;
 
@@ -142,6 +143,7 @@ public sealed class WorkerProcessLauncher(string runId, string schema, string pr
         AddArgument(start, "--executors", AnvilWorkerPreset.Executors.ToString(CultureInfo.InvariantCulture));
         AddArgument(start, "--profile", AnvilWorkerPreset.Profile);
         AddArgument(start, "--claim-batch", AnvilWorkerPreset.ClaimBatch.ToString(CultureInfo.InvariantCulture));
+        AddArgument(start, "--outbox-source", outboxSourcePath);
         AddArgument(start, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
         return start;
     }

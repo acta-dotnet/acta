@@ -52,6 +52,14 @@ public static class AnvilEndpoints
                     : Results.BadRequest(new ActionResponse("Queue pressure supports 1,000 or 10,000 jobs per second."))
         );
         group.MapPost("/faults/pressure/stop", (FaultInjectors faults) => Results.Ok(new ActionResponse(faults.StopQueuePressure())));
+        group.MapPost(
+            "/faults/outbox/start",
+            (QueuePressureRequest request, FaultInjectors faults) =>
+                request.JobsPerSecond is 1_000 or 10_000
+                    ? Results.Ok(new ActionResponse(faults.StartOutboxPressure(request.JobsPerSecond)))
+                    : Results.BadRequest(new ActionResponse("Outbox pressure supports 1,000 or 10,000 rows per second."))
+        );
+        group.MapPost("/faults/outbox/stop", (FaultInjectors faults) => Results.Ok(new ActionResponse(faults.StopOutboxPressure())));
 
         group.MapPost(
             "/run",

@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Acta.Features.Outbox;
@@ -18,11 +19,15 @@ namespace Acta.Relational.Stores;
 /// release bind a JSON id array, reschedule and quarantine bind a JSON array of per-row records (each with
 /// its own failure count, per-row backoff, and error) that the provider SQL unnests server-side.
 /// </summary>
-internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect dialect) : IOutboxRelayStore
+internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect dialect, string? schema, string table) : IOutboxRelayStore
 {
     // The ADR bounds last_error to 512 characters (the physical column width on every provider); truncate
     // here so a longer provider/target error never overflows the reschedule/quarantine write.
     private const int MaxLastError = 512;
+
+    // The qualified source table reference for the store-composed backlog count; the claim/finalize
+    // bodies get the same reference substituted by the provider's resource catalog.
+    private readonly string _tableRef = OutboxIdentifier.Qualify(table, schema);
 
     public async Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct)
     {
@@ -80,6 +85,18 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             {
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.ClaimToken, command.ClaimToken)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.OutboxIds, ToIdArray(command.OutboxIds))));
+            },
+            ct
+        );
+
+    public Task<long> CountBacklogAsync(CancellationToken ct) =>
+        session.RunWithRetryAsync(
+            async token =>
+            {
+                await using var conn = await session.OpenConnectionAsync(token);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = OutboxSchema.Sql.CountBacklog(_tableRef);
+                return Convert.ToInt64(await cmd.ExecuteScalarAsync(token), CultureInfo.InvariantCulture);
             },
             ct
         );

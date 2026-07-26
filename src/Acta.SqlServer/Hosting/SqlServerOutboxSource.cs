@@ -25,7 +25,7 @@ namespace Acta
             // so the claim/introspection SQL resolves the table through the login's default schema.
             var options = new SqlServerProviderOptions { ConnectionString = connectionString, Schema = schema ?? "dbo" };
             var catalog = new SqlResourceCatalog(typeof(SqlServerOutboxDialect).Assembly, schema, table);
-            return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect);
+            return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect, schema, table);
         }
     }
 

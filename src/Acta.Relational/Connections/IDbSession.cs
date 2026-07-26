@@ -69,7 +69,8 @@ internal interface IDbSession
 
     /// <summary>
     /// Runs <paramref name="action"/> under the session's bounded transient-conflict retry. For raw
-    /// writes composed outside the named operations (test support); named operations retry already.
+    /// commands composed outside the named operations (the outbox backlog count, test support); named
+    /// operations retry already.
     /// </summary>
     Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct);
 }

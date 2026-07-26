@@ -238,6 +238,24 @@ internal static class ActaApiEndpoints
             }
         );
 
+        // The overview's outbox lens: each namespace's sys.outbox slot result (the relay's persisted
+        // tick summary) so the health verdict can show source lag from ledger reads alone.
+        group.MapGet(
+            "/overview/outbox",
+            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            {
+                var jobNamespace = QueryBinding.Text(http.Request.Query, "jobNamespace");
+                return Guard(
+                    http,
+                    async () =>
+                        Results.Json(
+                            await ComposeOutboxLinesAsync(jobs, jobNamespace, ct),
+                            DashboardJsonContext.Default.IReadOnlyListOverviewOutboxLine
+                        )
+                );
+            }
+        );
+
         group.MapGet(
             "/namespaces",
             static (HttpContext http, IJobs jobs, CancellationToken ct) =>
@@ -745,6 +763,49 @@ internal static class ActaApiEndpoints
             loggerFactory?.CreateLogger("Acta.AspNetCore.Web").LogWarning(ex, "Argument exception mapped to 400.");
             return BadRequest(ex.Message);
         }
+    }
+
+    // One line per namespace whose sys.outbox slot has produced a tick summary. A namespace with no
+    // relay, no successful tick yet, or a non-text result contributes no line; the dedup-key hit is
+    // additionally gated on the sys.outbox job name so a user job reusing the key cannot spoof a line.
+    private static async Task<IReadOnlyList<OverviewOutboxLine>> ComposeOutboxLinesAsync(
+        IJobs jobs,
+        string? jobNamespace,
+        CancellationToken ct
+    )
+    {
+        IReadOnlyList<string> namespaces = jobNamespace is not null
+            ? [jobNamespace]
+            : (await jobs.ListNamespacesAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
+
+        var lines = new List<OverviewOutboxLine>();
+        foreach (var ns in namespaces)
+        {
+            var slot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(ns, "sys.outbox"), ct);
+            if (slot is not { JobName: "sys.outbox" })
+            {
+                continue;
+            }
+
+            var result = await jobs.GetResultAsync(JobLookup.ById(slot.JobId), ct);
+            if (result is not { } payload || payload.Format.Id != JobPayloadFormat.Text.Id)
+            {
+                continue;
+            }
+
+            var tick = System.Text.Encoding.UTF8.GetString(payload.Data.Span);
+            lines.Add(new OverviewOutboxLine(ns, slot.JobRef.ToString(), tick, ParseBacklog(tick)));
+        }
+
+        return lines;
+    }
+
+    // The backlog is the summary's last "backlog=N" token; an unparseable result reads as zero so a
+    // format drift degrades the lens rather than failing the overview.
+    private static long ParseBacklog(string tick)
+    {
+        var index = tick.LastIndexOf("backlog=", StringComparison.Ordinal);
+        return index >= 0 && long.TryParse(tick.AsSpan(index + "backlog=".Length), out var value) ? value : 0;
     }
 
     private static IResult BadRequest(string? detail) =>

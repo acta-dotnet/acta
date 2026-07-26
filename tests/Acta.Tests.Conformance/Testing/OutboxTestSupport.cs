@@ -61,6 +61,8 @@ internal sealed class HookedOutboxStore(IOutboxRelayStore inner) : IOutboxRelayS
     public Task QuarantineAsync(QuarantineOutboxCommand command, CancellationToken ct) => inner.QuarantineAsync(command, ct);
 
     public Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) => inner.ReleaseClaimedAsync(command, ct);
+
+    public Task<long> CountBacklogAsync(CancellationToken ct) => inner.CountBacklogAsync(ct);
 }
 
 /// <summary>

@@ -13,7 +13,8 @@ public sealed class AnvilStateReader(
     RateTelemetry telemetry,
     SeedProgress seedProgress,
     IOptions<JobsOptions> options,
-    FaultInjectors faults
+    FaultInjectors faults,
+    AnvilOutboxDatabase outboxDb
 )
 {
     private readonly DateTime _processStartUtc = session.ProcessStartUtc;
@@ -78,8 +79,23 @@ public sealed class AnvilStateReader(
             Telemetry: telemetry.Snapshot(),
             Seeding: seedProgress.Snapshot(),
             Faults: faults.Snapshot(),
+            Outbox: await ReadOutboxAsync(ct),
             DbError: null
         );
+    }
+
+    // Guarded separately: a broken producer file degrades only this line, never the whole state read.
+    private async Task<AnvilOutboxSnapshot?> ReadOutboxAsync(CancellationToken ct)
+    {
+        try
+        {
+            var (pending, quarantined) = await outboxDb.CountsAsync(ct);
+            return new AnvilOutboxSnapshot(pending, quarantined);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     private AnvilState Degraded(string reason)
@@ -98,6 +114,7 @@ public sealed class AnvilStateReader(
             Telemetry: telemetry.Snapshot(),
             Seeding: seedProgress.Snapshot(),
             Faults: faults.Snapshot(),
+            Outbox: null,
             DbError: reason
         );
     }
@@ -313,8 +330,12 @@ public sealed record AnvilState(
     TelemetrySnapshot Telemetry,
     SeedProgressSnapshot Seeding,
     FaultSnapshot Faults,
+    AnvilOutboxSnapshot? Outbox,
     string? DbError
 );
+
+/// <summary>Producer-file backlog for the outbox-pressure fault; null when the file is unreadable.</summary>
+public sealed record AnvilOutboxSnapshot(long Pending, long Quarantined);
 
 public sealed record AnvilCounts(long Total, long SystemJobs, long Ready, long Executing, long Done, long Failed, long ExpectedFailed);
 

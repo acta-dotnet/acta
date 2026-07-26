@@ -150,6 +150,9 @@ function updatePendingControls() {
   el("btn-fault-pressure").disabled = pending.has("fault:pressure");
   const pressureActive = !!(currentState && currentState.faults && currentState.faults.queuePressureActive);
   el("sel-pressure-rate").disabled = pressureActive || pending.has("fault:pressure");
+  el("btn-fault-outbox").disabled = pending.has("fault:outbox");
+  const outboxActive = !!(currentState && currentState.faults && currentState.faults.outboxPressureActive);
+  el("sel-outbox-rate").disabled = outboxActive || pending.has("fault:outbox");
   workerCards.forEach((card) => updateWorkerActions(card));
 }
 
@@ -279,6 +282,19 @@ function renderFaults(faults) {
     ? `Running · ${number(faults.pressureJobsAdded)} jobs added`
     : faults.pressureJobsAdded ? `${number(faults.pressureJobsAdded)} jobs added` : "Stopped";
   el("sel-pressure-rate").disabled = faults.queuePressureActive || pending.has("fault:pressure");
+
+  const outbox = el("btn-fault-outbox");
+  outbox.textContent = faults.outboxPressureActive ? "STOP" : "START";
+  el("fault-outbox-status").textContent = faults.outboxPressureActive
+    ? `Running · ${number(faults.outboxRowsStaged)} rows staged`
+    : faults.outboxRowsStaged ? `${number(faults.outboxRowsStaged)} rows staged` : "Stopped";
+  el("sel-outbox-rate").disabled = faults.outboxPressureActive || pending.has("fault:outbox");
+  const backlog = currentState && currentState.outbox;
+  el("outbox-backlog").hidden = !backlog || (!backlog.pending && !backlog.quarantined && !faults.outboxRowsStaged);
+  el("outbox-backlog").textContent = backlog
+    ? `Source backlog: ${number(backlog.pending)} pending · ${number(backlog.quarantined)} quarantined`
+    : "";
+
   el("fault-error").hidden = !faults.lastError;
   el("fault-error").textContent = faults.lastError || "";
 }
@@ -515,6 +531,9 @@ function trackHealthyState(state) {
     if (previous.faults.queuePressureActive !== state.faults.queuePressureActive) {
       addActivity(`Queue pressure ${state.faults.queuePressureActive ? "started" : "stopped"}.`);
     }
+    if (previous.faults.outboxPressureActive !== state.faults.outboxPressureActive) {
+      addActivity(`Outbox pressure ${state.faults.outboxPressureActive ? "started" : "stopped"}.`);
+    }
   }
   previousHealthyState = state;
 }
@@ -615,6 +634,12 @@ el("btn-fault-pressure").addEventListener("click", async () => {
   const active = !!(currentState && currentState.faults.queuePressureActive);
   const body = active ? undefined : { jobsPerSecond: Number(el("sel-pressure-rate").value) };
   if (await call("fault:pressure", "POST", `/faults/pressure/${active ? "stop" : "start"}`, `${active ? "Stopping" : "Starting"} queue pressure`, body)) await poll();
+});
+
+el("btn-fault-outbox").addEventListener("click", async () => {
+  const active = !!(currentState && currentState.faults.outboxPressureActive);
+  const body = active ? undefined : { jobsPerSecond: Number(el("sel-outbox-rate").value) };
+  if (await call("fault:outbox", "POST", `/faults/outbox/${active ? "stop" : "start"}`, `${active ? "Stopping" : "Starting"} outbox pressure`, body)) await poll();
 });
 
 el("workers").addEventListener("click", async (event) => {

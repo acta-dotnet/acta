@@ -67,6 +67,9 @@ static async Task RunDashboardAsync(string[] args, string provider)
     builder.Logging.AddFilter("Microsoft.Extensions.Hosting.Internal.Host", LogLevel.None);
 
     var session = new AnvilSession(id.RunId, id.Namespace, id.Schema, provider, DateTime.UtcNow);
+    // The producer-side database for the outbox-pressure fault: always its own SQLite file, so the
+    // handoff crosses a real database boundary even when the ledger itself is SQLite.
+    var outboxDb = new AnvilOutboxDatabase(Path.Combine(Path.GetTempPath(), $"anvil-outbox-{id.Schema}.db"), session);
     builder.Services.UseActa(j =>
     {
         // Shared local-dev bootstrap, then ExecutionProfile.Direct (2 write txns/job; on SQLite
@@ -79,7 +82,8 @@ static async Task RunDashboardAsync(string[] args, string provider)
         j.Reference<AnvilJobs>(session.NamespaceName);
     });
     builder.Services.AddSingleton(session);
-    builder.Services.AddSingleton(new WorkerProcessLauncher(id.RunId, id.Schema, provider, id.Namespace));
+    builder.Services.AddSingleton(outboxDb);
+    builder.Services.AddSingleton(new WorkerProcessLauncher(id.RunId, id.Schema, provider, id.Namespace, outboxDb.Path));
     builder.Services.AddSingleton<RateTelemetry>();
     builder.Services.AddSingleton<SeedProgress>();
     builder.Services.AddSingleton<FaultInjectors>();
@@ -116,6 +120,8 @@ static async Task RunDashboardAsync(string[] args, string provider)
     {
         await jobs.Tenants.RegisterAsync(key, displayName);
     }
+    // Before any worker exists: the relay's first tick must find the producer file with its tables.
+    await outboxDb.InitializeAsync();
     app.Services.GetRequiredService<WorkerProcessLauncher>().Spawn();
     Console.WriteLine($"Anvil         : {AnvilServer.Url}");
     Console.WriteLine($"Run/schema  : {id.RunId} / {id.Schema} ({provider})");
@@ -134,6 +140,7 @@ static async Task RunWorkerAsync(string[] args)
     var schema = Required(args, "--schema");
     var provider = Required(args, "--provider"); // fail-fast: never silently default to pg
     var ns = Required(args, "--namespace");
+    var outboxSource = Required(args, "--outbox-source");
     var executors = GetArg(args, "--executors") is { } e && int.TryParse(e, out var ex) ? ex : 4;
     var profile = ParseExecutionProfile(GetArg(args, "--profile"));
     var claimBatch = GetArg(args, "--claim-batch") is { } c && int.TryParse(c, out var cb) && cb >= 1 ? cb : 8;
@@ -161,7 +168,25 @@ static async Task RunWorkerAsync(string[] args)
             o.SafetyPollInterval = TimeSpan.FromSeconds(1);
             o.DeploymentVersion = workerName;
         });
-        j.Run<AnvilJobs>(ns);
+        // Every worker in the namespace carries the relay: sys.outbox claims are namespace-wide, so
+        // an unconfigured worker next to configured ones would claim the slot without a binding.
+        j.Run(
+            ns,
+            w =>
+            {
+                w.AddModule<AnvilJobs>();
+                w.AddOutboxRelay(
+                    "anvil-outbox",
+                    source =>
+                        source.UseSqlite(o =>
+                            o.ConnectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
+                            {
+                                DataSource = outboxSource,
+                            }.ToString()
+                        )
+                );
+            }
+        );
     });
     var host = builder.Build();
     WorkerLifecycle.WatchForDrain(host.Services.GetRequiredService<IHostApplicationLifetime>(), workerName);

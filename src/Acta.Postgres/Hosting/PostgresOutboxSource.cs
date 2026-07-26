@@ -26,7 +26,7 @@ namespace Acta
             // so the claim/introspection SQL resolves the table through the connection's search_path.
             var options = new PostgresProviderOptions { ConnectionString = connectionString, Schema = schema ?? "public" };
             var catalog = new SqlResourceCatalog(typeof(PostgresOutboxDialect).Assembly, schema, table);
-            return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect);
+            return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect, schema, table);
         }
     }
 

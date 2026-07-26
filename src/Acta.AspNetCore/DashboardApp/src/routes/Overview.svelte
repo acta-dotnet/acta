@@ -24,14 +24,15 @@
     return {
       queryKey: keys.list('overview', { jobNamespace: ns }),
       queryFn: async ({ signal }) => {
-        const [overview, failedJobs, criticalAlerts, workers, schedules] = await Promise.all([
+        const [overview, failedJobs, criticalAlerts, workers, schedules, outbox] = await Promise.all([
           api('overview', { jobNamespace: ns }, { signal }),
           api('jobs', { status: 'Failed', pageSize: 10, jobNamespace: ns }, { signal }),
           api('alerts', { unresolvedOnly: true, severityAtLeast: 'Critical', pageSize: 10, jobNamespace: ns }, { signal }),
           api('workers', { pageSize: 10, jobNamespace: ns }, { signal }),
-          api('schedules', { pageSize: 10, jobNamespace: ns }, { signal })
+          api('schedules', { pageSize: 10, jobNamespace: ns }, { signal }),
+          api('overview/outbox', { jobNamespace: ns }, { signal })
         ]);
-        return { overview, failedJobs, criticalAlerts, workers, schedules };
+        return { overview, failedJobs, criticalAlerts, workers, schedules, outbox };
       },
       refetchInterval: $livePaused ? false : listRefetchInterval,
       placeholderData: keepPreviousData
@@ -43,15 +44,20 @@
   let criticalAlerts = $derived(snapshot.data?.criticalAlerts ?? null);
   let workers = $derived(snapshot.data?.workers ?? null);
   let schedules = $derived(snapshot.data?.schedules ?? null);
+  let outbox = $derived(snapshot.data?.outbox ?? []);
   let error = $derived(snapshot.error ? snapshot.error.message : null);
   let loading = $derived(snapshot.isPending);
 
-  let verdict = $derived(buildVerdict(overview));
+  let verdict = $derived(buildVerdict(overview, outbox, $scope));
 
   // Triage verdict from the overview snapshot. Workers are ephemeral, so a dead/stale worker is only a
   // soft signal; the real "act now" worker problem is no capacity - due jobs sitting with nothing
   // executing while the head ages (the overview carries no live-worker count, so this is the proxy).
-  function buildVerdict(o) {
+  // One relay tick moves at most this many source rows; a backlog beyond it cannot clear in the
+  // next tick, which is what "lagging outbox" means here. Below it, backlog is between-tick drift.
+  const OUTBOX_TICK_ENVELOPE = 5120;
+
+  function buildVerdict(o, outboxLines, ns) {
     if (!o) {
       return null;
     }
@@ -70,6 +76,11 @@
     if (o.staleWorkerCount > 0) soft.push(plural(o.staleWorkerCount, 'stale worker'));
     if (o.unresolvedAlertCount > 0 && o.unresolvedCriticalAlertCount === 0) {
       soft.push(plural(o.unresolvedAlertCount, 'unresolved alert'));
+    }
+    for (const line of outboxLines ?? []) {
+      if (line.backlog > OUTBOX_TICK_ENVELOPE) {
+        soft.push('outbox lagging ' + displayFormatter.number(line.backlog) + ' rows' + (ns ? '' : ' in ' + line.jobNamespace));
+      }
     }
 
     if (urgent.length > 0) {

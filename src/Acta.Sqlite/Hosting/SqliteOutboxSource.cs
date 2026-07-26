@@ -25,7 +25,7 @@ namespace Acta
             var dialect = new SqliteOutboxDialect();
             var options = new SqliteProviderOptions { ConnectionString = connectionString, Schema = schema };
             var catalog = new SqlResourceCatalog(typeof(SqliteOutboxDialect).Assembly, schema, table);
-            return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect);
+            return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect, schema, table);
         }
     }
 

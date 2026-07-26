@@ -49,6 +49,7 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(NamespaceMetadataPatchRequest))]
 [JsonSerializable(typeof(AdminControlResponse))]
 [JsonSerializable(typeof(OverviewSnapshot))]
+[JsonSerializable(typeof(IReadOnlyList<OverviewOutboxLine>))]
 [JsonSerializable(typeof(IReadOnlyList<string>))]
 [JsonSerializable(typeof(IReadOnlyList<TagItem>))]
 [JsonSerializable(typeof(TagUpsertRequest))]

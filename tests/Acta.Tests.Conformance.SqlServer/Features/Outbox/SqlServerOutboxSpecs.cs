@@ -15,6 +15,8 @@ public sealed class SqlServerOutboxQuarantineSpec : OutboxQuarantineSpec<SqlServ
 
 public sealed class SqlServerOutboxReleaseSpec : OutboxReleaseSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerOutboxBacklogCountSpec : OutboxBacklogCountSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerOutboxStagingSpec : OutboxStagingSpec<SqlServerConformanceFixture>;

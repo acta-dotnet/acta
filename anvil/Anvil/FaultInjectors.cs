@@ -3,16 +3,28 @@ using Acta;
 
 namespace Anvil;
 
-/// <summary>Two explicit, independently cancellable faults for the live lab.</summary>
-public sealed class FaultInjectors(WorkerProcessLauncher launcher, AnvilSession session, IServiceScopeFactory scopes) : IDisposable
+/// <summary>Three explicit, independently cancellable faults for the live lab.</summary>
+public sealed class FaultInjectors(
+    WorkerProcessLauncher launcher,
+    AnvilSession session,
+    IServiceScopeFactory scopes,
+    AnvilOutboxDatabase outboxDb
+) : IDisposable
 {
     private const int PressureChunkSize = 5_000;
+
+    // Smaller than direct-enqueue chunks: each chunk is one producer-file write transaction, and the
+    // relay needs regular gaps to claim between them on the shared SQLite write lock.
+    private const int OutboxChunkSize = 500;
     private readonly object _gate = new();
     private CancellationTokenSource? _continuousCrashesCts;
     private CancellationTokenSource? _queuePressureCts;
+    private CancellationTokenSource? _outboxPressureCts;
     private int _workersCrashed;
     private int _queuePressureRate;
+    private int _outboxPressureRate;
     private long _pressureJobsAdded;
+    private long _outboxRowsStaged;
     private string? _lastError;
 
     public string StartContinuousCrashes()
@@ -90,6 +102,47 @@ public sealed class FaultInjectors(WorkerProcessLauncher launcher, AnvilSession 
         return "Queue pressure stopped.";
     }
 
+    public string StartOutboxPressure(int rowsPerSecond)
+    {
+        if (rowsPerSecond is not (1_000 or 10_000))
+        {
+            throw new ArgumentOutOfRangeException(nameof(rowsPerSecond), "Outbox pressure supports 1,000 or 10,000 rows per second.");
+        }
+
+        lock (_gate)
+        {
+            if (_outboxPressureCts is not null)
+            {
+                return "Already running.";
+            }
+
+            var cts = new CancellationTokenSource();
+            _outboxPressureCts = cts;
+            _outboxPressureRate = rowsPerSecond;
+            _lastError = null;
+            _ = Task.Run(() => RunOutboxPressureAsync(cts, rowsPerSecond));
+            return "Outbox pressure started.";
+        }
+    }
+
+    public string StopOutboxPressure()
+    {
+        CancellationTokenSource owner;
+        lock (_gate)
+        {
+            if (_outboxPressureCts is null)
+            {
+                return "Already stopped.";
+            }
+
+            owner = _outboxPressureCts;
+            _outboxPressureCts = null;
+            _outboxPressureRate = 0;
+        }
+        owner.Cancel();
+        return "Outbox pressure stopped.";
+    }
+
     public FaultSnapshot Snapshot()
     {
         lock (_gate)
@@ -100,6 +153,9 @@ public sealed class FaultInjectors(WorkerProcessLauncher launcher, AnvilSession 
                 QueuePressureActive: _queuePressureCts is not null,
                 QueuePressureRate: _queuePressureRate,
                 PressureJobsAdded: _pressureJobsAdded,
+                OutboxPressureActive: _outboxPressureCts is not null,
+                OutboxPressureRate: _outboxPressureRate,
+                OutboxRowsStaged: _outboxRowsStaged,
                 LastError: _lastError
             );
         }
@@ -215,6 +271,53 @@ public sealed class FaultInjectors(WorkerProcessLauncher launcher, AnvilSession 
         }
     }
 
+    private async Task RunOutboxPressureAsync(CancellationTokenSource owner, int rowsPerSecond)
+    {
+        try
+        {
+            while (true)
+            {
+                owner.Token.ThrowIfCancellationRequested();
+                var stopwatch = Stopwatch.StartNew();
+                var batch = session.NextBatch();
+                var staged = 0;
+                while (staged < rowsPerSecond)
+                {
+                    var count = Math.Min(OutboxChunkSize, rowsPerSecond - staged);
+                    await outboxDb.StageAsync(count, batch, firstOrdinal: staged, owner.Token);
+                    lock (_gate)
+                    {
+                        _outboxRowsStaged += count;
+                    }
+                    staged += count;
+                }
+
+                var remaining = TimeSpan.FromSeconds(1) - stopwatch.Elapsed;
+                if (remaining > TimeSpan.Zero)
+                {
+                    await Task.Delay(remaining, owner.Token);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (owner.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            RecordError(ex);
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                if (ReferenceEquals(_outboxPressureCts, owner))
+                {
+                    _outboxPressureCts = null;
+                    _outboxPressureRate = 0;
+                }
+            }
+            owner.Dispose();
+        }
+    }
+
     private void RecordError(Exception ex)
     {
         var line = ex.Message.Split('\n', '\r')[0].Trim();
@@ -228,16 +331,21 @@ public sealed class FaultInjectors(WorkerProcessLauncher launcher, AnvilSession 
     {
         CancellationTokenSource? crashes;
         CancellationTokenSource? pressure;
+        CancellationTokenSource? outbox;
         lock (_gate)
         {
             crashes = _continuousCrashesCts;
             pressure = _queuePressureCts;
+            outbox = _outboxPressureCts;
             _continuousCrashesCts = null;
             _queuePressureCts = null;
             _queuePressureRate = 0;
+            _outboxPressureCts = null;
+            _outboxPressureRate = 0;
         }
         crashes?.Cancel();
         pressure?.Cancel();
+        outbox?.Cancel();
     }
 }
 
@@ -247,5 +355,8 @@ public sealed record FaultSnapshot(
     bool QueuePressureActive,
     int QueuePressureRate,
     long PressureJobsAdded,
+    bool OutboxPressureActive,
+    int OutboxPressureRate,
+    long OutboxRowsStaged,
     string? LastError
 );

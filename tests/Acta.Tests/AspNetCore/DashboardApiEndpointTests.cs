@@ -253,6 +253,35 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
+    public async Task Overview_outbox_reports_the_relay_tick_line_with_parsed_backlog()
+    {
+        var jobs = new TestDashboardHost.FakeJobs
+        {
+            HasOutboxSlot = true,
+            StoredResult = JobPayload.Text("claimed=5120 relayed=5100 dedup=20 quarantined=0 backlog=46032"),
+        };
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        await using var _ = app;
+
+        var body = await client.GetStringAsync("/acta/jobs/api/overview/outbox", TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"jobNamespace\":\"billing\"", body);
+        Assert.Contains("claimed=5120", body);
+        Assert.Contains("\"backlog\":46032", body);
+    }
+
+    [Fact]
+    public async Task Overview_outbox_is_empty_without_a_relay_slot()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var body = await client.GetStringAsync("/acta/jobs/api/overview/outbox", TestContext.Current.CancellationToken);
+
+        Assert.Equal("[]", body);
+    }
+
+    [Fact]
     public async Task Overview_rejects_invalid_namespace()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
