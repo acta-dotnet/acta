@@ -1887,15 +1887,16 @@
   - No installed column carries an explicit non-default collation
 
 ### Schema bootstrap installs curated operator views
-- **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status and tags_view decodes exact target scope.
-- **Arrange:** A provider schema is bootstrapped and a retry-probe job is driven to terminal Failed.
-- **Act:** The provider catalog is queried for views, every view is smoke-queried, and jobs_view is filtered by status = 'failed'.
-- **Assert:** Only curated views exist, all are queryable, jobs decode failed status, and tags decode job scope beside raw codes.
+- **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope.
+- **Arrange:** A provider schema is bootstrapped, a retry-probe job is driven to terminal Failed, and one job is enqueued for a registered tenant.
+- **Act:** The provider catalog is queried for views, every view is smoke-queried, and jobs_view is filtered by status = 'failed' and by job id.
+- **Assert:** Only curated views exist, all are queryable, jobs decode failed status and resolve tenant keys, and tags decode job scope beside raw codes.
 - **Guarantees:**
   - Schema install creates exactly the curated operator views
   - Every curated operator view can be queried
   - Every literal Engineering Lab SELECT compiles against this provider
   - jobs_view supports friendly failed-status filtering with raw status_code beside it
+  - jobs_view resolves the tenant key beside the raw tenant id
   - tags_view decodes job scope beside exact target and tag values
   - events_view and checkpoints_view expose displayable payload text
 

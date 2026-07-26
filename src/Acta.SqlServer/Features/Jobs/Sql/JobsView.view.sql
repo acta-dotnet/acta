@@ -12,6 +12,7 @@ SELECT
     COALESCE(j.lineage_root_id, j.id) AS lineage_root_job_id,
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
+    t.tenant_key,
     {{decode:priority:r.priority_code}} AS priority,
     r.priority_code,
     CASE j.input_format_id
@@ -46,6 +47,7 @@ JOIN {{schema}}.runtimes AS r ON r.job_id = j.id
 JOIN {{schema}}.namespaces AS ns ON ns.id = j.namespace_id
 JOIN {{schema}}.definitions AS d ON d.id = j.definition_id
 LEFT JOIN {{schema}}.jobs AS root ON root.id = COALESCE(j.lineage_root_id, j.id)
+LEFT JOIN {{schema}}.tenants AS t ON t.id = j.tenant_id
 LEFT JOIN {{schema}}.workers AS w ON w.id = r.leased_by_worker_id
 LEFT JOIN {{schema}}.results AS lr
   ON lr.job_id = j.id

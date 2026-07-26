@@ -54,6 +54,18 @@ SELECT namespace, COUNT(*) AS ready
  WHERE status = 'ready'
  GROUP BY namespace;
 
+-- One tenant's work, by the business key the caller enqueued with (keys fold lowercase).
+SELECT job_id, job_ref, namespace, job_name, status
+  FROM acta.jobs_view
+ WHERE tenant_key = :tenant_key;
+
+-- Backlog per tenant, busiest first. Untenanted work groups under NULL.
+SELECT tenant_key, COUNT(*) AS ready
+  FROM acta.jobs_view
+ WHERE status = 'ready'
+ GROUP BY tenant_key
+ ORDER BY ready DESC;
+
 -- In-flight work and who holds it.
 SELECT job_id, status, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
   FROM acta.jobs_view

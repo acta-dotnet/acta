@@ -78,6 +78,7 @@ public sealed class ProviderOperatorViewCatalogTests
             Assert.Equal(ExpectedViews.Length, views.Count);
             Assert.All(views, static v => Assert.DoesNotContain("{{", v.Body, StringComparison.Ordinal));
             Assert.Contains(views, static v => v.Name == "jobs_view" && v.Body.Contains("input_text", StringComparison.Ordinal));
+            Assert.Contains(views, static v => v.Name == "jobs_view" && v.Body.Contains("tenant_key", StringComparison.Ordinal));
             Assert.Contains(views, static v => v.Name == "jobs_view" && v.Body.Contains("last_result_text", StringComparison.Ordinal));
             Assert.Contains(views, static v => v.Name == "checkpoints_view" && v.Body.Contains("value_text", StringComparison.Ordinal));
             Assert.Contains(views, static v => v.Name == "events_view" && v.Body.Contains("detail_text", StringComparison.Ordinal));
