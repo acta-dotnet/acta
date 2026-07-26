@@ -71,6 +71,14 @@ public sealed class JobAttribute : Attribute
     public JobAuditLevelCode AuditLevel { get; init; } = JobAuditLevelCode.Audit;
 
     /// <summary>
+    /// Whether jobs of this definition must, may, or must not carry a tenant. Persisted on the
+    /// definition and enforced at the enqueue boundary in the database: <c>Required</c> rejects a
+    /// tenant-less enqueue (explicit TenantKey or parent inheritance both satisfy it), and
+    /// <c>Forbidden</c> rejects an explicit TenantKey and suppresses parent inheritance.
+    /// </summary>
+    public JobTenantRequirementCode TenantRequirement { get; init; } = JobTenantRequirementCode.Optional;
+
+    /// <summary>
     /// For a recurring definition, the maximum <c>results</c> rows retained on the slot (newest
     /// by execution). Definition/runtime metadata only; never persisted as a <c>jobs</c> column.
     /// </summary>

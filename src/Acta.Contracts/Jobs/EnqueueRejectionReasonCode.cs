@@ -20,4 +20,13 @@ public enum EnqueueRejectionReasonCode : byte
 
     /// <summary>The target job definition is retired and no longer accepts enqueues.</summary>
     DefinitionRetired = 5,
+
+    /// <summary>The definition requires a tenant and the row carries none (no key and no parent tenant).</summary>
+    TenantRequired = 6,
+
+    /// <summary>The definition forbids a tenant and the row names an explicit tenant key.</summary>
+    TenantForbidden = 7,
+
+    /// <summary>A child names a tenant that differs from the parent's without the explicit override opt-in.</summary>
+    TenantMismatch = 8,
 }

@@ -1,24 +1,24 @@
 namespace Acta;
 
 /// <summary>
-/// Tenants domain: register/upsert a tenant in the Acta-owned catalog plus the tenant list. Reached
+/// Tenants domain: register a tenant in the Acta-owned catalog plus the tenant list. Reached
 /// through <see cref="IJobs.Tenants"/>.
 /// </summary>
 public interface ITenants
 {
     /// <summary>
-    /// Register (or upsert) a tenant by opaque <paramref name="tenantKey"/> and return its stable numeric
-    /// id. Idempotent: a repeat returns the same id, updating display name/description/status only when
-    /// changed. <paramref name="displayName"/> is the human display label for dashboards; null keeps the
+    /// Register a tenant by opaque <paramref name="tenantKey"/> and return its stable numeric id.
+    /// Insert-or-return-existing: a new tenant is created Active with the supplied metadata; when the
+    /// key already exists the existing id is returned and the row is left untouched (no status,
+    /// metadata, or version change). Status changes go through <see cref="SuspendAsync"/> /
+    /// <see cref="ResumeAsync"/>; metadata through <see cref="UpdateMetadataAsync"/>.
+    /// <paramref name="displayName"/> is the human display label for dashboards; null keeps the
     /// column empty (dashboards fall back to the key).
     /// </summary>
-    ValueTask<int> RegisterAsync(
-        string tenantKey,
-        string? displayName = null,
-        string? description = null,
-        TenantStatusCode status = TenantStatusCode.Active,
-        CancellationToken ct = default
-    );
+    ValueTask<int> RegisterAsync(string tenantKey, string? displayName = null, string? description = null, CancellationToken ct = default);
+
+    /// <summary>Point-read one registered tenant by opaque key; null when it does not exist.</summary>
+    ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct = default);
 
     /// <summary>List registered tenants ordered by tenant key ascending.</summary>
     ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default);

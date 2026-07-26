@@ -114,6 +114,14 @@ internal sealed class JobDefinition : IEntity<int>
     [DbColumn("output_format_name", DbKind.AsciiString, Size = 128)]
     public string OutputFormatName { get; internal set; } = default!;
 
+    /// <summary>
+    /// Whether jobs of this definition must, may, or must not carry a tenant; enforced by the enqueue
+    /// routines. Code-fixed like the type contract (no operator override triple): the requirement is
+    /// contract-adjacent, and an operator flip would break handler assumptions about tenant scope.
+    /// </summary>
+    [DbColumn("tenant_requirement_code")]
+    public JobTenantRequirementCode TenantRequirement { get; internal set; }
+
     // ---------- Policy (triples: default, operator _override, DB-computed _effective) ----------
     // Convention: each code-owned default is bare-named; its operator override is the same name +
     // "_override" (nullable, NULL = inherit); its effective value is a STORED generated column

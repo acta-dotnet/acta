@@ -284,6 +284,22 @@ public static class IdentifierSyntax
     }
 
     /// <summary>
+    /// Normalize a tenant key: the <see cref="NormalizeKey"/> rules plus rejection of the bare
+    /// reserved name (<see cref="ReservedSystemName"/>), mirroring the namespace registration rule so
+    /// a tenant cannot shadow the seeded <c>sys</c> namespace identity in operator surfaces.
+    /// </summary>
+    public static string NormalizeTenantKey(string value, string paramName, int maxLength = ExtendedMaxLength)
+    {
+        var canonical = NormalizeKey(value, paramName, maxLength);
+        if (canonical == ReservedSystemName)
+        {
+            throw new ArgumentException($"Tenant key '{ReservedSystemName}' is reserved for system-internal names.", paramName);
+        }
+
+        return canonical;
+    }
+
+    /// <summary>
     /// Normalize an Acta-owned equality key for lookup paths: same trim/charset/length/lowercase rules
     /// as <see cref="NormalizeKey"/> but WITHOUT the <c>sys.</c>-prefix rejection, so a lookup keyed on a
     /// system row's deduplication key (e.g. <c>sys.retention</c>) can still resolve. Never use this at a

@@ -44,6 +44,40 @@ WHERE @p_tenant_key IS NOT NULL
         AND t.status_code <> 10 /* TenantStatusCode.Active */
   );
 
+SELECT acta_error('ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.')
+WHERE @p_tenant_key IS NULL
+  AND EXISTS (
+      SELECT 1 FROM {{schema}}.namespaces ns
+      JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
+      WHERE ns.name = @p_namespace_name
+        AND jd.tenant_requirement_code = 10 /* JobTenantRequirementCode.Required */
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM {{schema}}.jobs pj
+      WHERE pj.id = @p_parent_id AND pj.tenant_id IS NOT NULL
+  );
+
+SELECT acta_error('ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.')
+WHERE @p_tenant_key IS NOT NULL
+  AND EXISTS (
+      SELECT 1 FROM {{schema}}.namespaces ns
+      JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
+      WHERE ns.name = @p_namespace_name
+        AND jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */
+  );
+
+SELECT acta_error('ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantKey differs from the parent tenant without an explicit override.')
+WHERE @p_parent_id IS NOT NULL
+  AND @p_tenant_key IS NOT NULL
+  AND @p_tenant_override = 0
+  AND EXISTS (
+      SELECT 1 FROM {{schema}}.jobs pj
+      JOIN {{schema}}.tenants t ON t.tenant_key = @p_tenant_key
+      WHERE pj.id = @p_parent_id
+        AND pj.tenant_id IS NOT NULL
+        AND pj.tenant_id <> t.id
+  );
+
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
@@ -73,10 +107,11 @@ SELECT
     @p_deduplication_key,
     COALESCE(@p_correlation_key, pj.correlation_key),
     ns.id, jd.id,
-    COALESCE(
-        (SELECT t.id FROM {{schema}}.tenants t
-          WHERE t.tenant_key = @p_tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */),
-        pj.tenant_id),
+    CASE WHEN jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+         ELSE COALESCE(
+             (SELECT t.id FROM {{schema}}.tenants t
+               WHERE t.tenant_key = @p_tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */),
+             pj.tenant_id) END,
     @p_input_format_id, @p_input,
     @p_exclusive_key,
     jd.audit_level_code_effective

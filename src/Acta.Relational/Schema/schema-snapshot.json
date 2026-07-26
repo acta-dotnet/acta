@@ -236,6 +236,10 @@
             "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
           },
           {
+            "Name": "tenant_requirement_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-tenant-requirement|values=0, 10, 20"
+          },
+          {
             "Name": "priority_code",
             "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=priority|values=0, 50, 70, 85, 100"
           },
@@ -2084,6 +2088,29 @@
         ]
       },
       {
+        "CodeKind": "job-tenant-requirement",
+        "Values": [
+          {
+            "Id": 0,
+            "Code": "optional",
+            "Description": "Jobs may carry a tenant or not; no enqueue-time tenant rule applies.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 10,
+            "Code": "required",
+            "Description": "Every enqueue must carry a tenant, by explicit TenantKey or parent inheritance; a tenant-less enqueue is rejected.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "forbidden",
+            "Description": "An explicit TenantKey is rejected and a child never inherits its parent\u0027s tenant; rows always store tenant NULL.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
         "CodeKind": "lease-kind",
         "Values": [
           {
@@ -2331,7 +2358,7 @@
           {
             "Id": 20,
             "Code": "suspended",
-            "Description": "Tenant key does not resolve; enqueue rejected. Reversible (billing/abuse hold, admin pause). Existing in-flight jobs are unaffected.",
+            "Description": "Admission suspended: new enqueues naming the tenant key are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause).",
             "Lifecycle": "Active"
           }
         ]

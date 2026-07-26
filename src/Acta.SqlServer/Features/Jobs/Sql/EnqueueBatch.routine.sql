@@ -25,14 +25,16 @@ BEGIN
             def_priority    SMALLINT NOT NULL,
             def_audit_level TINYINT  NOT NULL,
             def_status      TINYINT  NOT NULL,
+            def_tenant_req  TINYINT  NOT NULL,
             tenant_id       INT      NULL
         );
 
-        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_audit_level, def_status)
+        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_audit_level, def_status, def_tenant_req)
         SELECT b.ordinal, ns.id, ns.status_code, jd.id,
                jd.priority_code_effective,
                jd.audit_level_code_effective,
-               jd.status_code
+               jd.status_code,
+               jd.tenant_requirement_code
           FROM @p_batch b
           INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
           INNER JOIN {{schema}}.definitions jd
@@ -129,6 +131,44 @@ BEGIN
             THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
         END;
 
+        IF EXISTS (
+            SELECT 1
+              FROM @resolved r
+              INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+              LEFT JOIN @parents p  ON p.ordinal = b.ordinal
+             WHERE r.def_tenant_req = 10 /* JobTenantRequirementCode.Required */
+               AND r.tenant_id IS NULL
+               AND p.tenant_id IS NULL
+        )
+        BEGIN
+            THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: one or more rows target a definition that requires a tenant and carry none.', 1;
+        END;
+
+        IF EXISTS (
+            SELECT 1
+              FROM @resolved r
+              INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+             WHERE r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */
+               AND b.tenant_key IS NOT NULL
+        )
+        BEGIN
+            THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.', 1;
+        END;
+
+        IF EXISTS (
+            SELECT 1
+              FROM @resolved r
+              INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+              INNER JOIN @parents p ON p.ordinal = b.ordinal
+             WHERE r.tenant_id IS NOT NULL
+               AND p.tenant_id IS NOT NULL
+               AND r.tenant_id <> p.tenant_id
+               AND b.tenant_override = 0
+        )
+        BEGIN
+            THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a TenantKey that differs from the parent tenant without an explicit override.', 1;
+        END;
+
         DECLARE @map TABLE (
             job_ref UNIQUEIDENTIFIER PRIMARY KEY,
             id      BIGINT NOT NULL
@@ -145,7 +185,9 @@ BEGIN
         SELECT
             b.job_ref, p.lineage_root_id, b.parent_id,
             b.deduplication_key, COALESCE(b.correlation_key, p.correlation_key),
-            r.ns_id, r.def_id, COALESCE(r.tenant_id, p.tenant_id),
+            r.ns_id, r.def_id,
+            CASE WHEN r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                 ELSE COALESCE(r.tenant_id, p.tenant_id) END,
             b.input_format_id, b.input,
             b.exclusive_key, r.def_audit_level,
             @now

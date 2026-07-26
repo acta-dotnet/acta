@@ -151,7 +151,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 - **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + Crockford Base32 over a C#-allocated UUIDv7), `DeduplicationKey` caller-defined; `events`/`alerts` denormalize `job_ref` at INSERT so it resolves past purge. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers.
 - **`JobNamespace` is the service-owned execution boundary.** One deployable service owns one namespace; replicas share it. *Reason:* namespace identity = deployment unit, not tenant marker.
 - **Workers only claim within their own namespace.** *Reason:* blast-radius firewall, a bug cannot escape its namespace; cross-namespace enqueue allowed, cross-namespace claim impossible by index seek.
-- **Tenant is a label, not an isolation primitive.** No tenant-aware claim fairness or per-tenant limits; tenant isolation = separate deployments. *Reason:* an audit/query scope is a cheap nullable column; fairness would widen every hot index.
+- **Tenant is validated identity, not an isolation primitive.** The catalog is global per store; enqueue validates and stamps it, children inherit it, and suspension is admission control only. No tenant-aware claim fairness, per-tenant limits, data security, or failure domain; that isolation = application enforcement + separate deployments. *Reason:* an audit/query scope is a cheap nullable column; fairness would widen every hot index.
 - **System jobs are namespace-local.** `sys.alerts`/`sys.recovery`/`sys.retention` live in the target's own namespace. *Reason:* a global namespace would violate the firewall.
 
 ### Behavior

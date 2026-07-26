@@ -329,6 +329,24 @@ internal static class ActaApiEndpoints
         );
 
         group.MapGet(
+            "/tenants/{key}",
+            async (string key, IJobs jobs, CancellationToken ct) =>
+            {
+                TenantListItem? tenant;
+                try
+                {
+                    tenant = await jobs.Tenants.GetAsync(key, ct);
+                }
+                catch (ArgumentException)
+                {
+                    return NotFound();
+                }
+
+                return tenant is null ? NotFound() : Results.Json(tenant, DashboardJsonContext.Default.TenantListItem);
+            }
+        );
+
+        group.MapGet(
             "/events",
             static (HttpContext http, IJobs jobs, CancellationToken ct) =>
             {

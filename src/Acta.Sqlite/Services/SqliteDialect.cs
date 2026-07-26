@@ -174,6 +174,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 WriteNumberOrNull(writer, "delay_seconds", row.DelaySeconds);
                 WriteNumberOrNull(writer, "parent_id", row.ParentId);
                 WriteStringOrNull(writer, "tenant_key", row.TenantKey);
+                writer.WriteNumber("tenant_override", row.OverrideParentTenant ? 1 : 0);
             }
         );
 
@@ -221,6 +222,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddNullableInt(command, "@p_delay_seconds", row.DelaySeconds);
         AddNullableInt(command, "@p_parent_id", row.ParentId);
         AddNullableText(command, "@p_tenant_key", row.TenantKey);
+        AddInt(command, "@p_tenant_override", row.OverrideParentTenant ? 1 : 0);
 
         var jsonTags = JsonArray(
             row.Tags ?? [],
@@ -265,6 +267,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 writer.WriteString("output_format_name", row.OutputFormatName);
                 writer.WriteNumber("audit_level_code", row.AuditLevelCode);
                 writer.WriteNumber("alert_profile_code", row.AlertProfileCode);
+                writer.WriteNumber("tenant_requirement_code", row.TenantRequirementCode);
                 WriteStringOrNull(writer, "alert_channel_name", row.AlertChannelName);
                 WriteStringOrNull(writer, "runbook_url", row.RunbookUrl);
                 WriteStringOrNull(writer, "display_name", row.DisplayName);

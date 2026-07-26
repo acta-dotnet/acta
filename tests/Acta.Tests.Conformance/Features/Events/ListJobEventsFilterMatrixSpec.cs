@@ -258,8 +258,8 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         var t1Key = TestKey("t1");
         var t2Key = TestKey("t2");
-        var t1Id = await Services.GetRequiredService<TenantsService>().RegisterAsync(t1Key, null, null, TenantStatusCode.Active, ct);
-        var t2Id = await Services.GetRequiredService<TenantsService>().RegisterAsync(t2Key, null, null, TenantStatusCode.Active, ct);
+        var t1Id = await Services.GetRequiredService<TenantsService>().RegisterAsync(t1Key, null, null, ct);
+        var t2Id = await Services.GetRequiredService<TenantsService>().RegisterAsync(t2Key, null, null, ct);
 
         // Two jobs under t1, one under t2
         var t1Outcomes = await EnqueueTestOps.EnqueueBatchAsync(

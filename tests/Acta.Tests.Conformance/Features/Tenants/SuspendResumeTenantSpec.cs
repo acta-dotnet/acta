@@ -39,7 +39,7 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-suspend");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, TenantStatusCode.Active, ct);
+        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
         var before = await ReadTenantAsync(key, ct);
 
         var outcome = await Services
@@ -65,7 +65,7 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-suspend-idem");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, TenantStatusCode.Active, ct);
+        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
         await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
 
         var again = await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
@@ -79,7 +79,8 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-resume");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, TenantStatusCode.Suspended, ct);
+        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
+        await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
 
         var outcome = await Services
             .GetRequiredService<ITenantStore>()
@@ -95,7 +96,7 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-resume-idem");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, TenantStatusCode.Active, ct);
+        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
 
         var outcome = await Services.GetRequiredService<ITenantStore>().ResumeTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
 

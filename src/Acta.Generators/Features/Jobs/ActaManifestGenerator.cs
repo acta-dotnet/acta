@@ -233,6 +233,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             MaxAttempts: policy.MaxAttempts,
             AuditLevelName: auditLevelName,
             AlertProfileName: policy.AlertProfileName,
+            TenantRequirementId: policy.TenantRequirementId,
             // Operator-tooling shape hint, json inputs only: any other format has no object shape to
             // seed, and a zero-input handler (NoInput) has no members at all.
             InputTemplateJson: inputFormatName == "json" && inputType is not null ? InputTemplateJson.Build(inputType) : null,
@@ -268,6 +269,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         var maxAttempts = DefaultMaxAttempts;
         string? auditLevelName = null;
         var alertProfileName = DefaultAlertProfileName;
+        byte tenantRequirementId = 0;
         var recurringResultCap = DefaultRecurringResultCap;
         string? backoffExpression = null;
         int? executionTimeoutSeconds = null;
@@ -384,6 +386,27 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                     }
                     break;
 
+                case "TenantRequirement":
+                    if (TryGetEnumByte(named.Value, out var tr))
+                    {
+                        if (TenantRequirementIdToName(tr) is null)
+                        {
+                            diagnostics.Add(
+                                Diagnostics.InvalidPolicyValue(
+                                    named.Key,
+                                    tr.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                    "The value is not a defined `JobTenantRequirementCode`.",
+                                    location
+                                )
+                            );
+                        }
+                        else
+                        {
+                            tenantRequirementId = tr;
+                        }
+                    }
+                    break;
+
                 case "AlertProfile":
                     if (TryGetEnumByte(named.Value, out var ap))
                     {
@@ -493,6 +516,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             maxAttempts,
             auditLevelName,
             alertProfileName,
+            tenantRequirementId,
             recurringResultCap,
             backoffExpression,
             executionTimeoutSeconds,
@@ -624,6 +648,15 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             _ => null,
         };
 
+    private static string? TenantRequirementIdToName(byte id) =>
+        id switch
+        {
+            0 => "Optional",
+            10 => "Required",
+            20 => "Forbidden",
+            _ => null,
+        };
+
     private sealed record AttributePolicy(
         string? Format,
         string? InputFormat,
@@ -632,6 +665,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         short MaxAttempts,
         string? AuditLevelName,
         string AlertProfileName,
+        byte TenantRequirementId,
         int RecurringResultCap,
         string? Backoff,
         int? ExecutionTimeoutSeconds,
@@ -1429,6 +1463,11 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             var serExpr = j.OutputType is null ? "null" : $"GeneratedHandlerDispatch.SerializeOutput_{j.JobNameSafe()}";
 
             var policyLines = new List<string>();
+            if (j.TenantRequirementId != 0)
+            {
+                policyLines.Add($"TenantRequirement = (Acta.JobTenantRequirementCode){j.TenantRequirementId},");
+            }
+
             if (j.Backoff is { } backoffRaw)
             {
                 policyLines.Add($"Backoff = {FormatString(backoffRaw)},");
@@ -2136,6 +2175,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         short MaxAttempts,
         string AuditLevelName,
         string AlertProfileName,
+        byte TenantRequirementId,
         string? InputTemplateJson,
         int RecurringResultCap,
         string? Backoff,

@@ -10,6 +10,7 @@ INSERT INTO {{schema}}.definitions (
     deadline_behavior_code,
     retention_seconds,
     audit_level_code, alert_profile_code,
+    tenant_requirement_code,
     alert_channel_name, runbook_url,
     display_name, description,
     definition_hash, manifest_generation_at_utc)
@@ -25,6 +26,7 @@ SELECT
     json_extract(d.value, '$.deadline_behavior_code'),
     json_extract(d.value, '$.retention_seconds'),
     json_extract(d.value, '$.audit_level_code'), json_extract(d.value, '$.alert_profile_code'),
+    json_extract(d.value, '$.tenant_requirement_code'),
     json_extract(d.value, '$.alert_channel_name'), json_extract(d.value, '$.runbook_url'),
     json_extract(d.value, '$.display_name'), json_extract(d.value, '$.description'),
     json_extract(d.value, '$.definition_hash'), @p_manifest_generation
@@ -47,6 +49,7 @@ ON CONFLICT (namespace_id, name) DO UPDATE SET
     retention_seconds = excluded.retention_seconds,
     audit_level_code = excluded.audit_level_code,
     alert_profile_code = excluded.alert_profile_code,
+    tenant_requirement_code = excluded.tenant_requirement_code,
     alert_channel_name = excluded.alert_channel_name,
     runbook_url = excluded.runbook_url,
     display_name = excluded.display_name,

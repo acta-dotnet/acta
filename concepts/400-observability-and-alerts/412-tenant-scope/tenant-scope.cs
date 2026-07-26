@@ -20,7 +20,8 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var acmeId = await jobs.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab");
-await jobs.Tenants.RegisterAsync("held-customer", "Held customer", status: TenantStatusCode.Suspended);
+await jobs.Tenants.RegisterAsync("held-customer", "Held customer");
+await jobs.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantKey("acme").CorrelationKey(runId));

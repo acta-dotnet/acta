@@ -565,6 +565,9 @@ internal sealed class JobsService(
         ("ACTA:ENQ_TENANT_UNKNOWN:", EnqueueRejectionReasonCode.TenantUnknown),
         ("ACTA:ENQ_ROUTE_UNKNOWN:", EnqueueRejectionReasonCode.RouteUnknown),
         ("ACTA:ENQ_DEF_RETIRED:", EnqueueRejectionReasonCode.DefinitionRetired),
+        ("ACTA:ENQ_TENANT_REQUIRED:", EnqueueRejectionReasonCode.TenantRequired),
+        ("ACTA:ENQ_TENANT_FORBIDDEN:", EnqueueRejectionReasonCode.TenantForbidden),
+        ("ACTA:ENQ_TENANT_MISMATCH:", EnqueueRejectionReasonCode.TenantMismatch),
     ];
 
     private static EnqueueRejectedException? TryTranslateEnqueue(DbException ex)
@@ -609,7 +612,8 @@ internal sealed class JobsService(
             NextRunAtUtc: request.NextRunAtUtc,
             DelaySeconds: request.DelaySeconds,
             ParentId: request.ParentId,
-            TenantKey: request.TenantKey
+            TenantKey: request.TenantKey,
+            OverrideParentTenant: request.OverrideParentTenant
         );
     }
 

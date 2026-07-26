@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **30 families**, **156 values**.
+This release: **31 families**, **159 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -58,6 +58,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`JobAuditLevelCode`](#code-family-jobauditlevelcode) | `job-audit-level` | `byte` | Audit / actor attribution | Policy | Catalog (definition policy). |
 | [`JobEventCode`](#code-family-jobeventcode) | `event` | `byte` | Audit / actor attribution | Taxonomy | System - every emission site picks its event kind. |
 | [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `job-deadline-behavior` | `byte` | Catalog metadata | Taxonomy | · |
+| [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) | `job-tenant-requirement` | `byte` | Catalog metadata | Taxonomy | · |
 | [`LeaseKindCode`](#code-family-leasekindcode) | `lease-kind` | `byte` | Catalog metadata | Taxonomy | · |
 | [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` | Catalog metadata | Taxonomy | · |
 | [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` | Catalog metadata | Taxonomy | · |
@@ -836,7 +837,7 @@ Tenant state machine.
 | Id | Code | Description | Lifecycle |
 |---:|---|---|---|
 | 10 | `active` | Tenant key resolves at enqueue; enqueue allowed. | Active |
-| 20 | `suspended` | Tenant key does not resolve; enqueue rejected. Reversible (billing/abuse hold, admin pause). Existing in-flight jobs are unaffected. | Active |
+| 20 | `suspended` | Admission suspended: new enqueues naming the tenant key are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause). | Active |
 
 ---
 
@@ -1015,6 +1016,7 @@ Stable family-local event identifiers.
 ### Catalog metadata <a id="catalog-metadata"></a>
 
 - [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) · `job-deadline-behavior` (byte-backed). Taxonomy.
+- [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) · `job-tenant-requirement` (byte-backed). Taxonomy.
 - [`LeaseKindCode`](#code-family-leasekindcode) · `lease-kind` (byte-backed). Taxonomy.
 - [`MisfireStrategyCode`](#code-family-misfirestrategycode) · `misfire-strategy` (byte-backed). Taxonomy.
 - [`OutboxStatusCode`](#code-family-outboxstatuscode) · `outbox-status` (byte-backed). Taxonomy.
@@ -1052,6 +1054,41 @@ How the engine treats a job that has passed its deadline.
 |---:|---|---|---|
 | 10 | `strict` | Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline. | Active |
 | 20 | `advisory` | Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue. | Active |
+
+---
+
+#### `JobTenantRequirementCode` · `job-tenant-requirement` <a id="code-family-jobtenantrequirementcode"></a>
+
+Whether jobs of a definition must, may, or must not carry a tenant.
+
+`Taxonomy`
+
+| At a glance | |
+|---|---|
+| Backing type | `byte` |
+| Code kind | `job-tenant-requirement` |
+| Source | `[Code]` enum |
+| Domain | Catalog metadata |
+| Code style | Taxonomy |
+| Appears in | [`definitions.tenant_requirement_code`](./data-model.md#column-acta-definitions--tenant-requirement-code) |
+| Set by | · |
+| Consumed ids | 3 |
+| Held reserve | 0 |
+| Available ids | 252 |
+
+**Capacity**
+
+| Assigned | Deprecated | Retired | Permanently reserved | Held reserve | Available | Invalid sentinels |
+|---:|---:|---:|---:|---:|---:|---:|
+| 3 | 0 | 0 | 0 | 0 | 252 | 1 |
+
+**Values**
+
+| Id | Code | Description | Lifecycle |
+|---:|---|---|---|
+| 0 | `optional` | Jobs may carry a tenant or not; no enqueue-time tenant rule applies. | Active |
+| 10 | `required` | Every enqueue must carry a tenant, by explicit TenantKey or parent inheritance; a tenant-less enqueue is rejected. | Active |
+| 20 | `forbidden` | An explicit TenantKey is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
 
 ---
 

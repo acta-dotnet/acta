@@ -251,17 +251,15 @@ export interface NamespaceListItem {
 export interface TenantRegistrationResponse {
   tenantId: number;
   tenantKey: string;
-  status: string;
 }
 
-// Tenant register/suspend POST. Register and suspend are the same idempotent upsert; pass
-// status 'suspended' to suspend. Returns the assigned tenant id; a 400/404 (bad key, or controls
-// disabled) throws with the problem detail.
+// Tenant register POST. Insert-or-return-existing: a new tenant is created active, an existing one
+// is returned untouched (suspend/resume own status changes). Returns the assigned tenant id; a
+// 400/404 (bad key, or controls disabled) throws with the problem detail.
 export async function registerTenant(
   tenantKey: string,
   displayName?: string | null,
-  description?: string | null,
-  status?: 'active' | 'suspended'
+  description?: string | null
 ): Promise<TenantRegistrationResponse> {
   const { response, body } = await request<TenantRegistrationResponse>({
     path: 'tenants',
@@ -270,8 +268,7 @@ export async function registerTenant(
     body: {
       tenantKey: tenantKey.trim(),
       displayName: displayName?.trim() || null,
-      description: description?.trim() || null,
-      status: status ?? null
+      description: description?.trim() || null
     }
   });
 

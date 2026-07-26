@@ -928,23 +928,7 @@ public sealed class ControlEndpointTests
         Assert.Contains("\"tenantId\":7", body);
         Assert.Contains("\"tenantKey\":\"cust-001\"", body);
         var call = Assert.Single(jobs.TenantCalls);
-        Assert.Equal(("cust-001", "Acme Corp", "Acme", TenantStatusCode.Active), call);
-    }
-
-    [Fact]
-    public async Task Suspend_is_a_register_with_suspended_status()
-    {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
-        await using var _ = app;
-
-        var response = await client.SendAsync(
-            PostTenant(new { tenantKey = "cust-001", status = "suspended" }),
-            TestContext.Current.CancellationToken
-        );
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(TenantStatusCode.Suspended, Assert.Single(jobs.TenantCalls).Status);
+        Assert.Equal(("cust-001", "Acme Corp", "Acme"), call);
     }
 
     [Fact]

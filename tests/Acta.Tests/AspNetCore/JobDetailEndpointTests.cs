@@ -80,7 +80,7 @@ public sealed class JobDetailEndpointTests
     [Fact]
     public async Task Detail_resolves_the_snapshot_tenant_id_to_its_key()
     {
-        // The fake tenant list knows id 1 as "cust-001"; the aggregate resolves the id to that key.
+        // The snapshot itself carries the key ("cust-001" for id 1); the aggregate echoes it top-level.
         var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 1 });
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
@@ -109,7 +109,7 @@ public sealed class JobDetailEndpointTests
     [Fact]
     public async Task Detail_for_an_unresolvable_tenant_id_emits_no_tenant_key()
     {
-        // A tenant id the list does not carry resolves to null, never an error, so the field is absent.
+        // A tenant id whose row is gone projects a null key, never an error, so the field is absent.
         var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 999 });
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
@@ -122,9 +122,9 @@ public sealed class JobDetailEndpointTests
     }
 
     [Fact]
-    public async Task Detail_with_an_unavailable_tenants_surface_still_answers_without_a_tenant_key()
+    public async Task Detail_with_an_unavailable_tenants_surface_still_carries_the_tenant_key()
     {
-        // A throwing tenants read degrades to no key; it never fails the whole aggregate.
+        // The key rides the snapshot projection, so a throwing tenants surface no longer affects it.
         var (app, client) = await TestDashboardHost.StartAsync(
             jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 1, TenantsListThrows = true }
         );
@@ -135,7 +135,7 @@ public sealed class JobDetailEndpointTests
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(doc.RootElement.TryGetProperty("tenantKey", out _));
+        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantKey").GetString());
     }
 
     [Fact]

@@ -4,15 +4,18 @@ using Acta.Features.Shared;
 namespace Acta.Features.Tenants;
 
 /// <summary>
-/// Persistence port for the tenants control plane: the idempotent registration upsert, the
+/// Persistence port for the tenants control plane: the insert-or-return-existing registration, the
 /// key-ordered list, and the operator control verbs. Every control verb returns exactly one
 /// (action, version) outcome row and emits its audit event (to the sys namespace) in the same
 /// transaction; requests arrive validated with keys already canonicalized.
 /// </summary>
 internal interface ITenantStore
 {
-    /// <summary>Upserts one tenant by key and returns its id; unchanged metadata writes nothing.</summary>
+    /// <summary>Inserts one Active tenant by key or returns the existing id; existing rows are never modified.</summary>
     Task<int> RegisterTenantAsync(RegisterTenantCommand command, CancellationToken ct);
+
+    /// <summary>Point-reads one tenant by key or id; null when it does not exist.</summary>
+    Task<TenantListItem?> GetTenantAsync(TenantPointLookup lookup, CancellationToken ct);
 
     /// <summary>One keyset page of tenants ordered by key ascending plus an opt-in total.</summary>
     Task<TenantPage> ListTenantsAsync(TenantPageRequest request, CancellationToken ct);
@@ -27,8 +30,11 @@ internal interface ITenantStore
     Task<AdminControlOutcome> UpdateTenantMetadataAsync(UpdateTenantMetadataCommand command, CancellationToken ct);
 }
 
-/// <summary>Canonicalized registration upsert for one tenant.</summary>
-internal sealed record RegisterTenantCommand(string TenantKey, string? DisplayName, string? Description, TenantStatusCode Status);
+/// <summary>Canonicalized registration request for one tenant; applies only when the key is new.</summary>
+internal sealed record RegisterTenantCommand(string TenantKey, string? DisplayName, string? Description);
+
+/// <summary>Point-lookup address for one tenant: exactly one of the canonical key or the internal id.</summary>
+internal readonly record struct TenantPointLookup(string? TenantKey, int? TenantId);
 
 /// <summary>Validated, cursor-decoded request for one tenant page; Take carries the peek-ahead row.
 /// SearchPattern is a pre-lowercased '%term%' LIKE pattern (or null); Status filters by state (or null).</summary>

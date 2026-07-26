@@ -5,10 +5,9 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore.Features.Tenants;
 
 /// <summary>
-/// POST tenant-control endpoint: a thin HTTP wrapper over <see cref="ITenants.RegisterAsync"/>.
-/// Registering and suspending are the same idempotent upsert - a suspend is a register with
-/// <see cref="TenantStatusCode.Suspended"/>. Guarded by the shared confirmation header; an invalid
-/// tenant key maps to 400.
+/// Tenant-control endpoints: registration (insert-or-return-existing), suspend/resume, and the
+/// version-guarded metadata patch. Guarded by the shared confirmation header; an invalid tenant key
+/// maps to 400.
 /// </summary>
 internal static class TenantControlEndpoints
 {
@@ -43,10 +42,9 @@ internal static class TenantControlEndpoints
                     );
                 }
 
-                var status = request!.Status ?? TenantStatusCode.Active;
                 if (
                     ControlEndpointValidation.ValidateMetadataLength(
-                        request.DisplayName,
+                        request!.DisplayName,
                         "displayName",
                         CatalogMetadataLimits.TenantDisplayName
                     ) is
@@ -69,16 +67,10 @@ internal static class TenantControlEndpoints
 
                 try
                 {
-                    var canonicalTenantKey = IdentifierSyntax.NormalizeKey(tenantKey, nameof(tenantKey));
-                    var tenantId = await jobs.Tenants.RegisterAsync(
-                        canonicalTenantKey,
-                        request.DisplayName,
-                        request.Description,
-                        status,
-                        ct
-                    );
+                    var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+                    var tenantId = await jobs.Tenants.RegisterAsync(canonicalTenantKey, request.DisplayName, request.Description, ct);
                     return Results.Json(
-                        new TenantRegistrationResponse(tenantId, canonicalTenantKey, status),
+                        new TenantRegistrationResponse(tenantId, canonicalTenantKey),
                         DashboardJsonContext.Default.TenantRegistrationResponse,
                         statusCode: StatusCodes.Status200OK
                     );

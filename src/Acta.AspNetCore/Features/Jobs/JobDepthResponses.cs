@@ -75,8 +75,8 @@ internal sealed record JobDetailResponse(
     // Always emitted (null when this host has no matching definition) so the frontend link reads a
     // definite null rather than an absent field.
     int? JobDefinitionId,
-    // The snapshot carries the numeric tenant id; the key is resolved off the tenants list so the summary
-    // can link to the tenant. Absent when the job has no tenant or the id no longer resolves.
+    // Echo of the snapshot's tenant key at the top level so the summary link needs no snapshot dig.
+    // Absent when the job has no tenant.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TenantKey,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<JobWorkerListItem>? Workers
 )
@@ -104,7 +104,6 @@ internal sealed record JobDetailResponse(
             ct
         );
         var jobDefinitionId = await ResolveDefinitionIdAsync(jobs, snapshot.JobNamespace, snapshot.JobName, ct);
-        var tenantKey = snapshot.TenantId is { } tenantId ? await ResolveTenantKeyAsync(jobs, tenantId, ct) : null;
         IReadOnlyList<JobWorkerListItem>? workers =
             snapshot.Status == JobStatusCode.Ready
                 ? (await jobs.Workers.ListAsync(new ListWorkersQuery(JobNamespace: snapshot.JobNamespace, PageSize: 50), ct)).Items
@@ -119,7 +118,7 @@ internal sealed record JobDetailResponse(
             lineage,
             schedules.Items,
             jobDefinitionId,
-            tenantKey,
+            snapshot.TenantKey,
             workers
         );
     }
@@ -149,41 +148,6 @@ internal sealed record JobDetailResponse(
             }
 
             cursor = page.NextCursor;
-        }
-
-        return null;
-    }
-
-    // The snapshot carries only the numeric tenant id, so resolve its key off the tenants list the same
-    // way the definition link resolves; bounded walk, best-effort (null when the id no longer resolves,
-    // and null rather than failing the whole aggregate when the tenants read itself is unavailable).
-    private static async Task<string?> ResolveTenantKeyAsync(IJobs jobs, int tenantId, CancellationToken ct)
-    {
-        try
-        {
-            string? cursor = null;
-            for (var guard = 0; guard < 100; guard++)
-            {
-                var page = await jobs.Tenants.ListAsync(new ListTenantsQuery(PageSize: 100, Cursor: cursor), ct);
-                foreach (var item in page.Items)
-                {
-                    if (item.TenantId == tenantId)
-                    {
-                        return item.TenantKey;
-                    }
-                }
-
-                if (!page.HasMore || page.NextCursor is null)
-                {
-                    break;
-                }
-
-                cursor = page.NextCursor;
-            }
-        }
-        catch (Exception) when (!ct.IsCancellationRequested)
-        {
-            return null;
         }
 
         return null;

@@ -38,7 +38,7 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-meta");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", "old-desc", TenantStatusCode.Active, ct);
+        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", "old-desc", ct);
         var v = (await ReadAsync(key, ct))!.Version;
 
         var outcome = await Services
@@ -59,7 +59,7 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-meta-clear");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", "old-desc", TenantStatusCode.Active, ct);
+        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", "old-desc", ct);
         var v = (await ReadAsync(key, ct))!.Version;
 
         await Services
@@ -76,7 +76,7 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-meta-cas");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", null, TenantStatusCode.Active, ct);
+        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", null, ct);
         var v = (await ReadAsync(key, ct))!.Version;
 
         var outcome = await Services

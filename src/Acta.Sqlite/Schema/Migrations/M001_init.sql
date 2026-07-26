@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     output_type_name text NULL,
     output_format_id integer NOT NULL,
     output_format_name text NOT NULL,
+    tenant_requirement_code integer NOT NULL,
     priority_code integer NOT NULL,
     priority_code_override integer NULL,
     priority_code_effective integer AS (COALESCE(priority_code_override, priority_code)) STORED,
@@ -109,6 +110,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     , CONSTRAINT ck_definitions_retention CHECK (retention_seconds >= 0)
     , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
     , CONSTRAINT ck_definitions_status_code CHECK (status_code IN (10, 240))
+    , CONSTRAINT ck_definitions_tenant_requirement_code CHECK (tenant_requirement_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_priority_code_override_code CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_priority_code_effective_code CHECK (priority_code_effective IN (0, 50, 70, 85, 100))

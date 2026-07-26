@@ -16,7 +16,7 @@ public enum TenantStatusCode : byte
 
     [Code(
         "suspended",
-        "Tenant key does not resolve; enqueue rejected. Reversible (billing/abuse hold, admin pause). Existing in-flight jobs are unaffected."
+        "Admission suspended: new enqueues naming the tenant key are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause)."
     )]
     Suspended = 20,
 }

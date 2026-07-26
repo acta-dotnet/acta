@@ -15,6 +15,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_one
     @p_delay_seconds     INT              = NULL,
     @p_parent_id         BIGINT           = NULL,
     @p_tenant_key        VARCHAR(128)     = NULL,
+    @p_tenant_override   BIT              = 0,
     @p_tag_batch         {{schema}}.job_enqueue_tag_batch READONLY
 AS
 BEGIN
@@ -22,7 +23,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns_id SMALLINT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT, @def_audit TINYINT, @def_status TINYINT;
+    DECLARE @ns_id SMALLINT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT, @def_audit TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
     DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
     DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
 
@@ -41,7 +42,8 @@ BEGIN
         SELECT @ns_id = ns.id, @ns_status = ns.status_code, @def_id = jd.id,
                @def_priority = jd.priority_code_effective,
                @def_audit = jd.audit_level_code_effective,
-               @def_status = jd.status_code
+               @def_status = jd.status_code,
+               @def_tenant_req = jd.tenant_requirement_code
           FROM {{schema}}.namespaces ns
           INNER JOIN {{schema}}.definitions jd
                   ON jd.namespace_id = ns.id
@@ -80,6 +82,11 @@ BEGIN
             END;
         END;
 
+        IF @def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ AND @p_tenant_key IS NOT NULL
+        BEGIN
+            THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
+        END;
+
         IF @p_deduplication_key IS NOT NULL
         BEGIN
             IF @p_parent_id IS NOT NULL
@@ -115,6 +122,16 @@ BEGIN
             END;
         END;
 
+        IF @def_tenant_req = 10 /* JobTenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
+        BEGIN
+            THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
+        END;
+
+        IF @tenant_id IS NOT NULL AND @parent_tenant IS NOT NULL AND @tenant_id <> @parent_tenant AND @p_tenant_override = 0
+        BEGIN
+            THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantKey differs from the parent tenant without an explicit override.', 1;
+        END;
+
         IF @existing_id IS NULL
         BEGIN
             INSERT INTO {{schema}}.jobs (
@@ -127,7 +144,9 @@ BEGIN
             VALUES (
                 @p_job_ref, @lineage, @p_parent_id,
                 @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
-                @ns_id, @def_id, COALESCE(@tenant_id, @parent_tenant),
+                @ns_id, @def_id,
+                CASE WHEN @def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                     ELSE COALESCE(@tenant_id, @parent_tenant) END,
                 COALESCE(@p_input_format_id, CASE WHEN @p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END), @p_input,
                 @p_exclusive_key, @def_audit,
                 @now);

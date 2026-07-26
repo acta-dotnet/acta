@@ -7,8 +7,8 @@ using Acta.Querying;
 namespace Acta.Features.Tenants;
 
 /// <summary>
-/// Tenants feature behavior: the idempotent registration upsert by Acta-normalized tenant key, the
-/// key-ordered list with cursor math, and the operator control verbs with actor stamping.
+/// Tenants feature behavior: the insert-or-return-existing registration by Acta-normalized tenant
+/// key, the key-ordered list with cursor math, and the operator control verbs with actor stamping.
 /// </summary>
 internal sealed class TenantsService(ITenantStore store)
 {
@@ -21,18 +21,19 @@ internal sealed class TenantsService(ITenantStore store)
 
     private static string? Reason(string? msg) => msg.Truncate(ActaTextLimits.ReasonMessage);
 
-    public async ValueTask<int> RegisterAsync(
-        string tenantKey,
-        string? displayName,
-        string? description,
-        TenantStatusCode status,
-        CancellationToken ct
-    )
+    public async ValueTask<int> RegisterAsync(string tenantKey, string? displayName, string? description, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantKey);
-        var key = IdentifierSyntax.NormalizeKey(tenantKey, nameof(tenantKey));
+        var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
         CatalogMetadataValidation.ValidateTenant(displayName, description);
-        return await store.RegisterTenantAsync(new RegisterTenantCommand(key, displayName, description, status), ct);
+        return await store.RegisterTenantAsync(new RegisterTenantCommand(key, displayName, description), ct);
+    }
+
+    public async ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(tenantKey);
+        var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+        return await store.GetTenantAsync(new TenantPointLookup(key, null), ct);
     }
 
     public async ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct)
@@ -73,7 +74,7 @@ internal sealed class TenantsService(ITenantStore store)
     public async ValueTask<AdminControlResult> SuspendAsync(string tenantKey, string? reasonMessage, string? actorKey, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantKey);
-        var key = IdentifierSyntax.NormalizeKey(tenantKey, nameof(tenantKey));
+        var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
         var outcome = await store.SuspendTenantAsync(new TenantControlCommand(key, Operator(actorKey), Reason(reasonMessage)), ct);
         return new AdminControlResult(outcome.Action, outcome.Version);
     }
@@ -81,7 +82,7 @@ internal sealed class TenantsService(ITenantStore store)
     public async ValueTask<AdminControlResult> ResumeAsync(string tenantKey, string? reasonMessage, string? actorKey, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantKey);
-        var key = IdentifierSyntax.NormalizeKey(tenantKey, nameof(tenantKey));
+        var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
         var outcome = await store.ResumeTenantAsync(new TenantControlCommand(key, Operator(actorKey), Reason(reasonMessage)), ct);
         return new AdminControlResult(outcome.Action, outcome.Version);
     }
@@ -97,7 +98,7 @@ internal sealed class TenantsService(ITenantStore store)
     )
     {
         ArgumentNullException.ThrowIfNull(tenantKey);
-        var key = IdentifierSyntax.NormalizeKey(tenantKey, nameof(tenantKey));
+        var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
         CatalogMetadataValidation.ValidateTenant(displayName, description);
         var outcome = await store.UpdateTenantMetadataAsync(
             new UpdateTenantMetadataCommand(key, displayName, description, expectedVersion, Operator(actorKey), Reason(reasonMessage)),

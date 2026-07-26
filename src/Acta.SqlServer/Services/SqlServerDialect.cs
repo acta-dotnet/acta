@@ -128,6 +128,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_delay_seconds", SqlDbType.Int, (object?)row.DelaySeconds ?? DBNull.Value);
         AddScalar(sql, "@p_parent_id", SqlDbType.BigInt, (object?)row.ParentId ?? DBNull.Value);
         AddScalar(sql, "@p_tenant_key", SqlDbType.VarChar, (object?)row.TenantKey ?? DBNull.Value);
+        AddScalar(sql, "@p_tenant_override", SqlDbType.Bit, row.OverrideParentTenant);
         sql.Parameters.Add(
             new SqlParameter
             {
@@ -166,6 +167,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("delay_seconds", SqlDbType.Int),
         new("parent_id", SqlDbType.BigInt),
         new("tenant_key", SqlDbType.VarChar, 128),
+        new("tenant_override", SqlDbType.Bit),
     ];
 
     private static IEnumerable<SqlDataRecord> BuildBatchRecords(IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs)
@@ -202,6 +204,7 @@ internal sealed class SqlServerDialect : ISqlDialect
                 record.SetDBNull(12);
             }
             SetNullableString(record, 13, row.TenantKey);
+            record.SetBoolean(14, row.OverrideParentTenant);
             yield return record;
         }
     }
@@ -291,6 +294,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("display_name", SqlDbType.NVarChar, 128),
         new("description", SqlDbType.NVarChar, 512),
         new("definition_hash", SqlDbType.VarChar, 128),
+        new("tenant_requirement_code", SqlDbType.TinyInt),
     ];
 
     private static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<JobDefinitionRow> rows)
@@ -328,6 +332,7 @@ internal sealed class SqlServerDialect : ISqlDialect
                 SetNullableString(record, 18, row.DisplayName);
                 SetNullableString(record, 19, row.Description);
                 record.SetString(20, row.DefinitionHash);
+                record.SetByte(21, row.TenantRequirementCode);
                 yield return record;
             }
         }
@@ -591,4 +596,21 @@ internal sealed class SqlServerDialect : ISqlDialect
             }
         }
     }
+
+    // The TVP CREATE TYPE bodies live in M001 (emitted from tools/Acta.Emit's SqlServerDdlDialect),
+    // while the SqlDataRecord shapes bind positionally against them here; TvpParityTests compares the
+    // two through this map so a column added on one side fails a unit test, not a live DB apply.
+    // Declared last: a static initializer reading the arrays above must run after them.
+    internal static readonly IReadOnlyDictionary<string, SqlMetaData[]> TvpShapes = new Dictionary<string, SqlMetaData[]>(
+        StringComparer.Ordinal
+    )
+    {
+        ["job_enqueue_batch"] = BatchColumns,
+        ["job_enqueue_tag_batch"] = TagColumns,
+        ["job_definition_batch"] = DefinitionColumns,
+        ["job_schedule_slot_batch"] = SlotColumns,
+        ["job_schedule_upsert_batch"] = ScheduleUpsertColumns,
+        ["job_schedule_advance_batch"] = ScheduleAdvanceColumns,
+        ["complete_executions_batch"] = CompleteBatchColumns,
+    };
 }

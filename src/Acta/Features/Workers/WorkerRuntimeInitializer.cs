@@ -156,6 +156,7 @@ internal sealed class WorkerRuntimeInitializer
         ValidateHasDescriptors(ns, allDescriptors);
         ValidateUniqueJobNames(allDescriptors);
         ValidateScheduleTimeZones(allDescriptors);
+        ValidateTenantRequirements(allDescriptors);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
         // throws here (before register), Warn logs and continues. The SQL routine remains the
@@ -285,6 +286,22 @@ internal sealed class WorkerRuntimeInitializer
                         ex
                     );
                 }
+            }
+        }
+    }
+
+    // Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less by
+    // the runtime, so every slot fire would trip the enqueue guard instead of surfacing at startup.
+    private static void ValidateTenantRequirements(ImmutableArray<JobDescriptor> descriptors)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.TenantRequirement == JobTenantRequirementCode.Required && !descriptor.Schedules.IsDefaultOrEmpty)
+            {
+                throw new InvalidOperationException(
+                    $"Job '{descriptor.JobName}' declares TenantRequirement = Required together with [JobSchedule]. "
+                        + "Recurring slots are enqueued without a tenant, so a scheduled definition cannot require one."
+                );
             }
         }
     }

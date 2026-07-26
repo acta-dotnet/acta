@@ -21,10 +21,10 @@ namespace Acta.Tests.Conformance.Runtime;
     "job-context.di-resolution",
     "JobContext is resolvable by constructor injection in the attempt scope",
     Area = "Execution",
-    Contract = "An instance handler receives a populated JobContext by constructor injection from the per-attempt DI scope matching the running job's identity.",
-    Arrange = "A context-probe instance handler taking JobContext by constructor injection is registered.",
+    Contract = "An instance handler receives a populated JobContext by constructor injection matching the running job's identity and its resolved tenant scope.",
+    Arrange = "A context-probe instance handler taking JobContext by constructor injection is registered, with and without a tenant on the enqueue.",
     Act = "The job runs once through the per-attempt DI scope.",
-    Assert = "The persisted result echoes the injected context's job id and name, proving DI handed the running job's context."
+    Assert = "The persisted result echoes the context's job id, name, tenant id, and external tenant key, with both tenant fields null on a tenant-less job."
 )]
 public abstract class JobContextDiResolutionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -50,5 +50,30 @@ public abstract class JobContextDiResolutionSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(enqueued.JobId, typed.JobIdFromContext);
         Assert.Equal("context-probe", typed.JobNameFromContext);
+        Assert.Null(typed.TenantIdFromContext);
+        Assert.Null(typed.TenantKeyFromContext);
+    }
+
+    [Fact(DisplayName = "A tenant-scoped job's context carries the tenant id and its external key")]
+    public async Task Context_carries_tenant_id_and_key()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tenantKey = TestKey("ctx-tenant");
+        var tenantId = await Jobs.Tenants.RegisterAsync(tenantKey, ct: ct);
+
+        var enqueued = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("scoped")), TenantKey: tenantKey),
+            ct
+        );
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var result = await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct);
+        Assert.NotNull(result);
+        var typed = JsonJobPayloadSerializer.Default.Deserialize<ContextProbeResult>(
+            JobPayload.FromBytes(result!.Format, result.Data.ToArray())
+        );
+
+        Assert.Equal(tenantId, typed.TenantIdFromContext);
+        Assert.Equal(tenantKey, typed.TenantKeyFromContext);
     }
 }

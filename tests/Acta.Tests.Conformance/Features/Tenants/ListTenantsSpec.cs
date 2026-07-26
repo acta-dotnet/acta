@@ -33,7 +33,7 @@ public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
         var ct = TestContext.Current.CancellationToken;
         var db = Store();
         var key = TestKey("tenant-list");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, "Acme Corp", status: TenantStatusCode.Active, ct);
+        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, "Acme Corp", ct);
 
         // Keyset paging is self-consistent under the database's own collation (the cursor predicate and
         // ORDER BY share it), so we assert coverage and uniqueness rather than a client-side string order.
@@ -61,7 +61,7 @@ public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
         var ct = TestContext.Current.CancellationToken;
         var tenants = Services.GetRequiredService<TenantsService>();
         var key = TestKey("tenant-version");
-        await tenants.RegisterAsync(key, null, "Acme Corp", status: TenantStatusCode.Active, ct);
+        await tenants.RegisterAsync(key, null, "Acme Corp", ct);
 
         // Bump the row version off its default so a broken projection cannot pass by reading a stray 0.
         var suspended = await tenants.SuspendAsync(key, null, null, ct);
@@ -91,7 +91,7 @@ public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
         var ct = TestContext.Current.CancellationToken;
         var tenants = Services.GetRequiredService<TenantsService>();
         var key = TestKey("tenant-metadata");
-        await tenants.RegisterAsync(key, "Acme Display", "Acme Corp", status: TenantStatusCode.Active, ct);
+        await tenants.RegisterAsync(key, "Acme Display", "Acme Corp", ct);
 
         // The shared provider DB accumulates tenants across runs, so page by cursor to reach our row.
         var store = Services.GetRequiredService<ITenantStore>();
@@ -122,8 +122,8 @@ public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
             var token = TestKey($"tenant-search-{name}");
             var matchingKey = TestKey($"tenant-search-{name}-matching");
             var controlKey = TestKey($"tenant-search-{name}-control");
-            await tenants.RegisterAsync(matchingKey, $"{token}{special}suffix", null, TenantStatusCode.Active, ct);
-            await tenants.RegisterAsync(controlKey, $"{token}{replacement}suffix", null, TenantStatusCode.Active, ct);
+            await tenants.RegisterAsync(matchingKey, $"{token}{special}suffix", null, ct);
+            await tenants.RegisterAsync(controlKey, $"{token}{replacement}suffix", null, ct);
 
             var page = await tenants.ListAsync(new ListTenantsQuery(Search: token + special, PageSize: 100), ct);
 
@@ -137,9 +137,7 @@ public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var db = Store();
-        await Services
-            .GetRequiredService<TenantsService>()
-            .RegisterAsync(TestKey("tenant-total"), null, null, status: TenantStatusCode.Active, ct);
+        await Services.GetRequiredService<TenantsService>().RegisterAsync(TestKey("tenant-total"), null, null, ct);
 
         var page_noTotal = await Services
             .GetRequiredService<ITenantStore>()

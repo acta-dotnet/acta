@@ -12,9 +12,10 @@ internal sealed class TenantsApi(TenantsService tenants) : ITenants
         string tenantKey,
         string? displayName = null,
         string? description = null,
-        TenantStatusCode status = TenantStatusCode.Active,
         CancellationToken ct = default
-    ) => tenants.RegisterAsync(tenantKey, displayName, description, status, ct);
+    ) => tenants.RegisterAsync(tenantKey, displayName, description, ct);
+
+    public ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct = default) => tenants.GetAsync(tenantKey, ct);
 
     public ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
         tenants.ListAsync(query, ct);

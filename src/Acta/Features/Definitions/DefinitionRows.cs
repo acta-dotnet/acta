@@ -201,6 +201,7 @@ internal sealed record JobDefinitionRow(
     string OutputFormatName,
     byte AuditLevelCode,
     byte AlertProfileCode,
+    byte TenantRequirementCode,
     string? AlertChannelName,
     string? RunbookUrl,
     string? DisplayName,
