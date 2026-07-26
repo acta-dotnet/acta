@@ -42,4 +42,10 @@ internal interface IOutboxRelayStore
     /// finalization make an abandoned claim safe to repeat.
     /// </summary>
     Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct);
+
+    /// <summary>
+    /// Counts the source's Pending rows (due or backed off; Claimed and Quarantined rows are excluded).
+    /// Read after finalization so each successful tick's summary reports what still awaits relay.
+    /// </summary>
+    Task<long> CountBacklogAsync(CancellationToken ct);
 }

@@ -113,6 +113,10 @@ internal static class TestDashboardHost
         /// <summary>Result the found job (id 42) has produced; null means it has produced none (detail result null).</summary>
         public JobPayload? StoredResult { get; set; }
 
+        /// <summary>When true, ("billing", dedup "sys.outbox") resolves to the found job (id 42) named
+        /// sys.outbox, so the overview outbox lens sees a relay slot whose result is <see cref="StoredResult"/>.</summary>
+        public bool HasOutboxSlot { get; set; }
+
         /// <summary>Checkpoints the found job (id 42) carries; empty by default.</summary>
         public IReadOnlyList<JobCheckpointItem> StoredCheckpoints { get; set; } = [];
 
@@ -279,6 +283,13 @@ internal static class TestDashboardHost
 
         public ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default)
         {
+            if (lookup.DeduplicationKey == "sys.outbox")
+            {
+                return ValueTask.FromResult<JobSnapshot?>(
+                    HasOutboxSlot && lookup.JobNamespace == "billing" ? Snapshot(42, "billing", "sys.outbox", null) : null
+                );
+            }
+
             if (
                 lookup.JobRef == FoundJobRef
                 || lookup.JobId == 42

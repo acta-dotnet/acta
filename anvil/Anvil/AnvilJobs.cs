@@ -28,6 +28,8 @@ public sealed record AlwaysFails(string Label);
 /// </summary>
 public sealed record NoOp(string Label);
 
+public sealed record OutboxReceipt(string OperationId);
+
 /// <summary>A parent job that fans out to <see cref="ChildCount"/> children and joins on all of them; the lineage demo.</summary>
 public sealed record FanOut(string Label, int ChildCount);
 
@@ -96,6 +98,14 @@ public static class NoOpJob
     public static void Handle(NoOp input) { }
 }
 
+public static class OutboxReceiptJob
+{
+    // Target of the outbox-pressure fault: rows staged into the producer database's acta_outbox
+    // arrive here through sys.outbox. The work is trivial on purpose; provenance is the point.
+    [Job("outbox-receipt")]
+    public static void Handle(OutboxReceipt input) { }
+}
+
 public static class FanOutJob
 {
     // Replay-safe fan-out: each StartChildAsync name is that child's dedup key, so a suspend/resume
@@ -148,6 +158,8 @@ internal static class AnvilPayloads
 
     public static JobPayload Json(NoOp v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.NoOp);
 
+    public static JobPayload Json(OutboxReceipt v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.OutboxReceipt);
+
     public static JobPayload Json(FanOut v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.FanOut);
 }
 
@@ -170,6 +182,7 @@ internal static class AnvilPayloads
 [JsonSerializable(typeof(FlakyOnce))]
 [JsonSerializable(typeof(AlwaysFails))]
 [JsonSerializable(typeof(NoOp))]
+[JsonSerializable(typeof(OutboxReceipt))]
 [JsonSerializable(typeof(FanOut))]
 [JsonSerializable(typeof(Pulse))]
 // Job outputs.

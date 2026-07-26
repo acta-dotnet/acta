@@ -87,6 +87,18 @@
               </label>
               <button id="btn-fault-pressure">START</button>
             </div>
+            <div class="fault">
+              <div class="fault-head"><strong>Outbox pressure</strong><span id="fault-outbox-status"></span></div>
+              <p class="hint">Commits business rows plus staged outbox records into a separate producer database; sys.outbox relays them into the ledger.</p>
+              <label class="field"><span>Rate</span>
+                <select id="sel-outbox-rate">
+                  <option value="1000" selected>1k / second</option>
+                  <option value="10000">10k / second</option>
+                </select>
+              </label>
+              <button id="btn-fault-outbox">START</button>
+              <p class="hint" id="outbox-backlog" hidden></p>
+            </div>
             <p class="fault-error" id="fault-error" hidden></p>
           </section>
         </aside>

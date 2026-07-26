@@ -41,6 +41,16 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
         public IReadOnlyList<Guid> Ids { get; } = Rows.Select(r => r.OutboxId).ToList();
     }
 
+    // Mutable per-tick relay accounting: Relayed counts jobs actually inserted at the target;
+    // Deduplicated counts source rows absorbed without a new job (coalesced members plus
+    // target-deduplicated representatives), so Relayed + Deduplicated equals the safely-ingested rows.
+    private sealed class TickCounters
+    {
+        public int Relayed { get; set; }
+
+        public int Deduplicated { get; set; }
+    }
+
     // Mutable per-tick target-enqueue allowance shared across every batch and its per-group retries.
     private sealed class TickBudget(int remaining)
     {
@@ -59,16 +69,19 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
     }
 
     /// <summary>
-    /// Runs one relay tick. Infrastructure failures and any quarantine transition fail the tick (so the
-    /// system-job alert path fires); recoverable row rejections below the threshold reschedule quietly.
+    /// Runs one relay tick and returns its accounting (persisted as the <c>sys.outbox</c> job result).
+    /// Infrastructure failures and any quarantine transition fail the tick (so the system-job alert path
+    /// fires); recoverable row rejections below the threshold reschedule quietly.
     /// </summary>
-    public async Task RunTickAsync(OutboxRelayTickOptions options, CancellationToken ct)
+    public async Task<OutboxTickSummary> RunTickAsync(OutboxRelayTickOptions options, CancellationToken ct)
     {
         // No pre-flight shape check: the table comes from the tested DDL API, so an incompatible table
         // surfaces as a claim/finalize SQL error, an infrastructure failure that fails only this tick.
         var token = Guid.NewGuid();
         var quarantinedIds = new List<Guid>();
         var budget = new TickBudget(MaxTargetEnqueues);
+        var counters = new TickCounters();
+        var claimedTotal = 0;
 
         for (var batch = 0; batch < MaxBatches && budget.Remaining > 0; batch++)
         {
@@ -78,10 +91,11 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
                 break;
             }
 
+            claimedTotal += claimed.Count;
             bool budgetExhausted;
             try
             {
-                budgetExhausted = await ProcessBatchAsync(claimed, token, options, quarantinedIds, budget, ct);
+                budgetExhausted = await ProcessBatchAsync(claimed, token, options, quarantinedIds, budget, counters, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -105,6 +119,10 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
             );
             throw new OutboxQuarantineTickException(options.SourceName, quarantinedIds);
         }
+
+        // The backlog is read after finalization, so the summary reports what is still awaiting relay.
+        var backlog = await store.CountBacklogAsync(ct);
+        return new OutboxTickSummary(claimedTotal, counters.Relayed, counters.Deduplicated, quarantinedIds.Count, backlog);
     }
 
     // Processes one claimed batch. Returns true when the per-tick target-enqueue budget was exhausted
@@ -115,6 +133,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
         OutboxRelayTickOptions options,
         List<Guid> quarantinedIds,
         TickBudget budget,
+        TickCounters counters,
         CancellationToken ct
     )
     {
@@ -138,7 +157,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
         var errors = new Dictionary<OutboxGroup, string>();
         try
         {
-            await EnqueueGroupsAsync(valid, results, errors, budget, ct);
+            await EnqueueGroupsAsync(valid, results, errors, budget, counters, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -251,6 +270,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
         Dictionary<OutboxGroup, GroupOutcome> results,
         Dictionary<OutboxGroup, string> errors,
         TickBudget budget,
+        TickCounters counters,
         CancellationToken ct
     )
     {
@@ -259,7 +279,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
             return;
         }
 
-        var (exhausted, batchError) = await TryEnqueueAsync(groups, budget, ct);
+        var (exhausted, batchError) = await TryEnqueueAsync(groups, budget, counters, ct);
         if (exhausted)
         {
             return;
@@ -281,7 +301,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
         // the remaining groups unresolved (absent from results), so the caller releases them.
         foreach (var pair in groups)
         {
-            var (groupExhausted, groupError) = await TryEnqueueAsync([pair], budget, ct);
+            var (groupExhausted, groupError) = await TryEnqueueAsync([pair], budget, counters, ct);
             if (groupExhausted)
             {
                 return;
@@ -304,6 +324,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
     private async Task<(bool Exhausted, string? Error)> TryEnqueueAsync(
         IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
         TickBudget budget,
+        TickCounters counters,
         CancellationToken ct
     )
     {
@@ -314,7 +335,23 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
 
         try
         {
-            _ = await target.EnqueueBatchAsync(groups.Select(g => g.Request).ToList(), ct);
+            var outcomes = await target.EnqueueBatchAsync(groups.Select(g => g.Request).ToList(), ct);
+            // Outcomes align with request order. A representative that Inserted relayed one new job and its
+            // coalesced members were absorbed; a Deduplicated representative absorbs the whole group.
+            for (var index = 0; index < groups.Count; index++)
+            {
+                var memberRows = groups[index].Group.Rows.Count;
+                if (outcomes[index].Action == JobEnqueueAction.Inserted)
+                {
+                    counters.Relayed++;
+                    counters.Deduplicated += memberRows - 1;
+                }
+                else
+                {
+                    counters.Deduplicated += memberRows;
+                }
+            }
+
             return (false, null);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -375,3 +412,15 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget 
 
 /// <summary>Per-tick relay configuration resolved from the source registration and worker options.</summary>
 internal sealed record OutboxRelayTickOptions(string SourceName, int QuarantineThreshold, int LeaseTtlSeconds, int MaxInlinePayloadBytes);
+
+/// <summary>
+/// One relay tick's accounting, persisted as the <c>sys.outbox</c> job result on success: source rows
+/// claimed, new jobs inserted at the target, rows absorbed by deduplication (coalesced members plus
+/// already-present handoffs), rows quarantined (zero on every persisted summary, since a quarantine
+/// fails the tick), and the source's remaining Pending backlog after finalization.
+/// </summary>
+internal sealed record OutboxTickSummary(int Claimed, int Relayed, int Deduplicated, int Quarantined, long Backlog)
+{
+    public override string ToString() =>
+        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} quarantined={Quarantined} backlog={Backlog}";
+}

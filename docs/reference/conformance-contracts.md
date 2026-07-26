@@ -1083,6 +1083,16 @@
 
 ## Outbox
 
+### Backlog counts Pending rows only
+- **Contract:** CountBacklog returns the number of Pending source rows, due or backed off, excluding Claimed and Quarantined rows.
+- **Arrange:** Four rows: a due Pending, a backed-off Pending, a Claimed row under a live lease, and a Quarantined row.
+- **Act:** CountBacklog runs.
+- **Assert:** The count is exactly the two Pending rows.
+- **Guarantees:**
+  - Pending rows count as backlog while Claimed and Quarantined rows do not
+- **Store methods:**
+  - `Acta.Features.Outbox.IOutboxRelayStore.CountBacklogAsync`
+
 ### A claim recovers an expired lease and reclaims it, leaving a live lease alone
 - **Contract:** ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease.
 - **Arrange:** A source row is Claimed with an expired lease, and another is Claimed with a live lease.
@@ -2169,6 +2179,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `INamespaceStore.SuspendNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
 | `INamespaceStore.UpdateNamespaceMetadataAsync` | Namespace metadata update writes owner_team/description under a version CAS |
 | `IOutboxRelayStore.ClaimDueAsync` | A claim recovers an expired lease and reclaims it, leaving a live lease alone<br>Claim takes a bounded urgent-first batch under one token, no double claim<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
+| `IOutboxRelayStore.CountBacklogAsync` | Backlog counts Pending rows only |
 | `IOutboxRelayStore.DeleteClaimedAsync` | Delete removes a claimed row only under its token, a stale token no-ops<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
 | `IOutboxRelayStore.QuarantineAsync` | Quarantine retains a claimed row at status 90 and excludes it from claims<br>Threshold and contract failures quarantine with one bounded summary |
 | `IOutboxRelayStore.ReleaseClaimedAsync` | Relay crash windows never lose a row or duplicate a target job<br>Release returns a claimed row to Pending, attempt unchanged, reclaimable |
