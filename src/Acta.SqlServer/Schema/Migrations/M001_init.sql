@@ -62,6 +62,7 @@ CREATE TABLE {{schema}}.definitions (
     output_type_name varchar(512) NULL,
     output_format_id tinyint NOT NULL,
     output_format_name varchar(128) NOT NULL,
+    tenant_requirement_code tinyint NOT NULL,
     priority_code tinyint NOT NULL,
     priority_code_override tinyint NULL,
     priority_code_effective AS (COALESCE(priority_code_override, priority_code)) PERSISTED,
@@ -114,6 +115,7 @@ CREATE TABLE {{schema}}.definitions (
     , CONSTRAINT ck_definitions_retention CHECK (retention_seconds >= 0)
     , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
     , CONSTRAINT ck_definitions_status_code CHECK (status_code IN (10, 240))
+    , CONSTRAINT ck_definitions_tenant_requirement_code CHECK (tenant_requirement_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_priority_code_override_code CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_priority_code_effective_code CHECK (priority_code_effective IN (0, 50, 70, 85, 100))
@@ -495,6 +497,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_enqueue_batch AS TABLE (
     delay_seconds     INT              NULL,
     parent_id         BIGINT           NULL,
     tenant_key        VARCHAR(128)     NULL,
+    tenant_override   BIT              NOT NULL,
     PRIMARY KEY (ordinal)
 );');
 GO
@@ -537,6 +540,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (
     display_name                         NVARCHAR(128) NULL,
     description                          NVARCHAR(512) NULL,
     definition_hash                      VARCHAR(128)  NOT NULL,
+    tenant_requirement_code              TINYINT       NOT NULL,
     PRIMARY KEY (name)
 );');
 GO

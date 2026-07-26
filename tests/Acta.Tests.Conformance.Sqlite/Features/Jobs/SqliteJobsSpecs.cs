@@ -47,6 +47,10 @@ public sealed class SqliteResolveJobIdByRefSpec : ResolveJobIdByRefSpec<SqliteCo
 
 public sealed class SqliteTenantEnqueueSpec : TenantEnqueueSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteTenantSuspensionAdmissionSpec : TenantSuspensionAdmissionSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteTenantRequirementEnqueueSpec : TenantRequirementEnqueueSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteTransactionalEnqueueContractSpec : TransactionalEnqueueContractSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteTransactionalEnqueueSmokeSpec : TransactionalEnqueueSmokeSpec<SqliteConformanceFixture>;

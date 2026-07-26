@@ -208,7 +208,8 @@ internal sealed class JobsApi(
             NextRunAtUtc: options?.NextRunAtUtc,
             DelaySeconds: options?.DelaySeconds,
             ParentId: options?.ParentId,
-            TenantKey: options?.TenantKey
+            TenantKey: options?.TenantKey,
+            OverrideParentTenant: options?.OverrideParentTenant ?? false
         );
     }
 
@@ -309,7 +310,8 @@ internal sealed class JobsApi(
             DelaySeconds: options?.DelaySeconds,
             Tags: options?.Tags,
             ParentId: options?.ParentId,
-            TenantKey: options?.TenantKey
+            TenantKey: options?.TenantKey,
+            OverrideParentTenant: options?.OverrideParentTenant ?? false
         );
     }
 

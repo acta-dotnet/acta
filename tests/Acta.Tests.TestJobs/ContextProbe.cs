@@ -4,7 +4,12 @@ namespace TestJobs;
 
 public sealed record ContextProbe(string Note);
 
-public sealed record ContextProbeResult(long JobIdFromContext, string JobNameFromContext);
+public sealed record ContextProbeResult(
+    long JobIdFromContext,
+    string JobNameFromContext,
+    int? TenantIdFromContext,
+    string? TenantKeyFromContext
+);
 
 /// <summary>
 /// Instance handler whose <see cref="JobContext"/> arrives by constructor injection - the path
@@ -15,5 +20,5 @@ public sealed record ContextProbeResult(long JobIdFromContext, string JobNameFro
 public sealed class ContextProbeHandler(JobContext context)
 {
     [Job("context-probe")]
-    public ContextProbeResult Run(ContextProbe input) => new(context.JobId, context.JobName);
+    public ContextProbeResult Run(ContextProbe input) => new(context.JobId, context.JobName, context.TenantId, context.TenantKey);
 }

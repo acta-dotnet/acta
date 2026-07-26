@@ -49,6 +49,38 @@ WHERE EXISTS (
     WHERE t.status_code <> 10 /* TenantStatusCode.Active */
 );
 
+SELECT acta_error('ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: one or more rows target a definition that requires a tenant and carry none.')
+WHERE EXISTS (
+    SELECT 1 FROM json_each(@p_rows) r
+    JOIN {{schema}}.namespaces ns ON ns.name = json_extract(r.value, '$.namespace_name')
+    JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = json_extract(r.value, '$.job_name')
+    WHERE jd.tenant_requirement_code = 10 /* JobTenantRequirementCode.Required */
+      AND json_extract(r.value, '$.tenant_key') IS NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM {{schema}}.jobs pj
+          WHERE pj.id = json_extract(r.value, '$.parent_id') AND pj.tenant_id IS NOT NULL
+      )
+);
+
+SELECT acta_error('ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.')
+WHERE EXISTS (
+    SELECT 1 FROM json_each(@p_rows) r
+    JOIN {{schema}}.namespaces ns ON ns.name = json_extract(r.value, '$.namespace_name')
+    JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = json_extract(r.value, '$.job_name')
+    WHERE jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */
+      AND json_extract(r.value, '$.tenant_key') IS NOT NULL
+);
+
+SELECT acta_error('ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a TenantKey that differs from the parent tenant without an explicit override.')
+WHERE EXISTS (
+    SELECT 1 FROM json_each(@p_rows) r
+    JOIN {{schema}}.tenants t ON t.tenant_key = json_extract(r.value, '$.tenant_key')
+    JOIN {{schema}}.jobs pj ON pj.id = json_extract(r.value, '$.parent_id')
+    WHERE json_extract(r.value, '$.tenant_override') = 0
+      AND pj.tenant_id IS NOT NULL
+      AND pj.tenant_id <> t.id
+);
+
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
@@ -78,10 +110,11 @@ SELECT
     json_extract(r.value, '$.deduplication_key'),
     COALESCE(json_extract(r.value, '$.correlation_key'), pj.correlation_key),
     ns.id, jd.id,
-    COALESCE(
-        (SELECT t.id FROM {{schema}}.tenants t
-          WHERE t.tenant_key = json_extract(r.value, '$.tenant_key') AND t.status_code = 10 /* TenantStatusCode.Active */),
-        pj.tenant_id),
+    CASE WHEN jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+         ELSE COALESCE(
+             (SELECT t.id FROM {{schema}}.tenants t
+               WHERE t.tenant_key = json_extract(r.value, '$.tenant_key') AND t.status_code = 10 /* TenantStatusCode.Active */),
+             pj.tenant_id) END,
     json_extract(r.value, '$.input_format_id'), acta_blob(json_extract(r.value, '$.input')),
     json_extract(r.value, '$.exclusive_key'),
     jd.audit_level_code_effective

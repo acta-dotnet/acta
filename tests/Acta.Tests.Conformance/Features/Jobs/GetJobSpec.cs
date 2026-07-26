@@ -55,6 +55,30 @@ public abstract class GetJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Null(snapshot.ParentJobId);
         Assert.NotNull(snapshot.NextRunAtUtc);
         Assert.NotEqual(0, snapshot.InputFormatId);
+        Assert.Null(snapshot.TenantId);
+        Assert.Null(snapshot.TenantKey);
+    }
+
+    [Fact(DisplayName = "A tenant-scoped job's snapshot carries the tenant id and its external key")]
+    public async Task Snapshot_carries_tenant_key()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
+        var tenantKey = TestKey("get-job-ten");
+        var tenantId = await Services.GetRequiredService<Acta.Features.Tenants.TenantsService>().RegisterAsync(tenantKey, null, null, ct);
+
+        var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
+        var results = await EnqueueTestOps.EnqueueBatchAsync(
+            Services,
+            [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantKey: tenantKey)],
+            ct
+        );
+
+        var snapshot = await Services.GetRequiredService<IJobStore>().GetJobAsync(results[0].JobId, ct);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(tenantId, snapshot!.TenantId);
+        Assert.Equal(tenantKey, snapshot.TenantKey);
     }
 
     [Fact(DisplayName = "An unknown job id returns null")]

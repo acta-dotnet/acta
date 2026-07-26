@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import type { AdminControlResult, Paged, TenantListItem } from '../api.ts';
-  import { api, registerTenant } from '../api.ts';
+  import { api, ApiError, registerTenant } from '../api.ts';
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import Page from '../components/Page.svelte';
@@ -27,15 +27,12 @@
 
   async function loadTenant(signal: AbortSignal): Promise<TenantListItem | null> {
     if (!tenantKey) return null;
-    let cursor: string | undefined;
-    for (let guard = 0; guard < 100; guard++) {
-      const page = await api<Paged<TenantListItem>>('tenants', { pageSize: 100, cursor }, { signal });
-      const match = page.items.find((item) => item.tenantKey === tenantKey);
-      if (match) return match;
-      if (!page.hasMore || !page.nextCursor) break;
-      cursor = page.nextCursor;
+    try {
+      return await api<TenantListItem>(`tenants/${encodeURIComponent(tenantKey)}`, {}, { signal });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null;
+      throw e;
     }
-    return null;
   }
 
   // The editor owns its input state: no polling and no focus/reconnect refreshes. It deliberately
@@ -100,7 +97,7 @@
     registerMessage = '';
     createdKey = '';
     try {
-      const result = await registerTenant(newKey, newDisplayName, newDescription, 'active');
+      const result = await registerTenant(newKey, newDisplayName, newDescription);
       createdKey = result.tenantKey;
       registerMessage = `Tenant ${result.tenantKey} registered.`;
       registerMessageKind = 'ok';
@@ -312,9 +309,9 @@
       <aside class="detail-rail">
         <section class="detail-panel">
           <h2>Lifecycle</h2>
-          <p>{tenant.status === 'suspended' ? 'Suspended; new enqueue requests are rejected.' : 'Active and accepting enqueue requests.'}</p>
+          <p>{tenant.status === 'suspended' ? 'Suspended; new enqueues naming this tenant are rejected.' : 'Active and accepting enqueue requests.'}</p>
           {#if canControlNow}
-            <p class="detail-help">Suspending blocks new enqueue requests. Existing in-flight and queued jobs are unaffected.</p>
+            <p class="detail-help">Suspending rejects new enqueues that name this tenant key. Jobs already admitted keep running and may still create inherited child jobs.</p>
             {#if tenant.status === 'suspended'}
               <button disabled={statusMutation.isPending} onclick={() => (confirming = 'resume')}>Resume tenant</button>
             {:else}
@@ -341,7 +338,7 @@
   <ConfirmAction
     title={(confirming === 'suspend' ? 'Suspend' : 'Resume') + ' tenant ' + tenant.tenantKey + '?'}
     body={confirming === 'suspend'
-      ? 'New enqueue requests will be rejected until the tenant is resumed. Existing jobs are unaffected.'
+      ? 'New enqueues naming this tenant key will be rejected until the tenant is resumed. Jobs already admitted keep running and may still create inherited child jobs.'
       : 'The tenant becomes eligible to enqueue jobs again immediately.'}
     confirmLabel={confirming === 'suspend' ? 'Suspend tenant' : 'Resume tenant'}
     onConfirm={(note) => runStatus(confirming!, note)}

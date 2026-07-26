@@ -15,6 +15,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_one(
     p_delay_seconds     INT         DEFAULT NULL,
     p_parent_id         BIGINT      DEFAULT NULL,
     p_tenant_key        VARCHAR     DEFAULT NULL,
+    p_tenant_override   BOOLEAN     DEFAULT FALSE,
     p_t_name            VARCHAR[]   DEFAULT NULL,
     p_t_value           VARCHAR[]   DEFAULT NULL,
     p_t_value_search    VARCHAR[]   DEFAULT NULL
@@ -29,6 +30,7 @@ DECLARE
     v_def_priority  SMALLINT;
     v_def_audit     SMALLINT;
     v_def_status    SMALLINT;
+    v_def_tenant_req SMALLINT;
     v_tenant_id     INT;
     v_tenant_status SMALLINT;
     v_lineage       BIGINT;
@@ -36,8 +38,8 @@ DECLARE
     v_parent_tenant INT;
     v_job_id        BIGINT;
 BEGIN
-    SELECT ns.id, ns.status_code, jd.id, jd.priority_code_effective, jd.audit_level_code_effective, jd.status_code
-      INTO v_ns_id, v_ns_status, v_def_id, v_def_priority, v_def_audit, v_def_status
+    SELECT ns.id, ns.status_code, jd.id, jd.priority_code_effective, jd.audit_level_code_effective, jd.status_code, jd.tenant_requirement_code
+      INTO v_ns_id, v_ns_status, v_def_id, v_def_priority, v_def_audit, v_def_status, v_def_tenant_req
       FROM {{schema}}.namespaces ns
       INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = p_job_name
      WHERE ns.name = p_namespace_name;
@@ -73,6 +75,11 @@ BEGIN
         END IF;
     END IF;
 
+    IF v_def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ AND p_tenant_key IS NOT NULL THEN
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.'
+            USING ERRCODE = 'P0001';
+    END IF;
+
     IF p_parent_id IS NOT NULL THEN
         SELECT COALESCE(pj.lineage_root_id, pj.id), pj.correlation_key, pj.tenant_id
           INTO v_lineage, v_parent_corr, v_parent_tenant
@@ -87,6 +94,16 @@ BEGIN
                 USING ERRCODE = 'P0001';
         END IF;
 
+        IF v_def_tenant_req = 10 /* JobTenantRequirementCode.Required */ AND v_tenant_id IS NULL AND v_parent_tenant IS NULL THEN
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
+        IF v_tenant_id IS NOT NULL AND v_parent_tenant IS NOT NULL AND v_tenant_id <> v_parent_tenant AND NOT p_tenant_override THEN
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantKey differs from the parent tenant without an explicit override.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
         INSERT INTO {{schema}}.jobs (
             job_ref, lineage_root_id, parent_id,
             deduplication_key, correlation_key,
@@ -97,7 +114,9 @@ BEGIN
         VALUES (
             p_job_ref, v_lineage, p_parent_id,
             p_deduplication_key, COALESCE(p_correlation_key, v_parent_corr),
-            v_ns_id, v_def_id, COALESCE(v_tenant_id, v_parent_tenant),
+            v_ns_id, v_def_id,
+            CASE WHEN v_def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                 ELSE COALESCE(v_tenant_id, v_parent_tenant) END,
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END), p_input,
             p_exclusive_key, v_def_audit,
             now())
@@ -106,6 +125,11 @@ BEGIN
             DO NOTHING
         RETURNING id INTO v_job_id;
     ELSE
+        IF v_def_tenant_req = 10 /* JobTenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
         INSERT INTO {{schema}}.jobs (
             job_ref, lineage_root_id, parent_id,
             deduplication_key, correlation_key,
@@ -157,3 +181,10 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
+-- signature (without p_tenant_override) so pre-existing installs cannot resolve the stale form.
+DROP FUNCTION IF EXISTS {{schema}}.enqueue_one(
+    UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, SMALLINT, SMALLINT, BYTEA, VARCHAR, TIMESTAMPTZ, INT,
+    BIGINT, VARCHAR, VARCHAR[], VARCHAR[], VARCHAR[]
+);

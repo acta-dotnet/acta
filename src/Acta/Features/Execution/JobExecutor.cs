@@ -167,6 +167,12 @@ internal sealed class JobExecutor
                 (decimal)backoff.Jitter
             );
 
+            // Resolve the external tenant key off the process-lifetime cache (one point read per
+            // distinct tenant); the claim projection itself stays join-free.
+            var tenantKey = job.TenantId is { } jobTenantId
+                ? await _rootServices.GetRequiredService<Acta.Features.Tenants.TenantKeyCache>().ResolveAsync(jobTenantId, ct)
+                : null;
+
             var jobContext = new RuntimeJobContext(
                 job,
                 descriptor.JobName,
@@ -191,7 +197,8 @@ internal sealed class JobExecutor
                 stepRetryDefaults,
                 _log,
                 _metrics,
-                attemptServices.GetService<IJobs>()
+                attemptServices.GetService<IJobs>(),
+                tenantKey
             );
 
             // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.

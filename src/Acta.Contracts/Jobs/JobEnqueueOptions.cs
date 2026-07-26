@@ -71,4 +71,11 @@ public class JobEnqueueOptions
     /// inherits its parent's tenant.
     /// </summary>
     public string? TenantKey { get; init; }
+
+    /// <summary>
+    /// Explicit opt-in for a child <see cref="TenantKey"/> that differs from the parent's tenant.
+    /// Without it a cross-tenant child enqueue is rejected, so an accidental mismatch cannot split a
+    /// workflow's lineage across tenants silently.
+    /// </summary>
+    public bool OverrideParentTenant { get; init; }
 }

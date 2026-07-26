@@ -31,6 +31,7 @@ public sealed class JobRequestBuilder
     private int? _delaySeconds;
     private long? _parentId;
     private string? _tenantKey;
+    private bool _overrideParentTenant;
     private readonly Dictionary<string, TagInput> _tags = new(StringComparer.Ordinal);
 
     private JobRequestBuilder(string jobNamespace, string jobName)
@@ -189,11 +190,14 @@ public sealed class JobRequestBuilder
     /// <summary>
     /// Scope this Job to a registered tenant (the customer / business entity it is about). The opaque
     /// normalized tenant key (GUID / ULID / customer code folded to Acta's key shape) is resolved to a
-    /// tenant id at insert; an unknown or inactive tenant rejects the enqueue.
+    /// tenant id at insert; an unknown or inactive tenant rejects the enqueue. On a child enqueue a
+    /// key that differs from the parent's tenant is rejected unless <paramref name="overrideParent"/>
+    /// explicitly opts into the cross-tenant lineage.
     /// </summary>
-    public JobRequestBuilder TenantKey(string tenantKey)
+    public JobRequestBuilder TenantKey(string tenantKey, bool overrideParent = false)
     {
-        _tenantKey = IdentifierSyntax.NormalizeKey(tenantKey, nameof(tenantKey));
+        _tenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+        _overrideParentTenant = overrideParent;
         return this;
     }
 
@@ -258,6 +262,7 @@ public sealed class JobRequestBuilder
             DelaySeconds = _delaySeconds,
             ParentId = _parentId,
             TenantKey = _tenantKey,
+            OverrideParentTenant = _overrideParentTenant,
         };
     }
 

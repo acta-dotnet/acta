@@ -24,6 +24,21 @@ public static class DeduplicationKey
     }
 
     /// <summary>
+    /// Compose a tenant-relative key: <c>&lt;tenantKey&gt;:&lt;businessKey&gt;</c>, so equal business
+    /// keys under different tenants never collide. Deduplication and exclusive keys are both
+    /// namespace-scoped opaque strings, so the same composition serves
+    /// <see cref="JobEnqueueRequest.ExclusiveKey"/> values, and the result nests as the business key
+    /// of <see cref="ForDefinition"/> when definition and tenant qualification are both wanted.
+    /// </summary>
+    public static string ForTenant(string tenantKey, string businessKey)
+    {
+        var tenant = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+        var business = IdentifierSyntax.NormalizeKeyLookup(businessKey, nameof(businessKey));
+
+        return IdentifierSyntax.NormalizeKey($"{tenant}:{business}", nameof(businessKey), MaxLength);
+    }
+
+    /// <summary>
     /// Compose a key that intentionally deduplicates across definitions in the same job namespace.
     /// </summary>
     /// <remarks>

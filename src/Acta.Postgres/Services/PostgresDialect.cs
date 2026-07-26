@@ -122,6 +122,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var delaySeconds = new int?[count];
         var parentIds = new long?[count];
         var tenantKeys = new string?[count];
+        var tenantOverrides = new bool[count];
 
         for (var i = 0; i < count; i++)
         {
@@ -140,6 +141,7 @@ internal sealed class PostgresDialect : ISqlDialect
             delaySeconds[i] = row.DelaySeconds;
             parentIds[i] = row.ParentId;
             tenantKeys[i] = row.TenantKey;
+            tenantOverrides[i] = row.OverrideParentTenant;
         }
 
         AddArray(postgres, "@p_b_ordinal", NpgsqlDbType.Integer, ordinals);
@@ -156,6 +158,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_delay_seconds", NpgsqlDbType.Integer, delaySeconds);
         AddArray(postgres, "@p_b_parent_id", NpgsqlDbType.Bigint, parentIds);
         AddArray(postgres, "@p_b_tenant_key", NpgsqlDbType.Varchar, tenantKeys);
+        AddArray(postgres, "@p_b_tenant_override", NpgsqlDbType.Boolean, tenantOverrides);
 
         var tagCount = rows.Sum(row => row.Tags?.Count ?? 0);
         var tagOrdinals = new int[tagCount];
@@ -212,6 +215,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_delay_seconds", NpgsqlDbType.Integer, (object?)row.DelaySeconds ?? DBNull.Value);
         AddScalar(postgres, "@p_parent_id", NpgsqlDbType.Bigint, (object?)row.ParentId ?? DBNull.Value);
         AddScalar(postgres, "@p_tenant_key", NpgsqlDbType.Varchar, (object?)row.TenantKey ?? DBNull.Value);
+        AddScalar(postgres, "@p_tenant_override", NpgsqlDbType.Boolean, row.OverrideParentTenant);
 
         var tagCount = row.Tags?.Count ?? 0;
         var tagNames = new string[tagCount];
@@ -255,6 +259,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var outputFormatNames = new string[count];
         var auditLevelCodes = new short[count];
         var alertProfileCodes = new short[count];
+        var tenantRequirementCodes = new short[count];
         var alertChannelNames = new string?[count];
         var runbookUrls = new string?[count];
         var displayNames = new string?[count];
@@ -280,6 +285,7 @@ internal sealed class PostgresDialect : ISqlDialect
             outputFormatNames[i] = row.OutputFormatName;
             auditLevelCodes[i] = row.AuditLevelCode;
             alertProfileCodes[i] = row.AlertProfileCode;
+            tenantRequirementCodes[i] = row.TenantRequirementCode;
             alertChannelNames[i] = row.AlertChannelName;
             runbookUrls[i] = row.RunbookUrl;
             displayNames[i] = row.DisplayName;
@@ -306,6 +312,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_output_format_name", NpgsqlDbType.Varchar, outputFormatNames);
         AddArray(postgres, "@p_d_audit_level_code", NpgsqlDbType.Smallint, auditLevelCodes);
         AddArray(postgres, "@p_d_alert_profile_code", NpgsqlDbType.Smallint, alertProfileCodes);
+        AddArray(postgres, "@p_d_tenant_requirement", NpgsqlDbType.Smallint, tenantRequirementCodes);
         AddArray(postgres, "@p_d_alert_channel_name", NpgsqlDbType.Varchar, alertChannelNames);
         AddArray(postgres, "@p_d_runbook_url", NpgsqlDbType.Varchar, runbookUrls);
         AddArray(postgres, "@p_d_display_name", NpgsqlDbType.Varchar, displayNames);

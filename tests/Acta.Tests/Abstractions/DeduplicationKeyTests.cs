@@ -17,6 +17,37 @@ public sealed class DeduplicationKeyTests
     }
 
     [Fact]
+    public void ForTenant_composes_the_exact_tenant_relative_key()
+    {
+        Assert.Equal("acme:invoice-123", DeduplicationKey.ForTenant(" Acme ", " Invoice-123 "));
+    }
+
+    [Fact]
+    public void ForTenant_nests_as_the_business_key_of_ForDefinition()
+    {
+        Assert.Equal(
+            "send-invoice:acme:invoice-123",
+            DeduplicationKey.ForDefinition("send-invoice", DeduplicationKey.ForTenant("acme", "invoice-123"))
+        );
+    }
+
+    [Theory]
+    [InlineData("sys", "invoice-123")]
+    [InlineData("sys.acme", "invoice-123")]
+    [InlineData("bad tenant", "invoice-123")]
+    [InlineData("acme", "bad key")]
+    public void ForTenant_rejects_reserved_or_invalid_components(string tenantKey, string businessKey)
+    {
+        Assert.Throws<ArgumentException>(() => DeduplicationKey.ForTenant(tenantKey, businessKey));
+    }
+
+    [Fact]
+    public void ForTenant_rejects_a_length_over_128_characters()
+    {
+        Assert.Throws<ArgumentException>(() => DeduplicationKey.ForTenant("acme", new string('a', DeduplicationKey.MaxLength)));
+    }
+
+    [Fact]
     public void Components_are_trimmed_and_lowercase_normalized()
     {
         Assert.Equal("process-order:order-123", DeduplicationKey.ForDefinition(" Process-Order ", " Order-123 "));

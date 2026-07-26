@@ -89,6 +89,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<DefinitionsService>();
         services.TryAddSingleton<NamespacesService>();
         services.TryAddSingleton<TenantsService>();
+        services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
         services.TryAddSingleton<SignalService>();

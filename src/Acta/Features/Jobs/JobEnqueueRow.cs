@@ -28,7 +28,8 @@ internal sealed record JobEnqueueRow(
     int? DelaySeconds = null,
     IReadOnlyList<TagInput>? Tags = null,
     long? ParentId = null,
-    string? TenantKey = null
+    string? TenantKey = null,
+    bool OverrideParentTenant = false
 );
 
 /// <summary>
@@ -57,7 +58,7 @@ internal static class JobEnqueueRows
                 ? null
                 : IdentifierSyntax.NormalizeKey(row.DeduplicationKey, nameof(row.DeduplicationKey)),
             ExclusiveKey = row.ExclusiveKey is null ? null : IdentifierSyntax.NormalizeKey(row.ExclusiveKey, nameof(row.ExclusiveKey)),
-            TenantKey = row.TenantKey is null ? null : IdentifierSyntax.NormalizeKey(row.TenantKey, nameof(row.TenantKey)),
+            TenantKey = row.TenantKey is null ? null : IdentifierSyntax.NormalizeTenantKey(row.TenantKey, nameof(row.TenantKey)),
             Tags = tags,
         };
     }

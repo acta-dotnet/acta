@@ -53,14 +53,24 @@ final key. `AcrossDefinitions` is the explicit cross-definition form. Cross-defi
 are intentionally not exposed as a combined helper; derive that business key in application code
 only when the use case genuinely spans job definitions.
 
+Deduplication and exclusive keys are namespace-scoped, never tenant-scoped: `invoice-123` used by
+two tenants is one key. When the business identity is tenant-relative, compose the key with
+`DeduplicationKey.ForTenant(tenantKey, businessKey)` (also valid for `ExclusiveKey` values, and
+nestable as the business key of `ForDefinition`).
+
 ## Namespace vs tenant
 
 Namespace and tenant answer two different questions and never substitute for each other.
 
 - **`JobNamespace` = who owns and runs the work**: the microservice / work-ownership boundary. It owns workers, job definitions, schedules, and system jobs, and it is the hot-path claim filter. Good namespaces name a service or work domain: `billing`, `cards`, `kyc`, `notifications`. Bad namespaces smuggle in a customer, environment, or worker identity: `tenant-acme`, `premium-customers`, `prod`, `worker-a`. Enqueuing into another service's namespace is service-to-service routing, not multi-tenancy.
-- **Tenant = who the work is about**: the customer / business entity a single job concerns. A tenant does **not** own workers, namespaces, job definitions, schedules, or system jobs. It is set per job at enqueue (`TenantKey`, resolved to `tenant_id`), immutable afterward, and inherited by child jobs unless the child supplies its own. It is currently **audit / query / runtime scope**: it surfaces on `JobContext.TenantId`, snapshots, lists, and job-scoped events, and as a filter on job/event queries. It is **not** a scheduling, claim, idempotency, or exclusive-key scope: those stay namespace-scoped.
+- **Tenant = who the work is about**: the customer / business entity a single job concerns. A tenant does **not** own workers, namespaces, job definitions, schedules, or system jobs. It is set per job at enqueue (`TenantKey`, resolved to `tenant_id`), immutable afterward, and inherited by child jobs; a child naming a different tenant than its parent is rejected unless the enqueue opts in with `TenantKey(key, overrideParent: true)`. It is **audit / query / runtime scope**: it surfaces on `JobContext.TenantId` and `JobContext.TenantKey`, snapshots, lists, and job-scoped events, and as a filter on job/event queries. It is **not** a scheduling, claim, idempotency, or exclusive-key scope: those stay namespace-scoped.
 
-The `TenantKey` is an **opaque external identifier** (a GUID, ULID, or customer code, not a human label: that goes in the tenant's `display_name`, with longer notes in `description`). Register tenants with `jobs.Tenants.RegisterAsync(tenantKey, displayName?, description?, status)` (idempotent upsert; re-register with `status: TenantStatusCode.Suspended` to suspend). Enqueuing an unknown or suspended tenant key is rejected atomically. A job with no tenant (including every system job) carries `tenant_id = NULL`.
+The `TenantKey` is an **opaque external identifier** (a GUID, ULID, or customer code, not a human label: that goes in the tenant's `display_name`, with longer notes in `description`). Register tenants with `jobs.Tenants.RegisterAsync(tenantKey, displayName?, description?)`: insert-or-return-existing, so a new tenant is created Active and an existing one is returned untouched. Status changes go through `SuspendAsync`/`ResumeAsync`, metadata through `UpdateMetadataAsync`, and `GetAsync(tenantKey)` is the point read. Enqueuing an unknown or suspended tenant key is rejected atomically. A job with no tenant (including every system job) carries `tenant_id = NULL`; a definition can make the choice durable with `[Job(TenantRequirement = Required)]` (or `Forbidden`), enforced at the enqueue boundary in the database.
+
+Two boundaries to keep straight when designing tenancy around Acta:
+
+- **The tenant catalog is global per store.** `tenants` carries no namespace: within one installed Acta schema, `acme` is one shared identity, and suspending it withdraws admission for explicit `acme` enqueues in every namespace using that store. Suspension is admission control, not work closure: jobs already admitted keep running, and a running workflow may still create children that inherit the suspended tenant. The guarantee is the commit boundary: an enqueue transaction beginning after the suspend commits is rejected.
+- **The tenant field is not a security or isolation boundary.** Acta validates, persists, propagates, and surfaces the tenant identity; it does not authorize callers, filter application data, select per-tenant databases, or create a failure domain. Applications enforce data access using `JobContext.TenantKey` as the authoritative identity, and requirements like separate residency, backups, or blast radius take separate Acta stores or deployments, not a tenant row.
 
 ## Executions and attempts
 

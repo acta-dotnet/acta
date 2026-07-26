@@ -43,8 +43,8 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
         var key = TestKey("tk.fold-tenant");
         var upper = key.ToUpperInvariant();
 
-        var id1 = await Services.GetRequiredService<TenantsService>().RegisterAsync(upper, null, "first", TenantStatusCode.Active, ct);
-        var id2 = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, "second", TenantStatusCode.Active, ct);
+        var id1 = await Services.GetRequiredService<TenantsService>().RegisterAsync(upper, null, "first", ct);
+        var id2 = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, "second", ct);
 
         Assert.Equal(id1, id2);
 

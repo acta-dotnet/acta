@@ -121,6 +121,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 delay_seconds     INT              NULL,
                 parent_id         BIGINT           NULL,
                 tenant_key        VARCHAR(128)     NULL,
+                tenant_override   BIT              NOT NULL,
                 PRIMARY KEY (ordinal)
             );');
             GO
@@ -163,6 +164,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 display_name                         NVARCHAR(128) NULL,
                 description                          NVARCHAR(512) NULL,
                 definition_hash                      VARCHAR(128)  NOT NULL,
+                tenant_requirement_code              TINYINT       NOT NULL,
                 PRIMARY KEY (name)
             );');
             GO

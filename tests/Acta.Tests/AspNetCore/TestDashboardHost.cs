@@ -116,8 +116,8 @@ internal static class TestDashboardHost
         /// <summary>Checkpoints the found job (id 42) carries; empty by default.</summary>
         public IReadOnlyList<JobCheckpointItem> StoredCheckpoints { get; set; } = [];
 
-        /// <summary>Tenant id the found job (id 42) snapshot carries; null (no tenant) by default. Id 1 is
-        /// the only tenant the fake list knows ("cust-001"), so any other value resolves to no key.</summary>
+        /// <summary>Tenant id the found job (id 42) snapshot carries; null (no tenant) by default. Id 1
+        /// carries the key "cust-001"; any other id models a purged tenant row (id without a key).</summary>
         public int? SnapshotTenantId { get; set; }
 
         /// <summary>When true the fake tenants list read throws, modelling an unavailable tenants surface.</summary>
@@ -132,8 +132,8 @@ internal static class TestDashboardHost
         private readonly Dictionary<Guid, long> _enqueuedRefs = new();
         private readonly Dictionary<long, JobPayload?> _enqueuedInputs = new();
 
-        /// <summary>Recorded tenant register/suspend calls. A key of "bad key" reports an invalid opaque key.</summary>
-        public List<(string TenantKey, string? DisplayName, string? Description, TenantStatusCode Status)> TenantCalls { get; } = [];
+        /// <summary>Recorded tenant register calls. A key of "bad key" reports an invalid opaque key.</summary>
+        public List<(string TenantKey, string? DisplayName, string? Description)> TenantCalls { get; } = [];
 
         /// <summary>Recorded tenant suspend/resume calls. A key of "missing" reports not found.</summary>
         public List<(string TenantKey, string? ReasonMessage, string? ActorKey)> SuspendResumeTenantCalls { get; } = [];
@@ -313,6 +313,7 @@ internal static class TestDashboardHost
                 JobNamespace: jobNamespace,
                 JobName: jobName,
                 TenantId: tenantId,
+                TenantKey: tenantId == 1 ? "cust-001" : null,
                 Status: JobStatusCode.Ready,
                 Priority: JobPriorityCode.Normal,
                 ExecutionNumber: 0,
@@ -897,7 +898,7 @@ internal static class TestDashboardHost
         }
 
         private sealed class FakeTenants(
-            List<(string TenantKey, string? DisplayName, string? Description, TenantStatusCode Status)> tenantCalls,
+            List<(string TenantKey, string? DisplayName, string? Description)> tenantCalls,
             List<(string TenantKey, string? ReasonMessage, string? ActorKey)> suspendResumeCalls,
             Func<bool> listThrows
         ) : ITenants
@@ -906,7 +907,6 @@ internal static class TestDashboardHost
                 string tenantKey,
                 string? displayName = null,
                 string? description = null,
-                TenantStatusCode status = TenantStatusCode.Active,
                 CancellationToken ct = default
             )
             {
@@ -916,9 +916,16 @@ internal static class TestDashboardHost
                     throw new ArgumentException("Tenant key must not contain whitespace.", nameof(tenantKey));
                 }
 
-                tenantCalls.Add((tenantKey, displayName, description, status));
+                tenantCalls.Add((tenantKey, displayName, description));
                 return ValueTask.FromResult(7);
             }
+
+            public ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct = default) =>
+                ValueTask.FromResult<TenantListItem?>(
+                    tenantKey == "cust-001"
+                        ? new TenantListItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)
+                        : null
+                );
 
             public ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
                 listThrows()

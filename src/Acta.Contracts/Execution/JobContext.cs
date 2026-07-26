@@ -38,6 +38,13 @@ public abstract class JobContext
     /// </summary>
     public virtual int? TenantId => null;
 
+    /// <summary>
+    /// External tenant key of <see cref="TenantId"/> (the opaque enqueue <c>TenantKey</c>), or
+    /// <c>null</c> when the Job has no tenant. Resolved once per distinct tenant per process and
+    /// cached; the authoritative identity for tenant-aware application services during execution.
+    /// </summary>
+    public virtual string? TenantKey => null;
+
     /// <summary>Descriptor name (kebab).</summary>
     public abstract string JobName { get; }
 
@@ -506,7 +513,8 @@ public abstract class JobContext
             DelaySeconds: options.DelaySeconds,
             Tags: options.Tags,
             ParentId: JobId,
-            TenantKey: options.TenantKey
+            TenantKey: options.TenantKey,
+            OverrideParentTenant: options.OverrideParentTenant
         );
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
@@ -639,6 +647,7 @@ public abstract class JobContext
             DelaySeconds = configured?.DelaySeconds,
             ParentId = JobId,
             TenantKey = configured?.TenantKey,
+            OverrideParentTenant = configured?.OverrideParentTenant ?? false,
         };
     }
 

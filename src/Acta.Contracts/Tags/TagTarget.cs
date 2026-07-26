@@ -18,7 +18,7 @@ public sealed class TagTarget
     internal object Lookup { get; }
 
     public static TagTarget ForTenant(string tenantKey) =>
-        new(TagScopeCode.Tenant, IdentifierSyntax.NormalizeKey(tenantKey, nameof(tenantKey)));
+        new(TagScopeCode.Tenant, IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey)));
 
     public static TagTarget ForNamespace(string namespaceName) =>
         new(TagScopeCode.Namespace, IdentifierSyntax.CanonicalizeKebab(namespaceName, nameof(namespaceName)));

@@ -143,7 +143,10 @@ different operations. Use [Schedule operations](./schedule-operations.md) before
 ## Tenant and namespace administration
 
 Tenants and namespaces carry an operator-controlled status: `active` resolves at enqueue, `suspended`
-rejects new enqueues while leaving in-flight jobs untouched. Suspension is reversible and status-only.
+withdraws admission. Tenant suspension is admission control, not work closure: new enqueues naming the
+tenant key are rejected once the suspend has committed, while jobs already admitted keep running and a
+running workflow may still create children that inherit the suspended tenant (an inherited tenant id
+carries no key to re-check). Suspension is reversible and status-only.
 
 ```csharp
 await jobs.Tenants.SuspendAsync("cust-4711", "billing hold");
@@ -164,13 +167,18 @@ edited. Every applied transition is audited on the events timeline in the 15xx a
 
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):
 `POST /tenants/{key}/suspend|resume`, `PATCH /tenants/{key}`, `POST /namespaces/{name}/suspend|resume`,
-`PATCH /namespaces/{name}`.
+`PATCH /namespaces/{name}`. Reads are ungated: `GET /tenants` pages the catalog and
+`GET /tenants/{key}` is the point read (`ITenants.GetAsync` in code).
 
-An enqueue that hits a suspended namespace, a suspended tenant, or an unknown tenant key throws a typed
-`EnqueueRejectedException` whose `Reason` is machine-readable (`NamespaceSuspended`, `TenantSuspended`,
-`TenantUnknown`); Guard-wrapped HTTP handlers map it to 409 with the reason in the ProblemDetails. Other
-enqueue failures (unknown namespace/job, retired definition, missing parent) still surface as raw
-provider errors.
+An enqueue that trips a tenant or namespace guard throws a typed `EnqueueRejectedException` whose
+`Reason` is machine-readable: `NamespaceSuspended`, `TenantSuspended`, `TenantUnknown`,
+`TenantRequired` / `TenantForbidden` (the definition's `TenantRequirement` policy), and
+`TenantMismatch` (a child named a different tenant than its parent without the explicit override).
+Guard-wrapped HTTP handlers map it to 409 with the reason in the ProblemDetails. Other enqueue
+failures (unknown namespace/job, retired definition, missing parent) still surface as raw provider
+errors. The same guards apply when the external outbox relays a record: a record that trips one
+(for example a Required definition staged without a tenant) lands in the outbox failure path
+instead of enqueuing.
 
 ## Built-in control CLI
 

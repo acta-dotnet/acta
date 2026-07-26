@@ -193,6 +193,18 @@
 - **Store methods:**
   - `Acta.Features.Definitions.IDefinitionStore.SetDefinitionOverridesAsync`
 
+### GetTenant returns the tenant for a known key or id and null for an unknown one
+- **Contract:** GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches.
+- **Arrange:** A tenant is registered and optionally suspended so a known key and id exist.
+- **Act:** GetTenant is called by key, by id, and with a key that matches no row.
+- **Assert:** The known key and id return the same populated row including its status and the unknown key returns null.
+- **Guarantees:**
+  - A known key returns the populated row and by-id returns the same row
+  - A suspended tenant still resolves with status Suspended
+  - An unknown key returns null
+- **Store methods:**
+  - `Acta.Features.Tenants.ITenantStore.GetTenantAsync`
+
 ### Newer-or-equal generation promotes policy; older cannot downgrade or retire
 - **Contract:** Writes a definition only when the incoming manifest generation is at or above the stored one, never downgrading or retiring on an older generation.
 - **Arrange:** A job definition is stored at a known manifest generation.
@@ -213,19 +225,19 @@
   - `Acta.Features.Definitions.IDefinitionStore.GetDefinitionContractsAsync`
   - `Acta.Features.Definitions.IDefinitionStore.RegisterDefinitionsAsync`
 
-### Tenant registration is an idempotent upsert by key that returns a stable id
-- **Contract:** Registering a tenant returns a new id, re-registering returns the same id and updates its metadata, and suspended registration stores status Suspended.
-- **Arrange:** A fresh tenant key exists only in the caller's hands.
-- **Act:** The key is registered, re-registered with new metadata, and registered suspended, reading the stored row after each call.
-- **Assert:** The first registration returns a new id, repeats return the same id with updated metadata, and the suspended registration stores Suspended.
+### Tenant registration inserts a new Active tenant or returns the existing row
+- **Contract:** Registering a new tenant inserts it Active and returns a new id, and re-registering returns the same id without changing status, metadata, or version.
+- **Arrange:** A fresh tenant key exists only in the caller's hands, optionally suspended after its first registration.
+- **Act:** The key is registered, then registered again with different metadata, reading the stored row after each call.
+- **Assert:** The first registration returns a new Active row and repeats return the same id with status, metadata, and version unchanged.
 - **Guarantees:**
   - A new tenant key inserts and returns a positive id with status Active
   - Re-registering the same key returns the same id (idempotent)
-  - Re-registering with new metadata updates description and status but keeps the id
-  - Registering suspended stores status Suspended
+  - Re-registering an existing key leaves metadata and version untouched
+  - Re-registering a suspended tenant does not resume it
+  - Concurrent same-key registrations all return the same id
   - Registering with a display name reads it back
-  - Re-registering with a changed display name updates it and bumps the version
-  - Re-registering with a null display name overwrites it to null
+  - The bare reserved tenant key 'sys' is rejected
 - **Store methods:**
   - `Acta.Features.Tenants.ITenantStore.RegisterTenantAsync`
 
@@ -640,11 +652,40 @@
   - `Acta.Features.Jobs.IJobStore.EnqueueBatchAsync`
   - `Acta.Features.Jobs.IJobStore.EnqueueOneAsync`
 
+### Tenant suspension is admission control, not work closure
+- **Contract:** Suspension rejects new enqueues naming the tenant key while admitted workflows may expand through inherited children after the suspend commits.
+- **Arrange:** A tenant is registered, a root job is admitted for it, and the tenant is then suspended.
+- **Act:** A child without a key, a child naming the suspended key, and overlapping suspend and enqueue calls are attempted.
+- **Assert:** The inherited child lands under the suspended tenant, explicit-key enqueues after the suspend commit reject, and overlapping enqueues land or reject atomically.
+- **Guarantees:**
+  - An admitted workflow still creates inherited children after its tenant is suspended
+  - A child naming the suspended tenant key explicitly is rejected even under a live parent
+  - Enqueues overlapping a suspend land or reject atomically, and post-suspend enqueues reject
+- **Store methods:**
+  - `Acta.Features.Jobs.IJobStore.EnqueueBatchAsync`
+  - `Acta.Features.Jobs.IJobStore.EnqueueOneAsync`
+
+### The definition's tenant requirement is enforced at the enqueue boundary
+- **Contract:** A Required definition rejects tenant-less rows and accepts explicit or inherited tenants while a Forbidden one rejects explicit keys and stores NULL.
+- **Arrange:** Definitions declaring Required and Forbidden tenant requirements are registered along with an active tenant.
+- **Act:** Roots and children are enqueued with an explicit key, with inheritance only, and with no tenant at all.
+- **Assert:** Tenant-less Required rows reject, inherited tenants satisfy Required, explicit keys on Forbidden reject, and Forbidden children store tenant NULL.
+- **Guarantees:**
+  - A Required definition rejects a tenant-less root
+  - A Required definition accepts a root naming an active tenant
+  - A Required child with a tenant-scoped parent and no explicit key is satisfied by inheritance
+  - A Required child of a tenant-less parent rejects
+  - A Forbidden definition rejects a root naming a tenant
+  - A Forbidden child of a tenant-scoped parent lands with its inherited tenant suppressed to NULL
+- **Store methods:**
+  - `Acta.Features.Jobs.IJobStore.EnqueueBatchAsync`
+  - `Acta.Features.Jobs.IJobStore.EnqueueOneAsync`
+
 ### Enqueue resolves, inherits, rejects, and filters by tenant
-- **Contract:** Enqueue resolves TenantKey to tenant_id, inherits it to children unless overridden, rejects unknown or suspended keys atomically, and filters lists by tenant.
+- **Contract:** Enqueue resolves TenantKey to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override.
 - **Arrange:** Active and suspended tenants are registered.
-- **Act:** Jobs are enqueued with and without a tenant as roots and children, and unknown and suspended keys are attempted.
-- **Assert:** TenantKey resolves to tenant_id with children inheriting unless overridden, bad keys reject the whole batch atomically, and the tenant filter scopes ListJobs.
+- **Act:** Jobs are enqueued with and without a tenant as roots and children, including cross-tenant children with and without the override.
+- **Assert:** TenantKey resolves with children inheriting, a cross-tenant child lands only with the override, and bad keys reject the whole batch atomically.
 - **Guarantees:**
   - A null TenantKey inserts tenant_id NULL
   - A known active TenantKey resolves to its tenant id
@@ -652,7 +693,9 @@
   - A suspended TenantKey rejects the batch and persists nothing
   - A batch with one bad tenant is rejected atomically (the good row never lands)
   - A child inherits the parent's tenant when it supplies none
-  - A child with its own TenantKey overrides the parent's tenant
+  - A child with a different TenantKey and the explicit override lands under its own tenant
+  - A child with a different TenantKey and no override is rejected atomically
+  - A child naming its tenant-less parent's namespace tenant explicitly lands without the override
   - ListJobs filters by tenant id
 - **Store methods:**
   - `Acta.Features.Jobs.IJobStore.EnqueueBatchAsync`
@@ -902,12 +945,13 @@
   - Malformed input leaves Executing and records the deserialization exception
 
 ### JobContext is resolvable by constructor injection in the attempt scope
-- **Contract:** An instance handler receives a populated JobContext by constructor injection from the per-attempt DI scope matching the running job's identity.
-- **Arrange:** A context-probe instance handler taking JobContext by constructor injection is registered.
+- **Contract:** An instance handler receives a populated JobContext by constructor injection matching the running job's identity and its resolved tenant scope.
+- **Arrange:** A context-probe instance handler taking JobContext by constructor injection is registered, with and without a tenant on the enqueue.
 - **Act:** The job runs once through the per-attempt DI scope.
-- **Assert:** The persisted result echoes the injected context's job id and name, proving DI handed the running job's context.
+- **Assert:** The persisted result echoes the context's job id, name, tenant id, and external tenant key, with both tenant fields null on a tenant-less job.
 - **Guarantees:**
   - Handler receives a JobContext by constructor injection matching the running job identity
+  - A tenant-scoped job's context carries the tenant id and its external key
 
 ### Handler sees its public JobRef matching the enqueue outcome
 - **Contract:** A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueOutcome.
@@ -1268,6 +1312,7 @@
 - **Assert:** The known id returns a populated JobSnapshot with Ready status and the unknown id returns null.
 - **Guarantees:**
   - A known job id returns a populated JobSnapshot whose id and Ready status match the enqueued row
+  - A tenant-scoped job's snapshot carries the tenant id and its external key
   - An unknown job id returns null
 - **Store methods:**
   - `Acta.Features.Jobs.IJobStore.GetJobAsync`
@@ -2096,9 +2141,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IJobStore.CancelJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
-| `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
+| `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.EnqueueBatchInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
-| `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
+| `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.EnqueueOneInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
 | `IJobStore.GetJobAsync` | GetJob returns the snapshot for a known id and null for an unknown id |
 | `IJobStore.GetJobCheckpointsAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
@@ -2142,8 +2187,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ISignalStore.WaitSignalAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
 | `ITagStore.ApplyAsync` | Tags read and mutate all first-class targets and filter typed queries |
 | `ITagStore.GetAsync` | Tags read and mutate all first-class targets and filter typed queries |
+| `ITenantStore.GetTenantAsync` | GetTenant returns the tenant for a known key or id and null for an unknown one |
 | `ITenantStore.ListTenantsAsync` | ListTenants pages tenants key-ascending with an opt-in total |
-| `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration is an idempotent upsert by key that returns a stable id |
+| `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration inserts a new Active tenant or returns the existing row |
 | `ITenantStore.ResumeTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.SuspendTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.UpdateTenantMetadataAsync` | Tenant metadata update is a version-CAS write that clears fields on null |
@@ -2244,6 +2290,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Tags/ApplyTags` | yes | yes | yes |
 | `Tags/GetTags` | yes | yes | yes |
 | `Tags/TagsView` | yes | yes | yes |
+| `Tenants/GetTenant` | yes | yes | yes |
 | `Tenants/ListTenants` | yes | yes | yes |
 | `Tenants/RegisterTenant` | yes | yes | yes |
 | `Tenants/ResumeTenant` | yes | yes | yes |

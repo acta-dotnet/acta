@@ -286,6 +286,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         var jobRetention = descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds;
         var auditLevelCode = (byte)descriptor.AuditLevel;
         var alertProfileCode = (byte)descriptor.AlertProfile;
+        var tenantRequirementCode = (byte)descriptor.TenantRequirement;
         var alertChannelName = descriptor.AlertChannelName;
         var runbookUrl = descriptor.RunbookUrl;
         var displayName = descriptor.DisplayName;
@@ -307,6 +308,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             jobRetention.ToString(c),
             auditLevelCode.ToString(c),
             alertProfileCode.ToString(c),
+            tenantRequirementCode.ToString(c),
             alertChannelName,
             runbookUrl,
             displayName,
@@ -336,6 +338,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             OutputFormatName: contract.OutputFormatName,
             AuditLevelCode: auditLevelCode,
             AlertProfileCode: alertProfileCode,
+            TenantRequirementCode: tenantRequirementCode,
             AlertChannelName: alertChannelName,
             RunbookUrl: runbookUrl,
             DisplayName: displayName,

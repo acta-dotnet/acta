@@ -14,7 +14,7 @@ namespace Acta;
 /// exist and be non-terminal, the child inherits the parent's lineage root and (when unset) its
 /// correlation id and tenant, and <paramref name="DeduplicationKey"/> dedup becomes sibling-unique.
 /// A non-null <paramref name="TenantKey"/> scopes the Job to that registered tenant; an unknown or
-/// inactive key rejects the enqueue.
+/// inactive key rejects, as does a cross-tenant child key without <paramref name="OverrideParentTenant"/>.
 /// </remarks>
 public sealed record JobEnqueueRequest(
     string JobNamespace,
@@ -28,5 +28,6 @@ public sealed record JobEnqueueRequest(
     int? DelaySeconds = null,
     IReadOnlyList<TagInput>? Tags = null,
     long? ParentId = null,
-    string? TenantKey = null
+    string? TenantKey = null,
+    bool OverrideParentTenant = false
 );

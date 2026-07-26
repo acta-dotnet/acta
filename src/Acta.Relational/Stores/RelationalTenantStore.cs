@@ -24,7 +24,6 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.TenantKey, command.TenantKey)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.DisplayName, command.DisplayName)));
                 cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.Description, command.Description)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.StatusCode, command.Status)));
             },
             reader => Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
             ct
@@ -32,6 +31,22 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
 
         return rows.Count > 0 ? rows[^1] : throw new InvalidOperationException("register_tenant returned no tenant id row.");
     }
+
+    public Task<TenantListItem?> GetTenantAsync(TenantPointLookup lookup, CancellationToken ct) =>
+        session.QueryAsync(
+            "Features/Tenants/Sql/GetTenant.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.TenantKey, lookup.TenantKey)));
+                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.TenantId, lookup.TenantId)));
+            },
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<TenantListRow>();
+                return await reader.ReadAsync(token) ? read(reader).ToItem() : null;
+            },
+            ct
+        );
 
     public Task<TenantPage> ListTenantsAsync(TenantPageRequest request, CancellationToken ct) =>
         session.QueryAsync(

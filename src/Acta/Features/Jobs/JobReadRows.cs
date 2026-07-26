@@ -28,7 +28,8 @@ internal sealed record JobSnapshotRow(
     DateTime? RetentionUntilUtc,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    int? TenantId
+    int? TenantId,
+    string? TenantKey
 )
 {
     public JobSnapshot ToSnapshot() =>
@@ -44,6 +45,7 @@ internal sealed record JobSnapshotRow(
             JobNamespace,
             JobName,
             TenantId,
+            TenantKey,
             Status,
             Priority,
             ExecutionNumber,

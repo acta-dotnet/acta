@@ -20,6 +20,7 @@ public sealed record JobSnapshot(
     string JobNamespace,
     string JobName,
     int? TenantId,
+    string? TenantKey,
     JobStatusCode Status,
     JobPriorityCode Priority,
     int ExecutionNumber,

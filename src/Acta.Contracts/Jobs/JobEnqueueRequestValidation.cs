@@ -35,7 +35,9 @@ internal static class JobEnqueueRequestValidation
                 ? null
                 : IdentifierSyntax.NormalizeKey(request.DeduplicationKey, Field(paramName, nameof(JobEnqueueRequest.DeduplicationKey))),
             ExclusiveKey = NormalizeOpaque(request.ExclusiveKey, Field(paramName, nameof(JobEnqueueRequest.ExclusiveKey))),
-            TenantKey = NormalizeOpaque(request.TenantKey, Field(paramName, nameof(JobEnqueueRequest.TenantKey))),
+            TenantKey = request.TenantKey is null
+                ? null
+                : IdentifierSyntax.NormalizeTenantKey(request.TenantKey, Field(paramName, nameof(JobEnqueueRequest.TenantKey))),
             Tags = NormalizeTags(request.Tags, paramName),
         };
     }
@@ -100,6 +102,16 @@ internal static class JobEnqueueRequestValidation
                 Field(paramName, nameof(JobEnqueueRequest.ParentId)),
                 request.ParentId,
                 "ParentId must be positive."
+            );
+        }
+
+        // The override is a cross-tenant CHILD opt-in: without a parent there is no tenant to cross,
+        // and without an explicit key there is nothing to override with.
+        if (request.OverrideParentTenant && (request.ParentId is null || request.TenantKey is null))
+        {
+            throw new ArgumentException(
+                "OverrideParentTenant requires both a ParentId and an explicit TenantKey.",
+                Field(paramName, nameof(JobEnqueueRequest.OverrideParentTenant))
             );
         }
     }

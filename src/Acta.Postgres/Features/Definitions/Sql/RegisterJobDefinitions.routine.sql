@@ -17,6 +17,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.register_job_definitions(
     p_d_output_format_name    VARCHAR[],
     p_d_audit_level_code      SMALLINT[],
     p_d_alert_profile_code    SMALLINT[],
+    p_d_tenant_requirement    SMALLINT[],
     p_d_alert_channel_name    VARCHAR[],
     p_d_runbook_url           VARCHAR[],
     p_d_display_name          VARCHAR[],
@@ -38,7 +39,7 @@ BEGIN
             p_d_execution_timeout, p_d_deadline_seconds, p_d_deadline_behavior, p_d_job_retention,
             p_d_input_type_name, p_d_output_type_name,
             p_d_input_format_id, p_d_input_format_name, p_d_output_format_id, p_d_output_format_name,
-            p_d_audit_level_code, p_d_alert_profile_code,
+            p_d_audit_level_code, p_d_alert_profile_code, p_d_tenant_requirement,
             p_d_alert_channel_name, p_d_runbook_url, p_d_display_name, p_d_description, p_d_definition_hash
         ) AS b(name, priority_code, max_attempts,
                backoff,
@@ -46,7 +47,7 @@ BEGIN
                deadline_behavior_code, retention_seconds,
                input_type_name, output_type_name,
                input_format_id, input_format_name, output_format_id, output_format_name,
-               audit_level_code, alert_profile_code,
+               audit_level_code, alert_profile_code, tenant_requirement_code,
                alert_channel_name, runbook_url, display_name, description, definition_hash)
     ),
     upserted AS (
@@ -62,6 +63,7 @@ BEGIN
             deadline_behavior_code,
             retention_seconds,
             audit_level_code, alert_profile_code,
+            tenant_requirement_code,
             alert_channel_name, runbook_url,
             display_name, description,
             definition_hash, manifest_generation_at_utc,
@@ -78,6 +80,7 @@ BEGIN
             b.deadline_behavior_code,
             b.retention_seconds,
             b.audit_level_code, b.alert_profile_code,
+            b.tenant_requirement_code,
             b.alert_channel_name, b.runbook_url,
             b.display_name, b.description,
             b.definition_hash, p_manifest_generation,
@@ -100,6 +103,7 @@ BEGIN
             retention_seconds = EXCLUDED.retention_seconds,
             audit_level_code = EXCLUDED.audit_level_code,
             alert_profile_code = EXCLUDED.alert_profile_code,
+            tenant_requirement_code = EXCLUDED.tenant_requirement_code,
             alert_channel_name = EXCLUDED.alert_channel_name,
             runbook_url = EXCLUDED.runbook_url,
             display_name = EXCLUDED.display_name,
@@ -182,3 +186,11 @@ BEGIN
        AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */);
 END;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
+-- signature (without tenant_requirement) so pre-existing installs cannot resolve the stale form.
+DROP FUNCTION IF EXISTS {{schema}}.register_job_definitions(
+    SMALLINT, TIMESTAMPTZ, VARCHAR[], SMALLINT[], SMALLINT[], VARCHAR[], INT[], INT[], SMALLINT[], INT[],
+    VARCHAR[], VARCHAR[], SMALLINT[], VARCHAR[], SMALLINT[], VARCHAR[], SMALLINT[], SMALLINT[],
+    VARCHAR[], VARCHAR[], VARCHAR[], VARCHAR[], VARCHAR[]
+);

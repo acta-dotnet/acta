@@ -54,7 +54,8 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("tax-susp");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, TenantStatusCode.Suspended, ct);
+        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
+        await Services.GetRequiredService<TenantsService>().SuspendAsync(key, null, null, ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(tenantKey: key), ct));
         Assert.Equal(EnqueueRejectionReasonCode.TenantSuspended, ex.Reason);
     }

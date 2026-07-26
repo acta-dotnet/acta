@@ -34,6 +34,12 @@ public sealed record JobDescriptor(
 )
 {
     /// <summary>
+    /// Whether jobs of this definition must, may, or must not carry a tenant; synced from
+    /// <c>[Job(TenantRequirement = ...)]</c> and enforced at the enqueue boundary in the database.
+    /// </summary>
+    public JobTenantRequirementCode TenantRequirement { get; init; } = JobTenantRequirementCode.Optional;
+
+    /// <summary>
     /// Declared recurring schedules (one per <c>[JobSchedule]</c>). Empty for non-scheduled jobs.
     /// </summary>
     public ImmutableArray<JobScheduleDescriptor> Schedules { get; init; } = [];

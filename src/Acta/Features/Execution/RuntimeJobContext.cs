@@ -65,7 +65,8 @@ internal sealed class RuntimeJobContext : JobContext
         StepRetryDefaults stepRetryDefaults = default,
         ILogger? log = null,
         JobMetrics? metrics = null,
-        IJobs? jobs = null
+        IJobs? jobs = null,
+        string? tenantKey = null
     )
     {
         JobNamespace = namespaceName;
@@ -73,6 +74,7 @@ internal sealed class RuntimeJobContext : JobContext
         JobId = job.JobId;
         JobRef = new JobRef(job.JobRef);
         TenantId = job.TenantId;
+        TenantKey = tenantKey;
         CancellationToken = cancellationToken;
         TriggeringScheduleNames = triggeringScheduleNames;
         DeadlineAtUtc = deadlineAtUtc;
@@ -104,6 +106,7 @@ internal sealed class RuntimeJobContext : JobContext
     public override string JobNamespace { get; }
     public override short NamespaceId => _namespaceId;
     public override int? TenantId { get; }
+    public override string? TenantKey { get; }
     public override string JobName { get; }
     public override JobRef JobRef { get; }
     public override CancellationToken CancellationToken { get; }

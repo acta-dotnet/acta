@@ -13,6 +13,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_batch(
     p_b_delay_seconds     INT[],
     p_b_parent_id         BIGINT[],
     p_b_tenant_key        VARCHAR[],
+    p_b_tenant_override   BOOLEAN[],
     p_t_ordinal           INT[],
     p_t_name              VARCHAR[],
     p_t_value             VARCHAR[],
@@ -109,6 +110,46 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
+    IF EXISTS (
+        SELECT 1
+          FROM unnest(p_b_namespace_name, p_b_job_name, p_b_tenant_key, p_b_parent_id)
+               AS b(namespace_name, job_name, tenant_key, parent_id)
+          INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
+          INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
+          LEFT JOIN {{schema}}.jobs pj ON pj.id = b.parent_id
+         WHERE jd.tenant_requirement_code = 10 /* JobTenantRequirementCode.Required */
+           AND b.tenant_key IS NULL
+           AND pj.tenant_id IS NULL
+    ) THEN
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: one or more rows target a definition that requires a tenant and carry none.'
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM unnest(p_b_namespace_name, p_b_job_name, p_b_tenant_key) AS b(namespace_name, job_name, tenant_key)
+          INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
+          INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
+         WHERE jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */
+           AND b.tenant_key IS NOT NULL
+    ) THEN
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.'
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM unnest(p_b_tenant_key, p_b_parent_id, p_b_tenant_override) AS b(tenant_key, parent_id, tenant_override)
+          INNER JOIN {{schema}}.tenants t ON t.tenant_key = b.tenant_key
+          INNER JOIN {{schema}}.jobs pj ON pj.id = b.parent_id
+         WHERE NOT b.tenant_override
+           AND pj.tenant_id IS NOT NULL
+           AND pj.tenant_id <> t.id
+    ) THEN
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a TenantKey that differs from the parent tenant without an explicit override.'
+            USING ERRCODE = 'P0001';
+    END IF;
+
     -- Resolve catalog + pre-allocate the job id ONCE into a temp table keyed by that id, so the inserts
     -- below read a staged, ANALYZEd set instead of re-joining a catalog CTE the planner sizes at ~1 row
     -- (which forced batch-rescanning Nested Loops after runtime state split into its own table).
@@ -142,7 +183,9 @@ BEGIN
         b.ordinal, b.job_ref, b.parent_id,
         CASE WHEN b.parent_id IS NOT NULL THEN COALESCE(pj.lineage_root_id, pj.id) END,
         b.deduplication_key, COALESCE(b.correlation_key, pj.correlation_key),
-        ns.id, jd.id, COALESCE(t.id, pj.tenant_id),
+        ns.id, jd.id,
+        CASE WHEN jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+             ELSE COALESCE(t.id, pj.tenant_id) END,
         b.input_format_id, b.input, b.exclusive_key,
         jd.audit_level_code_effective,
         COALESCE(b.priority_override, jd.priority_code_effective),
@@ -268,3 +311,10 @@ BEGIN
      ORDER BY e.ordinal;
 END;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
+-- signature (without p_b_tenant_override) so pre-existing installs cannot resolve the stale form.
+DROP FUNCTION IF EXISTS {{schema}}.enqueue_batch(
+    INT[], UUID[], VARCHAR[], VARCHAR[], VARCHAR[], VARCHAR[], SMALLINT[], SMALLINT[], BYTEA[],
+    VARCHAR[], TIMESTAMPTZ[], INT[], BIGINT[], VARCHAR[], INT[], VARCHAR[], VARCHAR[], VARCHAR[]
+);
