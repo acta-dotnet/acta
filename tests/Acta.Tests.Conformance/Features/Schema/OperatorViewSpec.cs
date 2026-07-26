@@ -15,10 +15,10 @@ namespace Acta.Tests.Conformance.Features.Schema;
     "schema.operator-views",
     "Schema bootstrap installs curated operator views",
     Area = "Schema",
-    Contract = "Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status and tags_view decodes exact target scope.",
-    Arrange = "A provider schema is bootstrapped and a retry-probe job is driven to terminal Failed.",
-    Act = "The provider catalog is queried for views, every view is smoke-queried, and jobs_view is filtered by status = 'failed'.",
-    Assert = "Only curated views exist, all are queryable, jobs decode failed status, and tags decode job scope beside raw codes."
+    Contract = "Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope.",
+    Arrange = "A provider schema is bootstrapped, a retry-probe job is driven to terminal Failed, and one job is enqueued for a registered tenant.",
+    Act = "The provider catalog is queried for views, every view is smoke-queried, and jobs_view is filtered by status = 'failed' and by job id.",
+    Assert = "Only curated views exist, all are queryable, jobs decode failed status and resolve tenant keys, and tags decode job scope beside raw codes."
 )]
 public abstract class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -107,6 +107,43 @@ public abstract class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal("failed", reader.GetString(0));
         Assert.Equal((int)JobStatusCode.Failed, Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture));
         Assert.False(await reader.ReadAsync(ct));
+    }
+
+    [Fact(DisplayName = "jobs_view resolves the tenant key beside the raw tenant id")]
+    public async Task Jobs_view_resolves_the_tenant_key()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tenantKey = TestKey("view-tenant");
+        var tenantId = await Jobs.Tenants.RegisterAsync(tenantKey, null, null, ct);
+        var scoped = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None, TenantKey: tenantKey),
+            ct
+        );
+        var unscoped = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+
+        await using var conn = await Db.GetConnectionAsync(ct);
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT tenant_id, tenant_key FROM {Db.Schema}.jobs_view WHERE job_id = @p_job_id";
+            Add(cmd, "@p_job_id", scoped.JobId);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            Assert.True(await reader.ReadAsync(ct));
+            Assert.Equal(tenantId, Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture));
+            Assert.Equal(tenantKey, reader.GetString(1));
+        }
+
+        // An untenanted job keeps both columns NULL: the join is outer, so the row still projects.
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT tenant_id, tenant_key FROM {Db.Schema}.jobs_view WHERE job_id = @p_job_id";
+            Add(cmd, "@p_job_id", unscoped.JobId);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            Assert.True(await reader.ReadAsync(ct));
+            Assert.True(await reader.IsDBNullAsync(0, ct));
+            Assert.True(await reader.IsDBNullAsync(1, ct));
+        }
     }
 
     [Fact(DisplayName = "tags_view decodes job scope beside exact target and tag values")]
