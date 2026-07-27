@@ -73,7 +73,8 @@ public sealed class JobDetailEndpointTests
 
         // Schedules for this job, the definition link, and the eligible workers.
         Assert.Equal(JsonValueKind.Array, root.GetProperty("schedules").ValueKind);
-        Assert.Equal(5, root.GetProperty("jobDefinitionId").GetInt32());
+        Assert.Equal(5, root.GetProperty("snapshot").GetProperty("jobDefinitionId").GetInt32());
+        Assert.False(root.TryGetProperty("jobDefinitionId", out _));
         Assert.Equal(JsonValueKind.Array, root.GetProperty("workers").ValueKind);
     }
 

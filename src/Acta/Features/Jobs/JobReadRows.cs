@@ -29,35 +29,39 @@ internal sealed record JobSnapshotRow(
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
     int? TenantId,
-    string? TenantKey
+    string? TenantKey,
+    int JobDefinitionId
 )
 {
+    // Named, not positional: this row is in SELECT order and the snapshot in entity order, and both
+    // carry runs of same-typed fields a positional call would silently swap.
     public JobSnapshot ToSnapshot() =>
         new(
-            JobId,
-            new JobRef(JobRef),
-            LineageRootId,
-            LineageRootJobRef is { } rootRef ? new JobRef(rootRef) : null,
-            ParentJobId,
-            ParentJobRef is { } parentRef ? new JobRef(parentRef) : null,
-            PersistedDeduplicationKey.Normalize(DeduplicationKey),
-            CorrelationKey,
-            JobNamespace,
-            JobName,
-            TenantId,
-            TenantKey,
-            Status,
-            Priority,
-            ExecutionNumber,
-            FailureCount,
-            InputFormatId,
-            NextRunAtUtc,
-            LeasedByWorkerId,
-            LeaseExpiresAtUtc,
-            ExclusiveKey,
-            RetentionUntilUtc,
-            CreatedAtUtc,
-            ModifiedAtUtc
+            JobId: JobId,
+            JobRef: new JobRef(JobRef),
+            JobNamespace: JobNamespace,
+            JobDefinitionId: JobDefinitionId,
+            JobName: JobName,
+            LineageRootId: LineageRootId,
+            LineageRootJobRef: LineageRootJobRef is { } rootRef ? new JobRef(rootRef) : null,
+            ParentJobId: ParentJobId,
+            ParentJobRef: ParentJobRef is { } parentRef ? new JobRef(parentRef) : null,
+            TenantId: TenantId,
+            TenantKey: TenantKey,
+            DeduplicationKey: PersistedDeduplicationKey.Normalize(DeduplicationKey),
+            CorrelationKey: CorrelationKey,
+            ExclusiveKey: ExclusiveKey,
+            InputFormatId: InputFormatId,
+            CreatedAtUtc: CreatedAtUtc,
+            Status: Status,
+            Priority: Priority,
+            NextRunAtUtc: NextRunAtUtc,
+            ExecutionNumber: ExecutionNumber,
+            FailureCount: FailureCount,
+            LeasedByWorkerId: LeasedByWorkerId,
+            LeaseExpiresAtUtc: LeaseExpiresAtUtc,
+            RetentionUntilUtc: RetentionUntilUtc,
+            ModifiedAtUtc: ModifiedAtUtc
         );
 }
 

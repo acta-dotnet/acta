@@ -10,7 +10,8 @@ SELECT j.id, j.job_ref,
        r.leased_by_worker_id, r.lease_expires_at_utc,
        j.exclusive_key, r.retention_until_utc,
        j.created_at_utc, r.modified_at_utc,
-       j.tenant_id, t.tenant_key
+       j.tenant_id, t.tenant_key,
+       j.definition_id
   FROM {{schema}}.jobs j
   INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
   INNER JOIN {{schema}}.namespaces  ns ON ns.id = j.namespace_id

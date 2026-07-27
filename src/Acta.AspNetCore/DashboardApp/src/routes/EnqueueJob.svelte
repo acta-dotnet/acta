@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, enqueueJob, ApiError, type JobDetailView, type JobInputTemplate, type JobPayloadView, type Paged } from '../api.ts';
+  import { api, enqueueJob, ApiError, type JobInputTemplate, type JobPayloadView, type Paged } from '../api.ts';
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed, type EnqueueInputState } from './enqueueTemplate.ts';
@@ -80,14 +80,14 @@
     jobName = '';
   }
 
-  // Clone prefill: load the source job's stored input off its aggregate detail. Json/text seed the
-  // editor; none, a binary format, or a truncated (over-cap) input leaves the new job without input
-  // (binary clone is out of scope for v1).
+  // Clone prefill: load the source job's stored input on its own, not off the detail aggregate.
+  // Json/text seed the editor; none, a binary format, or a truncated (over-cap) input leaves the new
+  // job without input (binary clone is out of scope for v1).
   const cloneQuery = createQuery(() => ({
     queryKey: keys.detail('enqueue-clone-input', fromRef ?? ''),
     queryFn: async ({ signal }: { signal: AbortSignal }): Promise<JobPayloadView | null> => {
       try {
-        return (await api<JobDetailView>(`jobs/${fromRef}/detail`, {}, { signal })).input;
+        return await api<JobPayloadView>(`jobs/${fromRef}/input`, {}, { signal });
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) return null;
         throw error;

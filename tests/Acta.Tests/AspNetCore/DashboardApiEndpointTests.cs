@@ -153,9 +153,10 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
     }
 
-    // Explain, lineage, and the per-panel input/result/checkpoint reads folded into GET /jobs/{ref}/detail
+    // Explain, lineage, and the per-panel result/checkpoint reads folded into GET /jobs/{ref}/detail
     // (JobDetailEndpointTests) and were removed per the pre-1.0 no-deprecated-code rule; the standalone
-    // routes no longer exist. The snapshot, /detail, and events routes remain.
+    // routes no longer exist. The snapshot, /detail, and events routes remain. `input` is the one
+    // deliberate exception: the enqueue screen's clone prefill wants the payload and nothing else.
     [Fact]
     public async Task Folded_in_per_panel_read_routes_are_gone()
     {
@@ -163,11 +164,14 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        foreach (var segment in new[] { "explain", "lineage", "input", "result", "checkpoints" })
+        foreach (var segment in new[] { "explain", "lineage", "result", "checkpoints" })
         {
             var response = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/{segment}", ct);
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
+
+        var input = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/input", ct);
+        Assert.Equal(HttpStatusCode.OK, input.StatusCode);
     }
 
     [Fact]
