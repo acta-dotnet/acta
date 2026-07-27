@@ -11,10 +11,15 @@ namespace Acta.Emit.Shared.Sql;
 internal abstract class SqlDdlDialect
 {
     public const string SchemaPlaceholder = "{{schema}}";
-    protected const string PreviewBaselineName = "init-byte-codes-v1";
+
+    // Identity of the current baseline generation, written into the generated M001 bodies and required
+    // at bootstrap by SchemaMigrationRunner.RequiredBaselineStamp. The history is not frozen until 1.0,
+    // so a re-cut baseline is expected; bump this and that constant together on every `schema reset` so
+    // a database built from the previous baseline fails loudly rather than taking a mismatched schema.
+    protected const string BaselineStamp = "init-byte-codes-v1";
 
     protected static string PersistedMigrationName(int version, string name) =>
-        version == 1 && string.Equals(name, "init", StringComparison.Ordinal) ? PreviewBaselineName : name;
+        version == 1 && string.Equals(name, "init", StringComparison.Ordinal) ? BaselineStamp : name;
 
     public abstract string ProviderToolName { get; }
 
