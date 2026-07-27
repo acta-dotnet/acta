@@ -18,7 +18,10 @@ internal sealed record BufferedCompletion(CompleteExecutionRequest Request, stri
 /// deferred wakeups. Rows the set-based routine self-filtered (a parent) fall back to
 /// per-job <see cref="Acta.Features.Execution.IExecutionStore.CompleteExecutionAsync"/>. The bounded channel backpressures the claim loop so the
 /// buffer cannot grow without limit. A crash loses the unflushed buffer: those jobs stay Executing and
-/// <c>sys.recovery</c> re-runs them (at-least-once).
+/// <c>sys.recovery</c> re-runs them (at-least-once). A flush is not all-or-nothing past the set call:
+/// the set-based commit and each per-job fallback are separate transactions, so a mid-flush failure
+/// leaves the already-committed rows terminal and only the rest for recovery, and the log names the
+/// jobs that are actually unfinalized rather than the whole batch.
 /// </summary>
 internal sealed class CompletionSink
 {
@@ -130,18 +133,57 @@ internal sealed class CompletionSink
             return;
         }
 
+        var requests = new List<CompleteExecutionRequest>(batch.Count);
+        foreach (var b in batch)
+        {
+            requests.Add(b.Request);
+        }
+
+        IReadOnlyList<bool> finalized;
         try
         {
-            var requests = new List<CompleteExecutionRequest>(batch.Count);
-            foreach (var b in batch)
-            {
-                requests.Add(b.Request);
-            }
-
             // One set-based round trip finalizes the simple terminal rows; it self-filters and reports
             // which ordinals it did NOT finalize (a parent, or a lost lease).
-            var finalized = await _execution.CompleteExecutionsBatchAsync(requests, CancellationToken.None).ConfigureAwait(false);
-            for (var i = 0; i < batch.Count; i++)
+            finalized = await _execution.CompleteExecutionsBatchAsync(requests, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // One statement, one commit, so nothing landed: every job in the batch stays Executing and
+            // sys.recovery reclaims them. Bulk's at-least-once contract; log and take the next batch.
+            // This is the only path that may claim the whole batch rolled back.
+            _log.LogError(ex, "Bulk completion flush of {Count} jobs failed; they remain Executing for recovery.", batch.Count);
+            return;
+        }
+
+        // Past the set call its finalized rows are committed, so each remaining step stands on its own:
+        // one failure must not strand the rows after it, and must not be reported as a rollback. Finalize
+        // first, then notify, so a failed wakeup is never mistaken for an unfinalized job.
+        var results = new CompleteExecutionResult?[batch.Count];
+        List<long>? unresolved = null;
+        Exception? completionFailure = null;
+        for (var i = 0; i < batch.Count; i++)
+        {
+            if (finalized[i])
+            {
+                continue;
+            }
+
+            try
+            {
+                // Not finalized in the batch: complete per-job with full semantics (parent child-done latch).
+                results[i] = await _execution.CompleteExecutionAsync(batch[i].Request, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                completionFailure ??= ex;
+                (unresolved ??= []).Add(batch[i].JobId);
+            }
+        }
+
+        Exception? wakeFailure = null;
+        for (var i = 0; i < batch.Count; i++)
+        {
+            try
             {
                 if (finalized[i])
                 {
@@ -155,20 +197,36 @@ internal sealed class CompletionSink
                         )
                         .ConfigureAwait(false);
                 }
-                else
+                else if (results[i] is { } result)
                 {
-                    // Not finalized in the batch: complete per-job with full semantics (parent child-done
-                    // latch) and publish the wakeups the routine reports.
-                    var result = await _execution.CompleteExecutionAsync(batch[i].Request, CancellationToken.None).ConfigureAwait(false);
+                    // Publish the wakeups the per-job routine reported.
                     await PublishWakeupsAsync(result, batch[i]).ConfigureAwait(false);
                 }
             }
+            catch (Exception ex)
+            {
+                wakeFailure ??= ex;
+            }
         }
-        catch (Exception ex)
+
+        if (unresolved is not null)
         {
-            // The whole batch rolled back: every job in it stays Executing, so sys.recovery reclaims and
-            // re-runs them. Bulk's at-least-once contract; log and continue with the next batch.
-            _log.LogError(ex, "Bulk completion flush of {Count} jobs failed; they remain Executing for recovery.", batch.Count);
+            _log.LogError(
+                completionFailure,
+                "Bulk completion left {Unresolved} of {Count} jobs unfinalized ({JobIds}); those remain Executing for recovery.",
+                unresolved.Count,
+                batch.Count,
+                string.Join(", ", unresolved)
+            );
+        }
+
+        if (wakeFailure is not null)
+        {
+            _log.LogWarning(
+                wakeFailure,
+                "Bulk completion finalized its jobs but at least one of {Count} wakeups failed; a waiting caller observes the outcome by poll instead.",
+                batch.Count
+            );
         }
     }
 

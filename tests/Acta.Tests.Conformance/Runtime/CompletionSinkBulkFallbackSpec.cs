@@ -169,7 +169,87 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         );
     }
 
+    [Fact(
+        DisplayName = "One failed per-job completion leaves only that job for recovery: later jobs in the batch still complete and already-committed jobs still get their wake"
+    )]
+    public async Task Failed_fallback_strands_only_its_own_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+
+        if (dialect.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompletionSink calls CompleteExecutionsBatch which is not supported on SQLite.");
+        }
+
+        // Two children (parent → batch self-filters → scalar fallback) and one plain row the batch
+        // finalizes. The plain row goes last so it sits after the failing fallback in flush order.
+        var firstChild = await StartedChildAsync(leaseTtl, ns, workerId, ct);
+        var secondChild = await StartedChildAsync(leaseTtl, ns, workerId, ct);
+        var plain = await StartedPlainAsync(leaseTtl, ns, workerId, ct);
+
+        // Fail the first scalar fallback only. The set call is untouched, so it commits the plain row.
+        var plan = new StoreFaultPlan();
+        plan.ThrowBeforeCompleteOnce();
+        var spy = new WakeupSpy();
+        var sink = new CompletionSink(
+            new FaultInjectingExecutionStore(Services.GetRequiredService<IExecutionStore>(), plan),
+            new WorkerWakeupPublisher(spy),
+            Options.Create(new JobsOptions { BatchCompletionSize = 100 })
+        );
+
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(firstChild.Claimed, workerId), TestNamespace, firstChild.JobId, 0));
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(secondChild.Claimed, workerId), TestNamespace, secondChild.JobId, 0));
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(plain.Claimed, workerId), TestNamespace, plain.JobId, 0));
+        sink.CompleteWriter();
+        await sink.RunFlusherAsync();
+
+        // The injected failure strands its own job and nothing else.
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(firstChild.JobId, ct)).Status);
+
+        // The fallback after it still ran: iteration does not stop at the first failure.
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(secondChild.JobId, ct)).Status);
+
+        // The set call committed the plain row before the failure, so it is terminal, not rolled back.
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plain.JobId, ct)).Status);
+
+        // And it still got its deferred wake, which the old single-catch flush skipped.
+        Assert.Contains(
+            spy.Wakes,
+            w => w.Channel.Kind == WorkerWakeupChannelKind.JobCompletion && w.Reason == WorkerWakeupReason.JobFinished
+        );
+    }
+
     // ---------- helpers ----------
+
+    // A child of a Suspended parent, claimed and started: the batch routine self-filters it (it has a
+    // parent), so it reaches the scalar fallback.
+    private async Task<(long JobId, ClaimedJob Claimed)> StartedChildAsync(int leaseTtl, short ns, int workerId, CancellationToken ct)
+    {
+        var parentEnq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parentEnq, ct));
+        var child = Assert.Single(await ReadChildrenAsync(parentEnq.JobId, ct));
+        return (child.Id, await ClaimAndStartAsync(child.Id, leaseTtl, ns, workerId, ct));
+    }
+
+    // A plain row: no parent, no exclusive key, so the set-based routine finalizes it.
+    private async Task<(long JobId, ClaimedJob Claimed)> StartedPlainAsync(int leaseTtl, short ns, int workerId, CancellationToken ct)
+    {
+        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
+        return (enq.JobId, await ClaimAndStartAsync(enq.JobId, leaseTtl, ns, workerId, ct));
+    }
+
+    private async Task<ClaimedJob> ClaimAndStartAsync(long jobId, int leaseTtl, short ns, int workerId, CancellationToken ct)
+    {
+        var claimed = Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, leaseTtl, jobId, ct));
+        Assert.Equal(
+            StartExecutionAction.Started,
+            await Services
+                .GetRequiredService<IExecutionStore>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
+        );
+        return claimed;
+    }
 
     private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, short Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {
