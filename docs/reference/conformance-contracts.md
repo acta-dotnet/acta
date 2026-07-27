@@ -874,6 +874,7 @@
   - Parent latch flip via fallback: child Done via sink releases Suspended parent to Ready
   - Fallback equals scalar parity: child completion via sink emits exact Done status and Succeeded JobExecutionFinished event
   - Plain row finalized by batch (guard): plain job reaches Done via batch path and JobFinished wake fires
+  - One failed per-job completion leaves only that job for recovery: later jobs in the batch still complete and already-committed jobs still get their wake
 
 ### A Strict deadline terminates an overdue job and blocks a retry past the deadline
 - **Contract:** A Strict deadline lands the job Cancelled with JobDeadlineExceeded at admission or when the next retry would overshoot, without consuming the retry budget.
