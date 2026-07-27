@@ -391,8 +391,17 @@ package ships no authentication; exposing the surface remotely means setting `Lo
 wiring host authorization through `ConfigureEndpoints`, which covers the HTML, the hashed assets,
 the query API, and the control API together. CORS is not authorization and plays no part in this
 guard; it never prevents direct access to the URL. `MapActaApi` maps the JSON endpoints alone
-and carries the same local-only default. The dashboard works under any base path and never renders
-payload bodies. See `concepts/000-fundamentals/022-dashboard` for a runnable host.
+and carries the same local-only default. The dashboard works under any base path.
+
+Payload bodies are part of the read surface, not a gated extra. Anyone who can reach the reads can
+see a job's input, its result, and its checkpoint values in full: json and text render inline, and
+any other format renders as a hex preview with base64 copy and a file download. The read surface is
+mapped regardless of `EnableControls` and never passes through `IActaControlAuthorizer`, so the only
+thing that withholds a body is size: past `JobsOptions.MaxInlinePayloadBytes` the read ships the
+format identity and byte length with `truncated: true` and no body. With controls enabled, a json or
+text input is also editable in place unless the job is dispatched or executing. Treat authorization
+for the read surface as authorization to read every payload the ledger holds. See
+`concepts/000-fundamentals/022-dashboard` for a runnable host.
 
 ## Retention and purge
 
@@ -468,7 +477,7 @@ Acta ships no login system; the dashboard and JSON API are local-only by default
 
 - `LocalOnly` checks the TCP peer address, not the original client: behind a reverse proxy or gateway on the same host, the peer is the proxy's loopback address, so the check passes for every forwarded request. Behind a proxy, do not rely on `LocalOnly`: gate on real authorization through `ConfigureEndpoints`, and configure `ForwardedHeaders` if the host needs the true client IP.
 - The `X-Acta-Control: true` header on control POSTs is an anti-accident guard, not auth; enable controls (`EnableControls = true`) only behind authorization.
-- Keep secrets and PII out of job input, result, and tags; store large or sensitive blobs externally and enqueue a reference (URI plus checksum and size).
+- Keep secrets and PII out of job input, result, and tags; store large or sensitive blobs externally and enqueue a reference (URI plus checksum and size). Payloads are readable in full by anyone authorized for the read surface (see the dashboard section above), so this is the data-classification boundary: there is no per-payload redaction or disclosure gate to fall back on.
 - Every host doubles as its own control CLI (`<app> jobs info|pause|resume|restart|cancel|debug`); use `j.DisableCli()` only if the host owns its own command line.
 
 ## Production checklist
