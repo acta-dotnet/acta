@@ -178,4 +178,48 @@ public sealed class RedisWakeupTests
         );
         Assert.Equal(WorkerWakeupWaitResult.Signaled, await jobWait.WaitAsync(WaitGenerously, None));
     }
+
+    [Fact]
+    public async Task A_duplicate_wake_burst_holds_one_pending_wake_per_channel()
+    {
+        var configuration = Environment.GetEnvironmentVariable("ACTA_TEST_REDIS");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(configuration), "ACTA_TEST_REDIS not set: no Redis server to test against.");
+
+        using var redis = await ConnectionMultiplexer.ConnectAsync(configuration!);
+        var prefix = UniquePrefix();
+
+        // The full jitter window, so every wake this burst schedules is still pending when it ends and
+        // the count below is the number of timers the burst actually allocated.
+        prefix.RemoteWakeJitterMax = RedisWakeupOptions.MaxRemoteWakeJitter;
+        await using var receiver = new RedisWakeup(redis, Options.Create(prefix));
+        await using var sender = new RedisWakeup(redis, Options.Create(prefix));
+
+        var wait = receiver.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
+        await Task.Delay(250, None); // let the receiver's pattern subscription land - pub/sub has no replay
+
+        // Two channels, many duplicates each: useful state is one pending wake per channel, not per message.
+        for (var i = 0; i < 200; i++)
+        {
+            await sender.WakeAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WorkerWakeupReason.WorkAvailable, None);
+            await sender.WakeAsync(WorkerWakeupChannel.WorkerNamespace("shipping"), WorkerWakeupReason.WorkAvailable, None);
+        }
+
+        // Pub/sub delivery is asynchronous, so let the receiver drain the burst before counting. The
+        // settle stays inside the jitter window, where a scheduled wake has not yet cleared its slot.
+        while (receiver.JitteredWakesScheduled == 0)
+        {
+            await Task.Delay(25, None);
+        }
+
+        await Task.Delay(300, None);
+
+        // The point of the fix: work tracks distinct channels, not messages. 400 messages over 2
+        // channels inside one jitter window schedule a couple of delayed wakes; uncoalesced this was
+        // 400. The slack covers a window elapsing mid-burst and letting a channel schedule again.
+        var scheduled = receiver.JitteredWakesScheduled;
+        Assert.True(scheduled is >= 1 and <= 20, $"expected a per-channel count, got {scheduled} scheduled wakes for 400 messages.");
+
+        // And the wake still lands: coalescing drops duplicates, never the delivery they stand for.
+        Assert.Equal(WorkerWakeupWaitResult.Signaled, await wait.WaitAsync(WaitGenerously, None));
+    }
 }

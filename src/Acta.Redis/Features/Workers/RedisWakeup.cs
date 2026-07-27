@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Acta.Features.Workers;
 using Acta.Redis.Configuration;
 using Microsoft.Extensions.Logging;
@@ -20,7 +21,9 @@ namespace Acta.Redis.Features.Workers;
 /// coalesces onto the local latch and is harmless. Channel semantics are preserved across the
 /// relay: a remote job-completion wake reaches existing waiters only (the local transport never
 /// allocates for it), and a remote worker-namespace wake is jittered per
-/// <see cref="RedisWakeupOptions.RemoteWakeJitterMax"/> to soften the fleet-wide claim herd.
+/// <see cref="RedisWakeupOptions.RemoteWakeJitterMax"/> to soften the fleet-wide claim herd. A
+/// jittered channel holds at most one pending wake, so a duplicate burst costs one timer for the
+/// channel rather than one per message.
 /// </remarks>
 internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
 {
@@ -29,7 +32,20 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
     private readonly string _channelPrefix;
     private readonly RedisChannel _wakePattern;
     private readonly TimeSpan _remoteJitterMax;
+
+    // Channels with a delayed wake already scheduled. Set membership is the whole state: the value is
+    // unused, and ConcurrentDictionary is just the set primitive .NET does not otherwise ship.
+    private readonly ConcurrentDictionary<WorkerWakeupChannel, byte> _pendingJittered = new();
     private readonly ILogger _log;
+
+    private long _jitteredWakesScheduled;
+
+    /// <summary>
+    /// How many delayed wakes this instance has actually scheduled, which is the cost coalescing
+    /// exists to bound: it tracks distinct channels, not received messages. Test seam, since the
+    /// coalescing has no other outward sign.
+    /// </summary>
+    internal long JitteredWakesScheduled => Interlocked.Read(ref _jitteredWakesScheduled);
     private readonly SemaphoreSlim _subscribeGate = new(1, 1);
     private volatile bool _subscribed;
 
@@ -122,11 +138,22 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         // Fire-and-forget: the relay must never block the subscriber thread. Worker-namespace wakes
         // from other processes are jittered so the fleet doesn't stampede the claim index off one
         // enqueue; job-completion wakes deliver immediately (single waiter, latency-priority).
-        var jitter =
-            channel.Kind == WorkerWakeupChannelKind.JobCompletion || _remoteJitterMax <= TimeSpan.Zero
-                ? TimeSpan.Zero
-                : TimeSpan.FromTicks(Random.Shared.NextInt64(_remoteJitterMax.Ticks + 1));
-        _ = DeliverAsync(channel, jitter);
+        if (channel.Kind == WorkerWakeupChannelKind.JobCompletion || _remoteJitterMax <= TimeSpan.Zero)
+        {
+            _ = DeliverAsync(channel, TimeSpan.Zero);
+            return;
+        }
+
+        // The useful state is one pending wake per channel, so coalesce BEFORE allocating anything: a
+        // duplicate arriving while a delayed wake is already scheduled is dropped, because that wake
+        // will serve it. A burst costs one timer per channel instead of one per message.
+        if (!_pendingJittered.TryAdd(channel, 0))
+        {
+            return;
+        }
+
+        Interlocked.Increment(ref _jitteredWakesScheduled);
+        _ = DeliverAsync(channel, TimeSpan.FromTicks(Random.Shared.NextInt64(_remoteJitterMax.Ticks + 1)));
     }
 
     private async Task DeliverAsync(WorkerWakeupChannel channel, TimeSpan jitter)
@@ -136,12 +163,18 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
             if (jitter > TimeSpan.Zero)
             {
                 await Task.Delay(jitter);
+
+                // Clear the slot BEFORE waking, never after: a message landing in the gap starts a
+                // fresh pending wake, which is one redundant wake onto a latch. Clearing afterwards
+                // would instead drop a message that this wake had already passed, losing it outright.
+                _pendingJittered.TryRemove(channel, out _);
             }
 
             await _local.WakeAsync(channel, WorkerWakeupReason.Unknown);
         }
         catch (Exception ex)
         {
+            _pendingJittered.TryRemove(channel, out _);
             _log.LogWarning(ex, "Redis wake relay failed for '{Channel}'.", channel.Name);
         }
     }
