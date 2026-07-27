@@ -25,9 +25,19 @@ public sealed class RedisWakeupOptions
     /// Maximum random delay applied to a REMOTE worker-namespace wake before it reaches local
     /// waiters, so N processes woken by one publish claim staggered instead of stampeding the claim
     /// index. Job-completion wakes are never jittered (single waiter, latency-priority), and wakes
-    /// published by this process reach its own waiters directly with no delay. Default 50ms.
+    /// published by this process reach its own waiters directly with no delay. At most one delayed
+    /// wake is ever pending per channel, so a burst of duplicate messages costs one timer, not one
+    /// per message. Default 50ms; set <see cref="TimeSpan.Zero"/> to relay every wake immediately.
+    /// Capped at <see cref="MaxRemoteWakeJitter"/>.
     /// </summary>
     public TimeSpan RemoteWakeJitterMax { get; set; } = TimeSpan.FromMilliseconds(50);
+
+    /// <summary>
+    /// Upper bound on <see cref="RemoteWakeJitterMax"/>, matching <c>JobsOptions.ClaimIdleJitterMax</c>.
+    /// Jitter exists to spread a claim herd across a moment, not to defer work: past a second it is
+    /// competing with the poll floor that would have found the job anyway.
+    /// </summary>
+    public static readonly TimeSpan MaxRemoteWakeJitter = TimeSpan.FromSeconds(1);
 }
 
 /// <summary>
@@ -38,8 +48,12 @@ internal sealed class RedisWakeupOptionsValidator : IValidateOptions<RedisWakeup
     public ValidateOptionsResult Validate(string? name, RedisWakeupOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        return options.RemoteWakeJitterMax < TimeSpan.Zero
-            ? ValidateOptionsResult.Fail("RedisWakeupOptions.RemoteWakeJitterMax must be >= 0.")
+
+        // Bounded at both ends: a negative flips the random range, and an unbounded one overflows the
+        // tick arithmetic that picks the delay (TimeSpan.MaxValue.Ticks + 1) before Task.Delay ever
+        // sees it. Same 0..1s window as JobsOptions.ClaimIdleJitterMax.
+        return options.RemoteWakeJitterMax < TimeSpan.Zero || options.RemoteWakeJitterMax > RedisWakeupOptions.MaxRemoteWakeJitter
+            ? ValidateOptionsResult.Fail("RedisWakeupOptions.RemoteWakeJitterMax must be between 0 and 1s.")
             : ValidateOptionsResult.Success;
     }
 }
