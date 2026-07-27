@@ -128,7 +128,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-* The initial schema migration (`M001`) is frozen; later schema changes ship only as additive `Mnnn` migrations. During the 0.1.x preview, upgrade compatibility between preview builds is not promised: a schema-incompatible preview update means dropping and reprovisioning the Acta database.
+* The migration history freezes at 1.0.0, and only then: before it, the schema baseline (`M001`) may be re-cut in any release. From 1.0.0 schema changes ship only as additive `Mnnn` migrations. During the 0.1.x preview, upgrade compatibility between preview builds is not promised: a schema-incompatible preview update means dropping and reprovisioning the Acta database, and the bootstrap refuses to run rather than applying a mismatched baseline.
 * Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
 * Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
 

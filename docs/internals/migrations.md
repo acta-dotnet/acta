@@ -108,10 +108,22 @@ that writes a file for only that provider (a leading hole for the others is fine
 `schema reset --force` deletes every migration and the snapshot. The next `schema add` recreates the
 baseline. The one destructive command, hence `--force`-gated and pre-1.0 only.
 
-The 2026-07-15 byte-sized persisted-code change used this workflow for one final destructive preview
-re-cut of `M001`. It has no translation `M002`: databases created from an earlier preview baseline
-contain incompatible numeric values and must be dropped and recreated. Enum member names, textual
-codes, descriptions, and JSON strings did not change; only family-local numeric ids and physical
+The history is not frozen until 1.0.0, so this is a supported move, not a last resort: an `Mnnn`
+landed to exercise an upgrade path can be folded back into a fresh baseline afterwards. A re-cut
+baseline carries no translation migration, so any database built from the previous one must be
+dropped and recreated.
+
+**Every reset bumps the baseline stamp.** It lives in two places and both must move together:
+
+- `SqlDdlDialect.BaselineStamp` (`tools/Acta.Emit`), written into the generated `M001` bodies.
+- `SchemaMigrationRunner.RequiredBaselineStamp` (`src/Acta.Relational`), required at bootstrap.
+
+Bootstrap compares the stamp recorded in the database against the one the build ships and throws on a
+mismatch, so a stale database fails loudly with a reprovision instruction instead of silently taking a
+schema it was not built for. Skipping the bump defeats that check.
+
+The 2026-07-15 byte-sized persisted-code change used this workflow. Enum member names, textual codes,
+descriptions, and JSON strings did not change; only family-local numeric ids and physical
 byte-compatible column types changed.
 
 ## Why a native drafter, and what guards correctness

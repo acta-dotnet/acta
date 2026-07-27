@@ -476,7 +476,7 @@ Acta ships no login system; the dashboard and JSON API are local-only by default
 Acta is in early 0.1.x preview and not recommended for production yet. Use this for production-like evaluation and staging.
 
 Version and schema:
-- `M001` is frozen; later schema changes ship as additive `Mnnn` migrations. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
+- The migration history freezes at 1.0.0. Before it, `M001` may be re-cut in any release, which means dropping and reprovisioning the database (bootstrap refuses to start on a baseline mismatch rather than applying it). From 1.0.0 schema changes ship as additive `Mnnn` migrations. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
 - Run `dotnet run --project tools/Acta.Emit -- check` in CI. Pin Acta versions across a namespace. Set `DeploymentVersion` to a build id; set `JobsOptions.ManifestGenerationUtc` only when deterministic definition promotion matters for your packaging/deploy shape.
 
 Provider and database:

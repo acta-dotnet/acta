@@ -11,9 +11,12 @@ namespace Acta.Relational.Schema;
 /// </summary>
 internal static class SchemaMigrationRunner
 {
-    // M001 was destructively re-cut during preview for the frozen byte-sized persisted-code
-    // contract. Earlier preview databases stamped M001 as "init" and cannot be translated safely.
-    private const string RequiredPreviewBaselineName = "init-byte-codes-v1";
+    // The migration history is not frozen until 1.0: the baseline stays re-cuttable, and a re-cut
+    // baseline cannot be translated onto a database built from an older one. This stamp is how that
+    // fails loudly instead of silently applying a mismatched schema. Every `schema reset` bumps it,
+    // in both places that own it: SqlDdlDialect.PreviewBaselineName (which writes it into the
+    // generated M001 bodies) and the constant here (which requires it at bootstrap).
+    private const string RequiredBaselineStamp = "init-byte-codes-v1";
 
     /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the
@@ -42,12 +45,13 @@ internal static class SchemaMigrationRunner
 
             if (
                 applied.TryGetValue(1, out var baselineName)
-                && !string.Equals(baselineName, RequiredPreviewBaselineName, StringComparison.Ordinal)
+                && !string.Equals(baselineName, RequiredBaselineStamp, StringComparison.Ordinal)
             )
             {
                 throw new InvalidOperationException(
-                    $"The installed Acta preview schema uses incompatible M001 baseline '{baselineName}'. "
-                        + "Drop and reprovision the database before upgrading to the byte-sized persisted-code contract."
+                    $"This database was built from Acta baseline '{baselineName}', but this build ships baseline "
+                        + $"'{RequiredBaselineStamp}'. The schema baseline is re-cuttable before 1.0 and carries no "
+                        + "translation path, so drop and reprovision the database to move to this build."
                 );
             }
 

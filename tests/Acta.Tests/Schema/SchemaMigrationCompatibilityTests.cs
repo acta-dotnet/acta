@@ -32,7 +32,10 @@ public sealed class SchemaMigrationCompatibilityTests
             SqliteSchemaMigrator.ApplyAsync(connection, "main", cancellationToken)
         );
 
-        Assert.Contains("incompatible M001", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("Drop and reprovision", exception.Message, StringComparison.Ordinal);
+        // Names the stale baseline the database is on and says what to do about it. The stamp this
+        // build ships is deliberately not asserted: it is bumped on every `schema reset`, and this
+        // test should survive that rather than have to be edited alongside it.
+        Assert.Contains("'init'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
     }
 }
