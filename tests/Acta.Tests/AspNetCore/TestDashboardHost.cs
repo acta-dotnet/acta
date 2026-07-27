@@ -323,6 +323,7 @@ internal static class TestDashboardHost
                 CorrelationKey: null,
                 JobNamespace: jobNamespace,
                 JobName: jobName,
+                JobDefinitionId: 5,
                 TenantId: tenantId,
                 TenantKey: tenantId == 1 ? "cust-001" : null,
                 Status: JobStatusCode.Ready,
@@ -807,8 +808,8 @@ internal static class TestDashboardHost
             public ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct = default) =>
                 ValueTask.FromResult<JobDefinitionDetail?>(null);
 
-            // The billing namespace carries one definition (id 5) so the aggregate detail read can resolve
-            // the definition link for ("billing", "send-invoice") the way the dashboard's link used to.
+            // The billing namespace carries one definition, id 5 - the same id the fake snapshot reports
+            // as its JobDefinitionId, so the definition link on the job screen addresses a real row here.
             public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(
                     query.JobNamespace == "billing"

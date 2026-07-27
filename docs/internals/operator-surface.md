@@ -15,7 +15,8 @@ mapped only when `ActaEndpointOptions.EnableControls` is set. CLI verbs run as `
 | Job snapshot | `IJobs.GetAsync` | `GET /jobs/{jobRef}` | `info` | Explain bundle |
 | Job status | `IJobs.GetStatusAsync` | (in snapshot) | `status` | |
 | Job result | `IJobs.GetResultAsync` | (in detail) | `result` | Explain bundle |
-| Job detail | (composition over `IJobs` reads) | `GET /jobs/{jobRef}/detail` | | one aggregate: snapshot + input/result/checkpoints + tags + explain + lineage + schedules + definition link + eligible workers |
+| Job input | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input`, (in detail) | | clone prefill without the aggregate |
+| Job detail | (composition over `IJobs` reads) | `GET /jobs/{jobRef}/detail` | | one aggregate: snapshot + input/result/checkpoints + tags + explain + lineage + schedules + eligible workers |
 | Explain | `IJobs.ExplainAsync` | (in detail) | `explain` | Explain AI core input |
 | Lineage map | `IJobs.GetLineageMapAsync` | (in detail) | | cost joins (demo) |
 | Resolve by key | `IJobs.ResolveJobIdAsync` | `GET /jobs/by-key` | target syntax | |
@@ -69,10 +70,12 @@ mapped only when `ActaEndpointOptions.EnableControls` is set. CLI verbs run as `
 - Authorization: the per-request `IActaControlAuthorizer` seam is shipped, gating mutations only
   (a denial short-circuits to 403 before the handler runs); it is a no-op until a host registers it,
   so mutations otherwise gate on EnableControls alone. The read surface (the aggregate `GET
-  /jobs/{jobRef}/detail`, which composes the input/result/checkpoint payloads, and the input-template
-  read) is unconditionally open (mapped regardless of EnableControls, never seen by the authorizer):
+  /jobs/{jobRef}/detail`, which composes the input/result/checkpoint payloads, the standalone `GET
+  /jobs/{jobRef}/input`, and the input-template read) is unconditionally open (mapped regardless of EnableControls, never seen by the authorizer):
   Acta operators see everything, so the only payload-read guard is a size cap. A payload past
   `JobsOptions.MaxInlinePayloadBytes` is projected as its format identity plus byte length with no body
   (`truncated: true`), so the read never ships an outsized blob.
 - One screen, one call: the job page fetches `GET /jobs/{jobRef}/detail` (99% of jobs are lightweight);
   only the unbounded event history keeps its own paged endpoint (`GET /jobs/{jobRef}/events`).
+  The aggregate's two capped collections (schedules, workers) each ship a filter-wide count, so the
+  frontend can tell a complete set from a preview instead of guessing.

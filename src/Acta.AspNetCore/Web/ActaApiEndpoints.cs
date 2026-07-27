@@ -178,10 +178,35 @@ internal static class ActaApiEndpoints
             }
         );
 
+        // The stored input on its own, for callers that want only the payload (the enqueue screen's
+        // clone prefill) and would otherwise pay the whole detail composition for one field.
+        group.MapGet(
+            "/jobs/{jobRef}/input",
+            async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
+            {
+                if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
+                {
+                    return NotFound();
+                }
+
+                var snapshot = await jobs.GetAsync(lookup, ct);
+                if (snapshot is null)
+                {
+                    return NotFound();
+                }
+
+                var input = await jobs.GetInputAsync(JobLookup.ById(snapshot.JobId), ct);
+                return Results.Json(
+                    JobPayloadResponse.From(input ?? JobPayload.None, jobsOptions.Value.MaxInlinePayloadBytes),
+                    DashboardJsonContext.Default.JobPayloadResponse
+                );
+            }
+        );
+
         // One aggregate that renders the whole job screen: the snapshot plus every depth read a
-        // lightweight job needs (input/result/checkpoints/explain/lineage/schedules/definition
-        // link/eligible workers), composed from the IJobs reads off one snapshot GET. The
-        // unbounded event history keeps its own paged endpoint below.
+        // lightweight job needs (input/result/checkpoints/explain/lineage/schedules/eligible
+        // workers), composed from the IJobs reads off one snapshot GET. The unbounded event history
+        // keeps its own paged endpoint below.
         group.MapGet(
             "/jobs/{jobRef}/detail",
             async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>

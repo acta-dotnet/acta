@@ -58,11 +58,10 @@ internal sealed record JobPayloadResponse(
 /// The whole job screen composed into one response so a lightweight job renders from a single request
 /// (its only unbounded part, the event history, keeps its own paged endpoint). Built from the existing
 /// <see cref="IJobs"/> reads after one <c>ResolveJobIdAsync</c>: the snapshot (the <c>GET /jobs/{ref}</c>
-/// shape), the size-capped input/result/checkpoint payloads, the explain and lineage
-/// projections, the schedules bound to its slot, the definition link (the definition id for this
-/// namespace+name so the frontend needs no list walk), and the eligible workers (only while the job is
-/// claimable). An absent result, empty schedule set, or empty worker set is a null/empty field, not an
-/// error.
+/// shape), the size-capped input/result/checkpoint payloads, the explain and lineage projections, the
+/// schedules bound to its slot, and the eligible workers (only while the job is claimable). An absent
+/// result, empty schedule set, or empty worker set is a null/empty field, not an error. The two
+/// related collections are capped pages, so each ships its filter-wide count alongside.
 /// </summary>
 internal sealed record JobDetailResponse(
     JobSnapshot Snapshot,
@@ -72,13 +71,13 @@ internal sealed record JobDetailResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobExplanation? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobLineageMap? Lineage,
     IReadOnlyList<JobScheduleListItem> Schedules,
-    // Always emitted (null when this host has no matching definition) so the frontend link reads a
-    // definite null rather than an absent field.
-    int? JobDefinitionId,
+    // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
+    long? SchedulesTotal,
     // Echo of the snapshot's tenant key at the top level so the summary link needs no snapshot dig.
     // Absent when the job has no tenant.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TenantKey,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<JobWorkerListItem>? Workers
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<JobWorkerListItem>? Workers,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal
 )
 {
     // The dashboard walked the same child cap; keep it here so the lineage panel is unchanged.
@@ -100,13 +99,23 @@ internal sealed record JobDetailResponse(
         var explain = await jobs.ExplainAsync(byId, ct);
         var lineage = await jobs.GetLineageMapAsync(byId, new JobLineageMapOptions(ChildLimit), ct);
         var schedules = await jobs.Schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: snapshot.JobNamespace, JobName: snapshot.JobName, LiveOnly: false, PageSize: 100),
+            new ListJobSchedulesQuery(
+                JobNamespace: snapshot.JobNamespace,
+                JobName: snapshot.JobName,
+                LiveOnly: false,
+                PageSize: 100,
+                IncludeTotal: true
+            ),
             ct
         );
-        var jobDefinitionId = await ResolveDefinitionIdAsync(jobs, snapshot.JobNamespace, snapshot.JobName, ct);
-        IReadOnlyList<JobWorkerListItem>? workers =
+        // Every worker in the namespace, not just the live ones: the "why isn't this running?" panel
+        // needs the whole set to tell "no workers at all" from "workers, none of them active".
+        var workers =
             snapshot.Status == JobStatusCode.Ready
-                ? (await jobs.Workers.ListAsync(new ListWorkersQuery(JobNamespace: snapshot.JobNamespace, PageSize: 50), ct)).Items
+                ? await jobs.Workers.ListAsync(
+                    new ListWorkersQuery(JobNamespace: snapshot.JobNamespace, PageSize: 50, IncludeTotal: true),
+                    ct
+                )
                 : null;
 
         return new JobDetailResponse(
@@ -117,40 +126,11 @@ internal sealed record JobDetailResponse(
             explain,
             lineage,
             schedules.Items,
-            jobDefinitionId,
+            schedules.TotalCount,
             snapshot.TenantKey,
-            workers
+            workers?.Items,
+            workers?.TotalCount
         );
-    }
-
-    // A job carries no definition id, so resolve it by namespace + name off the definitions list the same
-    // way the dashboard link did; bounded walk, best-effort (null when this host has no matching definition).
-    private static async Task<int?> ResolveDefinitionIdAsync(IJobs jobs, string jobNamespace, string jobName, CancellationToken ct)
-    {
-        string? cursor = null;
-        for (var guard = 0; guard < 100; guard++)
-        {
-            var page = await jobs.Definitions.ListAsync(
-                new ListJobDefinitionsQuery(JobNamespace: jobNamespace, PageSize: 100, Cursor: cursor),
-                ct
-            );
-            foreach (var item in page.Items)
-            {
-                if (item.JobName == jobName)
-                {
-                    return item.JobDefinitionId;
-                }
-            }
-
-            if (!page.HasMore || page.NextCursor is null)
-            {
-                break;
-            }
-
-            cursor = page.NextCursor;
-        }
-
-        return null;
     }
 }
 

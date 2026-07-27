@@ -150,8 +150,8 @@
         <JobLineage {job} {lineage} />
         <JobSummary {job} tenantKey={detail.tenantKey} {lastEvent} />
         <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
-        <JobWorkerEvidence {job} {workers} />
-        <JobSchedulesPanel schedules={detail.schedules} onChanged={reload} />
+        <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
+        <JobSchedulesPanel schedules={detail.schedules} total={detail.schedulesTotal} onChanged={reload} />
         <JobInputPanel input={detail.input} {jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
         <JobResultPanel result={detail.result} />
         <JobCheckpointsPanel checkpoints={detail.checkpoints} />
@@ -163,7 +163,7 @@
         <section class="detail-panel go-to" aria-label="Go to">
           <p class="detail-kicker">Go to</p>
           <nav>
-            {#if detail.jobDefinitionId}<a href={routes.definition(detail.jobDefinitionId, { namespace: job.jobNamespace })}>Definition</a>{/if}
+            <a href={routes.definition(job.jobDefinitionId, { namespace: job.jobNamespace })}>Definition</a>
             <a href={routes.jobs({ jobName: job.jobName, namespace: job.jobNamespace })}>Similar jobs</a>
             <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>Namespace</a>
             <a href={routes.workers({ namespace: job.jobNamespace })}>Workers</a>

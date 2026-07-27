@@ -386,9 +386,9 @@ export interface JobScheduleView {
 
 // GET /jobs/{jobRef}/detail: the whole job screen in one aggregate so a lightweight job renders from a
 // single request. Composed server-side after one job-id resolution; the input/result/checkpoint
-// payloads are size-capped exactly like the standalone reads were. An absent result / empty schedule or
-// worker set / unmatched definition is a null/empty field. The unbounded event history keeps its own
-// paged endpoint (JobEventsPanel), so it is not part of this shape.
+// payloads are size-capped exactly like the standalone reads were. An absent result or empty
+// schedule/worker set is a null/empty field. The unbounded event history keeps its own paged
+// endpoint (JobEventsPanel), so it is not part of this shape.
 export interface JobDetailView {
   snapshot: JobSnapshot;
   input: JobPayloadView;
@@ -397,9 +397,11 @@ export interface JobDetailView {
   explain: JobExplanation | null;
   lineage: JobLineage | null;
   schedules: JobScheduleView[];
-  jobDefinitionId: number | null;
+  // Filter-wide counts: above the array length means this is the first page, not the whole set.
+  schedulesTotal: number | null;
   tenantKey?: string;
   workers: JobWorker[] | null;
+  workersTotal?: number;
 }
 
 // One checkpoint row (variable/signal/timer/progress/child-latch); kind and state are kebab code

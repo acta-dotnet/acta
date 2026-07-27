@@ -1,21 +1,24 @@
+// Field order mirrors the server-side JobSnapshot record, which in turn mirrors the jobs entity and
+// then its runtimes row: identity, scope/routing, caller keys, input format, runtime state, audit.
 export interface JobSnapshot {
   jobRef: string;
+  jobNamespace: string;
+  jobDefinitionId: number;
+  jobName: string;
   lineageRootJobRef: string | null;
   parentJobRef: string | null;
+  tenantId: number | null;
   deduplicationKey: string | null;
   correlationKey: string | null;
-  jobNamespace: string;
-  jobName: string;
-  tenantId: number | null;
+  exclusiveKey: string | null;
+  inputFormatId: number;
   status: string;
   priority: string;
+  nextRunAtUtc: string | null;
   executionNumber: number;
   failureCount: number;
-  inputFormatId: number;
-  nextRunAtUtc: string | null;
   leasedByWorkerId: number | null;
   leaseExpiresAtUtc: string | null;
-  exclusiveKey: string | null;
   retentionUntilUtc: string | null;
   createdAtUtc: string;
   modifiedAtUtc: string;
