@@ -1,7 +1,10 @@
+﻿using System.Buffers;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
 using Acta.Configuration;
 using Acta.Features.Definitions;
 using Acta.Features.Execution;
@@ -11,7 +14,6 @@ using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
 using Microsoft.Data.Sqlite;
-using static Acta.Sqlite.Features.Shared.SqliteCommandParameters;
 
 namespace Acta.Sqlite.Services;
 
@@ -374,4 +376,126 @@ internal sealed class SqliteDialect : ISqlDialect
     // is reached, so this bind is never invoked.
     public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema) =>
         throw new NotSupportedException("The SQLite provider has no batched-completion routine; Bulk degrades to Direct.");
+
+    /// <summary>Typed SQLite parameter primitives the dialect's own binders use.</summary>
+    private static void AddText(DbCommand command, string name, string value) =>
+        command.Parameters.Add(
+            new SqliteParameter
+            {
+                ParameterName = name,
+                SqliteType = SqliteType.Text,
+                Value = value,
+            }
+        );
+
+    private static void AddNullableText(DbCommand command, string name, string? value) =>
+        command.Parameters.Add(
+            new SqliteParameter
+            {
+                ParameterName = name,
+                SqliteType = SqliteType.Text,
+                Value = (object?)value ?? DBNull.Value,
+            }
+        );
+
+    private static void AddInt(DbCommand command, string name, long value) =>
+        command.Parameters.Add(
+            new SqliteParameter
+            {
+                ParameterName = name,
+                SqliteType = SqliteType.Integer,
+                Value = value,
+            }
+        );
+
+    private static void AddNullableInt(DbCommand command, string name, long? value) =>
+        command.Parameters.Add(
+            new SqliteParameter
+            {
+                ParameterName = name,
+                SqliteType = SqliteType.Integer,
+                Value = (object?)value ?? DBNull.Value,
+            }
+        );
+
+    private static void AddNullableBlob(DbCommand command, string name, byte[]? value) =>
+        command.Parameters.Add(
+            new SqliteParameter
+            {
+                ParameterName = name,
+                SqliteType = SqliteType.Blob,
+                Value = (object?)value ?? DBNull.Value,
+            }
+        );
+
+    /// <summary>
+    /// JSON rowset writing: SQLite has no table-valued parameter, so batch binders pass a single JSON
+    /// array text parameter that the SQL body expands with <c>json_each</c>. Distinct from scalar
+    /// parameter binding - this composes the payload, it does not bind a command.
+    /// </summary>
+    private static string JsonArray<T>(IReadOnlyList<T> items, Action<Utf8JsonWriter, T, int> writeItem)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartArray();
+            for (var i = 0; i < items.Count; i++)
+            {
+                writer.WriteStartObject();
+                writeItem(writer, items[i], i);
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+        }
+
+        return Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
+    private static void WriteStringOrNull(Utf8JsonWriter writer, string name, string? value)
+    {
+        if (value is null)
+        {
+            writer.WriteNull(name);
+        }
+        else
+        {
+            writer.WriteString(name, value);
+        }
+    }
+
+    private static void WriteNumberOrNull(Utf8JsonWriter writer, string name, long? value)
+    {
+        if (value is { } number)
+        {
+            writer.WriteNumber(name, number);
+        }
+        else
+        {
+            writer.WriteNull(name);
+        }
+    }
+
+    private static void WriteUtcOrNull(Utf8JsonWriter writer, string name, DateTime? value)
+    {
+        if (value is { } instant)
+        {
+            writer.WriteNumber(name, ToUnixMs(instant));
+        }
+        else
+        {
+            writer.WriteNull(name);
+        }
+    }
+
+    private static void WriteBase64OrNull(Utf8JsonWriter writer, string name, ReadOnlyMemory<byte>? value)
+    {
+        if (value is { } bytes)
+        {
+            writer.WriteString(name, Convert.ToBase64String(bytes.Span));
+        }
+        else
+        {
+            writer.WriteNull(name);
+        }
+    }
 }

@@ -303,7 +303,7 @@ internal static class ActaApiEndpoints
                 );
                 return Guard(
                     http,
-                    async () => Results.Json(await jobs.ListNamespacesAsync(query, ct), DashboardJsonContext.Default.PagedResultString)
+                    async () => Results.Json(await jobs.Namespaces.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultString)
                 );
             }
         );
@@ -801,7 +801,7 @@ internal static class ActaApiEndpoints
     {
         IReadOnlyList<string> namespaces = jobNamespace is not null
             ? [jobNamespace]
-            : (await jobs.ListNamespacesAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
+            : (await jobs.Namespaces.ListAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
 
         var lines = new List<OverviewOutboxLine>();
         foreach (var ns in namespaces)

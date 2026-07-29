@@ -63,7 +63,7 @@ public sealed class ProviderOperatorViewCatalogTests
     [Fact(DisplayName = "Core embeds no operator view SQL")]
     public void Core_embeds_no_operator_view_sql()
     {
-        var resources = typeof(ActaStore).Assembly.GetManifestResourceNames();
+        var resources = typeof(ActaServiceCollectionExtensions).Assembly.GetManifestResourceNames();
 
         Assert.DoesNotContain(resources, static r => r.EndsWith(".view.sql", StringComparison.Ordinal));
     }

@@ -28,10 +28,7 @@ internal static class ProviderSqlResources
             }
 
             var tail = resource[prefix.Length..];
-            var executable =
-                tail.StartsWith("Features.", StringComparison.Ordinal)
-                || tail.StartsWith("Services.", StringComparison.Ordinal)
-                || tail.StartsWith("Schema.Sql.", StringComparison.Ordinal);
+            var executable = tail.StartsWith("Sql.", StringComparison.Ordinal);
             var migration = tail.StartsWith("Schema.Migrations.M", StringComparison.Ordinal);
             if (!executable && !(includeVersionedMigrations && migration))
             {
@@ -70,14 +67,32 @@ internal static class ProviderSqlResources
             return "Schema/Migrations/" + resourceTail[migrationPrefix.Length..];
         }
 
-        var sqlMarker = resourceTail.IndexOf(".Sql.", StringComparison.Ordinal);
-        if (sqlMarker >= 0)
+        return SqlLogicalPath.FromResourceTail(resourceTail);
+    }
+}
+
+/// <summary>
+/// Turns a dotted embedded-resource tail back into its <c>Sql/{Capability}/{Operation}.sql</c> path.
+/// Directory separators and the dots inside a file name are indistinguishable once embedded, so the
+/// rule is positional: strip <c>.sql</c> and any <c>.routine</c>/<c>.view</c> execution infix, treat
+/// the last remaining segment as the file stem, and every segment before it as a directory.
+/// </summary>
+internal static class SqlLogicalPath
+{
+    public static string FromResourceTail(string resourceTail)
+    {
+        var body = resourceTail[..^".sql".Length];
+        var infix = "";
+        foreach (var candidate in (string[])[".routine", ".view"])
         {
-            var owner = resourceTail[..sqlMarker].Replace('.', '/');
-            return owner + "/Sql/" + resourceTail[(sqlMarker + ".Sql.".Length)..];
+            if (body.EndsWith(candidate, StringComparison.Ordinal))
+            {
+                infix = candidate;
+                body = body[..^candidate.Length];
+            }
         }
 
-        var firstDot = resourceTail.IndexOf('.');
-        return firstDot < 0 ? resourceTail : resourceTail[..firstDot] + "/" + resourceTail[(firstDot + 1)..];
+        var lastDot = body.LastIndexOf('.');
+        return lastDot < 0 ? body + infix + ".sql" : body[..lastDot].Replace('.', '/') + "/" + body[(lastDot + 1)..] + infix + ".sql";
     }
 }

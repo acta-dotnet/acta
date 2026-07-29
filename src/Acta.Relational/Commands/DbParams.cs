@@ -1,11 +1,13 @@
+using System.Data.Common;
 using System.Globalization;
 using Acta.Relational.Schema;
 
 namespace Acta.Relational.Commands;
 
 /// <summary>
-/// One bound parameter for a provider command. Production code creates these through
-/// <c>DbParams.For(ActaSchema...)</c> so generated metadata owns name, kind, width, and scale.
+/// One bound parameter for a provider command. Production code binds through
+/// <c>dialect.CreateParameter(ActaSchema..., value)</c> so generated metadata owns name, kind,
+/// width, and scale; code that needs the spec itself (a parameter list) calls <c>DbParams.For</c>.
 /// </summary>
 internal sealed record DbParameterSpec(string Name, object? Value, DbKind Kind, int? Size = null, int? Precision = null, int? Scale = null);
 
@@ -96,4 +98,21 @@ internal static class DbParams
                 break;
         }
     }
+}
+
+/// <summary>
+/// Binds generated column / value metadata straight to a provider parameter:
+/// <c>dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName)</c>. Sugar over
+/// <see cref="DbParams.For{T}(DbColumnSpec{T}, object?)"/> plus the provider's single normalized
+/// <see cref="ISqlDialect.CreateParameter(DbParameterSpec)"/> seam, so the ordinary binding path
+/// never names the intermediate spec. Code that needs the spec itself (building a
+/// <see cref="DbParameterSpec"/> list) still calls <c>DbParams.For</c> directly.
+/// </summary>
+internal static class SqlDialectParameterExtensions
+{
+    public static DbParameter CreateParameter<T>(this ISqlDialect dialect, DbColumnSpec<T> spec, object? value) =>
+        dialect.CreateParameter(DbParams.For(spec, value));
+
+    public static DbParameter CreateParameter<T>(this ISqlDialect dialect, DbValueSpec<T> spec, T value) =>
+        dialect.CreateParameter(DbParams.For(spec, value));
 }

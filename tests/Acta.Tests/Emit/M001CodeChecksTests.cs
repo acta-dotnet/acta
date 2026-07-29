@@ -1,4 +1,4 @@
-using Acta.Tests.Conformance.Testing;
+﻿using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Emit;
@@ -24,9 +24,8 @@ public class M001CodeChecksTests
                 IntegrationConfig.FindRepoRoot(),
                 "src",
                 "Acta.SqlServer",
-                "Features",
-                "Execution",
                 "Sql",
+                "Execution",
                 "CompleteExecutionsBatch.routine.sql"
             )
         );

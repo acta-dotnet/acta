@@ -19,7 +19,7 @@ public sealed class OutboxSchemaQualificationTests
 
     private static SqlResourceCatalog Mssql(string? schema) => new(typeof(SqlServerProviderOptions).Assembly, schema, "acta_outbox");
 
-    private static string Claim(SqlResourceCatalog catalog) => catalog.Load("Features/Outbox/Sql/ClaimDueRows.sql");
+    private static string Claim(SqlResourceCatalog catalog) => catalog.Load("Sql/Outbox/ClaimDueRows.sql");
 
     [Fact]
     public void Postgres_leaves_the_table_unqualified_with_no_schema_override()

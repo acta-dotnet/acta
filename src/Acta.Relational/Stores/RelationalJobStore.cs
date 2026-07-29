@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Globalization;
 using Acta.Features.Jobs;
 using Acta.Relational.Commands;
@@ -16,8 +16,8 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 {
     public async ValueTask<JobSnapshot?> GetJobAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<JobSnapshot?>(
-            "Features/Jobs/Sql/GetJob.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId))),
+            "Sql/Jobs/GetJob.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) =>
                 await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobSnapshotRow>()(reader).ToSnapshot() : null,
             ct
@@ -25,27 +25,27 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<JobStatusCode?>(
-            "Features/Jobs/Sql/GetJobStatus.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId))),
+            "Sql/Jobs/GetJobStatus.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) => await reader.ReadAsync(token) ? (JobStatusCode)reader.GetByteFromNumeric(0) : (JobStatusCode?)null,
             ct
         );
 
     public Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct) =>
         session.QueryAsync<JobInputRecord?>(
-            "Features/Jobs/Sql/GetJobInput.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId))),
+            "Sql/Jobs/GetJobInput.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobInputRow>()(reader).ToRecord() : null,
             ct
         );
 
     public Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
         session.QueryAsync<JobResultRecord?>(
-            "Features/Jobs/Sql/GetJobResult.sql",
+            "Sql/Jobs/GetJobResult.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobResult.JobId, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobResult.ExecutionNumber, executionNumber)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobResult.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobResult.ExecutionNumber, executionNumber));
             },
             async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobResultRow>()(reader).ToRecord() : null,
             ct
@@ -53,8 +53,8 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<IReadOnlyList<JobCheckpointItem>>(
-            "Features/Jobs/Sql/GetJobCheckpoints.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.JobId, jobId))),
+            "Sql/Jobs/GetJobCheckpoints.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId)),
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<JobCheckpointReadRow>();
@@ -71,8 +71,8 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<JobExplainData?> GetJobExplanationAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<JobExplainData?>(
-            "Features/Jobs/Sql/GetJobExplanation.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId))),
+            "Sql/Jobs/GetJobExplanation.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) =>
             {
                 var readHeader = DbProjectionResolver.Resolve<ExplainHeaderRow>();
@@ -110,11 +110,11 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
         await session.QueryAsync<JobLineageData?>(
-            "Features/Jobs/Sql/GetJobLineageMap.sql",
+            "Sql/Jobs/GetJobLineageMap.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ChildFetchLimit, childFetchLimit)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChildFetchLimit, childFetchLimit));
             },
             async (reader, token) =>
             {
@@ -172,22 +172,20 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobPage> ListJobsAsync(JobPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Jobs/Sql/ListJobs.sql",
+            "Sql/Jobs/ListJobs.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, request.JobNamespace)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.StatusCode, request.Status)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.JobNameFilter, request.JobName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ParentIdFilter, request.ParentJobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.TenantId, request.TenantId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CorrelationKeyFilter, request.CorrelationKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorId, request.CursorId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.StatusCode, request.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, request.JobName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentIdFilter, request.ParentJobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, request.TenantId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, request.CorrelationKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, request.CursorId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {
@@ -211,19 +209,19 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct) =>
         await session.QueryAsync<long?>(
-            "Features/Jobs/Sql/ResolveJobIdByRef.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.JobRef, jobRef))),
+            "Sql/Jobs/ResolveJobIdByRef.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobRef, jobRef)),
             async (reader, token) => await reader.ReadAsync(token) ? (reader.IsDBNull(0) ? (long?)null : reader.GetInt64(0)) : null,
             ct
         );
 
     public async ValueTask<long?> ResolveJobIdByDeduplicationKeyAsync(string jobNamespace, string deduplicationKey, CancellationToken ct) =>
         await session.QueryAsync<long?>(
-            "Features/Jobs/Sql/ResolveJobIdByDeduplicationKey.sql",
+            "Sql/Jobs/ResolveJobIdByDeduplicationKey.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceName, jobNamespace)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.DeduplicationKey, deduplicationKey)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.DeduplicationKey, deduplicationKey));
             },
             async (reader, token) => await reader.ReadAsync(token) ? reader.GetInt64(0) : (long?)null,
             ct
@@ -304,7 +302,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
             },
             ct
         );
@@ -315,7 +313,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
             },
             ct
         );
@@ -325,8 +323,8 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             "RescheduleJob",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
                 AddActorParameters(cmd, input, includeReasonMessage: true);
             },
             ct
@@ -342,8 +340,8 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             "ReprioritizeJob",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.PriorityCode, priority)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.PriorityCode, priority));
                 AddActorParameters(cmd, input, includeReasonMessage: true);
             },
             ct
@@ -354,9 +352,9 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             "UpdateJobInput",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.InputFormatId, input.Format.Id)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Input, input.IsNone ? null : input.Data.ToArray())));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.InputFormatId, input.Format.Id));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Input, input.IsNone ? null : input.Data.ToArray()));
                 AddActorParameters(cmd, controlInput, includeReasonMessage: true);
             },
             ct
@@ -368,7 +366,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
     public Task ResetJobStateAsync(long jobId, CancellationToken ct) =>
         session.ExecuteAsync(
             new StoreCommand("Jobs", "ResetJobState"),
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId))),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             ct
         );
 
@@ -380,18 +378,18 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     private void AddControlParameters(DbCommand cmd, long jobId, JobControlInput input, bool includeReasonMessage)
     {
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
         AddActorParameters(cmd, input, includeReasonMessage);
     }
 
     private void AddActorParameters(DbCommand cmd, JobControlInput input, bool includeReasonMessage)
     {
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, input.Actor.ActorCode)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, input.Actor.ActorKey)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonCode, input.ReasonCode)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, input.Actor.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, input.Actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, input.ReasonCode));
         if (includeReasonMessage)
         {
-            cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, input.ReasonMessage)));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, input.ReasonMessage));
         }
     }
 }

@@ -4,10 +4,12 @@ using Xunit;
 namespace Acta.Tests.Conformance;
 
 /// <summary>
-/// Provider completeness gate: every store port surfaced as a property on <see cref="IActaStore"/>
-/// has exactly one implementation in each relational provider assembly. Grows automatically as the
-/// composite gains properties; a provider that misses a feature slice fails here before any runtime
-/// wiring is exercised.
+/// Provider completeness gate: every internal store port has exactly one implementation in
+/// Acta.Relational and none left in a provider assembly. Ports are discovered by the same reflection
+/// convention the coverage gate uses (<c>I*Store</c> under <c>Acta.Features.*</c> /
+/// <c>Acta.Services.*</c>), so a new port is covered the moment it is declared - no registry to
+/// remember to update. A provider that misses a feature slice fails here before any runtime wiring
+/// is exercised.
 /// </summary>
 public sealed class ProviderStoreCompletenessTests
 {
@@ -16,7 +18,7 @@ public sealed class ProviderStoreCompletenessTests
     [Fact]
     public void Every_provider_implements_every_store_port()
     {
-        var ports = typeof(IActaStore).GetProperties().Select(p => p.PropertyType).ToList();
+        var ports = StoreContractCoverageTests.StoreInterfaces();
         Assert.NotEmpty(ports);
 
         // Every store port has exactly one shared implementation in Acta.Relational and no leftover

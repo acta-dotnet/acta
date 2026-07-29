@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Acta.Features.Shared;
 using Acta.Features.Tenants;
 using Acta.Relational.Commands;
@@ -21,9 +21,9 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Tenants", "RegisterTenant"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.TenantKey, command.TenantKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.DisplayName, command.DisplayName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.Description, command.Description)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, command.TenantKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.DisplayName, command.DisplayName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.Description, command.Description));
             },
             reader => Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
             ct
@@ -34,11 +34,11 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
 
     public Task<TenantListItem?> GetTenantAsync(TenantPointLookup lookup, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Tenants/Sql/GetTenant.sql",
+            "Sql/Tenants/GetTenant.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.TenantKey, lookup.TenantKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.TenantId, lookup.TenantId)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, lookup.TenantKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, lookup.TenantId));
             },
             async (reader, token) =>
             {
@@ -50,17 +50,15 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
 
     public Task<TenantPage> ListTenantsAsync(TenantPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Tenants/Sql/ListTenants.sql",
+            "Sql/Tenants/ListTenants.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TenantSearch, request.SearchPattern)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.StatusCode, request.Status)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorTenantKey, request.CursorTenantKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantSearch, request.SearchPattern));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.StatusCode, request.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorTenantKey, request.CursorTenantKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {
@@ -93,13 +91,13 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Tenants", "UpdateTenantMetadata"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.TenantKey, command.TenantKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.DisplayName, command.DisplayName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.Description, command.Description)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ExpectedRowVersion, command.ExpectedVersion)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, command.TenantKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.DisplayName, command.DisplayName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.Description, command.Description));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
             },
             DbProjectionResolver.Resolve<AdminControlOutcome>(),
             ct
@@ -113,10 +111,10 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Tenants", operation),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Tenant.TenantKey, command.Key)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, command.Key));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
             },
             DbProjectionResolver.Resolve<AdminControlOutcome>(),
             ct

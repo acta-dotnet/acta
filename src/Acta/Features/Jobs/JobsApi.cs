@@ -540,9 +540,6 @@ internal sealed class JobsApi(
     public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>
         overview.GetOverviewAsync(query, ct);
 
-    public ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
-        Namespaces.ListAsync(query, ct);
-
     public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
         descriptorIndex.Find(jobNamespace, jobName) is { } descriptor
             ? new JobInputTemplate(

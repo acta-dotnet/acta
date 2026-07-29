@@ -9,6 +9,7 @@ using Acta.Sqlite;
 using Acta.Sqlite.Configuration;
 using Acta.SqlServer;
 using Acta.SqlServer.Configuration;
+using Acta.Tests.Conformance.Sql;
 using Xunit;
 
 namespace Acta.Tests.Conformance;
@@ -48,7 +49,7 @@ internal static partial class ProviderStoreBindingCheck
         StringComparer.Ordinal
     )
     {
-        ["Acta.Sqlite|Schema/Sql/DropSchema.sql"] =
+        ["Acta.Sqlite|Sql/Schema/DropSchema.sql"] =
             "SQLite resets sqlite_master objects in provider code because it has no DROP SCHEMA operation.",
     };
 
@@ -113,7 +114,7 @@ internal static partial class ProviderStoreBindingCheck
 
         foreach (
             var requestedPath in providerLiterals
-                .Concat(sharedLiterals.Where(static value => value.StartsWith("Schema/", StringComparison.Ordinal)))
+                .Concat(sharedLiterals.Where(static value => value.StartsWith("Sql/Schema/", StringComparison.Ordinal)))
                 .Where(IsRequestedSqlPath)
         )
         {
@@ -151,12 +152,12 @@ internal static partial class ProviderStoreBindingCheck
         }
     }
 
-    // The StoreCommand operation for a resource path: the segment(s) between "/Sql/" and the extension
-    // (dropping the ".routine" infix), e.g. Features/Execution/Sql/Checkpoints/CheckpointSlot.routine.sql
+    // The StoreCommand operation for a resource path: everything after "Sql/{Capability}/", minus the
+    // extension and the ".routine" infix, e.g. Sql/Execution/Checkpoints/CheckpointSlot.routine.sql
     // -> Checkpoints/CheckpointSlot.
     private static string OperationSubPath(string resourcePath)
     {
-        var after = resourcePath[(resourcePath.IndexOf("/Sql/", StringComparison.Ordinal) + "/Sql/".Length)..];
+        var after = resourcePath[(resourcePath.IndexOf('/', "Sql/".Length) + 1)..];
         after = after[..^".sql".Length];
         return after.EndsWith(".routine", StringComparison.Ordinal) ? after[..^".routine".Length] : after;
     }
@@ -339,28 +340,12 @@ internal static partial class ProviderStoreBindingCheck
         }
     }
 
-    private static bool IsExecutable(string tail) =>
-        tail.StartsWith("Features.", StringComparison.Ordinal)
-        || tail.StartsWith("Services.", StringComparison.Ordinal)
-        || tail.StartsWith("Schema.Sql.", StringComparison.Ordinal);
+    private static bool IsExecutable(string tail) => tail.StartsWith("Sql.", StringComparison.Ordinal);
 
     private static bool IsRequestedSqlPath(string value) =>
-        value.EndsWith(".sql", StringComparison.Ordinal)
-        && (
-            value.StartsWith("Features/", StringComparison.Ordinal)
-            || value.StartsWith("Services/", StringComparison.Ordinal)
-            || value.StartsWith("Schema/", StringComparison.Ordinal)
-        );
+        value.EndsWith(".sql", StringComparison.Ordinal) && value.StartsWith("Sql/", StringComparison.Ordinal);
 
-    private static string ResourcePath(string tail)
-    {
-        var marker = tail.IndexOf(".Sql.", StringComparison.Ordinal);
-        var owner = tail[..marker].Replace('.', '/');
-        var segments = tail[(marker + ".Sql.".Length)..].Split('.');
-        var infix = segments.Length > 2 && segments[^2] is "routine" or "view" ? "." + segments[^2] : "";
-        var pathSegments = segments[..^(infix.Length == 0 ? 1 : 2)];
-        return owner + "/Sql/" + string.Join('/', pathSegments) + infix + ".sql";
-    }
+    private static string ResourcePath(string tail) => SqlLogicalPath.FromResourceTail(tail);
 
     [GeneratedRegex(@"^I\w+Store$", RegexOptions.CultureInvariant)]
     private static partial Regex StoreNameRegex();

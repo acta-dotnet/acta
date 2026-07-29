@@ -5,8 +5,8 @@ using Xunit;
 namespace Acta.Tests.Conformance;
 
 /// <summary>
-/// Provider-resource gate for the architecture migration: every SQL resource a provider embeds under
-/// <c>Features/</c> or <c>Services/</c> normalizes to a logical resource id (independent of dialect and
+/// Provider-resource gate for the architecture migration: every capability SQL resource a provider
+/// embeds under <c>Sql/</c> normalizes to a logical resource id (independent of dialect and
 /// of routine/view/inline physical form), and the normalized inventories must stay paired across
 /// PostgreSQL, SQL Server, and SQLite. Vacuously green until feature-local provider SQL starts landing;
 /// tightens automatically as each feature slice moves its SQL into the providers.
@@ -68,10 +68,9 @@ public sealed class ProviderResourceParityTests
         );
     }
 
-    // Normalizes "{Assembly}.Features.Jobs.Sql.Enqueue.routine.sql" to "Jobs/Enqueue" and
-    // "{Assembly}.Services.Locks.Sql.AcquireLock.sql" to "Services/Locks/AcquireLock": the physical
-    // execution form (.routine/.view infix) and the Features/Sql path markers drop out, matching the
-    // logical ids used by tools/sql-compare.ps1 and the changed-sibling report.
+    // Normalizes "{Assembly}.Sql.Jobs.Enqueue.routine.sql" to "Jobs/Enqueue": the physical execution
+    // form (.routine/.view infix) and the Sql/ root marker drop out, matching the logical ids used by
+    // tools/sql-compare.ps1 and the changed-sibling report. Schema commands keep their Schema/ segment.
     internal static List<string> LogicalResources(string dialect)
     {
         var assembly = Assembly.Load(ProviderSqlResources.ProviderAssemblyName(dialect));
@@ -85,12 +84,15 @@ public sealed class ProviderResourceParityTests
                 continue;
             }
 
-            var path = resource[prefix.Length..^".sql".Length];
-            if (!path.StartsWith("Features.", StringComparison.Ordinal) && !path.StartsWith("Services.", StringComparison.Ordinal))
+            var tail = resource[prefix.Length..];
+            // Schema commands are deliberately not provider-paired (SQLite has no DROP SCHEMA), so
+            // they stay out of the parity inventory; ordered migrations are not Sql/ resources at all.
+            if (!tail.StartsWith("Sql.", StringComparison.Ordinal) || tail.StartsWith("Sql.Schema.", StringComparison.Ordinal))
             {
                 continue;
             }
 
+            var path = SqlLogicalPath.FromResourceTail(tail)[..^".sql".Length];
             foreach (var infix in (string[])[".routine", ".view"])
             {
                 if (path.EndsWith(infix, StringComparison.Ordinal))
@@ -99,12 +101,7 @@ public sealed class ProviderResourceParityTests
                 }
             }
 
-            if (path.StartsWith("Features.", StringComparison.Ordinal))
-            {
-                path = path["Features.".Length..];
-            }
-
-            ids.Add(path.Replace(".Sql.", ".", StringComparison.Ordinal).Replace('.', '/'));
+            ids.Add(path["Sql/".Length..]);
         }
 
         return ids;
@@ -118,7 +115,7 @@ public sealed class TagRetentionLockPolicyTests
     {
         var sql = ProviderSqlResources
             .Enumerate("mssql")
-            .Single(resource => resource.LogicalPath == "Features/Retention/Sql/PurgeExpiredData.routine.sql")
+            .Single(resource => resource.LogicalPath == "Sql/Retention/PurgeExpiredData.routine.sql")
             .Sql;
         var captureStart = sql.IndexOf("INSERT INTO @schedule_del", StringComparison.Ordinal);
         var cleanupStart = sql.IndexOf("DELETE FROM {{schema}}.tags", captureStart, StringComparison.Ordinal);

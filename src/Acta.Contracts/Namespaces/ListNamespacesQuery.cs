@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Filters and paging for <see cref="IJobs.ListNamespacesAsync"/>. Namespaces are ordered
+/// Filters and paging for <see cref="INamespaces.ListAsync"/>. Namespaces are ordered
 /// alphabetically (name ascending).
 /// </summary>
 /// <param name="NameStartsWith">Restrict to namespaces whose name begins with this kebab-case prefix.</param>

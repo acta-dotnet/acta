@@ -18,7 +18,7 @@ internal static class SchemaCommands
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
-        cmd.CommandText = sql.Load("Schema/Sql/AcquireSchemaLock.sql");
+        cmd.CommandText = sql.Load("Sql/Schema/AcquireSchemaLock.sql");
         var parameter = cmd.CreateParameter();
         parameter.ParameterName = "@p_key";
         parameter.Value = $"acta-migrations-{schemaName}";
@@ -37,7 +37,7 @@ internal static class SchemaCommands
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
-        cmd.CommandText = sql.Load("Schema/Sql/EnsureMigrations.sql");
+        cmd.CommandText = sql.Load("Sql/Schema/EnsureMigrations.sql");
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
@@ -53,7 +53,7 @@ internal static class SchemaCommands
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
-        cmd.CommandText = sql.Load("Schema/Sql/LoadAppliedVersions.sql");
+        cmd.CommandText = sql.Load("Sql/Schema/LoadAppliedVersions.sql");
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -66,7 +66,7 @@ internal static class SchemaCommands
     public static async Task DropSchema(DbConnection conn, SchemaMigrationProviderHooks hooks, SqlResourceCatalog sql, CancellationToken ct)
     {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql.Load("Schema/Sql/DropSchema.sql");
+        cmd.CommandText = sql.Load("Sql/Schema/DropSchema.sql");
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
         await cmd.ExecuteNonQueryAsync(ct);
     }

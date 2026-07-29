@@ -24,7 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Provider-owned migrations, schema commands, feature SQL, and service SQL. -->
-    <EmbeddedResource Include="Schema/**/*.sql;Features/**/*.sql;Services/**/*.sql" Exclude="$(DefaultItemExcludes)">
+    <EmbeddedResource Include="Sql/**/*.sql;Schema/Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
       <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>

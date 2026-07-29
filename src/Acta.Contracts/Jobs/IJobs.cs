@@ -478,9 +478,6 @@ public interface IJobs
     /// <summary>One-shot dashboard health counters, optionally scoped to a namespace.</summary>
     ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default);
 
-    /// <summary>List registered namespace names alphabetically, optionally restricted to a name prefix.</summary>
-    ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default);
-
     /// <summary>
     /// The input contract of a registered job, read from the in-process generated manifest: no
     /// database round-trip, no reflection. Returns null when this host has not registered the job's

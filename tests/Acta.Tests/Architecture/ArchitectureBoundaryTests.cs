@@ -13,18 +13,14 @@ public sealed class ArchitectureBoundaryTests
     [Fact]
     public void Core_store_ports_are_internal_and_provider_neutral()
     {
-        var core = typeof(IActaStore).Assembly;
+        var core = typeof(ActaServiceCollectionExtensions).Assembly;
         var relationalAssemblyName = typeof(IEntity).Assembly.GetName().Name;
         var references = core.GetReferencedAssemblies().Select(reference => reference.Name).ToArray();
         Assert.DoesNotContain(relationalAssemblyName, references);
         Assert.DoesNotContain(core.GetManifestResourceNames(), name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase));
 
-        var composite = typeof(IActaStore);
-        var storePorts = composite.GetProperties().Select(property => property.PropertyType).ToArray();
+        var storePorts = Acta.Tests.Conformance.StoreContractCoverageTests.StoreInterfaces().ToArray();
         Assert.NotEmpty(storePorts);
-        Assert.False(composite.IsPublic);
-        Assert.DoesNotContain(composite.GetMethods(), method => !method.IsSpecialName);
-        Assert.All(composite.GetProperties(), property => Assert.True(property.CanRead && !property.CanWrite));
         Assert.All(storePorts, store => Assert.False(store.IsPublic, $"{store.FullName} must remain internal."));
 
         var relationalLeaks = storePorts
@@ -232,10 +228,9 @@ public sealed class ArchitectureBoundaryTests
         foreach (var provider in ProviderProjects)
         {
             var providerRoot = Path.Combine(sourceRoot, provider);
-            var featureRoot = Path.Combine(providerRoot, "Features");
             // Stores are consolidated into shared Acta.Relational implementations; a provider owns no
-            // feature-store classes, only dialects, bootstrap, and SQL.
-            var stores = Directory.EnumerateFiles(featureRoot, "*Store.cs", SearchOption.AllDirectories).ToArray();
+            // store classes anywhere, only its dialect, options, bootstrap, migrations, and SQL.
+            var stores = Directory.EnumerateFiles(providerRoot, "*Store.cs", SearchOption.AllDirectories).ToArray();
             failures.AddRange(stores.Select(path => $"provider retains a feature store after consolidation: {Relative(repoRoot, path)}"));
             failures.AddRange(
                 Directory
@@ -248,11 +243,11 @@ public sealed class ArchitectureBoundaryTests
             foreach (var sqlFile in sqlFiles)
             {
                 var path = Relative(providerRoot, sqlFile);
-                var featureSql = Regex.IsMatch(path, @"^Features/[^/]+/Sql/.+\.sql$", RegexOptions.CultureInvariant);
-                var serviceSql = Regex.IsMatch(path, @"^Services/(Locks|Time)/Sql/.+\.sql$", RegexOptions.CultureInvariant);
-                var schemaSql = Regex.IsMatch(path, @"^Schema/Sql/.+\.sql$", RegexOptions.CultureInvariant);
+                // One executable-SQL root per provider: Sql/{Capability}/{Operation}.sql (operations may
+                // nest one level, e.g. Sql/Execution/Checkpoints/). Ordered DDL stays under Schema/Migrations.
+                var capabilitySql = Regex.IsMatch(path, @"^Sql/[^/]+/.+\.sql$", RegexOptions.CultureInvariant);
                 var migrationSql = Regex.IsMatch(path, @"^Schema/Migrations/.+\.sql$", RegexOptions.CultureInvariant);
-                if (!featureSql && !serviceSql && !schemaSql && !migrationSql)
+                if (!capabilitySql && !migrationSql)
                 {
                     failures.Add($"provider SQL is outside an owned resource folder: {Relative(repoRoot, sqlFile)}");
                 }
