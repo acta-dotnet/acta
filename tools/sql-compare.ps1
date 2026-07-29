@@ -1,4 +1,4 @@
-[CmdletBinding(DefaultParameterSetName = 'Compare')]
+﻿[CmdletBinding(DefaultParameterSetName = 'Compare')]
 param(
     [Parameter(ParameterSetName = 'Compare', Position = 0)]
     [string]$Resource,
@@ -24,11 +24,10 @@ $providerProjects = [ordered]@{
 
 function ConvertTo-LogicalResource([string]$relativePath) {
     $path = $relativePath.Replace('\', '/')
-    if ($path.StartsWith('Features/', [StringComparison]::Ordinal)) {
-        $path = $path.Substring('Features/'.Length)
+    if ($path.StartsWith('Sql/', [StringComparison]::Ordinal)) {
+        $path = $path.Substring('Sql/'.Length)
     }
 
-    $path = $path.Replace('/Sql/', '/')
     if ($path.EndsWith('.sql', [StringComparison]::OrdinalIgnoreCase)) {
         $path = $path.Substring(0, $path.Length - '.sql'.Length)
     }
@@ -44,7 +43,7 @@ function ConvertTo-LogicalResource([string]$relativePath) {
 function Get-ProviderInventory([string]$token) {
     $projectRoot = Join-Path $repoRoot "src/$($providerProjects[$token])"
     $inventory = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($owner in @('Features', 'Services')) {
+    foreach ($owner in @('Sql')) {
         $ownerRoot = Join-Path $projectRoot $owner
         if (-not (Test-Path -LiteralPath $ownerRoot)) { continue }
 
@@ -102,8 +101,7 @@ if ($ChangedSince) {
         if ($null -eq $token) { continue }
 
         $relative = $path.Substring("src/$project/".Length)
-        if (-not ($relative.StartsWith('Features/', [StringComparison]::OrdinalIgnoreCase) -or
-            $relative.StartsWith('Services/', [StringComparison]::OrdinalIgnoreCase))) { continue }
+        if (-not $relative.StartsWith('Sql/', [StringComparison]::OrdinalIgnoreCase)) { continue }
 
         $logical = ConvertTo-LogicalResource $relative
         if (-not $changed.ContainsKey($logical)) {

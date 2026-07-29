@@ -2273,6 +2273,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Jobs/RestartJob` | yes | yes | yes |
 | `Jobs/ResumeJob` | yes | yes | yes |
 | `Jobs/UpdateJobInput` | yes | yes | yes |
+| `Locks/AcquireLock` | yes | yes | yes |
+| `Locks/ExtendLock` | yes | yes | yes |
+| `Locks/ReleaseLock` | yes | yes | yes |
 | `Namespaces/ListNamespaceItems` | yes | yes | yes |
 | `Namespaces/ListNamespaces` | yes | yes | yes |
 | `Namespaces/ResumeNamespace` | yes | yes | yes |
@@ -2294,10 +2297,6 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Schedules/SchedulesView` | yes | yes | yes |
 | `Schedules/SetScheduleOverrides` | yes | yes | yes |
 | `Schedules/TriggerScheduleNow` | yes | yes | yes |
-| `Services/Locks/AcquireLock` | yes | yes | yes |
-| `Services/Locks/ExtendLock` | yes | yes | yes |
-| `Services/Locks/ReleaseLock` | yes | yes | yes |
-| `Services/Time/GetUtcNow` | yes | yes | yes |
 | `Signals/RaiseSignal` | yes | yes | yes |
 | `Signals/WaitSignal` | yes | yes | yes |
 | `Tags/ApplyTags` | yes | yes | yes |
@@ -2309,6 +2308,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Tenants/ResumeTenant` | yes | yes | yes |
 | `Tenants/SuspendTenant` | yes | yes | yes |
 | `Tenants/UpdateTenantMetadata` | yes | yes | yes |
+| `Time/GetUtcNow` | yes | yes | yes |
 | `Workers/ExtendWorkerLeases` | yes | yes | yes |
 | `Workers/GetWorker` | yes | yes | yes |
 | `Workers/ListWorkers` | yes | yes | yes |

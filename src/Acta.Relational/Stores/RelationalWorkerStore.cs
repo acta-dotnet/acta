@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Acta.Features.Workers;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
@@ -20,21 +20,17 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Workers", "StartWorker"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.Name, command.NamespaceName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.OwnerTeam, command.OwnerTeam)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.Description, command.Description)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.CatalogHash, command.CatalogHash)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.StatusCode, JobNamespaceStatusCode.Active))
-                );
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.DeploymentVersion, command.DeploymentVersion))
-                );
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.Host, command.HostName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.EngineVersion, command.EngineVersion)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.DotnetVersion, command.DotnetVersion)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.ProcessId, command.ProcessId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.MaxConcurrency, command.MaxConcurrency)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.Name, command.NamespaceName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.OwnerTeam, command.OwnerTeam));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.Description, command.Description));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.CatalogHash, command.CatalogHash));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.StatusCode, JobNamespaceStatusCode.Active));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.DeploymentVersion, command.DeploymentVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.Host, command.HostName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.EngineVersion, command.EngineVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.DotnetVersion, command.DotnetVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.ProcessId, command.ProcessId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.MaxConcurrency, command.MaxConcurrency));
             },
             DbProjectionResolver.Resolve<StartWorkerRow>(),
             ct
@@ -48,8 +44,8 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Workers", "StopWorker"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.NamespaceId, namespaceId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.WorkerId, workerId)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WorkerId, workerId));
             },
             ct
         );
@@ -59,9 +55,9 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Workers", "ExtendWorkerLeases"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeasedByWorkerId, workerId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.Draining, draining)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, workerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.Draining, draining));
             },
             reader => reader.GetInt64(0),
             ct
@@ -71,7 +67,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
     {
         var counts = await session.ExecuteAsync(
             new StoreCommand("Workers", "MarkDeadWorkers"),
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.DeadAfterSeconds, deadAfterSeconds))),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.DeadAfterSeconds, deadAfterSeconds)),
             reader => reader.IsDBNull(0) ? (int?)null : Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
             ct
         );
@@ -83,8 +79,8 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
 
     public async ValueTask<JobWorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) =>
         await session.QueryAsync<JobWorkerDetail?>(
-            "Features/Workers/Sql/GetWorker.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.Id, workerId))),
+            "Sql/Workers/GetWorker.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.Id, workerId)),
             async (reader, token) =>
                 await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobWorkerListRow>()(reader).ToDetail() : null,
             ct
@@ -92,18 +88,16 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
 
     public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Workers/Sql/ListWorkers.sql",
+            "Sql/Workers/ListWorkers.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, request.JobNamespace)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobWorker.StatusCode, request.Status)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorLastSeenAtUtc, request.CursorLastSeenAtUtc)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorIntId, request.CursorId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.StatusCode, request.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorLastSeenAtUtc, request.CursorLastSeenAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorIntId, request.CursorId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {

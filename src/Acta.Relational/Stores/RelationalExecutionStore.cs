@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Globalization;
 using Acta.Features.Execution;
 using Acta.Features.Execution.Checkpoints;
@@ -22,12 +22,12 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Execution", "Checkpoints/CheckpointSlot"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.SlotAction, (short)command.Action)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.KindCode, command.Kind)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.Name, command.Name)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.ValueFormatId, command.ValueFormatId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.Value, command.Value)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SlotAction, (short)command.Action));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.KindCode, command.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.ValueFormatId, command.ValueFormatId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Value, command.Value));
             },
             DbProjectionResolver.Resolve<CheckpointSlotRow>(),
             "checkpoint_slot returned no rows; the contract is exactly one.",
@@ -37,7 +37,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
     public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<long>>(
             new StoreCommand("Execution", "ChildLatches/GetChildJobIds"),
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.ParentId, parentJobId))),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.ParentId, parentJobId)),
             async (reader, token) =>
             {
                 var ids = new List<long>();
@@ -54,7 +54,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
     public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(short namespaceId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<StaleChildLatch>>(
             new StoreCommand("Execution", "ChildLatches/GetStaleChildLatches"),
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.NamespaceId, namespaceId))),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId)),
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<StaleChildLatch>();
@@ -74,10 +74,10 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Execution", "Timers/ArmOrConsumeSleepTimer"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.Name, command.Name)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.SleepDelaySeconds, command.DelaySeconds)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.SleepResumeAtUtc, command.ResumeAtUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SleepDelaySeconds, command.DelaySeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SleepResumeAtUtc, command.ResumeAtUtc));
             },
             DbProjectionResolver.Resolve<SleepDecision>(),
             "arm_or_consume_sleep_timer returned no decision.",
@@ -95,11 +95,11 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Execution", "ClaimBatch"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.NamespaceId, request.NamespaceId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ClaimLimit, request.MaxBatch)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.StartExecuting, request.StartExecuting)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimLimit, request.MaxBatch));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
             },
             rows => ClaimResultMapper.Map(rows),
             ct
@@ -117,11 +117,11 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Execution", "ClaimOne"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.NamespaceId, request.NamespaceId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId.Value)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.StartExecuting, request.StartExecuting)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId.Value));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
             },
             rows => rows.Count == 0 ? ClaimResult.Empty : new ClaimResult(rows.Select(ClaimResultMapper.ToClaimedJob).ToList(), null),
             ct
@@ -148,11 +148,11 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Execution", "StartExecution"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.Id, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeasedByWorkerId, workerId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.ExecutionNumber, expectedExecutionNumber)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobRuntime.Version, expectedVersion)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, workerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.ExecutionNumber, expectedExecutionNumber));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.Version, expectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
             },
             reader => reader.IsDBNull(0) ? (byte?)null : reader.GetByteFromNumeric(0),
             ct
@@ -232,7 +232,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("Execution", "ReclaimStuckJobs"),
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.NamespaceId, namespaceId))),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId)),
             DbProjectionResolver.Resolve<ReclaimedJobRow>(),
             ct
         );
@@ -245,9 +245,9 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Execution", "StartStep"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.JobId, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.Name, name)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AtMostOnce, atMostOnce)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.Name, name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AtMostOnce, atMostOnce));
             },
             DbProjectionResolver.Resolve<StartStepDecision>(),
             "start_step returned no decision.",
@@ -259,19 +259,17 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Execution", "CompleteStep"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.Name, command.Name)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.StepSucceeded, command.Succeeded)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.ResultFormatId, command.ResultFormatId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.Result, command.Result)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.ReasonCode, command.ReasonCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.ReasonMessage, command.ReasonMessage)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.StepRetryDelaySeconds, command.DelaySeconds)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.StepMaxAttempts, command.MaxAttempts)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.StepRetryWindowSeconds, command.RetryWindowSeconds))
-                );
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobStep.Version, command.ExpectedVersion)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepSucceeded, command.Succeeded));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.ResultFormatId, command.ResultFormatId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.Result, command.Result));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.ReasonCode, command.ReasonCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.ReasonMessage, command.ReasonMessage));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepRetryDelaySeconds, command.DelaySeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepMaxAttempts, command.MaxAttempts));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepRetryWindowSeconds, command.RetryWindowSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.Version, command.ExpectedVersion));
             },
             DbProjectionResolver.Resolve<CompleteStepDecision>(),
             "complete_step returned no decision.",

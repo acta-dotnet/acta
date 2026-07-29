@@ -72,4 +72,4 @@ condition rather than merely wait for an instant.
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`durable-sleep.cs`](./durable-sleep.cs)
-- [`ArmOrConsumeSleepTimer.sql`](../../../src/Acta.Sqlite/Features/Execution/Sql/Timers/ArmOrConsumeSleepTimer.sql)
+- [`ArmOrConsumeSleepTimer.sql`](../../../src/Acta.Sqlite/Sql/Execution/Timers/ArmOrConsumeSleepTimer.sql)

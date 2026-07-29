@@ -1,4 +1,4 @@
-using Acta.Features.Retention;
+﻿using Acta.Features.Retention;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
@@ -18,14 +18,12 @@ internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect d
             new StoreCommand("Retention", "PurgeExpiredData"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Job.NamespaceId, command.NamespaceId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.EventsRetentionDays, command.EventsRetentionDays)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AlertRetentionDays, command.AlertRetentionDays)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.WorkerRetentionSeconds, command.WorkerRetentionSeconds))
-                );
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PurgeBatchSize, command.BatchSize)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PurgeMaxIterations, command.MaxIterations)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, command.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventsRetentionDays, command.EventsRetentionDays));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertRetentionDays, command.AlertRetentionDays));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WorkerRetentionSeconds, command.WorkerRetentionSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeBatchSize, command.BatchSize));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeMaxIterations, command.MaxIterations));
             },
             DbProjectionResolver.Resolve<PurgeExpiredDataResult>(),
             ct

@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 using Acta.Configuration;
 using Acta.Features.Definitions;
@@ -10,7 +10,6 @@ using Acta.Relational.Connections;
 using Acta.Relational.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
-using static Acta.SqlServer.Features.Shared.SqlServerCommandParameters;
 
 namespace Acta.SqlServer.Services;
 
@@ -613,4 +612,69 @@ internal sealed class SqlServerDialect : ISqlDialect
         ["job_schedule_advance_batch"] = ScheduleAdvanceColumns,
         ["complete_executions_batch"] = CompleteBatchColumns,
     };
+
+    /// <summary>
+    /// Nullable-aware <see cref="SqlDataRecord"/> setters the dialect's TVP binders use. A TVP record is
+    /// reused across rows, so every field must be written on every row: leaving one unset carries the
+    /// previous row's value forward.
+    /// </summary>
+    private static void SetNullableString(SqlDataRecord record, int ordinal, string? value)
+    {
+        if (value is null)
+        {
+            record.SetDBNull(ordinal);
+        }
+        else
+        {
+            record.SetString(ordinal, value);
+        }
+    }
+
+    private static void SetNullableInt16(SqlDataRecord record, int ordinal, short? value)
+    {
+        if (value is { } number)
+        {
+            record.SetInt16(ordinal, number);
+        }
+        else
+        {
+            record.SetDBNull(ordinal);
+        }
+    }
+
+    private static void SetNullableInt32(SqlDataRecord record, int ordinal, int? value)
+    {
+        if (value is { } number)
+        {
+            record.SetInt32(ordinal, number);
+        }
+        else
+        {
+            record.SetDBNull(ordinal);
+        }
+    }
+
+    private static void SetNullableDateTime(SqlDataRecord record, int ordinal, DateTime? value)
+    {
+        if (value is { } instant)
+        {
+            record.SetDateTime(ordinal, instant);
+        }
+        else
+        {
+            record.SetDBNull(ordinal);
+        }
+    }
+
+    // SetValue replaces the whole field; SetBytes against a reused record can retain a prior payload tail.
+    private static void SetBytesOrNull(SqlDataRecord record, int ordinal, ReadOnlyMemory<byte> data, bool present)
+    {
+        if (!present)
+        {
+            record.SetDBNull(ordinal);
+            return;
+        }
+
+        record.SetValue(ordinal, data.ToArray());
+    }
 }

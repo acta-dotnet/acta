@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Acta.Features.Namespaces;
 using Acta.Features.Shared;
 using Acta.Relational.Commands;
@@ -16,16 +16,14 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
 {
     public Task<NamespacePage> ListNamespacesAsync(NamespacePageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Namespaces/Sql/ListNamespaces.sql",
+            "Sql/Namespaces/ListNamespaces.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamePrefixFilter, request.NamePrefix)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorNamespaceName, request.CursorName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamePrefixFilter, request.NamePrefix));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, request.CursorName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {
@@ -48,17 +46,15 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
 
     public Task<NamespaceItemPage> ListNamespaceItemsAsync(NamespacePageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Namespaces/Sql/ListNamespaceItems.sql",
+            "Sql/Namespaces/ListNamespaceItems.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamePrefixFilter, request.NamePrefix)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.StatusCode, request.Status)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorNamespaceName, request.CursorName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamePrefixFilter, request.NamePrefix));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.StatusCode, request.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, request.CursorName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {
@@ -91,13 +87,13 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
             new StoreCommand("Namespaces", "UpdateNamespaceMetadata"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceName, command.Name)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.OwnerTeam, command.OwnerTeam)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobNamespace.Description, command.Description)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ExpectedRowVersion, command.ExpectedVersion)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.OwnerTeam, command.OwnerTeam));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.Description, command.Description));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
             },
             DbProjectionResolver.Resolve<AdminControlOutcome>(),
             ct
@@ -111,10 +107,10 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
             new StoreCommand("Namespaces", operation),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceName, command.Key)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.Key));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
             },
             DbProjectionResolver.Resolve<AdminControlOutcome>(),
             ct

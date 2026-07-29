@@ -202,7 +202,7 @@ The shortest paths to the design-review-worthy parts:
 
 * **Source-generated dispatch, AOT-clean by construction.** `Acta.Generators` emits a per-area manifest (`{Area}Jobs`), per-handler invokers, and type-to-descriptor routing; no reflection runs on the dispatch hot path. The one caveat is the default JSON payload path, which uses reflection unless you supply a source-generated `JsonSerializerContext` (`j.UseJsonPayloads(...)`) or the typed-enqueue path.
 * **Semantic store ports across three engines.** Core feature behavior depends on internal `I*Store` contracts; PostgreSQL, SQL Server, and SQLite each own complete store implementations, command binding, projections, and executable SQL, held to the same behavior by the conformance suite.
-* **Provider-owned hot paths.** Each provider keeps C# at `Features/<Feature>/` and executable SQL at `Features/<Feature>/Sql/` (shared lock/time services use `Services/<Service>/Sql/`). Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
+* **Provider-owned hot paths.** Each provider keeps all executable SQL under one root, `Sql/<Capability>/<Operation>.sql` (schema commands at `Sql/Schema/`, ordered DDL at `Schema/Migrations/`); C# sits beside its dialect under `Services/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
 * **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.
 * **A deliberately small, symmetric data model.** Fifteen tables carry jobs, retries, schedules, steps, signals, timers, workers, alerts, and tenants; table count is a budget (see [`docs/internals/design.md`](./docs/internals/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
 
@@ -210,7 +210,7 @@ The shortest paths to the design-review-worthy parts:
 |---|---|
 | Public-API design | `src/Acta.Contracts/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
 | Durable execution model | [`docs/guide/concepts.md`](./docs/guide/concepts.md), [`docs/guide/handler-contract.md`](./docs/guide/handler-contract.md) |
-| Persistence architecture | `src/Acta/Features/*/I*Store.cs`, `src/Acta.Relational`, `src/Acta.{Postgres,SqlServer,Sqlite}/Features/` |
+| Persistence architecture | `src/Acta/Features/*/I*Store.cs`, `src/Acta.Relational`, `src/Acta.{Postgres,SqlServer,Sqlite}/Sql/` |
 | Provider conformance | `tests/Acta.Tests` (specs), [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |
 | Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |

@@ -101,7 +101,7 @@ public sealed class AotPolicyTests
                 "src/Acta.Relational/Schema/SchemaMigrationRunner.cs",
                 "src/Acta.Sqlite/Services/SqliteDialect.cs",
                 "src/Acta.Relational/Connections/OutboxSourceDialect.cs",
-                "src/Acta.Sqlite/Hosting/SqliteOutboxSource.cs"
+                "src/Acta.Sqlite/Services/SqliteOutboxDialect.cs"
             )
         ),
         // DbSession wraps execute-style calls in a write transaction ONLY for an inline-only provider

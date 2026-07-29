@@ -65,8 +65,9 @@ public sealed class StoreContractCoverageTests
     }
 
     // The internal store ports: I*Store interfaces under Acta.Features/Acta.Services in the core
-    // assembly. The property-only IActaStore composite sits in the root Acta namespace, so it is
-    // excluded by construction.
+    // assembly. This is the single discovery convention for store ports - the coverage gate, the
+    // provider completeness gate, and the architecture boundary check all read it, so a newly
+    // declared port is picked up by all three with no registry to update.
     internal static List<Type> StoreInterfaces() =>
         typeof(ActaServiceCollectionExtensions)
             .Assembly.GetTypes()

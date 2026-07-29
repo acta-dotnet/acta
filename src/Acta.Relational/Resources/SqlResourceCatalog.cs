@@ -4,9 +4,10 @@ using System.Reflection;
 namespace Acta.Relational.Resources;
 
 /// <summary>
-/// Convention-based catalog of one provider assembly's executable SQL resources
-/// (<c>Features/{Feature}/Sql/{Operation}.sql</c> and <c>Services/{Service}/Sql/{Operation}.sql</c>,
-/// plus <c>Schema/Sql/{Command}.sql</c>, embedded with the assembly-name-prefixed dotted logical name). Each provider owns its complete
+/// Convention-based catalog of one provider assembly's executable SQL resources, all under a single
+/// <c>Sql/{Capability}/{Operation}.sql</c> root (schema commands live at <c>Sql/Schema/</c>; ordered
+/// DDL migrations are not catalog resources and stay under <c>Schema/Migrations/</c>). Resources are
+/// embedded with the assembly-name-prefixed dotted logical name. Each provider owns its complete
 /// executable SQL set, so lookups never fall back across dialects or assemblies; a missing resource
 /// is a provider defect and throws. Rendered text substitutes <c>{{schema}}</c>, <c>{{now}}</c> (the
 /// SQLite epoch-milliseconds instant encoding; only SQLite bodies carry the token), and
@@ -32,17 +33,13 @@ internal sealed class SqlResourceCatalog
             .Where(n =>
                 n.StartsWith(_prefix, StringComparison.Ordinal)
                 && n.EndsWith(".sql", StringComparison.Ordinal)
-                && (
-                    n.AsSpan(_prefix.Length).StartsWith("Features.", StringComparison.Ordinal)
-                    || n.AsSpan(_prefix.Length).StartsWith("Services.", StringComparison.Ordinal)
-                    || n.AsSpan(_prefix.Length).StartsWith("Schema.", StringComparison.Ordinal)
-                )
+                && n.AsSpan(_prefix.Length).StartsWith("Sql.", StringComparison.Ordinal)
             )
             .ToHashSet(StringComparer.Ordinal);
     }
 
     /// <summary>
-    /// Rendered SQL for a feature-local resource path such as <c>Features/Overview/Sql/GetOverview.sql</c>.
+    /// Rendered SQL for a capability-local resource path such as <c>Sql/Overview/GetOverview.sql</c>.
     /// </summary>
     public string Load(string path) => Render(_prefix + path.Replace('/', '.'));
 

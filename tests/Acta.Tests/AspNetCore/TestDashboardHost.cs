@@ -253,9 +253,6 @@ internal static class TestDashboardHost
             return new OverviewSnapshot(3, 120, 1, 2, 4, 1, 1, 2, 5, 10, 3);
         }
 
-        public ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
-            ValueTask.FromResult(new PagedResult<string>(["billing", "reports"], null, false, 50, null));
-
         /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
         public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
             jobNamespace == "billing" && jobName == "send-invoice"

@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Globalization;
 using Acta.Features.Definitions;
 using Acta.Relational.Commands;
@@ -17,8 +17,8 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
 {
     public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(short namespaceId, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Definitions/Sql/GetDefinitionContracts.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.NamespaceId, namespaceId))),
+            "Sql/Definitions/GetDefinitionContracts.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.NamespaceId, namespaceId)),
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<StoredDefinitionContractRow>();
@@ -35,8 +35,8 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
 
     public async ValueTask<JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
         await session.QueryAsync<JobDefinitionDetail?>(
-            "Features/Definitions/Sql/GetJobDefinition.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.Id, definitionId))),
+            "Sql/Definitions/GetJobDefinition.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Id, definitionId)),
             async (reader, token) =>
                 await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobDefinitionDetailRow>()(reader).ToDetail() : null,
             ct
@@ -44,19 +44,17 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
 
     public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Definitions/Sql/ListJobDefinitions.sql",
+            "Sql/Definitions/ListJobDefinitions.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, request.JobNamespace)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.StatusCode, request.Status)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorNamespaceName, request.CursorNamespaceName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorJobName, request.CursorJobName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorIntId, request.CursorId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.StatusCode, request.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, request.CursorNamespaceName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorJobName, request.CursorJobName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorIntId, request.CursorId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {
@@ -116,28 +114,24 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
     private void AddOverrideParameters(DbCommand cmd, SetDefinitionOverridesCommand command)
     {
         var o = command.Overrides;
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.Id, command.DefinitionId)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.Version, command.ExpectedVersion)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.PriorityCodeOverride, o.Priority)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.MaxAttemptsOverride, o.MaxAttempts)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.BackoffOverride, o.Backoff)));
-        cmd.Parameters.Add(
-            dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.ExecutionTimeoutSecondsOverride, o.ExecutionTimeoutSeconds))
-        );
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.DeadlineSecondsOverride, o.DeadlineSeconds)));
-        cmd.Parameters.Add(
-            dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.DeadlineBehaviorCodeOverride, o.DeadlineBehavior))
-        );
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.RetentionSecondsOverride, o.JobRetentionSeconds)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.AuditLevelCodeOverride, o.AuditLevel)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.AlertProfileCodeOverride, o.AlertProfile)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.AlertChannelNameOverride, o.AlertChannelName)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.RunbookUrlOverride, o.RunbookUrl)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.DisplayNameOverride, o.DisplayName)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobDefinition.DescriptionOverride, o.Description)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonCode, JobEventReasonCode.JobControlManual)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Id, command.DefinitionId));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Version, command.ExpectedVersion));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.PriorityCodeOverride, o.Priority));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.MaxAttemptsOverride, o.MaxAttempts));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.BackoffOverride, o.Backoff));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.ExecutionTimeoutSecondsOverride, o.ExecutionTimeoutSeconds));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DeadlineSecondsOverride, o.DeadlineSeconds));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DeadlineBehaviorCodeOverride, o.DeadlineBehavior));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.RetentionSecondsOverride, o.JobRetentionSeconds));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.AuditLevelCodeOverride, o.AuditLevel));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.AlertProfileCodeOverride, o.AlertProfile));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.AlertChannelNameOverride, o.AlertChannelName));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.RunbookUrlOverride, o.RunbookUrl));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DisplayNameOverride, o.DisplayName));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DescriptionOverride, o.Description));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, JobEventReasonCode.JobControlManual));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
     }
 }

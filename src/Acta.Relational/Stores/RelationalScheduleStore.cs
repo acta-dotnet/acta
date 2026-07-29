@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Globalization;
 using Acta.Features.Jobs;
 using Acta.Features.Schedules;
@@ -17,8 +17,8 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 {
     public Task<IReadOnlyList<LiveSchedule>> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<LiveSchedule>>(
-            "Features/Schedules/Sql/GetLiveSchedules.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.JobId, jobId))),
+            "Sql/Schedules/GetLiveSchedules.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, jobId)),
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<LiveSchedule>();
@@ -35,8 +35,8 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(short namespaceId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<StoredScheduleState>>(
-            "Features/Schedules/Sql/GetScheduleState.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.NamespaceId, namespaceId))),
+            "Sql/Schedules/GetScheduleState.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.NamespaceId, namespaceId)),
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<StoredScheduleState>();
@@ -53,7 +53,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<SchedulePage> ListJobSchedulesAsync(SchedulePageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Schedules/Sql/ListJobSchedules.sql",
+            "Sql/Schedules/ListJobSchedules.sql",
             cmd => AddListParameters(cmd, request),
             async (reader, token) =>
             {
@@ -91,9 +91,9 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
             "PauseSchedule",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.Name, command.ScheduleName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.PausedUntilUtc, command.PausedUntilUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.PausedUntilUtc, command.PausedUntilUtc));
                 AddControlTailParameters(cmd, command.JobNextRunAtUtc, command.Actor, command.Note);
             },
             ct
@@ -104,11 +104,9 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
             "ResumeSchedule",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.Name, command.ScheduleName)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.NextRunAtUtc, command.ScheduleNextRunAtUtc))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.NextRunAtUtc, command.ScheduleNextRunAtUtc));
                 AddControlTailParameters(cmd, command.JobNextRunAtUtc, command.Actor, command.Note);
             },
             ct
@@ -119,19 +117,17 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
             "SetScheduleOverrides",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.Name, command.ScheduleName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ExpectedScheduleVersion, command.ExpectedVersion)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ScheduleExpressionOverride, command.Expression)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ScheduleTimeZoneIdOverride, command.TimeZoneId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.Note, command.Note)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.JobNextRunAtUtc, command.JobNextRunAtUtc)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.ScheduleNextRunAtUtc, command.ScheduleNextRunAtUtc))
-                );
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedScheduleVersion, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleExpressionOverride, command.Expression));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleTimeZoneIdOverride, command.TimeZoneId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Note, command.Note));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, command.JobNextRunAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleNextRunAtUtc, command.ScheduleNextRunAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
             },
             ct
         );
@@ -141,11 +137,11 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
             "TriggerScheduleNow",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.Name, command.ScheduleName)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
             },
             ct
         );
@@ -161,24 +157,22 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     private void AddListParameters(DbCommand cmd, SchedulePageRequest request)
     {
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, request.JobNamespace)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.JobNameFilter, request.JobName)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.OriginCode, request.Origin)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.LiveOnlyFlag, request.LiveOnly)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorNextRunAtUtc, request.CursorNextRunAtUtc)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorId, request.CursorId)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-        cmd.Parameters.Add(
-            dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-        );
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, request.JobName));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.OriginCode, request.Origin));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LiveOnlyFlag, request.LiveOnly));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNextRunAtUtc, request.CursorNextRunAtUtc));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, request.CursorId));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
     }
 
     private void AddControlTailParameters(DbCommand cmd, DateTime? jobNextRunAtUtc, JobControlActor actor, string? note)
     {
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.JobNextRunAtUtc, jobNextRunAtUtc)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, actor.ActorCode)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, actor.ActorKey)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobSchedule.Note, note)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRunAtUtc));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Note, note));
     }
 }

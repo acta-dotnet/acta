@@ -1,4 +1,4 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -14,7 +14,7 @@ namespace Acta.Relational.Stores;
 /// dialect (a distinct instance from the Acta-ledger session). Claim and finalize commands are prepared
 /// here with <c>DbParams.For</c> and the source dialect, then run through the source-bound
 /// <see cref="IDbSession"/>; every finalize is token-CAS. The provider packages own the executable
-/// <c>Features/Outbox/Sql/*.sql</c> bodies and the source connection creation. Delete, release,
+/// <c>Sql/Outbox/*.sql</c> bodies and the source connection creation. Delete, release,
 /// reschedule, and quarantine all finalize the whole claimed group in one set-based command: delete and
 /// release bind a JSON id array, reschedule and quarantine bind a JSON array of per-row records (each with
 /// its own failure count, per-row backoff, and error) that the provider SQL unnests server-side.
@@ -36,9 +36,9 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             new StoreCommand("Outbox", "ClaimDueRows"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.ClaimToken, command.ClaimToken)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.ClaimBatchSize, command.BatchSize)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds)));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimBatchSize, command.BatchSize));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
             },
             read,
             ct
@@ -50,8 +50,8 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             new StoreCommand("Outbox", "DeleteClaimedRow"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.ClaimToken, command.ClaimToken)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.OutboxIds, ToIdArray(command.OutboxIds))));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.OutboxIds, ToIdArray(command.OutboxIds)));
             },
             ct
         );
@@ -61,8 +61,8 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             new StoreCommand("Outbox", "RescheduleRow"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.ClaimToken, command.ClaimToken)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.RowRecords, RescheduleJson(command.Rows))));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.RowRecords, RescheduleJson(command.Rows)));
             },
             ct
         );
@@ -72,8 +72,8 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             new StoreCommand("Outbox", "QuarantineRow"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.ClaimToken, command.ClaimToken)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.RowRecords, QuarantineJson(command.Rows))));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.RowRecords, QuarantineJson(command.Rows)));
             },
             ct
         );
@@ -83,8 +83,8 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             new StoreCommand("Outbox", "ReleaseClaimedRow"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.ClaimToken, command.ClaimToken)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(OutboxSchema.Sql.OutboxIds, ToIdArray(command.OutboxIds))));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.OutboxIds, ToIdArray(command.OutboxIds)));
             },
             ct
         );

@@ -1,4 +1,4 @@
-using Acta.Features.Jobs;
+﻿using Acta.Features.Jobs;
 using Acta.Features.Signals;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
@@ -19,15 +19,15 @@ internal sealed class RelationalSignalStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Signals", "RaiseSignal"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.JobId, command.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.KindCode, command.Kind)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.Name, command.Name)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.ValueFormatId, command.ValueFormatId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.Value, command.Value)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Input.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Input.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonCode, command.Input.ReasonCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.Input.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.KindCode, command.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.ValueFormatId, command.ValueFormatId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Value, command.Value));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Input.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Input.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, command.Input.ReasonCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.Input.ReasonMessage));
             },
             DbProjectionResolver.Resolve<JobControlOutcome>(),
             ct
@@ -41,9 +41,9 @@ internal sealed class RelationalSignalStore(IDbSession session, ISqlDialect dial
             new StoreCommand("Signals", "WaitSignal"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.JobId, jobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.KindCode, kind)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobCheckpoint.Name, name)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.KindCode, kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, name));
             },
             DbProjectionResolver.Resolve<SignalWaitDecision>(),
             ct

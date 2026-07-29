@@ -185,9 +185,6 @@ public class CliRunnerClipboardTests
         public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<PagedResult<string>> ListNamespacesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
         public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) => null;
 
         public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(

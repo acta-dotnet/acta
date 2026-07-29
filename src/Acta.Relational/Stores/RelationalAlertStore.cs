@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Globalization;
 using Acta.Features.Alerts;
 using Acta.Relational.Commands;
@@ -45,12 +45,12 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         CancellationToken ct
     ) =>
         session.QueryAsync<IReadOnlyList<AlertableEvent>>(
-            "Features/Alerts/Sql/GetAlertableEvents.sql",
+            "Sql/Alerts/GetAlertableEvents.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.NamespaceId, namespaceId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorEventId, cursorEventId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AlertBatchSize, batchSize)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.NamespaceId, namespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorEventId, cursorEventId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, batchSize));
             },
             async (reader, token) =>
             {
@@ -68,11 +68,11 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<DeliverableAlert>>(
-            "Features/Alerts/Sql/GetDeliverableAlerts.sql",
+            "Sql/Alerts/GetDeliverableAlerts.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.NamespaceId, namespaceId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AlertBatchSize, batchSize)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, batchSize));
             },
             async (reader, token) =>
             {
@@ -98,13 +98,13 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         CancellationToken ct
     ) =>
         session.QueryAsync<object?>(
-            "Features/Alerts/Sql/UpdateAlertDelivery.sql",
+            "Sql/Alerts/UpdateAlertDelivery.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Id, alertId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeliveryStatusCode, (short)status)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.RetryCount, retryCount)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.RetryAfterUtc, retryAfterUtc)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryCount, retryCount));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryAfterUtc, retryAfterUtc));
             },
             (reader, token) => Task.FromResult<object?>(null),
             ct
@@ -114,11 +114,11 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
     // rows-affected count, read after draining the reader.
     public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Alerts/Sql/ResolveJobAlerts.sql",
+            "Sql/Alerts/ResolveJobAlerts.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.NamespaceId, namespaceId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.JobId, jobId)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.JobId, jobId));
             },
             async (reader, token) =>
             {
@@ -137,22 +137,20 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Alerts/Sql/ListJobAlerts.sql",
+            "Sql/Alerts/ListJobAlerts.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, request.JobNamespace)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.JobId, request.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.UnresolvedOnlyFlag, request.UnresolvedOnly)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.SeverityCode, request.SeverityAtLeast)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeliveryStatusCode, request.DeliveryStatus)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.AcknowledgedFilter, request.Acknowledged)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorId, request.CursorId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.JobId, request.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.UnresolvedOnlyFlag, request.UnresolvedOnly));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.SeverityCode, request.SeverityAtLeast));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, request.DeliveryStatus));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AcknowledgedFilter, request.Acknowledged));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, request.CursorId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {
@@ -176,17 +174,17 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     private void AddRaiseParameters(DbCommand cmd, RaiseJobAlertCommand command)
     {
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceName, command.JobNamespace)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.JobId, command.JobId)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.OriginCode, (short)command.Origin)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.SeverityCode, (short)command.Severity)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.KindCode, (short)command.Kind)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Title, command.Title)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Message, command.Message)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.ChannelName, command.ChannelName)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeliveryStatusCode, (short)command.DeliveryStatus)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DeduplicationKey, command.DeduplicationKey)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.DedupeWindowStartUtc, command.DedupeWindowStartUtc)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.JobNamespace));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.JobId, command.JobId));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.OriginCode, (short)command.Origin));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.SeverityCode, (short)command.Severity));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.KindCode, (short)command.Kind));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Title, command.Title));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Message, command.Message));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.ChannelName, command.ChannelName));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)command.DeliveryStatus));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeduplicationKey, command.DeduplicationKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeWindowStartUtc, command.DedupeWindowStartUtc));
     }
 
     private async Task<AlertControlOutcome> ControlAsync(string operation, AlertControlCommand command, CancellationToken ct) =>
@@ -194,10 +192,10 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             new StoreCommand("Alerts", operation),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobAlert.Id, command.AlertId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, command.AlertId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
             },
             DbProjectionResolver.Resolve<AlertControlOutcome>(),
             ct

@@ -1,4 +1,4 @@
-using Acta.Features.Tags;
+﻿using Acta.Features.Tags;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
@@ -9,7 +9,7 @@ internal sealed class RelationalTagStore(IDbSession session, ISqlDialect dialect
 {
     public Task<TagSet?> GetAsync(ResolvedTagTarget target, CancellationToken ct) =>
         session.QueryAsync<TagSet?>(
-            "Features/Tags/Sql/GetTags.sql",
+            "Sql/Tags/GetTags.sql",
             cmd => BindTarget(cmd, target),
             async (reader, token) =>
             {
@@ -36,8 +36,8 @@ internal sealed class RelationalTagStore(IDbSession session, ISqlDialect dialect
             cmd =>
             {
                 BindTarget(cmd, target);
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagMutation, (byte)mutation.Kind)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagItemsJson, mutation.ItemsJson)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagMutation, (byte)mutation.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagItemsJson, mutation.ItemsJson));
             },
             reader => (TagMutationResult)reader.GetByteFromNumeric(0),
             ct
@@ -48,8 +48,8 @@ internal sealed class RelationalTagStore(IDbSession session, ISqlDialect dialect
 
     private void BindTarget(System.Data.Common.DbCommand cmd, ResolvedTagTarget target)
     {
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagTargetScopeCode, (byte)target.ScopeCode)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagTargetLookupId, target.LookupId)));
-        cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagTargetLookupName, target.LookupName)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagTargetScopeCode, (byte)target.ScopeCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagTargetLookupId, target.LookupId));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagTargetLookupName, target.LookupName));
     }
 }

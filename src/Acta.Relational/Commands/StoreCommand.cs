@@ -7,10 +7,10 @@ namespace Acta.Relational.Commands;
 /// SQL body (inline providers). The operation stem drives both the snake_case routine name and the
 /// provider-owned resource path, so one shared store maps to each provider's own shape.
 /// </summary>
-internal readonly record struct StoreCommand(string Feature, string Operation, string Area = "Features")
+internal readonly record struct StoreCommand(string Feature, string Operation)
 {
     /// <summary>The inline SQL resource path an inline-only provider loads for this command.</summary>
-    public string SqlPath => $"{Area}/{Feature}/Sql/{Operation}.sql";
+    public string SqlPath => $"Sql/{Feature}/{Operation}.sql";
 
     /// <summary>
     /// The snake_case routine name a routine provider invokes for this command. A subfolder-qualified

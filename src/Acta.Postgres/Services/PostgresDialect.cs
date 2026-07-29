@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 using System.Text;
 using Acta.Configuration;
@@ -11,7 +11,6 @@ using Acta.Relational.Connections;
 using Acta.Relational.Schema;
 using Npgsql;
 using NpgsqlTypes;
-using static Acta.Postgres.Features.Shared.PostgresCommandParameters;
 
 namespace Acta.Postgres.Services;
 
@@ -504,4 +503,25 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_failure_count", NpgsqlDbType.Smallint, failureCounts);
         AddArray(postgres, "@p_b_retention_seconds", NpgsqlDbType.Integer, retentionSeconds);
     }
+
+    /// <summary>Npgsql parameter primitives the dialect's own binders use to shape command parameters.</summary>
+    private static void AddScalar(NpgsqlCommand command, string name, NpgsqlDbType type, object value) =>
+        command.Parameters.Add(
+            new NpgsqlParameter
+            {
+                ParameterName = name,
+                NpgsqlDbType = type,
+                Value = value,
+            }
+        );
+
+    private static void AddArray(NpgsqlCommand command, string name, NpgsqlDbType elementType, object value) =>
+        command.Parameters.Add(
+            new NpgsqlParameter
+            {
+                ParameterName = name,
+                NpgsqlDbType = NpgsqlDbType.Array | elementType,
+                Value = value,
+            }
+        );
 }

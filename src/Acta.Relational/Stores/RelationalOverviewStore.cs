@@ -1,4 +1,4 @@
-using Acta.Features.Overview;
+﻿using Acta.Features.Overview;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
@@ -7,22 +7,20 @@ namespace Acta.Relational.Stores;
 
 /// <summary>
 /// Shared relational <see cref="IOverviewStore"/> over <see cref="IDbSession"/>: one round trip over the
-/// provider-owned <c>Features/Overview/Sql/GetOverview.sql</c>, bound and mapped directly here.
+/// provider-owned <c>Sql/Overview/GetOverview.sql</c>, bound and mapped directly here.
 /// </summary>
 internal sealed class RelationalOverviewStore(IDbSession session, ISqlDialect dialect) : IOverviewStore
 {
     public async ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct) =>
         await session.QueryAsync(
-            "Features/Overview/Sql/GetOverview.sql",
+            "Sql/Overview/GetOverview.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, query.JobNamespace)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.StaleAfterSeconds, query.StaleWorkerAfterSeconds)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.DueSoonSeconds, query.DueSoonWindowSeconds)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, query.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StaleAfterSeconds, query.StaleWorkerAfterSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.DueSoonSeconds, query.DueSoonWindowSeconds));
                 cmd.Parameters.Add(
-                    dialect.CreateParameter(
-                        DbParams.For(ActaSchema.Sql.IncludeSlowCountsFlag, query.IncludeSlowCounts ? true : (bool?)null)
-                    )
+                    dialect.CreateParameter(ActaSchema.Sql.IncludeSlowCountsFlag, query.IncludeSlowCounts ? true : (bool?)null)
                 );
             },
             async (reader, token) =>

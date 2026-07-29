@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Acta.Features.Events;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
@@ -14,27 +14,25 @@ internal sealed class RelationalEventStore(IDbSession session, ISqlDialect diale
 {
     public Task<EventPage> ListEventsAsync(EventPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Features/Events/Sql/ListJobEvents.sql",
+            "Sql/Events/ListJobEvents.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.JobId, request.JobId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.LineageRootId, request.LineageRootId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.NamespaceFilter, request.JobNamespace)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.EventCode, request.EventCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.DefinitionId, request.JobDefinitionId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.TenantId, request.TenantId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.WorkerId, request.WorkerId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ActorCode, request.ActorCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.JobEvent.ReasonCode, request.ReasonCode)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.EventCreatedFromUtc, request.CreatedFromUtc)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.EventCreatedToUtc, request.CreatedToUtc)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.CursorId, request.CursorId)));
-                cmd.Parameters.Add(dialect.CreateParameter(DbParams.For(ActaSchema.Sql.PageTake, request.Take)));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(DbParams.For(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null))
-                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.JobId, request.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.LineageRootId, request.LineageRootId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.EventCode, request.EventCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.DefinitionId, request.JobDefinitionId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.TenantId, request.TenantId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.WorkerId, request.WorkerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, request.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, request.ReasonCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventCreatedFromUtc, request.CreatedFromUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventCreatedToUtc, request.CreatedToUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, request.CursorId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
             },
             async (reader, token) =>
             {
