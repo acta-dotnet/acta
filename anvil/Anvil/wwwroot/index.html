@@ -10,10 +10,12 @@
   <body>
     <div class="hud">
       <div id="offline" class="offline" role="status" hidden>
-        ANVIL BACKEND OFFLINE: retaining the last successful view and reconnecting automatically.
+        Anvil backend offline. Retaining the last successful view and reconnecting automatically.
       </div>
       <div id="dbnotice" class="offline" role="status" hidden></div>
 
+      <!-- Run context lives in the top strip: namespace, live readouts, provider and the link out
+           to the dashboard. The console below is left for the controls alone. -->
       <header class="appbar">
         <div class="brand-q">
           <div class="brand-mark" aria-label="Acta Anvil">
@@ -22,20 +24,20 @@
           <div class="brand-sub">load &amp; failure lab</div>
         </div>
         <div class="topbar">
-          <div class="runinfo"><span class="ri-k">Namespace:</span><code id="namespace-name">·</code></div>
+          <div class="runinfo"><span class="ri-k">Namespace</span><code id="namespace-name">·</code></div>
           <div class="leds">
-            <span class="led" id="led-ready"><i></i><span class="led-k">READY</span></span>
-            <span class="led" id="led-workers"><i></i><span class="led-k">WORKERS</span><span class="led-v" id="led-workers-v">0</span></span>
+            <span class="led" id="led-ready"><i></i><span class="led-k">Ready</span></span>
+            <span class="led" id="led-workers"><i></i><span class="led-k">Workers</span><span class="led-v" id="led-workers-v">0</span></span>
           </div>
-          <div class="providerbar"><span class="led-k">DB</span><span class="provider-value" id="provider-current">·</span></div>
-          <a class="acta-link" id="acta-link" href="acta/jobs/#/" target="_blank" rel="noopener">ACTA ↗</a>
+          <div class="providerbar"><span class="led-k">Database</span><span class="provider-value" id="provider-current">·</span></div>
+          <a class="acta-link" id="acta-link" href="acta/jobs/#/" target="_blank" rel="noopener">Dashboard ↗</a>
         </div>
       </header>
 
       <div class="shell">
         <aside class="console">
           <section class="setup">
-            <h2>SETUP</h2>
+            <h2>Setup</h2>
             <div class="field">
               <span>Workload</span>
               <div class="mode-switch workload-switch" id="workload-seg" role="group" aria-label="Workload">
@@ -58,11 +60,11 @@
               </select>
             </label>
             <div class="readout" id="run-readout"></div>
-            <div class="setup-actions"><button id="btn-run" class="go">START RUN</button></div>
+            <div class="setup-actions"><button id="btn-run" class="go">Start run</button></div>
             <div class="flashline"><span id="flash"></span></div>
 
             <section class="seeding" id="seeding" hidden>
-              <div class="seeding-head"><span class="group-k">SEEDING</span><span id="seeding-v">0 / 0</span></div>
+              <div class="seeding-head"><span class="group-k">Seeding</span><span id="seeding-v">0 / 0</span></div>
               <div class="seeding-bar"><div class="seeding-fill" id="seeding-fill"></div></div>
               <div class="seeding-rate" id="seeding-rate">0 jobs/s</div>
               <div class="seeding-detail" id="seeding-detail"></div>
@@ -70,11 +72,11 @@
           </section>
 
           <section class="stress">
-            <h2>FAULTS</h2>
+            <h2>Faults</h2>
             <div class="fault">
               <div class="fault-head"><strong>Continuous crashes</strong><span id="fault-crashes-status"></span></div>
               <p class="hint">Crashes one healthy worker every five seconds and starts a replacement.</p>
-              <button id="btn-fault-crashes">START</button>
+              <button id="btn-fault-crashes">Start</button>
             </div>
             <div class="fault">
               <div class="fault-head"><strong>Queue pressure</strong><span id="fault-pressure-status"></span></div>
@@ -85,7 +87,7 @@
                   <option value="10000" selected>10k / second</option>
                 </select>
               </label>
-              <button id="btn-fault-pressure">START</button>
+              <button id="btn-fault-pressure">Start</button>
             </div>
             <div class="fault">
               <div class="fault-head"><strong>Outbox pressure</strong><span id="fault-outbox-status"></span></div>
@@ -96,7 +98,7 @@
                   <option value="10000">10k / second</option>
                 </select>
               </label>
-              <button id="btn-fault-outbox">START</button>
+              <button id="btn-fault-outbox">Start</button>
               <p class="hint" id="outbox-backlog" hidden></p>
             </div>
             <p class="fault-error" id="fault-error" hidden></p>
@@ -108,22 +110,22 @@
             <p class="center-seeding" id="center-seeding" hidden></p>
             <section class="scopes">
               <div class="scope">
-                <div class="scope-head"><span class="scope-k">THROUGHPUT</span><span class="scope-v" id="rd-throughput">0</span><span class="scope-u">durable completions / second</span></div>
+                <div class="scope-head"><span class="scope-k">Throughput</span><span class="scope-v" id="rd-throughput">0</span><span class="scope-u">durable completions / second</span></div>
                 <canvas id="scope-throughput" width="520" height="120" role="img" tabindex="0" aria-label="Throughput history"></canvas>
               </div>
               <div class="scope">
-                <div class="scope-head"><span class="scope-k">QUEUE DEPTH</span><span class="scope-v" id="rd-queue">0</span><span class="scope-u">ready</span></div>
+                <div class="scope-head"><span class="scope-k">Queue depth</span><span class="scope-v" id="rd-queue">0</span><span class="scope-u">ready</span></div>
                 <canvas id="scope-queue" width="520" height="120" role="img" tabindex="0" aria-label="Queue depth history"></canvas>
               </div>
               <div class="scope">
-                <div class="scope-head"><span class="scope-k">EXECUTING</span><span class="scope-v blue" id="rd-exec">0</span><span class="scope-u">in flight</span></div>
+                <div class="scope-head"><span class="scope-k">Executing</span><span class="scope-v blue" id="rd-exec">0</span><span class="scope-u">in flight</span></div>
                 <canvas id="scope-exec" width="520" height="120" role="img" tabindex="0" aria-label="Executing jobs history"></canvas>
               </div>
             </section>
             <section class="counts" id="counts"></section>
             <section class="subpanel activity-panel">
               <div class="activity-head">
-                <div><h2>ACTIVITY</h2><p class="hint">Live highlights. Complete raw events remain in the Acta dashboard.</p></div>
+                <div><h2>Activity</h2><p class="hint">Live highlights. Complete raw events remain in the Acta dashboard.</p></div>
                 <div class="activity-filters" id="activity-filters" role="group" aria-label="Activity filter">
                   <button data-filter="important" aria-pressed="true">Important</button>
                   <button data-filter="workers" aria-pressed="false">Workers</button>
@@ -137,7 +139,7 @@
         </main>
 
         <aside class="rack-col">
-          <div class="rack-head"><h2>WORKERS</h2><div class="rack-actions"><button id="btn-spawn">SPAWN</button></div></div>
+          <div class="rack-head"><h2>Workers</h2><div class="rack-actions"><button id="btn-spawn">Spawn</button></div></div>
           <p class="rack-status" id="rack-status"></p>
           <p class="beats" id="beats"></p>
           <div id="workers" class="rack"></div>
