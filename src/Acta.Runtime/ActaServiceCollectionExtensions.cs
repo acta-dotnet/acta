@@ -93,6 +93,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
         services.TryAddSingleton<SignalService>();
+        services.TryAddSingleton<Features.Alerts.IAlertSink, Features.Alerts.AlertStoreSink>();
 
         // Process-wide Acta meter. One singleton owns the instruments; every worker runtime emits
         // into it. Consumers light it up with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).

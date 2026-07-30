@@ -181,7 +181,7 @@ internal sealed class JobExecutor
                 _options.Value.LeaseTtlSeconds,
                 _rootServices.GetRequiredService<IJobStore>(),
                 _rootServices.GetRequiredService<Acta.Features.Signals.ISignalStore>(),
-                _rootServices.GetRequiredService<Acta.Features.Alerts.IAlertStore>(),
+                _rootServices.GetRequiredService<Acta.Features.Alerts.IAlertSink>(),
                 _rootServices.GetRequiredService<Acta.Features.Execution.IExecutionStore>(),
                 _serializers,
                 _lockStore,
