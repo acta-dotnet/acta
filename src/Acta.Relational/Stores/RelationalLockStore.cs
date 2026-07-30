@@ -1,4 +1,4 @@
-﻿using Acta.Relational.Commands;
+using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
 using Acta.Services.Locks;
@@ -15,7 +15,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     public async Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Locks", "AcquireLock"),
+            new StoreCommand("Services", "Locks/AcquireLock"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lease.LeaseKey, key));
@@ -31,7 +31,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     public async Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Locks", "ExtendLock"),
+            new StoreCommand("Services", "Locks/ExtendLock"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lease.LeaseKey, token.Key));
@@ -47,7 +47,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     public async Task<bool> ReleaseAsync(LockToken token, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Locks", "ReleaseLock"),
+            new StoreCommand("Services", "Locks/ReleaseLock"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lease.LeaseKey, token.Key));

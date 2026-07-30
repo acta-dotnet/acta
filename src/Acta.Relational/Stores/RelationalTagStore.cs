@@ -9,7 +9,7 @@ internal sealed class RelationalTagStore(IDbSession session, ISqlDialect dialect
 {
     public Task<TagSet?> GetAsync(ResolvedTagTarget target, CancellationToken ct) =>
         session.QueryAsync<TagSet?>(
-            "Sql/Tags/GetTags.sql",
+            "Sql/Operations/Tags/GetTags.sql",
             cmd => BindTarget(cmd, target),
             async (reader, token) =>
             {
@@ -32,7 +32,7 @@ internal sealed class RelationalTagStore(IDbSession session, ISqlDialect dialect
     public async Task<TagMutationResult> ApplyAsync(ResolvedTagTarget target, TagMutation mutation, CancellationToken ct)
     {
         var results = await session.ExecuteAsync(
-            new StoreCommand("Tags", "ApplyTags"),
+            new StoreCommand("Operations", "Tags/ApplyTags"),
             cmd =>
             {
                 BindTarget(cmd, target);

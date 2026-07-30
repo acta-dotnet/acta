@@ -17,7 +17,7 @@ internal sealed class RelationalSignalStore(IDbSession session, ISqlDialect dial
 {
     public async Task<JobControlOutcome> RaiseSignalAsync(RaiseSignalCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Signals", "RaiseSignal"),
+            new StoreCommand("Execution", "Signals/RaiseSignal"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
@@ -39,7 +39,7 @@ internal sealed class RelationalSignalStore(IDbSession session, ISqlDialect dial
 
     public async Task<SignalWaitDecision> WaitSignalAsync(long jobId, JobCheckpointKindCode kind, string name, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Signals", "WaitSignal"),
+            new StoreCommand("Execution", "Signals/WaitSignal"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId));

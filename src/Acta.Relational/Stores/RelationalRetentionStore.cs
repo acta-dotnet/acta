@@ -15,7 +15,7 @@ internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect d
     public async Task<PurgeExpiredDataResult> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Retention", "PurgeExpiredData"),
+            new StoreCommand("Maintenance", "PurgeExpiredData"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, command.NamespaceId));

@@ -16,7 +16,7 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
 {
     public Task<NamespacePage> ListNamespacesAsync(NamespacePageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Namespaces/ListNamespaces.sql",
+            "Sql/Execution/Namespaces/ListNamespaces.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, request.NameSearch));
@@ -46,7 +46,7 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
 
     public Task<NamespaceItemPage> ListNamespaceItemsAsync(NamespacePageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Namespaces/ListNamespaceItems.sql",
+            "Sql/Execution/Namespaces/ListNamespaceItems.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, request.NameSearch));
@@ -77,14 +77,14 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
         );
 
     public Task<AdminControlOutcome> SuspendNamespaceAsync(NamespaceControlCommand command, CancellationToken ct) =>
-        ControlAsync("SuspendNamespace", command, ct);
+        ControlAsync("Namespaces/SuspendNamespace", command, ct);
 
     public Task<AdminControlOutcome> ResumeNamespaceAsync(NamespaceControlCommand command, CancellationToken ct) =>
-        ControlAsync("ResumeNamespace", command, ct);
+        ControlAsync("Namespaces/ResumeNamespace", command, ct);
 
     public async Task<AdminControlOutcome> UpdateNamespaceMetadataAsync(UpdateNamespaceMetadataCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Namespaces", "UpdateNamespaceMetadata"),
+            new StoreCommand("Execution", "Namespaces/UpdateNamespaceMetadata"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.Name));
@@ -104,7 +104,7 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
 
     private async Task<AdminControlOutcome> ControlAsync(string operation, NamespaceControlCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Namespaces", operation),
+            new StoreCommand("Execution", operation),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.Key));
