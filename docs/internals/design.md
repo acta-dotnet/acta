@@ -203,6 +203,18 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 - **No in-memory provider.** *Reason:* it would pass tests the real providers fail.
 - **Visibility default is `internal sealed`** outside the `Acta` SDK project. *Reason:* the API boundary is grep-checkable.
 
+### Architecture vocabulary
+
+Reserved terms for internal structure; a generated job descriptor set is a *manifest*, never a module.
+
+- **Module:** a cohesive capability with an exposed API, hidden implementation, owned state and invariants, and acyclic dependencies on other modules' APIs only. Target modules: Execution (the durable-work kernel), Alerting, Outbox, Operations.
+- **Subdomain:** a cohesive area inside a module with no independent API or state ownership. Catalog and Scheduling are Execution subdomains because completion advances schedule state atomically.
+- **Use case:** one operation's vertical slice inside a module (enqueue, claim, complete).
+- **Component:** a privileged runtime helper that is not a module because it needs cross-cutting knowledge (Maintenance/retention).
+- **Adapter:** a project that connects external technology to declared ports: providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Testing`.
+- **Public facade:** the consumer surface (`IJobs` and friends), deliberately simpler than the internal structure; the public API never mirrors the module graph.
+- **Allowed dependency graph:** Execution depends only on shared kernel primitives; Alerting and Outbox depend on Execution's API; Operations reads Execution, Alerting, and Outbox APIs (the one sanctioned cross-module read surface); hosting/composition sees everything. No module depends on Operations, and no module touches another module's stores or tables for writes. *Reason:* recording the target graph makes each extraction PR checkable against a decision instead of taste.
+
 ### Provider contract
 
 - **Provider conformance is one shared spec suite** all three relational providers gate on. *Reason:* one definition of "provider-compliant".
