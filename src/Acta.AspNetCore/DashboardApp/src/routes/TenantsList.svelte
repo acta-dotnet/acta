@@ -11,18 +11,20 @@
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import { setScope } from '../scope.ts';
   import { createUrlFilters } from '../urlFilters.ts';
+  import { parseTagTokens } from '../lib/tagTokens.ts';
   import { routes } from '../routes.ts';
 
 
   // `search` is a case-insensitive server-side contains over tenant key, display name, or description.
-  const filters = createUrlFilters({ search: 'search', status: 'status' }, { search: '', status: '' });
+  const filters = createUrlFilters({ search: 'search', status: 'status', tags: 'tags' }, { search: '', status: '', tags: '' });
   const statuses = ['', 'active', 'suspended'];
 
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.search ? { label: 'Search', value: $filters.search, onRemove: () => filters.patch({ search: '' }) } : null,
-      $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null
+      $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
+      $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
 
@@ -58,6 +60,10 @@
           {#each statuses as s}<option value={s}>{s === '' ? 'Any' : s}</option>{/each}
         </select>
       </label>
+      <label>
+        Tags
+        <input placeholder="env:prod team" value={$filters.tags} onchange={(event) => filters.patch({ tags: event.currentTarget.value.trim() })} />
+      </label>
     </FilterBar>
     <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
 
@@ -78,7 +84,7 @@
       rowKey={(tenant: TenantListItem) => tenant.tenantId}
       endpoint="tenants"
       {columns}
-      filters={() => ({ search: $filters.search.trim(), status: $filters.status })}
+      filters={() => ({ search: $filters.search.trim(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}
       loadingText="Loading tenants..."
       emptyText="No tenants match the filters."

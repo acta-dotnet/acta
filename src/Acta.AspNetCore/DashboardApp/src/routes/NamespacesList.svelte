@@ -11,19 +11,21 @@
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import { setScope } from '../scope.ts';
   import { createUrlFilters } from '../urlFilters.ts';
+  import { parseTagTokens } from '../lib/tagTokens.ts';
   import { routes } from '../routes.ts';
 
 
   // Namespace names are always lowercase kebab, so the name filter lowercases input to match the
   // server-side nameStartsWith prefix without a 400 on a stray capital.
-  const filters = createUrlFilters({ name: 'name', status: 'status' }, { name: '', status: '' });
+  const filters = createUrlFilters({ name: 'name', status: 'status', tags: 'tags' }, { name: '', status: '', tags: '' });
   const statuses = ['', 'active', 'suspended'];
 
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.name ? { label: 'Name', value: $filters.name, onRemove: () => filters.patch({ name: '' }) } : null,
-      $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null
+      $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
+      $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
 
@@ -55,6 +57,10 @@
           {#each statuses as s}<option value={s}>{s === '' ? 'Any' : s}</option>{/each}
         </select>
       </label>
+      <label>
+        Tags
+        <input placeholder="env:prod team" value={$filters.tags} onchange={(event) => filters.patch({ tags: event.currentTarget.value.trim() })} />
+      </label>
     </FilterBar>
     <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
 
@@ -76,7 +82,7 @@
       rowKey={(namespace: NamespaceListItem) => namespace.id}
       endpoint="namespaces/admin"
       {columns}
-      filters={() => ({ nameStartsWith: $filters.name.trim().toLowerCase(), status: $filters.status })}
+      filters={() => ({ nameContains: $filters.name.trim().toLowerCase(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}
       loadingText="Loading namespaces..."
       emptyText="No namespaces match the filters."
