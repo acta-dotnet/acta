@@ -34,7 +34,7 @@ public abstract class OutboxRelayHandoffSpec<TFixture> : OutboxRelayIntegrationB
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceStore);
-        var target = new HookedOutboxTarget(OwnedTarget) { FailInstead = () => new InvalidOperationException("target unavailable") };
+        var target = new HookedJobSubmission(OwnedSubmission) { FailInstead = () => new InvalidOperationException("target unavailable") };
 
         // Tick 1: claim commits, then the target enqueue fails -> infrastructure failure that releases the
         // claim and fails the tick. No target job exists and the source row is back to Pending.
@@ -69,7 +69,7 @@ public abstract class OutboxRelayHandoffSpec<TFixture> : OutboxRelayIntegrationB
 
         // Tick 1: enqueue commits (one target job), then the source delete crashes -> the tick fails and the
         // row stays Claimed.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store, OwnedTarget).RunTickAsync(opts, ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store, OwnedSubmission).RunTickAsync(opts, ct));
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(1, await Fixture.CountOutboxAsync(SourceTable));
 
@@ -79,7 +79,7 @@ public abstract class OutboxRelayHandoffSpec<TFixture> : OutboxRelayIntegrationB
         // Tick 2: the reclaimed row re-enqueues and the ledger deduplicates it (already ingested), so the
         // finalize deletes the source row and there is still exactly one target job.
         failFinalize = false;
-        await Relay(store, OwnedTarget).RunTickAsync(opts, ct);
+        await Relay(store, OwnedSubmission).RunTickAsync(opts, ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }
@@ -93,12 +93,12 @@ public abstract class OutboxRelayHandoffSpec<TFixture> : OutboxRelayIntegrationB
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceStore);
-        await Relay(store, OwnedTarget).RunTickAsync(TickOptions(), ct);
+        await Relay(store, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
 
         // A subsequent tick (the post-deletion crash-restart window) claims nothing and resurrects nothing.
-        await Relay(store, OwnedTarget).RunTickAsync(TickOptions(), ct);
+        await Relay(store, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
     }
@@ -114,7 +114,7 @@ public abstract class OutboxRelayHandoffSpec<TFixture> : OutboxRelayIntegrationB
         }
         Assert.Equal(3, await Fixture.CountOutboxAsync(SourceTable));
 
-        await Relay(new HookedOutboxStore(SourceStore), OwnedTarget).RunTickAsync(TickOptions(), ct);
+        await Relay(new HookedOutboxStore(SourceStore), OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }

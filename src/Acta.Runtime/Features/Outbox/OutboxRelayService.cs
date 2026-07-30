@@ -1,4 +1,5 @@
 using Acta.Features.Execution;
+using Acta.Features.Jobs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -11,7 +12,7 @@ namespace Acta.Features.Outbox;
 /// bounded tick summary all live here; the source persistence is the injected <see cref="IOutboxRelayStore"/>
 /// and the target is the normal <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>.
 /// </summary>
-internal sealed class OutboxRelayService(IOutboxRelayStore store, IOutboxTarget target, ILogger<OutboxRelayService>? log = null)
+internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
 {
     // Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.
     private const int MaxBatches = 20;

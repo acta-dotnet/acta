@@ -1,5 +1,6 @@
 using Acta.Features.Alerts;
 using Acta.Features.Definitions;
+using Acta.Features.Jobs;
 using Acta.Features.Outbox;
 using Acta.Features.Workers;
 using Microsoft.Extensions.DependencyInjection;
@@ -100,7 +101,7 @@ internal sealed class WorkerBuilder(IServiceCollection services) : IWorkerBuilde
 
         // The relay's target ingestion path (owned batch enqueue). Shared across namespaces; the source
         // store and service are per-namespace and resolved by OutboxRelayRegistry from the registration.
-        services.TryAddSingleton<IOutboxTarget, JobsOutboxTarget>();
+        services.TryAddSingleton<IJobSubmission, JobsSubmission>();
         return this;
     }
 

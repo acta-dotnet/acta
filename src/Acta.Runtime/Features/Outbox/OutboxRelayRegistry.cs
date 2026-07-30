@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Acta.Features.Jobs;
 using Acta.Features.Workers;
 using Microsoft.Extensions.Logging;
 
@@ -16,11 +17,11 @@ namespace Acta.Features.Outbox;
 internal sealed class OutboxRelayRegistry
 {
     private readonly IReadOnlyDictionary<string, OutboxRelayRegistration> _byNamespace;
-    private readonly IOutboxTarget _target;
+    private readonly IJobSubmission _target;
     private readonly ILoggerFactory? _loggerFactory;
     private readonly ConcurrentDictionary<string, OutboxRelayService> _services = new(StringComparer.Ordinal);
 
-    public OutboxRelayRegistry(IEnumerable<WorkerRegistration> workers, IOutboxTarget target, ILoggerFactory? loggerFactory = null)
+    public OutboxRelayRegistry(IEnumerable<WorkerRegistration> workers, IJobSubmission target, ILoggerFactory? loggerFactory = null)
     {
         _byNamespace = workers.Where(w => w.Relay is not null).ToDictionary(w => w.NamespaceName, w => w.Relay!, StringComparer.Ordinal);
         _target = target;
