@@ -108,14 +108,14 @@ public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase
         var ct = TestContext.Current.CancellationToken;
         var before = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
 
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.Namespaces.SuspendAsync("sys", null, null, ct));
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.Namespaces.ResumeAsync("sys", null, null, ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Operations.Namespaces.SuspendAsync("sys", null, null, ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Operations.Namespaces.ResumeAsync("sys", null, null, ct));
 
         var after = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
         Assert.Equal(JobNamespaceStatusCode.Active, after!.Status);
         Assert.Equal(before!.Version, after.Version);
 
-        var page = await Jobs.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
+        var page = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
         Assert.Contains("sys", page.Items);
     }
 }

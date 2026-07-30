@@ -53,7 +53,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     private async Task<IReadOnlyList<JobAlertListItem>> AllAlertsAsync(CancellationToken ct, string ns = null!) =>
         (
             await Services
-                .GetRequiredService<IJobs>()
+                .GetRequiredService<IActaOperations>()
                 .Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: ns ?? TestNamespace, PageSize: 100), ct)
         ).Items;
 
@@ -61,7 +61,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task JobId_filter_returns_exact_alert_id_set()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Two alerts under j1, one under j2
         const long j1 = 1L,
@@ -93,7 +93,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task DeliveryStatus_filter_partitions_by_status()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Two Pending, one Failed
         await RaiseAsync(Db, null, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
@@ -129,7 +129,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task SeverityAtLeast_floor_excludes_rows_below_threshold()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // One alert per severity level
         await RaiseAsync(Db, null, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
@@ -158,7 +158,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task UnresolvedOnly_excludes_resolved_alerts()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Alert A: Automatic + FirstFailure kind so ResolveJobAlerts will close it
         const long resolveJobId = 1L;
@@ -202,7 +202,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task Namespace_filter_isolates_to_one_namespace()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Register a second namespace for alert isolation
         var ns2Name = TestKey("ns2");

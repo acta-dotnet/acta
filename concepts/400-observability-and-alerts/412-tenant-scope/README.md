@@ -45,7 +45,7 @@ queries select the fields that prove the lesson, and the text below explains the
 The lab uses `jobs_view` and `events_view`, joining the internal tenant catalog only to decode the key.
 It proves parent/child inheritance and also exercises the public `IJobs` tenant filter with a fresh
 correlation key, so repeated runs still report exactly the current parent and child. Application code
-should use `IJobs.Tenants` and `IJobs`; the underlying catalog table is not a compatibility contract.
+should use `IActaOperations.Tenants` and `IJobs`; the underlying catalog table is not a compatibility contract.
 
 ## Break it
 

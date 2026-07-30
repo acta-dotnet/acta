@@ -54,7 +54,7 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
         // Write distinct non-null owner_team/description and bump the version off its default so a broken
         // positional projection cannot pass by reading a stray null or a stray 0.
         var current = (await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct))!;
-        var updated = await Jobs.Namespaces.UpdateMetadataAsync(
+        var updated = await Operations.Namespaces.UpdateMetadataAsync(
             TestNamespace,
             "platform-team",
             "namespace admin description",

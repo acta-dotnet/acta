@@ -19,7 +19,7 @@ internal static class DefinitionControlEndpoints
     {
         group.MapPatch(
             "/definitions/{defId:int}",
-            async Task<IResult> (int defId, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -41,7 +41,7 @@ internal static class DefinitionControlEndpoints
                 var actorKey = http.User?.Identity?.Name;
                 try
                 {
-                    var result = await jobs.Definitions.SetOverridesAsync(
+                    var result = await operations.Definitions.SetOverridesAsync(
                         defId,
                         body!.Version,
                         body.Overrides ?? new JobDefinitionPolicyOverrides(),

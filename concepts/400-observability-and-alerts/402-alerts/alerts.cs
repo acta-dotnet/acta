@@ -20,7 +20,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 await jobs.EnqueueAsync(new VerifyBackup("photos", Healthy: false));
 await Task.Delay(800);
 
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 var alerts = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: "alerts"));
 foreach (var alert in alerts.Items)
 {

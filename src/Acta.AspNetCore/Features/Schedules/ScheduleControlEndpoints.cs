@@ -17,7 +17,7 @@ internal static class ScheduleControlEndpoints
     {
         group.MapPost(
             "/schedules/pause",
-            async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -42,14 +42,14 @@ internal static class ScheduleControlEndpoints
                 // Operator identity for the audit trail comes from the authenticated principal, never the
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
-                var result = await jobs.Schedules.PauseAsync(lookup, body.PausedUntilUtc, body.Note, actorKey, ct);
+                var result = await operations.Schedules.PauseAsync(lookup, body.PausedUntilUtc, body.Note, actorKey, ct);
                 return ToResult("pause", result);
             }
         );
 
         group.MapPost(
             "/schedules/resume",
-            async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -74,14 +74,14 @@ internal static class ScheduleControlEndpoints
                 // Operator identity for the audit trail comes from the authenticated principal, never the
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
-                var result = await jobs.Schedules.ResumeAsync(lookup, body.Note, actorKey, ct);
+                var result = await operations.Schedules.ResumeAsync(lookup, body.Note, actorKey, ct);
                 return ToResult("resume", result);
             }
         );
 
         group.MapPost(
             "/schedules/trigger",
-            async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -106,14 +106,14 @@ internal static class ScheduleControlEndpoints
                 // Operator identity for the audit trail comes from the authenticated principal, never the
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
-                var result = await jobs.Schedules.TriggerNowAsync(lookup, body.Note, actorKey, ct);
+                var result = await operations.Schedules.TriggerNowAsync(lookup, body.Note, actorKey, ct);
                 return ToResult("trigger", result);
             }
         );
 
         group.MapPost(
             "/schedules/overrides",
-            async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -145,7 +145,7 @@ internal static class ScheduleControlEndpoints
                 var actorKey = http.User?.Identity?.Name;
                 try
                 {
-                    var result = await jobs.Schedules.SetOverridesAsync(
+                    var result = await operations.Schedules.SetOverridesAsync(
                         lookup,
                         version,
                         body.Expression,

@@ -39,7 +39,7 @@ public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TF
 
     private FakeClock Clock { get; set; } = null!;
 
-    private ISchedules Schedules => Services.GetRequiredService<IJobs>().Schedules;
+    private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

@@ -89,7 +89,13 @@ internal sealed record JobDetailResponse(
     /// ResolveJobIdAsync. Eligible workers are fetched only while the job is claimable, matching the
     /// dashboard's own <c>status === 'ready'</c> gate.
     /// </summary>
-    public static async Task<JobDetailResponse> ComposeAsync(IJobs jobs, JobSnapshot snapshot, int maxInlineBytes, CancellationToken ct)
+    public static async Task<JobDetailResponse> ComposeAsync(
+        IJobs jobs,
+        IActaOperations operations,
+        JobSnapshot snapshot,
+        int maxInlineBytes,
+        CancellationToken ct
+    )
     {
         var byId = JobLookup.ById(snapshot.JobId);
 
@@ -98,7 +104,7 @@ internal sealed record JobDetailResponse(
         var checkpoints = await jobs.GetCheckpointsAsync(byId, ct);
         var explain = await jobs.ExplainAsync(byId, ct);
         var lineage = await jobs.GetLineageMapAsync(byId, new JobLineageMapOptions(ChildLimit), ct);
-        var schedules = await jobs.Schedules.ListAsync(
+        var schedules = await operations.Schedules.ListAsync(
             new ListJobSchedulesQuery(
                 JobNamespace: snapshot.JobNamespace,
                 JobName: snapshot.JobName,
@@ -112,7 +118,7 @@ internal sealed record JobDetailResponse(
         // needs the whole set to tell "no workers at all" from "workers, none of them active".
         var workers =
             snapshot.Status == JobStatusCode.Ready
-                ? await jobs.Workers.ListAsync(
+                ? await operations.Workers.ListAsync(
                     new ListWorkersQuery(JobNamespace: snapshot.JobNamespace, PageSize: 50, IncludeTotal: true),
                     ct
                 )

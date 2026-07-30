@@ -25,6 +25,8 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
 
     protected IJobs Jobs => Services.GetRequiredService<IJobs>();
 
+    protected IActaOperations Operations => Services.GetRequiredService<IActaOperations>();
+
     /// <summary>
     /// When <c>true</c> (default), the test base calls <c>j.Run&lt;TManifest&gt;()</c> so the runtime writes
     /// a <c>workers</c> row on <c>InitializeAsync</c> and <c>RunOnceAsync</c> is callable.

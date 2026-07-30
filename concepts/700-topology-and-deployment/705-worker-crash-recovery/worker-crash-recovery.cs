@@ -74,6 +74,7 @@ builder.Services.UseActa(j =>
 using var host = builder.Build();
 await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
+var operations = host.Services.GetRequiredService<IActaOperations>();
 
 if (mode == "enqueue")
 {
@@ -119,7 +120,7 @@ await ShowStateAsync(lab, probe.JobId, sessionId);
 Console.WriteLine("Worker B is live. Waiting for A's short lab lease to expire, then triggering leaderless sys.recovery...");
 await Task.Delay(TimeSpan.FromSeconds(6));
 var recovery = new JobScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, "sys.recovery"), "default");
-await jobs.Schedules.TriggerNowAsync(recovery, note: "worker crash lab");
+await operations.Schedules.TriggerNowAsync(recovery, note: "worker crash lab");
 
 using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while ((await jobs.GetAsync(JobLookup.ById(probe.JobId), recoveryTimeout.Token))?.Status.IsTerminal != true)

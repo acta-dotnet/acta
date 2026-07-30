@@ -37,7 +37,7 @@ public abstract class GetWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
             ct
         );
 
-        var worker = await Jobs.Workers.GetAsync(started.WorkerId, ct);
+        var worker = await Operations.Workers.GetAsync(started.WorkerId, ct);
 
         Assert.NotNull(worker);
         Assert.Equal(started.WorkerId, worker!.WorkerId);
@@ -55,7 +55,7 @@ public abstract class GetWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
     [Fact(DisplayName = "An unknown worker id returns null")]
     public async Task Returns_null_for_unknown_id()
     {
-        var worker = await Jobs.Workers.GetAsync(int.MaxValue, TestContext.Current.CancellationToken);
+        var worker = await Operations.Workers.GetAsync(int.MaxValue, TestContext.Current.CancellationToken);
 
         Assert.Null(worker);
     }

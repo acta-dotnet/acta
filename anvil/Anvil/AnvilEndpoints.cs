@@ -69,7 +69,7 @@ public static class AnvilEndpoints
                 AnvilSession session,
                 SeedProgress progress,
                 IServiceScopeFactory scopes,
-                IJobs jobs,
+                IActaOperations operations,
                 CancellationToken ct
             ) =>
             {
@@ -77,7 +77,7 @@ public static class AnvilEndpoints
                 {
                     return Results.BadRequest(new ActionResponse(validationError));
                 }
-                var workers = await jobs.Workers.ListAsync(new ListWorkersQuery(session.NamespaceName, PageSize: 1), ct);
+                var workers = await operations.Workers.ListAsync(new ListWorkersQuery(session.NamespaceName, PageSize: 1), ct);
                 if (workers.Items.Count == 0)
                 {
                     return Results.Conflict(new ActionResponse("Wait for the first worker to register definitions, then start the run."));

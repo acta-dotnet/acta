@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Tenants domain: register a tenant in the Acta-owned catalog plus the tenant list. Reached
-/// through <see cref="IJobs.Tenants"/>.
+/// through <see cref="IActaOperations.Tenants"/>.
 /// </summary>
 public interface ITenants
 {

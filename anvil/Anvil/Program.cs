@@ -116,9 +116,10 @@ static async Task RunDashboardAsync(string[] args, string provider)
     // tenants must exist before any seed can tag jobs with one. RegisterAsync upserts, so this is
     // idempotent across dashboard restarts against the same accumulating schema.
     var jobs = app.Services.GetRequiredService<IJobs>();
+    var operations = app.Services.GetRequiredService<IActaOperations>();
     foreach (var (key, displayName) in AnvilTenants.All)
     {
-        await jobs.Tenants.RegisterAsync(key, displayName);
+        await operations.Tenants.RegisterAsync(key, displayName);
     }
     // Before any worker exists: the relay's first tick must find the producer file with its tables.
     await outboxDb.InitializeAsync();

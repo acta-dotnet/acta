@@ -21,7 +21,7 @@ using var host = builder.Build();
 await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // MaxAttempts = 4, Backoff = "0s": four quick failures exhaust the budget.
 var outcome = await jobs.EnqueueAsync(new UnstableReport("quarterly"));

@@ -35,7 +35,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
     private short NsId => (short)Runtime.RegisteredNamespaceIds[TestNamespace];
     private IDbSession DbSession => Db;
     private ISqlDialect Dialect => Services.GetRequiredService<ISqlDialect>();
-    private IJobs Queries => Services.GetRequiredService<IJobs>();
+    private IActaOperations Queries => Services.GetRequiredService<IActaOperations>();
 
     /// <summary>Creates a minimal synthetic job definition in the given namespace and returns its id.</summary>
     private async Task<int> CreateDefinitionAsync(short nsId, string jobName, CancellationToken ct)

@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Schedules domain: operator pause/resume of a single named <c>JobSchedule</c> plus the keyset-paginated
-/// schedule list. Reached through <see cref="IJobs.Schedules"/>.
+/// schedule list. Reached through <see cref="IActaOperations.Schedules"/>.
 /// </summary>
 public interface ISchedules
 {

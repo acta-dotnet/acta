@@ -35,7 +35,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
     private const string Cron5 = "*/5 * * * *";
     private const string DailyCron = "0 0 * * *";
 
-    private ISchedules Schedules => Services.GetRequiredService<IJobs>().Schedules;
+    private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 

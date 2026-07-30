@@ -30,7 +30,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Capture the single Active worker seeded by Runtime.InitializeAsync (only worker at this point)
         var wRuntime = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
@@ -108,7 +108,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Capture pre-existing workers in TestNamespace before seeding a second one
         var priorNs1Ids = (await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).ToListAsync(ct)).Select(w => w.Id).ToHashSet();

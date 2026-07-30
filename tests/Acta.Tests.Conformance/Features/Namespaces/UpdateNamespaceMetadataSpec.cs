@@ -89,14 +89,14 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
         var before = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Jobs.Namespaces.UpdateMetadataAsync("sys", "x", null, 0, null, null, ct)
+            await Operations.Namespaces.UpdateMetadataAsync("sys", "x", null, 0, null, null, ct)
         );
 
         var after = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
         Assert.Equal(before!.OwnerTeam, after!.OwnerTeam);
         Assert.Equal(before.Version, after.Version);
 
-        var page = await Jobs.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
+        var page = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
         Assert.Contains("sys", page.Items);
     }
 
@@ -106,7 +106,7 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Jobs.Namespaces.UpdateMetadataAsync(
+            await Operations.Namespaces.UpdateMetadataAsync(
                 TestNamespace,
                 new string('x', CatalogMetadataLimits.NamespaceOwnerTeam + 1),
                 null,

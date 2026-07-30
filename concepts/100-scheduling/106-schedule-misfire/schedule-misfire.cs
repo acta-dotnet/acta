@@ -18,7 +18,7 @@ builder.Services.UseActa(j =>
 using var host = builder.Build();
 await host.StartAsync();
 
-var schedules = host.Services.GetRequiredService<IJobs>().Schedules;
+var schedules = host.Services.GetRequiredService<IActaOperations>().Schedules;
 
 // The recurring slots register on StartAsync; wait for the durable rows instead of guessing a delay.
 using var registrationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));

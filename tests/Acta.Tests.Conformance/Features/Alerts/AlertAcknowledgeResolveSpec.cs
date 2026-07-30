@@ -34,7 +34,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var ct = TestContext.Current.CancellationToken;
         var (alertId, jobId) = await RaiseAlertAsync(ct);
 
-        var result = await Jobs.Alerts.AcknowledgeAsync(alertId, "looks fine", "spec-actor", ct);
+        var result = await Operations.Alerts.AcknowledgeAsync(alertId, "looks fine", "spec-actor", ct);
 
         Assert.Equal(JobControlAction.Applied, result.Action);
         Assert.NotNull(result.AcknowledgedAtUtc);
@@ -49,10 +49,16 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Contains($"alert {alertId}", evt.ReasonMessage);
         Assert.Contains("looks fine", evt.ReasonMessage);
 
-        var acknowledgedOnly = await Jobs.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Acknowledged: true), ct);
+        var acknowledgedOnly = await Operations.Alerts.ListAsync(
+            new ListJobAlertsQuery(JobNamespace: TestNamespace, Acknowledged: true),
+            ct
+        );
         Assert.Contains(acknowledgedOnly.Items, a => a.JobAlertId == alertId);
 
-        var unacknowledgedOnly = await Jobs.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Acknowledged: false), ct);
+        var unacknowledgedOnly = await Operations.Alerts.ListAsync(
+            new ListJobAlertsQuery(JobNamespace: TestNamespace, Acknowledged: false),
+            ct
+        );
         Assert.DoesNotContain(unacknowledgedOnly.Items, a => a.JobAlertId == alertId);
     }
 
@@ -62,8 +68,8 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var ct = TestContext.Current.CancellationToken;
         var (alertId, jobId) = await RaiseAlertAsync(ct);
 
-        var first = await Jobs.Alerts.AcknowledgeAsync(alertId, ct: ct);
-        var second = await Jobs.Alerts.AcknowledgeAsync(alertId, ct: ct);
+        var first = await Operations.Alerts.AcknowledgeAsync(alertId, ct: ct);
+        var second = await Operations.Alerts.AcknowledgeAsync(alertId, ct: ct);
 
         Assert.Equal(JobControlAction.Applied, second.Action);
         Assert.Equal(first.AcknowledgedAtUtc, second.AcknowledgedAtUtc);
@@ -80,7 +86,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var ct = TestContext.Current.CancellationToken;
         var (alertId, jobId) = await RaiseAlertAsync(ct);
 
-        var result = await Jobs.Alerts.ResolveAsync(alertId, "handled", "spec-actor", ct);
+        var result = await Operations.Alerts.ResolveAsync(alertId, "handled", "spec-actor", ct);
 
         Assert.Equal(JobControlAction.Applied, result.Action);
         Assert.Null(result.AcknowledgedAtUtc);
@@ -100,8 +106,8 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var ct = TestContext.Current.CancellationToken;
         var (alertId, jobId) = await RaiseAlertAsync(ct);
 
-        var first = await Jobs.Alerts.ResolveAsync(alertId, ct: ct);
-        var second = await Jobs.Alerts.ResolveAsync(alertId, ct: ct);
+        var first = await Operations.Alerts.ResolveAsync(alertId, ct: ct);
+        var second = await Operations.Alerts.ResolveAsync(alertId, ct: ct);
 
         Assert.Equal(JobControlAction.Applied, second.Action);
         Assert.Equal(first.ResolvedAtUtc, second.ResolvedAtUtc);
@@ -115,12 +121,12 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var ack = await Jobs.Alerts.AcknowledgeAsync(999_999_999_999L, ct: ct);
+        var ack = await Operations.Alerts.AcknowledgeAsync(999_999_999_999L, ct: ct);
         Assert.Equal(JobControlAction.NotFound, ack.Action);
         Assert.Null(ack.AcknowledgedAtUtc);
         Assert.Null(ack.ResolvedAtUtc);
 
-        var resolve = await Jobs.Alerts.ResolveAsync(999_999_999_999L, ct: ct);
+        var resolve = await Operations.Alerts.ResolveAsync(999_999_999_999L, ct: ct);
         Assert.Equal(JobControlAction.NotFound, resolve.Action);
         Assert.Null(resolve.AcknowledgedAtUtc);
         Assert.Null(resolve.ResolvedAtUtc);

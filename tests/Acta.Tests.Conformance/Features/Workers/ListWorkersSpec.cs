@@ -27,7 +27,7 @@ public abstract class ListWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     public async Task Walks_workers_in_descending_last_seen_order()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-b", "v2", "engine-b", ".NET test", 1002, 8, ct);
         await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-c", "v3", "engine-c", ".NET test", 1003, 16, ct);

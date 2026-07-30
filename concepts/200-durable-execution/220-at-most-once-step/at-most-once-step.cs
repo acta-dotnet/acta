@@ -40,6 +40,7 @@ builder.Services.UseActa(j =>
 using var host = builder.Build();
 await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
+var operations = host.Services.GetRequiredService<IActaOperations>();
 
 if (mode == "crash")
 {
@@ -102,7 +103,7 @@ await lab.ShowAsync(
 Console.WriteLine("Waiting for the short lab lease to lapse, then triggering the normal sys.recovery job...");
 await Task.Delay(TimeSpan.FromSeconds(6));
 var recovery = new JobScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, "sys.recovery"), "default");
-await jobs.Schedules.TriggerNowAsync(recovery, note: "at-most-once lab recovery");
+await operations.Schedules.TriggerNowAsync(recovery, note: "at-most-once lab recovery");
 
 using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while (true)

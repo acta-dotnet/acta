@@ -18,13 +18,13 @@ internal static class AlertControlEndpoints
             group,
             options,
             "acknowledge",
-            static (jobs, alertId, note, actorKey, ct) => jobs.Alerts.AcknowledgeAsync(alertId, note, actorKey, ct)
+            static (operations, alertId, note, actorKey, ct) => operations.Alerts.AcknowledgeAsync(alertId, note, actorKey, ct)
         );
         MapVerb(
             group,
             options,
             "resolve",
-            static (jobs, alertId, note, actorKey, ct) => jobs.Alerts.ResolveAsync(alertId, note, actorKey, ct)
+            static (operations, alertId, note, actorKey, ct) => operations.Alerts.ResolveAsync(alertId, note, actorKey, ct)
         );
     }
 
@@ -32,12 +32,12 @@ internal static class AlertControlEndpoints
         RouteGroupBuilder group,
         ActaEndpointOptions options,
         string verb,
-        Func<IJobs, long, string?, string?, CancellationToken, ValueTask<AlertControlResult>> invoke
+        Func<IActaOperations, long, string?, string?, CancellationToken, ValueTask<AlertControlResult>> invoke
     )
     {
         group.MapPost(
             "/alerts/{alertId:long}/" + verb,
-            async Task<IResult> (long alertId, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (long alertId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var (note, error) = await ControlEndpointValidation.ReadOptionalTextAsync(
                     http,
@@ -54,7 +54,7 @@ internal static class AlertControlEndpoints
                 // Operator identity for the audit trail comes from the authenticated principal, never the
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
-                var result = await invoke(jobs, alertId, note, actorKey, ct);
+                var result = await invoke(operations, alertId, note, actorKey, ct);
                 return ToResult(result);
             }
         );

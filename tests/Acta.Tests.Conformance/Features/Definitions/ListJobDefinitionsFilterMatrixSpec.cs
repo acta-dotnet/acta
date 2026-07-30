@@ -57,7 +57,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
     {
         var ct = TestContext.Current.CancellationToken;
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Fresh namespace so we control exactly which definitions exist and no manifest defs interfere
         var nsName = TestKey("defs");
@@ -98,7 +98,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
     public async Task Name_contains_filter_matches_anywhere_in_the_name()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var nsName = TestKey("defs-contains");
         var nsId = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(nsName, "test", ct);
@@ -136,7 +136,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
     {
         var ct = TestContext.Current.CancellationToken;
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Two fresh namespaces so counts are exact and manifest defs do not interfere
         var ns1Name = TestKey("ns1");

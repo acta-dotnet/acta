@@ -31,7 +31,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Lists_alerts_newest_first_with_severity_floor_and_full_text()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var longTitle = new string('x', 200);
         foreach (var severity in new[] { AlertSeverityCode.Info, AlertSeverityCode.Error, AlertSeverityCode.Critical })
@@ -80,7 +80,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Alert_list_keeps_job_ref_after_job_purge()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var completed = await EnqueueAndRunAsync("add-numbers", new AddNumbers(2, 3), ct);
         await AlertTestOps.RaiseAsync(
@@ -159,7 +159,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Acknowledged_alert_projects_the_stamp()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         await AlertTestOps.RaiseAsync(
             Services,

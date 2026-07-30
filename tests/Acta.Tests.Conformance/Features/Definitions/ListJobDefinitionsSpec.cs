@@ -27,7 +27,7 @@ public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFi
     public async Task Walks_catalog_in_ascending_order_and_total_matches()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var seen = new List<JobDefinitionListItem>();
         string? cursor = null;

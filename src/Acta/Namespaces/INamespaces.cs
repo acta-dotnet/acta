@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Namespaces domain: list registered namespaces plus operator admin (suspend/resume/metadata). Reached
-/// through <see cref="IJobs.Namespaces"/>. The seeded sys namespace (id 1) cannot be suspended or edited.
+/// through <see cref="IActaOperations.Namespaces"/>. The seeded sys namespace (id 1) cannot be suspended or edited.
 /// </summary>
 public interface INamespaces
 {

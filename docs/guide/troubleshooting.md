@@ -103,7 +103,7 @@ Pause is sticky. A paused job does not auto-resume unless the paused object is a
 an `until` timestamp. Resume a paused job with `IJobs.ResumeAsync`, the CLI, or an enabled dashboard
 control endpoint.
 
-Schedules have their own control surface through `jobs.Schedules`; pausing a schedule is distinct
+Schedules have their own control surface through `operations.Schedules`; pausing a schedule is distinct
 from pausing the job itself.
 
 ## A Job Keeps Retrying Or Failed
