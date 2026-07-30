@@ -25,14 +25,14 @@ if ($ExistingFeed) {
     Copy-Item (Join-Path $existingFeedPath '*.nupkg') -Destination $feed
 }
 else {
-    # Acta.Contracts packs the generator DLL from src/Acta.Generators/bin/$Configuration; build it
+    # Acta packs the generator DLL from src/Acta.Generators/bin/$Configuration; build it
     # first so the pack never picks up a stale or missing assembly.
     dotnet build "$root/src/Acta.Generators/Acta.Generators.csproj" -c Release --nologo
     if ($LASTEXITCODE -ne 0) { throw 'build failed: Acta.Generators' }
 
     # Redis and Testing are packed (not consumed) so a metadata or reference regression fails here
     # rather than at release time; Acta.AspNetCore needs Node-built dashboard assets and stays out.
-    foreach ($project in @('Acta.Contracts', 'Acta', 'Acta.Relational', 'Acta.Redis', 'Acta.Testing') + $providers) {
+    foreach ($project in @('Acta', 'Acta.Runtime', 'Acta.Relational', 'Acta.Redis', 'Acta.Testing') + $providers) {
         dotnet pack "$root/src/$project/$project.csproj" -c Release -o $feed --nologo
         if ($LASTEXITCODE -ne 0) { throw "pack failed: $project" }
     }

@@ -742,7 +742,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         var md = new StringBuilder();
         md.AppendLine("# 98 · Codes (mechanical reference)");
         md.AppendLine();
-        md.AppendLine("Auto-generated from `[Code]` decorations on each source-generated code family in `Acta.Contracts` domain folders.");
+        md.AppendLine("Auto-generated from `[Code]` decorations on each source-generated code family in `Acta` domain folders.");
         md.AppendLine("Edit the attributes, not this file. Regenerate via `dotnet run --project tools/Acta.Emit -- docs`.");
         md.AppendLine();
         md.AppendLine($"Total families: **{validFamilies.Length}**. Total codes: **{validFamilies.Sum(f => f.Codes.Length)}**.");

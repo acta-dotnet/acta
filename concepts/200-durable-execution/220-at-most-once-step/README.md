@@ -68,5 +68,5 @@ worse than missing/ambiguous work and a reconciliation path exists.
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`at-most-once-step.cs`](./at-most-once-step.cs)
-- [`RuntimeJobContext.cs`](../../../src/Acta/Features/Execution/RuntimeJobContext.cs)
+- [`RuntimeJobContext.cs`](../../../src/Acta.Runtime/Features/Execution/RuntimeJobContext.cs)
 - [`StepAtMostOnceSpec.cs`](../../../tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs)

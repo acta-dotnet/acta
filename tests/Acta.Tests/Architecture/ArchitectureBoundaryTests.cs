@@ -53,8 +53,8 @@ public sealed class ArchitectureBoundaryTests
     {
         var relational = typeof(IEntity).Assembly;
         var references = relational.GetReferencedAssemblies().Select(reference => reference.Name).ToArray();
-        Assert.Contains("Acta.Contracts", references);
         Assert.Contains("Acta", references);
+        Assert.Contains("Acta.Runtime", references);
 
         Assert.False(typeof(IDbSession).IsPublic);
         Assert.False(typeof(IEntity).IsPublic);
@@ -160,7 +160,7 @@ public sealed class ArchitectureBoundaryTests
     {
         var repoRoot = ResolveRepoRoot();
         var sourceRoot = Path.Combine(repoRoot, "src");
-        var coreRoot = Path.Combine(sourceRoot, "Acta");
+        var coreRoot = Path.Combine(sourceRoot, "Acta.Runtime");
         var failures = new List<string>();
 
         string[] obsoleteCoreFolders =

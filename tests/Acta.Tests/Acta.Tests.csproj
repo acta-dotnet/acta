@@ -24,8 +24,8 @@
   <ItemGroup>
     <!-- Provider-neutral: contracts, runtime, generators (referenced as a direct project,
          NOT as an analyzer asset, so tests can drive the generator via Roslyn). -->
-    <ProjectReference Include="..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Runtime\Acta.Runtime.csproj" />
     <ProjectReference Include="..\..\tools\Acta.Emit\Acta.Emit.csproj" />
     <ProjectReference Include="..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\Acta.Generators\Acta.Generators.csproj" />

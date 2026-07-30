@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Acta\Acta.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Acta.Runtime\Acta.Runtime.csproj" PrivateAssets="none" />
   </ItemGroup>
 
   <ItemGroup>

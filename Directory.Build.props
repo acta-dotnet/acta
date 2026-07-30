@@ -2,7 +2,7 @@
   <PropertyGroup>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <!-- Warnings are errors solution-wide so doc-comment cref rot, unused usings, and style drift cannot
-         accumulate. Per-project NoWarn (e.g. Acta.Contracts' 1591) still applies. -->
+         accumulate. Per-project NoWarn (e.g. the Acta SDK's 1591) still applies. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <MinVerDefaultPreReleaseIdentifiers>preview</MinVerDefaultPreReleaseIdentifiers>

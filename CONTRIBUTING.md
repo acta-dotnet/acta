@@ -208,9 +208,9 @@ The shortest paths to the design-review-worthy parts:
 
 | Area | Where to look |
 |---|---|
-| Public-API design | `src/Acta.Contracts/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
+| Public-API design | `src/Acta/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
 | Durable execution model | [`docs/guide/concepts.md`](./docs/guide/concepts.md), [`docs/guide/handler-contract.md`](./docs/guide/handler-contract.md) |
-| Persistence architecture | `src/Acta/Features/*/I*Store.cs`, `src/Acta.Relational`, `src/Acta.{Postgres,SqlServer,Sqlite}/Sql/` |
+| Persistence architecture | `src/Acta.Runtime/Features/*/I*Store.cs`, `src/Acta.Relational`, `src/Acta.{Postgres,SqlServer,Sqlite}/Sql/` |
 | Provider conformance | `tests/Acta.Tests` (specs), [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |
 | Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |

@@ -9,7 +9,7 @@ namespace Acta.Relational.Outbox;
 
 /// <summary>
 /// The EF-free staging core the provider packages consume. Normalizes and validates a raw
-/// <see cref="JobEnqueueRequest"/> through the shared enqueue validation from <c>Acta.Contracts</c>
+/// <see cref="JobEnqueueRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK
 /// (identifiers, tags, schedule mutual exclusion, priority, payload pair) and layers the two stricter
 /// outbox-only rules on top: a deduplication key is required and a parent id is rejected. A valid request
 /// projects into an <see cref="OutboxStagingRow"/> with a client-generated <c>outbox_id</c>. <see cref="Prepare"/>

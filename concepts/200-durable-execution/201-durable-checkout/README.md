@@ -103,7 +103,7 @@ versioned processes or cross-system orchestration is itself the product.
 - [The schema-as-runtime Engineering Lab](../../../docs/engineering-labs.md)
 - [The split-state Engineering Lab](../../../docs/engineering-labs.md)
 - [`Checkout.cs`](./Checkout.cs)
-- [`JobContext.cs`](../../../src/Acta.Contracts/Execution/JobContext.cs)
+- [`JobContext.cs`](../../../src/Acta/Execution/JobContext.cs)
 - [`Job.cs`](../../../src/Acta.Relational/Entities/Job.cs)
 - [`JobRuntime.cs`](../../../src/Acta.Relational/Entities/JobRuntime.cs)
 - [`JobCheckpoint.cs`](../../../src/Acta.Relational/Entities/JobCheckpoint.cs)
