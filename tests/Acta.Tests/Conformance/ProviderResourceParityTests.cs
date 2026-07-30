@@ -115,7 +115,7 @@ public sealed class TagRetentionLockPolicyTests
     {
         var sql = ProviderSqlResources
             .Enumerate("mssql")
-            .Single(resource => resource.LogicalPath == "Sql/Retention/PurgeExpiredData.routine.sql")
+            .Single(resource => resource.LogicalPath == "Sql/Maintenance/PurgeExpiredData.routine.sql")
             .Sql;
         var captureStart = sql.IndexOf("INSERT INTO @schedule_del", StringComparison.Ordinal);
         var cleanupStart = sql.IndexOf("DELETE FROM {{schema}}.tags", captureStart, StringComparison.Ordinal);

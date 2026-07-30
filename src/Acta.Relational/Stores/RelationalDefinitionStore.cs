@@ -17,7 +17,7 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
 {
     public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(short namespaceId, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Definitions/GetDefinitionContracts.sql",
+            "Sql/Execution/Definitions/GetDefinitionContracts.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.NamespaceId, namespaceId)),
             async (reader, token) =>
             {
@@ -35,7 +35,7 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
 
     public async ValueTask<JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
         await session.QueryAsync<JobDefinitionDetail?>(
-            "Sql/Definitions/GetJobDefinition.sql",
+            "Sql/Execution/Definitions/GetJobDefinition.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Id, definitionId)),
             async (reader, token) =>
                 await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobDefinitionDetailRow>()(reader).ToDetail() : null,
@@ -44,7 +44,7 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
 
     public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Definitions/ListJobDefinitions.sql",
+            "Sql/Execution/Definitions/ListJobDefinitions.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
@@ -80,7 +80,7 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
     public async Task<IReadOnlyDictionary<string, int>> RegisterDefinitionsAsync(RegisterDefinitionsCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Definitions", "RegisterJobDefinitions"),
+            new StoreCommand("Execution", "Definitions/RegisterJobDefinitions"),
             cmd =>
                 dialect.BindRegisterJobDefinitions(cmd, command.NamespaceId, command.ManifestGenerationUtc, command.Rows, session.Schema),
             DbProjectionResolver.Resolve<RegisteredJobDefinition>(),
@@ -99,7 +99,7 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
     public async Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Definitions", "SetJobDefinitionOverrides"),
+            new StoreCommand("Execution", "Definitions/SetJobDefinitionOverrides"),
             cmd => AddOverrideParameters(cmd, command),
             DbProjectionResolver.Resolve<DefinitionOverrideOutcome>(),
             ct

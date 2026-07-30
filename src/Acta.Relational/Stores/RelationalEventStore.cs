@@ -14,7 +14,7 @@ internal sealed class RelationalEventStore(IDbSession session, ISqlDialect diale
 {
     public Task<EventPage> ListEventsAsync(EventPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Events/ListJobEvents.sql",
+            "Sql/Operations/Events/ListJobEvents.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.JobId, request.JobId));

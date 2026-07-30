@@ -22,7 +22,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         try
         {
             var rows = await session.ExecuteAsync(
-                new StoreCommand("Alerts", "RaiseJobAlert"),
+                new StoreCommand("Alerting", "RaiseJobAlert"),
                 cmd => AddRaiseParameters(cmd, command),
                 reader => reader.IsDBNull(0) ? (int?)null : Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
                 ct
@@ -45,7 +45,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         CancellationToken ct
     ) =>
         session.QueryAsync<IReadOnlyList<AlertableEvent>>(
-            "Sql/Alerts/GetAlertableEvents.sql",
+            "Sql/Alerting/GetAlertableEvents.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.NamespaceId, namespaceId));
@@ -68,7 +68,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<DeliverableAlert>>(
-            "Sql/Alerts/GetDeliverableAlerts.sql",
+            "Sql/Alerting/GetDeliverableAlerts.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
@@ -98,7 +98,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         CancellationToken ct
     ) =>
         session.QueryAsync<object?>(
-            "Sql/Alerts/UpdateAlertDelivery.sql",
+            "Sql/Alerting/UpdateAlertDelivery.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId));
@@ -114,7 +114,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
     // rows-affected count, read after draining the reader.
     public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Alerts/ResolveJobAlerts.sql",
+            "Sql/Alerting/ResolveJobAlerts.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
@@ -137,7 +137,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Alerts/ListJobAlerts.sql",
+            "Sql/Alerting/ListJobAlerts.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
@@ -189,7 +189,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     private async Task<AlertControlOutcome> ControlAsync(string operation, AlertControlCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Alerts", operation),
+            new StoreCommand("Alerting", operation),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, command.AlertId));
