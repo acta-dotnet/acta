@@ -1,5 +1,5 @@
 using System.Text;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Workers;
 using Microsoft.Extensions.Hosting;
 
 namespace Acta.Cli;

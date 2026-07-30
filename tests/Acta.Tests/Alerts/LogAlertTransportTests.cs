@@ -1,4 +1,4 @@
-using Acta.Features.Alerts;
+using Acta.Modules.Alerting;
 using Microsoft.Extensions.Logging;
 using Xunit;
 

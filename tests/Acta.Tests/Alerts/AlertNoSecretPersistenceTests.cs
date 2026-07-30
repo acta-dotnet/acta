@@ -1,4 +1,4 @@
-using Acta.Features.Alerts;
+using Acta.Modules.Alerting;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Testing;
 using Xunit;

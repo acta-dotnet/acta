@@ -1,7 +1,7 @@
 using System.Data.Common;
 using System.Text.Json;
 using Acta;
-using Acta.Features.Outbox;
+using Acta.Modules.Outbox;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 

@@ -1,6 +1,6 @@
 using Acta.Configuration;
-using Acta.Features.Execution;
-using Acta.Features.Signals;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Signals;
 using Acta.Payloads;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;

@@ -1,5 +1,5 @@
-using Acta.Features.Events;
-using Acta.Features.Jobs;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Operations.Events;
 using Acta.Payloads;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;

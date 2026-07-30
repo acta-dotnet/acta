@@ -1,5 +1,5 @@
-using Acta.Features.Jobs;
-using Acta.Features.Tenants;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Tenants;
 using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;

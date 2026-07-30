@@ -1,5 +1,5 @@
-﻿using System.Globalization;
-using Acta.Features.Events;
+using System.Globalization;
+using Acta.Modules.Operations.Events;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;

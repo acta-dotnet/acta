@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Acta.Features.Definitions;
-using Acta.Features.Schedules;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Schedules;
+using Acta.Modules.Execution.Workers;
 using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;

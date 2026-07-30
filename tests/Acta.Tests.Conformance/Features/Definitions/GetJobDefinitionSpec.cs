@@ -1,5 +1,5 @@
-using Acta.Features.Definitions;
-using Acta.Features.Jobs;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Jobs;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

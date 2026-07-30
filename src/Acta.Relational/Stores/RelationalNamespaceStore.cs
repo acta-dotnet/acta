@@ -1,6 +1,6 @@
-﻿using System.Globalization;
-using Acta.Features.Namespaces;
-using Acta.Features.Shared;
+using System.Globalization;
+using Acta.Kernel;
+using Acta.Modules.Execution.Namespaces;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;

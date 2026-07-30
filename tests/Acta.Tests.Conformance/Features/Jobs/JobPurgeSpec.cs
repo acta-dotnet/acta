@@ -1,6 +1,6 @@
-using Acta.Features.Alerts;
-using Acta.Features.Execution;
-using Acta.Features.Jobs;
+using Acta.Modules.Alerting;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Jobs;
 using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;

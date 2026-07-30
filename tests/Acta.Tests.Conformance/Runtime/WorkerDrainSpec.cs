@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Acta.Configuration;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Workers;
 using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;

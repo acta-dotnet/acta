@@ -1,7 +1,7 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 using System.Globalization;
-using Acta.Features.Jobs;
-using Acta.Features.Schedules;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Schedules;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;

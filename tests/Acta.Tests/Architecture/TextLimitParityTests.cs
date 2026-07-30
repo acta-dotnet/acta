@@ -1,4 +1,4 @@
-using Acta.Features.Shared;
+using Acta.Kernel;
 using Acta.Relational.Schema;
 using Xunit;
 

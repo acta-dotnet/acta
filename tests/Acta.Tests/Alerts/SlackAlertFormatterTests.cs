@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Acta.Features.Alerts;
+using Acta.Modules.Alerting;
 using Xunit;
 
 namespace Acta.Tests.Alerts;

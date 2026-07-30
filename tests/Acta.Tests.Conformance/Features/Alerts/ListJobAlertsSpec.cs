@@ -1,5 +1,5 @@
-using Acta.Features.Alerts;
-using Acta.Features.Jobs;
+using Acta.Modules.Alerting;
+using Acta.Modules.Execution.Jobs;
 using Acta.Relational.Entities;
 using Acta.Relational.Schema;
 using Acta.Tests.Conformance.Contracts;

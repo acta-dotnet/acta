@@ -1,17 +1,17 @@
 using Acta.Cli;
 using Acta.Configuration;
-using Acta.Features.Alerts;
-using Acta.Features.Definitions;
-using Acta.Features.Events;
-using Acta.Features.Execution;
-using Acta.Features.Jobs;
-using Acta.Features.Namespaces;
-using Acta.Features.Outbox;
-using Acta.Features.Overview;
-using Acta.Features.Signals;
-using Acta.Features.Tags;
-using Acta.Features.Tenants;
-using Acta.Features.Workers;
+using Acta.Modules.Alerting;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Namespaces;
+using Acta.Modules.Execution.Signals;
+using Acta.Modules.Execution.Tenants;
+using Acta.Modules.Execution.Workers;
+using Acta.Modules.Operations.Events;
+using Acta.Modules.Operations.Overview;
+using Acta.Modules.Operations.Tags;
+using Acta.Modules.Outbox;
 using Acta.Payloads;
 using Acta.Services.Locks;
 using Acta.Services.Time;
@@ -93,7 +93,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
         services.TryAddSingleton<SignalService>();
-        services.TryAddSingleton<Features.Alerts.IAlertSink, Features.Alerts.AlertStoreSink>();
+        services.TryAddSingleton<IAlertSink, AlertStoreSink>();
 
         // Process-wide Acta meter. One singleton owns the instruments; every worker runtime emits
         // into it. Consumers light it up with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).

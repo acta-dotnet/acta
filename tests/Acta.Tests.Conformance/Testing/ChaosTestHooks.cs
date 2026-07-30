@@ -1,8 +1,8 @@
 using System.Data.Common;
 using Acta.Configuration;
-using Acta.Features.Execution;
-using Acta.Features.Execution.Checkpoints;
-using Acta.Features.Workers;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Checkpoints;
+using Acta.Modules.Execution.Workers;
 using Acta.Relational.Commands;
 using Acta.Relational.Schema;
 using Acta.Services.Time;
@@ -71,12 +71,12 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
     public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         inner.GetChildJobIdsAsync(parentJobId, ct);
 
-    public Task<IReadOnlyList<Acta.Features.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
+    public Task<IReadOnlyList<Acta.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
         short namespaceId,
         CancellationToken ct
     ) => inner.GetStaleChildLatchesAsync(namespaceId, ct);
 
-    public Task<Acta.Features.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
+    public Task<Acta.Modules.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
         ArmOrConsumeSleepTimerCommand command,
         CancellationToken ct
     ) => inner.ArmOrConsumeSleepTimerAsync(command, ct);

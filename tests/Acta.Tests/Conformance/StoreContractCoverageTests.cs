@@ -75,7 +75,11 @@ public sealed class StoreContractCoverageTests
                 t.IsInterface
                 && StoreInterfaceName.IsMatch(t.Name)
                 && t.Namespace is { } ns
-                && (ns.StartsWith("Acta.Features.", StringComparison.Ordinal) || ns.StartsWith("Acta.Services.", StringComparison.Ordinal))
+                && (
+                    ns.StartsWith("Acta.Modules.", StringComparison.Ordinal)
+                    || ns.StartsWith("Acta.Services.", StringComparison.Ordinal)
+                    || ns == "Acta.Maintenance"
+                )
             )
             .ToList();
 

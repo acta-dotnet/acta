@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Runtime;

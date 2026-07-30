@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using Acta.Features.Definitions;
-using Acta.Features.Execution;
-using Acta.Features.Workers;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Aot;
@@ -75,30 +75,30 @@ public sealed class CommentStyleTests
         "src/Acta.Relational/Entities/Lease.cs",
         "src/Acta.Relational/Entities/JobResult.cs",
         "src/Acta.Relational/Entities/JobCheckpoint.cs",
-        "src/Acta.Runtime/Features/Execution/StepOwnershipLostException.cs",
-        "src/Acta.Runtime/Features/Execution/StepRetrySignal.cs",
-        "src/Acta.Runtime/Features/Signals/SignalSuspendSignal.cs",
-        "src/Acta.Runtime/Features/Execution/SuspendSignal.cs",
-        "src/Acta.Runtime/Features/Alerts/AlertsJob.cs",
-        "src/Acta.Runtime/Features/Execution/RecoveryJob.cs",
-        "src/Acta.Runtime/Features/Retention/RetentionJob.cs",
-        "src/Acta.Runtime/Features/Execution/CompletionTypes.cs",
-        "src/Acta.Runtime/Features/Jobs/JobEnqueueRow.cs",
-        "src/Acta.Runtime/Features/Definitions/DefinitionRows.cs",
-        "src/Acta.Runtime/Features/Definitions/CatalogHash.cs",
-        "src/Acta.Runtime/Features/Workers/ClockSkewValidator.cs",
-        "src/Acta.Runtime/Features/Execution/JobBehaviorPipeline.cs",
-        "src/Acta.Runtime/Features/Definitions/JobDefinitionRegistration.cs",
-        "src/Acta.Runtime/Features/Execution/JobLogScope.cs",
-        "src/Acta.Runtime/Features/Execution/JobMetrics.cs",
-        "src/Acta.Runtime/Features/Definitions/JobTypeIndex.cs",
-        "src/Acta.Runtime/Features/Workers/WorkerContext.cs",
-        "src/Acta.Runtime/Features/Workers/WorkerHeartbeat.cs",
-        "src/Acta.Runtime/Features/Workers/WorkerRegistration.cs",
-        "src/Acta.Runtime/Features/Workers/WorkerRuntime.cs",
-        "src/Acta.Runtime/Features/Workers/WorkerRuntimeHost.cs",
-        "src/Acta.Runtime/Features/Workers/WorkerRuntimeInitializer.cs",
-        "src/Acta.Runtime/Features/Workers/WorkerWakeup.cs",
+        "src/Acta.Runtime/Modules/Execution/StepOwnershipLostException.cs",
+        "src/Acta.Runtime/Modules/Execution/StepRetrySignal.cs",
+        "src/Acta.Runtime/Modules/Execution/Signals/SignalSuspendSignal.cs",
+        "src/Acta.Runtime/Modules/Execution/SuspendSignal.cs",
+        "src/Acta.Runtime/Modules/Alerting/AlertsJob.cs",
+        "src/Acta.Runtime/Modules/Execution/RecoveryJob.cs",
+        "src/Acta.Runtime/Maintenance/RetentionJob.cs",
+        "src/Acta.Runtime/Modules/Execution/CompletionTypes.cs",
+        "src/Acta.Runtime/Modules/Execution/Jobs/JobEnqueueRow.cs",
+        "src/Acta.Runtime/Modules/Execution/Definitions/DefinitionRows.cs",
+        "src/Acta.Runtime/Modules/Execution/Definitions/CatalogHash.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/ClockSkewValidator.cs",
+        "src/Acta.Runtime/Modules/Execution/JobBehaviorPipeline.cs",
+        "src/Acta.Runtime/Modules/Execution/Definitions/JobDefinitionRegistration.cs",
+        "src/Acta.Runtime/Modules/Execution/JobLogScope.cs",
+        "src/Acta.Runtime/Modules/Execution/JobMetrics.cs",
+        "src/Acta.Runtime/Modules/Execution/Definitions/JobTypeIndex.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/WorkerContext.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/WorkerHeartbeat.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/WorkerRegistration.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntime.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeHost.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeInitializer.cs",
+        "src/Acta.Runtime/Modules/Execution/Workers/WorkerWakeup.cs",
         "src/Acta.Relational/Schema/SchemaModel.cs",
         "src/Acta.Relational/Schema/SchemaColumnTypes.cs"
     );
