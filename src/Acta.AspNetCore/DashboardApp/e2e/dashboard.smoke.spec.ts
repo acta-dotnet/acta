@@ -72,6 +72,9 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
       });
     }
     if (path === 'jobs' && request.method() === 'GET') return json(paged([job]));
+    // The Overview's outbox panel had no fixture, so every test that lands on the Overview
+    // failed at its first assertion rather than on anything it was written to check.
+    if (path === 'overview/outbox') return json([]);
     if (path === 'alerts') return json(paged([]));
     if (path === 'workers') return json(paged([]));
     if (path === 'schedules') return json(paged([]));
@@ -91,6 +94,31 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
       return json({ ancestors: [], job, steps: [], activeWait: null, children: [], childrenHasMore: false });
     }
     if (path === `jobs/${jobRef}/events`) return json(paged([event]));
+    // The aggregate the detail page actually reads (JobDetailView, api.ts:392). Without it the
+    // page rendered its title and nothing else, so three tests failed at their first assertion
+    // rather than on what they were written to check.
+    if (path === `jobs/${jobRef}/detail`) {
+      return json({
+        snapshot: job,
+        input: { format: 'json', formatId: 1, json: { invoiceId: 42 }, byteLength: 18, truncated: false },
+        result: null,
+        checkpoints: [],
+        explain: {
+          headline: 'The latest attempt failed in the invoice provider.',
+          activeWait: null,
+          lease: null,
+          lastExecutedBy: 'worker-42',
+          steps: [],
+          reason: 'Invoice provider timed out.',
+          nextActions: [{ kind: 'restart', description: 'Run the job again after checking the provider.' }]
+        },
+        lineage: { ancestors: [], job, steps: [], activeWait: null, children: [], childrenHasMore: false },
+        schedules: [],
+        schedulesTotal: 0,
+        workers: [],
+        workersTotal: 0
+      });
+    }
     if (path === `jobs/${jobRef}/restart` && request.method() === 'POST') {
       if (!options.controls) return json({ title: 'Controls disabled.' }, 404);
       options.onRestart?.();
