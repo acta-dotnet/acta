@@ -94,6 +94,43 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
         Assert.Empty(retiredPage.Items.Select(d => d.JobDefinitionId).Intersect(activeIds));
     }
 
+    [Fact(DisplayName = "NameContains filter selects definitions whose name carries the term anywhere, not only as a prefix")]
+    public async Task Name_contains_filter_matches_anywhere_in_the_name()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var queries = Services.GetRequiredService<IJobs>();
+
+        var nsName = TestKey("defs-contains");
+        var nsId = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(nsName, "test", ct);
+
+        // Two names share an interior term, one does not, so the filter has to partition.
+        var invoiceSend = TestKey("invoice-send");
+        var invoiceVoid = TestKey("invoice-void");
+        var receiptSend = TestKey("receipt-send");
+        var map = await DefinitionTestOps.RegisterAsync(
+            Services,
+            nsId,
+            Gen,
+            ImmutableArray.Create(Def(invoiceSend), Def(invoiceVoid), Def(receiptSend)),
+            ct
+        );
+
+        // TestKey prefixes every name with a run token, so the bare term is deliberately NOT a
+        // prefix of any name: a starts-with implementation returns nothing here.
+        Assert.DoesNotContain("invoice", invoiceSend[..1]);
+        var matching = new HashSet<int> { map[invoiceSend], map[invoiceVoid] };
+
+        var page = await queries.Definitions.ListAsync(
+            new ListJobDefinitionsQuery(JobNamespace: nsName, NameContains: "invoice", IncludeTotal: true),
+            ct
+        );
+
+        Assert.Equal(matching, page.Items.Select(d => d.JobDefinitionId).ToHashSet());
+        Assert.DoesNotContain(map[receiptSend], page.Items.Select(d => d.JobDefinitionId));
+        // The opt-in total must apply the same predicate as the row query.
+        Assert.Equal((long)matching.Count, page.TotalCount);
+    }
+
     [Fact(DisplayName = "JobNamespace filter scopes definitions to exactly one namespace and excludes all other namespaces")]
     public async Task Namespace_filter_isolates_to_one_namespace()
     {

@@ -48,6 +48,7 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, request.NameSearch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.StatusCode, request.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, request.CursorNamespaceName));

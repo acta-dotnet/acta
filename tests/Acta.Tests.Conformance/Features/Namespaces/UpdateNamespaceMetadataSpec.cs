@@ -96,7 +96,7 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(before!.OwnerTeam, after!.OwnerTeam);
         Assert.Equal(before.Version, after.Version);
 
-        var page = await Jobs.Namespaces.ListAsync(new ListNamespacesQuery(NameStartsWith: "sys"), ct);
+        var page = await Jobs.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
         Assert.Contains("sys", page.Items);
     }
 

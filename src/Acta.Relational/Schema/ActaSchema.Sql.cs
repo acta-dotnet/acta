@@ -628,10 +628,12 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read name prefix: non-null restricts to rows whose name LIKE the bound pattern (the
-        // caller appends '%'); NULL matches all. Names are kebab so the pattern carries no LIKE wildcards.
-        public static readonly DbValueSpec<string?> NamePrefixFilter = new(
-            ParameterName: "p_name_prefix",
+        // List-read name search: non-null restricts to rows whose name LIKE the bound pattern (the
+        // caller wraps the term in '%' on both sides, so this is a contains match, matching how the
+        // tenant list searches); NULL matches all. Names are kebab and the filter validators reject
+        // '%' and '_', so a caller cannot smuggle LIKE wildcards through the term.
+        public static readonly DbValueSpec<string?> NameSearchFilter = new(
+            ParameterName: "p_name_search",
             Kind: DbKind.AsciiString,
             Size: 256,
             Precision: null,

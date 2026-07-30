@@ -68,14 +68,14 @@ public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFi
         // Learn how many definitions the namespace carries so the filter-wide total has a target.
         var page_all = await Services
             .GetRequiredService<IDefinitionStore>()
-            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, 1000, false), ct);
+            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, null, 1000, false), ct);
         var (all, _) = (page_all.Rows, page_all.Total);
         Assert.NotEmpty(all);
 
         var take = all.Count > 1 ? all.Count - 1 : 1;
         var page_rows = await Services
             .GetRequiredService<IDefinitionStore>()
-            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, take, true), ct);
+            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, null, take, true), ct);
         var (rows, total) = (page_rows.Rows, page_rows.Total);
 
         Assert.Equal(take, rows.Count);

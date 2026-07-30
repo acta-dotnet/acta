@@ -32,9 +32,16 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
         query = query with { JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)) };
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
+        query = query with { NameContains = QueryValidation.ValidateJobNameFragment(query.NameContains, nameof(query.NameContains)) };
 
+        var nameSearch = query.NameContains is null ? null : "%" + query.NameContains + "%";
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListJobDefinitionsQuery));
-        var filterHash = QueryFilterHash.Compute([("ns", query.JobNamespace), ("status", Num(query.Status)), ("tags", tagFilters)]);
+        var filterHash = QueryFilterHash.Compute([
+            ("ns", query.JobNamespace),
+            ("contains", query.NameContains),
+            ("status", Num(query.Status)),
+            ("tags", tagFilters),
+        ]);
 
         string? cursorNamespace = null;
         string? cursorName = null;
@@ -56,6 +63,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         var page = await store.ListDefinitionsAsync(
             new DefinitionPageRequest(
                 query.JobNamespace,
+                nameSearch,
                 query.Status,
                 cursorNamespace,
                 cursorName,

@@ -295,7 +295,7 @@ internal static class ActaApiEndpoints
                 }
 
                 var query = new ListNamespacesQuery(
-                    NameStartsWith: QueryBinding.Text(http.Request.Query, "nameStartsWith"),
+                    NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
                     PageSize: pageSize,
                     Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
                     IncludeTotal: includeTotal ?? false,
@@ -323,7 +323,7 @@ internal static class ActaApiEndpoints
                 }
 
                 var query = new ListNamespacesQuery(
-                    NameStartsWith: QueryBinding.Text(http.Request.Query, "nameStartsWith"),
+                    NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
                     Status: status,
                     PageSize: pageSize,
                     Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
@@ -504,6 +504,7 @@ internal static class ActaApiEndpoints
 
                 var query = new ListJobDefinitionsQuery(
                     JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
+                    NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
                     Status: status,
                     PageSize: pageSize,
                     Cursor: QueryBinding.Text(http.Request.Query, "cursor"),

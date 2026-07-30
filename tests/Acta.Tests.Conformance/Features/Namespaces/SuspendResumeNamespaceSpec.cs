@@ -115,7 +115,7 @@ public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(JobNamespaceStatusCode.Active, after!.Status);
         Assert.Equal(before!.Version, after.Version);
 
-        var page = await Jobs.Namespaces.ListAsync(new ListNamespacesQuery(NameStartsWith: "sys"), ct);
+        var page = await Jobs.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
         Assert.Contains("sys", page.Items);
     }
 }

@@ -19,7 +19,7 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
             "Sql/Namespaces/ListNamespaces.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamePrefixFilter, request.NamePrefix));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, request.NameSearch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, request.CursorName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
@@ -49,7 +49,7 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
             "Sql/Namespaces/ListNamespaceItems.sql",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamePrefixFilter, request.NamePrefix));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, request.NameSearch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.StatusCode, request.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, request.CursorName));

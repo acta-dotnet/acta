@@ -31,7 +31,7 @@ public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         var page_all = await Services
             .GetRequiredService<IDefinitionStore>()
-            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, 1, false), ct);
+            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, null, 1, false), ct);
         var (all, _) = (page_all.Rows, page_all.Total);
         Assert.NotEmpty(all);
         var expected = all[0];
@@ -64,7 +64,7 @@ public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         var page_all = await Services
             .GetRequiredService<IDefinitionStore>()
-            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, 1, false), ct);
+            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, null, 1, false), ct);
         var (all, _) = (page_all.Rows, page_all.Total);
         Assert.NotEmpty(all);
         var definitionId = all[0].JobDefinitionId;
