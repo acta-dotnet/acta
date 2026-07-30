@@ -1,5 +1,4 @@
 using System.Reflection;
-using Acta.Relational.Connections;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;

@@ -1,7 +1,7 @@
 # Configuration and options
 
 This page explains the knobs operators actually set. The source of truth is still
-`src/Acta/Configuration/JobsOptions.cs` and `src/Acta.Relational/Connections/SqlProviderOptions.cs`; update
+`src/Acta/Configuration/JobsOptions.cs` and `src/Acta/Configuration/SqlProviderOptions.cs`; update
 those XML docs first when behavior changes.
 
 ## Wiring Shape
