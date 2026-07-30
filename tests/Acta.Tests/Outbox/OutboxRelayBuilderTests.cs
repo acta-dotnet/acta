@@ -1,4 +1,4 @@
-using Acta.Features.Outbox;
+using Acta.Modules.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -147,10 +147,10 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void The_relay_framework_set_adds_sys_outbox_and_its_dependencies_without_forcing_retention()
     {
-        Assert.Contains("sys.outbox", Acta.Features.Workers.FrameworkJobs.RelayNames);
-        Assert.Contains("sys.recovery", Acta.Features.Workers.FrameworkJobs.RelayNames);
-        Assert.Contains("sys.alerts", Acta.Features.Workers.FrameworkJobs.RelayNames);
-        Assert.DoesNotContain("sys.retention", Acta.Features.Workers.FrameworkJobs.RelayNames);
-        Assert.DoesNotContain("sys.outbox", Acta.Features.Workers.FrameworkJobs.AutomaticNames);
+        Assert.Contains("sys.outbox", Acta.Modules.Execution.Workers.FrameworkJobs.RelayNames);
+        Assert.Contains("sys.recovery", Acta.Modules.Execution.Workers.FrameworkJobs.RelayNames);
+        Assert.Contains("sys.alerts", Acta.Modules.Execution.Workers.FrameworkJobs.RelayNames);
+        Assert.DoesNotContain("sys.retention", Acta.Modules.Execution.Workers.FrameworkJobs.RelayNames);
+        Assert.DoesNotContain("sys.outbox", Acta.Modules.Execution.Workers.FrameworkJobs.AutomaticNames);
     }
 }

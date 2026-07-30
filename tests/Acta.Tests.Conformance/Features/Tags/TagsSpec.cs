@@ -1,4 +1,4 @@
-using Acta.Features.Tags;
+using Acta.Modules.Operations.Tags;
 using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;

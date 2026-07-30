@@ -1,8 +1,8 @@
 using Acta.Configuration;
-using Acta.Features.Alerts;
-using Acta.Features.Execution;
-using Acta.Features.Jobs;
-using Acta.Features.Signals;
+using Acta.Modules.Alerting;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Signals;
 using Acta.Payloads;
 using Acta.Services.Locks;
 using Acta.Services.Time;

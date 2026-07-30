@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using Acta.Features.Execution;
-using Acta.Features.Workers;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Workers;
 
 namespace Acta.Testing;
 

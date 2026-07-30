@@ -1,4 +1,4 @@
-using Acta.Features.Namespaces;
+using Acta.Modules.Execution.Namespaces;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;

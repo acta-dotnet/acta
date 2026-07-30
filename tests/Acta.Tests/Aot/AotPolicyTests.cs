@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Aot;
@@ -54,7 +54,7 @@ public sealed class AotPolicyTests
         new(
             "GetCustomAttribute",
             new Regex(@"\bGetCustomAttribute\b", RegexOptions.Compiled),
-            Allow("src/Acta.Runtime/Features/Workers/WorkerRuntimeInitializer.cs")
+            Allow("src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeInitializer.cs")
         ),
         new("MakeGenericMethod", new Regex(@"\bMakeGenericMethod\b", RegexOptions.Compiled), Allow()),
         new("Activator.CreateInstance", new Regex(@"\bActivator\.CreateInstance\b", RegexOptions.Compiled), Allow()),

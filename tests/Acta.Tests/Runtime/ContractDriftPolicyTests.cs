@@ -1,5 +1,5 @@
 using Acta.Configuration;
-using Acta.Features.Definitions;
+using Acta.Modules.Execution.Definitions;
 using Acta.Payloads;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;

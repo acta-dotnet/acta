@@ -1,7 +1,7 @@
 using System.Data.Common;
 using Acta.Configuration;
-using Acta.Features.Definitions;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Workers;
 using Acta.Relational.Schema;
 using Acta.Services.Locks;
 using Microsoft.Extensions.Logging;

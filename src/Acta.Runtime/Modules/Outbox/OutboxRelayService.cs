@@ -1,0 +1,427 @@
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Jobs;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Acta.Modules.Outbox;
+
+/// <summary>
+/// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded
+/// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
+/// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
+/// bounded tick summary all live here; the source persistence is the injected <see cref="IOutboxRelayStore"/>
+/// and the target is the normal <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>.
+/// </summary>
+internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
+{
+    // Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.
+    private const int MaxBatches = 20;
+    private const int BatchSize = 256;
+
+    // One shared per-tick work budget, measured in target-enqueue attempts. Both source claims (each of
+    // which makes at least one attempt) and the per-group retries of a rejected batch draw it down, so
+    // isolating a rejected batch is work inside the tick bound rather than a way to bypass it. The cap
+    // equals the 5,120-row envelope (MaxBatches * BatchSize): the happy path of 20 non-rejecting batches
+    // spends only 20 attempts, while a pathological all-rejecting workload releases its unprocessed
+    // remainder once the envelope is spent instead of running unbounded retries past the 180s source lease.
+    private const int MaxTargetEnqueues = MaxBatches * BatchSize;
+
+    private static readonly Backoff RowBackoff = Backoff.Default;
+
+    private readonly ILogger _log = log ?? NullLogger<OutboxRelayService>.Instance;
+
+    private enum GroupOutcome
+    {
+        Safe,
+        Recoverable,
+    }
+
+    private sealed record OutboxGroup(OutboxRow Representative, IReadOnlyList<OutboxRow> Rows)
+    {
+        // Materialized once at construction (read on both the finalize and release paths).
+        public IReadOnlyList<Guid> Ids { get; } = Rows.Select(r => r.OutboxId).ToList();
+    }
+
+    // Mutable per-tick relay accounting: Relayed counts jobs actually inserted at the target;
+    // Deduplicated counts source rows absorbed without a new job (coalesced members plus
+    // target-deduplicated representatives), so Relayed + Deduplicated equals the safely-ingested rows.
+    private sealed class TickCounters
+    {
+        public int Relayed { get; set; }
+
+        public int Deduplicated { get; set; }
+    }
+
+    // Mutable per-tick target-enqueue allowance shared across every batch and its per-group retries.
+    private sealed class TickBudget(int remaining)
+    {
+        public int Remaining { get; private set; } = remaining;
+
+        public bool TryConsume()
+        {
+            if (Remaining <= 0)
+            {
+                return false;
+            }
+
+            Remaining--;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Runs one relay tick and returns its accounting (persisted as the <c>sys.outbox</c> job result).
+    /// Infrastructure failures and any quarantine transition fail the tick (so the system-job alert path
+    /// fires); recoverable row rejections below the threshold reschedule quietly.
+    /// </summary>
+    public async Task<OutboxTickSummary> RunTickAsync(OutboxRelayTickOptions options, CancellationToken ct)
+    {
+        // No pre-flight shape check: the table comes from the tested DDL API, so an incompatible table
+        // surfaces as a claim/finalize SQL error, an infrastructure failure that fails only this tick.
+        var token = Guid.NewGuid();
+        var quarantinedIds = new List<Guid>();
+        var budget = new TickBudget(MaxTargetEnqueues);
+        var counters = new TickCounters();
+        var claimedTotal = 0;
+
+        for (var batch = 0; batch < MaxBatches && budget.Remaining > 0; batch++)
+        {
+            var claimed = await store.ClaimDueAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct);
+            if (claimed.Count == 0)
+            {
+                break;
+            }
+
+            claimedTotal += claimed.Count;
+            bool budgetExhausted;
+            try
+            {
+                budgetExhausted = await ProcessBatchAsync(claimed, token, options, quarantinedIds, budget, counters, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList(), ct);
+                throw;
+            }
+
+            if (budgetExhausted || claimed.Count < BatchSize)
+            {
+                break;
+            }
+        }
+
+        if (quarantinedIds.Count > 0)
+        {
+            _log.LogError(
+                "ACTA sys.outbox: source '{Source}' quarantined {Count} row(s) this tick: [{Ids}].",
+                options.SourceName,
+                quarantinedIds.Count,
+                OutboxQuarantineTickException.FormatSample(quarantinedIds)
+            );
+            throw new OutboxQuarantineTickException(options.SourceName, quarantinedIds);
+        }
+
+        // The backlog is read after finalization, so the summary reports what is still awaiting relay.
+        var backlog = await store.CountBacklogAsync(ct);
+        return new OutboxTickSummary(claimedTotal, counters.Relayed, counters.Deduplicated, quarantinedIds.Count, backlog);
+    }
+
+    // Processes one claimed batch. Returns true when the per-tick target-enqueue budget was exhausted
+    // mid-batch: the unprocessed remainder was released and the tick must end.
+    private async Task<bool> ProcessBatchAsync(
+        IReadOnlyList<OutboxRow> claimed,
+        Guid token,
+        OutboxRelayTickOptions options,
+        List<Guid> quarantinedIds,
+        TickBudget budget,
+        TickCounters counters,
+        CancellationToken ct
+    )
+    {
+        var groups = Coalesce(claimed);
+
+        var immediateQuarantine = new List<(OutboxGroup Group, string Error)>();
+        var valid = new List<(JobEnqueueRequest Request, OutboxGroup Group)>();
+        foreach (var group in groups)
+        {
+            try
+            {
+                valid.Add((OutboxRequestReconstruction.ToRequest(group.Representative, options.MaxInlinePayloadBytes), group));
+            }
+            catch (OutboxContractException ex)
+            {
+                immediateQuarantine.Add((group, ex.Message));
+            }
+        }
+
+        var results = new Dictionary<OutboxGroup, GroupOutcome>();
+        var errors = new Dictionary<OutboxGroup, string>();
+        try
+        {
+            await EnqueueGroupsAsync(valid, results, errors, budget, counters, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Infrastructure/target-availability failure: release the claimed batch best-effort and fail
+            // the tick without consuming any row's quarantine budget. Partially-enqueued rows are safe;
+            // the next tick re-enqueues them and the target deduplicates.
+            await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList(), ct);
+            _log.LogWarning(
+                ex,
+                "ACTA sys.outbox: source '{Source}' target enqueue failed; releasing claim and failing tick.",
+                options.SourceName
+            );
+            throw;
+        }
+
+        var safeIds = new List<Guid>();
+        var quarantines = new List<OutboxQuarantine>();
+        var reschedules = new List<OutboxReschedule>();
+
+        foreach (var (group, error) in immediateQuarantine)
+        {
+            // Malformed/oversize is a pre-target contract failure: quarantine at once, leaving each row's
+            // existing failure count untouched (no retry budget was consumed).
+            quarantines.AddRange(group.Rows.Select(r => new OutboxQuarantine(r.OutboxId, r.FailureCount, error)));
+        }
+
+        foreach (var (group, outcome) in results)
+        {
+            if (outcome == GroupOutcome.Safe)
+            {
+                safeIds.AddRange(group.Ids);
+                continue;
+            }
+
+            var error = errors.GetValueOrDefault(group, "recoverable target rejection");
+            // Retry/quarantine state is row-specific and monotonic: each claimed row of the group advances
+            // its OWN failure count, so a group can partially quarantine (over-threshold rows quarantine,
+            // under-threshold rows reschedule) rather than inheriting one representative's count.
+            var groupQuarantined = 0;
+            foreach (var row in group.Rows)
+            {
+                var failureCount = row.FailureCount + 1;
+                if (failureCount >= options.QuarantineThreshold)
+                {
+                    quarantines.Add(new OutboxQuarantine(row.OutboxId, failureCount, error));
+                    groupQuarantined++;
+                }
+                else
+                {
+                    reschedules.Add(
+                        new OutboxReschedule(
+                            row.OutboxId,
+                            failureCount,
+                            BackoffSchedule.ComputeDelaySeconds(failureCount, RowBackoff),
+                            error
+                        )
+                    );
+                }
+            }
+
+            _log.LogInformation(
+                "ACTA sys.outbox: source '{Source}' row group ({Namespace}/{DedupKey}) rejected; {Rescheduled} rescheduled, {Quarantined} quarantined.",
+                options.SourceName,
+                group.Representative.JobNamespace,
+                group.Representative.DeduplicationKey,
+                group.Rows.Count - groupQuarantined,
+                groupQuarantined
+            );
+        }
+
+        // Finalization is one store round trip per outcome kind for the whole batch, not one per group.
+        if (safeIds.Count > 0)
+        {
+            await store.DeleteClaimedAsync(new FinalizeOutboxCommand(token, safeIds), ct);
+        }
+
+        if (quarantines.Count > 0)
+        {
+            await store.QuarantineAsync(new QuarantineOutboxCommand(token, quarantines), ct);
+            quarantinedIds.AddRange(quarantines.Select(q => q.OutboxId));
+        }
+
+        if (reschedules.Count > 0)
+        {
+            await store.RescheduleAsync(new RescheduleOutboxCommand(token, reschedules), ct);
+        }
+
+        // Any valid group whose target enqueue never ran (budget exhausted mid-batch) is unprocessed:
+        // release its claimed rows so the next tick continues the backlog, and end this tick.
+        var unprocessed = valid.Where(v => !results.ContainsKey(v.Group)).SelectMany(v => v.Group.Ids).ToList();
+        if (unprocessed.Count > 0)
+        {
+            await ReleaseBestEffortAsync(token, unprocessed, ct);
+            return true;
+        }
+
+        return false;
+    }
+
+    // The whole batch goes to the target in one round trip; a deterministic batch rejection falls back to
+    // one target call per group so a single offending group is isolated while the rest still ingest. Every
+    // attempt draws down the shared tick budget; when it is spent the remaining groups are left unresolved
+    // (released by the caller). Infrastructure exceptions propagate.
+    private async Task EnqueueGroupsAsync(
+        IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
+        Dictionary<OutboxGroup, GroupOutcome> results,
+        Dictionary<OutboxGroup, string> errors,
+        TickBudget budget,
+        TickCounters counters,
+        CancellationToken ct
+    )
+    {
+        if (groups.Count == 0)
+        {
+            return;
+        }
+
+        var (exhausted, batchError) = await TryEnqueueAsync(groups, budget, counters, ct);
+        if (exhausted)
+        {
+            return;
+        }
+        if (batchError is null)
+        {
+            MarkSafe(groups, results);
+            return;
+        }
+        if (groups.Count == 1)
+        {
+            // A single group cannot be isolated further: the rejection is its own.
+            results[groups[0].Group] = GroupOutcome.Recoverable;
+            errors[groups[0].Group] = batchError;
+            return;
+        }
+
+        // Deterministic batch rejection: retry each group on its own. A budget exhausted mid-loop leaves
+        // the remaining groups unresolved (absent from results), so the caller releases them.
+        foreach (var pair in groups)
+        {
+            var (groupExhausted, groupError) = await TryEnqueueAsync([pair], budget, counters, ct);
+            if (groupExhausted)
+            {
+                return;
+            }
+            if (groupError is null)
+            {
+                results[pair.Group] = GroupOutcome.Safe;
+            }
+            else
+            {
+                results[pair.Group] = GroupOutcome.Recoverable;
+                errors[pair.Group] = groupError;
+            }
+        }
+    }
+
+    // One target round trip drawing a single unit of the shared budget. Reports (Exhausted: true) when the
+    // budget is spent and no call was made, (Exhausted: false, Error: null) on safe ingestion (Inserted or
+    // Deduplicated), and the rejection message on a deterministic rejection. Infrastructure faults throw.
+    private async Task<(bool Exhausted, string? Error)> TryEnqueueAsync(
+        IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
+        TickBudget budget,
+        TickCounters counters,
+        CancellationToken ct
+    )
+    {
+        if (!budget.TryConsume())
+        {
+            return (true, null);
+        }
+
+        try
+        {
+            var outcomes = await target.EnqueueBatchAsync(groups.Select(g => g.Request).ToList(), ct);
+            // Outcomes align with request order. A representative that Inserted relayed one new job and its
+            // coalesced members were absorbed; a Deduplicated representative absorbs the whole group.
+            for (var index = 0; index < groups.Count; index++)
+            {
+                var memberRows = groups[index].Group.Rows.Count;
+                if (outcomes[index].Action == JobEnqueueAction.Inserted)
+                {
+                    counters.Relayed++;
+                    counters.Deduplicated += memberRows - 1;
+                }
+                else
+                {
+                    counters.Deduplicated += memberRows;
+                }
+            }
+
+            return (false, null);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (IsDeterministicRejection(ex))
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    private static void MarkSafe(
+        IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
+        Dictionary<OutboxGroup, GroupOutcome> results
+    )
+    {
+        foreach (var (_, group) in groups)
+        {
+            results[group] = GroupOutcome.Safe;
+        }
+    }
+
+    // Group claimed rows by target identity; the earliest (created_at_utc, outbox_id) row is the
+    // representative sent to the target, avoiding the ledger's same-batch duplicate-key rejection. The
+    // group keeps every member row so retry/quarantine can advance each row's own failure count. The
+    // grouping key is case-folded (keys are ASCII by contract) to match the target's dedup normalization,
+    // so two case-variant handoffs coalesce into one group instead of colliding at the target.
+    private static List<OutboxGroup> Coalesce(IReadOnlyList<OutboxRow> claimed) =>
+        claimed
+            .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey.ToLowerInvariant()))
+            .Select(g =>
+            {
+                var ordered = g.OrderBy(r => r.CreatedAtUtc).ThenBy(r => r.OutboxId).ToList();
+                return new OutboxGroup(ordered[0], ordered);
+            })
+            .ToList();
+
+    private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds, CancellationToken ct)
+    {
+        try
+        {
+            await store.ReleaseClaimedAsync(new FinalizeOutboxCommand(token, outboxIds), CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _log.LogDebug(ex, "ACTA sys.outbox: best-effort claim release failed; lease expiry and token CAS keep the rows safe.");
+        }
+    }
+
+    // Deterministic target rejections consume the row's budget (reschedule with backoff, quarantine at
+    // threshold): input problems (validation, oversize) plus the ledger's typed routing/target-state
+    // rejections (unknown route, suspended namespace/tenant, unknown tenant) surfaced as
+    // EnqueueRejectedException. Everything else is infrastructure and retried without consuming budget.
+    private static bool IsDeterministicRejection(Exception ex) =>
+        ex is ArgumentException or PayloadTooLargeException or EnqueueRejectedException;
+}
+
+/// <summary>Per-tick relay configuration resolved from the source registration and worker options.</summary>
+internal sealed record OutboxRelayTickOptions(string SourceName, int QuarantineThreshold, int LeaseTtlSeconds, int MaxInlinePayloadBytes);
+
+/// <summary>
+/// One relay tick's accounting, persisted as the <c>sys.outbox</c> job result on success: source rows
+/// claimed, new jobs inserted at the target, rows absorbed by deduplication (coalesced members plus
+/// already-present handoffs), rows quarantined (zero on every persisted summary, since a quarantine
+/// fails the tick), and the source's remaining Pending backlog after finalization.
+/// </summary>
+internal sealed record OutboxTickSummary(int Claimed, int Relayed, int Deduplicated, int Quarantined, long Backlog)
+{
+    public override string ToString() =>
+        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} quarantined={Quarantined} backlog={Backlog}";
+}

@@ -1,4 +1,4 @@
-using Acta.Features.Outbox;
+using Acta.Modules.Outbox;
 
 namespace Acta;
 

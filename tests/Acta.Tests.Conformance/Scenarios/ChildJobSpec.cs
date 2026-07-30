@@ -1,8 +1,8 @@
 using System.Data.Common;
-using Acta.Features.Execution;
-using Acta.Features.Execution.ChildLatches;
-using Acta.Features.Jobs;
-using Acta.Features.Signals;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.ChildLatches;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Signals;
 using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;

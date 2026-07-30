@@ -1,6 +1,6 @@
-﻿using System.Globalization;
-using Acta.Features.Shared;
-using Acta.Features.Tenants;
+using System.Globalization;
+using Acta.Kernel;
+using Acta.Modules.Execution.Tenants;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;

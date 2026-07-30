@@ -1,7 +1,7 @@
-using Acta.Features.Definitions;
-using Acta.Features.Events;
-using Acta.Features.Jobs;
-using Acta.Features.Tenants;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Tenants;
+using Acta.Modules.Operations.Events;
 using Acta.Payloads;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;

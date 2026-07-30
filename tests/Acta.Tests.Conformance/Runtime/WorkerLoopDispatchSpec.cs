@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Acta.Configuration;
-using Acta.Features.Jobs;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Workers;
 using Acta.Payloads;
 using Acta.Services.Locks;
 using Acta.Services.Time;

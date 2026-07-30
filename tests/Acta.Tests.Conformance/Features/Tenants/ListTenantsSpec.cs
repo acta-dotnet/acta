@@ -1,6 +1,6 @@
-using Acta.Features.Namespaces;
-using Acta.Features.Shared;
-using Acta.Features.Tenants;
+using Acta.Kernel;
+using Acta.Modules.Execution.Namespaces;
+using Acta.Modules.Execution.Tenants;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,9 +1,9 @@
 using System.Data.Common;
 using Acta;
-using Acta.Features.Jobs;
-using Acta.Features.Namespaces;
-using Acta.Features.Shared;
-using Acta.Features.Tenants;
+using Acta.Kernel;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Namespaces;
+using Acta.Modules.Execution.Tenants;
 using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;

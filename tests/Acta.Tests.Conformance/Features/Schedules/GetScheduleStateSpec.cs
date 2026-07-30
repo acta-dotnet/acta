@@ -1,4 +1,4 @@
-using Acta.Features.Schedules;
+using Acta.Modules.Execution.Schedules;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

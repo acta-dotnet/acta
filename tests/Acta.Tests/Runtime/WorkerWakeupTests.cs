@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
-using Acta.Features.Execution;
-using Acta.Features.Workers;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Runtime;

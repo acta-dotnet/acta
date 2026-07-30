@@ -1,4 +1,4 @@
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Workers;
 using Acta.Redis.Configuration;
 using Acta.Redis.Features.Workers;
 using Microsoft.Extensions.DependencyInjection;

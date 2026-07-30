@@ -1,8 +1,8 @@
 using Acta.Configuration;
-using Acta.Features.Execution;
-using Acta.Features.Execution.ChildLatches;
-using Acta.Features.Signals;
-using Acta.Features.Workers;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.ChildLatches;
+using Acta.Modules.Execution.Signals;
+using Acta.Modules.Execution.Workers;
 using Acta.Relational.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

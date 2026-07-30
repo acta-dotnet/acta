@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
-using Acta.Features.Definitions;
-using Acta.Features.Schedules;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Schedules;
 using Acta.Payloads;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;

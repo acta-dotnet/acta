@@ -1,5 +1,5 @@
-using Acta.Features.Jobs;
-using Acta.Features.Outbox;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Outbox;
 
 namespace Acta.Tests.Conformance.Testing;
 

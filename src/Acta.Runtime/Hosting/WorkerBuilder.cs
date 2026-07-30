@@ -1,8 +1,8 @@
-using Acta.Features.Alerts;
-using Acta.Features.Definitions;
-using Acta.Features.Jobs;
-using Acta.Features.Outbox;
-using Acta.Features.Workers;
+using Acta.Modules.Alerting;
+using Acta.Modules.Execution.Definitions;
+using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Workers;
+using Acta.Modules.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

@@ -1,5 +1,5 @@
-using Acta.Features.Execution;
-using Acta.Features.Schedules;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Schedules;
 using Acta.Relational.Entities;
 using Acta.Services.Time;
 using Acta.Tests.Conformance.Contracts;

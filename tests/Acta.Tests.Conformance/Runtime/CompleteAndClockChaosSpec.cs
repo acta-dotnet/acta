@@ -1,6 +1,6 @@
 using Acta.Configuration;
-using Acta.Features.Execution;
-using Acta.Features.Workers;
+using Acta.Modules.Execution;
+using Acta.Modules.Execution.Workers;
 using Acta.Relational.Entities;
 using Acta.Testing;
 using Acta.Tests.Conformance.Contracts;

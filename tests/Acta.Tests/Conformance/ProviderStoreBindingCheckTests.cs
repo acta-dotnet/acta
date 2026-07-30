@@ -169,7 +169,11 @@ internal static partial class ProviderStoreBindingCheck
                 type.IsInterface
                 && StoreName.IsMatch(type.Name)
                 && type.Namespace is { } ns
-                && (ns.StartsWith("Acta.Features.", StringComparison.Ordinal) || ns.StartsWith("Acta.Services.", StringComparison.Ordinal))
+                && (
+                    ns.StartsWith("Acta.Modules.", StringComparison.Ordinal)
+                    || ns.StartsWith("Acta.Services.", StringComparison.Ordinal)
+                    || ns == "Acta.Maintenance"
+                )
             );
 
     private static bool ReachesCommandPreparation(MethodBase method, Assembly providerAssembly, HashSet<MethodBase> visited)

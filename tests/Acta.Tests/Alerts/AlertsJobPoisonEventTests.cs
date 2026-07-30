@@ -1,6 +1,6 @@
 using Acta.Configuration;
-using Acta.Features.Alerts;
-using Acta.Features.Jobs;
+using Acta.Modules.Alerting;
+using Acta.Modules.Execution.Jobs;
 using Acta.Services.Time;
 using Acta.Tests.Context;
 using Microsoft.Extensions.Logging;

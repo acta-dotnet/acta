@@ -1,6 +1,6 @@
 using Acta.Cli;
 using Acta.Configuration;
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Xunit;

@@ -1,4 +1,4 @@
-using Acta.Features.Workers;
+using Acta.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
