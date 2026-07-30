@@ -57,7 +57,7 @@ internal static class StepExhaustionProbes
 /// Hand-written manifest for the two exhaustion-probe jobs. Kept isolated from
 /// <c>TestJobsManifest</c> so the shared step counters and job definitions are unaffected.
 /// </summary>
-public sealed class StepExhaustionManifest : IActaManifest
+public sealed class StepExhaustionManifest : IJobManifest
 {
     public static JobDescriptorManifest Descriptors { get; } =
         new(

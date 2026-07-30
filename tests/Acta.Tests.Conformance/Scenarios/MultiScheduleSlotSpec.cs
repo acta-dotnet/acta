@@ -24,7 +24,7 @@ internal static class MultiSchedulePingHandler
 /// Hand-written manifest for the multi-schedule ping job: two interval schedules on one slot.
 /// Kept isolated from <c>TestJobsManifest</c> so sibling specs that count schedules/slots are unaffected.
 /// </summary>
-public sealed class MultiScheduleSlotManifest : IActaManifest
+public sealed class MultiScheduleSlotManifest : IJobManifest
 {
     private const string PingJobName = "multi-ping";
     private const string FastScheduleName = "fast";

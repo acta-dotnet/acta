@@ -323,9 +323,9 @@ internal sealed class JobsApi(
         {
             throw new ArgumentException("JobContract is uninitialized (default); use a generated manifest member.", nameof(job));
         }
-        if (!typeof(IActaManifest).IsAssignableFrom(job.ManifestType))
+        if (!typeof(IJobManifest).IsAssignableFrom(job.ManifestType))
         {
-            throw new ArgumentException($"JobContract.ManifestType '{job.ManifestType.FullName}' is not an IActaManifest.", nameof(job));
+            throw new ArgumentException($"JobContract.ManifestType '{job.ManifestType.FullName}' is not an IJobManifest.", nameof(job));
         }
         return job.ManifestType;
     }

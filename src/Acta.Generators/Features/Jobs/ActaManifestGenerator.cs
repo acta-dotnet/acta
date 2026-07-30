@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Acta.Generators.Features.Jobs;
 
 /// <summary>
-/// Emits a per-assembly <c>{Area}JobsManifest : IActaManifest</c> (area = RootNamespace's last segment) with one
+/// Emits a per-assembly <c>{Area}JobsManifest : IJobManifest</c> (area = RootNamespace's last segment) with one
 /// <c>JobDescriptor</c> per <c>[Job]</c>-annotated handler, plus the
 /// <c>GeneratedHandlerDispatch</c> delegates the runtime calls per attempt.
 /// </summary>
@@ -1426,9 +1426,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Generator-emitted manifest for this assembly. Bound to a namespace at registration");
-        sb.AppendLine($"/// time via <c>IJobsBuilder.Run&lt;{manifestTypeName}&gt;(namespaceName)</c>.");
+        sb.AppendLine($"/// time via <c>IActaBuilder.Run&lt;{manifestTypeName}&gt;(namespaceName)</c>.");
         sb.AppendLine("/// </summary>");
-        sb.AppendLine($"public sealed class {manifestTypeName} : IActaManifest");
+        sb.AppendLine($"public sealed class {manifestTypeName} : IJobManifest");
         sb.AppendLine("{");
         sb.AppendLine("    public static JobDescriptorManifest Descriptors { get; } =");
         sb.AppendLine("        new JobDescriptorManifest(");

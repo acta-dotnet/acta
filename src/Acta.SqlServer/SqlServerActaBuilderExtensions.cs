@@ -12,14 +12,14 @@ using Acta.Features.Signals;
 using Acta.Features.Tags;
 using Acta.Features.Tenants;
 using Acta.Features.Workers;
-using Acta.Postgres.Configuration;
-using Acta.Postgres.Services;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Resources;
 using Acta.Relational.Stores;
 using Acta.Services.Locks;
 using Acta.Services.Time;
+using Acta.SqlServer.Configuration;
+using Acta.SqlServer.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -27,44 +27,44 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// PostgreSQL provider registration. Core owns feature behavior; this package supplies the complete
+/// SQL Server provider registration. Core owns feature behavior; this package supplies the complete
 /// provider store set, command binding, executable SQL, and relational mechanics.
 /// </summary>
-public static class PostgresJobsBuilderExtensions
+public static class SqlServerActaBuilderExtensions
 {
     /// <summary>
-    /// Selects PostgreSQL as Acta's durable provider. Registers connection string/schema
+    /// Selects SQL Server as Acta's durable provider. Registers connection string/schema
     /// options, relational mechanics, provider bootstrap, and provider-owned feature stores.
     /// </summary>
-    public static IJobsBuilder UsePostgres(this IJobsBuilder builder, Action<PostgresProviderOptions> configure)
+    public static IActaBuilder UseSqlServer(this IActaBuilder builder, Action<SqlServerProviderOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.Postgres, SupportsRoutines: true));
+        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.SqlServer, SupportsRoutines: true));
         builder.Services.Configure(configure);
-        builder.Services.AddOptions<PostgresProviderOptions>().ValidateOnStart();
+        builder.Services.AddOptions<SqlServerProviderOptions>().ValidateOnStart();
         builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<PostgresProviderOptions>, SqlProviderOptionsValidator<PostgresProviderOptions>>()
+            ServiceDescriptor.Singleton<IValidateOptions<SqlServerProviderOptions>, SqlProviderOptionsValidator<SqlServerProviderOptions>>()
         );
 
         // The dialect owns generic connection, parameter, routine, and transaction traits. Feature
         // stores below own their commands, executable SQL, binding, and projections directly.
-        builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<PostgresProviderOptions>>().Value);
-        builder.Services.AddSingleton<PostgresDialect>();
-        builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<PostgresDialect>());
+        builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<SqlServerProviderOptions>>().Value);
+        builder.Services.AddSingleton<SqlServerDialect>();
+        builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<SqlServerDialect>());
         builder.Services.AddSingleton(static sp => new DbSession(
             sp.GetRequiredService<SqlProviderOptions>(),
             sp.GetRequiredService<ISqlDialect>(),
             sp.GetRequiredService<SqlResourceCatalog>()
         ));
         builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
-        builder.Services.AddSingleton<IProviderBootstrap, PostgresProviderBootstrap>();
+        builder.Services.AddSingleton<IProviderBootstrap, SqlServerProviderBootstrap>();
 
         // Provider-owned feature stores: each implements a core store port over this package's own
         // embedded SQL, bound and mapped directly in the store.
         builder.Services.AddSingleton(static sp => new SqlResourceCatalog(
-            typeof(PostgresDialect).Assembly,
+            typeof(SqlServerDialect).Assembly,
             sp.GetRequiredService<SqlProviderOptions>().Schema
         ));
         builder.Services.AddSingleton<IOverviewStore, RelationalOverviewStore>();

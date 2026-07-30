@@ -47,8 +47,8 @@ public sealed class JobTypeIndexTests
         Assert.Contains("j.Run<TManifest>", ex.Message);
     }
 
-    private static CatalogRegistration Catalog(string ns, params JobDescriptor[] descriptors) =>
-        new(ns, [new ModuleRegistration(typeof(object), () => new JobDescriptorManifest([.. descriptors]))]);
+    private static JobCatalogRegistration Catalog(string ns, params JobDescriptor[] descriptors) =>
+        new(ns, [new ManifestRegistration(typeof(object), () => new JobDescriptorManifest([.. descriptors]))]);
 
     private static JobDescriptor Descriptor(string jobName, Type inputType) =>
         new(

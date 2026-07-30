@@ -24,7 +24,7 @@ public sealed class OutboxRelayWiringTests
                 "relay-ns-a",
                 w =>
                 {
-                    w.AddModule<TestManifest>();
+                    w.AddManifest<TestManifest>();
                     w.AddOutboxRelay(
                         "src-a",
                         s =>
@@ -40,7 +40,7 @@ public sealed class OutboxRelayWiringTests
                 "relay-ns-b",
                 w =>
                 {
-                    w.AddModule<TestManifest>();
+                    w.AddManifest<TestManifest>();
                     w.AddOutboxRelay(
                         "src-b",
                         s =>
@@ -53,7 +53,7 @@ public sealed class OutboxRelayWiringTests
                 }
             );
             // A third namespace with no relay must never appear in the registry.
-            j.Run("plain-ns", w => w.AddModule<TestManifest>());
+            j.Run("plain-ns", w => w.AddManifest<TestManifest>());
         });
         return services.BuildServiceProvider();
     }
@@ -101,7 +101,7 @@ public sealed class OutboxRelayWiringTests
         Assert.Throws<InvalidOperationException>(() => registry.Registration("plain-ns"));
     }
 
-    private sealed class TestManifest : IActaManifest
+    private sealed class TestManifest : IJobManifest
     {
         public static JobDescriptorManifest Descriptors => new([]);
     }

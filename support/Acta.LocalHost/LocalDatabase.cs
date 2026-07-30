@@ -21,8 +21,8 @@ public static class LocalDatabase
     /// back to the provider's default <c>acta</c> schema; <paramref name="applyMigrations"/> runs the DDL
     /// on startup (the lab passes false on spawned workers so only one process migrates).
     /// </summary>
-    public static IJobsBuilder UseLocalDatabase(
-        this IJobsBuilder jobs,
+    public static IActaBuilder UseLocalDatabase(
+        this IActaBuilder jobs,
         IConfiguration configuration,
         string? schema = null,
         string? provider = null,

@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Base for WorkerRuntime-level specs. Registers <typeparamref name="TManifest"/> under the per-test
-/// namespace via <c>IJobsBuilder.Run&lt;TManifest&gt;</c>, then calls
+/// namespace via <c>IActaBuilder.Run&lt;TManifest&gt;</c>, then calls
 /// <see cref="WorkerRuntime.InitializeAsync"/> in <see cref="AfterInitializeAsync"/>. The poll loop
 /// (<see cref="WorkerRuntime.RunLoopAsync"/>) is opt-in - registration tests only need
 /// <see cref="WorkerRuntime.InitializeAsync"/>; execution specs call <see cref="WorkerRuntime.RunOnceAsync"/>
@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
-    where TManifest : class, IActaManifest
+    where TManifest : class, IJobManifest
 {
     internal WorkerRuntime Runtime { get; private set; } = null!;
 

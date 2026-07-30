@@ -2,12 +2,12 @@ namespace Acta;
 
 /// <summary>
 /// Per-worker configuration surface passed to the
-/// <see cref="IJobsBuilder.Run(string, System.Action{IWorkerBuilder})"/> overload. A worker hosts the
-/// modules declared here under its own namespace.
+/// <see cref="IActaBuilder.Run(string, System.Action{IWorkerBuilder})"/> overload. A worker hosts the
+/// manifests declared here under its own namespace.
 /// </summary>
 /// <remarks>
-/// Declaring modules per worker is how distinct namespaces get distinct job catalogs in a multi-worker
-/// process; modules are added through <see cref="IJobsBuilder.Run(string, System.Action{IWorkerBuilder})"/>,
+/// Declaring manifests per worker is how distinct namespaces get distinct job catalogs in a multi-worker
+/// process; manifests are added through <see cref="IActaBuilder.Run(string, System.Action{IWorkerBuilder})"/>,
 /// never globally.
 /// </remarks>
 public interface IWorkerBuilder
@@ -17,8 +17,8 @@ public interface IWorkerBuilder
     /// every declared manifest's <c>definitions</c> rows under its namespace. Adding the same manifest
     /// twice is a no-op.
     /// </summary>
-    IWorkerBuilder AddModule<TManifest>()
-        where TManifest : class, IActaManifest;
+    IWorkerBuilder AddManifest<TManifest>()
+        where TManifest : class, IJobManifest;
 
     /// <summary>
     /// Declares an alert delivery channel for this worker namespace. Channel declarations are process

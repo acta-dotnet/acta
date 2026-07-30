@@ -5,14 +5,14 @@ namespace Acta;
 
 /// <summary>
 /// Configuration surface returned by <c>services.UseActa(...)</c>. Provider packages extend
-/// this via <c>this IJobsBuilder</c> extension methods (<c>j.UseSqlServer(...)</c>,
+/// this via <c>this IActaBuilder</c> extension methods (<c>j.UseSqlServer(...)</c>,
 /// <c>j.UsePostgres(...)</c>, or the embedded <c>j.UseSqlite(...)</c> for the durable provider).
 /// Workers (<c>Run</c>), payload serializers
 /// (<see cref="AddPayloadSerializer{TSerializer}"/>), and options (<see cref="ConfigureOptions"/>)
 /// are interface members rather than extensions so the fluent chain has a stable, single-assembly
 /// contract.
 /// </summary>
-public interface IJobsBuilder
+public interface IActaBuilder
 {
     /// <summary>
     /// The underlying service collection; provider packages register their concrete
@@ -24,11 +24,11 @@ public interface IJobsBuilder
     /// Configure the cluster-wide <see cref="JobsOptions"/>. Multiple calls compose (Options
     /// pattern delta-merges).
     /// </summary>
-    IJobsBuilder ConfigureOptions(Action<JobsOptions> configure);
+    IActaBuilder ConfigureOptions(Action<JobsOptions> configure);
 
     /// <summary>
-    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the single module
-    /// <typeparamref name="TManifest"/>, shorthand for the lambda overload with one <c>AddModule</c>
+    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the single manifest
+    /// <typeparamref name="TManifest"/>, shorthand for the lambda overload with one <c>AddManifest</c>
     /// call.
     /// </summary>
     /// <remarks>
@@ -36,11 +36,11 @@ public interface IJobsBuilder
     /// per worker). Registering two workers for the same namespace throws at DI build. An
     /// enqueue-only runtime calls <see cref="Reference{TManifest}"/> instead of <c>Run</c>.
     /// </remarks>
-    IJobsBuilder Run<TManifest>(string namespaceName, string? ownerTeam = null, string? description = null)
-        where TManifest : class, IActaManifest;
+    IActaBuilder Run<TManifest>(string namespaceName, string? ownerTeam = null, string? description = null)
+        where TManifest : class, IJobManifest;
 
     /// <summary>
-    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the modules declared
+    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the manifests declared
     /// on the <see cref="IWorkerBuilder"/>.
     /// </summary>
     /// <remarks>
@@ -50,7 +50,7 @@ public interface IJobsBuilder
     /// process may host several workers, each owning a distinct namespace; registering two workers
     /// for the same namespace throws at DI build.
     /// </remarks>
-    IJobsBuilder Run(string namespaceName, Action<IWorkerBuilder> configure);
+    IActaBuilder Run(string namespaceName, Action<IWorkerBuilder> configure);
 
     /// <summary>
     /// Make <typeparamref name="TManifest"/>'s jobs typed-enqueueable under
@@ -62,15 +62,15 @@ public interface IJobsBuilder
     /// never claims jobs. The namespace's worker owns migrations and definition registration; start
     /// it once before the first enqueue. <c>Run</c> implies Reference for its own namespace.
     /// </remarks>
-    IJobsBuilder Reference<TManifest>(string namespaceName)
-        where TManifest : class, IActaManifest;
+    IActaBuilder Reference<TManifest>(string namespaceName)
+        where TManifest : class, IJobManifest;
 
     /// <summary>
     /// Opt this host out of the automatic jobs CLI: a process started with the first argument
     /// "jobs" then boots normally instead of running the CLI verb and exiting. For apps that
     /// own their command-line surface.
     /// </summary>
-    IJobsBuilder DisableCli();
+    IActaBuilder DisableCli();
 
     /// <summary>
     /// Register an additional <see cref="IJobPayloadSerializer"/>. The serializer's
@@ -78,7 +78,7 @@ public interface IJobsBuilder
     /// resolve their serializer at dispatch via
     /// <see cref="IJobPayloadSerializerRegistry"/>.
     /// </summary>
-    IJobsBuilder AddPayloadSerializer<TSerializer>()
+    IActaBuilder AddPayloadSerializer<TSerializer>()
         where TSerializer : class, IJobPayloadSerializer;
 
     /// <summary>
@@ -88,7 +88,7 @@ public interface IJobsBuilder
     /// resolver must cover every job input/output (and durable variable/signal/step) type; the
     /// recommended AOT path is typed enqueue, which routes through this serializer.
     /// </summary>
-    IJobsBuilder UseJsonPayloads(IJsonTypeInfoResolver resolver);
+    IActaBuilder UseJsonPayloads(IJsonTypeInfoResolver resolver);
 
     /// <summary>
     /// Register an <see cref="IJobPipelineBehavior"/> that wraps every handler invocation. Behaviors run
@@ -104,6 +104,6 @@ public interface IJobsBuilder
     /// needing the scoped <see cref="JobContext"/> requires; a stateless behavior with no scoped
     /// dependencies may pass <see cref="ServiceLifetime.Singleton"/> for one process-wide instance.
     /// </remarks>
-    IJobsBuilder AddPipelineBehavior<TBehavior>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    IActaBuilder AddPipelineBehavior<TBehavior>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TBehavior : class, IJobPipelineBehavior;
 }

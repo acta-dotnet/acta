@@ -11,7 +11,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for <c>IJobsBuilder.Reference</c>: an enqueue-only host that References a manifest
+/// Conformance for <c>IActaBuilder.Reference</c>: an enqueue-only host that References a manifest
 /// resolves typed routes and enqueues, hosts no worker runtime, and the namespace's real worker
 /// executes the row. Uses the <c>add-numbers</c> job registered under the per-test namespace by the
 /// worker host (the test base).

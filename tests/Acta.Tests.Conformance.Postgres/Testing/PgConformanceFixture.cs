@@ -194,7 +194,7 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public void ApplyProvider(IJobsBuilder builder, string schemaName)
+    public void ApplyProvider(IActaBuilder builder, string schemaName)
     {
         var connString =
             IntegrationConfig.PostgresConnectionString ?? throw new InvalidOperationException("Postgres tests require ACTA_TEST_PG.");

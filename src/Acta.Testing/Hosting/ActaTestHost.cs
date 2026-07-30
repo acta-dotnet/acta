@@ -102,11 +102,11 @@ public static class ActaTestHost
 {
     /// <summary>
     /// Build and initialize a test host. <paramref name="configureJobs"/> receives the
-    /// <see cref="IJobsBuilder"/> and the target schema; the integrator calls e.g.
-    /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.ApplyMigrationsOnStartup = true; }).AddModule&lt;TManifest&gt;().Run&lt;TManifest&gt;(ns)</c>.
+    /// <see cref="IActaBuilder"/> and the target schema; the integrator calls e.g.
+    /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.ApplyMigrationsOnStartup = true; }).AddManifest&lt;TManifest&gt;().Run&lt;TManifest&gt;(ns)</c>.
     /// </summary>
     public static async Task<IActaTestHost> StartAsync(
-        Action<IJobsBuilder, string> configureJobs,
+        Action<IActaBuilder, string> configureJobs,
         ActaTestHostOptions? options = null,
         CancellationToken ct = default
     )

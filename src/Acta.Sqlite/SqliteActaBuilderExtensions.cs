@@ -18,8 +18,8 @@ using Acta.Relational.Resources;
 using Acta.Relational.Stores;
 using Acta.Services.Locks;
 using Acta.Services.Time;
-using Acta.SqlServer.Configuration;
-using Acta.SqlServer.Services;
+using Acta.Sqlite.Configuration;
+using Acta.Sqlite.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -27,44 +27,49 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// SQL Server provider registration. Core owns feature behavior; this package supplies the complete
-/// provider store set, command binding, executable SQL, and relational mechanics.
+/// SQLite provider registration. Core owns feature behavior; this package supplies the complete
+/// provider store set, command binding, executable SQL, and relational mechanics. SQLite has no
+/// stored routines, so store commands run as inline SQL and bulk shapes are bound as JSON.
 /// </summary>
-public static class SqlServerJobsBuilderExtensions
+public static class SqliteActaBuilderExtensions
 {
     /// <summary>
-    /// Selects SQL Server as Acta's durable provider. Registers connection string/schema
-    /// options, relational mechanics, provider bootstrap, and provider-owned feature stores.
+    /// Selects SQLite as Acta's durable provider. Registers connection string/schema options,
+    /// relational mechanics, provider bootstrap, and provider-owned feature stores. SQLite is single-node and
+    /// embedded; the schema is always <c>main</c> (the attached database holds the tables).
     /// </summary>
-    public static IJobsBuilder UseSqlServer(this IJobsBuilder builder, Action<SqlServerProviderOptions> configure)
+    public static IActaBuilder UseSqlite(this IActaBuilder builder, Action<SqliteProviderOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.SqlServer, SupportsRoutines: true));
+        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.Sqlite, SupportsRoutines: false));
         builder.Services.Configure(configure);
-        builder.Services.AddOptions<SqlServerProviderOptions>().ValidateOnStart();
+        builder.Services.AddOptions<SqliteProviderOptions>().ValidateOnStart();
         builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<SqlServerProviderOptions>, SqlProviderOptionsValidator<SqlServerProviderOptions>>()
+            ServiceDescriptor.Singleton<IValidateOptions<SqliteProviderOptions>, SqlProviderOptionsValidator<SqliteProviderOptions>>()
+        );
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<SqliteProviderOptions>, SqliteProviderOptionsValidator>()
         );
 
-        // The dialect owns generic connection, parameter, routine, and transaction traits. Feature
-        // stores below own their commands, executable SQL, binding, and projections directly.
-        builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<SqlServerProviderOptions>>().Value);
-        builder.Services.AddSingleton<SqlServerDialect>();
-        builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<SqlServerDialect>());
+        builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<SqliteProviderOptions>>().Value);
+        builder.Services.AddSingleton(static sp => new SqliteDialect(
+            sp.GetRequiredService<IOptions<JobsOptions>>().Value.ExecutionProfile
+        ));
+        builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<SqliteDialect>());
         builder.Services.AddSingleton(static sp => new DbSession(
             sp.GetRequiredService<SqlProviderOptions>(),
             sp.GetRequiredService<ISqlDialect>(),
             sp.GetRequiredService<SqlResourceCatalog>()
         ));
         builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
-        builder.Services.AddSingleton<IProviderBootstrap, SqlServerProviderBootstrap>();
+        builder.Services.AddSingleton<IProviderBootstrap, SqliteProviderBootstrap>();
 
         // Provider-owned feature stores: each implements a core store port over this package's own
         // embedded SQL, bound and mapped directly in the store.
         builder.Services.AddSingleton(static sp => new SqlResourceCatalog(
-            typeof(SqlServerDialect).Assembly,
+            typeof(SqliteDialect).Assembly,
             sp.GetRequiredService<SqlProviderOptions>().Schema
         ));
         builder.Services.AddSingleton<IOverviewStore, RelationalOverviewStore>();

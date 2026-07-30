@@ -15,7 +15,7 @@ builder.Services.UseActa(j =>
         "alert-channel",
         w =>
         {
-            w.AddModule<AlertChannelJobs>();
+            w.AddManifest<AlertChannelJobs>();
 
             // Alert channels declare process-local delivery configuration. Alert rows persist only
             // the selected channel name; endpoints and secrets stay in app configuration.

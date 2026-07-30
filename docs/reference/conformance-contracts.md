@@ -2087,7 +2087,7 @@
   - `Acta.Features.Workers.IWorkerStore.MarkDeadWorkersAsync`
 
 ### Three Run calls register three workers isolated per namespace
-- **Contract:** Three Run calls in one process register three workers each owning its own namespace and module catalog and each claims and runs jobs only in its own namespace.
+- **Contract:** Three Run calls in one process register three workers each owning its own namespace and manifest catalog and each claims and runs jobs only in its namespace.
 - **Arrange:** One process configures three j.Run calls, one per namespace.
 - **Act:** Each namespace enqueues a job and its owning runtime runs one tick.
 - **Assert:** Three workers are registered and each completes only its own namespace's job to Done.

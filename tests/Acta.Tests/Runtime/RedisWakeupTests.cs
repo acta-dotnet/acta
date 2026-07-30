@@ -39,7 +39,7 @@ public sealed class RedisWakeupTests
         var services = new ServiceCollection();
         services.TryAddSingleton<IWorkerWakeup, InProcessWakeup>();
 
-        new JobsBuilder(services).UseRedisWakeup(UnreachableConfiguration);
+        new ActaBuilder(services).UseRedisWakeup(UnreachableConfiguration);
 
         using var provider = services.BuildServiceProvider();
         Assert.IsType<RedisWakeup>(provider.GetRequiredService<IWorkerWakeup>());
@@ -62,7 +62,7 @@ public sealed class RedisWakeupTests
         services.AddSingleton<IConnectionMultiplexer>(hostOwned);
 
         // No Configuration on the options: with a host-registered multiplexer none is needed.
-        new JobsBuilder(services).UseRedisWakeup(o => o.ChannelPrefix = "acta-test");
+        new ActaBuilder(services).UseRedisWakeup(o => o.ChannelPrefix = "acta-test");
 
         using var provider = services.BuildServiceProvider();
         Assert.Same(hostOwned, provider.GetRequiredService<IConnectionMultiplexer>());
@@ -73,7 +73,7 @@ public sealed class RedisWakeupTests
     public void UseRedisWakeup_without_configuration_or_multiplexer_throws_on_resolve()
     {
         var services = new ServiceCollection();
-        new JobsBuilder(services).UseRedisWakeup(o => o.ChannelPrefix = "acta-test");
+        new ActaBuilder(services).UseRedisWakeup(o => o.ChannelPrefix = "acta-test");
 
         using var provider = services.BuildServiceProvider();
         var ex = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<IWorkerWakeup>());
@@ -108,7 +108,7 @@ public sealed class RedisWakeupTests
         {
             var services = new ServiceCollection();
             services.TryAddSingleton<IWorkerWakeup, InProcessWakeup>();
-            new JobsBuilder(services).UseRedisWakeup(o =>
+            new ActaBuilder(services).UseRedisWakeup(o =>
             {
                 o.Configuration = configuration;
                 o.ChannelPrefix = prefix;

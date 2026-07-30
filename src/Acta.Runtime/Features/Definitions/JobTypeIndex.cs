@@ -28,15 +28,15 @@ internal sealed class JobTypeIndex
 
     private JobTypeIndex(Dictionary<Type, List<JobRoute>> routesByType) => _routesByType = routesByType;
 
-    public static JobTypeIndex Build(IEnumerable<CatalogRegistration> catalogs)
+    public static JobTypeIndex Build(IEnumerable<JobCatalogRegistration> catalogs)
     {
         var routesByType = new Dictionary<Type, List<JobRoute>>();
 
         foreach (var catalog in catalogs)
         {
-            foreach (var module in catalog.Modules)
+            foreach (var manifest in catalog.Manifests)
             {
-                foreach (var descriptor in module.GetDescriptors().Descriptors)
+                foreach (var descriptor in manifest.GetDescriptors().Descriptors)
                 {
                     var route = new JobRoute(catalog.NamespaceName, descriptor.JobName, descriptor.InputPayloadFormat);
                     if (!routesByType.TryGetValue(descriptor.InputType, out var routes))
@@ -46,7 +46,7 @@ internal sealed class JobTypeIndex
                     }
 
                     // A type can legitimately surface via several catalogs (Reference + Run, or several
-                    // modules); keep one route per (namespace, jobName) so dedup doesn't read as ambiguity.
+                    // manifests); keep one route per (namespace, jobName) so dedup doesn't read as ambiguity.
                     if (
                         !routes.Any(r =>
                             string.Equals(r.Namespace, route.Namespace, StringComparison.Ordinal)
@@ -73,7 +73,7 @@ internal sealed class JobTypeIndex
         if (!_routesByType.TryGetValue(inputType, out var routes) || routes.Count == 0)
         {
             throw new InvalidOperationException(
-                $"No registered job has input type '{inputType.FullName}'. Register the owning module via "
+                $"No registered job has input type '{inputType.FullName}'. Register the owning manifest via "
                     + "j.Reference<TManifest>(...) or j.Run<TManifest>(...), or enqueue via the raw "
                     + "JobEnqueueRequest path."
             );

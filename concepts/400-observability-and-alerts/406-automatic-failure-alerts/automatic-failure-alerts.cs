@@ -13,12 +13,12 @@ builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
 
-    // The Run lambda overload lets us declare alert channels alongside the module.
+    // The Run lambda overload lets us declare alert channels alongside the manifest.
     j.Run(
         "automatic-failure-alerts",
         w =>
         {
-            w.AddModule<AutomaticFailureAlertsJobs>();
+            w.AddManifest<AutomaticFailureAlertsJobs>();
 
             // The "default" log channel exists implicitly. Declaring it here overrides the implicit
             // startup configuration; no channel endpoint/config is persisted in SQL.
