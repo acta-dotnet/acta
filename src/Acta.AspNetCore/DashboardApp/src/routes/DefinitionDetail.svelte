@@ -163,7 +163,7 @@
           </p>
 
           <div class="policy-wrap">
-            <table class="policy">
+            <table class="data">
               <caption class="sr-only">Definition policy defaults, overrides, and effective values</caption>
               <thead>
                 <tr><th>Policy field</th><th>Default</th><th>Override</th><th>Effective</th></tr>
@@ -226,14 +226,6 @@
 <style>
   .policy-wrap { overflow-x: auto; }
 
-  table.policy { width: 100%; border-collapse: collapse; }
-  table.policy th {
-    text-align: left; padding: 6px 8px; color: var(--muted); font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.04em; font-size: var(--text-sm);
-    box-shadow: 0 1px 0 var(--line);
-  }
-  table.policy td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  table.policy tr:last-child td { border-bottom: none; }
   .dim { color: var(--muted); }
 
   /* Inline override inputs sit in the policy table cells, so they keep a compact local style rather

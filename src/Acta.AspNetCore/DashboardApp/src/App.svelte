@@ -87,27 +87,25 @@
 {/if}
 
 <div class="app">
-  <header class="appbar">
-    <div class="brand-q">
-      <div class="brand" aria-label="Acta">Acta<span class="brand-dot">.</span></div>
-      <div class="brand-sub">operator dashboard</div>
-    </div>
-    <div class="topbar">
-      <button
-        class="mobile-nav-toggle iconly"
-        aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
-        aria-controls="dashboard-navigation"
-        aria-expanded={mobileNavOpen}
-        onclick={() => (mobileNavOpen = !mobileNavOpen)}>
-        {mobileNavOpen ? '×' : '☰'}
-      </button>
-      <ScopeSelector />
-    </div>
-  </header>
+  <button
+    class="mobile-nav-toggle iconly"
+    aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
+    aria-controls="dashboard-navigation"
+    aria-expanded={mobileNavOpen}
+    onclick={() => (mobileNavOpen = !mobileNavOpen)}>
+    {mobileNavOpen ? '×' : '☰'}
+  </button>
 
   <div class="shell">
     {#if mobileNavOpen}<button class="nav-scrim" aria-label="Close navigation" onclick={() => (mobileNavOpen = false)}></button>{/if}
     <nav id="dashboard-navigation" class="side" class:mobile-open={mobileNavOpen} aria-label="Dashboard sections">
+      <div class="brand-q">
+        <div class="brand" aria-label="Acta">Acta<span class="brand-dot">.</span></div>
+        <div class="brand-sub">operator dashboard</div>
+      </div>
+      <div class="side-scope"><ScopeSelector /></div>
+      <!-- One each over every group; the first group takes the slack in CSS, so Configure and
+           Admin settle at the bottom by the appearance trigger without duplicating markup. -->
       <div class="side-scroll">
         {#each navigationGroups as group}
           <section class="nav-group" aria-labelledby={'nav-' + group.label.toLowerCase()}>

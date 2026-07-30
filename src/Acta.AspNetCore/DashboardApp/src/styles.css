@@ -13,7 +13,10 @@
   --font-ui: 'Segoe UI', system-ui, sans-serif;
   --font-mono: Consolas, 'Cascadia Code', ui-monospace, SFMono-Regular, monospace;
   --mono: var(--font-mono);
-  --side-w: 280px;   /* sidebar + header brand column width (widened so the namespace never clips) */
+  /* Display face for the wordmark and section titles. Defaults to the UI face, so acta and
+     light are unchanged by construction; only paper overrides it. */
+  --font-display: var(--font-ui);
+  --side-w: 300px;   /* sidebar width; also carries the namespace scope, which never clips */
   font-family: var(--font-ui);
 }
 
@@ -28,6 +31,7 @@
   --ink: #eef2f7;
   --muted: #9aa6b6;
   --line: #232c40;
+  --zebra: rgba(174, 196, 224, 0.032);
 
   --badge-bg: #262c36;
 
@@ -67,6 +71,7 @@
   --ink: #172033;
   --muted: #5d6b80;
   --line: #d7e0ea;
+  --zebra: rgba(23, 32, 51, 0.022);
 
   --badge-bg: #edf1f6;
 
@@ -98,36 +103,46 @@
   /* Same rationale as the light theme: the shared --accent default fails on this panel. */
   --accent: #077a70;
 
-  --bg: #eee5d3;
-  --panel: #fffaf0;
-  --panel-subtle: #f8f0e1;
+  /* Paper is the one theme with its own display face. System stack only: a bundled webfont
+     would ship OFL-1.1 material inside an Apache-2.0 package, and the dashboard's CSP has no
+     font-src, so a CDN face is blocked regardless. */
+  --font-display: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
 
-  --ink: #30291f;
-  --muted: #6e6456;
-  --line: #d7c9b3;
+  /* Chrome is the deeper tone and the working sheet is the lighter one, the inverse of the
+     other themes. A near-white panel on a beige ground is what made this read as the light
+     theme with a tint. */
+  --bg: #f4ecd9;
+  --panel: #ebe0c8;
+  --panel-subtle: #e1d4b6;
+  --zebra: rgba(122, 98, 62, 0.045);
 
-  --badge-bg: #eee5d6;
+  --ink: #2b2419;
+  --muted: #665c4a;
+  --line: #d3c5a9;
 
-  --ok: #476f50;
-  --warn: #875b16;
-  --bad: #a7413b;
-  --held: #705b82;
+  --badge-bg: #e4d9c2;
+
+  --ok: #3f6147;
+  --warn: #7d5310;
+  --bad: #a03a2f;
+  --held: #655279;
 
   --on-ok: #ffffff;
   --on-warn: #ffffff;
   --on-bad: #ffffff;
   --on-held: #ffffff;
 
-  --badge-ok-bg: #e5eee1;
-  --badge-warn-bg: #f4e8cf;
-  --badge-bad-bg: #f5dfda;
-  --badge-held-bg: #ece5f1;
+  --badge-ok-bg: #dfe7d7;
+  --badge-warn-bg: #efe0c1;
+  --badge-bad-bg: #f0d7cf;
+  --badge-held-bg: #e4dde9;
 
-  --overlay: rgba(48, 41, 31, 0.38);
-  --shadow: rgba(83, 65, 43, 0.14);
+  --overlay: rgba(43, 36, 25, 0.34);
+  --shadow: rgba(74, 58, 38, 0.16);
 
-  --radius-panel: 3px;
-  --radius-control: 4px;
+  /* Print has no rounded corners. */
+  --radius-panel: 0px;
+  --radius-control: 2px;
 }
 
 :root,
@@ -142,7 +157,6 @@
   --text-title: 26px;
   --text-brand: 34px;
   --text-brand-sub: 15px;
-  --text-detail-heading: 19px;
   --text-supporting: 15px;
   --text-verdict: 20px;
   --text-metric-value: 30px;
@@ -164,7 +178,6 @@
   --text-title: 23px;
   --text-brand: 31px;
   --text-brand-sub: 13px;
-  --text-detail-heading: 17px;
   --text-supporting: 13px;
   --text-verdict: 18px;
   --text-metric-value: 27px;
@@ -186,7 +199,6 @@
   --text-title: 29px;
   --text-brand: 37px;
   --text-brand-sub: 17px;
-  --text-detail-heading: 21px;
   --text-supporting: 16px;
   --text-verdict: 23px;
   --text-metric-value: 33px;
@@ -209,6 +221,12 @@ textarea {
 /* Accessibility floor: a visible keyboard focus ring on every interactive element, and motion kept
    calm when the OS asks for it. */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The sidebar's controls are full-bleed so their text can sit on the column's single left margin.
+   An outset ring on those draws at and past the sidebar's own edges, so it reads as a box around
+   the whole column and gets clipped. Inset the ring instead. */
+nav.side a:focus-visible,
+.side-scope .scope select:focus-visible,
+.side-theme .trigger:focus-visible { outline-offset: -2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -291,26 +309,6 @@ body {
   content: none;
 }
 
-:root[data-theme='paper'] body {
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)),
-    var(--bg);
-}
-:root[data-theme='paper'] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0,
-      transparent 31px,
-      rgba(112, 92, 66, 0.035) 32px
-    );
-}
-
 :root[data-theme='light'] .panel,
 :root[data-theme='light'] .detail-panel,
 :root[data-theme='light'] .metric {
@@ -319,51 +317,88 @@ body {
     0 5px 18px rgba(23, 32, 51, 0.04);
 }
 
+/* Paper draws no boxes. Panels are sheets on the same paper: structure comes from the section
+   title, the table's header rule and whitespace. Shadows survive only on things that genuinely
+   float (.confirm-box, .popover, .zone-list), which set their own. */
 :root[data-theme='paper'] .panel,
 :root[data-theme='paper'] .detail-panel,
 :root[data-theme='paper'] .metric {
-  border-radius: var(--radius-panel);
-  box-shadow: 0 1px 2px rgba(83, 65, 43, 0.06);
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding-inline: 0;
+}
+/* Without tile borders the metric row would float, so it becomes a ruled ledger row instead:
+   one block bounded top and bottom, whatever it wraps to. */
+:root[data-theme='paper'] .metrics {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0 13px;
+  gap: 14px 22px;
 }
 
-:root[data-theme='paper'] .panel h2 {
-  text-transform: none;
-  letter-spacing: 0;
+/* Accent is reserved for live state (.badge.run), the focus ring and the brand dot, so paper
+   holds together under any of the eight accents rather than depending on one. */
+:root[data-theme='paper'] a,
+:root[data-theme='paper'] button.copy:hover,
+:root[data-theme='paper'] .page-breadcrumb a:hover { color: var(--ink); }
+:root[data-theme='paper'] a:hover { text-decoration-color: var(--line); text-underline-offset: 3px; }
+:root[data-theme='paper'] button:hover:not(:disabled),
+:root[data-theme='paper'] a.metric:hover,
+:root[data-theme='paper'] a.icon-action:hover { border-color: var(--ink); color: var(--ink); }
+/* Where the accent shows on paper: the active nav item, a hovered or focused row, the running
+   badge, plus the primary actions and focus ring the base rules already colour. Paper mixes the
+   hue into its own surfaces rather than taking the accent's own pale steps, because those come
+   from cool Radix ramps and turn to grey smudges on a warm ground. The percentages carry real
+   presence now that the paper accent family is itself warm; when the family was cool these had
+   to be so faint that every accent looked the same. */
+:root[data-theme='paper'] nav.side a.active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+  color: color-mix(in srgb, var(--accent) 72%, var(--ink));
 }
+:root[data-theme='paper'] table.data tbody tr:hover td { background: color-mix(in srgb, var(--accent) 20%, var(--panel)); }
+:root[data-theme='paper'] tr.rowlink:focus-within td { background: color-mix(in srgb, var(--accent) 32%, var(--panel)); }
+:root[data-theme='paper'] .badge.run { background: color-mix(in srgb, var(--accent) 20%, var(--panel)); }
+/* Paper commits to sharp corners, so the pill radii on badges (9px) and chips (999px) were the
+   only rounded shapes on the page. Acta and light keep their pills. */
+:root[data-theme='paper'] .badge,
+:root[data-theme='paper'] .chip { border-radius: var(--radius-control); }
+:root[data-theme='paper'] .detail-field input:hover,
+:root[data-theme='paper'] .detail-field select:hover,
+:root[data-theme='paper'] .detail-field textarea:hover,
+:root[data-theme='paper'] .detail-field input:focus,
+:root[data-theme='paper'] .detail-field select:focus,
+:root[data-theme='paper'] .detail-field textarea:focus,
+:root[data-theme='paper'] .detail-field input[type='checkbox']:hover { border-color: var(--ink); }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .app { display: flex; flex-direction: column; height: 100dvh; min-height: 100dvh; overflow: hidden; }
 
-/* ---- top header: brand block (over the sidebar) + top panel (over the content) ---- */
-.appbar {
-  display: grid;
-  grid-template-columns: var(--side-w) minmax(0, 1fr);
-  border-bottom: 1px solid var(--line);
+/* ---- brand, now at the top of the sidebar ----
+   There is no top bar. The only thing it carried was the namespace scope, which belongs with the
+   navigation, and a full-width strip cost a row of height on every page to show one control. */
+.brand-q {
+  display: flex; flex-direction: column; gap: 2px;
+  /* nav.side already contributes 16px above this, so the top pad here is small: together they put
+     the wordmark's first glyph on the same line as the page title's, instead of 7px below it. */
+  padding: 10px 20px 14px;
 }
-.appbar .brand-q {
-  display: flex; flex-direction: column; justify-content: center; gap: 2px;
-  padding: 12px 20px;
-  background: var(--panel);
-  border-right: 1px solid var(--line);
-}
-.appbar .brand {
+.brand {
   color: var(--ink);
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-weight: 600;
   font-size: var(--text-brand);
   line-height: 1;
   letter-spacing: -0.035em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-.appbar .brand .brand-dot { color: var(--accent); }
-.appbar .brand-sub { font-style: italic; font-size: var(--text-brand-sub); color: var(--muted); }
-.appbar .topbar {
-  display: flex; align-items: center; gap: 18px;
-  padding: 10px 24px;
-  background: var(--panel);
-}
+.brand .brand-dot { color: var(--accent); }
+.brand-sub { font-family: var(--font-display); font-style: italic; font-size: var(--text-brand-sub); color: var(--muted); }
+/* The scope reads as the first item in the column, on the same left margin as everything else. */
+.side-scope { padding: 0 0 10px; border-bottom: 1px solid var(--line); }
 
 .shell { display: flex; flex: 1; min-height: 0; }
 
@@ -383,11 +418,22 @@ nav.side {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  /* Flex column so the first group can absorb the slack: Operate stays at the top and the
+     remaining groups settle at the bottom, next to the appearance trigger. */
+  display: flex;
+  flex-direction: column;
 }
+.side-scroll .nav-group:first-child { flex: 1; }
 
 /* Theme selector pinned to the bottom of the sidebar. */
-.side-theme { margin-top: auto; padding: 12px 20px; border-top: 1px solid var(--line); }
-.side-theme .trigger { width: 100%; justify-content: flex-start; }
+/* Quietest control in the sidebar: no border, no fill, no current-value text. */
+.side-theme { margin-top: auto; padding: 6px 0 10px; border-top: 1px solid var(--line); }
+.side-theme .trigger {
+  width: 100%; justify-content: flex-start;
+  background: none; border: 0; padding: 8px 20px;
+  color: var(--muted); font-size: var(--text-sm);
+}
+.side-theme .trigger:hover:not(:disabled) { color: var(--ink); background: var(--panel-subtle); }
 
 nav.side a {
   display: block;
@@ -407,10 +453,8 @@ nav.side a.active {
   margin: 0;
   padding: 6px 20px 3px;
   color: var(--muted);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--text-xs);
+  font-weight: 400;
 }
 
 .nav-divider { height: 1px; margin: 8px 20px; background: var(--line); }
@@ -419,8 +463,11 @@ main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-ty
 .mobile-nav-toggle,
 .nav-scrim { display: none; }
 
-.page-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.page-head h1 { font-size: var(--text-title); margin: 0; }
+/* min-height reserves the row so pages with an action in the head (Jobs) line up exactly with
+   pages without one (Alerts, Workers, Events) instead of sitting a pixel lower. Derived from
+   --text-title so it holds at every text size. */
+.page-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; min-height: calc(var(--text-title) + 10px); }
+.page-head h1 { font-size: var(--text-title); margin: 0; font-family: var(--font-display); font-weight: 600; }
 .page-head .spacer { flex: 1; }
 
 /* Breadcrumb: parent link (with a back-chevron) + current entity, sitting top-left above the h1 -
@@ -437,7 +484,10 @@ main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-ty
   margin-bottom: 16px;
 }
 
-.panel h2 { font-size: var(--text-section); margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+/* Section titles take the display face in sentence case. Uppercase plus wide tracking was doing
+   the same job as the column headers below it, so the two levels read as one voice; the typeface
+   separates them instead. */
+.panel h2 { font-size: var(--text-section); margin: 0 0 10px; color: var(--ink); font-family: var(--font-display); font-weight: 600; }
 
 /* Entity details: identity remains fixed above a 2:1 edit/action workspace. The rail copy always
    wraps; a container query stacks it when the content area itself (not the whole window) is narrow. */
@@ -476,16 +526,18 @@ main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-ty
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
 }
-.detail-panel h2 { margin: 0 0 6px; font-size: var(--text-detail-heading); }
+/* Same voice as .panel h2, one size up: both are section titles, and they sit side by side on
+   the job detail page, so they cannot come from different families. */
+.detail-panel h2 { margin: 0 0 6px; font-size: var(--text-section); font-family: var(--font-display); font-weight: 600; }
 .detail-panel p { overflow-wrap: anywhere; }
 .detail-help { margin: 0 0 18px; color: var(--muted); font-size: var(--text-supporting); line-height: 1.45; }
 .detail-kicker {
   margin: 18px 0 5px;
   color: var(--muted);
   font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
 }
 .detail-field { display: grid; gap: 7px; margin-top: 18px; color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
 .detail-field input:not([type='checkbox']),
@@ -567,7 +619,7 @@ main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-ty
 .detail-readonly { display: grid; gap: 0; margin: 16px 0 20px; }
 .detail-readonly > div { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .detail-readonly > div:last-child { border-bottom: 0; }
-.detail-readonly dt { margin-bottom: 4px; color: var(--muted); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.detail-readonly dt { margin-bottom: 4px; color: var(--muted); font-size: var(--text-xs); font-family: var(--mono); font-weight: 500; letter-spacing: 0.02em; }
 .detail-readonly dd { margin: 0; overflow-wrap: anywhere; }
 .detail-readonly-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
 .go-to .detail-kicker { margin-top: 0; }
@@ -630,11 +682,11 @@ table.data td.cell-repeat, table.data td.cell-repeat a { color: var(--muted); }
 }
 table.data th {
   text-align: left;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
   /* box-shadow instead of border-bottom: collapsed borders do not stick with the sticky header */
   box-shadow: 0 1px 0 var(--line);
   padding: 6px 10px;
@@ -643,7 +695,11 @@ table.data th {
 /* Single-line, vertically centred, fixed-height rows so every table reads at the same rhythm across
    panels. Tables sit in .table-wrap (overflow:auto), so wide content scrolls horizontally rather than
    wrapping a row taller. */
-table.data td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; height: var(--grid-row-height); min-height: var(--grid-row-height); white-space: nowrap; }
+table.data td { padding: 7px 10px; vertical-align: middle; height: var(--grid-row-height); min-height: var(--grid-row-height); white-space: nowrap; }
+/* Zebra rather than a hairline under every row: a rule per row plus the header rule plus the
+   panel edges stacked up into far too many lines. The banding is deliberately near-invisible;
+   hover and focus below are what actually mark a row. */
+table.data tbody tr:nth-child(odd) td { background: var(--zebra); }
 :root[data-text-size='small'] table.data td { padding-top: 5px; padding-bottom: 5px; }
 :root[data-text-size='large'] table.data td { padding-top: 10px; padding-bottom: 10px; }
 /* In-row action controls (schedule pause/resume) must not grow the row: drop the stacking margin and
@@ -651,6 +707,8 @@ table.data td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertica
 table.data td .control-row { margin: 0; }
 table.data td button { padding: 2px 10px; font-size: var(--text-sm); }
 table.data tr:last-child td { border-bottom: none; }
+/* Opt a cell out of the single-line row rhythm, for prose columns like a change reason. */
+table.data td.wrap { white-space: normal; }
 
 /* ---- Radix icons (inlined via Icon.svelte; currentColor) ---- */
 /* top:1px (integer, pixel-snapped) nudges the glyph onto the text's optical centre without the
@@ -766,13 +824,30 @@ main.fill-page { display: flex; flex-direction: column; }
 .panel.fill { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }
 .panel.fill .table-wrap { flex: 1; min-height: 0; max-height: none; }
 
-.state { color: var(--muted); padding: 18px 4px; }
-.state.error { color: var(--bad); display: flex; gap: 12px; align-items: center; }
+/* Anchored by the same hairline the tables use for their header, so an empty or failed panel
+   still reads as a section rather than as text floating in space once the card fill is gone. */
+.state { color: var(--muted); padding: 16px 4px 20px; border-top: 1px solid var(--line); }
+.state.error { color: var(--bad); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .filter-error { color: var(--bad); }
 
 .kv { display: grid; grid-template-columns: 180px 1fr; row-gap: 6px; }
-.kv dt { color: var(--muted); }
+.kv dt { color: var(--muted); font-size: var(--text-xs); font-family: var(--mono); font-weight: 500; letter-spacing: 0.02em; }
 .kv dd { margin: 0; word-break: break-all; }
+
+/* Shared four-column grid for the Overview panels: identity | status-or-detail | namespace |
+   time. Every panel's columns then form continuous verticals down the page rather than each
+   table sizing itself, which is what makes the page read as one ledger instead of four widgets.
+   Container-scoped, not viewport-scoped, because the sidebar eats width the window cannot see;
+   below the threshold each table sizes itself again rather than ellipsising a 32-char job id. */
+@container (min-width: 900px) {
+  table.data.ledger { table-layout: fixed; }
+  table.data.ledger th,
+  table.data.ledger td { overflow: hidden; text-overflow: ellipsis; }
+  table.data.ledger th:nth-child(1) { width: 32%; }
+  table.data.ledger th:nth-child(2) { width: 20%; }
+  table.data.ledger th:nth-child(3) { width: 32%; }
+  table.data.ledger th:nth-child(4) { width: 16%; }
+}
 
 .mono { font-family: var(--mono); font-size: 0.94em; }
 .mono .mono { font-size: 1em; }
@@ -857,9 +932,19 @@ table.data th { position: sticky; top: 0; background: var(--panel); z-index: 1; 
   padding: 12px 14px; color: var(--ink);
 }
 a.metric:hover { border-color: var(--accent); text-decoration: none; }
-.metric-value { font-size: var(--text-metric-value); font-weight: 600; font-variant-numeric: tabular-nums; }
-.metric-note { font-size: var(--text-supporting); font-weight: 400; color: var(--muted); margin-left: 6px; }
-.metric-label { color: var(--muted); font-size: var(--text-supporting); }
+/* Flex so the note is a wrappable item. As plain inline content there was no whitespace between
+   the value and the note, so the line had no break opportunity and the note overflowed the card's
+   border once the tile got narrow. overflow-wrap contains a pathologically long value too. */
+/* Flex so the note is a wrappable item. As plain inline content there was no whitespace between
+   the value and the note, so the line had no break opportunity and the note escaped the card's
+   border - by up to 20px at large text. overflow-wrap contains an over-long value too. */
+.metric-value {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px;
+  min-width: 0; overflow-wrap: anywhere;
+  font-size: var(--text-metric-value); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.metric-note { font-size: var(--text-supporting); font-weight: 400; color: var(--muted); }
+.metric-label { color: var(--muted); font-size: var(--text-xs); font-family: var(--mono); font-weight: 500; letter-spacing: 0.02em; }
 .metric.ok .metric-value { color: var(--ok); }
 .metric.warn .metric-value { color: var(--warn); }
 .metric.bad .metric-value { color: var(--bad); }
@@ -893,25 +978,30 @@ tr.due td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
 tr.overdue td:first-child { box-shadow: inset 3px 0 0 var(--bad); }
 tr.held td:first-child { box-shadow: inset 3px 0 0 var(--held); }
 
-.appbar .topbar .scope { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
-.appbar .topbar .scope select {
-  padding: 6px 28px 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+.side-scope .scope { display: block; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
+/* No border or fill: a bordered control insets its own text and would be the one thing in the
+   sidebar not sitting on the shared 20px left margin. */
+.side-scope .scope select {
+  padding: 8px 40px 8px 20px;
+  border: 0;
+  border-radius: 0;
   color: var(--ink);
   font: inherit;
+  font-family: var(--mono);
   appearance: none;
-  min-width: 220px;   /* room for long namespaces so the value never clips */
-  background-color: var(--panel);
+  width: 100%;
+  cursor: pointer;
+  background-color: transparent;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--muted) 50%),
     linear-gradient(135deg, var(--muted) 50%, transparent 50%);
   background-position:
-    calc(100% - 14px) calc(50% - 2px),
-    calc(100% - 9px) calc(50% - 2px);
+    calc(100% - 25px) calc(50% - 1px),
+    calc(100% - 20px) calc(50% - 1px);
   background-repeat: no-repeat;
   background-size: 5px 5px;
 }
+.side-scope .scope select:hover { background-color: var(--panel-subtle); }
 
 .lineage-trail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-bottom: 16px; font-size: var(--text-md); }
 .lineage-trail .sep { color: var(--muted); }
@@ -949,19 +1039,18 @@ details.raw pre { margin: 10px 0 0; overflow: auto; }
 
 @media (max-width: 800px) {
   body { font-size: var(--text-mobile-base); }
-  .appbar { grid-template-columns: minmax(0, 1fr) auto; }
-  .appbar .brand-q { padding: 8px 14px; border-right: 0; }
-  .appbar .brand { font-size: var(--text-mobile-brand); }
-  .appbar .brand-sub { display: none; }
-  .appbar .topbar { padding: 8px 10px; gap: 8px; }
-  .mobile-nav-toggle { display: inline-flex; min-width: 36px; justify-content: center; font-size: 20px; }
-  .appbar .topbar .scope { font-size: 0; }
-  .appbar .topbar .scope select { min-width: 0; max-width: 48vw; font-size: var(--text-sm); }
+  .brand { font-size: var(--text-mobile-brand); }
+  /* With no top bar the toggle floats over the content; the drawer and its scrim now run the
+     full height rather than starting below a 55px strip. */
+  .mobile-nav-toggle {
+    display: inline-flex; position: fixed; z-index: 26; top: 8px; left: 8px;
+    min-width: 36px; justify-content: center; font-size: 20px;
+  }
 
   nav.side {
     position: fixed;
     z-index: 25;
-    inset: 55px auto 0 0;
+    inset: 0 auto 0 0;
     width: min(84vw, var(--side-w));
     transform: translateX(-105%);
     transition: transform 160ms ease;
@@ -972,13 +1061,13 @@ details.raw pre { margin: 10px 0 0; overflow: auto; }
     display: block;
     position: fixed;
     z-index: 24;
-    inset: 55px 0 0;
+    inset: 0;
     width: 100%;
     border: 0;
     border-radius: 0;
     background: var(--overlay);
   }
-  main { padding: 14px; overflow-x: hidden; }
+  main { padding: 52px 14px 14px; overflow-x: hidden; }
   .page-head { align-items: flex-start; flex-wrap: wrap; }
   .page-head h1 { font-size: var(--text-mobile-title); }
   .entity-summary { padding: 13px 14px; align-items: flex-start; }
@@ -1023,9 +1112,8 @@ details.raw pre { margin: 10px 0 0; overflow: auto; }
     content: attr(data-label);
     color: var(--muted);
     font-size: var(--text-micro);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-family: var(--mono);
+    letter-spacing: 0.02em;
   }
   table.data.mobile-cards td:first-child { grid-column: 1 / -1; }
   table.data.mobile-cards td.mobile-hide { display: none; }

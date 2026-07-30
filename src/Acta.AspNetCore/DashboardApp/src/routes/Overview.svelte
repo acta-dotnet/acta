@@ -161,14 +161,15 @@
       {#if failedJobs.items.length === 0}
         <StateView emptyText="No failed jobs." />
       {:else}
-        <DataTable>
+        <DataTable ledger>
           <caption class="sr-only">Recent failed jobs</caption>
-          <thead><tr><th>Job</th><th>Namespace / name</th><th>Failed</th></tr></thead>
+          <thead><tr><th>Job</th><th>Name</th><th>Namespace</th><th>Failed</th></tr></thead>
           <tbody>
             {#each failedJobs.items as job}
-              <tr>
+              <tr class="trouble">
                 <td><JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: job.jobNamespace })} /></td>
-                <td>{job.jobNamespace} / {job.jobName}</td>
+                <td>{job.jobName}</td>
+                <td class="dim">{job.jobNamespace}</td>
                 <td><RelativeTime value={job.modifiedAtUtc} /></td>
               </tr>
             {/each}
@@ -182,15 +183,20 @@
       {#if criticalAlerts.items.length === 0}
         <StateView emptyText="No unresolved critical alerts." />
       {:else}
-        <DataTable>
+        <DataTable ledger>
           <caption class="sr-only">Unresolved critical alerts</caption>
-          <thead><tr><th>Severity</th><th>Title</th><th>Job</th><th>Created</th></tr></thead>
+          <thead><tr><th>Alert</th><th>Severity</th><th>Namespace</th><th>Created</th></tr></thead>
           <tbody>
             {#each criticalAlerts.items as alert}
-              <tr>
+              <tr class="trouble">
+                <!-- The job ref rides with the title rather than taking its own column, so this
+                     panel keeps the same four columns as the others without losing the link. -->
+                <td>
+                  {alert.title}
+                  {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace ?? $scope })} />{/if}
+                </td>
                 <td><SeverityBadge severity={alert.severity} /></td>
-                <td>{alert.title}</td>
-                <td>{#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace ?? $scope })} />{:else}<span class="dim">-</span>{/if}</td>
+                <td class="dim">{alert.jobNamespace ?? $scope}</td>
                 <td><RelativeTime value={alert.createdAtUtc} /></td>
               </tr>
             {/each}
@@ -204,7 +210,7 @@
       {#if workers.items.length === 0}
         <StateView emptyText="No workers seen." />
       {:else}
-        <DataTable>
+        <DataTable ledger>
           <caption class="sr-only">Workers</caption>
           <thead><tr><th>Worker</th><th>Status</th><th>Namespace</th><th>Last heartbeat</th></tr></thead>
           <tbody>
@@ -226,15 +232,20 @@
       {#if schedules.items.length === 0}
         <StateView emptyText="No live schedules." />
       {:else}
-        <DataTable>
+        <DataTable ledger>
           <caption class="sr-only">Next schedules</caption>
-          <thead><tr><th>Job</th><th>Schedule</th><th>Expression</th><th>Next run</th></tr></thead>
+          <thead><tr><th>Schedule</th><th>Expression</th><th>Namespace</th><th>Next run</th></tr></thead>
           <tbody>
             {#each schedules.items as schedule}
               <tr>
-                <td><a href={routes.jobs({ namespace: schedule.jobNamespace, jobName: schedule.jobName })}>{schedule.jobNamespace} / {schedule.jobName}</a></td>
-                <td><a href={routes.schedule(schedule.jobNamespace, schedule.jobName, schedule.scheduleName)}>{schedule.scheduleName}</a></td>
+                <!-- Schedule name is the identity; the job it fires rides with it so the panel
+                     keeps the shared four columns. -->
+                <td>
+                  <a href={routes.schedule(schedule.jobNamespace, schedule.jobName, schedule.scheduleName)}>{schedule.scheduleName}</a>
+                  <a class="dim" href={routes.jobs({ namespace: schedule.jobNamespace, jobName: schedule.jobName })}>{schedule.jobName}</a>
+                </td>
                 <td class="mono">{schedule.expression}</td>
+                <td class="dim">{schedule.jobNamespace}</td>
                 <td><RelativeTime value={schedule.nextRunAtUtc} /></td>
               </tr>
             {/each}

@@ -162,7 +162,7 @@
     border: 1px solid var(--line);
     border-radius: var(--radius-control);
     background: var(--panel);
-    box-shadow: 0 8px 20px rgb(0 0 0 / 0.18);
+    box-shadow: 0 8px 20px var(--shadow);
   }
   .zone-option {
     padding: 5px 8px;

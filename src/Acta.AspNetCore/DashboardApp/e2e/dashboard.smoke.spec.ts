@@ -217,7 +217,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     bodyBackground: expect.stringContaining('radial-gradient'),
   });
 
-  const trigger = page.getByRole('button', { name: /Appearance Acta/ });
+  const trigger = page.getByRole('button', { name: /^Appearance$/ });
   await trigger.click();
   const actaRadio = page.getByRole('radio', { name: /^Acta/ });
   await expect(actaRadio).toBeFocused();
@@ -299,12 +299,16 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
   });
   expect(paper).toEqual({
     colorScheme: 'light',
-    background: '#eee5d3',
-    panel: '#fffaf0',
-    radius: '3px',
+    // Chrome is the deeper tone and the sheet is the lighter one, the inverse of the other
+    // themes; nothing near-white appears anywhere.
+    background: '#f4ecd9',
+    panel: '#ebe0c8',
+    radius: '0px',
     rowHeight: '34px',
-    headingFont: expect.stringContaining('Segoe UI'),
-    ruledBackground: expect.stringContaining('repeating-linear-gradient'),
+    // Paper is the only theme with its own display face (a system serif stack, no bundled font).
+    headingFont: expect.stringContaining('serif'),
+    // The ruled-paper overlay is gone: it was invisible in practice and it fought the row rules.
+    ruledBackground: 'none',
   });
 
   await page.getByRole('button', { name: 'Restore defaults' }).click();
@@ -313,7 +317,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
   await expect(page.getByRole('radio', { name: 'Default', exact: true })).toBeChecked();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: /Appearance Acta/ })).toBeFocused();
+  await expect(page.getByRole('button', { name: /^Appearance$/ })).toBeFocused();
 });
 
 test('appearance dialog stays usable at 320px by 500px with Large text', async ({ page }) => {
