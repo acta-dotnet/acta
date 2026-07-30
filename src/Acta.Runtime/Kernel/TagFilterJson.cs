@@ -1,9 +1,8 @@
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
-using Acta.Modules.Execution.Jobs;
 
-namespace Acta.Modules.Operations.Tags;
+namespace Acta.Kernel;
 
 internal static class TagFilterJson
 {

@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using Acta.Kernel;
 using Acta.Modules.Execution;
 using Acta.Modules.Execution.Workers;
 using Xunit;

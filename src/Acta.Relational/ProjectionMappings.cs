@@ -28,7 +28,7 @@
     typeof(global::Acta.Modules.Execution.Jobs.JobInputRow),
     typeof(global::Acta.Modules.Execution.Jobs.ExplainHeaderRow),
     typeof(global::Acta.Modules.Execution.Jobs.ExplainStepRow),
-    typeof(global::Acta.Modules.Execution.Jobs.JobControlOutcome),
+    typeof(global::Acta.Modules.Execution.Api.JobControlOutcome),
     typeof(global::Acta.Modules.Execution.Jobs.JobListProjectionRow),
     typeof(global::Acta.Modules.Execution.Jobs.JobResultRow),
     typeof(global::Acta.Modules.Execution.Jobs.JobSnapshotRow),

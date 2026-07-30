@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Acta.Configuration;
+using Acta.Kernel;
 using Acta.Modules.Execution;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;

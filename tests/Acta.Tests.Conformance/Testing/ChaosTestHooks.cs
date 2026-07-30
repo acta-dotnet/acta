@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Acta.Configuration;
+using Acta.Kernel;
 using Acta.Modules.Execution;
 using Acta.Modules.Execution.Checkpoints;
 using Acta.Modules.Execution.Workers;

@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.Common;
 using System.Text;
 using Acta.Configuration;
+using Acta.Kernel;
 using Acta.Modules.Execution;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;

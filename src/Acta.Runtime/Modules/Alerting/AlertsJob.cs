@@ -1,6 +1,6 @@
 using Acta.Configuration;
 using Acta.Kernel;
-using Acta.Modules.Execution;
+using Acta.Modules.Alerting.Api;
 using Acta.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

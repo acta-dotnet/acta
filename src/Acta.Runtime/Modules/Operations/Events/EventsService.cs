@@ -1,4 +1,5 @@
 using System.Globalization;
+using Acta.Kernel;
 using Acta.Modules.Operations.Tags;
 using Acta.Querying;
 
@@ -9,7 +10,7 @@ namespace Acta.Modules.Operations.Events;
 /// math, and delegates the single-round-trip read to the store port. The IncludeTotal guard is the
 /// product rule that a global event count is unbounded work.
 /// </summary>
-internal sealed class EventsService(IEventStore store)
+internal sealed class EventsService(IEventStore store) : Api.IJobEventFeed
 {
     private const string OrderCreatedDesc = "created_at_utc desc, id desc";
     private const string OperationName = "ListJobEvents";

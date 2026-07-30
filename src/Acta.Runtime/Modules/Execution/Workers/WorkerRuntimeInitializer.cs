@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Acta.Configuration;
-using Acta.Modules.Alerting;
+using Acta.Modules.Alerting.Api;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Schedules;
 using Acta.Modules.Execution.Workers;

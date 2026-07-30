@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Jobs;
+namespace Acta.Modules.Execution.Api;
 
 /// <summary>
 /// Execution's owned batch-submission seam: the owned batch enqueue path (with worker wake). Edge

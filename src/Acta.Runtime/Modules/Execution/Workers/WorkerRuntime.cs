@@ -1,5 +1,6 @@
 using Acta.Configuration;
-using Acta.Modules.Alerting;
+using Acta.Kernel;
+using Acta.Modules.Alerting.Api;
 using Acta.Modules.Execution;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;
@@ -83,7 +84,7 @@ internal sealed class WorkerRuntime
             metrics?.AddExecutingSource(registration.NamespaceName, () => _context.RunningAttempts.Count);
         }
 
-        var channelRegistry = alertChannels ?? new AlertChannelRegistry(workerRegistration is null ? [] : [workerRegistration]);
+        var channelRegistry = alertChannels ?? IAlertChannelRegistry.ForWorkers(workerRegistration is null ? [] : [workerRegistration]);
         _initializer = new WorkerRuntimeInitializer(
             rootServices.GetRequiredService<DefinitionsService>(),
             rootServices.GetRequiredService<IDefinitionStore>(),

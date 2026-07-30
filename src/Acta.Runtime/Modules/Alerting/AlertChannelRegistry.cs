@@ -1,15 +1,6 @@
-using Acta.Modules.Execution.Workers;
+using Acta.Modules.Alerting.Api;
 
 namespace Acta.Modules.Alerting;
-
-internal interface IAlertChannelRegistry
-{
-    AlertChannelDeclaration? Resolve(string namespaceName, string channelName);
-
-    bool IsConfigured(string namespaceName, string channelName);
-
-    IReadOnlyCollection<string> NamesForNamespace(string namespaceName);
-}
 
 internal sealed class AlertChannelRegistry : IAlertChannelRegistry
 {
