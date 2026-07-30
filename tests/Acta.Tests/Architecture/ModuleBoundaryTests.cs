@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
+using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Architecture;
@@ -57,6 +59,47 @@ public sealed class ModuleBoundaryTests
         }
 
         Assert.True(violations.Count == 0, "Cross-module store injection:\n" + string.Join("\n", violations));
+    }
+
+    /// <summary>
+    /// The constructor gate's service-locator escape hatch, closed: module source may not resolve
+    /// another module's store port via GetService/GetRequiredService either.
+    /// </summary>
+    [Fact]
+    public void Modules_do_not_service_locate_other_modules_store_ports()
+    {
+        var runtime = typeof(ActaServiceCollectionExtensions).Assembly;
+        var storeModules = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var type in runtime.GetTypes())
+        {
+            if (
+                type.IsInterface
+                && type.Name.StartsWith("I", StringComparison.Ordinal)
+                && type.Name.EndsWith("Store", StringComparison.Ordinal)
+                && ModuleOf(type.Namespace) is { } module
+            )
+            {
+                storeModules[type.Name] = module;
+            }
+        }
+
+        var modulesRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Runtime", "Modules");
+        var locate = new Regex(@"Get(?:Required)?Service<(?<store>I\w+Store)>", RegexOptions.Compiled);
+        var violations = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(modulesRoot, "*.cs", SearchOption.AllDirectories))
+        {
+            var consumerModule = Path.GetRelativePath(modulesRoot, file).Split(Path.DirectorySeparatorChar)[0];
+            foreach (Match match in locate.Matches(File.ReadAllText(file)))
+            {
+                var store = match.Groups["store"].Value;
+                if (storeModules.TryGetValue(store, out var owner) && owner != consumerModule)
+                {
+                    violations.Add($"{Path.GetFileName(file)}: {consumerModule} service-locates {owner}-owned {store}");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0, "Cross-module store resolution:\n" + string.Join("\n", violations));
     }
 
     private static string? ModuleOf(string? ns)

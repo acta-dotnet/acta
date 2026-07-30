@@ -45,7 +45,6 @@ public sealed class RuntimeJobContextCancellationTests
             new ThrowingSerializerRegistry(),
             new ThrowingLockStore(),
             new ThrowingClock(),
-            alertDedupeWindow: TimeSpan.FromMinutes(5),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

@@ -181,12 +181,11 @@ internal sealed class JobExecutor
                 _options.Value.LeaseTtlSeconds,
                 _rootServices.GetRequiredService<IJobStore>(),
                 _rootServices.GetRequiredService<Acta.Modules.Execution.Signals.ISignalStore>(),
-                _rootServices.GetRequiredService<Acta.Modules.Alerting.IAlertSink>(),
+                _rootServices.GetRequiredService<IAlertSink>(),
                 _rootServices.GetRequiredService<Acta.Modules.Execution.IExecutionStore>(),
                 _serializers,
                 _lockStore,
                 _clock,
-                _options.Value.AlertDedupeWindow,
                 attemptCts.Token,
                 fireOutcome?.TriggeringScheduleNames ?? [],
                 descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0

@@ -2,7 +2,6 @@
 
 using System.Diagnostics;
 using Acta.Kernel;
-using Acta.Modules.Alerting;
 using Acta.Modules.Execution;
 using Acta.Modules.Execution.Checkpoints;
 using Acta.Modules.Execution.ChildLatches;
@@ -28,14 +27,13 @@ internal sealed class RuntimeJobContext : JobContext
 
     private readonly IJobStore _jobStore;
     private readonly Acta.Modules.Execution.Signals.ISignalStore _signalStore;
-    private readonly Acta.Modules.Alerting.IAlertSink _alerts;
+    private readonly IAlertSink _alerts;
     private readonly Acta.Modules.Execution.IExecutionStore _executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers;
     private readonly ILockStore _lockStore;
     private readonly IActaClock _clock;
     private readonly short _namespaceId;
     private readonly int _leaseTtlSeconds;
-    private readonly TimeSpan _alertDedupeWindow;
     private readonly int _maxInlinePayloadBytes;
     private readonly RunningAttempt? _runningAttempt;
     private readonly StepRetryDefaults _stepRetryDefaults;
@@ -51,12 +49,11 @@ internal sealed class RuntimeJobContext : JobContext
         int leaseTtlSeconds,
         IJobStore jobStore,
         Acta.Modules.Execution.Signals.ISignalStore signalStore,
-        Acta.Modules.Alerting.IAlertSink alerts,
+        IAlertSink alerts,
         Acta.Modules.Execution.IExecutionStore executionStore,
         IJobPayloadSerializerRegistry serializers,
         ILockStore lockStore,
         IActaClock clock,
-        TimeSpan alertDedupeWindow,
         CancellationToken cancellationToken,
         IReadOnlyList<string> triggeringScheduleNames,
         DateTime? deadlineAtUtc,
@@ -80,7 +77,6 @@ internal sealed class RuntimeJobContext : JobContext
         DeadlineAtUtc = deadlineAtUtc;
         _namespaceId = namespaceId;
         _leaseTtlSeconds = leaseTtlSeconds;
-        _alertDedupeWindow = alertDedupeWindow;
         _jobStore = jobStore;
         _signalStore = signalStore;
         _alerts = alerts;
@@ -515,31 +511,9 @@ internal sealed class RuntimeJobContext : JobContext
         CancellationToken ct
     )
     {
-        // A null deduplication key always inserts; a non-null key buckets the caller's UTC now to a multiple of
-        // the configured window so repeats inside the window land on the same dedupe row.
-        DateTime? windowStart = null;
-        if (deduplicationKey is not null)
-        {
-            var now = await _clock.GetUtcNowAsync(ct);
-            windowStart = AlertWindow.FloorStart(now, _alertDedupeWindow);
-        }
-
-        await _alerts.RaiseAsync(
-            Acta.Modules.Alerting.RaiseJobAlertCommand.Create(
-                JobNamespace,
-                JobId,
-                AlertOriginCode.Manual,
-                severityCode,
-                AlertKindCode.Manual,
-                title,
-                message,
-                channelName ?? "default",
-                AlertDeliveryStatusCode.Pending,
-                deduplicationKey,
-                windowStart
-            ),
-            ct
-        );
+        // Alert policy (origin/kind, default channel, dedupe-window bucketing) lives behind the
+        // sink on the alerting side; execution only states the intent.
+        await _alerts.RaiseManualAsync(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey, ct);
     }
 
     // Caller-controlled handler writes (variables, progress) HARD-THROW past the inline cap; the write

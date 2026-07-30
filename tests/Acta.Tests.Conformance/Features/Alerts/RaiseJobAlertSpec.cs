@@ -245,7 +245,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: Services.GetRequiredService<ILockStore>(),
             clock: Services.GetRequiredService<IActaClock>(),
-            alertDedupeWindow: TimeSpan.FromHours(1),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null
