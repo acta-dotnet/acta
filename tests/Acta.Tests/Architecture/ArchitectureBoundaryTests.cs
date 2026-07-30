@@ -82,6 +82,22 @@ public sealed class ArchitectureBoundaryTests
     }
 
     /// <summary>
+    /// The operations adapter consumes the public Acta API only: provider and schema capabilities
+    /// arrive through SDK types (SqlProviderOptions), never through relational or runtime internals.
+    /// </summary>
+    [Fact]
+    public void AspNetCore_references_only_the_public_api()
+    {
+        var references = typeof(ActaEndpointRouteBuilderExtensions)
+            .Assembly.GetReferencedAssemblies()
+            .Select(reference => reference.Name)
+            .ToArray();
+        Assert.Contains("Acta", references);
+        Assert.DoesNotContain("Acta.Relational", references);
+        Assert.DoesNotContain("Acta.Runtime", references);
+    }
+
+    /// <summary>
     /// EF Core is gone from the repository. With the former EF-based producer outbox package removed the
     /// producer story is the provider-package staging primitives, so no project anywhere (src, tests, tools)
     /// may reference an EF Core package: this walks every project's direct package references and its full

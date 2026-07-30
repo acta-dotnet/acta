@@ -1,4 +1,4 @@
-namespace Acta.Relational.Connections;
+namespace Acta;
 
 /// <summary>
 /// Connection and schema options shared by every SQL provider package. Each provider exposes a
