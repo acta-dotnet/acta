@@ -1,6 +1,8 @@
 using Acta.Configuration;
 using Acta.Modules.Alerting;
+using Acta.Modules.Alerting.Api;
 using Acta.Modules.Execution;
+using Acta.Modules.Execution.Api;
 using Acta.Modules.Execution.Jobs;
 using Acta.Modules.Execution.Signals;
 using Acta.Payloads;

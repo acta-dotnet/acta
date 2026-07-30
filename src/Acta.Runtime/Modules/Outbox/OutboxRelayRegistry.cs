@@ -1,13 +1,12 @@
 using System.Collections.Concurrent;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Workers;
+using Acta.Modules.Execution.Api;
 using Microsoft.Extensions.Logging;
 
 namespace Acta.Modules.Outbox;
 
 /// <summary>
 /// Resolves the outbox relay composition for a given worker namespace. Built from the declared
-/// <see cref="WorkerRegistration"/>s at startup so each namespace with a relay keeps its own source
+/// <see cref="Acta.WorkerRegistration"/>s at startup so each namespace with a relay keeps its own source
 /// (schema/table/provider factory/quarantine threshold); <c>sys.outbox</c>, executing under a namespace,
 /// resolves ITS registration and a source store + <see cref="OutboxRelayService"/> bound to it. There is
 /// no process-wide winner: two namespaces relay two independent sources, and a namespace without a relay
@@ -53,7 +52,7 @@ internal sealed class OutboxRelayRegistry
 /// <summary>
 /// The single optional relay source declared on a worker via <c>AddOutboxRelay</c>. Captured at
 /// configuration time; the source provider is not contacted until <c>sys.outbox</c> runs. Carried on
-/// <see cref="Acta.Modules.Execution.Workers.WorkerRegistration"/> so worker initialization can add the
+/// <see cref="Acta.WorkerRegistration"/> so worker initialization can add the
 /// <c>sys.outbox</c> job set to the namespace, and so <c>sys.outbox</c> resolves the source store bound
 /// to THIS namespace (via <see cref="SourceStoreFactory"/>) rather than a process-wide singleton.
 /// </summary>

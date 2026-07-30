@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Jobs;
+namespace Acta.Kernel;
 
 /// <summary>
 /// Internal projection used for case-insensitive tag value lookup. The original tag value remains

@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Acta.Configuration;
+using Acta.Kernel;
 using Acta.Modules.Execution;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

@@ -1,4 +1,6 @@
 using Acta.Modules.Alerting;
+using Acta.Modules.Alerting.Api;
+using Acta.Modules.Execution.Api;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;
 using Acta.Modules.Execution.Workers;

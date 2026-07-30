@@ -102,6 +102,58 @@ public sealed class ModuleBoundaryTests
         Assert.True(violations.Count == 0, "Cross-module store resolution:\n" + string.Join("\n", violations));
     }
 
+    /// <summary>
+    /// The reference graph itself: every cross-module reference in module source must match a
+    /// declared edge, and every module except Operations (the sanctioned cross-module reader) may
+    /// target only the referenced module's <c>Api</c> namespace. No baseline: the graph is clean,
+    /// so a new edge is a design decision that lands here and in design.md together.
+    /// </summary>
+    [Fact]
+    public void Cross_module_references_follow_the_declared_graph()
+    {
+        var apiEdges = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Alerting -> Execution",
+            "Outbox -> Execution",
+            "Execution -> Alerting",
+            "Execution -> Operations",
+        };
+        var readerModules = new HashSet<string>(StringComparer.Ordinal) { "Operations" };
+
+        var modulesRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Runtime", "Modules");
+        var reference = new Regex(@"Acta\.Modules\.(?<module>\w+)(?:\.(?<sub>\w+))?", RegexOptions.Compiled);
+        var violations = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(modulesRoot, "*.cs", SearchOption.AllDirectories))
+        {
+            var consumer = Path.GetRelativePath(modulesRoot, file).Split(Path.DirectorySeparatorChar)[0];
+            foreach (Match match in reference.Matches(File.ReadAllText(file)))
+            {
+                var target = match.Groups["module"].Value;
+                if (target == consumer)
+                {
+                    continue;
+                }
+
+                if (readerModules.Contains(consumer))
+                {
+                    continue;
+                }
+
+                var edge = $"{consumer} -> {target}";
+                if (!apiEdges.Contains(edge))
+                {
+                    violations.Add($"{Path.GetFileName(file)}: undeclared edge {edge}");
+                }
+                else if (match.Groups["sub"].Value != "Api")
+                {
+                    violations.Add($"{Path.GetFileName(file)}: {edge} must target {target}.Api, not {match.Value}");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0, "Module reference graph violations:\n" + string.Join("\n", violations));
+    }
+
     private static string? ModuleOf(string? ns)
     {
         const string prefix = "Acta.Modules.";

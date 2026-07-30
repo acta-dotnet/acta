@@ -12,9 +12,7 @@ using Acta.Modules.Execution.Schedules;
 using Acta.Modules.Execution.Signals;
 using Acta.Modules.Execution.Tenants;
 using Acta.Modules.Execution.Workers;
-using Acta.Modules.Operations.Events;
-using Acta.Modules.Operations.Overview;
-using Acta.Modules.Operations.Tags;
+using Acta.Modules.Operations.Api;
 using Acta.Payloads;
 using Acta.Querying;
 using Acta.Services.Time;
@@ -34,7 +32,7 @@ internal sealed class JobsApi(
     JobDescriptorIndex descriptorIndex,
     IOptions<JobsOptions> options,
     IWorkerWakeup wakeup,
-    EventsService events,
+    IJobEventFeed events,
     JobsService jobsService,
     SignalService signalService
 ) : IJobs

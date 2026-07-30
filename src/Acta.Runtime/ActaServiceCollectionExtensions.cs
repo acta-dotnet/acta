@@ -1,7 +1,10 @@
 using Acta.Cli;
 using Acta.Configuration;
+using Acta.Kernel;
 using Acta.Modules.Alerting;
+using Acta.Modules.Alerting.Api;
 using Acta.Modules.Execution;
+using Acta.Modules.Execution.Api;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;
 using Acta.Modules.Execution.Namespaces;
@@ -87,6 +90,7 @@ public static class ActaServiceCollectionExtensions
         // themselves (e.g. IOverviewStore); the composite grows one property per migrated feature.
         services.TryAddSingleton<OverviewService>();
         services.TryAddSingleton<EventsService>();
+        services.TryAddSingleton<Modules.Operations.Api.IJobEventFeed>(static sp => sp.GetRequiredService<EventsService>());
         services.TryAddSingleton<DefinitionsService>();
         services.TryAddSingleton<NamespacesService>();
         services.TryAddSingleton<TenantsService>();

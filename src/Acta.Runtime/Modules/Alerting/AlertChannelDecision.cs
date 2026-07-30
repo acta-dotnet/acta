@@ -1,3 +1,5 @@
+using Acta.Modules.Alerting.Api;
+
 namespace Acta.Modules.Alerting;
 
 internal enum AlertChannelDecisionKind : byte

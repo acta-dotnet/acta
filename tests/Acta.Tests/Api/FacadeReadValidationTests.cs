@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Acta.Configuration;
 using Acta.Modules.Alerting;
+using Acta.Modules.Execution.Api;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;
 using Acta.Modules.Execution.Namespaces;
