@@ -39,11 +39,11 @@ internal sealed class NamespacesService(INamespaceStore store)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
-        query = query with { NameStartsWith = QueryValidation.ValidateNamespacePrefix(query.NameStartsWith, nameof(query.NameStartsWith)) };
+        query = query with { NameContains = QueryValidation.ValidateNamespaceFragment(query.NameContains, nameof(query.NameContains)) };
 
-        var namePrefix = query.NameStartsWith is null ? null : query.NameStartsWith + "%";
+        var nameSearch = query.NameContains is null ? null : "%" + query.NameContains + "%";
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListNamespacesQuery));
-        var filterHash = QueryFilterHash.Compute([("prefix", query.NameStartsWith), ("tags", tagFilters)]);
+        var filterHash = QueryFilterHash.Compute([("contains", query.NameContains), ("tags", tagFilters)]);
 
         string? cursorName = null;
         if (query.Cursor is not null)
@@ -54,7 +54,7 @@ internal sealed class NamespacesService(INamespaceStore store)
 
         // The name-only list projects no status, so it does not honor the status filter.
         var page = await store.ListNamespacesAsync(
-            new NamespacePageRequest(namePrefix, null, cursorName, pageSize + 1, query.IncludeTotal, tagFilters),
+            new NamespacePageRequest(nameSearch, null, cursorName, pageSize + 1, query.IncludeTotal, tagFilters),
             ct
         );
 
@@ -70,12 +70,12 @@ internal sealed class NamespacesService(INamespaceStore store)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
-        query = query with { NameStartsWith = QueryValidation.ValidateNamespacePrefix(query.NameStartsWith, nameof(query.NameStartsWith)) };
+        query = query with { NameContains = QueryValidation.ValidateNamespaceFragment(query.NameContains, nameof(query.NameContains)) };
 
-        var namePrefix = query.NameStartsWith is null ? null : query.NameStartsWith + "%";
+        var nameSearch = query.NameContains is null ? null : "%" + query.NameContains + "%";
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListNamespacesQuery));
         var filterHash = QueryFilterHash.Compute([
-            ("prefix", query.NameStartsWith),
+            ("contains", query.NameContains),
             ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture)),
             ("tags", tagFilters),
         ]);
@@ -88,7 +88,7 @@ internal sealed class NamespacesService(INamespaceStore store)
         }
 
         var page = await store.ListNamespaceItemsAsync(
-            new NamespacePageRequest(namePrefix, query.Status, cursorName, pageSize + 1, query.IncludeTotal, tagFilters),
+            new NamespacePageRequest(nameSearch, query.Status, cursorName, pageSize + 1, query.IncludeTotal, tagFilters),
             ct
         );
 

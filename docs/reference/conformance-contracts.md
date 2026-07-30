@@ -1399,6 +1399,7 @@
 - **Assert:** The returned definition-id set equals exactly the matching ids with non-matching ids absent, and the total applies the same filter.
 - **Guarantees:**
   - Status filter partitions definitions by status and each partition excludes all definitions with different statuses
+  - NameContains filter selects definitions whose name carries the term anywhere, not only as a prefix
   - JobNamespace filter scopes definitions to exactly one namespace and excludes all other namespaces
 - **Store methods:**
   - `Acta.Features.Definitions.IDefinitionStore.ListDefinitionsAsync`

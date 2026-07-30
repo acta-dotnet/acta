@@ -1,6 +1,6 @@
 SELECT TOP (@p_take) ns.id, ns.name, ns.status_code, ns.owner_team, ns.description, ns.version
   FROM {{schema}}.namespaces ns
- WHERE (@p_name_prefix IS NULL OR ns.name LIKE @p_name_prefix)
+ WHERE (@p_name_search IS NULL OR ns.name LIKE @p_name_search)
    AND (@p_status_code IS NULL OR ns.status_code = @p_status_code)
 AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1
@@ -19,7 +19,7 @@ AND (@p_tag_filters IS NULL OR NOT EXISTS (
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
          SELECT COUNT(*)
            FROM {{schema}}.namespaces ns
-          WHERE (@p_name_prefix IS NULL OR ns.name LIKE @p_name_prefix)
+          WHERE (@p_name_search IS NULL OR ns.name LIKE @p_name_search)
             AND (@p_status_code IS NULL OR ns.status_code = @p_status_code)
             AND (@p_tag_filters IS NULL OR NOT EXISTS (
                  SELECT 1

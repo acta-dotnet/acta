@@ -21,11 +21,12 @@ internal static class QueryValidation
     }
 
     /// <summary>
-    /// Validates an optional namespace name prefix against the kebab character set
+    /// Validates an optional namespace name fragment against the kebab character set
     /// (<c>[a-z0-9-]</c>) and length; uppercase is rejected, not folded. Looser than a full
-    /// identifier (a prefix may be partial). Returns the prefix, or null when input is null.
+    /// identifier: a fragment may be partial and may match anywhere in the name. Rejecting '%' and
+    /// '_' is what keeps the caller's term free of LIKE wildcards. Returns it, or null when null.
     /// </summary>
-    public static string? ValidateNamespacePrefix(string? value, string paramName)
+    public static string? ValidateNamespaceFragment(string? value, string paramName)
     {
         if (value is null)
         {
@@ -42,6 +43,38 @@ internal static class QueryValidation
             if (!char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')
             {
                 throw new ArgumentException($"{paramName} must contain only lowercase kebab characters (a-z, 0-9, '-').", paramName);
+            }
+        }
+
+        return value;
+    }
+
+    /// <summary>
+    /// Validates an optional job-name fragment. Looser than <see cref="ValidateJobName"/>: a fragment
+    /// may be partial, may match anywhere in the name, and needs no namespace, so an operator can
+    /// search names across every namespace. The system separator is allowed so <c>sys.</c> matches.
+    /// Uppercase is rejected, not folded, matching every other filter.
+    /// </summary>
+    public static string? ValidateJobNameFragment(string? value, string paramName)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value.Length > IdentifierSyntax.ExtendedMaxLength)
+        {
+            throw new ArgumentException($"{paramName} must be at most {IdentifierSyntax.ExtendedMaxLength} characters.", paramName);
+        }
+
+        foreach (var ch in value)
+        {
+            if (!char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-' && ch != '.')
+            {
+                throw new ArgumentException(
+                    $"{paramName} must contain only lowercase kebab characters (a-z, 0-9, '-') and '.'.",
+                    paramName
+                );
             }
         }
 

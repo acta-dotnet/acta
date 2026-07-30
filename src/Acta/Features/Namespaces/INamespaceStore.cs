@@ -30,7 +30,7 @@ internal interface INamespaceStore
 /// <summary>Validated, cursor-decoded request for one page of namespace names; Take carries the peek-ahead row.
 /// Status is honored only by the admin-row list (the name list projects no status).</summary>
 internal sealed record NamespacePageRequest(
-    string? NamePrefix,
+    string? NameSearch,
     JobNamespaceStatusCode? Status,
     string? CursorName,
     int Take,

@@ -49,7 +49,7 @@
     <FilterBar>
       <label>
         Name
-        <input placeholder="name starts with…" value={$filters.name} onchange={(event) => filters.patch({ name: event.currentTarget.value })} />
+        <input placeholder="name contains…" value={$filters.name} onchange={(event) => filters.patch({ name: event.currentTarget.value })} />
       </label>
       <label>
         Status

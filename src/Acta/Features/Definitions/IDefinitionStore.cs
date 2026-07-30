@@ -43,6 +43,7 @@ internal interface IDefinitionStore
 /// <summary>Validated, cursor-decoded request for one definitions grid page.</summary>
 internal sealed record DefinitionPageRequest(
     string? JobNamespace,
+    string? NameSearch,
     JobDefinitionStatusCode? Status,
     string? CursorNamespaceName,
     string? CursorJobName,

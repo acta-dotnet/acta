@@ -30,12 +30,14 @@
   }
 
   const initial = hashParams();
-  const filters = createUrlFilters({ status: 'status', tags: 'tags' }, { status: '', tags: '' });
+  // `name` is a server-side contains match on the definition name, independent of namespace.
+  const filters = createUrlFilters({ name: 'name', status: 'status', tags: 'tags' }, { name: '', status: '', tags: '' });
   const statuses = ['', 'active', 'retired'];
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
+      $filters.name ? { label: 'Name', value: $filters.name, onRemove: () => filters.patch({ name: '' }) } : null,
       $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
@@ -70,6 +72,7 @@
   <div class="panel fill">
     <FilterBar>
       <label>Status <select value={$filters.status} onchange={(event) => filters.patch({ status: event.currentTarget.value })}>{#each statuses as status}<option value={status}>{status || 'Any'}</option>{/each}</select></label>
+      <label>Name <input placeholder="name contains…" value={$filters.name} onchange={(event) => filters.patch({ name: event.currentTarget.value })} /></label>
       <label>Tags <input placeholder="env:prod team" value={$filters.tags} onchange={(event) => filters.patch({ tags: event.currentTarget.value.trim() })} /></label>
     </FilterBar>
     <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
@@ -85,7 +88,7 @@
       rowKey={(definition: DefinitionRow) => definition.jobDefinitionId}
       endpoint="definitions"
       {columns}
-      filters={() => ({ jobNamespace: $scope, status: $filters.status, tag: parseTagTokens($filters.tags) })}
+      filters={() => ({ jobNamespace: $scope, nameContains: $filters.name.trim().toLowerCase(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}

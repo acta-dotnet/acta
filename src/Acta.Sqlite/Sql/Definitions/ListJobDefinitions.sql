@@ -5,6 +5,7 @@ SELECT jd.id, ns.name, jd.name, jd.status_code, jd.input_type_name, jd.output_ty
   FROM {{schema}}.definitions jd
   JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id
  WHERE (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+   AND (@p_name_search IS NULL OR jd.name LIKE @p_name_search)
    AND (@p_status_code IS NULL OR jd.status_code = @p_status_code)
 AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1 FROM json_each(@p_tag_filters) f
@@ -27,6 +28,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
            FROM {{schema}}.definitions jd
            JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id
           WHERE (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+   AND (@p_name_search IS NULL OR jd.name LIKE @p_name_search)
             AND (@p_status_code IS NULL OR jd.status_code = @p_status_code)
             AND (@p_tag_filters IS NULL OR NOT EXISTS (
                  SELECT 1 FROM json_each(@p_tag_filters) f
