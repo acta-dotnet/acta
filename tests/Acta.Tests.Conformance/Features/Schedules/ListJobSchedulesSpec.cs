@@ -34,7 +34,7 @@ public abstract class ListJobSchedulesSpec<TFixture> : ActaRuntimeTestBase<TFixt
     public async Task Walks_live_schedules_in_next_run_order()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var seen = new List<JobScheduleListItem>();
         string? cursor = null;

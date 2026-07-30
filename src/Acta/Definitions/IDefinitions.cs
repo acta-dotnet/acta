@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Job definitions domain: operator policy overrides plus the definition detail/list reads. Reached
-/// through <see cref="IJobs.Definitions"/>.
+/// through <see cref="IActaOperations.Definitions"/>.
 /// </summary>
 public interface IDefinitions
 {

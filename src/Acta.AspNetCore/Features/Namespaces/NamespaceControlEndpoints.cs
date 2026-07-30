@@ -14,7 +14,7 @@ internal static class NamespaceControlEndpoints
     {
         group.MapPost(
             "/namespaces/{name}/suspend",
-            async Task<IResult> (string name, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (string name, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                 if (error is not null)
@@ -24,7 +24,7 @@ internal static class NamespaceControlEndpoints
 
                 try
                 {
-                    var result = await jobs.Namespaces.SuspendAsync(name, reason, http.User?.Identity?.Name, ct);
+                    var result = await operations.Namespaces.SuspendAsync(name, reason, http.User?.Identity?.Name, ct);
                     return AdminControlHttp.ToResult(result);
                 }
                 catch (ArgumentException ex)
@@ -36,7 +36,7 @@ internal static class NamespaceControlEndpoints
 
         group.MapPost(
             "/namespaces/{name}/resume",
-            async Task<IResult> (string name, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (string name, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                 if (error is not null)
@@ -46,7 +46,7 @@ internal static class NamespaceControlEndpoints
 
                 try
                 {
-                    var result = await jobs.Namespaces.ResumeAsync(name, reason, http.User?.Identity?.Name, ct);
+                    var result = await operations.Namespaces.ResumeAsync(name, reason, http.User?.Identity?.Name, ct);
                     return AdminControlHttp.ToResult(result);
                 }
                 catch (ArgumentException ex)
@@ -58,7 +58,7 @@ internal static class NamespaceControlEndpoints
 
         group.MapPatch(
             "/namespaces/{name}",
-            async Task<IResult> (string name, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (string name, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -114,7 +114,7 @@ internal static class NamespaceControlEndpoints
 
                 try
                 {
-                    var result = await jobs.Namespaces.UpdateMetadataAsync(
+                    var result = await operations.Namespaces.UpdateMetadataAsync(
                         name,
                         body.OwnerTeam,
                         body.Description,

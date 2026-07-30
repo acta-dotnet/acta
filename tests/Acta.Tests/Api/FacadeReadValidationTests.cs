@@ -29,26 +29,15 @@ public sealed class FacadeReadValidationTests
 {
     private static JobsApi Jobs() =>
         new(
-            new ActaProviderInfo(DbProvider.Postgres, SupportsRoutines: true),
-            null!,
             null!,
             null!,
             null!,
             null!,
             Options.Create(new JobsOptions()),
             null!,
-            null!,
-            null!,
             new EventsService(new EmptyEventStore()),
-            new DefinitionsService(null!),
-            new NamespacesService(null!),
-            new TenantsService(null!),
-            new TagsService(null!, JobsReadService()),
             JobsReadService(),
-            new SignalService(null!, JobsReadService(), null!, Options.Create(new JobsOptions())),
-            new EmptyScheduleStore(),
-            null!,
-            new EmptyAlertStore()
+            new SignalService(null!, JobsReadService(), null!, Options.Create(new JobsOptions()))
         );
 
     private static JobsService JobsReadService() =>

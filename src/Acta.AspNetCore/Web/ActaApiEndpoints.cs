@@ -181,7 +181,13 @@ internal static class ActaApiEndpoints
         // clone prefill) and would otherwise pay the whole detail composition for one field.
         group.MapGet(
             "/jobs/{jobRef}/input",
-            async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
+            async Task<IResult> (
+                string jobRef,
+                IJobs jobs,
+                IActaOperations operations,
+                IOptions<JobsOptions> jobsOptions,
+                CancellationToken ct
+            ) =>
             {
                 if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                 {
@@ -208,7 +214,13 @@ internal static class ActaApiEndpoints
         // keeps its own paged endpoint below.
         group.MapGet(
             "/jobs/{jobRef}/detail",
-            async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
+            async Task<IResult> (
+                string jobRef,
+                IJobs jobs,
+                IActaOperations operations,
+                IOptions<JobsOptions> jobsOptions,
+                CancellationToken ct
+            ) =>
             {
                 if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                 {
@@ -221,7 +233,7 @@ internal static class ActaApiEndpoints
                     return NotFound();
                 }
 
-                var detail = await JobDetailResponse.ComposeAsync(jobs, snapshot, jobsOptions.Value.MaxInlinePayloadBytes, ct);
+                var detail = await JobDetailResponse.ComposeAsync(jobs, operations, snapshot, jobsOptions.Value.MaxInlinePayloadBytes, ct);
                 return Results.Json(detail, DashboardJsonContext.Default.JobDetailResponse);
             }
         );
@@ -252,12 +264,12 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/overview",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var query = new OverviewQuery(JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"));
                 return Guard(
                     http,
-                    async () => Results.Json(await jobs.GetOverviewAsync(query, ct), DashboardJsonContext.Default.OverviewSnapshot)
+                    async () => Results.Json(await operations.GetOverviewAsync(query, ct), DashboardJsonContext.Default.OverviewSnapshot)
                 );
             }
         );
@@ -266,14 +278,14 @@ internal static class ActaApiEndpoints
         // tick summary) so the health verdict can show source lag from ledger reads alone.
         group.MapGet(
             "/overview/outbox",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
             {
                 var jobNamespace = QueryBinding.Text(http.Request.Query, "jobNamespace");
                 return Guard(
                     http,
                     async () =>
                         Results.Json(
-                            await ComposeOutboxLinesAsync(jobs, jobNamespace, ct),
+                            await ComposeOutboxLinesAsync(jobs, operations, jobNamespace, ct),
                             DashboardJsonContext.Default.IReadOnlyListOverviewOutboxLine
                         )
                 );
@@ -282,7 +294,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/namespaces",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -302,14 +314,15 @@ internal static class ActaApiEndpoints
                 );
                 return Guard(
                     http,
-                    async () => Results.Json(await jobs.Namespaces.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultString)
+                    async () =>
+                        Results.Json(await operations.Namespaces.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultString)
                 );
             }
         );
 
         group.MapGet(
             "/namespaces/admin",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -333,7 +346,7 @@ internal static class ActaApiEndpoints
                     http,
                     async () =>
                         Results.Json(
-                            await jobs.Namespaces.ListItemsAsync(query, ct),
+                            await operations.Namespaces.ListItemsAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultNamespaceListItem
                         )
                 );
@@ -342,7 +355,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/tenants",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -365,19 +378,19 @@ internal static class ActaApiEndpoints
                 return Guard(
                     http,
                     async () =>
-                        Results.Json(await jobs.Tenants.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultTenantListItem)
+                        Results.Json(await operations.Tenants.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultTenantListItem)
                 );
             }
         );
 
         group.MapGet(
             "/tenants/{key}",
-            async (string key, IJobs jobs, CancellationToken ct) =>
+            async (string key, IActaOperations operations, CancellationToken ct) =>
             {
                 TenantListItem? tenant;
                 try
                 {
-                    tenant = await jobs.Tenants.GetAsync(key, ct);
+                    tenant = await operations.Tenants.GetAsync(key, ct);
                 }
                 catch (ArgumentException)
                 {
@@ -489,7 +502,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/definitions",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -514,7 +527,7 @@ internal static class ActaApiEndpoints
                     http,
                     async () =>
                         Results.Json(
-                            await jobs.Definitions.ListAsync(query, ct),
+                            await operations.Definitions.ListAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultJobDefinitionListItem
                         )
                 );
@@ -523,12 +536,12 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/definitions/{defId:int}",
-            static (int defId, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 Guard(
                     http,
                     async () =>
                     {
-                        var def = await jobs.Definitions.GetAsync(defId, ct);
+                        var def = await operations.Definitions.GetAsync(defId, ct);
                         return def is null
                             ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Definition not found.")
                             : Results.Json(def, DashboardJsonContext.Default.JobDefinitionDetail);
@@ -565,7 +578,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/schedules",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -591,16 +604,19 @@ internal static class ActaApiEndpoints
                 return Guard(
                     http,
                     async () =>
-                        Results.Json(await jobs.Schedules.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultJobScheduleListItem)
+                        Results.Json(
+                            await operations.Schedules.ListAsync(query, ct),
+                            DashboardJsonContext.Default.PagedResultJobScheduleListItem
+                        )
                 );
             }
         );
 
         group.MapGet(
             "/capabilities",
-            (HttpContext http, IJobs jobs) =>
+            (HttpContext http, IActaOperations operations) =>
             {
-                var provider = jobs.Provider switch
+                var provider = operations.Provider switch
                 {
                     DbProvider.SqlServer => "mssql",
                     DbProvider.Postgres => "pg",
@@ -628,7 +644,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/schedules/preview",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (!QueryBinding.TryInt(http.Request.Query, "count", out var count, ref error))
@@ -649,7 +665,7 @@ internal static class ActaApiEndpoints
                     http,
                     async () =>
                     {
-                        var preview = await jobs.Schedules.PreviewAsync(lookup, count ?? 10, ct);
+                        var preview = await operations.Schedules.PreviewAsync(lookup, count ?? 10, ct);
                         return preview is null
                             ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Schedule not found.")
                             : Results.Json(preview, DashboardJsonContext.Default.SchedulePreview);
@@ -660,7 +676,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/workers",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -683,19 +699,22 @@ internal static class ActaApiEndpoints
                 return Guard(
                     http,
                     async () =>
-                        Results.Json(await jobs.Workers.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultJobWorkerListItem)
+                        Results.Json(
+                            await operations.Workers.ListAsync(query, ct),
+                            DashboardJsonContext.Default.PagedResultJobWorkerListItem
+                        )
                 );
             }
         );
 
         group.MapGet(
             "/workers/{workerId:int:min(1)}",
-            static (int workerId, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (int workerId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 Guard(
                     http,
                     async () =>
                     {
-                        var worker = await jobs.Workers.GetAsync(workerId, ct);
+                        var worker = await operations.Workers.GetAsync(workerId, ct);
                         return worker is null
                             ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.")
                             : Results.Json(worker, DashboardJsonContext.Default.JobWorkerDetail);
@@ -705,7 +724,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/alerts",
-            (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            (HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -759,7 +778,7 @@ internal static class ActaApiEndpoints
                             Tags: QueryBinding.Tags(http.Request.Query)
                         );
                         return Results.Json(
-                            await jobs.Alerts.ListAsync(query, ct),
+                            await operations.Alerts.ListAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultJobAlertListItem
                         );
                     }
@@ -795,13 +814,14 @@ internal static class ActaApiEndpoints
     // additionally gated on the sys.outbox job name so a user job reusing the key cannot spoof a line.
     private static async Task<IReadOnlyList<OverviewOutboxLine>> ComposeOutboxLinesAsync(
         IJobs jobs,
+        IActaOperations operations,
         string? jobNamespace,
         CancellationToken ct
     )
     {
         IReadOnlyList<string> namespaces = jobNamespace is not null
             ? [jobNamespace]
-            : (await jobs.Namespaces.ListAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
+            : (await operations.Namespaces.ListAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
 
         var lines = new List<OverviewOutboxLine>();
         foreach (var ns in namespaces)

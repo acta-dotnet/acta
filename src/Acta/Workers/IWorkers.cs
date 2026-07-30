@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>Workers domain: the keyset-paginated worker list. Reached through <see cref="IJobs.Workers"/>.</summary>
+/// <summary>Workers domain: the keyset-paginated worker list. Reached through <see cref="IActaOperations.Workers"/>.</summary>
 public interface IWorkers
 {
     /// <summary>Get one worker by its durable worker-row id, or <see langword="null"/> when it no longer exists.</summary>

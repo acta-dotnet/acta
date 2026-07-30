@@ -5,6 +5,7 @@ using Acta.Modules.Execution;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;
 using Acta.Modules.Execution.Namespaces;
+using Acta.Modules.Execution.Schedules;
 using Acta.Modules.Execution.Signals;
 using Acta.Modules.Execution.Tenants;
 using Acta.Modules.Execution.Workers;
@@ -94,6 +95,18 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<JobsService>();
         services.TryAddSingleton<SignalService>();
         services.TryAddSingleton<IAlertSink, AlertStoreSink>();
+
+        // The operator facade and its module-owned domain facades. Application code injects IJobs
+        // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
+        // registered here (the composition root may see every module) but owned by its module.
+        services.TryAddSingleton<ISchedules, SchedulesApi>();
+        services.TryAddSingleton<IDefinitions, DefinitionsApi>();
+        services.TryAddSingleton<IWorkers, WorkersApi>();
+        services.TryAddSingleton<IAlerts, AlertsApi>();
+        services.TryAddSingleton<ITenants, TenantsApi>();
+        services.TryAddSingleton<INamespaces, NamespacesApi>();
+        services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
+        services.TryAddSingleton<IActaOperations, Modules.Operations.OperationsApi>();
 
         // Process-wide Acta meter. One singleton owns the instruments; every worker runtime emits
         // into it. Consumers light it up with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).

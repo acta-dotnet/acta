@@ -23,28 +23,32 @@ internal static class TagEndpoints
     {
         group.MapGet(
             "/jobs/{jobRef}/tags",
-            (string jobRef, IJobs jobs, CancellationToken ct) => ReadTags(jobs, JobTarget(jobRef, options), ct)
+            (string jobRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, JobTarget(jobRef, options), ct)
         );
         group.MapGet(
             "/definitions/{defId:int}/tags",
-            (int defId, IJobs jobs, CancellationToken ct) => ReadTags(jobs, ResolveOrNull(() => TagTarget.ForDefinition(defId)), ct)
+            (int defId, IActaOperations operations, CancellationToken ct) =>
+                ReadTags(operations, ResolveOrNull(() => TagTarget.ForDefinition(defId)), ct)
         );
         group.MapGet(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
-            (string jobNamespace, string jobName, string scheduleName, IJobs jobs, CancellationToken ct) =>
-                ReadTags(jobs, ResolveOrNull(() => ScheduleTarget(jobNamespace, jobName, scheduleName)), ct)
+            (string jobNamespace, string jobName, string scheduleName, IActaOperations operations, CancellationToken ct) =>
+                ReadTags(operations, ResolveOrNull(() => ScheduleTarget(jobNamespace, jobName, scheduleName)), ct)
         );
         group.MapGet(
             "/workers/{workerId:int}/tags",
-            (int workerId, IJobs jobs, CancellationToken ct) => ReadTags(jobs, ResolveOrNull(() => TagTarget.ForWorker(workerId)), ct)
+            (int workerId, IActaOperations operations, CancellationToken ct) =>
+                ReadTags(operations, ResolveOrNull(() => TagTarget.ForWorker(workerId)), ct)
         );
         group.MapGet(
             "/namespaces/{name}/tags",
-            (string name, IJobs jobs, CancellationToken ct) => ReadTags(jobs, ResolveOrNull(() => TagTarget.ForNamespace(name)), ct)
+            (string name, IActaOperations operations, CancellationToken ct) =>
+                ReadTags(operations, ResolveOrNull(() => TagTarget.ForNamespace(name)), ct)
         );
         group.MapGet(
             "/tenants/{tenantKey}/tags",
-            (string tenantKey, IJobs jobs, CancellationToken ct) => ReadTags(jobs, ResolveOrNull(() => TagTarget.ForTenant(tenantKey)), ct)
+            (string tenantKey, IActaOperations operations, CancellationToken ct) =>
+                ReadTags(operations, ResolveOrNull(() => TagTarget.ForTenant(tenantKey)), ct)
         );
     }
 
@@ -52,30 +56,36 @@ internal static class TagEndpoints
     {
         group.MapPost(
             "/jobs/{jobRef}/tags",
-            (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Upsert(http, jobs, options, () => JobTarget(jobRef, options), ct)
+            (string jobRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Upsert(http, operations, options, () => JobTarget(jobRef, options), ct)
         );
         group.MapDelete(
             "/jobs/{jobRef}/tags/{tagName}",
-            (string jobRef, string tagName, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Remove(http, jobs, options, () => JobTarget(jobRef, options), tagName, ct)
+            (string jobRef, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Remove(http, operations, options, () => JobTarget(jobRef, options), tagName, ct)
         );
 
         group.MapPost(
             "/definitions/{defId:int}/tags",
-            (int defId, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Upsert(http, jobs, options, () => TagTarget.ForDefinition(defId), ct)
+            (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Upsert(http, operations, options, () => TagTarget.ForDefinition(defId), ct)
         );
         group.MapDelete(
             "/definitions/{defId:int}/tags/{tagName}",
-            (int defId, string tagName, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Remove(http, jobs, options, () => TagTarget.ForDefinition(defId), tagName, ct)
+            (int defId, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Remove(http, operations, options, () => TagTarget.ForDefinition(defId), tagName, ct)
         );
 
         group.MapPost(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
-            (string jobNamespace, string jobName, string scheduleName, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Upsert(http, jobs, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
+            (
+                string jobNamespace,
+                string jobName,
+                string scheduleName,
+                HttpContext http,
+                IActaOperations operations,
+                CancellationToken ct
+            ) => Upsert(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
         );
         group.MapDelete(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags/{tagName}",
@@ -85,46 +95,46 @@ internal static class TagEndpoints
                 string scheduleName,
                 string tagName,
                 HttpContext http,
-                IJobs jobs,
+                IActaOperations operations,
                 CancellationToken ct
-            ) => Remove(http, jobs, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), tagName, ct)
+            ) => Remove(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), tagName, ct)
         );
 
         group.MapPost(
             "/workers/{workerId:int}/tags",
-            (int workerId, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Upsert(http, jobs, options, () => TagTarget.ForWorker(workerId), ct)
+            (int workerId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Upsert(http, operations, options, () => TagTarget.ForWorker(workerId), ct)
         );
         group.MapDelete(
             "/workers/{workerId:int}/tags/{tagName}",
-            (int workerId, string tagName, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Remove(http, jobs, options, () => TagTarget.ForWorker(workerId), tagName, ct)
+            (int workerId, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Remove(http, operations, options, () => TagTarget.ForWorker(workerId), tagName, ct)
         );
 
         group.MapPost(
             "/namespaces/{name}/tags",
-            (string name, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Upsert(http, jobs, options, () => TagTarget.ForNamespace(name), ct)
+            (string name, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Upsert(http, operations, options, () => TagTarget.ForNamespace(name), ct)
         );
         group.MapDelete(
             "/namespaces/{name}/tags/{tagName}",
-            (string name, string tagName, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Remove(http, jobs, options, () => TagTarget.ForNamespace(name), tagName, ct)
+            (string name, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Remove(http, operations, options, () => TagTarget.ForNamespace(name), tagName, ct)
         );
 
         group.MapPost(
             "/tenants/{tenantKey}/tags",
-            (string tenantKey, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Upsert(http, jobs, options, () => TagTarget.ForTenant(tenantKey), ct)
+            (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Upsert(http, operations, options, () => TagTarget.ForTenant(tenantKey), ct)
         );
         group.MapDelete(
             "/tenants/{tenantKey}/tags/{tagName}",
-            (string tenantKey, string tagName, HttpContext http, IJobs jobs, CancellationToken ct) =>
-                Remove(http, jobs, options, () => TagTarget.ForTenant(tenantKey), tagName, ct)
+            (string tenantKey, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Remove(http, operations, options, () => TagTarget.ForTenant(tenantKey), tagName, ct)
         );
     }
 
-    private static async Task<IResult> ReadTags(IJobs jobs, TagTarget? target, CancellationToken ct)
+    private static async Task<IResult> ReadTags(IActaOperations operations, TagTarget? target, CancellationToken ct)
     {
         if (target is null)
         {
@@ -134,7 +144,7 @@ internal static class TagEndpoints
         TagSet? set;
         try
         {
-            set = await jobs.Tags.GetAsync(target, ct);
+            set = await operations.Tags.GetAsync(target, ct);
         }
         catch (ArgumentException)
         {
@@ -147,7 +157,7 @@ internal static class TagEndpoints
 
     private static async Task<IResult> Upsert(
         HttpContext http,
-        IJobs jobs,
+        IActaOperations operations,
         ActaEndpointOptions options,
         Func<TagTarget?> resolve,
         CancellationToken ct
@@ -169,12 +179,12 @@ internal static class TagEndpoints
             return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag.", "name is required.");
         }
 
-        return await Mutate(resolve, target => jobs.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct));
+        return await Mutate(resolve, target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct));
     }
 
     private static async Task<IResult> Remove(
         HttpContext http,
-        IJobs jobs,
+        IActaOperations operations,
         ActaEndpointOptions options,
         Func<TagTarget?> resolve,
         string tagName,
@@ -186,7 +196,7 @@ internal static class TagEndpoints
             return confirmationError;
         }
 
-        return await Mutate(resolve, target => jobs.Tags.RemoveAsync(target, tagName, ct));
+        return await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct));
     }
 
     private static async Task<IResult> Mutate(Func<TagTarget?> resolve, Func<TagTarget, ValueTask<TagMutationResult>> apply)

@@ -114,7 +114,7 @@ public abstract class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var tenantKey = TestKey("view-tenant");
-        var tenantId = await Jobs.Tenants.RegisterAsync(tenantKey, null, null, ct);
+        var tenantId = await Operations.Tenants.RegisterAsync(tenantKey, null, null, ct);
         var scoped = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None, TenantKey: tenantKey),
             ct
@@ -151,7 +151,7 @@ public abstract class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
-        await Jobs.Tags.UpsertAsync(TagTarget.ForJob(enqueued), new TagInput("operator-view", "visible"), ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForJob(enqueued), new TagInput("operator-view", "visible"), ct);
 
         await using var conn = await Db.GetConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();

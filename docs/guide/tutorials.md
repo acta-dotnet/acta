@@ -143,7 +143,7 @@ independent jobs through enqueue operations.
 | 102 | [interval-schedule](../../concepts/100-scheduling/102-interval-schedule/) | Replace a simple `PeriodicTimer` cleanup with an interval schedule (`10s`) |
 | 103 | [multiple-schedules](../../concepts/100-scheduling/103-multiple-schedules/) | **Engineering Lab.** One recurring job row, several moving schedule cursors, event-backed occurrence history |
 | 104 | [timezone-schedule](../../concepts/100-scheduling/104-timezone-schedule/) | A cron schedule pinned to a wall clock (`TimeZone = "Europe/Ljubljana"`), DST-safe |
-| 105 | [schedule-control](../../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `jobs.Schedules` |
+| 105 | [schedule-control](../../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `operations.Schedules` |
 | 106 | [schedule-misfire](../../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip` and `FireOnceCatchUp` move overdue cursor rows differently |
 | 201 | [durable-checkout](../../concepts/200-durable-execution/201-durable-checkout/) | **Engineering Lab flagship.** Durable orchestration as inspectable jobs, steps, checkpoints, events, and results |
 | 202 | [durable-step](../../concepts/200-durable-execution/202-durable-step/) | **Engineering Lab.** Completed step outcome replays while the job advances to execution two |
@@ -178,7 +178,7 @@ independent jobs through enqueue operations.
 | 311 | [execute-outcome-timeout](../../concepts/300-failure-and-recovery/311-execute-outcome-timeout/) | Read a `JobOutcome`: `WaitTimeout`, `ThrowIfFailed`, `TryGetValue`, `ValueOrThrow` |
 | 312 | [backoff-curve](../../concepts/300-failure-and-recovery/312-backoff-curve/) | Typed retry backoff curve via the `Backoff` DSL string (e.g. `1s..8s x2 exact`) |
 | 401 | [pipeline-behavior](../../concepts/400-observability-and-alerts/401-pipeline-behavior/) | `IJobPipelineBehavior` wraps every handler, like middleware |
-| 402 | [alerts](../../concepts/400-observability-and-alerts/402-alerts/) | Raise an operator alert from a handler (`ctx.AlertAsync`), then read it back via `jobs.Alerts` |
+| 402 | [alerts](../../concepts/400-observability-and-alerts/402-alerts/) | Raise an operator alert from a handler (`ctx.AlertAsync`), then read it back via `operations.Alerts` |
 | 403 | [alert-channel](../../concepts/400-observability-and-alerts/403-alert-channel/) | Declare a custom alert channel (`AddAlertChannel`) and route an alert to it by name |
 | 404 | [read-event-timeline](../../concepts/400-observability-and-alerts/404-read-event-timeline/) | Read the `JobEvent` timeline ("why did this happen?") across a job lineage |
 | 405 | [real-alert-routing](../../concepts/400-observability-and-alerts/405-real-alert-routing/) | A real Slack-webhook channel with a severity floor; a deduplication key collapses repeats of one incident |

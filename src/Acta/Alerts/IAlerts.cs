@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Alerts domain: the operator acknowledge/resolve verbs plus the keyset-paginated alert list. Reached
-/// through <see cref="IJobs.Alerts"/>.
+/// through <see cref="IActaOperations.Alerts"/>.
 /// </summary>
 public interface IAlerts
 {

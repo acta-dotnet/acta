@@ -30,17 +30,17 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
 
         foreach (var target in targets.All)
         {
-            var tags = await Jobs.Tags.GetAsync(target, ct);
+            var tags = await Operations.Tags.GetAsync(target, ct);
             Assert.NotNull(tags);
             Assert.Empty(tags);
         }
 
         foreach (var target in MissingTargets())
         {
-            Assert.Null(await Jobs.Tags.GetAsync(target, ct));
-            Assert.Equal(TagMutationResult.NotFound, await Jobs.Tags.UpsertAsync(target, new TagInput("missing"), ct));
-            Assert.Equal(TagMutationResult.NotFound, await Jobs.Tags.RemoveAsync(target, "missing", ct));
-            Assert.Equal(TagMutationResult.NotFound, await Jobs.Tags.ReplaceAsync(target, [], ct));
+            Assert.Null(await Operations.Tags.GetAsync(target, ct));
+            Assert.Equal(TagMutationResult.NotFound, await Operations.Tags.UpsertAsync(target, new TagInput("missing"), ct));
+            Assert.Equal(TagMutationResult.NotFound, await Operations.Tags.RemoveAsync(target, "missing", ct));
+            Assert.Equal(TagMutationResult.NotFound, await Operations.Tags.ReplaceAsync(target, [], ct));
         }
     }
 
@@ -51,16 +51,16 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         var target = TagTarget.ForNamespace(IdentifierSyntax.ReservedSystemName);
         var name = TestKey("sys-tag");
 
-        Assert.NotNull(await Jobs.Tags.GetAsync(target, ct));
+        Assert.NotNull(await Operations.Tags.GetAsync(target, ct));
         try
         {
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.UpsertAsync(target, new TagInput(name, "value"), ct));
-            var tags = Assert.IsType<TagSet>(await Jobs.Tags.GetAsync(target, ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.UpsertAsync(target, new TagInput(name, "value"), ct));
+            var tags = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
             Assert.Contains(new TagItem(name, "value"), tags.Items);
         }
         finally
         {
-            await Jobs.Tags.RemoveAsync(target, name, CancellationToken.None);
+            await Operations.Tags.RemoveAsync(target, name, CancellationToken.None);
         }
     }
 
@@ -74,28 +74,28 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         {
             Assert.Equal(
                 TagMutationResult.Applied,
-                await Jobs.Tags.ReplaceAsync(
+                await Operations.Tags.ReplaceAsync(
                     target,
                     [new TagInput("z-last"), new TagInput("a0"), new TagInput("a-a"), new TagInput("a-first", "One")],
                     ct
                 )
             );
 
-            var ordered = Assert.IsType<TagSet>(await Jobs.Tags.GetAsync(target, ct));
+            var ordered = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
             Assert.Equal([new TagItem("a-a"), new TagItem("a-first", "One"), new TagItem("a0"), new TagItem("z-last")], ordered.Items);
 
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.RemoveAsync(target, "a-a", ct));
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.RemoveAsync(target, "a0", ct));
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.UpsertAsync(target, new TagInput("a-first", "Two"), ct));
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.UpsertAsync(target, new TagInput("middle", "Value"), ct));
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.RemoveAsync(target, "does-not-exist", ct));
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.RemoveAsync(target, "z-last", ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.RemoveAsync(target, "a-a", ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.RemoveAsync(target, "a0", ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.UpsertAsync(target, new TagInput("a-first", "Two"), ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.UpsertAsync(target, new TagInput("middle", "Value"), ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.RemoveAsync(target, "does-not-exist", ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.RemoveAsync(target, "z-last", ct));
 
-            var converged = Assert.IsType<TagSet>(await Jobs.Tags.GetAsync(target, ct));
+            var converged = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
             Assert.Equal([new TagItem("a-first", "Two"), new TagItem("middle", "Value")], converged.Items);
 
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.ReplaceAsync(target, [], ct));
-            Assert.Empty(Assert.IsType<TagSet>(await Jobs.Tags.GetAsync(target, ct)));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.ReplaceAsync(target, [], ct));
+            Assert.Empty(Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct)));
         }
     }
 
@@ -104,13 +104,13 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var target = (await CreateTargetsAsync(ct)).Job;
-        await Jobs.Tags.ReplaceAsync(target, [new TagInput("kept", "value")], ct);
+        await Operations.Tags.ReplaceAsync(target, [new TagInput("kept", "value")], ct);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Jobs.Tags.ReplaceAsync(target, [new TagInput("duplicate"), new TagInput("duplicate", "two")], ct).AsTask()
+            Operations.Tags.ReplaceAsync(target, [new TagInput("duplicate"), new TagInput("duplicate", "two")], ct).AsTask()
         );
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Jobs
+            Operations
                 .Tags.ReplaceAsync(
                     target,
                     Enumerable.Range(0, TagLimits.MaxTagsPerTarget + 1).Select(i => new TagInput($"tag-{i}")).ToArray(),
@@ -119,10 +119,10 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
                 .AsTask()
         );
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Jobs.Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct).AsTask()
+            Operations.Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct).AsTask()
         );
 
-        var unchanged = Assert.IsType<TagSet>(await Jobs.Tags.GetAsync(target, ct));
+        var unchanged = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
         Assert.Equal([new TagItem("kept", "value")], unchanged.Items);
     }
 
@@ -133,30 +133,33 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         var targets = await CreateTargetsAsync(ct);
         foreach (var target in targets.All)
         {
-            await Jobs.Tags.ReplaceAsync(target, [new TagInput("facet", "Blue"), new TagInput("release", "stable")], ct);
+            await Operations.Tags.ReplaceAsync(target, [new TagInput("facet", "Blue"), new TagInput("release", "stable")], ct);
         }
 
         TagFilter[] filters = [new("facet", "blue"), new("release", "STABLE")];
         TagFilter[] mismatch = [new("facet", "blue"), new("release", "other")];
 
-        var tenants = await Jobs.Tenants.ListAsync(new ListTenantsQuery(Tags: filters), ct);
+        var tenants = await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: filters), ct);
         Assert.Contains(tenants.Items, x => x.TenantKey == targets.TenantKey);
         Assert.DoesNotContain(
-            (await Jobs.Tenants.ListAsync(new ListTenantsQuery(Tags: mismatch), ct)).Items,
+            (await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: mismatch), ct)).Items,
             x => x.TenantKey == targets.TenantKey
         );
 
-        var namespaces = await Jobs.Namespaces.ListItemsAsync(new ListNamespacesQuery(Tags: filters), ct);
+        var namespaces = await Operations.Namespaces.ListItemsAsync(new ListNamespacesQuery(Tags: filters), ct);
         Assert.Contains(namespaces.Items, x => x.Name == TestNamespace);
         Assert.DoesNotContain(
-            (await Jobs.Namespaces.ListItemsAsync(new ListNamespacesQuery(Tags: mismatch), ct)).Items,
+            (await Operations.Namespaces.ListItemsAsync(new ListNamespacesQuery(Tags: mismatch), ct)).Items,
             x => x.Name == TestNamespace
         );
 
-        var definitions = await Jobs.Definitions.ListAsync(new ListJobDefinitionsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var definitions = await Operations.Definitions.ListAsync(
+            new ListJobDefinitionsQuery(JobNamespace: TestNamespace, Tags: filters),
+            ct
+        );
         Assert.Contains(definitions.Items, x => x.JobDefinitionId == targets.DefinitionId);
         Assert.DoesNotContain(
-            (await Jobs.Definitions.ListAsync(new ListJobDefinitionsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Definitions.ListAsync(new ListJobDefinitionsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobDefinitionId == targets.DefinitionId
         );
 
@@ -167,24 +170,24 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             x => x.JobId == targets.JobId
         );
 
-        var schedules = await Jobs.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var schedules = await Operations.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(schedules.Items, x => x.JobScheduleId == targets.ScheduleId);
         Assert.DoesNotContain(
-            (await Jobs.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobScheduleId == targets.ScheduleId
         );
 
-        var workers = await Jobs.Workers.ListAsync(new ListWorkersQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var workers = await Operations.Workers.ListAsync(new ListWorkersQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(workers.Items, x => x.WorkerId == targets.WorkerId);
         Assert.DoesNotContain(
-            (await Jobs.Workers.ListAsync(new ListWorkersQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Workers.ListAsync(new ListWorkersQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.WorkerId == targets.WorkerId
         );
 
-        var alerts = await Jobs.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var alerts = await Operations.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(alerts.Items, x => x.JobAlertId == targets.AlertId);
         Assert.DoesNotContain(
-            (await Jobs.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobAlertId == targets.AlertId
         );
 
@@ -225,7 +228,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         Assert.Equal(JobEnqueueAction.Inserted, first.Action);
         Assert.Equal(JobEnqueueAction.Deduplicated, second.Action);
         Assert.Equal(first.JobId, second.JobId);
-        var tags = Assert.IsType<TagSet>(await Jobs.Tags.GetAsync(TagTarget.ForJob(first), ct));
+        var tags = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForJob(first), ct));
         Assert.Equal([new TagItem("version", "first")], tags.Items);
     }
 
@@ -239,7 +242,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
 
         Assert.Equal(
             TagMutationResult.Applied,
-            await Jobs.Tags.UpsertAsync(TagTarget.ForEvent(targets.EventId), new TagInput("triage", "reviewed"), ct)
+            await Operations.Tags.UpsertAsync(TagTarget.ForEvent(targets.EventId), new TagInput("triage", "reviewed"), ct)
         );
 
         Assert.Equal(before, await Db.From<JobEvent>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct));
@@ -286,7 +289,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         ];
         foreach (var target in targets)
         {
-            Assert.Equal(TagMutationResult.Applied, await Jobs.Tags.UpsertAsync(target, new TagInput("purge-me"), ct));
+            Assert.Equal(TagMutationResult.Applied, await Operations.Tags.UpsertAsync(target, new TagInput("purge-me"), ct));
         }
 
         Assert.Equal(JobControlAction.Applied, (await Jobs.PurgeAsync(lookup, ct: ct)).Action);
@@ -320,7 +323,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         var jobId = Assert.IsType<long>(await Jobs.ResolveJobIdAsync(lookup, ct));
         Assert.Equal(JobControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
 
-        var mutationTask = Jobs.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct).AsTask();
+        var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct).AsTask();
         var purgeTask = Jobs.PurgeAsync(lookup, ct: ct).AsTask();
         await Task.WhenAll(mutationTask, purgeTask);
 
@@ -333,7 +336,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
     private async Task<TestTargets> CreateTargetsAsync(CancellationToken ct)
     {
         var tenantKey = TestKey("tenant");
-        await Jobs.Tenants.RegisterAsync(tenantKey, ct: ct);
+        await Operations.Tenants.RegisterAsync(tenantKey, ct: ct);
 
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var definition = Assert.Single(

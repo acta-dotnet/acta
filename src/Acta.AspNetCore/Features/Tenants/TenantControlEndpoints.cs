@@ -15,7 +15,7 @@ internal static class TenantControlEndpoints
     {
         group.MapPost(
             "/tenants",
-            async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -68,7 +68,7 @@ internal static class TenantControlEndpoints
                 try
                 {
                     var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-                    var tenantId = await jobs.Tenants.RegisterAsync(canonicalTenantKey, request.DisplayName, request.Description, ct);
+                    var tenantId = await operations.Tenants.RegisterAsync(canonicalTenantKey, request.DisplayName, request.Description, ct);
                     return Results.Json(
                         new TenantRegistrationResponse(tenantId, canonicalTenantKey),
                         DashboardJsonContext.Default.TenantRegistrationResponse,
@@ -84,7 +84,7 @@ internal static class TenantControlEndpoints
 
         group.MapPost(
             "/tenants/{key}/suspend",
-            async Task<IResult> (string key, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (string key, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                 if (error is not null)
@@ -94,7 +94,7 @@ internal static class TenantControlEndpoints
 
                 try
                 {
-                    var result = await jobs.Tenants.SuspendAsync(key, reason, http.User?.Identity?.Name, ct);
+                    var result = await operations.Tenants.SuspendAsync(key, reason, http.User?.Identity?.Name, ct);
                     return AdminControlHttp.ToResult(result);
                 }
                 catch (ArgumentException ex)
@@ -106,7 +106,7 @@ internal static class TenantControlEndpoints
 
         group.MapPost(
             "/tenants/{key}/resume",
-            async Task<IResult> (string key, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (string key, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                 if (error is not null)
@@ -116,7 +116,7 @@ internal static class TenantControlEndpoints
 
                 try
                 {
-                    var result = await jobs.Tenants.ResumeAsync(key, reason, http.User?.Identity?.Name, ct);
+                    var result = await operations.Tenants.ResumeAsync(key, reason, http.User?.Identity?.Name, ct);
                     return AdminControlHttp.ToResult(result);
                 }
                 catch (ArgumentException ex)
@@ -128,7 +128,7 @@ internal static class TenantControlEndpoints
 
         group.MapPatch(
             "/tenants/{key}",
-            async Task<IResult> (string key, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            async Task<IResult> (string key, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -184,7 +184,7 @@ internal static class TenantControlEndpoints
 
                 try
                 {
-                    var result = await jobs.Tenants.UpdateMetadataAsync(
+                    var result = await operations.Tenants.UpdateMetadataAsync(
                         key,
                         body.DisplayName,
                         body.Description,

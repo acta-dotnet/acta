@@ -34,7 +34,7 @@ public abstract class ScheduleSysPreviewSpec<TFixture> : ActaRuntimeTestBase<TFi
         // (not the seeded "sys" namespace); its recurring slot carries the job name as deduplication key
         // and its sole schedule is named "default" (confirmed in FrameworkJobRegistrationSpec / RetentionJob).
         var lookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey(TestNamespace, "sys.retention"), "default");
-        var preview = await Jobs.Schedules.PreviewAsync(lookup, 3, ct);
+        var preview = await Operations.Schedules.PreviewAsync(lookup, 3, ct);
         Assert.NotNull(preview);
     }
 }

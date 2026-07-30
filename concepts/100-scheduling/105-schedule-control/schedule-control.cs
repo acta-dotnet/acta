@@ -16,8 +16,8 @@ builder.Services.UseActa(j =>
 using var host = builder.Build();
 await host.StartAsync();
 
-var schedules = host.Services.GetRequiredService<IJobs>().Schedules;
-var queries = host.Services.GetRequiredService<IJobs>();
+var schedules = host.Services.GetRequiredService<IActaOperations>().Schedules;
+var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // The recurring slot registers on StartAsync; give the worker a moment to reconcile.
 await Task.Delay(500);

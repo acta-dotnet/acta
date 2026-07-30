@@ -22,7 +22,7 @@ mapped only when `ActaEndpointOptions.EnableControls` is set. CLI verbs run as `
 | Resolve by key | `IJobs.ResolveJobIdAsync` | `GET /jobs/by-key` | target syntax | |
 | List jobs | `IJobs.ListJobsAsync` | `GET /jobs` | | |
 | List events | `IJobs.ListJobEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{id}/events` | `events` | Explain bundle |
-| Overview | `IJobs.GetOverviewAsync` | `GET /overview` | | |
+| Overview | `IActaOperations.GetOverviewAsync` | `GET /overview` | | |
 | Namespaces | `Namespaces.ListAsync` / `ListItemsAsync` | `GET /namespaces`, `/namespaces/admin` | | |
 | Definitions | `Definitions.ListAsync` / `GetAsync` | `GET /definitions`, `GET /definitions/{id}` | | |
 | Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/preview` | | |

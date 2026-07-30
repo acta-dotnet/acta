@@ -18,10 +18,11 @@ builder.Services.UseActa(j =>
 using var host = builder.Build();
 await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
+var operations = host.Services.GetRequiredService<IActaOperations>();
 
-var acmeId = await jobs.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab");
-await jobs.Tenants.RegisterAsync("held-customer", "Held customer");
-await jobs.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
+var acmeId = await operations.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab");
+await operations.Tenants.RegisterAsync("held-customer", "Held customer");
+await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantKey("acme").CorrelationKey(runId));
@@ -54,7 +55,7 @@ if (suspendActive)
         new TenantLifecycleProbe("acme"),
         options => options.TenantKey("acme").CorrelationKey(runId).Delayed(TimeSpan.FromSeconds(2))
     );
-    await jobs.Tenants.SuspendAsync("acme", "tenant lifecycle lab", "concept-user");
+    await operations.Tenants.SuspendAsync("acme", "tenant lifecycle lab", "concept-user");
     try
     {
         try
@@ -81,7 +82,7 @@ if (suspendActive)
     }
     finally
     {
-        await jobs.Tenants.ResumeAsync("acme", "restore repeatable lab state", "concept-user");
+        await operations.Tenants.ResumeAsync("acme", "restore repeatable lab state", "concept-user");
     }
 }
 

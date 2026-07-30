@@ -41,7 +41,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 await jobs.EnqueueAsync(new CheckDiskSpace("db-server", FreePercent: 4));
 await Task.Delay(800);
 
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 var alerts = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: "alert-channel"));
 foreach (var alert in alerts.Items)
 {

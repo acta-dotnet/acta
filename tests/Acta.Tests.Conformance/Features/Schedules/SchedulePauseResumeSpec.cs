@@ -38,7 +38,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
 
-    private ISchedules Schedules => Services.GetRequiredService<IJobs>().Schedules;
+    private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 

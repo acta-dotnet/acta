@@ -29,41 +29,18 @@ namespace Acta.Modules.Execution.Jobs;
 /// the same code path serves worker-hosted and enqueue-only deployments.
 /// </summary>
 internal sealed class JobsApi(
-    ActaProviderInfo provider,
-    IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     JobTypeIndex typeIndex,
     JobContractIndex contractIndex,
     JobDescriptorIndex descriptorIndex,
     IOptions<JobsOptions> options,
-    WorkerWakeupPublisher wakeupPublisher,
     IWorkerWakeup wakeup,
-    OverviewService overview,
     EventsService events,
-    DefinitionsService definitionsService,
-    NamespacesService namespacesService,
-    TenantsService tenantsService,
-    TagsService tagsService,
     JobsService jobsService,
-    SignalService signalService,
-    IScheduleStore scheduleStore,
-    IWorkerStore workerStore,
-    IAlertStore alertStore
+    SignalService signalService
 ) : IJobs
 {
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
-
-    // Domain sub-facades. Constructed inline so DI registers only IJobs (the single entry point); each
-    // is a stateless wrapper over the shared store (Schedules also needs the clock + wakeup publisher).
-    public ISchedules Schedules { get; } = new SchedulesApi(scheduleStore, clock, wakeupPublisher, jobsService);
-    public IDefinitions Definitions { get; } = new DefinitionsApi(definitionsService);
-    public IWorkers Workers { get; } = new WorkersApi(workerStore);
-    public IAlerts Alerts { get; } = new AlertsApi(alertStore);
-    public ITenants Tenants { get; } = new TenantsApi(tenantsService);
-    public INamespaces Namespaces { get; } = new NamespacesApi(namespacesService);
-    public ITags Tags { get; } = tagsService;
-
-    public DbProvider Provider => provider.Provider;
 
     public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
         jobsService.EnqueueAsync(request, ct);
@@ -536,9 +513,6 @@ internal sealed class JobsApi(
 
     public ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
         events.ListJobEventsAsync(query, ct);
-
-    public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>
-        overview.GetOverviewAsync(query, ct);
 
     public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
         descriptorIndex.Find(jobNamespace, jobName) is { } descriptor

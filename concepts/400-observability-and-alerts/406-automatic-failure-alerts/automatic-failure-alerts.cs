@@ -31,7 +31,7 @@ using var host = builder.Build();
 await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 
 Console.WriteLine("Enqueueing a job that always fails with the same reason...");
 var outcome = await jobs.EnqueueAsync(new ProcessReport("monthly-2024-06"));

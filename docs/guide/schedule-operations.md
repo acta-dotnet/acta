@@ -30,7 +30,7 @@ does not pre-materialize a queue of future occurrences.
 
 ## Trigger now
 
-`IJobs.Schedules.TriggerNowAsync(...)` pulls the owning slot due now. It leaves the selected
+`IActaOperations.Schedules.TriggerNowAsync(...)` pulls the owning slot due now. It leaves the selected
 schedule's own cursor and cadence untouched.
 
 Use it for:

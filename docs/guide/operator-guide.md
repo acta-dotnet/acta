@@ -144,9 +144,9 @@ var nightly = new JobScheduleLookup(
     JobLookup.ByDeduplicationKey("billing", "reconcile-ledger"),
     "nightly");
 
-await jobs.Schedules.TriggerNowAsync(nightly, note: "validate repaired upstream");
-await jobs.Schedules.PauseAsync(nightly, untilUtc: maintenanceEndsUtc, note: "maintenance");
-await jobs.Schedules.ResumeAsync(nightly, note: "maintenance complete");
+await operations.Schedules.TriggerNowAsync(nightly, note: "validate repaired upstream");
+await operations.Schedules.PauseAsync(nightly, untilUtc: maintenanceEndsUtc, note: "maintenance");
+await operations.Schedules.ResumeAsync(nightly, note: "maintenance complete");
 ```
 
 Trigger now, misfire catch-up, normal cursor movement, and historical backfill are deliberately
@@ -161,12 +161,12 @@ running workflow may still create children that inherit the suspended tenant (an
 carries no key to re-check). Suspension is reversible and status-only.
 
 ```csharp
-await jobs.Tenants.SuspendAsync("cust-4711", "billing hold");
-await jobs.Tenants.ResumeAsync("cust-4711");
-await jobs.Tenants.UpdateMetadataAsync("cust-4711", displayName: "ACME Corp", description: null, expectedVersion: version);
-await jobs.Namespaces.SuspendAsync("billing", "incident 1042");
-await jobs.Namespaces.ResumeAsync("billing");
-await jobs.Namespaces.UpdateMetadataAsync("billing", ownerTeam: "payments", description: null, expectedVersion: version);
+await operations.Tenants.SuspendAsync("cust-4711", "billing hold");
+await operations.Tenants.ResumeAsync("cust-4711");
+await operations.Tenants.UpdateMetadataAsync("cust-4711", displayName: "ACME Corp", description: null, expectedVersion: version);
+await operations.Namespaces.SuspendAsync("billing", "incident 1042");
+await operations.Namespaces.ResumeAsync("billing");
+await operations.Namespaces.UpdateMetadataAsync("billing", ownerTeam: "payments", description: null, expectedVersion: version);
 ```
 
 Suspend/resume are idempotent (already-in-state succeeds as a no-op, reported as alreadyInState, with no event); metadata updates are
@@ -327,8 +327,8 @@ See `concepts/000-fundamentals/021-jobs-cli` for a worked example.
 ## HTTP API and dashboard
 
 `IJobs` is the read-only operator surface as well as the control surface. Root reads cover jobs,
-events, namespaces, and overview counters; domain reads hang off `jobs.Definitions`, `jobs.Schedules`,
-`jobs.Workers`, `jobs.Alerts`, `jobs.Tenants`, and `jobs.Namespaces`. Every list read is keyset-paginated: pass the
+events, namespaces, and overview counters; domain reads hang off `operations.Definitions`, `operations.Schedules`,
+`operations.Workers`, `operations.Alerts`, `operations.Tenants`, and `operations.Namespaces`. Every list read is keyset-paginated: pass the
 returned `PagedResult<T>.NextCursor` back as `Cursor` for the next page. Cursors are opaque and
 bound to the operation, ordering, and filters that issued them; a stale or foreign cursor is
 rejected with `InvalidPageCursorException` rather than returning wrong pages. Page sizes default to

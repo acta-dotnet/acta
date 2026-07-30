@@ -37,7 +37,9 @@ internal static class TestDashboardHost
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        builder.Services.AddSingleton<IJobs>(jobs ?? new FakeJobs());
+        var fake = jobs ?? new FakeJobs();
+        builder.Services.AddSingleton<IJobs>(fake);
+        builder.Services.AddSingleton<IActaOperations>(fake as IActaOperations ?? new FakeJobs());
         configureBuilder?.Invoke(builder);
 
         var app = builder.Build();
@@ -68,7 +70,7 @@ internal static class TestDashboardHost
                 )
         );
 
-    public sealed class FakeJobs : IJobs
+    public sealed class FakeJobs : IJobs, IActaOperations
     {
         public static readonly JobListItem Job = new(
             JobId: 42,

@@ -18,6 +18,7 @@ using var host = builder.Build();
 await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
+var operations = host.Services.GetRequiredService<IActaOperations>();
 var queries = host.Services.GetRequiredService<IJobs>();
 
 // Enqueue several jobs so there is data to query against.
@@ -70,7 +71,7 @@ Console.WriteLine($"TotalCount across namespace: {withTotal.TotalCount}");
 // GetOverviewAsync: one-shot health counters for the whole system.
 // Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in rung 404.
 Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
-var overview = await queries.GetOverviewAsync(new OverviewQuery());
+var overview = await operations.GetOverviewAsync(new OverviewQuery());
 Console.WriteLine($"Jobs={overview.JobCount} (system={overview.SystemJobCount}, user={overview.JobCount - overview.SystemJobCount})");
 Console.WriteLine($"Ready={overview.ReadyCount} Executing={overview.ExecutingCount} Failed={overview.FailedCount}");
 Console.WriteLine($"UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers={overview.DeadWorkerCount}");
