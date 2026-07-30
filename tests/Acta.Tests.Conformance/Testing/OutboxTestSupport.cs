@@ -1,3 +1,4 @@
+using Acta.Features.Jobs;
 using Acta.Features.Outbox;
 
 namespace Acta.Tests.Conformance.Testing;
@@ -66,11 +67,11 @@ internal sealed class HookedOutboxStore(IOutboxRelayStore inner) : IOutboxRelayS
 }
 
 /// <summary>
-/// A delegating <see cref="IOutboxTarget"/> that can raise a chosen exception instead of enqueuing, so a
+/// A delegating <see cref="IJobSubmission"/> that can raise a chosen exception instead of enqueuing, so a
 /// spec proves the relay's behavior when the target ingestion path fails (an infrastructure failure that
 /// releases the claim, or a deterministic rejection that reschedules).
 /// </summary>
-internal sealed class HookedOutboxTarget(IOutboxTarget inner) : IOutboxTarget
+internal sealed class HookedJobSubmission(IJobSubmission inner) : IJobSubmission
 {
     /// <summary>When set, invoked to obtain an exception to throw before the real enqueue runs.</summary>
     public Func<Exception>? FailInstead { get; set; }

@@ -1,3 +1,4 @@
+using Acta.Features.Jobs;
 using Acta.Features.Outbox;
 using Acta.Payloads;
 using Acta.Tests.Conformance.Postgres.Testing;
@@ -50,7 +51,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
 
         // Source store on SQLite, target on the Postgres ledger: two independent provider registrations.
         var store = Acta.SqliteOutboxSource.CreateStore(_sqliteConn, "main", "acta_outbox");
-        var target = new JobsOutboxTarget(Jobs);
+        var target = new JobsSubmission(Jobs);
         var relay = new OutboxRelayService(store, target);
         var maxInline = Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
 

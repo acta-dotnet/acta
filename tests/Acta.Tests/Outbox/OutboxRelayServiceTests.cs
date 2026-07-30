@@ -1,3 +1,4 @@
+using Acta.Features.Jobs;
 using Acta.Features.Outbox;
 using Xunit;
 
@@ -49,7 +50,7 @@ public sealed class OutboxRelayServiceTests
         var early = Row("k1", created: Now, id: Guid.NewGuid());
         var late = Row("k1", created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(early, late);
-        var target = new FakeTarget();
+        var target = new FakeSubmission();
         var svc = new OutboxRelayService(store, target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
@@ -72,7 +73,7 @@ public sealed class OutboxRelayServiceTests
         var upper = Row("ORD-1", created: Now, id: Guid.NewGuid());
         var lower = Row("ord-1", created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(upper, lower);
-        var target = new FakeTarget();
+        var target = new FakeSubmission();
         var svc = new OutboxRelayService(store, target);
 
         await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
@@ -87,7 +88,7 @@ public sealed class OutboxRelayServiceTests
     {
         var row = Row("k1");
         var store = new FakeStore(row);
-        var target = new FakeTarget { Action = JobEnqueueAction.Deduplicated };
+        var target = new FakeSubmission { Action = JobEnqueueAction.Deduplicated };
         var svc = new OutboxRelayService(store, target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
@@ -110,7 +111,7 @@ public sealed class OutboxRelayServiceTests
         var bad = Row("bad", job: "bad");
         var store = new FakeStore(good1, good2, bad);
         // Deterministic rejection whenever the batch contains the "bad" job.
-        var target = new FakeTarget { RejectWhen = reqs => reqs.Any(r => r.JobName == "bad") };
+        var target = new FakeSubmission { RejectWhen = reqs => reqs.Any(r => r.JobName == "bad") };
         var svc = new OutboxRelayService(store, target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
@@ -133,7 +134,7 @@ public sealed class OutboxRelayServiceTests
     {
         var bad = Row("bad", job: "bad", failureCount: 4);
         var store = new FakeStore(bad);
-        var target = new FakeTarget { RejectWhen = _ => true };
+        var target = new FakeSubmission { RejectWhen = _ => true };
         var svc = new OutboxRelayService(store, target);
 
         var ex = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
@@ -151,7 +152,7 @@ public sealed class OutboxRelayServiceTests
     {
         var row = Row("k1", meta: "{ not json");
         var store = new FakeStore(row);
-        var target = new FakeTarget();
+        var target = new FakeSubmission();
         var svc = new OutboxRelayService(store, target);
 
         await Assert.ThrowsAsync<OutboxQuarantineTickException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
@@ -164,7 +165,7 @@ public sealed class OutboxRelayServiceTests
     public async Task A_tick_processes_at_most_twenty_batches_of_two_hundred_fifty_six_rows()
     {
         var store = new FakeStore(Enumerable.Range(0, 20 * 256 + 300).Select(i => Row($"k{i}")).ToArray());
-        var target = new FakeTarget();
+        var target = new FakeSubmission();
         var svc = new OutboxRelayService(store, target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
@@ -182,7 +183,7 @@ public sealed class OutboxRelayServiceTests
         var fresh = Row("k1", failureCount: 0, created: Now, id: Guid.NewGuid());
         var aged = Row("k1", failureCount: 4, created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(fresh, aged);
-        var target = new FakeTarget { RejectWhen = _ => true };
+        var target = new FakeSubmission { RejectWhen = _ => true };
         var svc = new OutboxRelayService(store, target);
 
         // The count-4 row reaches the threshold of five and quarantines; the count-0 row reschedules at 1.
@@ -205,7 +206,7 @@ public sealed class OutboxRelayServiceTests
         // (not rescheduled), which only happens under budget exhaustion, and the tick then ends.
         var rows = Enumerable.Range(0, 20 * 256).Select(i => Row($"k{i}", job: "bad")).ToArray();
         var store = new FakeStore(rows);
-        var target = new FakeTarget { RejectWhen = _ => true };
+        var target = new FakeSubmission { RejectWhen = _ => true };
         var svc = new OutboxRelayService(store, target);
 
         // A high threshold so the rejections reschedule rather than quarantine (no tick failure).
@@ -224,7 +225,7 @@ public sealed class OutboxRelayServiceTests
         var row = Row("k1");
         var store = new FakeStore(row);
         using var cts = new CancellationTokenSource();
-        var target = new FakeTarget
+        var target = new FakeSubmission
         {
             OnEnqueue = () =>
             {
@@ -248,7 +249,7 @@ public sealed class OutboxRelayServiceTests
         // A plain transient exception (not OCE, ArgumentException, or PayloadTooLargeException) is
         // classified as infrastructure: the claim is released best-effort and the tick fails without
         // consuming any quarantine budget.
-        var target = new FakeTarget { OnEnqueue = () => throw new InvalidOperationException("target unavailable") };
+        var target = new FakeSubmission { OnEnqueue = () => throw new InvalidOperationException("target unavailable") };
         var svc = new OutboxRelayService(store, target);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
@@ -264,7 +265,7 @@ public sealed class OutboxRelayServiceTests
         // A plain transient exception surfacing through the store (a source-database fault) fails the
         // tick and is retried on the next tick; it never quarantines a row.
         var store = new ThrowingStore();
-        var target = new FakeTarget();
+        var target = new FakeSubmission();
         var svc = new OutboxRelayService(store, target);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
@@ -288,7 +289,7 @@ public sealed class OutboxRelayServiceTests
         public Task<long> CountBacklogAsync(CancellationToken ct) => Task.FromResult(0L);
     }
 
-    private sealed class FakeTarget : IOutboxTarget
+    private sealed class FakeSubmission : IJobSubmission
     {
         public JobEnqueueAction Action { get; init; } = JobEnqueueAction.Inserted;
         public Func<IReadOnlyList<JobEnqueueRequest>, bool>? RejectWhen { get; init; }

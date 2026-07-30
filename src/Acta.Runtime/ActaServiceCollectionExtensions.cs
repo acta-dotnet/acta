@@ -179,7 +179,7 @@ public static class ActaServiceCollectionExtensions
         {
             services.AddSingleton(sp => new OutboxRelayRegistry(
                 builder.Workers,
-                sp.GetRequiredService<IOutboxTarget>(),
+                sp.GetRequiredService<IJobSubmission>(),
                 sp.GetService<ILoggerFactory>()
             ));
         }

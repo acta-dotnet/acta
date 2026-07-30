@@ -1,3 +1,4 @@
+using Acta.Features.Jobs;
 using Acta.Features.Outbox;
 using Acta.Features.Workers;
 using Acta.Payloads;
@@ -12,7 +13,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
 /// Shared setup for the relay handoff-boundary integration specs: a live Acta ledger (a running worker
 /// namespace with the <c>echo</c> route registered) plus a live per-test external-outbox source table.
 /// Crash-window specs drive <see cref="OutboxRelayService"/> directly with a failure-injecting store or
-/// target seam (<see cref="HookedOutboxStore"/> / <see cref="HookedOutboxTarget"/>), the composition the
+/// target seam (<see cref="HookedOutboxStore"/> / <see cref="HookedJobSubmission"/>), the composition the
 /// wired <c>sys.outbox</c> job uses in production. Declares no <c>[Fact]</c> so it is not itself a
 /// candidate contract spec; each concrete spec adds its own metadata and guarantees.
 /// </summary>
@@ -35,9 +36,9 @@ public abstract class OutboxRelayIntegrationBase<TFixture> : ActaRuntimeTestBase
 
     private protected int MaxInlinePayloadBytes => Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
 
-    private protected IOutboxTarget OwnedTarget => new JobsOutboxTarget(Jobs);
+    private protected IJobSubmission OwnedSubmission => new JobsSubmission(Jobs);
 
-    private protected OutboxRelayService Relay(IOutboxRelayStore store, IOutboxTarget target) => new(store, target);
+    private protected OutboxRelayService Relay(IOutboxRelayStore store, IJobSubmission target) => new(store, target);
 
     private protected OutboxRelayTickOptions TickOptions(int quarantineThreshold = 5, int leaseTtlSeconds = 180, int? maxPayload = null) =>
         new(SourceTable, quarantineThreshold, leaseTtlSeconds, maxPayload ?? MaxInlinePayloadBytes);
