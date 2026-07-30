@@ -28,7 +28,7 @@ internal sealed class RuntimeJobContext : JobContext
 
     private readonly IJobStore _jobStore;
     private readonly Acta.Features.Signals.ISignalStore _signalStore;
-    private readonly Acta.Features.Alerts.IAlertStore _alertStore;
+    private readonly Acta.Features.Alerts.IAlertSink _alerts;
     private readonly Acta.Features.Execution.IExecutionStore _executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers;
     private readonly ILockStore _lockStore;
@@ -51,7 +51,7 @@ internal sealed class RuntimeJobContext : JobContext
         int leaseTtlSeconds,
         IJobStore jobStore,
         Acta.Features.Signals.ISignalStore signalStore,
-        Acta.Features.Alerts.IAlertStore alertStore,
+        Acta.Features.Alerts.IAlertSink alerts,
         Acta.Features.Execution.IExecutionStore executionStore,
         IJobPayloadSerializerRegistry serializers,
         ILockStore lockStore,
@@ -83,7 +83,7 @@ internal sealed class RuntimeJobContext : JobContext
         _alertDedupeWindow = alertDedupeWindow;
         _jobStore = jobStore;
         _signalStore = signalStore;
-        _alertStore = alertStore;
+        _alerts = alerts;
         _executionStore = executionStore;
         _serializers = serializers;
         _lockStore = lockStore;
@@ -524,7 +524,7 @@ internal sealed class RuntimeJobContext : JobContext
             windowStart = AlertWindow.FloorStart(now, _alertDedupeWindow);
         }
 
-        await _alertStore.RaiseJobAlertAsync(
+        await _alerts.RaiseAsync(
             Acta.Features.Alerts.RaiseJobAlertCommand.Create(
                 JobNamespace,
                 JobId,

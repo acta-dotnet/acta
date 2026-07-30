@@ -49,7 +49,7 @@ public sealed class RuntimeJobContextLockReleaseTests
             leaseTtlSeconds: 180,
             jobStore: null!,
             signalStore: null!,
-            alertStore: null!,
+            alerts: null!,
             executionStore: null!,
             new ThrowingSerializerRegistry(),
             lockStore,

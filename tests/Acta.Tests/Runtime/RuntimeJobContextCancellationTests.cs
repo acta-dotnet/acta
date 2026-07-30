@@ -40,7 +40,7 @@ public sealed class RuntimeJobContextCancellationTests
             leaseTtlSeconds: 180,
             jobStore: null!,
             signalStore: null!,
-            alertStore: null!,
+            alerts: null!,
             executionStore: db,
             new ThrowingSerializerRegistry(),
             new ThrowingLockStore(),
