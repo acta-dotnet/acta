@@ -9,6 +9,7 @@
   import { displayFormatter, parseUtcDateTimeInput } from '../format.ts';
   import ConfirmAction from './ConfirmAction.svelte';
   import Icon from './Icon.svelte';
+  import RelativeTime from './RelativeTime.svelte';
 
   let {
     jobNamespace,
@@ -111,7 +112,6 @@
   let previewData = $state<SchedulePreview | null>(null);
   let previewError = $state('');
   let previewLoading = $state(false);
-  let previewNowMs = $state(0);
 
   // nextRunsUtc are UTC instants. The two views are the operator's IANA zone and raw UTC; the fixed
   // timestamp format includes both numeric offset and effective IANA zone.
@@ -128,7 +128,6 @@
     previewError = '';
     try {
       previewData = await previewSchedule(jobNamespace, jobName, scheduleName, 10);
-      previewNowMs = Date.now();
     } catch (e) {
       previewError = (e as Error).message;
     } finally {
@@ -269,7 +268,7 @@
           {#each previewData.nextRunsUtc as runAtUtc}
             <li>
               <span class="mono preview-run-time">{displayFormatter.rowTimestampInZone(runAtUtc, displayZone)}</span>
-              <span class="dim preview-run-relative">{displayFormatter.relativeTime(runAtUtc, previewNowMs)}</span>
+              <span class="dim preview-run-relative"><RelativeTime value={runAtUtc} /></span>
             </li>
           {/each}
         </ol>
