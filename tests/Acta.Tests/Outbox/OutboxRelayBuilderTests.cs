@@ -13,7 +13,7 @@ public sealed class OutboxRelayBuilderTests
 {
     private static OutboxRelayRegistration? Register(Action<IWorkerBuilder> configure)
     {
-        var jb = new JobsBuilder(new ServiceCollection());
+        var jb = new ActaBuilder(new ServiceCollection());
         jb.Run("relay-ns", configure);
         return jb.Workers.Single().Relay;
     }

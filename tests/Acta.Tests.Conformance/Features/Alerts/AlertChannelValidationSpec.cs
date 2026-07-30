@@ -72,7 +72,7 @@ public abstract class AlertChannelValidationSpec<TFixture> : ActaTestBase<TFixtu
                 namespaceName,
                 w =>
                 {
-                    w.AddModule<TestJobs.TestJobsManifest>();
+                    w.AddManifest<TestJobs.TestJobsManifest>();
                     configureOpsChannel?.Invoke(w);
                 }
             );

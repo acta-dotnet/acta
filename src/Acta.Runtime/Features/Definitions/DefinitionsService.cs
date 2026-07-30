@@ -275,7 +275,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         var maxAttempts = descriptor.MaxAttempts;
         var backoff = descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression;
 
-        // Hand-authored IActaManifest descriptors bypass the generator's compile-time Backoff check, so
+        // Hand-authored IJobManifest descriptors bypass the generator's compile-time Backoff check, so
         // this is the only remaining gate before an invalid expression reaches the DB - mirrors the
         // override write gate in SetOverridesAsync so a bad value fails fast at worker init instead of
         // crash-looping every execution.

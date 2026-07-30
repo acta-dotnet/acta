@@ -13,7 +13,7 @@ builder.Services.UseActa(j =>
         "real-alert-routing",
         w =>
         {
-            w.AddModule<RealAlertRoutingJobs>();
+            w.AddManifest<RealAlertRoutingJobs>();
 
             // Built-in Slack incoming-webhook transport; endpoint is the webhook URL supplied from
             // startup configuration. Acta SQL stores only channel_name = "ops-slack".

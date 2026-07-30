@@ -28,17 +28,17 @@ internal sealed class JobContractIndex
 
     private JobContractIndex(Dictionary<(Type, string), List<JobContractRoute>> routes) => _routes = routes;
 
-    public static JobContractIndex Build(IEnumerable<CatalogRegistration> catalogs)
+    public static JobContractIndex Build(IEnumerable<JobCatalogRegistration> catalogs)
     {
         var routes = new Dictionary<(Type, string), List<JobContractRoute>>();
 
         foreach (var catalog in catalogs)
         {
-            foreach (var module in catalog.Modules)
+            foreach (var manifest in catalog.Manifests)
             {
-                foreach (var descriptor in module.GetDescriptors().Descriptors)
+                foreach (var descriptor in manifest.GetDescriptors().Descriptors)
                 {
-                    var key = (module.ManifestType, descriptor.JobName);
+                    var key = (manifest.ManifestType, descriptor.JobName);
                     var route = new JobContractRoute(
                         catalog.NamespaceName,
                         descriptor.JobName,

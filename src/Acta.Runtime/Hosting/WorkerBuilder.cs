@@ -8,32 +8,32 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Acta;
 
 /// <summary>
-/// Default <see cref="IWorkerBuilder"/> implementation. Collects the worker's <see cref="ModuleRegistration"/>s
-/// and identity for <c>JobsBuilder.Run</c> to fold into a <c>WorkerRegistration</c>; never instantiated by
+/// Default <see cref="IWorkerBuilder"/> implementation. Collects the worker's <see cref="ManifestRegistration"/>s
+/// and identity for <c>ActaBuilder.Run</c> to fold into a <c>WorkerRegistration</c>; never instantiated by
 /// consumer code.
 /// </summary>
 internal sealed class WorkerBuilder(IServiceCollection services) : IWorkerBuilder
 {
-    private readonly List<ModuleRegistration> _modules = [];
+    private readonly List<ManifestRegistration> _manifests = [];
     private readonly List<AlertChannelDeclaration> _alertChannels = [];
 
     public string? OwnerTeam { get; set; }
 
     public string? Description { get; set; }
 
-    internal IReadOnlyList<ModuleRegistration> Modules => _modules;
+    internal IReadOnlyList<ManifestRegistration> Manifests => _manifests;
 
     internal IReadOnlyList<AlertChannelDeclaration> AlertChannels => _alertChannels;
 
     internal OutboxRelayRegistration? Relay { get; private set; }
 
-    public IWorkerBuilder AddModule<TManifest>()
-        where TManifest : class, IActaManifest
+    public IWorkerBuilder AddManifest<TManifest>()
+        where TManifest : class, IJobManifest
     {
         var type = typeof(TManifest);
-        if (!_modules.Any(m => m.ManifestType == type))
+        if (!_manifests.Any(m => m.ManifestType == type))
         {
-            _modules.Add(new ModuleRegistration(type, static () => TManifest.Descriptors));
+            _manifests.Add(new ManifestRegistration(type, static () => TManifest.Descriptors));
         }
         return this;
     }

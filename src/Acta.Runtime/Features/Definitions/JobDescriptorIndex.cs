@@ -14,15 +14,15 @@ internal sealed class JobDescriptorIndex
 
     private JobDescriptorIndex(Dictionary<(string, string), JobDescriptor> descriptors) => _descriptors = descriptors;
 
-    public static JobDescriptorIndex Build(IEnumerable<CatalogRegistration> catalogs)
+    public static JobDescriptorIndex Build(IEnumerable<JobCatalogRegistration> catalogs)
     {
         var descriptors = new Dictionary<(string, string), JobDescriptor>();
 
         foreach (var catalog in catalogs)
         {
-            foreach (var module in catalog.Modules)
+            foreach (var manifest in catalog.Manifests)
             {
-                foreach (var descriptor in module.GetDescriptors().Descriptors)
+                foreach (var descriptor in manifest.GetDescriptors().Descriptors)
                 {
                     // The same job can surface via several catalogs (Reference + Run); first wins, and
                     // every route carries the identical generated descriptor.

@@ -8,7 +8,7 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// <see cref="RegisterJobDefinitions"/>'s C#-side row building: the only remaining Backoff gate for
-/// hand-authored <see cref="IActaManifest"/> descriptors, which bypass the source generator's
+/// hand-authored <see cref="IJobManifest"/> descriptors, which bypass the source generator's
 /// compile-time check. The exception fires before any DB call, so <c>db</c>/<c>dialect</c> are unused.
 /// </summary>
 public class RegisterJobDefinitionsTests

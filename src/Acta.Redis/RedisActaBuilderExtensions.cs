@@ -15,13 +15,13 @@ namespace Acta;
 /// OTHER processes too; everything else (the publish guard, metrics, poll floors, claim semantics)
 /// is unchanged: Redis is a latency accelerator, never a correctness dependency.
 /// </summary>
-public static class RedisJobsBuilderExtensions
+public static class RedisActaBuilderExtensions
 {
     /// <summary>
     /// Use Redis pub/sub as the wake transport. Registers a <see cref="IConnectionMultiplexer"/>
     /// from <see cref="RedisWakeupOptions.Configuration"/> unless the host already registered one.
     /// </summary>
-    public static IJobsBuilder UseRedisWakeup(this IJobsBuilder builder, Action<RedisWakeupOptions> configure)
+    public static IActaBuilder UseRedisWakeup(this IActaBuilder builder, Action<RedisWakeupOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
@@ -53,7 +53,7 @@ public static class RedisJobsBuilderExtensions
     /// Use Redis pub/sub as the wake transport, connecting with the given StackExchange.Redis
     /// configuration string (e.g. <c>"localhost:6379"</c>).
     /// </summary>
-    public static IJobsBuilder UseRedisWakeup(this IJobsBuilder builder, string configuration)
+    public static IActaBuilder UseRedisWakeup(this IActaBuilder builder, string configuration)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configuration);
         return builder.UseRedisWakeup(o => o.Configuration = configuration);

@@ -36,7 +36,7 @@ public abstract class AlertChannelRegistrySpec<TFixture> : ActaTestBase<TFixture
             j.Run(
                 PrimaryNamespace,
                 w =>
-                    w.AddModule<TestJobs.TestJobsManifest>()
+                    w.AddManifest<TestJobs.TestJobsManifest>()
                         .AddAlertChannel(
                             "default",
                             "slack-webhook",
@@ -51,7 +51,7 @@ public abstract class AlertChannelRegistrySpec<TFixture> : ActaTestBase<TFixture
                             o => o.MinSeverity = AlertSeverityCode.Error
                         )
             );
-            j.Run(OtherNamespace, w => w.AddModule<TestJobs.TestJobsManifest>());
+            j.Run(OtherNamespace, w => w.AddManifest<TestJobs.TestJobsManifest>());
         });
         services.Configure<JobsOptions>(o => o.RegisterFrameworkJobs = false);
     }

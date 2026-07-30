@@ -151,7 +151,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public void ApplyProvider(IJobsBuilder builder, string schemaName)
+    public void ApplyProvider(IActaBuilder builder, string schemaName)
     {
         builder.UseSqlite(opts =>
         {

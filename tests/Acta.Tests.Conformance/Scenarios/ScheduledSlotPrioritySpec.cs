@@ -19,7 +19,7 @@ internal static class PrioritySlotHandler
 /// Hand-written manifest for a single recurring job that declares <see cref="JobPriorityCode.Critical"/>.
 /// Isolated from <c>TestJobsManifest</c> so sibling specs that count slots/schedules are unaffected.
 /// </summary>
-public sealed class ScheduledSlotPriorityManifest : IActaManifest
+public sealed class ScheduledSlotPriorityManifest : IJobManifest
 {
     public const string JobName = "prio-beat";
     private const string ScheduleName = "beat";

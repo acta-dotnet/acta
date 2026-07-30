@@ -209,7 +209,7 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public void ApplyProvider(IJobsBuilder builder, string schemaName)
+    public void ApplyProvider(IActaBuilder builder, string schemaName)
     {
         var connString =
             IntegrationConfig.SqlServerConnectionString ?? throw new InvalidOperationException("SQL Server tests require ACTA_TEST_MSSQL.");

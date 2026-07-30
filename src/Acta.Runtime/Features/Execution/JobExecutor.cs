@@ -110,7 +110,7 @@ internal sealed class JobExecutor
         {
             throw new InvalidOperationException(
                 $"Claimed job with definition_id={job.DefinitionId} (job {job.JobId}) "
-                    + "has no descriptor binding. Was AddModule called for the right manifest before InitializeAsync?"
+                    + "has no descriptor binding. Was AddManifest called for the right manifest before InitializeAsync?"
             );
         }
 

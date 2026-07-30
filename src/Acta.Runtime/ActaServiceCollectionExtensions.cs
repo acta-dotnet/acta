@@ -46,7 +46,7 @@ public static class ActaServiceCollectionExtensions
     /// embedded single-node <c>j.UseSqlite(...)</c>); a missing provider fails fast with
     /// <see cref="InvalidOperationException"/> on return.
     /// </summary>
-    public static IServiceCollection UseActa(this IServiceCollection services, Action<IJobsBuilder> configure)
+    public static IServiceCollection UseActa(this IServiceCollection services, Action<IActaBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
@@ -120,7 +120,7 @@ public static class ActaServiceCollectionExtensions
             )
         );
 
-        var builder = new JobsBuilder(services);
+        var builder = new ActaBuilder(services);
         configure(builder);
 
         // Fail fast at configuration time unless exactly one durable provider was selected. Official

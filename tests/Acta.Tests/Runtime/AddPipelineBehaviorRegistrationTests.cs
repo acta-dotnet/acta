@@ -15,7 +15,7 @@ public sealed class AddPipelineBehaviorRegistrationTests
     {
         var services = new ServiceCollection();
 
-        new JobsBuilder(services).AddPipelineBehavior<BehaviorA>();
+        new ActaBuilder(services).AddPipelineBehavior<BehaviorA>();
 
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(BehaviorA));
         Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
@@ -26,7 +26,7 @@ public sealed class AddPipelineBehaviorRegistrationTests
     {
         var services = new ServiceCollection();
 
-        new JobsBuilder(services).AddPipelineBehavior<BehaviorA>(ServiceLifetime.Singleton);
+        new ActaBuilder(services).AddPipelineBehavior<BehaviorA>(ServiceLifetime.Singleton);
 
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(BehaviorA));
         Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
@@ -36,7 +36,7 @@ public sealed class AddPipelineBehaviorRegistrationTests
     public void AddPipelineBehavior_preserves_registration_order()
     {
         var services = new ServiceCollection();
-        var builder = new JobsBuilder(services);
+        var builder = new ActaBuilder(services);
 
         builder.AddPipelineBehavior<BehaviorA>().AddPipelineBehavior<BehaviorB>();
 
@@ -51,7 +51,7 @@ public sealed class AddPipelineBehaviorRegistrationTests
     public void AddPipelineBehavior_is_a_no_op_for_a_duplicate_type()
     {
         var services = new ServiceCollection();
-        var builder = new JobsBuilder(services);
+        var builder = new ActaBuilder(services);
 
         builder.AddPipelineBehavior<BehaviorA>().AddPipelineBehavior<BehaviorA>();
 

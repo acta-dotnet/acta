@@ -50,7 +50,7 @@ internal static class AtMostOnceStepHandler
 }
 
 /// <summary>Spec-local manifest with the two at-most-once probes, isolated from TestJobsManifest.</summary>
-public sealed class AtMostOnceStepManifest : IActaManifest
+public sealed class AtMostOnceStepManifest : IJobManifest
 {
     public const string UncaughtProbe = "at-most-once-uncaught";
     public const string CaughtProbe = "at-most-once-caught";

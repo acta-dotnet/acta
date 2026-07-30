@@ -174,7 +174,7 @@ static async Task RunWorkerAsync(string[] args)
             ns,
             w =>
             {
-                w.AddModule<AnvilJobs>();
+                w.AddManifest<AnvilJobs>();
                 w.AddOutboxRelay(
                     "anvil-outbox",
                     source =>

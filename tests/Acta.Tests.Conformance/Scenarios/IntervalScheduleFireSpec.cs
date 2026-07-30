@@ -25,7 +25,7 @@ internal static class IntervalPingHandler
 /// spec-local manifest). Keeps the interval-ping definition isolated from
 /// <c>TestJobsManifest</c> so sibling specs that count schedules/slots are unaffected.
 /// </summary>
-public sealed class IntervalPingManifest : IActaManifest
+public sealed class IntervalPingManifest : IJobManifest
 {
     private const string PingJobName = "interval-ping";
     private const string PingScheduleName = "every-30s";

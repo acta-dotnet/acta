@@ -9,14 +9,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta;
 
 /// <summary>
-/// Default <see cref="IJobsBuilder"/> implementation. Constructed by
+/// Default <see cref="IActaBuilder"/> implementation. Constructed by
 /// <see cref="ActaServiceCollectionExtensions.UseActa"/>; never instantiated directly by
 /// consumer code.
 /// </summary>
-internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
+internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
 {
     private readonly List<WorkerRegistration> _workers = [];
-    private readonly List<CatalogRegistration> _references = [];
+    private readonly List<JobCatalogRegistration> _references = [];
     private readonly List<Func<IServiceProvider, IJobPipelineBehavior>> _pipelineBehaviors = [];
     private readonly HashSet<Type> _pipelineBehaviorTypes = [];
 
@@ -31,11 +31,11 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
 
     /// <summary>
     /// Catalogs visible to typed enqueue: every <c>Reference</c> plus every <c>Run</c> worker's
-    /// namespace and modules. Read by
+    /// namespace and manifests. Read by
     /// <see cref="ActaServiceCollectionExtensions.UseActa"/> to build the JobTypeIndex.
     /// </summary>
-    internal IEnumerable<CatalogRegistration> Catalogs =>
-        _references.Concat(_workers.Select(w => new CatalogRegistration(w.NamespaceName, w.Modules)));
+    internal IEnumerable<JobCatalogRegistration> Catalogs =>
+        _references.Concat(_workers.Select(w => new JobCatalogRegistration(w.NamespaceName, w.Manifests)));
 
     /// <summary>
     /// Pipeline-behavior resolvers in registration order (outermost first). Read by
@@ -47,25 +47,25 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
     /// <summary>True when <see cref="DisableCli"/> was called; suppresses the CLI host swap.</summary>
     internal bool CliDisabled { get; private set; }
 
-    public IJobsBuilder ConfigureOptions(Action<JobsOptions> configure)
+    public IActaBuilder ConfigureOptions(Action<JobsOptions> configure)
     {
         Services.Configure(configure);
         return this;
     }
 
-    public IJobsBuilder Run<TManifest>(string namespaceName, string? ownerTeam = null, string? description = null)
-        where TManifest : class, IActaManifest =>
+    public IActaBuilder Run<TManifest>(string namespaceName, string? ownerTeam = null, string? description = null)
+        where TManifest : class, IJobManifest =>
         Run(
             namespaceName,
             w =>
             {
                 w.OwnerTeam = ownerTeam;
                 w.Description = description;
-                w.AddModule<TManifest>();
+                w.AddManifest<TManifest>();
             }
         );
 
-    public IJobsBuilder Run(string namespaceName, Action<IWorkerBuilder> configure)
+    public IActaBuilder Run(string namespaceName, Action<IWorkerBuilder> configure)
     {
         namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
         ArgumentNullException.ThrowIfNull(configure);
@@ -93,7 +93,7 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
                 namespaceName,
                 builder.OwnerTeam,
                 builder.Description,
-                builder.Modules,
+                builder.Manifests,
                 builder.AlertChannels,
                 builder.Relay
             )
@@ -101,32 +101,32 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
         return this;
     }
 
-    public IJobsBuilder Reference<TManifest>(string namespaceName)
-        where TManifest : class, IActaManifest
+    public IActaBuilder Reference<TManifest>(string namespaceName)
+        where TManifest : class, IJobManifest
     {
         namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
 
         if (
             !_references.Any(r =>
-                string.Equals(r.NamespaceName, namespaceName, StringComparison.Ordinal) && r.Modules[0].ManifestType == typeof(TManifest)
+                string.Equals(r.NamespaceName, namespaceName, StringComparison.Ordinal) && r.Manifests[0].ManifestType == typeof(TManifest)
             )
         )
         {
             _references.Add(
-                new CatalogRegistration(namespaceName, [new ModuleRegistration(typeof(TManifest), static () => TManifest.Descriptors)])
+                new JobCatalogRegistration(namespaceName, [new ManifestRegistration(typeof(TManifest), static () => TManifest.Descriptors)])
             );
         }
         return this;
     }
 
-    public IJobsBuilder AddPayloadSerializer<TSerializer>()
+    public IActaBuilder AddPayloadSerializer<TSerializer>()
         where TSerializer : class, IJobPayloadSerializer
     {
         Services.AddSingleton<IJobPayloadSerializer, TSerializer>();
         return this;
     }
 
-    public IJobsBuilder UseJsonPayloads(IJsonTypeInfoResolver resolver)
+    public IActaBuilder UseJsonPayloads(IJsonTypeInfoResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         // Registered after UseActa's built-in json serializer; the registry is last-wins per format id.
@@ -134,7 +134,7 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
         return this;
     }
 
-    public IJobsBuilder AddPipelineBehavior<TBehavior>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    public IActaBuilder AddPipelineBehavior<TBehavior>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TBehavior : class, IJobPipelineBehavior
     {
         if (_pipelineBehaviorTypes.Add(typeof(TBehavior)))
@@ -145,7 +145,7 @@ internal sealed class JobsBuilder(IServiceCollection services) : IJobsBuilder
         return this;
     }
 
-    public IJobsBuilder DisableCli()
+    public IActaBuilder DisableCli()
     {
         CliDisabled = true;
         return this;

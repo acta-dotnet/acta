@@ -45,7 +45,7 @@ public sealed class JsonJobPayloadSerializer : IJobPayloadSerializer
     /// <summary>
     /// Builds a serializer whose options resolve payload type metadata from <paramref name="resolver"/>
     /// (an app-supplied source-generated <c>JsonSerializerContext</c>), so payload (de)serialization needs
-    /// no reflection under Native AOT. Wire it via <c>IJobsBuilder.UseJsonPayloads(...)</c>. The framework
+    /// no reflection under Native AOT. Wire it via <c>IActaBuilder.UseJsonPayloads(...)</c>. The framework
     /// wire shape (camelCase, string enums) still applies; the resolver supplies only the type metadata.
     /// </summary>
     public static JsonJobPayloadSerializer WithResolver(IJsonTypeInfoResolver resolver) =>

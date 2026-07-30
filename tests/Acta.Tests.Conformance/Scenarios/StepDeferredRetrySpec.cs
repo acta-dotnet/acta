@@ -44,7 +44,7 @@ internal static class DeferredRetryStepHandler
 /// Hand-written spec-local manifest for the deferred-retry probe.
 /// Isolated from <c>TestJobsManifest</c> so sibling step specs are unaffected.
 /// </summary>
-public sealed class DeferredRetryStepManifest : IActaManifest
+public sealed class DeferredRetryStepManifest : IJobManifest
 {
     private const string ProbeName = "deferred-retry-step-probe";
 

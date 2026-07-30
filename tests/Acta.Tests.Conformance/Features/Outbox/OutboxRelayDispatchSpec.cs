@@ -35,7 +35,7 @@ public abstract class OutboxRelayDispatchSpec<TFixture> : ActaRuntimeTestBase<TF
                 {
                     w.OwnerTeam = "test";
                     w.Description = GetType().FullName;
-                    w.AddModule<TestJobs.TestJobsManifest>();
+                    w.AddManifest<TestJobs.TestJobsManifest>();
                     w.AddOutboxRelay(
                         "wired-src",
                         source =>

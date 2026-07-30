@@ -64,7 +64,7 @@ public sealed class CliRegistrationTests
         return services;
     }
 
-    private sealed class FakeManifest : IActaManifest
+    private sealed class FakeManifest : IJobManifest
     {
         public static JobDescriptorManifest Descriptors { get; } = new([]);
     }

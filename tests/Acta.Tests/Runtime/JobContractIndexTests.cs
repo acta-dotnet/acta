@@ -8,12 +8,12 @@ public sealed class JobContractIndexTests
 {
     private sealed record PingInput(int N);
 
-    private sealed class ManifestA : IActaManifest
+    private sealed class ManifestA : IJobManifest
     {
         public static JobDescriptorManifest Descriptors => new([]);
     }
 
-    private sealed class ManifestB : IActaManifest
+    private sealed class ManifestB : IJobManifest
     {
         public static JobDescriptorManifest Descriptors => new([]);
     }
@@ -75,8 +75,8 @@ public sealed class JobContractIndexTests
         Assert.True(string.IsNullOrWhiteSpace(def.JobName));
     }
 
-    private static CatalogRegistration Catalog(string ns, Type manifestType, params JobDescriptor[] descriptors) =>
-        new(ns, [new ModuleRegistration(manifestType, () => new JobDescriptorManifest([.. descriptors]))]);
+    private static JobCatalogRegistration Catalog(string ns, Type manifestType, params JobDescriptor[] descriptors) =>
+        new(ns, [new ManifestRegistration(manifestType, () => new JobDescriptorManifest([.. descriptors]))]);
 
     private static JobDescriptor Descriptor(string jobName, Type inputType) =>
         new(

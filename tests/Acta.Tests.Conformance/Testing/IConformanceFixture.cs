@@ -61,7 +61,7 @@ public interface IConformanceFixture
     /// <paramref name="builder"/>, targeting the named <paramref name="schemaName"/>. Used by the
     /// <c>Testing/</c> bases that own DI construction directly (no fixture-built session factory).
     /// </summary>
-    void ApplyProvider(Acta.IJobsBuilder builder, string schemaName);
+    void ApplyProvider(Acta.IActaBuilder builder, string schemaName);
 
     /// <summary>
     /// Ensure a one-column (<c>marker</c>) business probe table named <paramref name="tableName"/> exists

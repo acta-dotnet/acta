@@ -122,7 +122,7 @@ internal sealed class WorkerRuntimeInitializer
         var namespaceId = _context.NamespaceIds[ns];
 
         // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
-        // of the user modules (the core assembly's own generated ActaJobs), so each namespace carries
+        // of the user manifests (the core assembly's own generated ActaJobs), so each namespace carries
         // its maintenance catalog (unless JobsOptions.RegisterFrameworkJobs is off, e.g. external
         // maintenance). System jobs are identified by their reserved sys. names; every manifest's
         // descriptors land under this one worker's namespace.
@@ -145,13 +145,13 @@ internal sealed class WorkerRuntimeInitializer
         {
             manifests.Add(new JobDescriptorManifest([.. ActaJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))]));
         }
-        manifests.AddRange(_workerRegistration.Modules.Select(r => r.GetDescriptors()));
+        manifests.AddRange(_workerRegistration.Manifests.Select(r => r.GetDescriptors()));
 
         // Register every manifest's descriptors in ONE batch: register_job_definitions retires the
         // namespace's definitions that are absent from its batch, so the batch must be the namespace's
-        // complete set (system + all user modules), not one manifest at a time, or each
+        // complete set (system + all user manifests), not one manifest at a time, or each
         // call would retire the others' jobs. An empty combined set skips the call entirely (the
-        // RegisterJobDefinitions.Run early-return), so an enqueue-only / module-less worker never sweeps.
+        // RegisterJobDefinitions.Run early-return), so an enqueue-only / manifest-less worker never sweeps.
         ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
         ValidateHasDescriptors(ns, allDescriptors);
         ValidateUniqueJobNames(allDescriptors);
@@ -217,7 +217,7 @@ internal sealed class WorkerRuntimeInitializer
         return validator.ValidateAsync(namespaceName, ct);
     }
 
-    // A module-less worker with framework jobs disabled would claim namespace jobs it can never
+    // A manifest-less worker with framework jobs disabled would claim namespace jobs it can never
     // dispatch; the claimed rows would rot until lease recovery. Enqueue-only deployments don't call
     // Run() and never reach this initializer.
     internal static void ValidateHasDescriptors(string namespaceName, ImmutableArray<JobDescriptor> descriptors)
@@ -226,14 +226,14 @@ internal sealed class WorkerRuntimeInitializer
         {
             throw new InvalidOperationException(
                 $"Worker namespace '{namespaceName}' registers no job descriptors, so it would claim jobs it can never "
-                    + "dispatch. Register at least one module on the worker builder, enable "
+                    + "dispatch. Register at least one manifest on the worker builder, enable "
                     + "JobsOptions.RegisterFrameworkJobs, or use the enqueue-only registration instead of Run()."
             );
         }
     }
 
     // The generator rejects duplicate job names only within one generated manifest; a worker combines
-    // the framework manifest plus every registered module, so the combined set must be validated
+    // the framework manifest plus every registered manifest, so the combined set must be validated
     // before any catalog write. A collision would otherwise register last-writer-wins and dispatch an
     // arbitrary one of the colliding handlers.
     internal static void ValidateUniqueJobNames(ImmutableArray<JobDescriptor> descriptors)
