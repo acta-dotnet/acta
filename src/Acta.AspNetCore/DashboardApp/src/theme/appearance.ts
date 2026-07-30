@@ -1,6 +1,5 @@
 import { writable } from 'svelte/store';
 import {
-  accentSwatch,
   buildAccentTokens,
   MANAGED_ACCENT_TOKENS,
   type AccentId,
@@ -27,19 +26,20 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   textSize: 'default',
 };
 
+// No swatch here: it depends on the active theme, so the menu resolves it per render via
+// accentSwatch(id, theme). Paper renders a warm family, not the cool Radix ramps.
 export const ACCENTS: ReadonlyArray<{
   id: AccentId;
   label: string;
-  swatch: string;
 }> = [
-  { id: 'teal', label: 'Teal', swatch: accentSwatch('teal') },
-  { id: 'blue', label: 'Blue', swatch: accentSwatch('blue') },
-  { id: 'indigo', label: 'Indigo', swatch: accentSwatch('indigo') },
-  { id: 'violet', label: 'Violet', swatch: accentSwatch('violet') },
-  { id: 'green', label: 'Green', swatch: accentSwatch('green') },
-  { id: 'amber', label: 'Amber', swatch: accentSwatch('amber') },
-  { id: 'crimson', label: 'Crimson', swatch: accentSwatch('crimson') },
-  { id: 'pink', label: 'Pink', swatch: accentSwatch('pink') },
+  { id: 'teal', label: 'Teal' },
+  { id: 'blue', label: 'Blue' },
+  { id: 'indigo', label: 'Indigo' },
+  { id: 'violet', label: 'Violet' },
+  { id: 'green', label: 'Green' },
+  { id: 'amber', label: 'Amber' },
+  { id: 'crimson', label: 'Crimson' },
+  { id: 'pink', label: 'Pink' },
 ];
 
 export const TEXT_SIZES: ReadonlyArray<{

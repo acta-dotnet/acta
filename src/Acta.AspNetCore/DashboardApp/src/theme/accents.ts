@@ -67,6 +67,26 @@ const ACCENT_SCALES: Record<AccentId, ScalePair> = {
   },
 };
 
+/**
+ * Paper runs its own accent family. The eight Radix ramps are cool light scales, and on a warm
+ * ground even their muted steps read as wrong rather than as colour - magenta on beige has no
+ * good answer. So each accent id maps to the warm equivalent of that hue instead, and four of
+ * them are simply paper's own status colours, which is what keeps the family coherent: teal is
+ * the moss of --ok, amber the ochre of --warn, crimson the seal red of --bad, violet the plum of
+ * --held. Every value sits at or below 0.12 relative luminance so it clears 4.5:1 against both
+ * paper surfaces (#f4ecd9 and the deeper #ebe0c8), which accents.test.ts verifies.
+ */
+const PAPER_ACCENTS: Record<AccentId, string> = {
+  teal: '#3f6147',     // moss
+  green: '#4a6b2f',    // olive
+  amber: '#7d5310',    // ochre
+  crimson: '#a03a2f',  // seal red
+  pink: '#8c4a52',     // clay rose
+  violet: '#655279',   // plum
+  indigo: '#4a5570',   // slate indigo
+  blue: '#3c5a6b',     // slate teal
+};
+
 export const MANAGED_ACCENT_TOKENS = [
   '--accent',
   '--accent-solid',
@@ -84,8 +104,9 @@ export function accentSurface(theme: ThemeId): AccentSurface {
   return theme === 'acta' ? 'dark' : 'light';
 }
 
-export function accentSwatch(accent: AccentId): string {
-  return ACCENT_SCALES[accent].dark[8];
+/** The picker swatch, so what it shows is what that theme will actually render. */
+export function accentSwatch(accent: AccentId, theme?: ThemeId): string {
+  return theme === 'paper' ? PAPER_ACCENTS[accent] : ACCENT_SCALES[accent].dark[8];
 }
 
 function rgba(hex: string, alpha: number): string {
@@ -173,6 +194,21 @@ export function buildAccentTokens(accent: AccentId, theme: ThemeId): AccentToken
       '--badge-run-bg': '#13302b',
       '--grid': 'rgba(100, 216, 199, 0.05)',
       '--glow': 'rgba(100, 216, 199, 0.1)',
+    };
+  }
+
+  if (theme === 'paper') {
+    const solid = PAPER_ACCENTS[accent];
+    // The tints stay translucent so they composite over whatever the row already is - paper,
+    // zebra banding, or the deeper chrome tone - instead of pinning one opaque colour.
+    return {
+      '--accent': solid,
+      '--accent-solid': solid,
+      '--on-accent': readableForeground(solid),
+      '--nav-active-bg': rgba(solid, 0.13),
+      '--badge-run-bg': rgba(solid, 0.16),
+      '--grid': rgba(solid, 0.05),
+      '--glow': rgba(solid, 0.1),
     };
   }
 
