@@ -12,7 +12,7 @@ describe('AppearanceMenu', () => {
     const user = userEvent.setup();
     render(AppearanceMenu);
 
-    const trigger = screen.getByRole('button', { name: /Appearance Acta/ });
+    const trigger = screen.getByRole('button', { name: /^Appearance$/ });
     expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
     await user.click(trigger);
 
@@ -24,7 +24,7 @@ describe('AppearanceMenu', () => {
   it('changes every setting and restores all defaults atomically', async () => {
     const user = userEvent.setup();
     render(AppearanceMenu);
-    await user.click(screen.getByRole('button', { name: /Appearance Acta/ }));
+    await user.click(screen.getByRole('button', { name: /^Appearance$/ }));
 
     await user.click(screen.getByRole('radio', { name: /^Paper/ }));
     await user.click(screen.getByRole('radio', { name: 'Violet' }));
@@ -47,7 +47,7 @@ describe('AppearanceMenu', () => {
   it('closes on Escape and returns focus to the trigger', async () => {
     const user = userEvent.setup();
     render(AppearanceMenu);
-    const trigger = screen.getByRole('button', { name: /Appearance Acta/ });
+    const trigger = screen.getByRole('button', { name: /^Appearance$/ });
     await user.click(trigger);
 
     await user.keyboard('{Escape}');
@@ -59,7 +59,7 @@ describe('AppearanceMenu', () => {
   it('closes on an outside pointer without stealing focus', async () => {
     const user = userEvent.setup();
     render(AppearanceMenu);
-    const trigger = screen.getByRole('button', { name: /Appearance Acta/ });
+    const trigger = screen.getByRole('button', { name: /^Appearance$/ });
     await user.click(trigger);
 
     const outside = document.createElement('button');

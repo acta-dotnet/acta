@@ -78,6 +78,6 @@
     margin-bottom: 8px;
   }
   .schedule-meta { display: flex; flex-wrap: wrap; gap: 6px 24px; margin: 0 0 12px; }
-  .schedule-meta dt { color: var(--muted); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .schedule-meta dt { color: var(--muted); font-size: var(--text-xs); font-family: var(--mono); font-weight: 500; letter-spacing: 0.02em; }
   .schedule-meta dd { margin: 2px 0 0; }
 </style>

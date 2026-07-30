@@ -105,7 +105,7 @@
 
 <style>
   .ovr {
-    color: var(--accent, #c70);
+    color: var(--accent);
     font-weight: 700;
     margin-left: 2px;
   }

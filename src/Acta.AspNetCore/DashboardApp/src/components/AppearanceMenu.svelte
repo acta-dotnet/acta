@@ -10,6 +10,7 @@
     setTextSize,
     setTheme,
   } from '../theme/appearance';
+  import { accentSwatch } from '../theme/accents';
 
   let open = $state(false);
   let rootElement: HTMLElement | null = $state(null);
@@ -69,15 +70,14 @@
     aria-expanded={open}
     onclick={toggle}
   >
+    <span class="trigger-copy">Appearance</span>
+    <!-- The accent swatch trails the label so it cannot push the text off the sidebar's shared
+         left margin: "Appearance" starts exactly where the nav items do. -->
     <span
       class="trigger-dot"
-      style:background={selectedAccent?.swatch}
+      style:background={selectedAccent ? accentSwatch(selectedAccent.id, $appearance.theme) : undefined}
       aria-hidden="true"
     ></span>
-    <span class="trigger-copy">
-      <span>Appearance</span>
-      <span class="trigger-theme">{selectedTheme?.label}</span>
-    </span>
   </button>
 
   {#if open}
@@ -136,7 +136,7 @@
                 checked={$appearance.accent === accent.id}
                 onchange={() => setAccent(accent.id)}
               />
-              <span class="accent-swatch" style:background={accent.swatch} aria-hidden="true">
+              <span class="accent-swatch" style:background={accentSwatch(accent.id, $appearance.theme)} aria-hidden="true">
                 {#if $appearance.accent === accent.id}<span class="check">✓</span>{/if}
               </span>
               <span>{accent.label}</span>
@@ -178,14 +178,14 @@
     text-align: left;
   }
   .trigger-dot {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
     flex: none;
+    margin-left: auto;
   }
-  .trigger-copy { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-  .trigger-theme { color: var(--muted); font-size: var(--text-sm); }
+  .trigger-copy { min-width: 0; }
 
   .popover {
     position: absolute;
@@ -210,8 +210,7 @@
     color: var(--muted);
     font-size: var(--text-xs);
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
   fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
   legend {
@@ -282,7 +281,9 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+    /* Defines the swatch against the popover it sits on. A fixed black at 14% disappeared
+       entirely on the dark theme, leaving darker swatches edgeless. */
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent);
   }
   .accent-choice.selected .accent-swatch {
     outline: 2px solid var(--panel);
