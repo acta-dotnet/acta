@@ -6,7 +6,6 @@ using System.Text;
 using System.Text.Json;
 using Acta.Configuration;
 using Acta.Kernel;
-using Acta.Modules.Alerting;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Namespaces;
 using Acta.Modules.Execution.Schedules;

@@ -81,6 +81,15 @@ public sealed class ArchitectureBoundaryTests
         Assert.True(exposed.Length == 0, "Relational implementation types are public:\n" + string.Join("\n", exposed));
     }
 
+    /// <summary>The public SDK knows nothing about its implementation.</summary>
+    [Fact]
+    public void Public_sdk_references_no_implementation_assembly()
+    {
+        var references = typeof(IJobs).Assembly.GetReferencedAssemblies().Select(reference => reference.Name).ToArray();
+        Assert.DoesNotContain("Acta.Runtime", references);
+        Assert.DoesNotContain("Acta.Relational", references);
+    }
+
     /// <summary>
     /// The operations adapter consumes the public Acta API only: provider and schema capabilities
     /// arrive through SDK types (SqlProviderOptions), never through relational or runtime internals.

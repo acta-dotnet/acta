@@ -249,7 +249,6 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: Services.GetRequiredService<ILockStore>(),
             clock: Services.GetRequiredService<IActaClock>(),
-            alertDedupeWindow: TimeSpan.FromHours(1),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null
