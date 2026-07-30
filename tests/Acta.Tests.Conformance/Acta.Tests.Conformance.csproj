@@ -18,8 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Runtime\Acta.Runtime.csproj" />
     <ProjectReference Include="..\..\src\Acta.Testing\Acta.Testing.csproj" />
     <ProjectReference Include="..\Acta.Tests.TestJobs\Acta.Tests.TestJobs.csproj" />
   </ItemGroup>

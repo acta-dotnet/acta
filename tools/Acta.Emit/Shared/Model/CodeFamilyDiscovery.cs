@@ -35,7 +35,7 @@ internal sealed record CodeCapacityModel(
 }
 
 /// <summary>
-/// Reflects over <c>Acta.Contracts</c> to enumerate <c>[CodeKind]</c> families and
+/// Reflects over the <c>Acta</c> SDK assembly to enumerate <c>[CodeKind]</c> families and
 /// the meta-enums referenced by enum-backed (coded) columns.
 /// </summary>
 internal static class CodeFamilyDiscovery

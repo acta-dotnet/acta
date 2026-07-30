@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <!-- Job descriptors + IActaManifest contract come from Abstractions. -->
-    <ProjectReference Include="..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
     <!-- Generator emits TestJobs.TestJobsManifest at compile time. -->
     <ProjectReference
       Include="..\..\src\Acta.Generators\Acta.Generators.csproj"

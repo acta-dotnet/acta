@@ -19,7 +19,7 @@ public sealed class ProviderMigrationOwnershipTests
         var root = IntegrationConfig.FindRepoRoot();
 
         Assert.False(
-            Directory.Exists(Path.Combine(root, "src", "Acta", "Migrations")),
+            Directory.Exists(Path.Combine(root, "src", "Acta.Runtime", "Migrations")),
             "Core src/Acta/Migrations must not exist; migrations are provider-owned."
         );
 

@@ -198,10 +198,10 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 
 ### Packages
 
-- **Package split by surface:** `Acta.Contracts` (public contract), `Acta` (provider-independent runtime), `Acta.Relational` (shared relational mechanics), providers, `Acta.Redis`, and `Acta.Testing`. *Reason:* an assembly boundary is a stronger API-safety guarantee than `internal` alone.
+- **Package split by surface:** `Acta` (public API and SDK), `Acta.Runtime` (provider-independent runtime), `Acta.Relational` (shared relational mechanics), providers, `Acta.Redis`, and `Acta.Testing`. *Reason:* an assembly boundary is a stronger API-safety guarantee than `internal` alone.
 - **Relational-provider baseline.** SQL Server, PostgreSQL, and SQLite ship side-by-side against one provider-neutral entity model. *Reason:* shipping distributed and embedded providers in lockstep prevents single-provider assumptions.
 - **No in-memory provider.** *Reason:* it would pass tests the real providers fail.
-- **Visibility default is `internal sealed`** outside `Acta.Contracts`. *Reason:* the API boundary is grep-checkable.
+- **Visibility default is `internal sealed`** outside the `Acta` SDK project. *Reason:* the API boundary is grep-checkable.
 
 ### Provider contract
 

@@ -75,5 +75,5 @@ from application workers.
 - [The SQL-queue Engineering Lab](../../../docs/engineering-labs.md)
 - [The leaderless-recovery Engineering Lab](../../../docs/engineering-labs.md)
 - [`worker-crash-recovery.cs`](./worker-crash-recovery.cs)
-- [`RecoveryJob.cs`](../../../src/Acta/Features/Execution/RecoveryJob.cs)
+- [`RecoveryJob.cs`](../../../src/Acta.Runtime/Features/Execution/RecoveryJob.cs)
 - [`WorkerCrashRecoveryChaosSpec.cs`](../../../tests/Acta.Tests.Conformance/Runtime/WorkerCrashRecoveryChaosSpec.cs)

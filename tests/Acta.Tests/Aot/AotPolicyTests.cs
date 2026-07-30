@@ -26,9 +26,9 @@ public sealed class AotPolicyTests
     /// </summary>
     private static readonly string[] RuntimeRoots =
     [
-        "src/Acta.Contracts",
-        "src/Acta.Relational",
         "src/Acta",
+        "src/Acta.Relational",
+        "src/Acta.Runtime",
         "src/Acta.SqlServer",
         "src/Acta.Postgres",
         "src/Acta.Sqlite",
@@ -54,7 +54,7 @@ public sealed class AotPolicyTests
         new(
             "GetCustomAttribute",
             new Regex(@"\bGetCustomAttribute\b", RegexOptions.Compiled),
-            Allow("src/Acta/Features/Workers/WorkerRuntimeInitializer.cs")
+            Allow("src/Acta.Runtime/Features/Workers/WorkerRuntimeInitializer.cs")
         ),
         new("MakeGenericMethod", new Regex(@"\bMakeGenericMethod\b", RegexOptions.Compiled), Allow()),
         new("Activator.CreateInstance", new Regex(@"\bActivator\.CreateInstance\b", RegexOptions.Compiled), Allow()),

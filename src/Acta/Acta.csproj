@@ -4,42 +4,51 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The public SDK: single flat Acta namespace; folders group by capability only. -->
     <RootNamespace>Acta</RootNamespace>
-    <!-- Emit XML doc file so Acta.Emit can read entity/property summaries for docs/reference/data-model.md. -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+    <!-- Emit XML doc file so Acta.Emit can read summaries (e.g., JobPayloadFormat fields). -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Suppress "missing XML comment" warnings: not every public member needs one. -->
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Description>Acta provider-independent runtime behavior, feature services, rules, and persistence ports.</Description>
+    <Description>The Acta public API: [Job]/[JobSchedule] attributes, IJobs, JobContext, and code families. Ships the source generator and ACTA analyzers.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Options" />
-    <!-- Cron parsing for recurring schedules (6-field seconds support). Used by
-         NextOccurrenceCalculator only, never in SQL. -->
-    <PackageReference Include="Cronos" />
+    <!-- The generator/analyzer assembly rides this package (analyzers/dotnet/cs) so a single
+         provider PackageReference gives consumers [Job] generation and ACTA diagnostics; analyzer
+         assets flow transitively through package references, unlike ProjectReferences. -->
+    <None
+      Include="..\Acta.Generators\bin\$(Configuration)\netstandard2.0\Acta.Generators.dll"
+      Pack="true"
+      PackagePath="analyzers/dotnet/cs"
+      Visible="false"
+    />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Acta.Contracts\Acta.Contracts.csproj" PrivateAssets="none" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <!-- JobsApi (in Acta.Runtime) builds JobOutcome via its private-ctor internal static factories. -->
+    <InternalsVisibleTo Include="Acta.Runtime" />
+    <!-- Tests need access to internal validators and canonicalizers. -->
     <InternalsVisibleTo Include="Acta.Tests" />
-    <InternalsVisibleTo Include="Acta.Tests.Conformance" />
-    <!-- The provider conformance heads build the internal outbox source store through the provider
-         factory, so they must see the internal IOutboxRelayStore return type. -->
-    <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
-    <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
-    <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
-    <InternalsVisibleTo Include="Acta.Postgres" />
-    <InternalsVisibleTo Include="Acta.SqlServer" />
-    <InternalsVisibleTo Include="Acta.Sqlite" />
+    <!-- The outbox staging core reuses the shared enqueue normalization/validation. -->
+    <InternalsVisibleTo Include="Acta.Relational" />
   </ItemGroup>
 
+  <!-- Packing without the generator assembly would ship a package whose [Job] source generation
+       and ACTA analyzers silently never run; a build may proceed, a package must not. -->
+  <Target Name="RequireGeneratorForPack" BeforeTargets="GenerateNuspec;Pack">
+    <Error
+      Condition="!Exists('..\Acta.Generators\bin\$(Configuration)\netstandard2.0\Acta.Generators.dll')"
+      Text="Acta.Generators.dll is missing. Build src/Acta.Generators in $(Configuration) before packing Acta."
+    />
+  </Target>
+
   <ItemGroup>
-    <!-- Generates the core system-job manifest; provider-local projection mappings are generated in
-         each relational provider assembly. -->
     <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!-- Generated per-handler invokers call ActivatorUtilities.CreateInstance<T>(IServiceProvider).
+         Carried transitively so consuming assemblies (concepts / user manifests) compile cleanly
+         without an explicit reference. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 </Project>

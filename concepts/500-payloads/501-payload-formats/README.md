@@ -67,5 +67,5 @@ data before choosing compression.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`Primer.cs`](./Primer.cs)
 - [`ScalarV1Serializer.cs`](./Serializers/ScalarV1Serializer.cs)
-- [`JobPayloadSerializerRegistry.cs`](../../../src/Acta/Payloads/JobPayloadSerializerRegistry.cs)
+- [`JobPayloadSerializerRegistry.cs`](../../../src/Acta.Runtime/Payloads/JobPayloadSerializerRegistry.cs)
 - [`ActaManifestGenerator.cs`](../../../src/Acta.Generators/Features/Jobs/ActaManifestGenerator.cs)

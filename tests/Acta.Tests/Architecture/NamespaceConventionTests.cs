@@ -6,7 +6,7 @@ namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Pins the architecture rule that source namespaces follow project roots and physical folders,
-/// with deliberate exceptions. Acta.Contracts' whole public surface lives in the flat
+/// with deliberate exceptions. The Acta SDK project's whole public surface lives in the flat
 /// <c>Acta</c> namespace so consumers need a single using; folders there group by capability only.
 /// Registration surface (<c>*Extensions.cs</c> at a project root: <c>AddActa</c>/<c>Use*</c>/
 /// <c>MapActa</c>) sits at the package root for discoverability and declares <c>Acta</c> so
@@ -18,7 +18,7 @@ public sealed class NamespaceConventionTests
 {
     private static readonly Regex NamespaceRx = new(@"^namespace\s+([^\s;{]+)", RegexOptions.Multiline | RegexOptions.Compiled);
 
-    private const string FlatNamespaceProject = "Acta.Contracts";
+    private const string FlatNamespaceProject = "Acta";
 
     [Fact]
     public void Source_namespaces_follow_project_roots_and_physical_folders()

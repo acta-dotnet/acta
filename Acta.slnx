@@ -133,7 +133,7 @@
     <Project Path="tools/Acta.Emit/Acta.Emit.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Acta.Contracts/Acta.Contracts.csproj" />
+    <Project Path="src/Acta/Acta.csproj" />
     <Project Path="src/Acta.Relational/Acta.Relational.csproj" />
     <Project Path="src/Acta.AspNetCore/Acta.AspNetCore.csproj" />
     <Project Path="src/Acta.Generators/Acta.Generators.csproj" />
@@ -142,7 +142,7 @@
     <Project Path="src/Acta.Sqlite/Acta.Sqlite.csproj" />
     <Project Path="src/Acta.SqlServer/Acta.SqlServer.csproj" />
     <Project Path="src/Acta.Testing/Acta.Testing.csproj" />
-    <Project Path="src/Acta/Acta.csproj" />
+    <Project Path="src/Acta.Runtime/Acta.Runtime.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Acta.Tests/Acta.Tests.csproj" />

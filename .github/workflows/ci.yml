@@ -164,8 +164,8 @@ jobs:
         shell: pwsh
         run: |
           $projects = @(
-            'src/Acta.Contracts/Acta.Contracts.csproj',
             'src/Acta/Acta.csproj',
+            'src/Acta.Runtime/Acta.Runtime.csproj',
             'src/Acta.Relational/Acta.Relational.csproj',
             'src/Acta.AspNetCore/Acta.AspNetCore.csproj',
             'src/Acta.Postgres/Acta.Postgres.csproj',

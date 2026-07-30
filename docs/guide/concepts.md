@@ -8,7 +8,7 @@ There is no broker required, no sidecar, no hosted control plane, and no determi
 
 This is the single conceptual on-ramp for Acta: the vocabulary to hold before reading the handler
 contract, operator guide, or generated references. It is descriptive. The source-owned API docs in
-`src/Acta.Contracts` are authoritative for exact signatures and contracts.
+`src/Acta` are authoritative for exact signatures and contracts.
 
 For the rationale behind these choices (why one table, why leaderless, why checkpoints over replay),
 see [`design.md`](../internals/design.md). For a diagram-first view of the same model, see

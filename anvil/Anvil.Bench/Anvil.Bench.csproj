@@ -33,8 +33,8 @@
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false"
     />
+    <ProjectReference Include="..\..\src\Acta.Runtime\Acta.Runtime.csproj" />
     <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
-    <ProjectReference Include="..\..\src\Acta.Contracts\Acta.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Acta.Redis\Acta.Redis.csproj" />
     <ProjectReference Include="..\..\support\Acta.LocalHost\Acta.LocalHost.csproj" />
   </ItemGroup>

@@ -82,7 +82,7 @@ Staging is **zero-configuration**: no dependency injection, no `AddActa`, no led
 registration of any kind. A producer references its database's provider package (`Acta.Postgres`,
 `Acta.SqlServer`, or `Acta.Sqlite`), writes `using Acta;`, and calls the extension on the concrete
 provider transaction. The producer never learns where the ledger lives; it addresses work only by
-namespace and job name. `JobEnqueueRequest` arrives transitively from `Acta.Contracts`.
+namespace and job name. `JobEnqueueRequest` arrives transitively from the `Acta` package.
 
 ### Producer paths
 

@@ -58,4 +58,4 @@ occurrences that must never coalesce.
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`schedule-misfire.cs`](./schedule-misfire.cs)
-- [`NextOccurrenceCalculator.cs`](../../../src/Acta/Features/Schedules/NextOccurrenceCalculator.cs)
+- [`NextOccurrenceCalculator.cs`](../../../src/Acta.Runtime/Features/Schedules/NextOccurrenceCalculator.cs)

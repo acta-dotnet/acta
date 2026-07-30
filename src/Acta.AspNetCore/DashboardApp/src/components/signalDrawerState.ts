@@ -2,7 +2,7 @@
 // directly (no Svelte compiler needed) - same reason jobControlState.ts stays plain .ts.
 //
 // validateSignalName mirrors the backend's IdentifierSyntax.ValidateUserKebab
-// (src/Acta.Contracts/Primitives/IdentifierSyntax.cs), which MapSignal calls at the wire boundary
+// (src/Acta/Primitives/IdentifierSyntax.cs), which MapSignal calls at the wire boundary
 // (src/Acta.AspNetCore/Features/Jobs/ActaControlEndpoints.cs): strict single-segment kebab
 // (`^[a-z][a-z0-9-]*$`, no trailing '-'), reject the bare reserved name "sys" and anything starting
 // with the "sys." prefix, max ExtendedMaxLength (128) chars. This is a client-side echo for fast
