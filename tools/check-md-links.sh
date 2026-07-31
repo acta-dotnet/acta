@@ -34,5 +34,10 @@ while IFS= read -r file; do
   done < <(grep -oE '\]\([^)]+\)' "$file" || true)
 done < <(git ls-files '*.md')
 
+if [ "$checked" -eq 0 ]; then
+  echo "ERROR: checked 0 links. Outside a Git checkout 'git ls-files' returns nothing and a green result would be meaningless."
+  exit 1
+fi
+
 echo "Checked $checked relative link(s); $broken broken."
 [ "$broken" -eq 0 ]
