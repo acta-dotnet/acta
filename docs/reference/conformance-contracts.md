@@ -854,14 +854,16 @@
 ## Execution
 
 ### CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals
-- **Contract:** CompleteExecutionsBatch finalizes plain Executing rows including keyed ones and declines those with a parent or mismatched lease, one bool per ordinal.
+- **Contract:** CompleteExecutionsBatch finalizes plain Executing rows, declines parented or mismatched-lease rows, and accepts duplicate job ids, one bool per ordinal.
 - **Arrange:** Plain, child, exclusive-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.
 - **Act:** CompleteExecutionsBatch runs over the Executing rows batched in interleaved order.
-- **Assert:** The returned bool list aligns to the original ordinals, finalizing eligible rows with true and declining the rest with false.
+- **Assert:** The returned bool list aligns to the original ordinals, finalizing eligible rows and declining the rest, even when one job id appears twice.
 - **Guarantees:**
   - Mixed batch [plain,child,excl,plain,stale] returns exact [true,false,true,true,false] aligned to original ordinals
   - Second permutation [child,plain,stale,plain] returns exact [false,true,false,true] proving alignment is not positional luck
   - All-plain batch finalizes all rows and returns all-true
+  - Batch with a terminal failure row finalizes it as Failed and the event keeps the reason code
+  - Duplicate job id in one batch: stale attempt declines, current attempt finalizes, unrelated row unaffected
   - Wrong-owner batch entry declines with false and scalar CompleteExecution returns NotOwner
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionsBatchAsync`
@@ -1065,10 +1067,10 @@
   - `Acta.Runtime.Services.Locks.ILockStore.ExtendAsync`
 
 ### Heartbeat extends a handler-held lock and a lost lock cancels the attempt
-- **Contract:** The heartbeat extends every lock an attempt holds so a long critical section stays exclusive, and a lost held lock cancels the attempt.
+- **Contract:** The heartbeat extends every lock an attempt holds so a long critical section stays exclusive, and a lost held lock aborts the attempt into a retryable failure.
 - **Arrange:** A lock-holder handler that holds a RunWithLock lock through a long critical section is registered.
 - **Act:** One run holds the lock across heartbeat ticks, and in a second run the held lock is deleted out-of-band.
-- **Assert:** The heartbeat advances the held lock's lease expiry, and the lost lock cancels the attempt on the next tick.
+- **Assert:** The heartbeat advances the held lock's lease expiry, and the lost lock cancels the attempt, which re-arms Ready under the retry budget.
 - **Guarantees:**
   - Heartbeat advances a handler-held lock's lease
   - A lost held lock cancels the attempt

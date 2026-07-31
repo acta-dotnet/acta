@@ -8,7 +8,8 @@ BEGIN
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 
     DECLARE @updated TABLE (
-        id                BIGINT           NOT NULL PRIMARY KEY,
+        ordinal           INT              NOT NULL PRIMARY KEY,
+        job_id            BIGINT           NOT NULL,
         execution_number  INT              NOT NULL,
         job_ref           UNIQUEIDENTIFIER NOT NULL,
         namespace_id  SMALLINT         NOT NULL,
@@ -31,22 +32,22 @@ BEGIN
                                            ELSE r.retention_until_utc END,
                modified_at_utc      = @now,
                version              = r.version + 1
-        OUTPUT inserted.job_id, inserted.execution_number, j.job_ref, j.namespace_id,
+        OUTPUT b.ordinal, inserted.job_id, inserted.execution_number, j.job_ref, j.namespace_id,
                j.lineage_root_id, j.definition_id, j.tenant_id, j.audit_level_code
           INTO @updated
           FROM {{schema}}.runtimes r
           INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
           INNER JOIN @p_batch b
-                  ON b.id               = r.job_id
+                  ON b.job_id           = r.job_id
                  AND b.execution_number = r.execution_number
          WHERE r.status_code  = 50 /* JobStatusCode.Executing */
            AND j.parent_id    IS NULL
            AND r.leased_by_worker_id = b.worker_id;
 
         INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
-        SELECT u.id, u.execution_number, b.result_format_id, b.result, @now
+        SELECT u.job_id, u.execution_number, b.result_format_id, b.result, @now
           FROM @updated u
-          INNER JOIN @p_batch b ON b.id = u.id
+          INNER JOIN @p_batch b ON b.ordinal = u.ordinal
          WHERE b.result_format_id <> 0 /* JobPayloadFormat.None */;
 
         INSERT INTO {{schema}}.events (
@@ -55,13 +56,13 @@ BEGIN
             worker_id, from_status_code, to_status_code, execution_status_code, duration_ms,
             reason_code, reason_message)
         SELECT 41 /* JobEventCode.JobExecutionFinished */, @now, u.namespace_id, 70 /* JobActorCode.Worker */, NULL,
-               u.id, u.job_ref, u.execution_number, COALESCE(u.lineage_root_id, u.id), u.definition_id, u.tenant_id,
+               u.job_id, u.job_ref, u.execution_number, COALESCE(u.lineage_root_id, u.job_id), u.definition_id, u.tenant_id,
                b.worker_id, 50 /* JobStatusCode.Executing */,
                CASE WHEN b.succeeded = 1 THEN 100 /* JobStatusCode.Done */ ELSE 200 /* JobStatusCode.Failed */ END,
                CASE WHEN b.succeeded = 1 THEN 100 /* ExecutionStatusCode.Succeeded */ ELSE 200 /* ExecutionStatusCode.Failed */ END, b.duration_ms,
                b.reason_code, b.reason_message
           FROM @updated u
-          INNER JOIN @p_batch b ON b.id = u.id
+          INNER JOIN @p_batch b ON b.ordinal = u.ordinal
          WHERE u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
             OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0);
 
@@ -77,8 +78,8 @@ BEGIN
     END CATCH;
 
     SELECT b.ordinal,
-           CAST(CASE WHEN u.id IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT) AS finalized
+           CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT) AS finalized
       FROM @p_batch b
-      LEFT JOIN @updated u ON u.id = b.id
+      LEFT JOIN @updated u ON u.ordinal = b.ordinal
      ORDER BY b.ordinal;
 END;

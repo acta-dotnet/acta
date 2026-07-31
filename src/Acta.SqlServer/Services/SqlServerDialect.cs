@@ -503,7 +503,7 @@ internal sealed class SqlServerDialect : ISqlDialect
     private static readonly SqlMetaData[] CompleteBatchColumns =
     [
         new("ordinal", SqlDbType.Int),
-        new("id", SqlDbType.BigInt),
+        new("job_id", SqlDbType.BigInt),
         new("worker_id", SqlDbType.Int),
         new("execution_number", SqlDbType.Int),
         new("succeeded", SqlDbType.Bit),

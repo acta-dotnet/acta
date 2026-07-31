@@ -490,7 +490,7 @@ internal sealed class PostgresDialect : ISqlDialect
 
         // PostgreSQL routine arguments are positional; this order matches complete_executions_batch.
         AddArray(postgres, "@p_b_ordinal", NpgsqlDbType.Integer, ordinals);
-        AddArray(postgres, "@p_b_id", NpgsqlDbType.Bigint, ids);
+        AddArray(postgres, "@p_b_job_id", NpgsqlDbType.Bigint, ids);
         AddArray(postgres, "@p_b_worker_id", NpgsqlDbType.Integer, workerIds);
         AddArray(postgres, "@p_b_execution_number", NpgsqlDbType.Integer, executionNumbers);
         AddArray(postgres, "@p_b_succeeded", NpgsqlDbType.Boolean, succeeded);

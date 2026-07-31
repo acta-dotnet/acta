@@ -524,7 +524,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10,20,21,22,23,24,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
           },
           {
             "Name": "reason_message",
@@ -1075,7 +1075,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10,20,21,22,23,24,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
           },
           {
             "Name": "reason_message",
@@ -1911,6 +1911,12 @@
             "Id": 24,
             "Code": "job.deadline-exceeded",
             "Description": "Job passed its whole-job deadline; the engine terminated it Cancelled without consuming the retry budget.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 25,
+            "Code": "job.attempt-aborted",
+            "Description": "Worker aborted the attempt mid-flight (lease renewal at risk or a held lock lost); retried under the failure budget.",
             "Lifecycle": "Active"
           },
           {
