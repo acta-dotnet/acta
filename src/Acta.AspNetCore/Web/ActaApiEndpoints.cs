@@ -145,35 +145,32 @@ internal static class ActaApiEndpoints
                     parentFilter = parsed;
                 }
 
-                return Guard(
-                    http,
-                    async () =>
+                return Guard(async () =>
+                {
+                    long? parentJobId = null;
+                    if (parentFilter is { } filter)
                     {
-                        long? parentJobId = null;
-                        if (parentFilter is { } filter)
+                        parentJobId = await jobs.ResolveJobIdAsync(filter, ct);
+                        if (parentJobId is null)
                         {
-                            parentJobId = await jobs.ResolveJobIdAsync(filter, ct);
-                            if (parentJobId is null)
-                            {
-                                return NotFound();
-                            }
+                            return NotFound();
                         }
-
-                        var query = new ListJobsQuery(
-                            JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                            Status: status,
-                            JobName: QueryBinding.Text(http.Request.Query, "jobName"),
-                            ParentJobId: parentJobId,
-                            TenantId: tenantId,
-                            CorrelationKey: QueryBinding.Text(http.Request.Query, "correlationKey"),
-                            PageSize: pageSize,
-                            Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                            IncludeTotal: includeTotal ?? false,
-                            Tags: QueryBinding.Tags(http.Request.Query)
-                        );
-                        return Results.Json(await operations.ListJobsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobListItem);
                     }
-                );
+
+                    var query = new ListJobsQuery(
+                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
+                        Status: status,
+                        JobName: QueryBinding.Text(http.Request.Query, "jobName"),
+                        ParentJobId: parentJobId,
+                        TenantId: tenantId,
+                        CorrelationKey: QueryBinding.Text(http.Request.Query, "correlationKey"),
+                        PageSize: pageSize,
+                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
+                        IncludeTotal: includeTotal ?? false,
+                        Tags: QueryBinding.Tags(http.Request.Query)
+                    );
+                    return Results.Json(await operations.ListJobsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobListItem);
+                });
             }
         );
 
@@ -254,16 +251,13 @@ internal static class ActaApiEndpoints
                 var deduplicationKey = QueryBinding.Text(http.Request.Query, "deduplicationKey");
                 return jobNamespace is null || deduplicationKey is null
                     ? Task.FromResult(BadRequest("jobNamespace and deduplicationKey are required."))
-                    : Guard(
-                        http,
-                        async () =>
-                        {
-                            var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey), ct);
-                            return snapshot is null
-                                ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.")
-                                : Results.Json(snapshot, DashboardJsonContext.Default.JobSnapshot);
-                        }
-                    );
+                    : Guard(async () =>
+                    {
+                        var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey), ct);
+                        return snapshot is null
+                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.")
+                            : Results.Json(snapshot, DashboardJsonContext.Default.JobSnapshot);
+                    });
             }
         );
 
@@ -272,9 +266,8 @@ internal static class ActaApiEndpoints
             static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var query = new OverviewQuery(JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"));
-                return Guard(
-                    http,
-                    async () => Results.Json(await operations.GetOverviewAsync(query, ct), DashboardJsonContext.Default.OverviewSnapshot)
+                return Guard(async () =>
+                    Results.Json(await operations.GetOverviewAsync(query, ct), DashboardJsonContext.Default.OverviewSnapshot)
                 );
             }
         );
@@ -286,13 +279,11 @@ internal static class ActaApiEndpoints
             static (HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
             {
                 var jobNamespace = QueryBinding.Text(http.Request.Query, "jobNamespace");
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(
-                            await ComposeOutboxLinesAsync(jobs, operations, jobNamespace, ct),
-                            DashboardJsonContext.Default.IReadOnlyListOverviewOutboxLine
-                        )
+                return Guard(async () =>
+                    Results.Json(
+                        await ComposeOutboxLinesAsync(jobs, operations, jobNamespace, ct),
+                        DashboardJsonContext.Default.IReadOnlyListOverviewOutboxLine
+                    )
                 );
             }
         );
@@ -317,10 +308,8 @@ internal static class ActaApiEndpoints
                     IncludeTotal: includeTotal ?? false,
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(await operations.Namespaces.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultString)
+                return Guard(async () =>
+                    Results.Json(await operations.Namespaces.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultString)
                 );
             }
         );
@@ -347,13 +336,11 @@ internal static class ActaApiEndpoints
                     IncludeTotal: includeTotal ?? false,
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(
-                            await operations.Namespaces.ListItemsAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultNamespaceListItem
-                        )
+                return Guard(async () =>
+                    Results.Json(
+                        await operations.Namespaces.ListItemsAsync(query, ct),
+                        DashboardJsonContext.Default.PagedResultNamespaceListItem
+                    )
                 );
             }
         );
@@ -380,10 +367,8 @@ internal static class ActaApiEndpoints
                     IncludeTotal: includeTotal ?? false,
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(await operations.Tenants.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultTenantListItem)
+                return Guard(async () =>
+                    Results.Json(await operations.Tenants.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultTenantListItem)
                 );
             }
         );
@@ -452,13 +437,8 @@ internal static class ActaApiEndpoints
                     Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(
-                            await operations.ListJobEventsAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobEventListItem
-                        )
+                return Guard(async () =>
+                    Results.Json(await operations.ListJobEventsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobEventListItem)
                 );
             }
         );
@@ -478,29 +458,26 @@ internal static class ActaApiEndpoints
                     || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                     || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
                     ? Task.FromResult(BadRequest(error))
-                    : Guard(
-                        http,
-                        async () =>
+                    : Guard(async () =>
+                    {
+                        var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
+                        if (jobId is null)
                         {
-                            var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
-                            if (jobId is null)
-                            {
-                                return NotFound();
-                            }
-
-                            var query = new ListJobEventsQuery(
-                                JobId: jobId,
-                                EventCode: eventCode,
-                                PageSize: pageSize,
-                                Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                                IncludeTotal: includeTotal ?? false
-                            );
-                            return Results.Json(
-                                await operations.ListJobEventsAsync(query, ct),
-                                DashboardJsonContext.Default.PagedResultJobEventListItem
-                            );
+                            return NotFound();
                         }
-                    );
+
+                        var query = new ListJobEventsQuery(
+                            JobId: jobId,
+                            EventCode: eventCode,
+                            PageSize: pageSize,
+                            Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
+                            IncludeTotal: includeTotal ?? false
+                        );
+                        return Results.Json(
+                            await operations.ListJobEventsAsync(query, ct),
+                            DashboardJsonContext.Default.PagedResultJobEventListItem
+                        );
+                    });
             }
         );
 
@@ -527,13 +504,11 @@ internal static class ActaApiEndpoints
                     IncludeTotal: includeTotal ?? false,
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(
-                            await operations.Definitions.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobDefinitionListItem
-                        )
+                return Guard(async () =>
+                    Results.Json(
+                        await operations.Definitions.ListAsync(query, ct),
+                        DashboardJsonContext.Default.PagedResultJobDefinitionListItem
+                    )
                 );
             }
         );
@@ -541,16 +516,13 @@ internal static class ActaApiEndpoints
         group.MapGet(
             "/definitions/{defId:int}",
             static (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                Guard(
-                    http,
-                    async () =>
-                    {
-                        var def = await operations.Definitions.GetAsync(defId, ct);
-                        return def is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Definition not found.")
-                            : Results.Json(def, DashboardJsonContext.Default.JobDefinitionDetail);
-                    }
-                )
+                Guard(async () =>
+                {
+                    var def = await operations.Definitions.GetAsync(defId, ct);
+                    return def is null
+                        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Definition not found.")
+                        : Results.Json(def, DashboardJsonContext.Default.JobDefinitionDetail);
+                })
         );
 
         group.MapGet(
@@ -572,13 +544,8 @@ internal static class ActaApiEndpoints
                     PageSize: pageSize,
                     Cursor: QueryBinding.Text(http.Request.Query, "cursor")
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(
-                            await operations.ListJobEventsAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobEventListItem
-                        )
+                return Guard(async () =>
+                    Results.Json(await operations.ListJobEventsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobEventListItem)
                 );
             }
         );
@@ -608,13 +575,11 @@ internal static class ActaApiEndpoints
                     IncludeTotal: includeTotal ?? false,
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(
-                            await operations.Schedules.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobScheduleListItem
-                        )
+                return Guard(async () =>
+                    Results.Json(
+                        await operations.Schedules.ListAsync(query, ct),
+                        DashboardJsonContext.Default.PagedResultJobScheduleListItem
+                    )
                 );
             }
         );
@@ -668,16 +633,13 @@ internal static class ActaApiEndpoints
                 }
 
                 var lookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
-                return Guard(
-                    http,
-                    async () =>
-                    {
-                        var preview = await operations.Schedules.PreviewAsync(lookup, count ?? 10, ct);
-                        return preview is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Schedule not found.")
-                            : Results.Json(preview, DashboardJsonContext.Default.SchedulePreview);
-                    }
-                );
+                return Guard(async () =>
+                {
+                    var preview = await operations.Schedules.PreviewAsync(lookup, count ?? 10, ct);
+                    return preview is null
+                        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Schedule not found.")
+                        : Results.Json(preview, DashboardJsonContext.Default.SchedulePreview);
+                });
             }
         );
 
@@ -703,13 +665,8 @@ internal static class ActaApiEndpoints
                     IncludeTotal: includeTotal ?? false,
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
-                return Guard(
-                    http,
-                    async () =>
-                        Results.Json(
-                            await operations.Workers.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobWorkerListItem
-                        )
+                return Guard(async () =>
+                    Results.Json(await operations.Workers.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultJobWorkerListItem)
                 );
             }
         );
@@ -717,16 +674,13 @@ internal static class ActaApiEndpoints
         group.MapGet(
             "/workers/{workerId:int:min(1)}",
             static (int workerId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                Guard(
-                    http,
-                    async () =>
-                    {
-                        var worker = await operations.Workers.GetAsync(workerId, ct);
-                        return worker is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.")
-                            : Results.Json(worker, DashboardJsonContext.Default.JobWorkerDetail);
-                    }
-                )
+                Guard(async () =>
+                {
+                    var worker = await operations.Workers.GetAsync(workerId, ct);
+                    return worker is null
+                        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.")
+                        : Results.Json(worker, DashboardJsonContext.Default.JobWorkerDetail);
+                })
         );
 
         group.MapGet(
@@ -758,43 +712,42 @@ internal static class ActaApiEndpoints
                     jobFilter = parsed;
                 }
 
-                return Guard(
-                    http,
-                    async () =>
+                return Guard(async () =>
+                {
+                    long? jobId = null;
+                    if (jobFilter is { } filter)
                     {
-                        long? jobId = null;
-                        if (jobFilter is { } filter)
+                        jobId = await jobs.ResolveJobIdAsync(filter, ct);
+                        if (jobId is null)
                         {
-                            jobId = await jobs.ResolveJobIdAsync(filter, ct);
-                            if (jobId is null)
-                            {
-                                return NotFound();
-                            }
+                            return NotFound();
                         }
-
-                        var query = new ListJobAlertsQuery(
-                            JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                            JobId: jobId,
-                            UnresolvedOnly: unresolvedOnly,
-                            SeverityAtLeast: severity,
-                            DeliveryStatus: delivery,
-                            Acknowledged: acknowledged,
-                            PageSize: pageSize,
-                            Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                            IncludeTotal: includeTotal ?? false,
-                            Tags: QueryBinding.Tags(http.Request.Query)
-                        );
-                        return Results.Json(
-                            await operations.Alerts.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobAlertListItem
-                        );
                     }
-                );
+
+                    var query = new ListJobAlertsQuery(
+                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
+                        JobId: jobId,
+                        UnresolvedOnly: unresolvedOnly,
+                        SeverityAtLeast: severity,
+                        DeliveryStatus: delivery,
+                        Acknowledged: acknowledged,
+                        PageSize: pageSize,
+                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
+                        IncludeTotal: includeTotal ?? false,
+                        Tags: QueryBinding.Tags(http.Request.Query)
+                    );
+                    return Results.Json(
+                        await operations.Alerts.ListAsync(query, ct),
+                        DashboardJsonContext.Default.PagedResultJobAlertListItem
+                    );
+                });
             }
         );
     }
 
-    private static async Task<IResult> Guard(HttpContext http, Func<Task<IResult>> action)
+    // Only the two typed validation exceptions are caller errors; anything else (including a plain
+    // ArgumentException thrown by a server-side bug) falls through to the sanitized 500 handler.
+    private static async Task<IResult> Guard(Func<Task<IResult>> action)
     {
         try
         {
@@ -804,14 +757,8 @@ internal static class ActaApiEndpoints
         {
             return BadRequest(ex.Message);
         }
-        catch (ArgumentException ex)
+        catch (InvalidQueryException ex)
         {
-            // A server-side bug throwing ArgumentException (not caller input) would otherwise be
-            // reported to the client as an ordinary 400 with no trace. Log it at Warning so it still
-            // leaves a signal; genuine caller-input validation (the common case here) also logs, at
-            // low cost, since these are neither hot-path nor high-volume endpoints.
-            var loggerFactory = http.RequestServices.GetService(typeof(ILoggerFactory)) as ILoggerFactory;
-            loggerFactory?.CreateLogger("Acta.AspNetCore.Web").LogWarning(ex, "Argument exception mapped to 400.");
             return BadRequest(ex.Message);
         }
     }

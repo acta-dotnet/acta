@@ -20,7 +20,7 @@ public sealed class QueryValidationTests
     [Fact]
     public void ValidateNamespace_still_rejects_mixed_case_and_null_passthrough()
     {
-        Assert.Throws<System.ArgumentException>(() => QueryValidation.ValidateNamespace("Sys", "namespace"));
+        Assert.Throws<InvalidQueryException>(() => QueryValidation.ValidateNamespace("Sys", "namespace"));
         Assert.Null(QueryValidation.ValidateNamespace(null, "namespace"));
     }
 

@@ -15,11 +15,7 @@ internal static class TagFilterJson
 
         if (filters.Count > TagLimits.MaxFiltersPerQuery)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(filters),
-                filters.Count,
-                $"{queryName} tag filters are limited to {TagLimits.MaxFiltersPerQuery} entries."
-            );
+            throw new InvalidQueryException($"{queryName} tag filters are limited to {TagLimits.MaxFiltersPerQuery} entries.");
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -29,20 +25,28 @@ internal static class TagFilterJson
             writer.WriteStartArray();
             for (var i = 0; i < filters.Count; i++)
             {
-                var filter = filters[i] ?? throw new ArgumentException("Tag filter entries must not be null.", nameof(filters));
-                var name = IdentifierSyntax.CanonicalizeUserDottedKebab(
-                    filter.Name,
-                    $"Tags[{i}].{nameof(TagFilter.Name)}",
-                    TagLimits.MaxNameLength
-                );
-                if (!seen.Add(name))
+                var filter = filters[i] ?? throw new InvalidQueryException("Tag filter entries must not be null.");
+                string name;
+                try
                 {
-                    throw new ArgumentException($"{queryName} contains duplicate tag filter name '{name}'.", nameof(filters));
+                    name = IdentifierSyntax.CanonicalizeUserDottedKebab(
+                        filter.Name,
+                        $"Tags[{i}].{nameof(TagFilter.Name)}",
+                        TagLimits.MaxNameLength
+                    );
+                    if (filter.Value is { } value)
+                    {
+                        IdentifierSyntax.ValidateDisplayValue(value, $"Tags[{i}].{nameof(TagFilter.Value)}", TagLimits.MaxValueLength);
+                    }
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new InvalidQueryException(ex.Message);
                 }
 
-                if (filter.Value is { } value)
+                if (!seen.Add(name))
                 {
-                    IdentifierSyntax.ValidateDisplayValue(value, $"Tags[{i}].{nameof(TagFilter.Value)}", TagLimits.MaxValueLength);
+                    throw new InvalidQueryException($"{queryName} contains duplicate tag filter name '{name}'.");
                 }
 
                 writer.WriteStartObject();

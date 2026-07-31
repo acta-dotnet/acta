@@ -19,7 +19,10 @@ internal static class JobsQueryLimits
             return DefaultPageSize;
         }
 
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize.Value, 1, nameof(pageSize));
+        if (pageSize.Value < 1)
+        {
+            throw new InvalidQueryException("pageSize must be at least 1.");
+        }
         return Math.Min(pageSize.Value, MaxPageSize);
     }
 }

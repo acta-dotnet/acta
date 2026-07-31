@@ -26,10 +26,7 @@ internal sealed class EventsService(IEventStore store)
         QueryValidation.ValidatePositiveId(query.LineageRootId, nameof(query.LineageRootId));
         if (query.IncludeTotal && query.JobId is null)
         {
-            throw new ArgumentException(
-                "IncludeTotal on ListJobEvents requires JobId; a global event count is unbounded work.",
-                nameof(query)
-            );
+            throw new InvalidQueryException("IncludeTotal on ListJobEvents requires JobId; a global event count is unbounded work.");
         }
 
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
