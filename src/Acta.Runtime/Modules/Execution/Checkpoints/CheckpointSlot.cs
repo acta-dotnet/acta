@@ -1,6 +1,4 @@
-using Acta.Payloads;
-
-namespace Acta.Modules.Execution.Checkpoints;
+namespace Acta.Runtime.Modules.Execution.Checkpoints;
 
 /// <summary>
 /// Which CRUD shape a <c>checkpoint_slot</c> call takes. The values are the routine's dispatch
@@ -67,12 +65,7 @@ internal static class CheckpointSlot
     {
         CheckpointPayload.EnsureWritable(payload);
         var row = await Run(store, CheckpointSlotAction.GetOrSet, jobId, kind, name, payload, ct);
-        if (row.Found == 0)
-        {
-            throw new InvalidOperationException("checkpoint_slot get-or-set returned no stored value.");
-        }
-
-        return ToValue(row);
+        return row.Found == 0 ? throw new InvalidOperationException("checkpoint_slot get-or-set returned no stored value.") : ToValue(row);
     }
 
     public static async Task<bool> ExistsAsync(
@@ -107,11 +100,8 @@ internal static class CheckpointSlot
 
     private static CheckpointValue ToValue(CheckpointSlotRow row)
     {
-        if (row.ValueFormatId is not { } format || row.Value is not { } value || row.Version is not { } version)
-        {
-            throw new InvalidOperationException("checkpoint_slot returned a found slot with NULL value columns.");
-        }
-
-        return new CheckpointValue(format, value, version);
+        return row.ValueFormatId is not { } format || row.Value is not { } value || row.Version is not { } version
+            ? throw new InvalidOperationException("checkpoint_slot returned a found slot with NULL value columns.")
+            : new CheckpointValue(format, value, version);
     }
 }

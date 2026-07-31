@@ -251,7 +251,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                 enumType.Name,
                 codeKind,
                 storage,
-                codes.ToImmutableArray(),
+                [.. codes],
                 reservations,
                 reservedRanges,
                 diagnostics.ToImmutable()

@@ -1,9 +1,7 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Schedules;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,50 +29,49 @@ public sealed class IntervalPingManifest : IJobManifest
     private const string PingScheduleName = "every-30s";
 
     public static JobDescriptorManifest Descriptors { get; } =
-        new(
-            ImmutableArray.Create(
-                new JobDescriptor(
-                    JobName: PingJobName,
-                    HandlerType: typeof(IntervalPingHandler),
-                    MethodName: nameof(IntervalPingHandler.Run),
-                    InputType: typeof(NoInput),
-                    OutputType: null,
-                    InputPayloadFormat: JobPayloadFormat.None,
-                    OutputPayloadFormat: null,
-                    InvocationKind: JobInvocationKind.Task,
-                    RequiresJobContextParameter: true,
-                    RequiresCancellationToken: true,
-                    Priority: JobPriorityCode.Normal,
-                    MaxAttempts: 2,
-                    AuditLevel: JobAuditLevelCode.Audit,
-                    AlertProfile: JobAlertProfileCode.OnFailure,
-                    Invoker: static async (_, _, ctx, ct) =>
-                    {
-                        await IntervalPingHandler.Run(ctx, ct);
-                        return new JobHandlerInvocationResult(false, null);
-                    },
-                    DeserializeInput: static (_, _) => new NoInput(),
-                    SerializeOutput: null
-                )
+        new([
+            new JobDescriptor(
+                JobName: PingJobName,
+                HandlerType: typeof(IntervalPingHandler),
+                MethodName: nameof(IntervalPingHandler.Run),
+                InputType: typeof(NoInput),
+                OutputType: null,
+                InputPayloadFormat: JobPayloadFormat.None,
+                OutputPayloadFormat: null,
+                InvocationKind: JobInvocationKind.Task,
+                RequiresJobContextParameter: true,
+                RequiresCancellationToken: true,
+                Priority: JobPriorityCode.Normal,
+                MaxAttempts: 2,
+                AuditLevel: JobAuditLevelCode.Audit,
+                AlertProfile: JobAlertProfileCode.OnFailure,
+                Invoker: static async (_, _, ctx, ct) =>
                 {
-                    Schedules = ImmutableArray.Create(
-                        new JobScheduleDescriptor(
-                            JobName: PingJobName,
-                            ScheduleName: PingScheduleName,
-                            Expression: "PT30S",
-                            TimeZone: null,
-                            Misfire: MisfireStrategyCode.Skip,
-                            ExpressionKind: ScheduleExpressionKindCode.Interval,
-                            Description: null,
-                            Environments: ImmutableArray<string>.Empty
-                        )
-                    ),
-                    CreateDefaultInput = static () => new NoInput(),
-                    SerializeInput = null,
-                    RecurringResultCap = 3,
-                }
+                    await IntervalPingHandler.Run(ctx, ct);
+                    return new JobHandlerInvocationResult(false, null);
+                },
+                DeserializeInput: static (_, _) => new NoInput(),
+                SerializeOutput: null
             )
-        );
+            {
+                Schedules =
+                [
+                    new JobScheduleDescriptor(
+                        JobName: PingJobName,
+                        ScheduleName: PingScheduleName,
+                        Expression: "PT30S",
+                        TimeZone: null,
+                        Misfire: MisfireStrategyCode.Skip,
+                        ExpressionKind: ScheduleExpressionKindCode.Interval,
+                        Description: null,
+                        Environments: []
+                    ),
+                ],
+                CreateDefaultInput = static () => new NoInput(),
+                SerializeInput = null,
+                RecurringResultCap = 3,
+            },
+        ]);
 }
 
 /// <summary>
@@ -106,7 +103,7 @@ public abstract class IntervalScheduleFireSpec<TFixture> : ActaRuntimeTestBase<T
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
 
     // Far-past anchor so fake-derived cursors are always past-due from the real DB clock.
-    private static readonly DateTime T0 = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime T0 = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private FakeClock Clock { get; set; } = null!;
 

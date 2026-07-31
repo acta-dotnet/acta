@@ -1,10 +1,6 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -367,7 +363,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
                 MisfireStrategyCode.Skip,
                 ScheduleExpressionKindCode.Cron,
                 description,
-                ImmutableArray<string>.Empty
+                []
             ),
         };
         var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, now);

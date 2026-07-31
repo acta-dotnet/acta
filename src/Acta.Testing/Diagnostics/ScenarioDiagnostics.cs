@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.Testing.Diagnostics;
@@ -11,11 +9,7 @@ namespace Acta.Testing.Diagnostics;
 /// Exception thrown by Scenario Studio drive and assertion helpers. The message includes a compact
 /// dump of the pinned job's current state so failures stay useful in any test framework.
 /// </summary>
-public sealed class ScenarioAssertionException : Exception
-{
-    public ScenarioAssertionException(string message)
-        : base(message) { }
-}
+public sealed class ScenarioAssertionException(string message) : Exception(message) { }
 
 /// <summary>Testing snapshot of one pinned job.</summary>
 public sealed record ScenarioJobSnapshot(

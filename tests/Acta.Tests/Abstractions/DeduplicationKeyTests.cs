@@ -114,7 +114,7 @@ public sealed class DeduplicationKeyTests
     }
 
     public static TheoryData<TimeSpan> BucketPrecisions =>
-        new() { TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(1), TimeSpan.FromTicks(1) };
+        [TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(1), TimeSpan.FromTicks(1)];
 
     [Theory]
     [MemberData(nameof(BucketPrecisions))]

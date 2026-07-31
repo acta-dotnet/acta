@@ -5,15 +5,9 @@ namespace Acta;
 /// active, deprecated, or retired enum member that reuses either identity.
 /// </summary>
 [AttributeUsage(AttributeTargets.Enum, AllowMultiple = true, Inherited = false)]
-public sealed class ReservedCodeAttribute : Attribute
+public sealed class ReservedCodeAttribute(byte id, string code) : Attribute
 {
-    public ReservedCodeAttribute(byte id, string code)
-    {
-        Id = id;
-        Code = code;
-    }
+    public byte Id { get; } = id;
 
-    public byte Id { get; }
-
-    public string Code { get; }
+    public string Code { get; } = code;
 }

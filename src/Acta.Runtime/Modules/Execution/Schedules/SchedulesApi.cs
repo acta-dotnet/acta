@@ -1,14 +1,13 @@
 using System.Globalization;
-using System.Xml;
-using Acta.Kernel;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Workers;
-using Acta.Querying;
-using Acta.Services.Time;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Querying;
+using Acta.Runtime.Services.Time;
 using Cronos;
 
-namespace Acta.Modules.Execution.Schedules;
+namespace Acta.Runtime.Modules.Execution.Schedules;
 
 /// <summary>
 /// <see cref="ISchedules"/> implementation: the operator pause/resume surface for recurring schedules
@@ -294,7 +293,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     }
 
     private static List<LiveSchedule> Simulate(IReadOnlyList<LiveSchedule> live, long targetId, Func<LiveSchedule, LiveSchedule> change) =>
-        live.Select(s => s.Id == targetId ? change(s) : s).ToList();
+        [.. live.Select(s => s.Id == targetId ? change(s) : s)];
 
     private static string? Note(string? note) => note.Truncate(ActaTextLimits.ScheduleNote);
 

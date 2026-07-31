@@ -1,6 +1,4 @@
 using System.Data.Common;
-using Acta.Configuration;
-using Acta.Payloads;
 using Acta.Relational.Entities;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;

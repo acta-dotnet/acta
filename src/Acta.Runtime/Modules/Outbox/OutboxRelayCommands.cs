@@ -1,4 +1,4 @@
-namespace Acta.Modules.Outbox;
+namespace Acta.Runtime.Modules.Outbox;
 
 /// <summary>
 /// One claimed external-outbox row: the positional projection of a source row and the fields the relay
@@ -68,18 +68,12 @@ internal sealed class OutboxContractException(string message) : Exception(messag
 /// <c>SysCritical</c> / <c>AuditLevel.Failures</c> path, so operators get one deduplicated alert
 /// rather than one per row.
 /// </summary>
-internal sealed class OutboxQuarantineTickException : Exception
+internal sealed class OutboxQuarantineTickException(string sourceName, IReadOnlyList<Guid> quarantinedIds)
+    : Exception(BuildMessage(sourceName, quarantinedIds))
 {
-    public OutboxQuarantineTickException(string sourceName, IReadOnlyList<Guid> quarantinedIds)
-        : base(BuildMessage(sourceName, quarantinedIds))
-    {
-        SourceName = sourceName;
-        QuarantinedCount = quarantinedIds.Count;
-    }
+    public string SourceName { get; } = sourceName;
 
-    public string SourceName { get; }
-
-    public int QuarantinedCount { get; }
+    public int QuarantinedCount { get; } = quarantinedIds.Count;
 
     /// <summary>The bounded 10-id sample the alert and the paired diagnostic log line share, so neither
     /// prints the full (up to 5,120) id set.</summary>

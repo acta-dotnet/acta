@@ -86,7 +86,7 @@ public sealed class SchemaDiffTests
     [Fact]
     public void Identical_snapshots_diff_empty()
     {
-        var snap = Snap([Entity("job", "id")], [Family("job-status", 10)]);
+        var snap = Snap([Entity("job", "id")], [Family("job-status", "\n"u8.ToArray())]);
         Assert.True(SchemaDiff.Compute(snap, snap).IsEmpty);
     }
 }

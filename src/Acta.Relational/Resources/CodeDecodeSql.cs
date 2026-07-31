@@ -2,9 +2,9 @@ using System.Text.RegularExpressions;
 
 namespace Acta.Relational.Resources;
 
-internal static class CodeDecodeSql
+internal static partial class CodeDecodeSql
 {
-    private static readonly Regex DecodeToken = new(@"\{\{decode:([a-z][a-z0-9.-]*):([^}]+)\}\}", RegexOptions.CultureInvariant);
+    private static readonly Regex DecodeToken = MyRegex();
 
     public static string RenderDecodeTokens(string sql) =>
         DecodeToken.Replace(sql, static match => Case(match.Groups[1].Value, match.Groups[2].Value));
@@ -27,4 +27,7 @@ internal static class CodeDecodeSql
     }
 
     private static string SqlLiteral(string value) => value.Replace("'", "''", StringComparison.Ordinal);
+
+    [GeneratedRegex(@"\{\{decode:([a-z][a-z0-9.-]*):([^}]+)\}\}", RegexOptions.CultureInvariant)]
+    private static partial Regex MyRegex();
 }

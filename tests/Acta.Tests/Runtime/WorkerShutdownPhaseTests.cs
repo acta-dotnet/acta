@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -15,7 +15,7 @@ public sealed class WorkerShutdownPhaseTests
         var started = 0;
 
         var run = WorkerShutdownPhase.RunAsync(
-            new[] { 1, 2, 3 },
+            [1, 2, 3],
             async (_, ct) =>
             {
                 if (Interlocked.Increment(ref started) == 3)
@@ -43,7 +43,7 @@ public sealed class WorkerShutdownPhaseTests
         var stopwatch = Stopwatch.StartNew();
 
         var completed = await WorkerShutdownPhase.RunAsync(
-            new[] { 1, 2 },
+            [1, 2],
             (_, _) => never.Task,
             TimeSpan.FromMilliseconds(50),
             TestContext.Current.CancellationToken,
@@ -61,7 +61,7 @@ public sealed class WorkerShutdownPhaseTests
         var failures = new ConcurrentBag<(int Item, Exception Error)>();
 
         var completed = await WorkerShutdownPhase.RunAsync(
-            new[] { 1, 2, 3 },
+            [1, 2, 3],
             (item, _) =>
             {
                 if (item == 2)
@@ -78,8 +78,8 @@ public sealed class WorkerShutdownPhaseTests
 
         Assert.True(completed);
         Assert.Equal([1, 3], completedItems.Order());
-        var failure = Assert.Single(failures);
-        Assert.Equal(2, failure.Item);
-        Assert.IsType<InvalidOperationException>(failure.Error);
+        var (Item, Error) = Assert.Single(failures);
+        Assert.Equal(2, Item);
+        Assert.IsType<InvalidOperationException>(Error);
     }
 }

@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Text;
 using System.Text.Json;
 
-namespace Acta.Kernel;
+namespace Acta.Runtime.Kernel;
 
 internal static class TagFilterJson
 {

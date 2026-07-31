@@ -1,8 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Acta.Modules.Execution;
-using Acta.Payloads;
+using Acta.Runtime.Modules.Execution;
 
 namespace Acta.Tests.Conformance.Sql;
 
@@ -11,13 +10,10 @@ namespace Acta.Tests.Conformance.Sql;
 /// Persisted code enums and transient protocol enums intentionally use the same directly searchable
 /// C# symbol convention.
 /// </summary>
-public static class ConstantCatalog
+public static partial class ConstantCatalog
 {
     /// <summary>Matches a verifiable <c>Type.Member</c> token.</summary>
-    public static readonly Regex VerifiableConstantName = new(
-        @"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant
-    );
+    public static readonly Regex VerifiableConstantName = MyRegex();
 
     private static readonly Dictionary<string, int> Codes = BuildCodes();
 
@@ -64,4 +60,7 @@ public static class ConstantCatalog
             throw new InvalidOperationException($"Duplicate SQL constant symbol '{symbol}'. Type.Member names must be unique.");
         }
     }
+
+    [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    private static partial Regex MyRegex();
 }

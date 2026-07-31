@@ -2,8 +2,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-using Acta.Configuration;
-using Acta.Payloads;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using TestJobs;
@@ -20,7 +18,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     Act = "The provider catalog is queried for views, every view is smoke-queried, and jobs_view is filtered by status = 'failed' and by job id.",
     Assert = "Only curated views exist, all are queryable, jobs decode failed status and resolve tenant keys, and tags decode job scope beside raw codes."
 )]
-public abstract class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
+public abstract partial class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
     private static readonly string[] OperatorViews =
@@ -251,12 +249,7 @@ public abstract class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
     private static void AddValidationParameters(DbCommand command, string sql)
     {
-        foreach (
-            var name in Regex
-                .Matches(sql, @"@[A-Za-z_][A-Za-z0-9_]*", RegexOptions.CultureInvariant)
-                .Select(match => match.Value)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-        )
+        foreach (var name in MyRegex().Matches(sql).Select(match => match.Value).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             var parameter = command.CreateParameter();
             parameter.ParameterName = name;
@@ -348,4 +341,7 @@ public abstract class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         }
         throw new InvalidOperationException($"Could not locate Acta.slnx from {AppContext.BaseDirectory}.");
     }
+
+    [GeneratedRegex(@"@[A-Za-z_][A-Za-z0-9_]*", RegexOptions.CultureInvariant)]
+    private static partial Regex MyRegex();
 }

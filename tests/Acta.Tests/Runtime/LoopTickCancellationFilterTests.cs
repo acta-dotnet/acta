@@ -1,9 +1,5 @@
-using System.Data.Common;
-using Acta.Configuration;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Workers;
-using Acta.Relational.Schema;
-using Acta.Services.Locks;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;

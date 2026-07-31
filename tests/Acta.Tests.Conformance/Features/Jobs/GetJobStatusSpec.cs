@@ -1,5 +1,4 @@
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
+using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +29,7 @@ public abstract class GetJobStatusSpec<TFixture> : ActaRuntimeTestBase<TFixture,
     public async Task Returns_Ready_for_a_freshly_enqueued_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(3, 4));

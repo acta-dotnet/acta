@@ -1,4 +1,4 @@
-namespace Acta.Services.Time;
+namespace Acta.Runtime.Services.Time;
 
 /// <summary>
 /// UTC clock seam for recurring-schedule math. Production reads the database server's clock so

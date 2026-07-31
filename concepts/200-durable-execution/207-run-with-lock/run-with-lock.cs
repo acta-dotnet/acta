@@ -31,10 +31,10 @@ namespace Acta.Concepts.RunWithLock
     public sealed class UpdateInventoryJob
     {
         [Job("update-inventory")]
-        public async Task Handle(UpdateInventory input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(UpdateInventory input, JobContext context, CancellationToken ct)
         {
             // Named lock held for the action; same key serializes both concurrently-running jobs. To exclude the whole job instead, set ExclusiveKey on enqueue (see 209-exclusive-key).
-            await ctx.RunWithLockAsync(
+            await context.RunWithLockAsync(
                 "inventory",
                 async () =>
                 {

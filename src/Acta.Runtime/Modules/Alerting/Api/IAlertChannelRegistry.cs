@@ -1,6 +1,6 @@
-using Acta.Modules.Alerting.Api;
+using Acta.Runtime.Hosting;
 
-namespace Acta.Modules.Alerting.Api;
+namespace Acta.Runtime.Modules.Alerting.Api;
 
 /// <summary>
 /// Alerting's declared channel API: worker startup resolves and validates declared channels through

@@ -22,7 +22,7 @@ public static class ChildJobProbes
         Task.FromResult(new ChildEchoResult(input.Value * 2));
 
     [Job("job-child-fail")]
-    public static Task ChildFail(JobContext ctx, CancellationToken ct) => ctx.FailAsync("child says no \"thanks\" äß", ct);
+    public static Task ChildFail(JobContext ctx, CancellationToken ct) => JobContext.FailAsync("child says no \"thanks\" äß", ct);
 
     [Job("job-parent-one")]
     public static async Task<ChildEchoResult> ParentOne(JobContext ctx, CancellationToken ct)
@@ -71,6 +71,6 @@ public static class ChildJobProbes
     public static async Task ParentCancelSelf(JobContext ctx, CancellationToken ct)
     {
         await ctx.StartChildAsync("held", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
-        await ctx.CancelAsync("superseded", ct);
+        await JobContext.CancelAsync("superseded", ct);
     }
 }

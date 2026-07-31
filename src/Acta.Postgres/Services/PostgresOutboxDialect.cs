@@ -1,12 +1,6 @@
 using System.Data.Common;
-using Acta.Configuration;
-using Acta.Modules.Outbox;
-using Acta.Postgres.Configuration;
-using Acta.Postgres.Services;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
-using Acta.Relational.Resources;
-using Acta.Relational.Stores;
 
 namespace Acta.Postgres.Services;
 

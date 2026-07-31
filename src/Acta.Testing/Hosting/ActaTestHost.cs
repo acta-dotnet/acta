@@ -1,13 +1,13 @@
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.ChildLatches;
-using Acta.Modules.Execution.Signals;
-using Acta.Modules.Execution.Workers;
 using Acta.Relational.Entities;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.ChildLatches;
+using Acta.Runtime.Modules.Execution.Signals;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Testing;
+namespace Acta.Testing.Hosting;
 
 /// <summary>
 /// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync"/> tick: the public mirror of the
@@ -187,7 +187,7 @@ public static class ActaTestHost
             }
 
             var options = provider.GetRequiredService<IOptions<JobsOptions>>().Value;
-            var db = Db;
+            _ = Db;
             var signals = provider.GetRequiredService<ISignalStore>();
             var deadWorkers = await provider
                 .GetRequiredService<IWorkerStore>()
@@ -310,14 +310,12 @@ public static class ActaTestHost
 
         private WorkerRuntime ResolveRuntime(string jobNamespace)
         {
-            if (runtimes.Length == 0)
-            {
-                throw new InvalidOperationException(
-                    "RunOnceAsync requires a worker. Call Run<TManifest>(namespace) in the start callback."
-                );
-            }
-
-            return runtimes.Length == 1 ? runtimes[0] : runtimes.Single(r => r.RegisteredNamespaceIds.ContainsKey(jobNamespace));
+            return runtimes.Length == 0
+                    ? throw new InvalidOperationException(
+                        "RunOnceAsync requires a worker. Call Run<TManifest>(namespace) in the start callback."
+                    )
+                : runtimes.Length == 1 ? runtimes[0]
+                : runtimes.Single(r => r.RegisteredNamespaceIds.ContainsKey(jobNamespace));
         }
 
         private async Task<JobCheckpoint> FindCheckpointAsync(

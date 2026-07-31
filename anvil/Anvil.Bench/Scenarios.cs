@@ -35,9 +35,8 @@ public interface IScenario
 internal static class Workload
 {
     private const int EnqueueChunk = 1000;
-    private static readonly TimeSpan Deadline = TimeSpan.FromMinutes(10);
 
-    public static TimeSpan DrainDeadline => Deadline;
+    public static TimeSpan DrainDeadline { get; } = TimeSpan.FromMinutes(10);
 
     public static string? Pad(int bytes) => bytes > 0 ? new string('x', bytes) : null;
 
@@ -256,16 +255,16 @@ public sealed class ThroughputScenario : IScenario
         await Workload.WaitForDrain(host.Sink, ct);
         total.Stop();
 
-        var lat = Workload.Latencies(host.Sink, s => s.Entry - s.Enqueued);
+        var (P50, P95, P99, Max, Mean) = Workload.Latencies(host.Sink, s => s.Entry - s.Enqueued);
         return new CellMetrics(
             EnqueueRatePerSec: Stats.RatePerSec(p.Jobs, enqueue.TotalSeconds),
             EndToEndRatePerSec: Stats.RatePerSec(host.Sink.Samples.Count, total.Elapsed.TotalSeconds),
             DrainRatePerSec: 0,
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: enqueue.TotalSeconds,
             DrainSeconds: total.Elapsed.TotalSeconds,
             JobsObserved: host.Sink.Samples.Count
@@ -337,23 +336,23 @@ public sealed class DrainScenario : IScenario
         await Workload.WaitForDrain(sink, ct);
         drain.Stop();
 
-        var lat = Workload.Latencies(sink, s => s.Entry - releaseStamp);
-        var overheadUs = sink.Samples.Count > 0 ? drain.Elapsed.TotalSeconds / sink.Samples.Count * 1e6 : 0;
+        var (P50, P95, P99, Max, Mean) = Workload.Latencies(sink, s => s.Entry - releaseStamp);
+        var overheadUs = !sink.Samples.IsEmpty ? drain.Elapsed.TotalSeconds / sink.Samples.Count * 1e6 : 0;
         var extra = new Dictionary<string, double> { ["overheadUsPerJob"] = overheadUs, ["workers"] = workers };
         if (cfg.SharedKey)
         {
-            extra["fairnessSpread"] = lat.P50 > 0 ? lat.P99 / lat.P50 : 0;
+            extra["fairnessSpread"] = P50 > 0 ? P99 / P50 : 0;
         }
 
         return new CellMetrics(
             EnqueueRatePerSec: Stats.RatePerSec(p.Jobs, enqueue.TotalSeconds),
             EndToEndRatePerSec: 0,
             DrainRatePerSec: Stats.RatePerSec(sink.Samples.Count, drain.Elapsed.TotalSeconds),
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: enqueue.TotalSeconds,
             DrainSeconds: drain.Elapsed.TotalSeconds,
             JobsObserved: sink.Samples.Count,
@@ -424,16 +423,16 @@ public sealed class LatencyScenario : IScenario
         }
 
         var measured = host.Sink.Samples.ToArray().Skip(cut).Select(s => s.Entry - s.Enqueued).Where(t => t >= 0).ToArray();
-        var lat = Stats.Percentiles(measured);
+        var (P50, P95, P99, Max, Mean) = Stats.Percentiles(measured);
         return new CellMetrics(
             EnqueueRatePerSec: 0,
             EndToEndRatePerSec: Stats.RatePerSec(measured.Length, deadline.Elapsed.TotalSeconds),
             DrainRatePerSec: 0,
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: 0,
             DrainSeconds: deadline.Elapsed.TotalSeconds,
             JobsObserved: measured.Length
@@ -490,16 +489,16 @@ public sealed class EnqueueScenario : IScenario
         sw.Stop();
 
         var enqueued = p.Jobs;
-        var lat = Stats.Percentiles(results.SelectMany(r => r.Ticks).ToArray());
+        var (P50, P95, P99, Max, Mean) = Stats.Percentiles([.. results.SelectMany(r => r.Ticks)]);
         return new CellMetrics(
             EnqueueRatePerSec: Stats.RatePerSec(enqueued, sw.Elapsed.TotalSeconds),
             EndToEndRatePerSec: 0,
             DrainRatePerSec: 0,
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: sw.Elapsed.TotalSeconds,
             DrainSeconds: 0,
             JobsObserved: enqueued,
@@ -629,7 +628,7 @@ public sealed class RecoveryScenario : IScenario
         // stuck job once its lease has lapsed.
         var deadline = Stopwatch.StartNew();
         var budget = TimeSpan.FromSeconds(cfg.LeaseTtlSeconds + 60);
-        while (cluster.Sink.Samples.Count < 1 && deadline.Elapsed < budget)
+        while (cluster.Sink.Samples.IsEmpty && deadline.Elapsed < budget)
         {
             await cluster.Jobs.EnqueueAsync(new JobEnqueueRequest(BenchHost.Namespace, BenchHost.RecoveryJobName), ct);
             try
@@ -684,13 +683,22 @@ public sealed class WakeupScenario : IScenario
         var poll = cfg.SafetyPollInterval ?? DefaultPoll;
         var samples = Math.Max(5, Math.Min(p.Iterations, 30));
 
-        var inProc = await MeasureAsync(p, schema, poll, BenchWakeupMode.InProcess, null, samples, resetSchema: true, ct);
+        var (P50, P95, P99, Max, Mean) = await MeasureAsync(
+            p,
+            schema,
+            poll,
+            BenchWakeupMode.InProcess,
+            null,
+            samples,
+            resetSchema: true,
+            ct
+        );
         var noOp = await MeasureAsync(p, schema, poll, BenchWakeupMode.NoOp, null, samples, resetSchema: true, ct);
 
         var extra = new Dictionary<string, double>
         {
-            ["pickupInProcP50Ms"] = inProc.P50,
-            ["pickupInProcP95Ms"] = inProc.P95,
+            ["pickupInProcP50Ms"] = P50,
+            ["pickupInProcP95Ms"] = P95,
             ["pickupNoOpP50Ms"] = noOp.P50,
             ["pickupNoOpP95Ms"] = noOp.P95,
             ["pollMs"] = poll.TotalMilliseconds,
@@ -808,20 +816,20 @@ public sealed class QueryScenario : IScenario
             }
         }
 
-        var lat = Stats.Percentiles(ms.ToArray());
+        var (P50, P95, P99, Max, Mean) = Stats.Percentiles([.. ms]);
         return new CellMetrics(
             EnqueueRatePerSec: 0,
             EndToEndRatePerSec: 0,
             DrainRatePerSec: 0,
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: 0,
             DrainSeconds: 0,
             JobsObserved: ms.Count,
-            Extra: new Dictionary<string, double> { ["rows"] = rows, ["queryP95Ms"] = lat.P95 }
+            Extra: new Dictionary<string, double> { ["rows"] = rows, ["queryP95Ms"] = P95 }
         );
     }
 }
@@ -926,9 +934,9 @@ public sealed class PurgeScenario : IScenario
         long[] probeArr;
         lock (probeTicks)
         {
-            probeArr = probeTicks.ToArray();
+            probeArr = [.. probeTicks];
         }
-        var probeLat = Stats.Percentiles(probeArr);
+        var (P50, P95, P99, Max, Mean) = Stats.Percentiles(probeArr);
         var purgedRows = events - Math.Max(0, remaining);
         var rowsPerSec = purge.Elapsed.TotalSeconds > 0 ? purgedRows / purge.Elapsed.TotalSeconds : 0;
 
@@ -936,11 +944,11 @@ public sealed class PurgeScenario : IScenario
             EnqueueRatePerSec: 0,
             EndToEndRatePerSec: 0,
             DrainRatePerSec: 0,
-            LatencyP50Ms: probeLat.P50,
-            LatencyP95Ms: probeLat.P95,
-            LatencyP99Ms: probeLat.P99,
-            LatencyMaxMs: probeLat.Max,
-            LatencyMeanMs: probeLat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: seed.Elapsed.TotalSeconds,
             DrainSeconds: purge.Elapsed.TotalSeconds,
             JobsObserved: host.Sink.Samples.Count,
@@ -949,7 +957,7 @@ public sealed class PurgeScenario : IScenario
                 ["purgeSeconds"] = purge.Elapsed.TotalSeconds,
                 ["purgeRows"] = purgedRows,
                 ["purgeRowsPerSec"] = rowsPerSec,
-                ["contendedEnqueueP95Ms"] = probeLat.P95,
+                ["contendedEnqueueP95Ms"] = P95,
                 ["seedSeconds"] = seed.Elapsed.TotalSeconds,
                 ["remainingRows"] = remaining,
             }
@@ -1001,17 +1009,17 @@ public sealed class LoadProfileScenario : IScenario
         var emitted = await Workload.ProduceConstantAsync(jobs, cfg.RatePerSec, duration, p.PayloadBytes, ct);
         await WaitForCountAsync(sink, emitted, Workload.DrainDeadline, ct);
         var ticks = LatencyTicks(sink);
-        var lat = Stats.Percentiles(ticks);
+        var (P50, P95, P99, Max, Mean) = Stats.Percentiles(ticks);
         var observed = sink.Samples.Count;
         return new CellMetrics(
             EnqueueRatePerSec: 0,
             EndToEndRatePerSec: Stats.RatePerSec(observed, duration.TotalSeconds),
             DrainRatePerSec: 0,
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: 0,
             DrainSeconds: duration.TotalSeconds,
             JobsObserved: observed,
@@ -1050,17 +1058,17 @@ public sealed class LoadProfileScenario : IScenario
             }
         }
         await WaitForCountAsync(sink, totalEmitted, Workload.DrainDeadline, ct);
-        var lat = Stats.Percentiles(LatencyTicks(sink));
+        var (P50, P95, P99, Max, Mean) = Stats.Percentiles(LatencyTicks(sink));
         var observed = sink.Samples.Count;
         return new CellMetrics(
             EnqueueRatePerSec: 0,
             EndToEndRatePerSec: 0,
             DrainRatePerSec: 0,
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: 0,
             DrainSeconds: 0,
             JobsObserved: observed,
@@ -1076,17 +1084,17 @@ public sealed class LoadProfileScenario : IScenario
         var recover = Stopwatch.StartNew();
         var drained = await WaitForCountAsync(sink, burst, Workload.DrainDeadline, ct);
         recover.Stop();
-        var lat = Stats.Percentiles(LatencyTicks(sink));
+        var (P50, P95, P99, Max, Mean) = Stats.Percentiles(LatencyTicks(sink));
         var observed = sink.Samples.Count;
         return new CellMetrics(
             EnqueueRatePerSec: 0,
             EndToEndRatePerSec: 0,
             DrainRatePerSec: drained ? Stats.RatePerSec(observed, recover.Elapsed.TotalSeconds) : 0,
-            LatencyP50Ms: lat.P50,
-            LatencyP95Ms: lat.P95,
-            LatencyP99Ms: lat.P99,
-            LatencyMaxMs: lat.Max,
-            LatencyMeanMs: lat.Mean,
+            LatencyP50Ms: P50,
+            LatencyP95Ms: P95,
+            LatencyP99Ms: P99,
+            LatencyMaxMs: Max,
+            LatencyMeanMs: Mean,
             EnqueueSeconds: 0,
             DrainSeconds: recover.Elapsed.TotalSeconds,
             JobsObserved: observed,
@@ -1098,8 +1106,7 @@ public sealed class LoadProfileScenario : IScenario
         );
     }
 
-    private static long[] LatencyTicks(BenchSink sink) =>
-        sink.Samples.ToArray().Select(s => s.Entry - s.Enqueued).Where(t => t >= 0).ToArray();
+    private static long[] LatencyTicks(BenchSink sink) => [.. sink.Samples.ToArray().Select(s => s.Entry - s.Enqueued).Where(t => t >= 0)];
 
     private static double LatencyDriftPct(long[] ticks)
     {
@@ -1129,8 +1136,8 @@ public sealed class LoadProfileScenario : IScenario
 /// </summary>
 public static class ScenarioRegistry
 {
-    public static readonly IReadOnlyList<IScenario> All = new IScenario[]
-    {
+    public static readonly IReadOnlyList<IScenario> All =
+    [
         new ThroughputScenario(),
         new DrainScenario(),
         new LatencyScenario(),
@@ -1141,7 +1148,7 @@ public static class ScenarioRegistry
         new QueryScenario(),
         new PurgeScenario(),
         new LoadProfileScenario(),
-    };
+    ];
 
     public static IScenario? Find(string name) => All.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
 }

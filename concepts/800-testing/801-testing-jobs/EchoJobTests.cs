@@ -3,8 +3,7 @@
 //
 //   dotnet test concepts/800-testing/801-testing-jobs
 
-using Acta.Testing;
-using Acta.Testing.Scenarios;
+using Acta.Testing.Hosting;
 using Xunit;
 
 namespace Acta.Concepts.Testing;

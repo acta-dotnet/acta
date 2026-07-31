@@ -1,4 +1,4 @@
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

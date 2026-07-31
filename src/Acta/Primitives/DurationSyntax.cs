@@ -24,10 +24,10 @@ internal static class DurationSyntax
             throw new FormatException($"'{text}' is not a valid duration.");
         }
 
-        var number = double.Parse(s.Substring(0, i), CultureInfo.InvariantCulture);
+        var number = double.Parse(s[..i], CultureInfo.InvariantCulture);
         try
         {
-            return s.Substring(i) switch
+            return s[i..] switch
             {
                 "ms" => TimeSpan.FromMilliseconds(number),
                 "s" => TimeSpan.FromSeconds(number),
@@ -59,11 +59,9 @@ internal static class DurationSyntax
 
         if (s[0] is 'P' or 'p')
         {
-            if (!IsoIsTimeOnly(s))
-            {
-                throw new FormatException("Acta durations do not allow calendar ISO-8601 units.");
-            }
-            return XmlConvert.ToTimeSpan(s);
+            return !IsoIsTimeOnly(s)
+                ? throw new FormatException("Acta durations do not allow calendar ISO-8601 units.")
+                : XmlConvert.ToTimeSpan(s);
         }
 
         return ParseHuman(s);
@@ -82,12 +80,9 @@ internal static class DurationSyntax
         }
 
         var seconds = Math.Ceiling(delay.TotalSeconds);
-        if (seconds > int.MaxValue)
-        {
-            throw new ArgumentOutOfRangeException(paramName, delay, $"Delay must not exceed {int.MaxValue} seconds.");
-        }
-
-        return (int)seconds;
+        return seconds > int.MaxValue
+            ? throw new ArgumentOutOfRangeException(paramName, delay, $"Delay must not exceed {int.MaxValue} seconds.")
+            : (int)seconds;
     }
 
     private static bool IsoIsTimeOnly(string s)

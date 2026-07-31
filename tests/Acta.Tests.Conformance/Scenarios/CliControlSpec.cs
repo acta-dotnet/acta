@@ -1,8 +1,7 @@
-using Acta.Cli;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Signals;
-using Acta.Payloads;
+using Acta.Runtime.Cli;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -141,7 +140,7 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await EnqueueOneAsync(TestKey("cli-events"), ct);
-        var runner = CreateRunner(out var output);
+        var runner = CreateRunner(out _);
 
         Assert.Equal(0, await runner.RunAsync(Parse($"debug {enqueued.JobId}"), ct));
 

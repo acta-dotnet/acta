@@ -59,14 +59,14 @@ namespace Acta.Concepts.RealAlertRouting
     public sealed class QueueDepthCheckJob
     {
         [Job("queue-depth-check")]
-        public async Task Handle(QueueDepthCheck input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(QueueDepthCheck input, JobContext context, CancellationToken ct)
         {
             await Task.Delay(50, ct);
 
             if (input.Depth > 10_000)
             {
                 // deduplicationKey ties repeats together within the dedupe window.
-                await ctx.AlertAsync(
+                await context.AlertAsync(
                     title: $"Queue backlog: {input.Queue}",
                     message: $"'{input.Queue}' depth is {input.Depth}, above the 10k threshold.",
                     severityCode: AlertSeverityCode.Error,

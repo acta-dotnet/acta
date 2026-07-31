@@ -15,7 +15,7 @@ namespace Acta.Tests.Architecture;
 /// module's append is declared one by one, and nothing outside the declared purge routines may
 /// update or delete ledger rows.
 /// </summary>
-public sealed class SqlOwnershipTests
+public sealed partial class SqlOwnershipTests
 {
     /// <summary>Physical table -> owning capabilities. Every schema-snapshot table appears once.</summary>
     private static readonly Dictionary<string, string[]> OwnedTables = new(StringComparer.Ordinal)
@@ -130,10 +130,7 @@ public sealed class SqlOwnershipTests
     // Write targets across dialects: plain INSERT/UPDATE/DELETE plus the T-SQL alias forms
     // ("DELETE a FROM {{schema}}.alerts a", "UPDATE r ... FROM {{schema}}.runtimes r"), which the
     // plain patterns would silently skip.
-    private static readonly Regex WriteTarget = new(
-        @"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+(?:\w+\s+)?FROM)\s+\{\{schema\}\}\.(?<table>[a-z_]+)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
+    private static readonly Regex WriteTarget = MyRegex();
 
     private static readonly Regex AliasedUpdateTarget = new(
         @"\bUPDATE\s+(?<alias>[a-z]\w*)\s+SET\b[\s\S]*?\bFROM\s+\{\{schema\}\}\.(?<table>[a-z_]+)\s+\k<alias>\b",
@@ -210,4 +207,11 @@ public sealed class SqlOwnershipTests
 
         Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
     }
+
+    [GeneratedRegex(
+        @"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+(?:\w+\s+)?FROM)\s+\{\{schema\}\}\.(?<table>[a-z_]+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        "sl-SI"
+    )]
+    private static partial Regex MyRegex();
 }

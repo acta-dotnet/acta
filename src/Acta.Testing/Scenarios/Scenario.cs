@@ -1,6 +1,3 @@
-using Acta.Payloads;
-using Acta.Testing;
-
 namespace Acta.Testing.Scenarios;
 
 /// <summary>
@@ -166,7 +163,7 @@ public sealed class ScenarioNoInputBuilder<TResult>
         CancellationToken ct = default
     )
     {
-        var outcome = await _host.Jobs.EnqueueAsync(_contract, default(NoInput), options, ct);
+        var outcome = await _host.Jobs.EnqueueAsync(_contract, default, options, ct);
         return await ScenarioSessionFactory.CreateAsync<NoInput, TResult>(_host, outcome, ct);
     }
 }

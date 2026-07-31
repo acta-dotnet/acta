@@ -6,26 +6,20 @@ namespace Acta.Tests.Conformance.Contracts;
 /// each test method's <c>[Fact(DisplayName = "...")]</c>, while store coverage lives on
 /// <c>[CoversStoreMethod]</c>, not on this attribute.
 /// </summary>
+/// <remarks>
+/// Create a contract descriptor.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class ConformanceSpecAttribute : Attribute
+public sealed class ConformanceSpecAttribute(string id, string title) : Attribute
 {
-    /// <summary>
-    /// Create a contract descriptor.
-    /// </summary>
-    public ConformanceSpecAttribute(string id, string title)
-    {
-        Id = id;
-        Title = title;
-    }
-
     /// <summary>
     /// Globally-unique stable id, e.g. <c>get-job.returns-snapshot</c>. Internal key only (uniqueness,
     /// doc ordering); not emitted into the generated document.
     /// </summary>
-    public string Id { get; }
+    public string Id { get; } = id;
 
     /// <summary>One-line human title.</summary>
-    public string Title { get; }
+    public string Title { get; } = title;
 
     /// <summary>Docs grouping bucket, e.g. <c>Execution</c>, <c>Variables</c>, <c>Alerts</c>.</summary>
     public string Area { get; set; } = "";

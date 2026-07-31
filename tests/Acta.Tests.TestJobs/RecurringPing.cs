@@ -26,7 +26,7 @@ public static class RecurringPingHandler
 
     public static void Reset(string jobNamespace)
     {
-        Triggers[jobNamespace] = new List<IReadOnlyList<string>>();
+        Triggers[jobNamespace] = [];
         FailWhileSequenceAtMost.TryRemove(jobNamespace, out _);
         CancelOnSequence.TryRemove(jobNamespace, out _);
     }
@@ -38,7 +38,7 @@ public static class RecurringPingHandler
     [JobSchedule("every-5-minutes", Cron.Every5Minutes)]
     public static Task<RecurringPingResult> Run(RecurringPing input, JobContext ctx, CancellationToken ct)
     {
-        var list = Triggers.GetOrAdd(ctx.JobNamespace, _ => new List<IReadOnlyList<string>>());
+        var list = Triggers.GetOrAdd(ctx.JobNamespace, _ => []);
         int sequence;
         lock (list)
         {
@@ -51,11 +51,8 @@ public static class RecurringPingHandler
             throw new InvalidOperationException($"forced recurring failure on sequence {sequence}");
         }
 
-        if (CancelOnSequence.TryGetValue(ctx.JobNamespace, out var cancelAt) && sequence == cancelAt)
-        {
-            throw new HandlerCancelException($"recurring slot stopped by handler on sequence {sequence}");
-        }
-
-        return Task.FromResult(new RecurringPingResult(sequence));
+        return CancelOnSequence.TryGetValue(ctx.JobNamespace, out var cancelAt) && sequence == cancelAt
+            ? throw new HandlerCancelException($"recurring slot stopped by handler on sequence {sequence}")
+            : Task.FromResult(new RecurringPingResult(sequence));
     }
 }

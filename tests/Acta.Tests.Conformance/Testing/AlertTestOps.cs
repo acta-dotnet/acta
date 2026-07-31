@@ -1,4 +1,4 @@
-using Acta.Modules.Alerting;
+using Acta.Runtime.Modules.Alerting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.Tests.Conformance.Testing;

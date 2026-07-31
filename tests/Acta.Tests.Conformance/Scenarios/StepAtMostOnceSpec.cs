@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using Acta.Modules.Execution;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,12 +54,7 @@ public sealed class AtMostOnceStepManifest : IJobManifest
     public const string CaughtProbe = "at-most-once-caught";
 
     public static JobDescriptorManifest Descriptors { get; } =
-        new(
-            ImmutableArray.Create(
-                Probe(UncaughtProbe, AtMostOnceStepHandler.RunUncaughtAsync),
-                Probe(CaughtProbe, AtMostOnceStepHandler.RunCaughtAsync)
-            )
-        );
+        new([Probe(UncaughtProbe, AtMostOnceStepHandler.RunUncaughtAsync), Probe(CaughtProbe, AtMostOnceStepHandler.RunCaughtAsync)]);
 
     private static JobDescriptor Probe(string name, Func<JobContext, CancellationToken, Task> run) =>
         new(

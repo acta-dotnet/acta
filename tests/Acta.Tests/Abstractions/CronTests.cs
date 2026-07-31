@@ -1,5 +1,5 @@
 using System.Reflection;
-using Acta.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Xunit;
 
 namespace Acta.Tests.Abstractions;

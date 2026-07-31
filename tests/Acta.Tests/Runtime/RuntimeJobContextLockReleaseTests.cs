@@ -1,7 +1,6 @@
-using Acta.Modules.Execution;
-using Acta.Payloads;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Services.Locks;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Xunit;
 

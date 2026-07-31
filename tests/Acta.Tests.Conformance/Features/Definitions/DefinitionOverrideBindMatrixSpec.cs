@@ -1,8 +1,6 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,7 +65,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
 
     private async Task<int> RegisterAsync(string name, CancellationToken ct)
     {
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen, [Def(name)], ct);
         return (await ReadAsync(name, ct)).Id;
     }
@@ -76,7 +74,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
     public async Task All_13_overrides_bind_to_their_own_column()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, _) = Store();
+        var (_, _) = Store();
         var name = TestKey("ovr-matrix");
         var id = await RegisterAsync(name, ct);
         var before = await ReadAsync(name, ct);
@@ -155,7 +153,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
     public async Task Clearing_all_overrides_reverts_to_base()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, _) = Store();
+        var (_, _) = Store();
         var name = TestKey("ovr-clear");
         var id = await RegisterAsync(name, ct);
 

@@ -1,12 +1,10 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using Acta.Kernel;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
-using Acta.Querying;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Querying;
 
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Definitions feature behavior: dashboard read validation and cursor math, the operator override
@@ -248,15 +246,12 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             result[name] = id;
         }
 
-        if (result.Count != rows.Count)
-        {
-            throw new InvalidOperationException(
+        return result.Count != rows.Count
+            ? throw new InvalidOperationException(
                 $"register_job_definitions returned {result.Count} name-to-id rows for {rows.Count} input definitions. "
                     + "The routine must return exactly one row per registered definition."
-            );
-        }
-
-        return result;
+            )
+            : (IReadOnlyDictionary<string, int>)result;
     }
 
     public static DefinitionContract ContractOf(JobDescriptor descriptor) =>

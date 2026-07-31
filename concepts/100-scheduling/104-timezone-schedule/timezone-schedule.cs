@@ -30,9 +30,9 @@ namespace Acta.Concepts.TimezoneSchedule
         [Job("daily-digest")]
         [JobSchedule("morning-ljubljana", "0 8 * * *", TimeZone = "Europe/Ljubljana")]
         [JobSchedule("demo-tick", "PT15S")]
-        public Task Handle(DailyDigest input, JobContext ctx, CancellationToken ct)
+        public Task Handle(DailyDigest input, JobContext context, CancellationToken ct)
         {
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", ctx.TriggeringScheduleNames)}]");
+            Console.WriteLine($"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", context.TriggeringScheduleNames)}]");
             return Task.CompletedTask;
         }
     }

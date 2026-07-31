@@ -12,7 +12,7 @@ public static class JobControlProbes
     public static async Task HandlerFail(JobContext ctx, CancellationToken ct)
     {
         await ctx.SetVariableAsync("ran.before", true, ct);
-        await ctx.FailAsync("payload invalid", ct);
+        await JobContext.FailAsync("payload invalid", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
 
@@ -20,7 +20,7 @@ public static class JobControlProbes
     public static async Task HandlerCancel(JobContext ctx, CancellationToken ct)
     {
         await ctx.SetVariableAsync("ran.before", true, ct);
-        await ctx.CancelAsync("duplicate request", ct);
+        await JobContext.CancelAsync("duplicate request", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
 
@@ -35,7 +35,7 @@ public static class JobControlProbes
     public static async Task HandlerPause(JobContext ctx, CancellationToken ct)
     {
         await ctx.SetVariableAsync("ran.before", true, ct);
-        await ctx.PauseAsync("awaiting manual review", ct);
+        await JobContext.PauseAsync("awaiting manual review", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
 }

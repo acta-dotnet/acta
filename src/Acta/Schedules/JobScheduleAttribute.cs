@@ -7,35 +7,27 @@ namespace Acta;
 /// currently-due schedules coalesce into one execution whose due set the handler reads via
 /// <see cref="JobContext.TriggeringScheduleNames"/>.
 /// </summary>
+/// <remarks>Declares a schedule.</remarks>
+/// <param name="name">
+/// Operator-stable kebab-case schedule name, unique within the definition.
+/// </param>
+/// <param name="expression">
+/// Cron expression (Cronos dialect; 6 fields enables seconds) or an ISO 8601 duration (e.g.
+/// <c>"PT5M"</c>). The generator infers the kind from the leading token (a <c>P</c> or <c>PT</c>
+/// prefix means ISO).
+/// </param>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-public sealed class JobScheduleAttribute : Attribute
+public sealed class JobScheduleAttribute(string name, string expression) : Attribute
 {
     /// <summary>
-    /// Declares a schedule.
-    /// </summary>
-    /// <param name="name">
-    /// Operator-stable kebab-case schedule name, unique within the definition.
-    /// </param>
-    /// <param name="expression">
-    /// Cron expression (Cronos dialect; 6 fields enables seconds) or an ISO 8601 duration (e.g.
-    /// <c>"PT5M"</c>). The generator infers the kind from the leading token (a <c>P</c> or <c>PT</c>
-    /// prefix means ISO).
-    /// </param>
-    public JobScheduleAttribute(string name, string expression)
-    {
-        Name = name;
-        Expression = expression;
-    }
-
-    /// <summary>
     /// Operator-stable kebab-case schedule name, unique within the definition.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; } = name;
 
     /// <summary>
     /// Cron expression or ISO 8601 duration. Stored verbatim as <c>schedules.expression</c>.
     /// </summary>
-    public string Expression { get; }
+    public string Expression { get; } = expression;
 
     /// <summary>
     /// Dev-authored explanation persisted on the schedule row's <c>description</c> column. Null = none.

@@ -1,5 +1,6 @@
 // Concept: MapActaApi + EnableControls, the X-Acta-Control confirmation header, LocalOnly, and ConfigureEndpoints.
 using Acta;
+using Acta.AspNetCore;
 using Acta.Concepts.HttpApiControls;
 using Microsoft.AspNetCore.TestHost;
 

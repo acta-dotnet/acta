@@ -1,24 +1,24 @@
-using Acta.Cli;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Alerting;
-using Acta.Modules.Alerting.Api;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Namespaces;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Signals;
-using Acta.Modules.Execution.Tenants;
-using Acta.Modules.Execution.Workers;
-using Acta.Modules.Operations.Events;
-using Acta.Modules.Operations.Overview;
-using Acta.Modules.Operations.Tags;
-using Acta.Modules.Outbox;
-using Acta.Payloads;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Cli;
+using Acta.Runtime.Configuration;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Alerting;
+using Acta.Runtime.Modules.Alerting.Api;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Namespaces;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Signals;
+using Acta.Runtime.Modules.Execution.Tenants;
+using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Modules.Operations;
+using Acta.Runtime.Modules.Operations.Events;
+using Acta.Runtime.Modules.Operations.Overview;
+using Acta.Runtime.Modules.Operations.Tags;
+using Acta.Runtime.Modules.Outbox;
+using Acta.Runtime.Payloads;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -112,7 +112,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ITenants, TenantsApi>();
         services.TryAddSingleton<INamespaces, NamespacesApi>();
         services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
-        services.TryAddSingleton<IActaOperations, Modules.Operations.OperationsApi>();
+        services.TryAddSingleton<IActaOperations, OperationsApi>();
 
         // Process-wide Acta meter. One singleton owns the instruments; every worker runtime emits
         // into it. Consumers light it up with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).

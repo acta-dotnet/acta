@@ -17,12 +17,9 @@ public static class HarnessReflection
             return false;
         }
 
-        if (IsAssignableToOpenGeneric(t, typeof(IConformanceMetaSpec<>)))
-        {
-            return false;
-        }
-
-        return t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).Any(IsFactMethod);
+        return IsAssignableToOpenGeneric(t, typeof(IConformanceMetaSpec<>))
+            ? false
+            : t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).Any(IsFactMethod);
     }
 
     /// <summary>The [ConformanceSpec] attribute on a candidate, or null if it is missing.</summary>

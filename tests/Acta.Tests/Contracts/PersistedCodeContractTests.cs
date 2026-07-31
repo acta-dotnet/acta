@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Acta.Payloads;
 using Xunit;
 
 namespace Acta.Tests.Contracts;
@@ -267,7 +266,7 @@ public sealed class PersistedCodeContractTests
     public void Lifecycle_classification_is_explicit_and_exhaustive()
     {
         Assert.False(JobStatusCode.Ready.IsTerminal);
-        Assert.All(new[] { JobStatusCode.Done, JobStatusCode.Failed, JobStatusCode.Cancelled }, status => Assert.True(status.IsTerminal));
+        Assert.All([JobStatusCode.Done, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsTerminal));
 
         var expected = new Dictionary<ExecutionStatusCode, ExecutionBehavior>
         {
@@ -285,11 +284,12 @@ public sealed class PersistedCodeContractTests
     }
 
     private static Type[] CodeFamilies() =>
-        typeof(JobStatusCode)
-            .Assembly.GetTypes()
-            .Where(type => type.IsEnum && type.GetCustomAttribute<CodeKindAttribute>() is not null)
-            .OrderBy(type => type.Name, StringComparer.Ordinal)
-            .ToArray();
+        [
+            .. typeof(JobStatusCode)
+                .Assembly.GetTypes()
+                .Where(type => type.IsEnum && type.GetCustomAttribute<CodeKindAttribute>() is not null)
+                .OrderBy(type => type.Name, StringComparer.Ordinal),
+        ];
 
     private static IEnumerable<ActualCode> ReadFamily(Type family) =>
         family

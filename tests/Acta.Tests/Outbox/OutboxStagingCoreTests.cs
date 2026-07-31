@@ -1,6 +1,5 @@
-using Acta;
-using Acta.Modules.Outbox;
 using Acta.Relational.Outbox;
+using Acta.Runtime.Modules.Outbox;
 using Microsoft.Data.Sqlite;
 using Xunit;
 

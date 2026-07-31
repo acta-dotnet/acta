@@ -31,7 +31,7 @@ public class CodeGeneratorDiagnosticTests
         return CSharpGeneratorDriver.Create(new CodeGenerator()).RunGenerators(compilation).GetRunResult();
     }
 
-    private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => result.Diagnostics.Where(d => d.Id == id).ToArray();
+    private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => [.. result.Diagnostics.Where(d => d.Id == id)];
 
     [Fact]
     public void Missing_CodeKind_errors_ACTA0201()

@@ -1,14 +1,11 @@
-using Acta.Modules.Alerting;
-using Acta.Modules.Alerting.Api;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Workers;
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Alerting.Api;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Acta;
+namespace Acta.Runtime.Hosting;
 
 /// <summary>
 /// Default <see cref="IWorkerBuilder"/> implementation. Collects the worker's <see cref="ManifestRegistration"/>s

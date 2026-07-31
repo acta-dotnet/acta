@@ -1,10 +1,10 @@
 using System.Diagnostics;
-using Acta.Configuration;
-using Acta.Services.Locks;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Services.Locks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Renews the handler-acquired locks (<c>RunWithLock</c> and the exclusive-key mutex) running attempts
@@ -15,35 +15,24 @@ namespace Acta.Modules.Execution.Workers;
 /// extend (exception/timeout) feeds nothing, left to the <see cref="AttemptWatchdog"/>. A no-op in
 /// enqueue-only mode.
 /// </summary>
-internal sealed class LockLeaseHeartbeat
+internal sealed class LockLeaseHeartbeat(
+    ILockStore lockStore,
+    IOptions<JobsOptions> options,
+    WorkerRegistration? workerRegistration,
+    WorkerContext context,
+    ILogger log
+)
 {
-    private readonly ILockStore _lockStore;
-    private readonly WorkerRegistration? _workerRegistration;
-    private readonly WorkerContext _context;
-    private readonly TimeSpan _interval;
-    private readonly TimeSpan _lockTtl;
-    private readonly long _ttlStopwatchTicks;
-    private readonly ILogger _log;
+    private readonly ILockStore _lockStore = lockStore;
+    private readonly WorkerRegistration? _workerRegistration = workerRegistration;
+    private readonly WorkerContext _context = context;
+    private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
+    private readonly TimeSpan _lockTtl = TimeSpan.FromSeconds(options.Value.LeaseTtlSeconds);
+    private readonly long _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
+    private readonly ILogger _log = log;
 
     // Serializes TickAsync so the loop cannot race itself (double extends against one lock).
     private readonly SemaphoreSlim _tickGate = new(1, 1);
-
-    public LockLeaseHeartbeat(
-        ILockStore lockStore,
-        IOptions<JobsOptions> options,
-        WorkerRegistration? workerRegistration,
-        WorkerContext context,
-        ILogger log
-    )
-    {
-        _lockStore = lockStore;
-        _workerRegistration = workerRegistration;
-        _context = context;
-        _interval = options.Value.HeartbeatInterval;
-        _lockTtl = TimeSpan.FromSeconds(options.Value.LeaseTtlSeconds);
-        _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
-        _log = log;
-    }
 
     public async Task RunAsync(CancellationToken ct)
     {

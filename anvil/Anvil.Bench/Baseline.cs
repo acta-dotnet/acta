@@ -6,7 +6,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Acta;
-using Acta.Configuration;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using Npgsql;
@@ -122,12 +121,9 @@ public static class BaselineSuite
         {
             return QuickPreset;
         }
-        if (string.Equals(name, FullPreset.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            return FullPreset;
-        }
-
-        throw new ArgumentException($"Unknown preset '{name}' (expected quick|full).");
+        return string.Equals(name, FullPreset.Name, StringComparison.OrdinalIgnoreCase)
+            ? FullPreset
+            : throw new ArgumentException($"Unknown preset '{name}' (expected quick|full).");
     }
 
     public static IReadOnlyList<BaselineCellSpec> Cells(
@@ -138,9 +134,9 @@ public static class BaselineSuite
     )
     {
         var specs = new List<BaselineCellSpec>();
-        var profiles = preset.FullMatrix ? ExecutionProfiles : new[] { ExecutionProfile.Direct };
-        var throughputExecutors = preset.FullMatrix ? new[] { 1, 2, 4, 8, 16, 32 } : new[] { 1, 8, 32 };
-        var producerCounts = preset.FullMatrix ? new[] { 1, 4, 16 } : new[] { 1, 16 };
+        var profiles = preset.FullMatrix ? ExecutionProfiles : [ExecutionProfile.Direct];
+        var throughputExecutors = preset.FullMatrix ? new[] { 1, 2, 4, 8, 16, 32 } : [1, 8, 32];
+        var producerCounts = preset.FullMatrix ? new[] { 1, 4, 16 } : [1, 16];
 
         foreach (var provider in NormalizeProviders(providers))
         {
@@ -191,8 +187,8 @@ public static class BaselineSuite
             // SQLite is single-writer, so multi-worker drain just re-measures that it does not scale.
             var drainWorkers =
                 provider == "sqlite" ? new[] { 1 }
-                : preset.FullMatrix ? new[] { 1, 4, 16 }
-                : new[] { 1, 16 };
+                : preset.FullMatrix ? [1, 4, 16]
+                : [1, 16];
             foreach (var profile in profiles)
             foreach (var workers in drainWorkers)
             {
@@ -278,7 +274,7 @@ public static class BaselineSuite
             );
         }
 
-        return scenarios is null ? specs : specs.Where(s => scenarios.Contains(s.Scenario, StringComparer.OrdinalIgnoreCase)).ToList();
+        return scenarios is null ? specs : [.. specs.Where(s => scenarios.Contains(s.Scenario, StringComparer.OrdinalIgnoreCase))];
     }
 
     public static IReadOnlyList<string> NormalizeProviders(IReadOnlyList<string>? providers)
@@ -534,12 +530,9 @@ public static class BaselineCapture
             return "ok";
         }
 
-        if (statuses.Any(s => s.StartsWith("skipped:", StringComparison.Ordinal)))
-        {
-            return statuses.First(s => s.StartsWith("skipped:", StringComparison.Ordinal));
-        }
-
-        return "incomplete";
+        return statuses.Any(s => s.StartsWith("skipped:", StringComparison.Ordinal))
+            ? statuses.First(s => s.StartsWith("skipped:", StringComparison.Ordinal))
+            : "incomplete";
     }
 
     private static CellMetrics Zero() => new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -565,7 +558,7 @@ public static class BaselineAggregator
         }
 
         var extraKeys = metrics
-            .SelectMany(m => m.ExtraMetrics?.Keys ?? Enumerable.Empty<string>())
+            .SelectMany(m => m.ExtraMetrics?.Keys ?? [])
             .Distinct(StringComparer.Ordinal)
             .OrderBy(k => k, StringComparer.Ordinal)
             .ToArray();

@@ -1,7 +1,6 @@
 using System.Data;
 using System.Text.RegularExpressions;
 using Acta.SqlServer.Services;
-using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
 using Xunit;
 
@@ -14,12 +13,9 @@ namespace Acta.Tests.Conformance;
 /// would otherwise surface as an "Invalid column name" against a live database. This test compares
 /// the two column-for-column (name, type, width, order) so the drift fails here instead.
 /// </summary>
-public sealed class TvpParityTests
+public sealed partial class TvpParityTests
 {
-    private static readonly Regex TvpBlock = new(
-        @"CREATE TYPE \{\{schema\}\}\.(\w+) AS TABLE \((.*?)\);'",
-        RegexOptions.Compiled | RegexOptions.Singleline
-    );
+    private static readonly Regex TvpBlock = MyRegex();
 
     private static readonly Regex ColumnLine = new(@"^(\w+)\s+([A-Z0-9]+(?:\((?:\d+|MAX)\))?)", RegexOptions.Compiled);
 
@@ -104,4 +100,7 @@ public sealed class TvpParityTests
         }
         throw new InvalidOperationException("TvpParityTests could not locate Acta.slnx from " + AppContext.BaseDirectory);
     }
+
+    [GeneratedRegex(@"CREATE TYPE \{\{schema\}\}\.(\w+) AS TABLE \((.*?)\);'", RegexOptions.Compiled | RegexOptions.Singleline)]
+    private static partial Regex MyRegex();
 }

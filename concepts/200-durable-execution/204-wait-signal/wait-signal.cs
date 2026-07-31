@@ -186,10 +186,10 @@ namespace Acta.Concepts.WaitSignal
     public sealed class ApproveExpenseJob
     {
         [Job("approve-expense")]
-        public async Task Handle(ApproveExpense expense, JobContext ctx, CancellationToken ct)
+        public async Task Handle(ApproveExpense expense, JobContext context, CancellationToken ct)
         {
             // Suspends (no executor held) until the named signal is raised, then re-enters with the latched payload.
-            var decision = await ctx.WaitSignalAsync<Decision>("approval", ct);
+            var decision = await context.WaitSignalAsync<Decision>("approval", ct);
             var amount = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
             Console.WriteLine($"[{expense.Id}] expense for {amount} EUR {(decision!.Approved ? "APPROVED" : "rejected")} by {decision.By}");
         }

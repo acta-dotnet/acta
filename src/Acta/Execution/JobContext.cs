@@ -533,11 +533,9 @@ public abstract class JobContext
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(ChildSignalPrefix + childJobId, linked.Token);
-        if (outcome.Value is null)
-        {
-            throw new InvalidOperationException($"Child outcome slot for job {childJobId} carries no envelope.");
-        }
-        return ChildOutcomeEnvelope.Parse(outcome.Value);
+        return outcome.Value is null
+            ? throw new InvalidOperationException($"Child outcome slot for job {childJobId} carries no envelope.")
+            : ChildOutcomeEnvelope.Parse(outcome.Value);
     }
 
     /// <summary>
@@ -768,11 +766,9 @@ public abstract class JobContext
 
         for (var i = 0; i < materialized.Count; i++)
         {
-            var key = itemKey(materialized[i]);
-            if (key is null)
-            {
-                throw new ArgumentException($"Map group '{groupName}' produced a null item key.", nameof(itemKey));
-            }
+            var key =
+                itemKey(materialized[i])
+                ?? throw new ArgumentException($"Map group '{groupName}' produced a null item key.", nameof(itemKey));
             if (!seenKeys.Add(key))
             {
                 throw new ArgumentException($"Map group '{groupName}' has a duplicate item key '{key}'.", nameof(itemKey));

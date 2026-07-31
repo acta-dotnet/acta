@@ -6,21 +6,15 @@ namespace Acta;
 /// <c>FromId</c>, <c>IsKnownId</c>, <c>IsWritableId</c>, <c>Code</c>, and <c>Description</c>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
-public sealed class CodeAttribute : Attribute
+public sealed class CodeAttribute(string code, string description) : Attribute
 {
-    public CodeAttribute(string code, string description)
-    {
-        Code = code;
-        Description = description;
-    }
-
     /// <summary>Kebab string (most kinds) or dotted segments (<c>"event"</c>): <c>"done"</c>, <c>"job.cancelled"</c>, ...</summary>
-    public string Code { get; }
+    public string Code { get; } = code;
 
     /// <summary>
     /// Operator-readable description; populates <c>CodeValue.Description</c>.
     /// </summary>
-    public string Description { get; }
+    public string Description { get; } = description;
 
     /// <summary>Lifecycle flag. See <see cref="CodeLifecycleCode"/>.</summary>
     public CodeLifecycleCode Lifecycle { get; init; } = CodeLifecycleCode.Active;

@@ -1,9 +1,8 @@
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Schedules;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -113,7 +112,7 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
 
         var triggers = RecurringPingHandler.TriggersFor(TestNamespace);
         Assert.Single(triggers);
-        Assert.Equal(new[] { ScheduleName }, triggers[0]);
+        Assert.Equal([ScheduleName], triggers[0]);
     }
 
     [Fact(DisplayName = "Audit level emits started, finished and rolled-over events")]

@@ -10,15 +10,11 @@ namespace Acta;
 /// termination into a silent fall-through. The family is closed to the framework; its public members
 /// are <see cref="RescheduleJobException"/> and the <see cref="HandlerControlException"/> family.
 /// </remarks>
-public abstract class JobControlException : Exception
-{
-    /// <summary>
-    /// Initializes the signal with an operator-readable <paramref name="message"/> that flows into the
-    /// re-arm reason.
-    /// </summary>
-    protected JobControlException(string? message)
-        : base(message) { }
-}
+/// <remarks>
+/// Initializes the signal with an operator-readable <paramref name="message"/> that flows into the
+/// re-arm reason.
+/// </remarks>
+public abstract class JobControlException(string? message) : Exception(message) { }
 
 /// <summary>
 /// Re-arms the current Job to <c>Ready</c> with a forward-dated <c>NextRunAtUtc</c> and stops the
@@ -70,19 +66,13 @@ public sealed class RescheduleJobException : JobControlException
 /// concrete type and routes it through <c>complete_execution</c> to the matching terminal/hold Status.
 /// Throw via the <c>ctx</c> verbs rather than constructing these directly.
 /// </remarks>
-public abstract class HandlerControlException : JobControlException
+/// <remarks>
+/// Initializes the control with an optional operator-readable <paramref name="reasonMessage"/>.
+/// </remarks>
+public abstract class HandlerControlException(string? reasonMessage) : JobControlException(reasonMessage)
 {
-    /// <summary>
-    /// Initializes the control with an optional operator-readable <paramref name="reasonMessage"/>.
-    /// </summary>
-    protected HandlerControlException(string? reasonMessage)
-        : base(reasonMessage)
-    {
-        ReasonMessage = reasonMessage;
-    }
-
     /// <summary>Operator-readable reason, or <c>null</c> when the handler supplied none.</summary>
-    public string? ReasonMessage { get; }
+    public string? ReasonMessage { get; } = reasonMessage;
 }
 
 /// <summary>
@@ -90,32 +80,20 @@ public abstract class HandlerControlException : JobControlException
 /// attempt is not retried and the failure budget is untouched. Distinct from a thrown exception, which
 /// is recorded as an unhandled failure.
 /// </summary>
-public sealed class HandlerFailException : HandlerControlException
-{
-    /// <summary>Initializes the fail control with an optional <paramref name="reason"/>.</summary>
-    public HandlerFailException(string? reason = null)
-        : base(reason) { }
-}
+/// <remarks>Initializes the fail control with an optional <paramref name="reason"/>.</remarks>
+public sealed class HandlerFailException(string? reason = null) : HandlerControlException(reason) { }
 
 /// <summary>
 /// Ends the current Job as a deliberate terminal <c>Cancelled</c> (a non-failure stop). Thrown by
 /// <c>ctx.CancelAsync</c>; the attempt is not retried and the failure budget is untouched.
 /// </summary>
-public sealed class HandlerCancelException : HandlerControlException
-{
-    /// <summary>Initializes the cancel control with an optional <paramref name="reason"/>.</summary>
-    public HandlerCancelException(string? reason = null)
-        : base(reason) { }
-}
+/// <remarks>Initializes the cancel control with an optional <paramref name="reason"/>.</remarks>
+public sealed class HandlerCancelException(string? reason = null) : HandlerControlException(reason) { }
 
 /// <summary>
 /// Holds the current Job in <c>Paused</c> until an external resume. Thrown by <c>ctx.PauseAsync</c>;
 /// the Job is not retried automatically, does not set <c>next_run_at_utc</c>, and the failure budget
 /// is untouched. Resumes only through the existing <c>IJobs.ResumeAsync</c> path.
 /// </summary>
-public sealed class HandlerPauseException : HandlerControlException
-{
-    /// <summary>Initializes the pause control with an optional <paramref name="reason"/>.</summary>
-    public HandlerPauseException(string? reason = null)
-        : base(reason) { }
-}
+/// <remarks>Initializes the pause control with an optional <paramref name="reason"/>.</remarks>
+public sealed class HandlerPauseException(string? reason = null) : HandlerControlException(reason) { }

@@ -1,10 +1,9 @@
 using System.Collections.Concurrent;
-using Acta.Kernel;
-using Acta.Modules.Execution;
+using Acta.Runtime.Kernel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Auto-reset, coalescing async wake event. <see cref="Set"/> completes one pending waiter; with no
@@ -21,7 +20,7 @@ namespace Acta.Modules.Execution.Workers;
 internal sealed class AsyncWakeSignal
 {
     private readonly Queue<TaskCompletionSource> _waiters = new();
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private bool _latched;
 
     public void Set()
@@ -89,7 +88,7 @@ internal sealed class AsyncWakeSignal
 
         // Timeout or cancellation: retire the waiter so a Set after this point latches. A failed
         // retire means Set won the race; consume that wake rather than dropping it.
-        if (!waiter.TrySetCanceled())
+        if (!waiter.TrySetCanceled(ct))
         {
             return WorkerWakeupWaitResult.Signaled;
         }

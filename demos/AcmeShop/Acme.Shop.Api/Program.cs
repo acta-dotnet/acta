@@ -3,19 +3,13 @@ using Acme.Shop.Api.Domain;
 using Acme.Shop.Payments.Contracts;
 using Acta;
 using Acta.AspNetCore;
-using Acta.Payloads;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Acme Shop's own order store (App business records). Separate from Acta's execution state.
 builder.Services.AddSingleton<IOrderStore, InMemoryOrderStore>();
 
-builder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(builder.Configuration);
-
-    // Enqueue-only: no j.Run<...>(). The payments and shipping workers own the handlers.
-});
+builder.Services.UseActa(j => j.UseLocalDatabase(builder.Configuration));
 
 var app = builder.Build();
 

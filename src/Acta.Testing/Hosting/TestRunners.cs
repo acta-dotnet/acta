@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Workers;
 
-namespace Acta.Testing;
+namespace Acta.Testing.Hosting;
 
 /// <summary>
 /// Test-only drive helpers that claim a <em>specific</em> job by id and retry while the claim comes

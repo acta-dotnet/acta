@@ -1,4 +1,4 @@
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Outbox;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -28,7 +28,7 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
 
     // A due Pending row staged "in the past" so the claim predicate (next_attempt_at_utc <= db_now) is
     // satisfied without waiting; created_at back-dated so priority/FIFO ordering is deterministic.
-    private protected OutboxSeed DueRow(
+    private protected static OutboxSeed DueRow(
         string dedup,
         byte? priority = null,
         int minutesAgo = 5,
@@ -52,7 +52,7 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
 
     // A row already Claimed by a prior relay whose lease has expired, so a fresh claim must recover it.
     private protected OutboxSeed ClaimedExpiredRow(string dedup, Guid staleToken) =>
-        DueRow(dedup) with
+        OutboxSpecBase<TFixture>.DueRow(dedup) with
         {
             StatusCode = (byte)OutboxStatusCode.Claimed,
             ClaimToken = staleToken,
@@ -65,7 +65,7 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
     // Seed one due row and claim it, returning its id and the owning token for a finalize proof.
     private protected async Task<(Guid Id, Guid Token)> SeedAndClaimAsync(string dedup, CancellationToken ct)
     {
-        var row = DueRow(dedup);
+        var row = OutboxSpecBase<TFixture>.DueRow(dedup);
         await Fixture.SeedOutboxRowAsync(TableName, row);
         var token = Guid.NewGuid();
         var claimed = await ClaimAsync(token, batchSize: 10, ct);

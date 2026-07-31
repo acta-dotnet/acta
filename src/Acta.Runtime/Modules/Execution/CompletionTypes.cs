@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// A computed cursor advance for one schedule, applied by <c>complete_execution</c> on a recurring fire.

@@ -1,5 +1,4 @@
-using Acta.Configuration;
-using Acta.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Definitions;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
@@ -62,10 +61,10 @@ public class ManifestGenerationResolverTests
 
         var resolved = ManifestGenerationResolver.Resolve(new JobsOptions(), typeof(ManifestGenerationResolverTests).Assembly, log);
 
-        var entry = Assert.Single(log.Entries);
-        Assert.Equal(LogLevel.Warning, entry.Level);
-        Assert.Contains("ManifestGenerationUtc", entry.Message);
-        Assert.Contains(resolved.ToString("O"), entry.Message);
+        var (Level, Message) = Assert.Single(log.Entries);
+        Assert.Equal(LogLevel.Warning, Level);
+        Assert.Contains("ManifestGenerationUtc", Message);
+        Assert.Contains(resolved.ToString("O"), Message);
     }
 
     [Fact]

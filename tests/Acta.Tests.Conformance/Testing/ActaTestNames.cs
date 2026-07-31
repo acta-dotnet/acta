@@ -32,7 +32,7 @@ public static class ActaTestNames
         var middle = classPart + methodPart;
         if (middle.Length > headRoom)
         {
-            middle = middle.Substring(0, headRoom).TrimEnd('-');
+            middle = middle[..headRoom].TrimEnd('-');
         }
 
         var name = prefix + middle + "-" + hex;

@@ -1,6 +1,6 @@
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Outbox;
 
-namespace Acta;
+namespace Acta.Runtime.Hosting;
 
 /// <summary>
 /// Default <see cref="IOutboxSourceBuilder"/> implementation. Collects one source's overrides and its

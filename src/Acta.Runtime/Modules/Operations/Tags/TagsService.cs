@@ -1,6 +1,6 @@
-using Acta.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Api;
 
-namespace Acta.Modules.Operations.Tags;
+namespace Acta.Runtime.Modules.Operations.Tags;
 
 internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITags
 {

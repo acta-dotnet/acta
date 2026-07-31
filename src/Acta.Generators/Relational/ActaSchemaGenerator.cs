@@ -111,7 +111,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         // A PK-less entity still transforms so ACTA0401 can report it; Emit skips it for codegen.
         var pkAttr = cls.GetAttributes().FirstOrDefault(a => Match(a, DbPrimaryKeyAttr));
         var pkName = pkAttr is null ? "" : ReadNamedArg(pkAttr, "Name") as string ?? "";
-        var pkColumns = pkAttr is null ? ImmutableArray<string>.Empty : ReadArrayNamedArg(pkAttr, "Columns");
+        var pkColumns = pkAttr is null ? [] : ReadArrayNamedArg(pkAttr, "Columns");
         var pkManual = pkAttr is not null && ReadNamedArg(pkAttr, "Manual") is bool b && b;
         var pkOptimizeForSequentialKey = pkAttr is not null && ReadNamedArg(pkAttr, "OptimizeForSequentialKey") is bool osk && osk;
 
@@ -599,11 +599,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     private static int? ReadNamedArgInt(AttributeData a, string name)
     {
         var v = ReadNamedArg(a, name);
-        if (v is int i && i != 0)
-        {
-            return i;
-        }
-        return null;
+        return v is int i && i != 0 ? i : null;
     }
 
     // Resolve a named enum-typed arg (e.g. `Default = DbDefault.UtcNow`) by constant value, so
@@ -993,11 +989,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
 
     private static string StringLiteral(string? s)
     {
-        if (s is null)
-        {
-            return "null";
-        }
-        return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+        return s is null ? "null" : "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
     // -------- EntityBinder.Generated.cs --------
@@ -1064,11 +1056,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     {
         // For nullable columns, wrap the typed expression in `r.IsDBNull(i) ? null : (...)`.
         var typed = BindTypedExpression(c, ordinal);
-        if (c.IsNullable)
-        {
-            return "r.IsDBNull(" + ordinal + ") ? null : " + typed;
-        }
-        return typed;
+        return c.IsNullable ? "r.IsDBNull(" + ordinal + ") ? null : " + typed : typed;
     }
 
     // Convert.To* on narrow numerics keeps reads provider-tolerant (tinyint vs smallint).

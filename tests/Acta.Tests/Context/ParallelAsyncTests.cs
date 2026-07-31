@@ -38,7 +38,7 @@ public sealed class ParallelAsyncTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(new[] { "checkout-reserve-inventory", "checkout-charge-card" }, ctx.Started.Select(s => s.Name));
+        Assert.Equal(["checkout-reserve-inventory", "checkout-charge-card"], ctx.Started.Select(s => s.Name));
     }
 
     [Fact]

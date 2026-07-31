@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Acta.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Aot;
@@ -15,7 +14,7 @@ namespace Acta.Tests.Aot;
 /// generated path or extend the allowlist with a justifying comment. The scan is path-based: tests,
 /// generators, the emit CLI, and generated <c>obj/Generated/</c> output are excluded by construction.
 /// </remarks>
-public sealed class AotPolicyTests
+public sealed partial class AotPolicyTests
 {
     /// <summary>
     /// Source roots subject to the no-reflection policy: the runtime core plus the three durable SQL
@@ -48,7 +47,7 @@ public sealed class AotPolicyTests
 
     private static readonly ForbiddenPattern[] ReflectionPatterns =
     [
-        new("Assembly.GetTypes()", new Regex(@"\.GetTypes\s*\(", RegexOptions.Compiled), Allow()),
+        new("Assembly.GetTypes()", MyRegex(), Allow()),
         // The worker runtime reads AssemblyInformationalVersion from the entry assembly to stamp
         // the worker's deployment version. This is one-time startup metadata, not hot-path dispatch.
         new(
@@ -359,4 +358,7 @@ public sealed class AotPolicyTests
             "AotPolicyTests could not locate the Acta.slnx marking the repo root from " + AppContext.BaseDirectory
         );
     }
+
+    [GeneratedRegex(@"\.GetTypes\s*\(", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

@@ -1,4 +1,4 @@
-namespace Acta.Querying;
+namespace Acta.Runtime.Querying;
 
 /// <summary>
 /// Paging bounds shared by every <see cref="IJobs"/> list read.

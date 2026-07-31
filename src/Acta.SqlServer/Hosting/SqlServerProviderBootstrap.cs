@@ -1,7 +1,7 @@
-using Acta.Relational.Connections;
+using Acta.Runtime.Hosting;
 using Acta.SqlServer.Schema;
 
-namespace Acta;
+namespace Acta.SqlServer.Hosting;
 
 internal sealed class SqlServerProviderBootstrap(SqlProviderOptions options) : IProviderBootstrap
 {

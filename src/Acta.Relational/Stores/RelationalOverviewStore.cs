@@ -1,7 +1,7 @@
-using Acta.Modules.Operations.Overview;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
+using Acta.Runtime.Modules.Operations.Overview;
 
 namespace Acta.Relational.Stores;
 
@@ -25,24 +25,21 @@ internal sealed class RelationalOverviewStore(IDbSession session, ISqlDialect di
             },
             async (reader, token) =>
             {
-                if (!await reader.ReadAsync(token))
-                {
-                    return new OverviewSnapshot(0, null, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                }
-
-                return new OverviewSnapshot(
-                    ReadyCount: reader.GetInt64(0),
-                    OldestReadyAgeSeconds: reader.IsDBNull(1) ? null : reader.GetInt64(1),
-                    ExecutingCount: reader.GetInt64(2),
-                    FailedCount: reader.GetInt64(3),
-                    UnresolvedAlertCount: reader.GetInt64(4),
-                    UnresolvedCriticalAlertCount: reader.GetInt64(5),
-                    DeadWorkerCount: reader.GetInt64(6),
-                    StaleWorkerCount: reader.GetInt64(7),
-                    DueSoonScheduleCount: reader.GetInt64(8),
-                    JobCount: reader.IsDBNull(9) ? 0 : reader.GetInt64(9),
-                    SystemJobCount: reader.IsDBNull(10) ? 0 : reader.GetInt64(10)
-                );
+                return !await reader.ReadAsync(token)
+                    ? new OverviewSnapshot(0, null, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                    : new OverviewSnapshot(
+                        ReadyCount: reader.GetInt64(0),
+                        OldestReadyAgeSeconds: reader.IsDBNull(1) ? null : reader.GetInt64(1),
+                        ExecutingCount: reader.GetInt64(2),
+                        FailedCount: reader.GetInt64(3),
+                        UnresolvedAlertCount: reader.GetInt64(4),
+                        UnresolvedCriticalAlertCount: reader.GetInt64(5),
+                        DeadWorkerCount: reader.GetInt64(6),
+                        StaleWorkerCount: reader.GetInt64(7),
+                        DueSoonScheduleCount: reader.GetInt64(8),
+                        JobCount: reader.IsDBNull(9) ? 0 : reader.GetInt64(9),
+                        SystemJobCount: reader.IsDBNull(10) ? 0 : reader.GetInt64(10)
+                    );
             },
             ct
         );

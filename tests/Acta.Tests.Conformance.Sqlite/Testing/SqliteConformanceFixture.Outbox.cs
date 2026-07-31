@@ -1,5 +1,4 @@
 using System.Globalization;
-using Acta;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 
@@ -20,7 +19,7 @@ public sealed partial class SqliteConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS main.{table};");
-        await ExecOutboxAsync(Acta.SqliteOutboxDdl.CreateScript(table));
+        await ExecOutboxAsync(Acta.Sqlite.Hosting.SqliteOutboxDdl.CreateScript(table));
     }
 
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
@@ -65,7 +64,7 @@ public sealed partial class SqliteConformanceFixture
     }
 
     public object CreateOutboxStore(string table) =>
-        Acta.SqliteOutboxSource.CreateStore(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
+        Acta.Sqlite.Hosting.SqliteOutboxSource.CreateStore(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {
@@ -128,20 +127,17 @@ public sealed partial class SqliteConformanceFixture
             """;
         cmd.Parameters.AddWithValue("@id", outboxId);
         await using var r = await cmd.ExecuteReaderAsync();
-        if (!await r.ReadAsync())
-        {
-            return default;
-        }
-
-        return new OutboxRowState(
-            Exists: true,
-            StatusCode: (byte)r.GetInt64(0),
-            FailureCount: (int)r.GetInt64(1),
-            ClaimToken: r.IsDBNull(2) ? null : Guid.Parse(r.GetString(2)),
-            ClaimUntilUtc: r.IsDBNull(3) ? null : ParseIso(r.GetString(3)),
-            NextAttemptAtUtc: ParseIso(r.GetString(4)),
-            LastError: r.IsDBNull(5) ? null : r.GetString(5)
-        );
+        return !await r.ReadAsync()
+            ? default
+            : new OutboxRowState(
+                Exists: true,
+                StatusCode: (byte)r.GetInt64(0),
+                FailureCount: (int)r.GetInt64(1),
+                ClaimToken: r.IsDBNull(2) ? null : Guid.Parse(r.GetString(2)),
+                ClaimUntilUtc: r.IsDBNull(3) ? null : ParseIso(r.GetString(3)),
+                NextAttemptAtUtc: ParseIso(r.GetString(4)),
+                LastError: r.IsDBNull(5) ? null : r.GetString(5)
+            );
     }
 
     public async ValueTask<int> CountOutboxAsync(string table)

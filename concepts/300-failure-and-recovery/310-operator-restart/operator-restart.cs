@@ -128,10 +128,10 @@ namespace Acta.Concepts.OperatorRestart
 
         // MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.
         [Job("flaky-report", MaxAttempts = 3, Backoff = "0s")]
-        public static async Task Handle(FlakyReport input, JobContext ctx, CancellationToken ct)
+        public static async Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}");
-            await ctx.RunStepAsync(
+            await context.RunStepAsync(
                 "prepare-report",
                 _ =>
                 {

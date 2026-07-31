@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Timers;
+namespace Acta.Runtime.Modules.Execution.Timers;
 
 /// <summary>Routine outcome for one <c>arm_or_consume_sleep_timer</c> call; mirrors the SQL <c>outcome_code</c>.</summary>
 internal enum SleepOutcome : byte

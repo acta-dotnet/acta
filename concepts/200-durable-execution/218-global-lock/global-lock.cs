@@ -1,7 +1,6 @@
 // Concept: LockScope.Global serializes jobs in different namespaces on the same key.
 using Acta;
 using Acta.Concepts.GlobalLock;
-using Acta.Payloads;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -56,12 +55,12 @@ namespace Acta.Concepts.GlobalLock
     public sealed class CriticalSectionJob
     {
         [Job("critical-section")]
-        public async Task Handle(CriticalSection input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(CriticalSection input, JobContext context, CancellationToken ct)
         {
             // LockScope.Global: the key "shared-resource" is cluster-wide, so jobs from ns-alpha
             // and ns-beta serialize on it. With LockScope.Namespace (the default) they would run
             // concurrently because each namespace scopes its own copy.
-            await ctx.RunWithLockAsync(
+            await context.RunWithLockAsync(
                 "shared-resource",
                 async () =>
                 {

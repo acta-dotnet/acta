@@ -5,14 +5,12 @@ namespace Acta;
 /// The operator-facing kebab-case <see cref="Name"/> is the identity copied into SQL, dashboards, and alerts.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-public sealed class JobAttribute : Attribute
+public sealed class JobAttribute(string name) : Attribute
 {
-    public JobAttribute(string name) => Name = name;
-
     /// <summary>
     /// Required kebab-case JobName. Max 128 chars.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; } = name;
 
     /// <summary>
     /// Limits consecutive failures, not total invocations. <c>Reschedule</c>, <c>Suspend</c>, and

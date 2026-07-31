@@ -8,7 +8,7 @@ namespace Anvil;
 /// </summary>
 public sealed class SeedProgress
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private bool _active;
     private long _target;
     private long _processed;

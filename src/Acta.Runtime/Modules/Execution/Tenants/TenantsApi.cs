@@ -1,6 +1,4 @@
-using Acta.Querying;
-
-namespace Acta.Modules.Execution.Tenants;
+namespace Acta.Runtime.Modules.Execution.Tenants;
 
 /// <summary>
 /// <see cref="ITenants"/> implementation: a thin adapter over the Tenants feature service, which

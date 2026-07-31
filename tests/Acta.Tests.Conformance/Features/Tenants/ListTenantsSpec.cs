@@ -1,6 +1,4 @@
-using Acta.Kernel;
-using Acta.Modules.Execution.Namespaces;
-using Acta.Modules.Execution.Tenants;
+using Acta.Runtime.Modules.Execution.Tenants;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -136,7 +134,7 @@ public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
     public async Task Total_is_opt_in()
     {
         var ct = TestContext.Current.CancellationToken;
-        var db = Store();
+        _ = Store();
         await Services.GetRequiredService<TenantsService>().RegisterAsync(TestKey("tenant-total"), null, null, ct);
 
         var page_noTotal = await Services

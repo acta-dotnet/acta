@@ -1,5 +1,4 @@
 using Acta.Redis.Configuration;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.Runtime;

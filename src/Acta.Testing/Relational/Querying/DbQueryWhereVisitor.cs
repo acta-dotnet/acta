@@ -2,7 +2,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Text;
-using Acta.Configuration;
 using Acta.Relational.Commands;
 using Acta.Relational.Schema;
 
@@ -29,33 +28,22 @@ internal static class EntitySpecLookups
 /// <c>== != &lt; &lt;= &gt; &gt;=</c>, <c>&amp;&amp; ||</c>, null checks, and
 /// <c>Enumerable.Contains</c> as <c>IN</c>; anything else throws.
 /// </summary>
-internal sealed class WhereVisitor : ExpressionVisitor
+internal sealed class WhereVisitor(
+    DbEntitySpec entity,
+    ParameterExpression entityParam,
+    DbProvider provider,
+    StringBuilder sb,
+    DbCommand command,
+    int startCounter
+) : ExpressionVisitor
 {
-    private readonly DbEntitySpec _entity;
-    private readonly ParameterExpression _entityParam;
-    private readonly DbProvider _provider;
-    private readonly StringBuilder _sb;
-    private readonly DbCommand _command;
-    private int _paramCounter;
+    private readonly DbEntitySpec _entity = entity;
+    private readonly ParameterExpression _entityParam = entityParam;
+    private readonly DbProvider _provider = provider;
+    private readonly StringBuilder _sb = sb;
+    private readonly DbCommand _command = command;
 
-    public WhereVisitor(
-        DbEntitySpec entity,
-        ParameterExpression entityParam,
-        DbProvider provider,
-        StringBuilder sb,
-        DbCommand command,
-        int startCounter
-    )
-    {
-        _entity = entity;
-        _entityParam = entityParam;
-        _provider = provider;
-        _sb = sb;
-        _command = command;
-        _paramCounter = startCounter;
-    }
-
-    public int ParamCounter => _paramCounter;
+    public int ParamCounter { get; private set; } = startCounter;
 
     public void Render(Expression body) => Visit(body);
 
@@ -212,8 +200,8 @@ internal sealed class WhereVisitor : ExpressionVisitor
 
     private string EmitParameterReturningName(object? value, Type clrType)
     {
-        var name = "@p" + _paramCounter.ToString(CultureInfo.InvariantCulture);
-        _paramCounter++;
+        var name = "@p" + ParamCounter.ToString(CultureInfo.InvariantCulture);
+        ParamCounter++;
         var p = _command.CreateParameter();
         p.ParameterName = name;
         p.Value = DbValueCoercion.Coerce(value, clrType, _provider);

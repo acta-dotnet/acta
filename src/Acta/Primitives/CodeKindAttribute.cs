@@ -11,13 +11,8 @@ namespace Acta;
 /// by <c>JobEventCode</c>): <c>^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*$</c>.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Enum, AllowMultiple = false, Inherited = false)]
-public sealed class CodeKindAttribute : Attribute
+public sealed class CodeKindAttribute(string codeKind) : Attribute
 {
-    public CodeKindAttribute(string codeKind)
-    {
-        CodeKind = codeKind;
-    }
-
     /// <summary>Kebab discriminator naming this family in docs, drift markers, and the generated manifests.</summary>
-    public string CodeKind { get; }
+    public string CodeKind { get; } = codeKind;
 }

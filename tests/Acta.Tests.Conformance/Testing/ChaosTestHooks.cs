@@ -1,12 +1,8 @@
-using System.Data.Common;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Checkpoints;
-using Acta.Modules.Execution.Workers;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
-using Acta.Services.Time;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Checkpoints;
+using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -72,12 +68,12 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
     public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         inner.GetChildJobIdsAsync(parentJobId, ct);
 
-    public Task<IReadOnlyList<Acta.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
+    public Task<IReadOnlyList<Acta.Runtime.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
         short namespaceId,
         CancellationToken ct
     ) => inner.GetStaleChildLatchesAsync(namespaceId, ct);
 
-    public Task<Acta.Modules.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
+    public Task<Acta.Runtime.Modules.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
         ArmOrConsumeSleepTimerCommand command,
         CancellationToken ct
     ) => inner.ArmOrConsumeSleepTimerAsync(command, ct);
@@ -148,13 +144,8 @@ internal static class ChaosServiceCollectionExtensions
             return instance;
         }
 
-        if (descriptor.ImplementationFactory is { } factory)
-        {
-            return factory(sp)!;
-        }
-
-        return descriptor.ImplementationType is { } type
-            ? ActivatorUtilities.CreateInstance(sp, type)
+        return descriptor.ImplementationFactory is { } factory ? factory(sp)!
+            : descriptor.ImplementationType is { } type ? ActivatorUtilities.CreateInstance(sp, type)
             : throw new InvalidOperationException("Unsupported service descriptor.");
     }
 
@@ -175,7 +166,7 @@ internal static class ChaosServiceCollectionExtensions
 
 internal sealed class ControlledWakeup : IWorkerWakeup
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private TaskCompletionSource? _waiting;
     private WorkerWakeupWaitResult _nextResult = WorkerWakeupWaitResult.TimedOut;
 

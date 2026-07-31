@@ -1,7 +1,9 @@
-namespace Acta.Modules.Alerting.Api;
+using Acta.Runtime.Hosting;
+
+namespace Acta.Runtime.Modules.Alerting.Api;
 
 /// <summary>
-/// One <c>IWorkerBuilder.AddAlertChannel</c> declaration, carried on <see cref="Acta.WorkerRegistration"/> and
+/// One <c>IWorkerBuilder.AddAlertChannel</c> declaration, carried on <see cref="WorkerRegistration"/> and
 /// resolved from the worker's in-memory alert channel registry at delivery time.
 /// </summary>
 internal sealed record AlertChannelDeclaration(

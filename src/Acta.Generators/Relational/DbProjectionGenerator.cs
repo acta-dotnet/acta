@@ -75,12 +75,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
     private static ProjectionInfo? Transform(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
     {
-        if (ctx.TargetSymbol is not INamedTypeSymbol type)
-        {
-            return null;
-        }
-
-        return Transform(type, ct);
+        return ctx.TargetSymbol is not INamedTypeSymbol type ? null : Transform(type, ct);
     }
 
     private static ImmutableArray<ProjectionInfo> TransformAssemblyProjections(Compilation compilation, CancellationToken ct)
@@ -95,7 +90,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
             foreach (var argument in attribute.ConstructorArguments)
             {
-                var values = argument.Kind == TypedConstantKind.Array ? argument.Values : ImmutableArray.Create(argument);
+                var values = argument.Kind == TypedConstantKind.Array ? argument.Values : [argument];
                 foreach (var value in values)
                 {
                     if (value.Value is INamedTypeSymbol type)
@@ -279,7 +274,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             spc.AddSource($"{HintPart(group.Key)}.DbProjectionBinder.g.cs", EmitNestedBinder(ordered));
         }
 
-        spc.AddSource("Acta.Relational.Commands.DbProjectionResolver.g.cs", EmitResolver(emittable.ToImmutableArray()));
+        spc.AddSource("Acta.Relational.Commands.DbProjectionResolver.g.cs", EmitResolver([.. emittable]));
     }
 
     private static string EmitNamespaceBinder(string namespaceName, ImmutableArray<ProjectionInfo> projections)
@@ -678,12 +673,9 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             {
                 return ProjectionMemberKind.ReadOnlyMemoryBytes;
             }
-            if (IsNamedGeneric(type, "System.Memory<T>") && IsByteType(((INamedTypeSymbol)type).TypeArguments[0]))
-            {
-                return ProjectionMemberKind.MemoryBytes;
-            }
-
-            return ProjectionMemberKind.Unsupported;
+            return IsNamedGeneric(type, "System.Memory<T>") && IsByteType(((INamedTypeSymbol)type).TypeArguments[0])
+                ? ProjectionMemberKind.MemoryBytes
+                : ProjectionMemberKind.Unsupported;
         }
 
         private static bool IsByteArray(ITypeSymbol type) => type is IArrayTypeSymbol array && IsByteType(array.ElementType);

@@ -69,10 +69,6 @@ internal static class Materializer
             // SQLite returns epoch milliseconds (long); Postgres/SQL Server return a DateTime.
             return DbCellCoercion.ToUtc(raw);
         }
-        if (t == typeof(Guid) || t == typeof(string))
-        {
-            return raw;
-        }
-        return Convert.ChangeType(raw, t, CultureInfo.InvariantCulture);
+        return t == typeof(Guid) || t == typeof(string) ? raw : Convert.ChangeType(raw, t, CultureInfo.InvariantCulture);
     }
 }

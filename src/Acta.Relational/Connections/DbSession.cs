@@ -1,5 +1,4 @@
 using System.Data.Common;
-using Acta.Configuration;
 using Acta.Relational.Commands;
 using Acta.Relational.Resources;
 
@@ -194,16 +193,13 @@ internal sealed class DbSession : IDbSession
     private DbConnection ValidateCallerTransaction(DbTransaction transaction)
     {
         var connection = CallerTransaction.RequireOpenConnection(transaction);
-        if (!_dialect.OwnsConnection(connection))
-        {
-            throw new ArgumentException(
+        return !_dialect.OwnsConnection(connection)
+            ? throw new ArgumentException(
                 $"The supplied transaction is bound to a '{connection.GetType().Name}', which is not the {Provider} provider this "
                     + "Acta client is configured for.",
                 nameof(transaction)
-            );
-        }
-
-        return connection;
+            )
+            : connection;
     }
 
     public Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) =>

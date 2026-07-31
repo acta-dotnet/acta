@@ -38,7 +38,7 @@ public class ManifestGeneratorDiagnosticTests
         return driver.RunGenerators(compilation).GetRunResult();
     }
 
-    private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => result.Diagnostics.Where(d => d.Id == id).ToArray();
+    private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => [.. result.Diagnostics.Where(d => d.Id == id)];
 
     // ----------------------------------------------------------------------------------------
     // ACTA0101: duplicate job name
@@ -158,7 +158,7 @@ public class ManifestGeneratorDiagnosticTests
                 public static void Run() { }
             }
             """,
-            rootNamespace: "Acta"
+            rootNamespace: "Acta.Runtime"
         );
 
         Assert.Empty(result.Diagnostics);

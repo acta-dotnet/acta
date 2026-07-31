@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using Microsoft.AspNetCore.Builder;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;

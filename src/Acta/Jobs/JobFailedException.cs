@@ -5,15 +5,8 @@ namespace Acta;
 /// terminated as <c>Failed</c> or <c>Cancelled</c>. Carries the <see cref="JobId"/> and
 /// <see cref="TerminalStatus"/>; the terminal cause lives in the Job's event timeline.
 /// </summary>
-public sealed class JobFailedException : Exception
+public sealed class JobFailedException(long jobId, JobStatusCode terminalStatus) : Exception($"Job {jobId} terminated as {terminalStatus}.")
 {
-    public JobFailedException(long jobId, JobStatusCode terminalStatus)
-        : base($"Job {jobId} terminated as {terminalStatus}.")
-    {
-        JobId = jobId;
-        TerminalStatus = terminalStatus;
-    }
-
-    public long JobId { get; }
-    public JobStatusCode TerminalStatus { get; }
+    public long JobId { get; } = jobId;
+    public JobStatusCode TerminalStatus { get; } = terminalStatus;
 }

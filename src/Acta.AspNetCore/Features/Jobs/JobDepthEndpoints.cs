@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -146,13 +145,11 @@ internal static class JobDepthEndpoints
                 {
                     input = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
                 }
-                else if (hasInput)
-                {
-                    input = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input.GetRawText()));
-                }
                 else
                 {
-                    input = JobPayload.None;
+                    input = hasInput
+                        ? JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input.GetRawText()))
+                        : JobPayload.None;
                 }
 
                 var request = new JobEnqueueRequest(

@@ -1,17 +1,15 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// Zero-dependency transport that writes the alert to the logger and reports success. Always present; the
 /// default fallback and the transport the conformance suite delivers through.
 /// </summary>
-internal sealed class LogAlertTransport : IAlertTransport
+internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) : IAlertTransport
 {
-    private readonly ILogger _log;
-
-    public LogAlertTransport(ILogger<LogAlertTransport>? log = null) => _log = log ?? NullLogger<LogAlertTransport>.Instance;
+    private readonly ILogger _log = log ?? NullLogger<LogAlertTransport>.Instance;
 
     /// <summary>The <c>transport_kind</c> this transport handles.</summary>
     public const string Kind = AlertTransportKinds.Log;

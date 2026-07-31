@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Json;
@@ -8,7 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace Acta;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Maps the Acta operator API and the embedded dashboard. The package ships no
@@ -112,15 +111,12 @@ public static class ActaEndpointRouteBuilderExtensions
                 var connection = context.HttpContext.Connection;
                 var remote = connection.RemoteIpAddress;
                 // Null remote means an in-process transport (test server, named pipes).
-                if (remote is null || IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress))
-                {
-                    return await next(context);
-                }
-
-                return Results.Problem(
-                    statusCode: StatusCodes.Status403Forbidden,
-                    title: "The Acta endpoints are local-only by default. Set LocalOnly = false and add host authorization to expose them remotely."
-                );
+                return remote is null || IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress)
+                    ? await next(context)
+                    : Results.Problem(
+                        statusCode: StatusCodes.Status403Forbidden,
+                        title: "The Acta endpoints are local-only by default. Set LocalOnly = false and add host authorization to expose them remotely."
+                    );
             }
         );
     }

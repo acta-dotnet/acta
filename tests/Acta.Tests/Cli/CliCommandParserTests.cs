@@ -1,4 +1,4 @@
-using Acta.Cli;
+using Acta.Runtime.Cli;
 using Xunit;
 
 namespace Acta.Tests.Cli;

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using Acta.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

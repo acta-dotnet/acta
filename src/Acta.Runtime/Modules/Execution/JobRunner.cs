@@ -1,18 +1,15 @@
 using System.Diagnostics;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Signals;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Signals;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// The start-invoke-complete lifecycle of a single attempt: the <c>start_execution</c> CAS, the
@@ -22,46 +19,30 @@ namespace Acta.Modules.Execution;
 /// serialization, and the <c>complete_execution</c> write (including recurring-completion outcome
 /// math). With no behaviors registered, dispatch uses <c>descriptor.Invoker</c> directly.
 /// </summary>
-internal sealed class JobRunner
+internal sealed class JobRunner(
+    IJobStore jobStore,
+    IExecutionStore execution,
+    IJobPayloadSerializerRegistry serializers,
+    IOptions<JobsOptions> options,
+    JobBehaviorPipeline pipeline,
+    WorkerWakeupPublisher wakeupPublisher,
+    ILogger? log = null,
+    JobMetrics? metrics = null,
+    CompletionSink? completionSink = null
+)
 {
-    private readonly IJobStore _jobStore;
-    private readonly IExecutionStore _execution;
-    private readonly IJobPayloadSerializerRegistry _serializers;
-    private readonly JobBehaviorPipeline _pipeline;
-    private readonly WorkerWakeupPublisher _wakeupPublisher;
-    private readonly CompletionSink? _completionSink;
-    private readonly ExecutionProfile _executionProfile;
-    private readonly int _maxInlinePayloadBytes;
-    private readonly int _leaseTtlSeconds;
-    private readonly int _exclusiveKeyBounceDelaySeconds;
-    private readonly ILogger _log;
-    private readonly JobMetrics? _metrics;
-
-    public JobRunner(
-        IJobStore jobStore,
-        IExecutionStore execution,
-        IJobPayloadSerializerRegistry serializers,
-        IOptions<JobsOptions> options,
-        JobBehaviorPipeline pipeline,
-        WorkerWakeupPublisher wakeupPublisher,
-        ILogger? log = null,
-        JobMetrics? metrics = null,
-        CompletionSink? completionSink = null
-    )
-    {
-        _jobStore = jobStore;
-        _execution = execution;
-        _serializers = serializers;
-        _pipeline = pipeline;
-        _wakeupPublisher = wakeupPublisher;
-        _completionSink = completionSink;
-        _executionProfile = options.Value.ExecutionProfile;
-        _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
-        _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-        _exclusiveKeyBounceDelaySeconds = options.Value.ExclusiveKeyBounceDelaySeconds;
-        _log = log ?? NullLogger.Instance;
-        _metrics = metrics;
-    }
+    private readonly IJobStore _jobStore = jobStore;
+    private readonly IExecutionStore _execution = execution;
+    private readonly IJobPayloadSerializerRegistry _serializers = serializers;
+    private readonly JobBehaviorPipeline _pipeline = pipeline;
+    private readonly WorkerWakeupPublisher _wakeupPublisher = wakeupPublisher;
+    private readonly CompletionSink? _completionSink = completionSink;
+    private readonly ExecutionProfile _executionProfile = options.Value.ExecutionProfile;
+    private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
+    private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly int _exclusiveKeyBounceDelaySeconds = options.Value.ExclusiveKeyBounceDelaySeconds;
+    private readonly ILogger _log = log ?? NullLogger.Instance;
+    private readonly JobMetrics? _metrics = metrics;
 
     public async Task<RunOnceOutcome> RunAsync(
         IServiceProvider attemptServices,
@@ -143,7 +124,7 @@ internal sealed class JobRunner
             {
                 var requestObject = DeserializeInput(descriptor, job);
                 inputDeserialized = true;
-                JobBehaviorDelegate handlerInvocation = () =>
+                ValueTask<JobHandlerInvocationResult> handlerInvocation()
                 {
                     // CLI 'jobs debug --break': raise the debugger and stop right here, so step-into
                     // lands in the user's handler. Only ever set on the CLI debug path (DebugBreak).
@@ -156,7 +137,7 @@ internal sealed class JobRunner
                         Debugger.Break();
                     }
                     return descriptor.Invoker(attemptServices, requestObject, jobContext, jobContext.CancellationToken);
-                };
+                }
                 var chain = _pipeline.Build(attemptServices, requestObject, jobContext, jobContext.CancellationToken, handlerInvocation);
 
                 var invocation = await chain();
@@ -611,11 +592,9 @@ internal sealed class JobRunner
             // handler ran, so the compare-and-swap completed no work. A terminal row is always a
             // clean skip because a fast handler can finish before heartbeat cancellation reaches the
             // attempt token. Losing ownership without a cancelled token is a genuine anomaly.
-            if (complete.Action == CompleteExecutionAction.AlreadyTerminal || jobContext.CancellationToken.IsCancellationRequested)
-            {
-                return RunOnceOutcome.NothingClaimed;
-            }
-            throw new InvalidOperationException($"CompleteExecution for job {job.JobId} returned {complete.Action}.");
+            return complete.Action == CompleteExecutionAction.AlreadyTerminal || jobContext.CancellationToken.IsCancellationRequested
+                ? RunOnceOutcome.NothingClaimed
+                : throw new InvalidOperationException($"CompleteExecution for job {job.JobId} returned {complete.Action}.");
         }
 
         // Publish on the FINAL state the routine reports, never on the completion category the caller

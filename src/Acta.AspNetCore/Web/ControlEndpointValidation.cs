@@ -211,16 +211,13 @@ internal static class ControlEndpointValidation
         }
 
         var header = http.Request.Headers[options.ControlConfirmationHeaderName];
-        if (header.Count == 0 || !string.Equals(header[0], options.ControlConfirmationHeaderValue, StringComparison.Ordinal))
-        {
-            return Problem(
+        return header.Count == 0 || !string.Equals(header[0], options.ControlConfirmationHeaderValue, StringComparison.Ordinal)
+            ? Problem(
                 StatusCodes.Status400BadRequest,
                 "Missing control confirmation header",
                 $"Control endpoints require {options.ControlConfirmationHeaderName}: {options.ControlConfirmationHeaderValue}."
-            );
-        }
-
-        return null;
+            )
+            : null;
     }
 
     internal static IResult Problem(int statusCode, string title, string detail) =>

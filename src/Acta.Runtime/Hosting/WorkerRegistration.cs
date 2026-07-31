@@ -1,18 +1,17 @@
-using Acta.Modules.Alerting;
-using Acta.Modules.Alerting.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Alerting.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Outbox;
 
-namespace Acta;
+namespace Acta.Runtime.Hosting;
 
 /// <summary>
 /// One worker declared via <c>IActaBuilder.Run(...)</c>. Carries the runtime's namespace identity and
-/// the manifests it hosts, read by <see cref="Acta.Modules.Execution.Workers.WorkerRuntime"/> at <c>InitializeAsync</c> to upsert the
+/// the manifests it hosts, read by <see cref="Acta.Runtime.Modules.Execution.Workers.WorkerRuntime"/> at <c>InitializeAsync</c> to upsert the
 /// <c>namespaces</c> row, the per-namespace <c>definitions</c> rows, and the <c>workers</c> row,
-/// and by <see cref="Acta.Modules.Execution.Workers.WorkerRuntime.RunLoopAsync"/> to decide whether to enter the claim-poll loop.
+/// and by <see cref="Acta.Runtime.Modules.Execution.Workers.WorkerRuntime.RunLoopAsync"/> to decide whether to enter the claim-poll loop.
 /// </summary>
 /// <remarks>
-/// <see cref="ActaServiceCollectionExtensions.UseActa"/> registers one <see cref="Acta.Modules.Execution.Workers.WorkerRuntime"/>
+/// <see cref="ActaServiceCollectionExtensions.UseActa"/> registers one <see cref="Acta.Runtime.Modules.Execution.Workers.WorkerRuntime"/>
 /// per declared worker, so a process running several <c>Run(...)</c> calls fans out one claim/dispatch/
 /// heartbeat trio per namespace. Enqueue-only runtimes (HTTP frontends, dashboards) omit <c>Run(...)</c>
 /// and may <c>Reference(...)</c> manifests for typed enqueue: neither creates a

@@ -3,9 +3,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
-using Acta.Configuration;
 using Acta.Relational.Commands;
-using Acta.Relational.Connections;
 using Acta.Relational.Schema;
 
 namespace Acta.Testing.Relational.Querying;
@@ -78,7 +76,7 @@ internal sealed class DbFrom<TEntity, TProjection>
             var list = new List<TProjection>();
             while (await reader.ReadAsync(ct))
             {
-                list.Add(MaterializeRow(reader, projectionColumns));
+                list.Add(DbFrom<TEntity, TProjection>.MaterializeRow(reader, projectionColumns));
             }
             return list;
         }
@@ -95,12 +93,10 @@ internal sealed class DbFrom<TEntity, TProjection>
             {
                 return null;
             }
-            var first = MaterializeRow(reader, projectionColumns);
-            if (await reader.ReadAsync(ct))
-            {
-                throw new InvalidOperationException($"SingleOrDefaultAsync on {typeof(TEntity).Name} matched more than one row.");
-            }
-            return first;
+            var first = DbFrom<TEntity, TProjection>.MaterializeRow(reader, projectionColumns);
+            return await reader.ReadAsync(ct)
+                ? throw new InvalidOperationException($"SingleOrDefaultAsync on {typeof(TEntity).Name} matched more than one row.")
+                : first;
         }
     }
 
@@ -112,7 +108,7 @@ internal sealed class DbFrom<TEntity, TProjection>
         await using (cmd)
         await using (var reader = await cmd.ExecuteReaderAsync(ct))
         {
-            return await reader.ReadAsync(ct) ? MaterializeRow(reader, projectionColumns) : null;
+            return await reader.ReadAsync(ct) ? DbFrom<TEntity, TProjection>.MaterializeRow(reader, projectionColumns) : null;
         }
     }
 
@@ -187,15 +183,12 @@ internal sealed class DbFrom<TEntity, TProjection>
     /// </summary>
     public Task<TKey> InsertAsync<TKey>(TEntity entity, CancellationToken ct)
     {
-        if (entity is not IEntity<TKey>)
-        {
-            throw new InvalidOperationException(
+        return entity is not IEntity<TKey>
+            ? throw new InvalidOperationException(
                 $"InsertAsync<{typeof(TKey).Name}> does not match {typeof(TEntity).Name}'s key type; "
                     + "TKey must be the entity's IEntity<TId> argument."
-            );
-        }
-
-        return _session.RunWithRetryAsync(token => InsertCoreAsync<TKey>(entity, token), ct);
+            )
+            : _session.RunWithRetryAsync(token => InsertCoreAsync<TKey>(entity, token), ct);
     }
 
     private async Task<TKey> InsertCoreAsync<TKey>(TEntity entity, CancellationToken ct)
@@ -289,13 +282,11 @@ internal sealed class DbFrom<TEntity, TProjection>
         return (pi.GetValue(entity), pi.PropertyType);
     }
 
-    private TProjection MaterializeRow(DbDataReader reader, IReadOnlyList<DbColumnSpec> projectionColumns)
+    private static TProjection MaterializeRow(DbDataReader reader, IReadOnlyList<DbColumnSpec> projectionColumns)
     {
-        if (typeof(TProjection) == typeof(TEntity))
-        {
-            return (TProjection)(object)Materializer.MaterializeEntity<TEntity>(reader);
-        }
-        return Materializer.MaterializeProjection<TProjection>(reader, projectionColumns);
+        return typeof(TProjection) == typeof(TEntity)
+            ? (TProjection)(object)Materializer.MaterializeEntity<TEntity>(reader)
+            : Materializer.MaterializeProjection<TProjection>(reader, projectionColumns);
     }
 
     private async Task<(DbConnection conn, DbCommand cmd, IReadOnlyList<DbColumnSpec> projectionColumns)> BuildCommand(CancellationToken ct)
@@ -307,16 +298,8 @@ internal sealed class DbFrom<TEntity, TProjection>
             cmd = conn.CreateCommand();
             var sb = new StringBuilder();
 
-            IReadOnlyList<DbColumnSpec> projectionColumns;
-            if (typeof(TProjection) == typeof(TEntity))
-            {
-                projectionColumns = _entity.Columns;
-            }
-            else
-            {
-                projectionColumns = ResolveProjectionColumns();
-            }
-
+            IReadOnlyList<DbColumnSpec> projectionColumns =
+                typeof(TProjection) == typeof(TEntity) ? _entity.Columns : ResolveProjectionColumns();
             sb.Append("SELECT ");
             for (var i = 0; i < projectionColumns.Count; i++)
             {
@@ -354,27 +337,26 @@ internal sealed class DbFrom<TEntity, TProjection>
             .OrderByDescending(c => c.GetParameters().Length)
             .FirstOrDefault();
 
-        if (ctor is not null)
-        {
-            return ctor.GetParameters()
+        return ctor is not null
+            ? ctor.GetParameters()
                 .Select(p =>
                     _entity.FindByClrProperty(p.Name!)
                     ?? throw new InvalidOperationException(
                         $"Projection '{t.Name}' has parameter '{p.Name}' which doesn't match any [DbColumn] CLR property name on '{typeof(TEntity).Name}'."
                     )
                 )
-                .ToArray();
-        }
-
-        return t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanWrite)
-            .Select(p =>
-                _entity.FindByClrProperty(p.Name)
-                ?? throw new InvalidOperationException(
-                    $"Projection '{t.Name}' has property '{p.Name}' which doesn't match any [DbColumn] CLR property name on '{typeof(TEntity).Name}'."
-                )
-            )
-            .ToArray();
+                .ToArray()
+            :
+            [
+                .. t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                    .Where(p => p.CanWrite)
+                    .Select(p =>
+                        _entity.FindByClrProperty(p.Name)
+                        ?? throw new InvalidOperationException(
+                            $"Projection '{t.Name}' has property '{p.Name}' which doesn't match any [DbColumn] CLR property name on '{typeof(TEntity).Name}'."
+                        )
+                    ),
+            ];
     }
 
     private void AppendWhere(StringBuilder sb, DbCommand cmd)

@@ -1,6 +1,8 @@
-﻿using Acta.Postgres.Configuration;
+using Acta.Postgres.Configuration;
+using Acta.Postgres.Hosting;
+using Acta.Runtime.Hosting;
 
-namespace Acta;
+namespace Acta.Postgres;
 
 /// <summary>
 /// Selects PostgreSQL as an external-outbox relay source. Captures its own connection options and

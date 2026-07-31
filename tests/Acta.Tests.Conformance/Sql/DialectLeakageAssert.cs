@@ -14,12 +14,12 @@ namespace Acta.Tests.Conformance.Sql;
 /// projects: together equivalent to banning the union of every provider-specific token in shared files,
 /// with no extra bookkeeping needed here.
 /// </summary>
-public static class DialectLeakageAssert
+public static partial class DialectLeakageAssert
 {
     // {{schema}}/{{now}}/{{decode:kind:expr}} are template placeholders substituted at render time
     // (see SqlResolver.Render); ProviderSqlResources reads the raw, unsubstituted text, so they must be
     // blanked before token scanning or a decode-kind name could theoretically collide with a token.
-    private static readonly Regex TemplateToken = new(@"\{\{[^}]*\}\}", RegexOptions.Compiled);
+    private static readonly Regex TemplateToken = MyRegex();
 
     private static readonly (string Token, Regex Pattern)[] PgBanned =
     [
@@ -127,4 +127,7 @@ public static class DialectLeakageAssert
     // pg's own array syntax (VARCHAR[], ARRAY[]::INT[]) always leaves the brackets empty or numeric, so
     // it never matches this shape.
     private static Regex BracketIdentifier() => new(@"\[[A-Za-z_][A-Za-z0-9_]*\]", RegexOptions.Compiled);
+
+    [GeneratedRegex(@"\{\{[^}]*\}\}", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

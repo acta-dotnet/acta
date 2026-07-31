@@ -1,9 +1,9 @@
-using Acta.Kernel;
-using Acta.Modules.Execution.Api;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Modules.Outbox;
+namespace Acta.Runtime.Modules.Outbox;
 
 /// <summary>
 /// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded
@@ -382,14 +382,15 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
     // grouping key is case-folded (keys are ASCII by contract) to match the target's dedup normalization,
     // so two case-variant handoffs coalesce into one group instead of colliding at the target.
     private static List<OutboxGroup> Coalesce(IReadOnlyList<OutboxRow> claimed) =>
-        claimed
-            .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey.ToLowerInvariant()))
-            .Select(g =>
-            {
-                var ordered = g.OrderBy(r => r.CreatedAtUtc).ThenBy(r => r.OutboxId).ToList();
-                return new OutboxGroup(ordered[0], ordered);
-            })
-            .ToList();
+        [
+            .. claimed
+                .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey.ToLowerInvariant()))
+                .Select(g =>
+                {
+                    var ordered = g.OrderBy(r => r.CreatedAtUtc).ThenBy(r => r.OutboxId).ToList();
+                    return new OutboxGroup(ordered[0], ordered);
+                }),
+        ];
 
     private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds, CancellationToken ct)
     {

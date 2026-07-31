@@ -1,4 +1,3 @@
-using Acta.Payloads;
 using Xunit;
 
 namespace Acta.Tests.Wire;

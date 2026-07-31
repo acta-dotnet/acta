@@ -35,10 +35,10 @@ namespace Acta.Concepts.StepRetry
         private static int _attempts;
 
         [Job("fetch-forecast")]
-        public async Task Handle(FetchForecast input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(FetchForecast input, JobContext context, CancellationToken ct)
         {
             // Step has its own retry curve, separate from the job's budget; the failure reaches the job only if the step exhausts its attempts.
-            await ctx.RunStepAsync(
+            await context.RunStepAsync(
                 "call-weather-api",
                 async inner =>
                 {

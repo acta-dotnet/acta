@@ -1,6 +1,4 @@
-using Acta.Payloads;
-
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Resolved contract route: namespace + job name + input format, plus the descriptor's input and
@@ -78,24 +76,19 @@ internal sealed class JobContractIndex
         if (namespaceHint is not null)
         {
             var scoped = routes.Where(r => string.Equals(r.Namespace, namespaceHint, StringComparison.Ordinal)).ToList();
-            if (scoped.Count == 0)
-            {
-                throw new InvalidOperationException(
+            return scoped.Count == 0
+                ? throw new InvalidOperationException(
                     $"Job '{jobName}' on manifest '{manifestType.FullName}' is not registered in namespace "
                         + $"'{namespaceHint}'. Registered namespaces: {string.Join(", ", routes.Select(r => r.Namespace))}."
-                );
-            }
-            return scoped[0];
+                )
+                : scoped[0];
         }
 
-        if (routes.Count > 1)
-        {
-            throw new InvalidOperationException(
+        return routes.Count > 1
+            ? throw new InvalidOperationException(
                 $"Job '{jobName}' on manifest '{manifestType.FullName}' is registered in multiple namespaces "
                     + $"({string.Join(", ", routes.Select(r => r.Namespace))}). Set JobEnqueueOptions.Namespace to disambiguate."
-            );
-        }
-
-        return routes[0];
+            )
+            : routes[0];
     }
 }

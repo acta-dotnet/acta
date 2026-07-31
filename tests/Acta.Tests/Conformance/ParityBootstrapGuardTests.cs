@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance;
 /// Closes the parity bootstrap gap with NO test-project references: scans provider source for the
 /// ParityMetaSpec binding so a provider that forgets it fails the build.
 /// </summary>
-public sealed class ParityBootstrapGuardTests
+public sealed partial class ParityBootstrapGuardTests
 {
     /// <summary>
     /// Asserts every provider test project declaring an IConformanceFixture also binds ParityMetaSpec for it.
@@ -24,14 +24,7 @@ public sealed class ParityBootstrapGuardTests
             var files = Directory.GetFiles(projectDir, "*.cs", SearchOption.AllDirectories);
             // Match IConformanceFixture anywhere in the base list (handles `: SomeBase, IConformanceFixture`),
             // not only immediately after the colon - otherwise a multi-interface fixture slips the guard.
-            var fixtures = files
-                .SelectMany(f =>
-                    Regex
-                        .Matches(File.ReadAllText(f), @"class\s+(\w+ConformanceFixture)\s*:[^{}]*\bIConformanceFixture\b")
-                        .Select(m => m.Groups[1].Value)
-                )
-                .Distinct()
-                .ToList();
+            var fixtures = files.SelectMany(f => MyRegex().Matches(File.ReadAllText(f)).Select(m => m.Groups[1].Value)).Distinct().ToList();
 
             foreach (var fixture in fixtures)
             {
@@ -45,4 +38,7 @@ public sealed class ParityBootstrapGuardTests
 
         Assert.True(failures.Count == 0, string.Join("\n", failures));
     }
+
+    [GeneratedRegex(@"class\s+(\w+ConformanceFixture)\s*:[^{}]*\bIConformanceFixture\b")]
+    private static partial Regex MyRegex();
 }

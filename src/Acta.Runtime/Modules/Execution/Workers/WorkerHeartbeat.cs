@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using Acta.Configuration;
+using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it renews
@@ -12,22 +12,28 @@ namespace Acta.Modules.Execution.Workers;
 /// on a confirmed renewal, cancelling one only when an authoritative refresh drops its job (operator cancel
 /// or a reclaimed lease). It does not enforce deadlines on an outage - the <see cref="AttemptWatchdog"/>
 /// does - nor renew handler locks - <see cref="LockLeaseHeartbeat"/> does, so the swappable
-/// <see cref="Acta.Services.Locks.ILockStore"/> (relational today, Redis tomorrow) stays a distinct failure
+/// <see cref="Acta.Runtime.Services.Locks.ILockStore"/> (relational today, Redis tomorrow) stays a distinct failure
 /// domain. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
 /// </summary>
-internal sealed class WorkerHeartbeat
+internal sealed class WorkerHeartbeat(
+    IWorkerStore workers,
+    IOptions<JobsOptions> options,
+    WorkerRegistration? workerRegistration,
+    WorkerContext context,
+    ILogger log
+)
 {
-    private readonly IWorkerStore _workers;
-    private readonly WorkerRegistration? _workerRegistration;
-    private readonly WorkerContext _context;
-    private readonly TimeSpan _interval;
-    private readonly int _leaseTtlSeconds;
+    private readonly IWorkerStore _workers = workers;
+    private readonly WorkerRegistration? _workerRegistration = workerRegistration;
+    private readonly WorkerContext _context = context;
+    private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
+    private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
 
     // Lease TTL as monotonic Stopwatch ticks. The job-lease deadline is measured on Stopwatch, not wall
     // time: it cannot jump backward on an NTP/VM correction (which would make a lapsed lease look live),
     // and it is readable even while the store is down.
-    private readonly long _ttlStopwatchTicks;
-    private readonly ILogger _log;
+    private readonly long _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
+    private readonly ILogger _log = log;
 
     // Set once when the runtime begins a graceful drain. Every subsequent lease refresh then flips the
     // worker Active -> Draining (idempotent once Draining), so the draining phase is visible without a
@@ -37,23 +43,6 @@ internal sealed class WorkerHeartbeat
     // Serializes TickAsync: the heartbeat loop and BeginDrainAsync's immediate stamp can fire concurrently,
     // and a tick must not race itself (double lease extends, double feed).
     private readonly SemaphoreSlim _tickGate = new(1, 1);
-
-    public WorkerHeartbeat(
-        IWorkerStore workers,
-        IOptions<JobsOptions> options,
-        WorkerRegistration? workerRegistration,
-        WorkerContext context,
-        ILogger log
-    )
-    {
-        _workers = workers;
-        _workerRegistration = workerRegistration;
-        _context = context;
-        _interval = options.Value.HeartbeatInterval;
-        _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-        _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
-        _log = log;
-    }
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -157,7 +146,7 @@ internal sealed class WorkerHeartbeat
             // renewal is not deadline-critical (the watchdog enforces on its own loop), so it is not
             // bounded here beyond the caller's ct.
             var renewRequestedAt = Stopwatch.GetTimestamp();
-            HashSet<long>? live = new();
+            HashSet<long>? live = [];
             try
             {
                 foreach (var workerId in _context.WorkerIdByNamespace.Values)

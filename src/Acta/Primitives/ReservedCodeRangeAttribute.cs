@@ -6,20 +6,13 @@ namespace Acta;
 /// permanently consumed and can never be assigned.
 /// </summary>
 [AttributeUsage(AttributeTargets.Enum, AllowMultiple = true, Inherited = false)]
-public sealed class ReservedCodeRangeAttribute : Attribute
+public sealed class ReservedCodeRangeAttribute(byte start, byte end, string reason) : Attribute
 {
-    public ReservedCodeRangeAttribute(byte start, byte end, string reason)
-    {
-        Start = start;
-        End = end;
-        Reason = reason;
-    }
+    public byte Start { get; } = start;
 
-    public byte Start { get; }
+    public byte End { get; } = end;
 
-    public byte End { get; }
-
-    public string Reason { get; }
+    public string Reason { get; } = reason;
 
     public bool PermanentlyUnavailable { get; init; }
 }

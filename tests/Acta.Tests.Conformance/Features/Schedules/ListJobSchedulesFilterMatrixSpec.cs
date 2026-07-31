@@ -1,7 +1,4 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Schedules;
-using Acta.Payloads;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,7 +37,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
     /// <summary>Creates a minimal synthetic job definition in the given namespace and returns its id.</summary>
     private async Task<int> CreateDefinitionAsync(short nsId, string jobName, CancellationToken ct)
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, nsId, Generation, ImmutableArray.Create(Def(jobName)), ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, nsId, Generation, [Def(jobName)], ct);
         return map[jobName];
     }
 
@@ -120,13 +117,13 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
             new ListJobSchedulesQuery(JobNamespace: TestNamespace, JobName: "recurring-ping", IncludeTotal: true),
             ct
         );
-        Assert.Equal(aIds, aPage.Items.Select(s => s.JobScheduleId).ToHashSet());
+        Assert.Equal(aIds, [.. aPage.Items.Select(s => s.JobScheduleId)]);
         Assert.Equal((long)aIds.Count, aPage.TotalCount);
         Assert.Empty(aPage.Items.Select(s => s.JobScheduleId).Intersect(bIds));
 
         // Filter by job B: exact set, recurring-ping excluded
         var bPage = await Queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, JobName: jobBName), ct);
-        Assert.Equal(bIds, bPage.Items.Select(s => s.JobScheduleId).ToHashSet());
+        Assert.Equal(bIds, [.. bPage.Items.Select(s => s.JobScheduleId)]);
         Assert.Empty(bPage.Items.Select(s => s.JobScheduleId).Intersect(aIds));
     }
 
@@ -158,7 +155,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
             ),
             ct
         );
-        Assert.Equal(defIds, page.Items.Select(s => s.JobScheduleId).ToHashSet());
+        Assert.Equal(defIds, [.. page.Items.Select(s => s.JobScheduleId)]);
         Assert.Equal((long)defIds.Count, page.TotalCount);
     }
 
@@ -196,7 +193,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
             new ListJobSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: true, PageSize: 100, IncludeTotal: true),
             ct
         );
-        Assert.Equal(liveIds, livePage.Items.Select(s => s.JobScheduleId).ToHashSet());
+        Assert.Equal(liveIds, [.. livePage.Items.Select(s => s.JobScheduleId)]);
         Assert.Equal((long)liveIds.Count, livePage.TotalCount);
         Assert.Empty(livePage.Items.Select(s => s.JobScheduleId).Intersect(orphanedIds));
 
@@ -205,7 +202,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
             new ListJobSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: false, PageSize: 100),
             ct
         );
-        Assert.Equal(allItems.Select(s => s.JobScheduleId).ToHashSet(), allPage.Items.Select(s => s.JobScheduleId).ToHashSet());
+        Assert.Equal(allItems.Select(s => s.JobScheduleId).ToHashSet(), [.. allPage.Items.Select(s => s.JobScheduleId)]);
         Assert.Empty(liveIds.Intersect(orphanedIds));
     }
 

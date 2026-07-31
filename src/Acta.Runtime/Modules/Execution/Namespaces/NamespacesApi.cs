@@ -1,6 +1,4 @@
-using Acta.Querying;
-
-namespace Acta.Modules.Execution.Namespaces;
+namespace Acta.Runtime.Modules.Execution.Namespaces;
 
 /// <summary>
 /// <see cref="INamespaces"/> implementation: a thin adapter over the Namespaces feature service,

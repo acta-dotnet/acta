@@ -1,4 +1,3 @@
-using Acta.Configuration;
 using Acta.Tests.Conformance.DbSession;
 using Acta.Tests.Conformance.SqlServer.Testing;
 

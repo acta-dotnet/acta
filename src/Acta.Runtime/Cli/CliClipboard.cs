@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Acta.Cli;
+namespace Acta.Runtime.Cli;
 
 /// <summary>
 /// Clipboard fallback for the CLI target: when a verb is invoked without a job id or deduplication-key,
@@ -46,11 +46,9 @@ internal static class CliClipboard
         {
             return Run("powershell", "-NoProfile -NonInteractive -Command Get-Clipboard -Raw");
         }
-        if (OperatingSystem.IsMacOS())
-        {
-            return Run("pbpaste", "");
-        }
-        return Run("xclip", "-selection clipboard -o") ?? Run("xsel", "--clipboard --output") ?? Run("wl-paste", "--no-newline");
+        return OperatingSystem.IsMacOS()
+            ? Run("pbpaste", "")
+            : Run("xclip", "-selection clipboard -o") ?? Run("xsel", "--clipboard --output") ?? Run("wl-paste", "--no-newline");
     }
 
     private static string? Run(string fileName, string arguments)

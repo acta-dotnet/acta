@@ -1,4 +1,4 @@
-namespace Acta.Maintenance;
+namespace Acta.Runtime.Maintenance;
 
 /// <summary>
 /// Persistence port for cross-feature expiration purging: one namespace-scoped

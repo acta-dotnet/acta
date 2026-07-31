@@ -1,10 +1,9 @@
 using System.Globalization;
-using Acta.Kernel;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
-using Acta.Querying;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Querying;
 
-namespace Acta.Modules.Execution.Tenants;
+namespace Acta.Runtime.Modules.Execution.Tenants;
 
 /// <summary>
 /// Tenants feature behavior: the insert-or-return-existing registration by Acta-normalized tenant

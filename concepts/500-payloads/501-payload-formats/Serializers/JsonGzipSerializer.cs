@@ -1,7 +1,6 @@
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Acta.Payloads;
 
 namespace Acta.Concepts.PayloadFormats;
 

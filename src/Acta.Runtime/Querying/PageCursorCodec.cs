@@ -3,7 +3,7 @@ using System.Buffers.Text;
 using System.Globalization;
 using System.Text.Json;
 
-namespace Acta.Querying;
+namespace Acta.Runtime.Querying;
 
 /// <summary>
 /// Expected CLR shape of one keyset cursor value.

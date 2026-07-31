@@ -1,7 +1,7 @@
 using System.Xml;
 using Cronos;
 
-namespace Acta.Modules.Execution.Schedules;
+namespace Acta.Runtime.Modules.Execution.Schedules;
 
 /// <summary>
 /// Pure next-occurrence math for recurring schedules. No ambient clock; every entry point takes an
@@ -98,12 +98,9 @@ internal static class NextOccurrenceCalculator
         }
 
         stored = DateTime.SpecifyKind(stored, DateTimeKind.Utc);
-        if (stored > DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc))
-        {
-            return stored;
-        }
-
-        return misfire == MisfireStrategyCode.FireOnceCatchUp ? stored : FirstAfter(expression, timeZone, kind, stored, nowUtc);
+        return stored > DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc) ? stored
+            : misfire == MisfireStrategyCode.FireOnceCatchUp ? stored
+            : FirstAfter(expression, timeZone, kind, stored, nowUtc);
     }
 
     /// <summary>

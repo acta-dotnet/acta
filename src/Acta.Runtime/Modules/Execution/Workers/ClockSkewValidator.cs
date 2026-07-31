@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// The outcome of a worker-init clock-skew check.
@@ -71,7 +71,15 @@ internal readonly record struct ClockSkewSample(TimeSpan Skew, TimeSpan RoundTri
 /// two would make every fake-clock test trip the skew guard. The local clock comes from an injected
 /// <see cref="TimeProvider"/> for the same testability reason.
 /// </remarks>
-internal sealed class ClockSkewValidator
+internal sealed class ClockSkewValidator(
+    Func<CancellationToken, Task<DateTime>> readDbNowUtc,
+    TimeProvider localClock,
+    TimeSpan warnThreshold,
+    TimeSpan failThreshold,
+    bool allowOverride,
+    ILogger log,
+    int sampleCount = ClockSkewValidator.DefaultSampleCount
+)
 {
     private const int DefaultSampleCount = 3;
 
@@ -81,32 +89,13 @@ internal sealed class ClockSkewValidator
     /// <summary>Skew above which worker init fails, unless <c>AllowClockSkew</c> is set.</summary>
     public static readonly TimeSpan DefaultFailThreshold = TimeSpan.FromSeconds(10);
 
-    private readonly Func<CancellationToken, Task<DateTime>> _readDbNowUtc;
-    private readonly TimeProvider _localClock;
-    private readonly TimeSpan _warnThreshold;
-    private readonly TimeSpan _failThreshold;
-    private readonly bool _allowOverride;
-    private readonly int _sampleCount;
-    private readonly ILogger _log;
-
-    public ClockSkewValidator(
-        Func<CancellationToken, Task<DateTime>> readDbNowUtc,
-        TimeProvider localClock,
-        TimeSpan warnThreshold,
-        TimeSpan failThreshold,
-        bool allowOverride,
-        ILogger log,
-        int sampleCount = DefaultSampleCount
-    )
-    {
-        _readDbNowUtc = readDbNowUtc;
-        _localClock = localClock;
-        _warnThreshold = warnThreshold;
-        _failThreshold = failThreshold;
-        _allowOverride = allowOverride;
-        _sampleCount = sampleCount < 1 ? 1 : sampleCount;
-        _log = log;
-    }
+    private readonly Func<CancellationToken, Task<DateTime>> _readDbNowUtc = readDbNowUtc;
+    private readonly TimeProvider _localClock = localClock;
+    private readonly TimeSpan _warnThreshold = warnThreshold;
+    private readonly TimeSpan _failThreshold = failThreshold;
+    private readonly bool _allowOverride = allowOverride;
+    private readonly int _sampleCount = sampleCount < 1 ? 1 : sampleCount;
+    private readonly ILogger _log = log;
 
     /// <summary>
     /// Measure skew and apply the threshold policy. Throws <see cref="InvalidOperationException"/> when

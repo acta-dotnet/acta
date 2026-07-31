@@ -59,22 +59,22 @@ namespace Acta.Concepts.ReadEventTimeline
     {
         // Parent starts a child that gathers data; the child fails deliberately to show a failure reason on the timeline.
         [Job("run-report", MaxAttempts = 1)]
-        public static async Task HandleParent(RunReport input, JobContext ctx, CancellationToken ct)
+        public static async Task HandleParent(RunReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[run-report] starting data collection for {input.Period}");
-            var child = await ctx.StartChildAsync("collect", new CollectData(input.Period), ct: ct);
-            var childOutcome = await ctx.WaitChildAsync(child.JobId, ct);
+            var child = await context.StartChildAsync("collect", new CollectData(input.Period), ct: ct);
+            var childOutcome = await context.WaitChildAsync(child.JobId, ct);
             if (!childOutcome.Succeeded)
             {
-                await ctx.FailAsync($"data collection failed for {input.Period}", ct);
+                await context.FailAsync($"data collection failed for {input.Period}", ct);
             }
         }
 
         [Job("collect-data", MaxAttempts = 1)]
-        public static Task HandleChild(CollectData input, JobContext ctx, CancellationToken ct)
+        public static Task HandleChild(CollectData input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[collect-data] data origin unavailable for {input.Period}");
-            return ctx.FailAsync("data origin unavailable", ct);
+            return context.FailAsync("data origin unavailable", ct);
         }
     }
 }

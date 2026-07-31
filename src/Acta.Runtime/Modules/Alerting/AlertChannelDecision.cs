@@ -1,6 +1,6 @@
-using Acta.Modules.Alerting.Api;
+using Acta.Runtime.Modules.Alerting.Api;
 
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 internal enum AlertChannelDecisionKind : byte
 {
@@ -43,11 +43,8 @@ internal readonly record struct AlertChannelDecision(AlertChannelDecisionKind Ki
             return new AlertChannelDecision(AlertChannelDecisionKind.Suppressed, AlertChannelDecisionReason.BelowMinSeverity);
         }
 
-        if (transport is null)
-        {
-            return new AlertChannelDecision(AlertChannelDecisionKind.Failed, AlertChannelDecisionReason.MissingTransport);
-        }
-
-        return new AlertChannelDecision(AlertChannelDecisionKind.Send, AlertChannelDecisionReason.Deliver);
+        return transport is null
+            ? new AlertChannelDecision(AlertChannelDecisionKind.Failed, AlertChannelDecisionReason.MissingTransport)
+            : new AlertChannelDecision(AlertChannelDecisionKind.Send, AlertChannelDecisionReason.Deliver);
     }
 }

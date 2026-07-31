@@ -1,9 +1,6 @@
-using Acta.Kernel;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Namespaces;
-using Acta.Modules.Execution.Tenants;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Tenants;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,7 +58,7 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Null_tenant_inserts_null()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
 
         var result = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null)], ct);
         var job = await ReadJobAsync(result[0].JobId, ct);
@@ -74,7 +71,7 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Known_tenant_resolves()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var name = TestKey("ten-known");
         var tenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(name, null, null, ct);
 
@@ -136,7 +133,7 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Child_inherits_parent_tenant()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var name = TestKey("ten-parent");
         var tenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(name, null, null, ct);
 
@@ -152,7 +149,7 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Child_overrides_parent_tenant()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var parentName = TestKey("ten-p2");
         var childName = TestKey("ten-c2");
         await Services.GetRequiredService<TenantsService>().RegisterAsync(parentName, null, null, ct);
@@ -196,7 +193,7 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Child_key_on_tenantless_parent_needs_no_override()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var childName = TestKey("ten-c4");
         var childTenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(childName, null, null, ct);
 

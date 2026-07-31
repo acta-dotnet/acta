@@ -1,4 +1,4 @@
-namespace Acta.Services.Locks;
+namespace Acta.Runtime.Services.Locks;
 
 /// <summary>
 /// Swappable mutual-exclusion lock store: the single seam behind <c>JobContext.RunWithLock</c> and

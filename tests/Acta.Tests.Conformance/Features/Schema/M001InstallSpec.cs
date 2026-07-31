@@ -1,4 +1,3 @@
-using Acta.Relational.Schema;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;

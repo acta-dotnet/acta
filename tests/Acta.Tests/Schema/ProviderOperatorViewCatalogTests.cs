@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Acta.Tests.Schema;
 
-public sealed class ProviderOperatorViewCatalogTests
+public sealed partial class ProviderOperatorViewCatalogTests
 {
     private static readonly string[] ExpectedViews =
     [
@@ -110,14 +110,14 @@ public sealed class ProviderOperatorViewCatalogTests
             File.ReadAllText(Path.Combine(root, "docs", "guide", "operator-guide.md")),
             File.ReadAllText(Path.Combine(root, "docs", "guide", "sql-recipes.md"))
         );
-        var documented = Regex
-            .Matches(docs, @"\bacta\.([a-z_]+_view)\b", RegexOptions.CultureInvariant)
-            .Select(m => m.Groups[1].Value)
-            .ToHashSet(StringComparer.Ordinal);
+        var documented = MyRegex().Matches(docs).Select(m => m.Groups[1].Value).ToHashSet(StringComparer.Ordinal);
 
         Assert.Empty(documented.Except(ExpectedViews, StringComparer.Ordinal));
         Assert.Empty(ExpectedViews.Except(documented, StringComparer.Ordinal));
     }
 
     private static SqlResourceCatalog Catalog(string assemblyName) => new(Assembly.Load(assemblyName), "acta");
+
+    [GeneratedRegex(@"\bacta\.([a-z_]+_view)\b", RegexOptions.CultureInvariant)]
+    private static partial Regex MyRegex();
 }

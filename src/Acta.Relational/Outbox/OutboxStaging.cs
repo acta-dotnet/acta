@@ -1,9 +1,9 @@
 using System.Data.Common;
 using System.Text.Json;
-using Acta;
-using Acta.Modules.Outbox;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Modules.Outbox;
 
 namespace Acta.Relational.Outbox;
 
@@ -61,31 +61,28 @@ internal static class OutboxStaging
             );
         }
 
-        if (normalized.ParentId is not null)
-        {
-            throw new ArgumentException(
+        return normalized.ParentId is not null
+            ? throw new ArgumentException(
                 "An outbox record cannot carry a ParentId; external records request root jobs only.",
                 $"{nameof(request)}.{nameof(JobEnqueueRequest.ParentId)}"
+            )
+            : new OutboxStagingRow(
+                OutboxId: Guid.NewGuid(),
+                JobNamespace: normalized.JobNamespace,
+                JobName: normalized.JobName,
+                InputFormatId: normalized.Input.Format.Id,
+                InputData: normalized.Input.IsNone ? null : normalized.Input.Data.ToArray(),
+                DeduplicationKey: normalized.DeduplicationKey,
+                CorrelationKey: normalized.CorrelationKey,
+                ExclusiveKey: normalized.ExclusiveKey,
+                PriorityCode: normalized.Priority is { } priority ? (byte)priority : null,
+                // Normalize to UTC exactly as the owned enqueue path does (DbParams.Coerce): a Local/Unspecified
+                // instant would otherwise persist wall-clock as UTC (mssql/sqlite) or be rejected (PG timestamptz).
+                NextRunAtUtc: normalized.NextRunAtUtc is { } next ? DbParams.ToUtc(next) : null,
+                DelaySeconds: normalized.DelaySeconds,
+                TenantKey: normalized.TenantKey,
+                Meta: OutboxMetaWriter.Write(normalized.Tags)
             );
-        }
-
-        return new OutboxStagingRow(
-            OutboxId: Guid.NewGuid(),
-            JobNamespace: normalized.JobNamespace,
-            JobName: normalized.JobName,
-            InputFormatId: normalized.Input.Format.Id,
-            InputData: normalized.Input.IsNone ? null : normalized.Input.Data.ToArray(),
-            DeduplicationKey: normalized.DeduplicationKey,
-            CorrelationKey: normalized.CorrelationKey,
-            ExclusiveKey: normalized.ExclusiveKey,
-            PriorityCode: normalized.Priority is { } priority ? (byte)priority : null,
-            // Normalize to UTC exactly as the owned enqueue path does (DbParams.Coerce): a Local/Unspecified
-            // instant would otherwise persist wall-clock as UTC (mssql/sqlite) or be rejected (PG timestamptz).
-            NextRunAtUtc: normalized.NextRunAtUtc is { } next ? DbParams.ToUtc(next) : null,
-            DelaySeconds: normalized.DelaySeconds,
-            TenantKey: normalized.TenantKey,
-            Meta: OutboxMetaWriter.Write(normalized.Tags)
-        );
     }
 }
 

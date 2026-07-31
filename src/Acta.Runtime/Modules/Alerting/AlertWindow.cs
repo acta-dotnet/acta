@@ -1,4 +1,4 @@
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// Shared dedupe-window math for the alert-raising paths (in-handler, operator, and the <c>sys.alerts</c>

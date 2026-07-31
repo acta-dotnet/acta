@@ -1,5 +1,4 @@
-using Acta.Kernel;
-using Acta.Relational.Schema;
+using Acta.Runtime.Kernel;
 using Xunit;
 
 namespace Acta.Tests.Architecture;

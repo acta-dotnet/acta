@@ -1,18 +1,15 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.ChildLatches;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
-using Acta.Querying;
-using Acta.Services.Time;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.ChildLatches;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Querying;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Jobs;
+namespace Acta.Runtime.Modules.Execution.Jobs;
 
 /// <summary>
 /// Jobs feature read behavior: lookup dispatch (id passthrough, ref and deduplication-key resolves
@@ -23,7 +20,7 @@ internal sealed class JobsService(
     IJobStore store,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
-    Acta.Modules.Execution.Signals.ISignalStore signalStore,
+    Acta.Runtime.Modules.Execution.Signals.ISignalStore signalStore,
     IScheduleStore scheduleStore,
     IExecutionStore executionStore,
     WorkerWakeupPublisher wakeupPublisher,
@@ -590,11 +587,9 @@ internal sealed class JobsService(
     private static WorkerWakeupReason? EnqueueWakeReason(JobEnqueueRequest request, JobEnqueueAction action)
     {
         var scheduledAhead = request.DelaySeconds is > 0 || request.NextRunAtUtc is not null;
-        if (!scheduledAhead)
-        {
-            return WorkerWakeupReason.WorkAvailable;
-        }
-        return action == JobEnqueueAction.Inserted ? WorkerWakeupReason.HorizonChanged : null;
+        return !scheduledAhead ? WorkerWakeupReason.WorkAvailable
+            : action == JobEnqueueAction.Inserted ? WorkerWakeupReason.HorizonChanged
+            : null;
     }
 
     private static JobEnqueueRow ToRow(JobEnqueueRequest request)

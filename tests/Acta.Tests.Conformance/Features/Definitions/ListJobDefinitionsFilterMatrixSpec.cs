@@ -1,6 +1,4 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution.Definitions;
-using Acta.Payloads;
+using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,12 +64,12 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
         // Register def-a and def-b → both Active
         var defAName = TestKey("def-a");
         var defBName = TestKey("def-b");
-        var firstMap = await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, ImmutableArray.Create(Def(defAName), Def(defBName)), ct);
+        var firstMap = await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(defAName), Def(defBName)], ct);
         var defAId = firstMap[defAName];
         var defBId = firstMap[defBName];
 
         // Re-register with only def-b: def-a is absent from manifest → def-a gets Retired
-        await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, ImmutableArray.Create(Def(defBName)), ct);
+        await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(defBName)], ct);
 
         var activeIds = new HashSet<int> { defBId };
         var retiredIds = new HashSet<int> { defAId };
@@ -81,7 +79,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
             new ListJobDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Active, IncludeTotal: true),
             ct
         );
-        Assert.Equal(activeIds, activePage.Items.Select(d => d.JobDefinitionId).ToHashSet());
+        Assert.Equal(activeIds, [.. activePage.Items.Select(d => d.JobDefinitionId)]);
         Assert.Equal(1L, activePage.TotalCount);
         Assert.Empty(activePage.Items.Select(d => d.JobDefinitionId).Intersect(retiredIds));
 
@@ -90,7 +88,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
             new ListJobDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Retired),
             ct
         );
-        Assert.Equal(retiredIds, retiredPage.Items.Select(d => d.JobDefinitionId).ToHashSet());
+        Assert.Equal(retiredIds, [.. retiredPage.Items.Select(d => d.JobDefinitionId)]);
         Assert.Empty(retiredPage.Items.Select(d => d.JobDefinitionId).Intersect(activeIds));
     }
 
@@ -107,13 +105,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
         var invoiceSend = TestKey("invoice-send");
         var invoiceVoid = TestKey("invoice-void");
         var receiptSend = TestKey("receipt-send");
-        var map = await DefinitionTestOps.RegisterAsync(
-            Services,
-            nsId,
-            Gen,
-            ImmutableArray.Create(Def(invoiceSend), Def(invoiceVoid), Def(receiptSend)),
-            ct
-        );
+        var map = await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(invoiceSend), Def(invoiceVoid), Def(receiptSend)], ct);
 
         // TestKey prefixes every name with a run token, so the bare term is deliberately NOT a
         // prefix of any name: a starts-with implementation returns nothing here.
@@ -125,7 +117,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
             ct
         );
 
-        Assert.Equal(matching, page.Items.Select(d => d.JobDefinitionId).ToHashSet());
+        Assert.Equal(matching, [.. page.Items.Select(d => d.JobDefinitionId)]);
         Assert.DoesNotContain(map[receiptSend], page.Items.Select(d => d.JobDefinitionId));
         // The opt-in total must apply the same predicate as the row query.
         Assert.Equal((long)matching.Count, page.TotalCount);
@@ -148,13 +140,13 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
         // ns1: 2 definitions
         var defA1Name = TestKey("def-ns1-a");
         var defB1Name = TestKey("def-ns1-b");
-        var ns1Map = await DefinitionTestOps.RegisterAsync(Services, ns1Id, Gen, ImmutableArray.Create(Def(defA1Name), Def(defB1Name)), ct);
+        var ns1Map = await DefinitionTestOps.RegisterAsync(Services, ns1Id, Gen, [Def(defA1Name), Def(defB1Name)], ct);
         var defA1Id = ns1Map[defA1Name];
         var defB1Id = ns1Map[defB1Name];
 
         // ns2: 1 definition
         var defNs2Name = TestKey("def-ns2");
-        var ns2Map = await DefinitionTestOps.RegisterAsync(Services, ns2Id, Gen, ImmutableArray.Create(Def(defNs2Name)), ct);
+        var ns2Map = await DefinitionTestOps.RegisterAsync(Services, ns2Id, Gen, [Def(defNs2Name)], ct);
         var defNs2Id = ns2Map[defNs2Name];
 
         // Read each namespace independently
@@ -171,11 +163,11 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
         var ns2Ids = ns2Page.Items.Select(d => d.JobDefinitionId).ToHashSet();
 
         // ns1 has exactly the 2 we seeded
-        Assert.Equal(new HashSet<int> { defA1Id, defB1Id }, ns1Ids);
+        Assert.Equal([defA1Id, defB1Id], ns1Ids);
         Assert.Equal(2L, ns1Page.TotalCount);
 
         // ns2 has exactly the 1 we seeded
-        Assert.Equal(new HashSet<int> { defNs2Id }, ns2Ids);
+        Assert.Equal([defNs2Id], ns2Ids);
         Assert.Equal(1L, ns2Page.TotalCount);
 
         // Cross-exclusion: neither namespace bleeds into the other

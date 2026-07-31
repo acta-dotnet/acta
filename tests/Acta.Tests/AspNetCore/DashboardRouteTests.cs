@@ -9,7 +9,7 @@ namespace Acta.Tests.AspNetCore;
 /// the right content type, SPA fallback for non-API paths, traversal rejection, and security
 /// headers. These tests require the embedded dist build and skip when it is absent.
 /// </summary>
-public sealed class DashboardRouteTests
+public sealed partial class DashboardRouteTests
 {
     private static bool AssetsEmbedded =>
         typeof(ActaDashboardOptions).Assembly.GetManifestResourceNames().Any(static n => n == "Acta.AspNetCore.Web.Assets.index.html");
@@ -58,7 +58,7 @@ public sealed class DashboardRouteTests
         var ct = TestContext.Current.CancellationToken;
 
         var index = await (await client.GetAsync("/acta/jobs", ct)).Content.ReadAsStringAsync(ct);
-        var match = Regex.Match(index, "src=\"\\./(assets/[^\"]+\\.js)\"");
+        var match = MyRegex().Match(index);
         Assert.True(match.Success, "index.html does not reference a hashed script");
 
         var asset = await client.GetAsync("/acta/jobs/" + match.Groups[1].Value, ct);
@@ -100,4 +100,7 @@ public sealed class DashboardRouteTests
         Assert.Contains("http://localhost:5173", csp);
         Assert.Contains("ws://localhost:5173", csp);
     }
+
+    [GeneratedRegex("src=\"\\./(assets/[^\"]+\\.js)\"")]
+    private static partial Regex MyRegex();
 }

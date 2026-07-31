@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// Claim request for the hot priority-ordered scan. Deterministic by-id claiming lives on the

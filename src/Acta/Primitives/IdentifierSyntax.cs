@@ -272,15 +272,12 @@ public static class IdentifierSyntax
     public static string NormalizeKey(string value, string paramName, int maxLength = ExtendedMaxLength)
     {
         var canonical = NormalizeKeyLookup(value, paramName, maxLength);
-        if (StartsWithSystemPrefix(canonical))
-        {
-            throw new ArgumentException(
+        return StartsWithSystemPrefix(canonical)
+            ? throw new ArgumentException(
                 $"Key '{value.Trim()}' uses the reserved system prefix '{SystemPrefix}': reserved for system-internal names.",
                 paramName
-            );
-        }
-
-        return canonical;
+            )
+            : canonical;
     }
 
     /// <summary>
@@ -291,12 +288,9 @@ public static class IdentifierSyntax
     public static string NormalizeTenantKey(string value, string paramName, int maxLength = ExtendedMaxLength)
     {
         var canonical = NormalizeKey(value, paramName, maxLength);
-        if (canonical == ReservedSystemName)
-        {
-            throw new ArgumentException($"Tenant key '{ReservedSystemName}' is reserved for system-internal names.", paramName);
-        }
-
-        return canonical;
+        return canonical == ReservedSystemName
+            ? throw new ArgumentException($"Tenant key '{ReservedSystemName}' is reserved for system-internal names.", paramName)
+            : canonical;
     }
 
     /// <summary>

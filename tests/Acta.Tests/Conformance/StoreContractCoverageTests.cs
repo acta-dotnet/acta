@@ -10,12 +10,12 @@ namespace Acta.Tests.Conformance;
 /// Store-method coverage gate: every method on every internal store interface is declared by at least
 /// one spec's <c>[CoversStoreMethod]</c> attribute.
 /// </summary>
-public sealed class StoreContractCoverageTests
+public sealed partial class StoreContractCoverageTests
 {
     // Every store method is covered by a live conformance spec; there is no allowlist backlog.
     private static readonly HashSet<string> NotYetCovered = new(StringComparer.Ordinal);
 
-    private static readonly Regex StoreInterfaceName = new(@"^I\w+Store$", RegexOptions.Compiled);
+    private static readonly Regex StoreInterfaceName = MyRegex();
 
     /// <summary>
     /// Asserts every store method is covered, no attribute names a method that does not exist, and the
@@ -64,25 +64,29 @@ public sealed class StoreContractCoverageTests
         Assert.True(overloaded.Count == 0, "Overloaded store methods (rename to unique names):\n" + string.Join("\n", overloaded));
     }
 
-    // The internal store ports: I*Store interfaces under Acta.Modules/Acta.Services (plus
-    // Acta.Maintenance) in the runtime assembly. This is the single discovery convention for store
+    // The internal store ports: I*Store interfaces under Acta.Runtime.Modules/Acta.Runtime.Services (plus
+    // Acta.Runtime.Maintenance) in the runtime assembly. This is the single discovery convention for store
     // ports - the coverage gate, the provider binding/completeness gates, and the architecture
     // boundary check all read it, so a newly declared port is picked up by all with no registry to
     // update.
     internal static List<Type> StoreInterfaces() =>
-        typeof(ActaServiceCollectionExtensions)
-            .Assembly.GetTypes()
-            .Where(t =>
-                t.IsInterface
-                && StoreInterfaceName.IsMatch(t.Name)
-                && t.Namespace is { } ns
-                && (
-                    ns.StartsWith("Acta.Modules.", StringComparison.Ordinal)
-                    || ns.StartsWith("Acta.Services.", StringComparison.Ordinal)
-                    || ns == "Acta.Maintenance"
-                )
-            )
-            .ToList();
+        [
+            .. typeof(ActaServiceCollectionExtensions)
+                .Assembly.GetTypes()
+                .Where(t =>
+                    t.IsInterface
+                    && StoreInterfaceName.IsMatch(t.Name)
+                    && t.Namespace is { } ns
+                    && (
+                        ns.StartsWith("Acta.Runtime.Modules.", StringComparison.Ordinal)
+                        || ns.StartsWith("Acta.Runtime.Services.", StringComparison.Ordinal)
+                        || ns == "Acta.Runtime.Maintenance"
+                    )
+                ),
+        ];
 
     internal static IEnumerable<MethodInfo> DeclaredMethods(Type store) => store.GetMethods().Where(m => !m.IsSpecialName);
+
+    [GeneratedRegex(@"^I\w+Store$", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

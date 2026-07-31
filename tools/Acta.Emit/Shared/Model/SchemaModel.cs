@@ -27,22 +27,15 @@ internal sealed class SchemaModel
 /// <summary>
 /// Emit-time view of one entity (structural metadata + XML-doc summary).
 /// </summary>
-internal sealed class EntityModel
+internal sealed class EntityModel(DbEntitySpec spec, XmlDocSource docs)
 {
-    private readonly DbEntitySpec _spec;
-    private readonly XmlDocSource _docs;
-
-    public EntityModel(DbEntitySpec spec, XmlDocSource docs)
-    {
-        _spec = spec;
-        _docs = docs;
-        Columns = spec.Columns.Select(c => new ColumnModel(c, spec.ClrType, docs)).ToList();
-    }
+    private readonly DbEntitySpec _spec = spec;
+    private readonly XmlDocSource _docs = docs;
 
     public Type ClrType => _spec.ClrType;
     public string TableName => _spec.TableName;
     public bool PageCompression => _spec.PageCompression;
-    public IReadOnlyList<ColumnModel> Columns { get; }
+    public IReadOnlyList<ColumnModel> Columns { get; } = spec.Columns.Select(c => new ColumnModel(c, spec.ClrType, docs)).ToList();
     public IReadOnlyList<DbIndexSpec> Indexes => _spec.Indexes;
     public IReadOnlyList<DbCheckSpec> Checks => _spec.Checks;
     public IReadOnlyList<DbForeignKeySpec> ForeignKeys => _spec.ForeignKeys;
@@ -55,19 +48,11 @@ internal sealed class EntityModel
 /// Emit-time view of one column (structural metadata + XML-doc summary + lazy
 /// <see cref="PropertyInfo"/>).
 /// </summary>
-internal sealed class ColumnModel
+internal sealed class ColumnModel(DbColumnSpec spec, Type entityType, XmlDocSource docs)
 {
-    private readonly DbColumnSpec _spec;
-    private readonly Type _entityType;
-    private readonly XmlDocSource _docs;
-    private PropertyInfo? _property;
-
-    public ColumnModel(DbColumnSpec spec, Type entityType, XmlDocSource docs)
-    {
-        _spec = spec;
-        _entityType = entityType;
-        _docs = docs;
-    }
+    private readonly DbColumnSpec _spec = spec;
+    private readonly Type _entityType = entityType;
+    private readonly XmlDocSource _docs = docs;
 
     public string Name => _spec.Name;
     public DbKind Kind => _spec.Kind;
@@ -87,7 +72,7 @@ internal sealed class ColumnModel
     public bool IsGenerated => _spec.IsGenerated;
 
     public PropertyInfo Property =>
-        _property ??=
+        field ??=
             _entityType.GetProperty(_spec.ClrPropertyName, BindingFlags.Public | BindingFlags.Instance)
             ?? throw new InvalidOperationException($"Property '{_spec.ClrPropertyName}' not found on {_entityType.Name}.");
 

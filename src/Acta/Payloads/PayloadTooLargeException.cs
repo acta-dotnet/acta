@@ -9,26 +9,19 @@ namespace Acta;
 /// Handler results are deliberately exempt: they warn-and-persist rather than throwing, so a large
 /// result never strands a job that already ran.
 /// </remarks>
-public sealed class PayloadTooLargeException : Exception
+/// <remarks>
+/// Creates the exception for the named <paramref name="entryPoint"/> whose payload of
+/// <paramref name="actualBytes"/> exceeded the <paramref name="maxBytes"/> cap.
+/// </remarks>
+public sealed class PayloadTooLargeException(string entryPoint, int actualBytes, int maxBytes)
+    : Exception($"{entryPoint} payload is {actualBytes} bytes, exceeding the {maxBytes}-byte MaxInlinePayloadBytes limit.")
 {
-    /// <summary>
-    /// Creates the exception for the named <paramref name="entryPoint"/> whose payload of
-    /// <paramref name="actualBytes"/> exceeded the <paramref name="maxBytes"/> cap.
-    /// </summary>
-    public PayloadTooLargeException(string entryPoint, int actualBytes, int maxBytes)
-        : base($"{entryPoint} payload is {actualBytes} bytes, exceeding the {maxBytes}-byte MaxInlinePayloadBytes limit.")
-    {
-        EntryPoint = entryPoint;
-        ActualBytes = actualBytes;
-        MaxBytes = maxBytes;
-    }
-
     /// <summary>The write that was rejected (e.g. <c>"enqueue input"</c>, <c>"variable 'foo'"</c>).</summary>
-    public string EntryPoint { get; }
+    public string EntryPoint { get; } = entryPoint;
 
     /// <summary>The size of the rejected payload in bytes.</summary>
-    public int ActualBytes { get; }
+    public int ActualBytes { get; } = actualBytes;
 
     /// <summary>The configured <see cref="JobsOptions.MaxInlinePayloadBytes"/> cap.</summary>
-    public int MaxBytes { get; }
+    public int MaxBytes { get; } = maxBytes;
 }

@@ -6,8 +6,8 @@ namespace Acta.Tests.Conformance;
 /// <summary>
 /// Provider completeness gate: every internal store port has exactly one implementation in
 /// Acta.Relational and none left in a provider assembly. Ports are discovered by the same reflection
-/// convention the coverage gate uses (<c>I*Store</c> under <c>Acta.Modules.*</c> /
-/// <c>Acta.Services.*</c>), so a new port is covered the moment it is declared - no registry to
+/// convention the coverage gate uses (<c>I*Store</c> under <c>Acta.Runtime.Modules.*</c> /
+/// <c>Acta.Runtime.Services.*</c>), so a new port is covered the moment it is declared - no registry to
 /// remember to update. A provider that misses a feature slice fails here before any runtime wiring
 /// is exercised.
 /// </summary>

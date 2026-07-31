@@ -1,7 +1,4 @@
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Workers;
-
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Overlays a definition's effective (override-or-default) policy onto its code-built

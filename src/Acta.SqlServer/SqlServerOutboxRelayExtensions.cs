@@ -1,6 +1,8 @@
-﻿using Acta.SqlServer.Configuration;
+using Acta.Runtime.Hosting;
+using Acta.SqlServer.Configuration;
+using Acta.SqlServer.Hosting;
 
-namespace Acta;
+namespace Acta.SqlServer;
 
 /// <summary>
 /// Selects SQL Server as an external-outbox relay source. Captures its own connection options and

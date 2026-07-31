@@ -1,4 +1,3 @@
-using Acta.Payloads;
 using Xunit;
 
 namespace Acta.Tests.Wire;
@@ -60,7 +59,7 @@ public class JobRequestBuilderTests
     {
         var bytes = new byte[] { 1, 2, 3, 4 };
         var request = JobRequestBuilder.Create(Ns, Name).Bytes(bytes).Build();
-        var expected = JobPayload.Bytes(new byte[] { 1, 2, 3, 4 });
+        var expected = JobPayload.Bytes([1, 2, 3, 4]);
         Assert.Equal(expected.Format.Id, request.Input.Format.Id);
         Assert.True(request.Input.Data.Span.SequenceEqual(expected.Data.Span));
     }

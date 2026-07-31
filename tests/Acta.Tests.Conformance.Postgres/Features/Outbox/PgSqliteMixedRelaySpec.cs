@@ -1,6 +1,5 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Outbox;
-using Acta.Payloads;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Outbox;
 using Acta.Tests.Conformance.Postgres.Testing;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
@@ -50,7 +49,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await SeedSqliteRowAsync(Guid.NewGuid(), dedup);
 
         // Source store on SQLite, target on the Postgres ledger: two independent provider registrations.
-        var store = Acta.SqliteOutboxSource.CreateStore(_sqliteConn, "main", "acta_outbox");
+        var store = Acta.Sqlite.Hosting.SqliteOutboxSource.CreateStore(_sqliteConn, "main", "acta_outbox");
         var target = new JobsSubmission(Jobs);
         var relay = new OutboxRelayService(store, target);
         var maxInline = Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
@@ -59,7 +58,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
 
         // The SQLite source row is gone (delivered and finalized) and the Postgres ledger has exactly one job.
         Assert.Equal(0, await CountSqliteRowsAsync());
-        Assert.Equal(1, await Fixture.CountLedgerJobsByDedupAsync(ns, dedup));
+        Assert.Equal(1, await PgConformanceFixture.CountLedgerJobsByDedupAsync(ns, dedup));
     }
 
     // Single-source the canonical table from the tested SQLite DDL API rather than duplicating the text.
@@ -68,7 +67,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await using var c = new SqliteConnection(_sqliteConn);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = Acta.SqliteOutboxDdl.CreateScript("acta_outbox");
+        cmd.CommandText = Acta.Sqlite.Hosting.SqliteOutboxDdl.CreateScript("acta_outbox");
         await cmd.ExecuteNonQueryAsync();
     }
 

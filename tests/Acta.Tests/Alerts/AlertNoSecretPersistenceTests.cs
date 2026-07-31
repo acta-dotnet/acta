@@ -1,5 +1,5 @@
-using Acta.Modules.Alerting;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Alerting;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 

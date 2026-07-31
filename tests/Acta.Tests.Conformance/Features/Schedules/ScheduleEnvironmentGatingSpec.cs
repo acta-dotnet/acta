@@ -1,7 +1,5 @@
-using Acta.Configuration;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Workers;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

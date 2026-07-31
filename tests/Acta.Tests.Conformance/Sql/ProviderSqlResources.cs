@@ -62,12 +62,9 @@ internal static class ProviderSqlResources
     private static string LogicalPath(string resourceTail)
     {
         const string migrationPrefix = "Schema.Migrations.";
-        if (resourceTail.StartsWith(migrationPrefix, StringComparison.Ordinal))
-        {
-            return "Schema/Migrations/" + resourceTail[migrationPrefix.Length..];
-        }
-
-        return SqlLogicalPath.FromResourceTail(resourceTail);
+        return resourceTail.StartsWith(migrationPrefix, StringComparison.Ordinal)
+            ? "Schema/Migrations/" + resourceTail[migrationPrefix.Length..]
+            : SqlLogicalPath.FromResourceTail(resourceTail);
     }
 }
 

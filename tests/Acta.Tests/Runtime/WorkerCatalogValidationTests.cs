@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -42,9 +42,7 @@ public sealed class WorkerCatalogValidationTests
     {
         // A module-less worker with framework jobs disabled would claim namespace jobs it can never
         // dispatch; the claimed rows would rot until lease recovery.
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            WorkerRuntimeInitializer.ValidateHasDescriptors("billing", ImmutableArray<JobDescriptor>.Empty)
-        );
+        var ex = Assert.Throws<InvalidOperationException>(() => WorkerRuntimeInitializer.ValidateHasDescriptors("billing", []));
 
         Assert.Contains("billing", ex.Message);
     }
@@ -52,7 +50,7 @@ public sealed class WorkerCatalogValidationTests
     [Fact]
     public void A_worker_with_at_least_one_descriptor_passes()
     {
-        WorkerRuntimeInitializer.ValidateHasDescriptors("billing", ImmutableArray.Create(Descriptor("job-one", typeof(HandlerA))));
+        WorkerRuntimeInitializer.ValidateHasDescriptors("billing", [Descriptor("job-one", typeof(HandlerA))]);
     }
 
     private sealed class HandlerA;

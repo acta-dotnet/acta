@@ -142,20 +142,17 @@ public static class AnvilEndpoints
             AnvilWorkloadCode.FanOut => spec.Load is 10 or 100 or 1_000,
             _ => false,
         };
-        if (validLoad)
-        {
-            return null;
-        }
-
-        return spec.Workload switch
-        {
-            AnvilWorkloadCode.NoOp => "No-op supports 10,000, 100,000, or 1,000,000 jobs.",
-            AnvilWorkloadCode.Steady => "Steady supports 1,000, 10,000, or 100,000 jobs.",
-            AnvilWorkloadCode.CrashRecovery => "Crash Recovery supports 100, 1,000, or 10,000 jobs.",
-            AnvilWorkloadCode.RetryAndFailure => "Retry and Failure supports 1,000, 10,000, or 100,000 jobs.",
-            AnvilWorkloadCode.FanOut => "Fan-out supports 10, 100, or 1,000 parent jobs.",
-            _ => "Unknown workload.",
-        };
+        return validLoad
+            ? null
+            : spec.Workload switch
+            {
+                AnvilWorkloadCode.NoOp => "No-op supports 10,000, 100,000, or 1,000,000 jobs.",
+                AnvilWorkloadCode.Steady => "Steady supports 1,000, 10,000, or 100,000 jobs.",
+                AnvilWorkloadCode.CrashRecovery => "Crash Recovery supports 100, 1,000, or 10,000 jobs.",
+                AnvilWorkloadCode.RetryAndFailure => "Retry and Failure supports 1,000, 10,000, or 100,000 jobs.",
+                AnvilWorkloadCode.FanOut => "Fan-out supports 10, 100, or 1,000 parent jobs.",
+                _ => "Unknown workload.",
+            };
     }
 
     private static void CatchErrors(RouteGroupBuilder group) =>
@@ -183,11 +180,9 @@ public static class AnvilEndpoints
             async (context, next) =>
             {
                 var remote = context.HttpContext.Connection.RemoteIpAddress;
-                if (remote is null || IPAddress.IsLoopback(remote))
-                {
-                    return await next(context);
-                }
-                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "The lab controls are loopback-only.");
+                return remote is null || IPAddress.IsLoopback(remote)
+                    ? await next(context)
+                    : Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "The lab controls are loopback-only.");
             }
         );
 }

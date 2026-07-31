@@ -1,6 +1,5 @@
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,7 +104,7 @@ public abstract class FluentReadSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
 
         var deduplicationKey = TestKey("fluent-read");
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         await EnqueueTestOps.EnqueueBatchAsync(
             Services,
             [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, DeduplicationKey: deduplicationKey)],

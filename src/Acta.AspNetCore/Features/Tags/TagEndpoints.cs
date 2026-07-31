@@ -1,5 +1,3 @@
-using Acta.AspNetCore.Features.Jobs;
-using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -174,12 +172,9 @@ internal static class TagEndpoints
             return bodyError;
         }
 
-        if (string.IsNullOrWhiteSpace(body!.Name))
-        {
-            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag.", "name is required.");
-        }
-
-        return await Mutate(resolve, target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct));
+        return string.IsNullOrWhiteSpace(body!.Name)
+            ? ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag.", "name is required.")
+            : await Mutate(resolve, target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct));
     }
 
     private static async Task<IResult> Remove(
@@ -191,12 +186,9 @@ internal static class TagEndpoints
         CancellationToken ct
     )
     {
-        if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-        {
-            return confirmationError;
-        }
-
-        return await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct));
+        return ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError
+            ? confirmationError
+            : await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct));
     }
 
     private static async Task<IResult> Mutate(Func<TagTarget?> resolve, Func<TagTarget, ValueTask<TagMutationResult>> apply)

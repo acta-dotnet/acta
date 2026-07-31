@@ -37,10 +37,10 @@ namespace Acta.Concepts.ExecuteChild
         // idempotent step (202). ExecuteChildAsync runs one child start-to-result; ValueOrThrow()
         // returns its result or throws, letting this parent's retry policy take over on child failure.
         [Job("publish-episode")]
-        public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext ctx, CancellationToken ct)
+        public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
         {
             var transcoded = (
-                await ctx.ExecuteChildAsync<TranscodeVideo, TranscodeResult>("transcode", new TranscodeVideo(episode.SourceUrl), ct: ct)
+                await context.ExecuteChildAsync<TranscodeVideo, TranscodeResult>("transcode", new TranscodeVideo(episode.SourceUrl), ct: ct)
             ).ValueOrThrow();
 
             return new EpisodePublished(episode.EpisodeId, transcoded.StreamUrl);

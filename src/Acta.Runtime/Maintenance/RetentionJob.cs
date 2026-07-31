@@ -1,7 +1,6 @@
-using Acta.Configuration;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Maintenance;
+namespace Acta.Runtime.Maintenance;
 
 /// <summary>
 /// <c>sys.retention</c>, the system retention sweep. A recurring, competitively-claimed

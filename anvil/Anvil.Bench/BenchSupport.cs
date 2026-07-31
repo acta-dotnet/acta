@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using Acta;
-using Acta.Payloads;
 
 namespace Anvil.Bench;
 

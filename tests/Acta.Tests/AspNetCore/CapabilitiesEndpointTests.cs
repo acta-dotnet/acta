@@ -1,7 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Acta.Relational.Connections;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

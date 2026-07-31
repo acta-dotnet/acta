@@ -32,13 +32,13 @@ namespace Acta.Concepts.PauseJob
     public sealed class ApplyMigrationJob
     {
         [Job("apply-migration")]
-        public async Task Handle(ApplyMigration migration, JobContext ctx, CancellationToken ct)
+        public async Task Handle(ApplyMigration migration, JobContext context, CancellationToken ct)
         {
             if (migration.NeedsApproval)
             {
                 // PauseAsync parks the job as Paused until IJobs.ResumeAsync; resume replays the handler
                 // from the top, so re-check the condition before proceeding.
-                await ctx.PauseAsync("waiting for operator approval", ct);
+                await context.PauseAsync("waiting for operator approval", ct);
             }
 
             Console.WriteLine($"[{migration.Version}] migration applied");

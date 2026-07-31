@@ -1,4 +1,4 @@
-namespace Acta.Modules.Operations.Events;
+namespace Acta.Runtime.Modules.Operations.Events;
 
 /// <summary>
 /// Persistence port for event reads: the append-only ledger's keyset-paged list, job-scoped or

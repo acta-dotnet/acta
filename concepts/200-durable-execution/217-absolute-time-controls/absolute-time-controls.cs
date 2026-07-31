@@ -1,5 +1,5 @@
 // Concept: enqueue, sleep, and reschedule pinned to absolute DateTimeOffset instants
-// rather than relative delays. Uses NextExecutionAt, ctx.SleepUntilAsync, and ctx.RescheduleUntilAsync.
+// rather than relative delays. Uses NextExecutionAt, context.SleepUntilAsync, and context.RescheduleUntilAsync.
 using Acta;
 using Acta.Concepts.AbsoluteTimeControls;
 using Microsoft.Extensions.DependencyInjection;
@@ -63,14 +63,14 @@ namespace Acta.Concepts.AbsoluteTimeControls
     public sealed class ReportJob
     {
         [Job("generate-report")]
-        public async Task Handle(GenerateReport input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[generate-report] claimed at {DateTime.UtcNow:HH:mm:ss.fff} UTC");
 
             // SleepUntilAsync arms a named durable timer at an absolute instant; on replay after the
             // instant passes the named timer is already consumed and the handler continues.
             Console.WriteLine($"[generate-report] sleeping until absolute instant {input.SleepUntil:HH:mm:ss.fff} UTC");
-            await ctx.SleepUntilAsync("report-delay", input.SleepUntil, ct: ct);
+            await context.SleepUntilAsync("report-delay", input.SleepUntil, ct: ct);
 
             Console.WriteLine($"[generate-report] resumed at {DateTime.UtcNow:HH:mm:ss.fff} UTC; report for {input.Period} sent");
         }
@@ -81,7 +81,7 @@ namespace Acta.Concepts.AbsoluteTimeControls
         private static int _runs;
 
         [Job("poll-external")]
-        public async Task Handle(PollExternal input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(PollExternal input, JobContext context, CancellationToken ct)
         {
             var run = Interlocked.Increment(ref _runs);
             Console.WriteLine($"[poll-external] run #{run} at {DateTime.UtcNow:HH:mm:ss.fff} UTC");
@@ -91,7 +91,7 @@ namespace Acta.Concepts.AbsoluteTimeControls
                 // RescheduleUntilAsync re-arms the job to an absolute instant without burning the
                 // retry budget; the handler restarts from the top on the next claim.
                 Console.WriteLine($"[poll-external] not ready; rescheduling to absolute instant {input.RescheduleUntil:HH:mm:ss.fff} UTC");
-                await ctx.RescheduleUntilAsync(input.RescheduleUntil, "external batch not ready", ct);
+                await context.RescheduleUntilAsync(input.RescheduleUntil, "external batch not ready", ct);
             }
 
             Console.WriteLine($"[poll-external] batch {input.BatchId} is ready; processing complete");

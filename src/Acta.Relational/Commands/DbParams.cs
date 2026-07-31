@@ -48,12 +48,7 @@ internal static class DbParams
         {
             return Convert.ToInt32(p.Value, CultureInfo.InvariantCulture);
         }
-        if (p.Kind == DbKind.Int64 && p.Value is not long)
-        {
-            return Convert.ToInt64(p.Value, CultureInfo.InvariantCulture);
-        }
-
-        return p.Value;
+        return p.Kind == DbKind.Int64 && p.Value is not long ? Convert.ToInt64(p.Value, CultureInfo.InvariantCulture) : p.Value;
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -125,25 +125,19 @@ public sealed class ClockSkewValidatorTests
     {
         // Three measurements with growing round-trips; only the first (RTT 0) reports a tolerable skew,
         // the later wide ones would fail. The min-RTT pick must keep the first, so init passes.
-        var localTicks = new Queue<DateTime>(
-            new[]
-            {
-                Base,
-                Base, // sample 0: RTT 0
-                Base,
-                Base.AddSeconds(40), // sample 1: RTT 40s
-                Base,
-                Base.AddSeconds(40), // sample 2: RTT 40s
-            }
-        );
-        var dbReads = new Queue<DateTime>(
-            new[]
-            {
-                Base.AddSeconds(1), // sample 0: skew ~1s
-                Base.AddSeconds(100), // sample 1: huge
-                Base.AddSeconds(100), // sample 2: huge
-            }
-        );
+        var localTicks = new Queue<DateTime>([
+            Base,
+            Base, // sample 0: RTT 0
+            Base,
+            Base.AddSeconds(40), // sample 1: RTT 40s
+            Base,
+            Base.AddSeconds(40), // sample 2: RTT 40s
+        ]);
+        var dbReads = new Queue<DateTime>([
+            Base.AddSeconds(1), // sample 0: skew ~1s
+            Base.AddSeconds(100), // sample 1: huge
+            Base.AddSeconds(100), // sample 2: huge
+        ]);
         var validator = new ClockSkewValidator(
             _ => Task.FromResult(dbReads.Dequeue()),
             new QueueClock(localTicks),

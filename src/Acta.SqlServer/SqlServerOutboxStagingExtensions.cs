@@ -3,7 +3,7 @@ using System.Data.Common;
 using Acta.Relational.Outbox;
 using Microsoft.Data.SqlClient;
 
-namespace Acta;
+namespace Acta.SqlServer;
 
 /// <summary>
 /// Transactional external-outbox staging for SQL Server producers. Validates a <see cref="JobEnqueueRequest"/>

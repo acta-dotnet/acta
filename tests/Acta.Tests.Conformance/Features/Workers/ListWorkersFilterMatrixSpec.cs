@@ -1,5 +1,5 @@
-using Acta.Modules.Execution.Workers;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -79,7 +79,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
             new ListWorkersQuery(JobNamespace: TestNamespace, Status: WorkerStatusCode.Active, IncludeTotal: true),
             ct
         );
-        Assert.Equal(activeIds, activePage.Items.Select(w => w.WorkerId).ToHashSet());
+        Assert.Equal(activeIds, [.. activePage.Items.Select(w => w.WorkerId)]);
         Assert.Equal(1L, activePage.TotalCount);
         Assert.Empty(activePage.Items.Select(w => w.WorkerId).Intersect(stoppedIds));
         Assert.Empty(activePage.Items.Select(w => w.WorkerId).Intersect(deadIds));
@@ -89,7 +89,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
             new ListWorkersQuery(JobNamespace: TestNamespace, Status: WorkerStatusCode.Stopped),
             ct
         );
-        Assert.Equal(stoppedIds, stoppedPage.Items.Select(w => w.WorkerId).ToHashSet());
+        Assert.Equal(stoppedIds, [.. stoppedPage.Items.Select(w => w.WorkerId)]);
         Assert.Empty(stoppedPage.Items.Select(w => w.WorkerId).Intersect(activeIds));
         Assert.Empty(stoppedPage.Items.Select(w => w.WorkerId).Intersect(deadIds));
 
@@ -98,7 +98,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
             new ListWorkersQuery(JobNamespace: TestNamespace, Status: WorkerStatusCode.Dead),
             ct
         );
-        Assert.Equal(deadIds, deadPage.Items.Select(w => w.WorkerId).ToHashSet());
+        Assert.Equal(deadIds, [.. deadPage.Items.Select(w => w.WorkerId)]);
         Assert.Empty(deadPage.Items.Select(w => w.WorkerId).Intersect(activeIds));
         Assert.Empty(deadPage.Items.Select(w => w.WorkerId).Intersect(stoppedIds));
     }
@@ -131,7 +131,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
         var ns2Ids = ns2Page.Items.Select(w => w.WorkerId).ToHashSet();
 
         // ns2 has exactly the one worker we seeded
-        Assert.Equal(new HashSet<int> { w3Id }, ns2Ids);
+        Assert.Equal([w3Id], ns2Ids);
         Assert.Equal(1L, ns2Page.TotalCount);
 
         // ns1 has exactly the prior workers plus w2

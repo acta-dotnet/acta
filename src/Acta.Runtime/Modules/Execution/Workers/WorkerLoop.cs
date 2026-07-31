@@ -1,12 +1,11 @@
 using System.Threading.Channels;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Kernel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// The claim/dispatch loop. A single producer (<see cref="ClaimLoopAsync"/>) claims Ready jobs
@@ -14,42 +13,28 @@ namespace Acta.Modules.Execution.Workers;
 /// claimed job through the <see cref="JobExecutor"/>. Self-gates on <see cref="WorkerRegistration"/>
 /// so enqueue-only deployments never enter the loop.
 /// </summary>
-internal sealed class WorkerLoop
+internal sealed class WorkerLoop(
+    Acta.Runtime.Modules.Execution.IExecutionStore execution,
+    JobExecutor executor,
+    IOptions<JobsOptions> options,
+    WorkerRegistration? workerRegistration,
+    WorkerContext context,
+    IWorkerWakeup wakeup,
+    ILogger? log = null,
+    JobMetrics? metrics = null,
+    CompletionSink? completionSink = null
+)
 {
-    private readonly Acta.Modules.Execution.IExecutionStore _execution;
-    private readonly int _leaseTtlSeconds;
-    private readonly JobExecutor _executor;
-    private readonly IOptions<JobsOptions> _options;
-    private readonly WorkerRegistration? _workerRegistration;
-    private readonly WorkerContext _context;
-    private readonly IWorkerWakeup _wakeup;
-    private readonly CompletionSink? _completionSink;
-    private readonly ILogger _log;
-    private readonly JobMetrics? _metrics;
-
-    public WorkerLoop(
-        Acta.Modules.Execution.IExecutionStore execution,
-        JobExecutor executor,
-        IOptions<JobsOptions> options,
-        WorkerRegistration? workerRegistration,
-        WorkerContext context,
-        IWorkerWakeup wakeup,
-        ILogger? log = null,
-        JobMetrics? metrics = null,
-        CompletionSink? completionSink = null
-    )
-    {
-        _execution = execution;
-        _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-        _executor = executor;
-        _options = options;
-        _workerRegistration = workerRegistration;
-        _context = context;
-        _wakeup = wakeup;
-        _completionSink = completionSink;
-        _log = log ?? NullLogger.Instance;
-        _metrics = metrics;
-    }
+    private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution = execution;
+    private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly JobExecutor _executor = executor;
+    private readonly IOptions<JobsOptions> _options = options;
+    private readonly WorkerRegistration? _workerRegistration = workerRegistration;
+    private readonly WorkerContext _context = context;
+    private readonly IWorkerWakeup _wakeup = wakeup;
+    private readonly CompletionSink? _completionSink = completionSink;
+    private readonly ILogger _log = log ?? NullLogger.Instance;
+    private readonly JobMetrics? _metrics = metrics;
 
     public Task RunLoopAsync(CancellationToken ct) => RunLoopAsync(ct, ct);
 

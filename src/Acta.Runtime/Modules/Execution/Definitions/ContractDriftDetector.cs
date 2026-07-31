@@ -1,8 +1,6 @@
 using System.Collections.Immutable;
-using Acta.Configuration;
-using Acta.Modules.Execution.Definitions;
 
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// One eligible contract change found at registration: a definition whose stored generation is at

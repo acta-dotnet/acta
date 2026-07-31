@@ -1,10 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
-using Acta.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Resolves the worker's manifest generation, the monotonic governor for definition promotion:

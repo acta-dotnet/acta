@@ -1,7 +1,7 @@
-using Acta.Relational.Connections;
+using Acta.Runtime.Hosting;
 using Acta.Sqlite.Schema;
 
-namespace Acta;
+namespace Acta.Sqlite.Hosting;
 
 internal sealed class SqliteProviderBootstrap(SqlProviderOptions options) : IProviderBootstrap
 {

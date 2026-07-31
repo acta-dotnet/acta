@@ -1,9 +1,7 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Schedules;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,60 +29,59 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
     private const string SlowScheduleName = "slow";
 
     public static JobDescriptorManifest Descriptors { get; } =
-        new(
-            ImmutableArray.Create(
-                new JobDescriptor(
-                    JobName: PingJobName,
-                    HandlerType: typeof(MultiSchedulePingHandler),
-                    MethodName: nameof(MultiSchedulePingHandler.Run),
-                    InputType: typeof(NoInput),
-                    OutputType: null,
-                    InputPayloadFormat: JobPayloadFormat.None,
-                    OutputPayloadFormat: null,
-                    InvocationKind: JobInvocationKind.Task,
-                    RequiresJobContextParameter: true,
-                    RequiresCancellationToken: true,
-                    Priority: JobPriorityCode.Normal,
-                    MaxAttempts: 2,
-                    AuditLevel: JobAuditLevelCode.Audit,
-                    AlertProfile: JobAlertProfileCode.OnFailure,
-                    Invoker: static async (_, _, ctx, ct) =>
-                    {
-                        await MultiSchedulePingHandler.Run(ctx, ct);
-                        return new JobHandlerInvocationResult(false, null);
-                    },
-                    DeserializeInput: static (_, _) => new NoInput(),
-                    SerializeOutput: null
-                )
+        new([
+            new JobDescriptor(
+                JobName: PingJobName,
+                HandlerType: typeof(MultiSchedulePingHandler),
+                MethodName: nameof(MultiSchedulePingHandler.Run),
+                InputType: typeof(NoInput),
+                OutputType: null,
+                InputPayloadFormat: JobPayloadFormat.None,
+                OutputPayloadFormat: null,
+                InvocationKind: JobInvocationKind.Task,
+                RequiresJobContextParameter: true,
+                RequiresCancellationToken: true,
+                Priority: JobPriorityCode.Normal,
+                MaxAttempts: 2,
+                AuditLevel: JobAuditLevelCode.Audit,
+                AlertProfile: JobAlertProfileCode.OnFailure,
+                Invoker: static async (_, _, ctx, ct) =>
                 {
-                    Schedules = ImmutableArray.Create(
-                        new JobScheduleDescriptor(
-                            JobName: PingJobName,
-                            ScheduleName: FastScheduleName,
-                            Expression: "PT30S",
-                            TimeZone: null,
-                            Misfire: MisfireStrategyCode.Skip,
-                            ExpressionKind: ScheduleExpressionKindCode.Interval,
-                            Description: null,
-                            Environments: ImmutableArray<string>.Empty
-                        ),
-                        new JobScheduleDescriptor(
-                            JobName: PingJobName,
-                            ScheduleName: SlowScheduleName,
-                            Expression: "PT50S",
-                            TimeZone: null,
-                            Misfire: MisfireStrategyCode.Skip,
-                            ExpressionKind: ScheduleExpressionKindCode.Interval,
-                            Description: null,
-                            Environments: ImmutableArray<string>.Empty
-                        )
-                    ),
-                    CreateDefaultInput = static () => new NoInput(),
-                    SerializeInput = null,
-                    RecurringResultCap = 3,
-                }
+                    await MultiSchedulePingHandler.Run(ctx, ct);
+                    return new JobHandlerInvocationResult(false, null);
+                },
+                DeserializeInput: static (_, _) => new NoInput(),
+                SerializeOutput: null
             )
-        );
+            {
+                Schedules =
+                [
+                    new JobScheduleDescriptor(
+                        JobName: PingJobName,
+                        ScheduleName: FastScheduleName,
+                        Expression: "PT30S",
+                        TimeZone: null,
+                        Misfire: MisfireStrategyCode.Skip,
+                        ExpressionKind: ScheduleExpressionKindCode.Interval,
+                        Description: null,
+                        Environments: []
+                    ),
+                    new JobScheduleDescriptor(
+                        JobName: PingJobName,
+                        ScheduleName: SlowScheduleName,
+                        Expression: "PT50S",
+                        TimeZone: null,
+                        Misfire: MisfireStrategyCode.Skip,
+                        ExpressionKind: ScheduleExpressionKindCode.Interval,
+                        Description: null,
+                        Environments: []
+                    ),
+                ],
+                CreateDefaultInput = static () => new NoInput(),
+                SerializeInput = null,
+                RecurringResultCap = 3,
+            },
+        ]);
 }
 
 /// <summary>
@@ -118,7 +115,7 @@ public abstract class MultiScheduleSlotSpec<TFixture> : ActaRuntimeTestBase<TFix
     private static readonly TimeSpan Slow = TimeSpan.FromSeconds(50);
 
     // Far-past anchor so fake-derived cursors are always past-due from the real DB clock.
-    private static readonly DateTime T0 = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime T0 = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private FakeClock Clock { get; set; } = null!;
 

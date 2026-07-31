@@ -677,7 +677,7 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Amend_binary_job_with_base64_preserves_the_custom_format_id()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Custom(200, "proto"), new byte[] { 9 }));
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Custom(200, "proto"), [9]));
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
@@ -754,7 +754,7 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Amend_invalid_base64_is_400()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Bytes, new byte[] { 1 }));
+        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Bytes, [1]));
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 

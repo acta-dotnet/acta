@@ -10,6 +10,7 @@ namespace Acta.Tests.Emit;
 public sealed class SchemaCommandsTests : IDisposable
 {
     private readonly string _root;
+    private static readonly string[] sourceArray = new[] { "sqlite", "pg", "mssql" };
 
     public SchemaCommandsTests()
     {
@@ -31,7 +32,7 @@ public sealed class SchemaCommandsTests : IDisposable
     private string Mig(string suffix, string bareName) => Path.Combine(_root, "src", Project(suffix), "Schema", "Migrations", bareName);
 
     private bool AnyMigration(string searchPattern) =>
-        new[] { "sqlite", "pg", "mssql" }.Any(s =>
+        sourceArray.Any(s =>
         {
             var dir = Path.Combine(_root, "src", Project(s), "Schema", "Migrations");
             return Directory.Exists(dir) && Directory.EnumerateFiles(dir, searchPattern).Any();

@@ -42,11 +42,6 @@ public sealed class TagTarget
     private static T Positive<T>(T value, string paramName)
         where T : INumber<T>
     {
-        if (value <= T.Zero)
-        {
-            throw new ArgumentOutOfRangeException(paramName, value, "Target id must be positive.");
-        }
-
-        return value;
+        return value <= T.Zero ? throw new ArgumentOutOfRangeException(paramName, value, "Target id must be positive.") : value;
     }
 }

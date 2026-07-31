@@ -1,6 +1,4 @@
-using Acta.Payloads;
-
-namespace Acta.Payloads;
+namespace Acta.Runtime.Payloads;
 
 /// <summary>
 /// Default <see cref="IJobPayloadSerializerRegistry"/>. Built from <c>IEnumerable&lt;IJobPayloadSerializer&gt;</c>
@@ -14,7 +12,7 @@ internal sealed class JobPayloadSerializerRegistry : IJobPayloadSerializerRegist
     public JobPayloadSerializerRegistry(IEnumerable<IJobPayloadSerializer> serializers)
     {
         ArgumentNullException.ThrowIfNull(serializers);
-        _byId = new Dictionary<byte, IJobPayloadSerializer>();
+        _byId = [];
         foreach (var s in serializers)
         {
             _byId[s.Format.Id] = s;

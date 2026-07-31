@@ -133,11 +133,8 @@ public static class DeduplicationKey
             return $"{(bucketSize.Ticks / TimeSpan.TicksPerSecond).ToString(CultureInfo.InvariantCulture)}s";
         }
 
-        if (bucketSize.Ticks % TimeSpan.TicksPerMillisecond == 0)
-        {
-            return $"{(bucketSize.Ticks / TimeSpan.TicksPerMillisecond).ToString(CultureInfo.InvariantCulture)}ms";
-        }
-
-        return $"{bucketSize.Ticks.ToString(CultureInfo.InvariantCulture)}ticks";
+        return bucketSize.Ticks % TimeSpan.TicksPerMillisecond == 0
+            ? $"{(bucketSize.Ticks / TimeSpan.TicksPerMillisecond).ToString(CultureInfo.InvariantCulture)}ms"
+            : $"{bucketSize.Ticks.ToString(CultureInfo.InvariantCulture)}ticks";
     }
 }

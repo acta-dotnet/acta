@@ -1,5 +1,4 @@
 using System.Globalization;
-using Acta.Configuration;
 
 namespace Acta.Relational.Commands;
 
@@ -41,10 +40,6 @@ internal static class DbValueCoercion
             var underlying = Enum.GetUnderlyingType(t);
             value = Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
         }
-        if (provider == DbProvider.Postgres && value is byte b)
-        {
-            return (short)b;
-        }
-        return value;
+        return provider == DbProvider.Postgres && value is byte b ? (short)b : value;
     }
 }

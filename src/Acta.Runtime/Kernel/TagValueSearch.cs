@@ -1,4 +1,4 @@
-namespace Acta.Kernel;
+namespace Acta.Runtime.Kernel;
 
 /// <summary>
 /// Internal projection used for case-insensitive tag value lookup. The original tag value remains
@@ -16,14 +16,11 @@ internal static class TagValueSearch
         }
 
         var normalized = value.ToUpperInvariant();
-        if (normalized.Length > MaxLength)
-        {
-            throw new ArgumentException(
+        return normalized.Length > MaxLength
+            ? throw new ArgumentException(
                 $"Tag value search projection length {normalized.Length} exceeds the {MaxLength}-char limit.",
                 paramName
-            );
-        }
-
-        return normalized;
+            )
+            : normalized;
     }
 }

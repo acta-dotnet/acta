@@ -1,7 +1,6 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Api;
 
-namespace Acta.Modules.Execution.Signals;
+namespace Acta.Runtime.Modules.Execution.Signals;
 
 /// <summary>
 /// Persistence port for durable signals: the raise upsert (which also releases a suspended job under

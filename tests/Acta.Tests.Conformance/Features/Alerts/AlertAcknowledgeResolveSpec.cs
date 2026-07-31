@@ -1,9 +1,7 @@
-using Acta.Modules.Alerting;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Alerting;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 

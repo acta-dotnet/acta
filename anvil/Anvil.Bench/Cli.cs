@@ -231,12 +231,9 @@ public static class BenchCli
             }
         }
 
-        if (db is null)
-        {
-            throw new ArgumentException("Missing --db sqlite|pg|mssql|all.");
-        }
-
-        return (ProvidersFromDb(db), scenarios);
+        return db is null
+            ? throw new ArgumentException("Missing --db sqlite|pg|mssql|all.")
+            : ((IReadOnlyList<string> Providers, IReadOnlyList<string>? Scenarios))(ProvidersFromDb(db), scenarios);
     }
 
     private static IReadOnlyList<string> ProvidersFromDb(string db)
@@ -247,11 +244,7 @@ public static class BenchCli
         }
 
         var providers = BaselineSuite.NormalizeProviders([db]);
-        if (providers.Count != 1)
-        {
-            throw new ArgumentException("Choose one database or all.");
-        }
-        return providers;
+        return providers.Count != 1 ? throw new ArgumentException("Choose one database or all.") : providers;
     }
 
     /// <summary>Total measured cells (median-of-N counted) - the denominator for the progress bar.</summary>

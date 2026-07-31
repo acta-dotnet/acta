@@ -166,7 +166,7 @@ public sealed class WorkerProcessLauncher(string runId, string schema, string pr
     private sealed class ManagedWorker(int id, string name, Process process)
     {
         private readonly Process _process = process;
-        private readonly object _gate = new();
+        private readonly Lock _gate = new();
         private bool _crashRequested;
         private bool _drainRequested;
         private DateTime? _exitedAtUtc;

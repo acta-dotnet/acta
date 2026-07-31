@@ -14,15 +14,13 @@ namespace Acta;
 /// </remarks>
 public readonly record struct JobPayloadFormat
 {
-    private readonly string? _name;
-
     public byte Id { get; }
 
     /// <summary>
     /// Non-null at the public surface. Returns <c>"none"</c> when the value is <c>default</c>
     /// (zero id, null backing field) and the validated kebab-case name otherwise.
     /// </summary>
-    public string Name => IsNone && string.IsNullOrEmpty(_name) ? "none" : _name ?? "";
+    public string Name => IsNone && string.IsNullOrEmpty(field) ? "none" : field ?? "";
 
     public bool IsNone => Id == 0;
     public bool IsBuiltIn => Id is > 0 and < 128;
@@ -31,7 +29,7 @@ public readonly record struct JobPayloadFormat
     private JobPayloadFormat(byte id, string name)
     {
         Id = id;
-        _name = name;
+        Name = name;
     }
 
     internal static JobPayloadFormat BuiltIn(byte id, string name)

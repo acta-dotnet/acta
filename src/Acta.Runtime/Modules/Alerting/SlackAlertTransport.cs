@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// Delivers an alert to a Slack incoming webhook (<c>transport_kind = "slack-webhook"</c>): POSTs the
@@ -11,17 +11,11 @@ namespace Acta.Modules.Alerting;
 /// retry semantics: 2xx delivered, 429/5xx retryable, other 4xx permanent. No external dependency (BCL
 /// <see cref="HttpClient"/> and origin-generated JSON).
 /// </summary>
-internal sealed class SlackAlertTransport : IAlertTransport
+internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<SlackAlertTransport>? log = null) : IAlertTransport
 {
     // App-lifetime singleton transport uses one long-lived HttpClient (the documented singleton pattern).
-    private readonly HttpClient _http;
-    private readonly ILogger _log;
-
-    public SlackAlertTransport(HttpClient? http = null, ILogger<SlackAlertTransport>? log = null)
-    {
-        _http = http ?? new HttpClient();
-        _log = log ?? NullLogger<SlackAlertTransport>.Instance;
-    }
+    private readonly HttpClient _http = http ?? new HttpClient();
+    private readonly ILogger _log = log ?? NullLogger<SlackAlertTransport>.Instance;
 
     /// <summary>The <c>transport_kind</c> this transport handles.</summary>
     public const string Kind = AlertTransportKinds.SlackWebhook;

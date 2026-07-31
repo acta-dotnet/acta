@@ -1,4 +1,3 @@
-using Acta.Relational.Commands;
 using Xunit;
 
 namespace Acta.Tests.Storage;
@@ -41,11 +40,7 @@ public class DeadlockRetryTests
             _ =>
             {
                 attempts++;
-                if (attempts < 3)
-                {
-                    throw new TransientException();
-                }
-                return Task.FromResult("ok");
+                return attempts < 3 ? throw new TransientException() : Task.FromResult("ok");
             },
             IsTransient,
             maxAttempts: 5,

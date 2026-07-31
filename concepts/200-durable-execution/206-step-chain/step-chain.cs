@@ -35,10 +35,10 @@ namespace Acta.Concepts.StepChain
     public sealed class IndexDocumentJob
     {
         [Job("index-document")]
-        public async Task Handle(IndexDocument doc, JobContext ctx, CancellationToken ct)
+        public async Task Handle(IndexDocument doc, JobContext context, CancellationToken ct)
         {
             // Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.
-            var fetched = await ctx.RunStepAsync(
+            var fetched = await context.RunStepAsync(
                 "fetch",
                 async inner =>
                 {
@@ -49,7 +49,7 @@ namespace Acta.Concepts.StepChain
                 ct: ct
             );
 
-            var extracted = await ctx.RunStepAsync(
+            var extracted = await context.RunStepAsync(
                 "extract-text",
                 async inner =>
                 {
@@ -60,7 +60,7 @@ namespace Acta.Concepts.StepChain
                 ct: ct
             );
 
-            var summary = await ctx.RunStepAsync(
+            var summary = await context.RunStepAsync(
                 "summarize",
                 async inner =>
                 {

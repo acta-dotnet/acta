@@ -44,11 +44,9 @@ public readonly record struct Backoff
     /// </summary>
     public static Backoff Fixed(TimeSpan delay)
     {
-        if (delay < TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(delay), delay, "Delay must not be negative.");
-        }
-        return new Backoff(delay, delay, multiplier: 1.0, jitter: 0.0);
+        return delay < TimeSpan.Zero
+            ? throw new ArgumentOutOfRangeException(nameof(delay), delay, "Delay must not be negative.")
+            : new Backoff(delay, delay, multiplier: 1.0, jitter: 0.0);
     }
 
     /// <summary>
@@ -65,11 +63,9 @@ public readonly record struct Backoff
         {
             throw new ArgumentOutOfRangeException(nameof(max), max, "Max delay must not be less than the initial delay.");
         }
-        if (!double.IsFinite(multiplier) || multiplier < 1.0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(multiplier), multiplier, "Multiplier must be a finite number of at least 1.0.");
-        }
-        return new Backoff(initial, max, multiplier, jitter: 0.0);
+        return !double.IsFinite(multiplier) || multiplier < 1.0
+            ? throw new ArgumentOutOfRangeException(nameof(multiplier), multiplier, "Multiplier must be a finite number of at least 1.0.")
+            : new Backoff(initial, max, multiplier, jitter: 0.0);
     }
 
     /// <summary>
@@ -77,11 +73,9 @@ public readonly record struct Backoff
     /// </summary>
     public Backoff WithJitter(double fraction)
     {
-        if (!double.IsFinite(fraction) || fraction is < 0.0 or > 1.0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(fraction), fraction, "Jitter must be in [0, 1].");
-        }
-        return new Backoff(InitialDelay, MaxDelay, Multiplier, fraction);
+        return !double.IsFinite(fraction) || fraction is < 0.0 or > 1.0
+            ? throw new ArgumentOutOfRangeException(nameof(fraction), fraction, "Jitter must be in [0, 1].")
+            : new Backoff(InitialDelay, MaxDelay, Multiplier, fraction);
     }
 
     /// <summary>Parses Acta's backoff DSL, e.g. <c>1m..8h x2 +-10%</c>.</summary>
@@ -97,8 +91,8 @@ public readonly record struct Backoff
         var range = parts[0];
         var dots = range.IndexOf("..", StringComparison.Ordinal);
         var ranged = dots >= 0;
-        var initial = DurationSyntax.ParseDuration(ranged ? range.Substring(0, dots) : range);
-        var max = ranged ? DurationSyntax.ParseDuration(range.Substring(dots + 2)) : initial;
+        var initial = DurationSyntax.ParseDuration(ranged ? range[..dots] : range);
+        var max = ranged ? DurationSyntax.ParseDuration(range[(dots + 2)..]) : initial;
         if (max < initial)
         {
             throw new ArgumentOutOfRangeException(nameof(expression), expression, "Max delay must not be less than the initial delay.");
@@ -114,9 +108,9 @@ public readonly record struct Backoff
             {
                 jitter = 0.0;
             }
-            else if (part.StartsWith("x", StringComparison.Ordinal))
+            else if (part.StartsWith('x'))
             {
-                multiplier = ParsePositiveNumber(part.Substring(1), nameof(multiplier));
+                multiplier = ParsePositiveNumber(part[1..], nameof(multiplier));
             }
             else
             {
@@ -177,55 +171,38 @@ public readonly record struct Backoff
 
     private static double ParsePositiveNumber(string text, string name)
     {
-        if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number) || number < 1.0)
-        {
-            throw new FormatException($"{name} must be at least 1.0.");
-        }
-        return number;
+        return !double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number) || number < 1.0
+            ? throw new FormatException($"{name} must be at least 1.0.")
+            : number;
     }
 
     private static double ParseJitter(string text)
     {
         string number;
-        if (text.StartsWith("±", StringComparison.Ordinal))
+        if (text.StartsWith('±'))
         {
-            number = text.Substring(1);
+            number = text[1..];
         }
         else if (text.StartsWith("+-", StringComparison.Ordinal))
         {
-            number = text.Substring(2);
-        }
-        else if (text.StartsWith("~", StringComparison.Ordinal))
-        {
-            number = text.Substring(1);
+            number = text[2..];
         }
         else
         {
-            throw new FormatException($"'{text}' is not a valid backoff clause.");
+            number = text.StartsWith('~') ? text[1..] : throw new FormatException($"'{text}' is not a valid backoff clause.");
         }
 
-        if (!number.EndsWith("%", StringComparison.Ordinal))
+        if (!number.EndsWith('%'))
         {
             throw new FormatException("Jitter must be a percentage.");
         }
 
-        if (
-            !double.TryParse(
-                number.Substring(0, number.Length - 1),
-                NumberStyles.AllowDecimalPoint,
-                CultureInfo.InvariantCulture,
-                out var percent
-            )
-        )
+        if (!double.TryParse(number[..^1], NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var percent))
         {
             throw new FormatException("Jitter must be a percentage.");
         }
 
-        if (percent is < 0.0 or > 100.0)
-        {
-            throw new FormatException("Jitter must be between 0% and 100%.");
-        }
-        return percent / 100.0;
+        return percent is < 0.0 or > 100.0 ? throw new FormatException("Jitter must be between 0% and 100%.") : percent / 100.0;
     }
 
     private static string FormatDuration(TimeSpan value)
@@ -250,11 +227,9 @@ public readonly record struct Backoff
         {
             return FormatNumber(value.TotalSeconds) + "s";
         }
-        if (value.Ticks % TimeSpan.TicksPerMillisecond == 0)
-        {
-            return FormatNumber(value.TotalMilliseconds) + "ms";
-        }
-        return FormatNumber(value.TotalSeconds) + "s";
+        return value.Ticks % TimeSpan.TicksPerMillisecond == 0
+            ? FormatNumber(value.TotalMilliseconds) + "ms"
+            : FormatNumber(value.TotalSeconds) + "s";
     }
 
     private static string FormatNumber(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);

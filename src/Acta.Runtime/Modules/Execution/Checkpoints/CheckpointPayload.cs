@@ -1,6 +1,4 @@
-using Acta.Payloads;
-
-namespace Acta.Modules.Execution.Checkpoints;
+namespace Acta.Runtime.Modules.Execution.Checkpoints;
 
 /// <summary>
 /// Shared write-guard for variable checkpoint ops: a value must carry a real payload

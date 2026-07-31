@@ -6,7 +6,7 @@ namespace Acme.Shop.Shipping;
 public sealed class ShipOrderJob
 {
     [Job("ship-order")]
-    public async Task Handle(ShipOrderV1 order, JobContext ctx, CancellationToken ct)
+    public static async Task Handle(ShipOrderV1 order, JobContext ctx, CancellationToken ct)
     {
         // Run-once step: on replay the recorded result is restored, so notify-customer reads the
         // tracking number from this local without a durable variable.

@@ -25,7 +25,7 @@ internal static class InputTemplateJson
     public static string? Build(ITypeSymbol inputType)
     {
         var sb = new StringBuilder();
-        return WriteObject(sb, inputType, depth: 1, path: new List<ITypeSymbol>()) ? sb.ToString() : null;
+        return WriteObject(sb, inputType, depth: 1, path: []) ? sb.ToString() : null;
     }
 
     // False when the type has no settable members; the caller distinguishes "no shape" from "{}".
@@ -167,11 +167,9 @@ internal static class InputTemplateJson
         var attribute = property
             .GetAttributes()
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "System.Text.Json.Serialization.JsonPropertyNameAttribute");
-        if (attribute?.ConstructorArguments.FirstOrDefault().Value is string explicitName && explicitName.Length > 0)
-        {
-            return explicitName;
-        }
-        return CamelCase(property.Name);
+        return attribute?.ConstructorArguments.FirstOrDefault().Value is string explicitName && explicitName.Length > 0
+            ? explicitName
+            : CamelCase(property.Name);
     }
 
     // Mirrors JsonNamingPolicy.CamelCase, which lowercases a leading run of capitals but keeps the

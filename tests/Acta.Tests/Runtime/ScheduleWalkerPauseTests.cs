@@ -1,5 +1,4 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -50,7 +49,7 @@ public class ScheduleWalkerPauseTests
         var due = Now.AddMinutes(-1);
         var outcome = ScheduleWalker.PlanFire([Active(1, "a", due)], Now);
 
-        Assert.Equal(new[] { "a" }, outcome.TriggeringScheduleNames);
+        Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         var advance = Assert.Single(outcome.Advances);
         Assert.NotNull(advance.NextRunAtUtc);
         Assert.True(advance.NextRunAtUtc > Now, "the advanced cursor must move strictly past now");
@@ -82,7 +81,7 @@ public class ScheduleWalkerPauseTests
     {
         var outcome = ScheduleWalker.PlanFire([Paused(1, "a", Now.AddMinutes(-10), Now.AddMinutes(-1))], Now);
 
-        Assert.Equal(new[] { "a" }, outcome.TriggeringScheduleNames);
+        Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         var advance = Assert.Single(outcome.Advances);
         Assert.True(advance.NextRunAtUtc > Now);
     }
@@ -184,14 +183,5 @@ public class ScheduleWalkerPauseTests
     }
 
     private static JobScheduleDescriptor Descriptor(string scheduleName) =>
-        new(
-            "job",
-            scheduleName,
-            Cron5,
-            null,
-            MisfireStrategyCode.Skip,
-            ScheduleExpressionKindCode.Cron,
-            null,
-            ImmutableArray<string>.Empty
-        );
+        new("job", scheduleName, Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, []);
 }

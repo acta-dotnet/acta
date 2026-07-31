@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Api;
+namespace Acta.Runtime.Modules.Execution.Api;
 
 /// <summary>
 /// Execution's declared alerting seam: <c>JobContext.AlertAsync</c> raises manual alert intents

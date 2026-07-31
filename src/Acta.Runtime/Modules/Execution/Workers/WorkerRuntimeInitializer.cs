@@ -1,18 +1,16 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Acta.Configuration;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
-using Acta.Services.Time;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Owns the worker-runtime catalog upsert: namespace + definitions + <c>workers</c>, then the
@@ -26,49 +24,33 @@ namespace Acta.Modules.Execution.Workers;
 /// context empty, but still run provider bootstraps so the schema is in place before any enqueue
 /// resolves.
 /// </remarks>
-internal sealed class WorkerRuntimeInitializer
+internal sealed class WorkerRuntimeInitializer(
+    DefinitionsService definitions,
+    IDefinitionStore definitionStore,
+    IScheduleStore schedules,
+    IWorkerStore workers,
+    IActaClock clock,
+    IServerClock serverClock,
+    IJobPayloadSerializerRegistry serializers,
+    IAlertRoutingCheck? alertRouting,
+    IOptions<JobsOptions> options,
+    WorkerRegistration? workerRegistration,
+    WorkerContext context,
+    ILogger? log = null
+)
 {
-    private readonly DefinitionsService _definitions;
-    private readonly IDefinitionStore _definitionStore;
-    private readonly IScheduleStore _schedules;
-    private readonly IWorkerStore _workers;
-    private readonly IActaClock _clock;
-    private readonly IServerClock _serverClock;
-    private readonly IJobPayloadSerializerRegistry _serializers;
-    private readonly IAlertRoutingCheck? _alertRouting;
-    private readonly IOptions<JobsOptions> _options;
-    private readonly WorkerRegistration? _workerRegistration;
-    private readonly WorkerContext _context;
-    private readonly ILogger _log;
-
-    public WorkerRuntimeInitializer(
-        DefinitionsService definitions,
-        IDefinitionStore definitionStore,
-        IScheduleStore schedules,
-        IWorkerStore workers,
-        IActaClock clock,
-        IServerClock serverClock,
-        IJobPayloadSerializerRegistry serializers,
-        IAlertRoutingCheck? alertRouting,
-        IOptions<JobsOptions> options,
-        WorkerRegistration? workerRegistration,
-        WorkerContext context,
-        ILogger? log = null
-    )
-    {
-        _definitions = definitions;
-        _definitionStore = definitionStore;
-        _schedules = schedules;
-        _workers = workers;
-        _clock = clock;
-        _serverClock = serverClock;
-        _serializers = serializers;
-        _alertRouting = alertRouting;
-        _options = options;
-        _workerRegistration = workerRegistration;
-        _context = context;
-        _log = log ?? NullLogger.Instance;
-    }
+    private readonly DefinitionsService _definitions = definitions;
+    private readonly IDefinitionStore _definitionStore = definitionStore;
+    private readonly IScheduleStore _schedules = schedules;
+    private readonly IWorkerStore _workers = workers;
+    private readonly IActaClock _clock = clock;
+    private readonly IServerClock _serverClock = serverClock;
+    private readonly IJobPayloadSerializerRegistry _serializers = serializers;
+    private readonly IAlertRoutingCheck? _alertRouting = alertRouting;
+    private readonly IOptions<JobsOptions> _options = options;
+    private readonly WorkerRegistration? _workerRegistration = workerRegistration;
+    private readonly WorkerContext _context = context;
+    private readonly ILogger _log = log ?? NullLogger.Instance;
 
     public async Task InitializeAsync(CancellationToken ct)
     {
@@ -122,7 +104,7 @@ internal sealed class WorkerRuntimeInitializer
         var namespaceId = _context.NamespaceIds[ns];
 
         // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
-        // of the user manifests (the core assembly's own generated ActaJobs), so each namespace carries
+        // of the user manifests (the runtime assembly's own generated RuntimeJobs), so each namespace carries
         // its maintenance catalog (unless JobsOptions.RegisterFrameworkJobs is off, e.g. external
         // maintenance). System jobs are identified by their reserved sys. names; every manifest's
         // descriptors land under this one worker's namespace.
@@ -131,7 +113,7 @@ internal sealed class WorkerRuntimeInitializer
 
         // The automatic framework set registers when RegisterFrameworkJobs is on; an explicit relay adds
         // its sys.outbox/sys.recovery/sys.alerts subset even when that flag is off, without forcing
-        // sys.retention. Both are subsets of the one generated ActaJobs manifest, filtered by name.
+        // sys.retention. Both are subsets of the one generated RuntimeJobs manifest, filtered by name.
         var frameworkNames = new HashSet<string>(StringComparer.Ordinal);
         if (_options.Value.RegisterFrameworkJobs)
         {
@@ -143,7 +125,9 @@ internal sealed class WorkerRuntimeInitializer
         }
         if (frameworkNames.Count > 0)
         {
-            manifests.Add(new JobDescriptorManifest([.. ActaJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))]));
+            manifests.Add(
+                new JobDescriptorManifest([.. RuntimeJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))])
+            );
         }
         manifests.AddRange(_workerRegistration.Manifests.Select(r => r.GetDescriptors()));
 

@@ -16,7 +16,7 @@ public sealed class FaultInjectors(
     // Smaller than direct-enqueue chunks: each chunk is one producer-file write transaction, and the
     // relay needs regular gaps to claim between them on the shared SQLite write lock.
     private const int OutboxChunkSize = 500;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private CancellationTokenSource? _continuousCrashesCts;
     private CancellationTokenSource? _queuePressureCts;
     private CancellationTokenSource? _outboxPressureCts;

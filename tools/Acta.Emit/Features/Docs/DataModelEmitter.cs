@@ -218,18 +218,16 @@ internal static class DataModelEmitter
     // so the caller must supply the value at INSERT.
     private static string FormatDefault(ColumnModel c)
     {
-        if (c.IsSolePrimaryKey && !c.IsManualPrimaryKey && c.Kind is DbKind.Byte or DbKind.Int16 or DbKind.Int32 or DbKind.Int64)
-        {
-            return "`Identity`";
-        }
-        return c.Default switch
-        {
-            DbDefault.UtcNow => "`UtcNow`",
-            DbDefault.Zero => "`0`",
-            DbDefault.EmptyString => "`''`",
-            DbDefault.NewGuid => "`NewGuid`",
-            _ => "·",
-        };
+        return c.IsSolePrimaryKey && !c.IsManualPrimaryKey && c.Kind is DbKind.Byte or DbKind.Int16 or DbKind.Int32 or DbKind.Int64
+            ? "`Identity`"
+            : c.Default switch
+            {
+                DbDefault.UtcNow => "`UtcNow`",
+                DbDefault.Zero => "`0`",
+                DbDefault.EmptyString => "`''`",
+                DbDefault.NewGuid => "`NewGuid`",
+                _ => "·",
+            };
     }
 
     private static string CodeOrConstraintNote(ColumnModel c)
@@ -248,10 +246,6 @@ internal static class DataModelEmitter
         {
             return "concurrency token";
         }
-        if (c.Name.EndsWith("_format_id", StringComparison.Ordinal))
-        {
-            return Anchors.LinkCodeFamilyToCodeFamilies("JobPayloadFormat");
-        }
-        return "·";
+        return c.Name.EndsWith("_format_id", StringComparison.Ordinal) ? Anchors.LinkCodeFamilyToCodeFamilies("JobPayloadFormat") : "·";
     }
 }
