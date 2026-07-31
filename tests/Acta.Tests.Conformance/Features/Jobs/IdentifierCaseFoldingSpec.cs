@@ -91,7 +91,7 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
     public async Task Namespace_filter_rejects_mixed_case()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
             await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace.ToUpperInvariant(), JobName: "add-numbers"), ct)

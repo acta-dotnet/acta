@@ -10,7 +10,8 @@ namespace Acta.Cli;
 /// process via Environment.Exit so application code after host StartAsync never runs. Skips
 /// provider bootstrap and catalog writes; only the debug verb initializes its worker's catalog.
 /// </summary>
-internal sealed class CliCommandHost(CliInvocation invocation, IJobs jobs, IEnumerable<WorkerRuntime> runtimes) : IHostedService
+internal sealed class CliCommandHost(CliInvocation invocation, IJobs jobs, IActaOperations operations, IEnumerable<WorkerRuntime> runtimes)
+    : IHostedService
 {
     /// <summary>
     /// Parses the CLI verb, runs the command against IJobs, then exits the process with the
@@ -38,7 +39,7 @@ internal sealed class CliCommandHost(CliInvocation invocation, IJobs jobs, IEnum
         {
             try
             {
-                var runner = new CliCommandRunner(jobs, runtimes.ToArray(), invocation.Namespaces, Console.Out, Console.Error);
+                var runner = new CliCommandRunner(jobs, operations, runtimes.ToArray(), invocation.Namespaces, Console.Out, Console.Error);
                 exitCode = await runner.RunAsync(command, cancellationToken);
             }
             catch (OperationCanceledException)

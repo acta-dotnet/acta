@@ -17,7 +17,7 @@ using var host = builder.Build();
 await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // Audit: emits job.execution.started and job.execution.finished for every run.
 var auditOutcome = await jobs.EnqueueAsync(new AuditWork("report-a"));

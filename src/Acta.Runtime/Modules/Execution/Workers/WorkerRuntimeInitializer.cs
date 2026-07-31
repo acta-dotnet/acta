@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Acta.Configuration;
-using Acta.Modules.Alerting.Api;
+using Acta.Modules.Execution.Api;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Schedules;
 using Acta.Modules.Execution.Workers;
@@ -35,7 +35,7 @@ internal sealed class WorkerRuntimeInitializer
     private readonly IActaClock _clock;
     private readonly IServerClock _serverClock;
     private readonly IJobPayloadSerializerRegistry _serializers;
-    private readonly IAlertChannelRegistry _alertChannels;
+    private readonly IAlertRoutingCheck? _alertRouting;
     private readonly IOptions<JobsOptions> _options;
     private readonly WorkerRegistration? _workerRegistration;
     private readonly WorkerContext _context;
@@ -49,7 +49,7 @@ internal sealed class WorkerRuntimeInitializer
         IActaClock clock,
         IServerClock serverClock,
         IJobPayloadSerializerRegistry serializers,
-        IAlertChannelRegistry alertChannels,
+        IAlertRoutingCheck? alertRouting,
         IOptions<JobsOptions> options,
         WorkerRegistration? workerRegistration,
         WorkerContext context,
@@ -63,7 +63,7 @@ internal sealed class WorkerRuntimeInitializer
         _clock = clock;
         _serverClock = serverClock;
         _serializers = serializers;
-        _alertChannels = alertChannels;
+        _alertRouting = alertRouting;
         _options = options;
         _workerRegistration = workerRegistration;
         _context = context;
@@ -194,7 +194,7 @@ internal sealed class WorkerRuntimeInitializer
         _context.DefinitionIdsByNamespace[ns] = perNamespaceDefIds;
 
         var effectiveDescriptors = perNamespaceDefIds.Values.Select(id => _context.DescriptorByDefinitionId[id]).ToImmutableArray();
-        ValidateAlertRouting(effectiveDescriptors);
+        _alertRouting?.ValidateRouting(ns, effectiveDescriptors);
 
         await ReconcileSchedulesAsync(namespaceId, ct);
     }
@@ -303,55 +303,6 @@ internal sealed class WorkerRuntimeInitializer
                         + "Recurring slots are enqueued without a tenant, so a scheduled definition cannot require one."
                 );
             }
-        }
-    }
-
-    // The one implicit channel: every alert (user or sys-critical) with no declared
-    // AlertChannelName routes here, so failures deliver out of the box to the log transport without any
-    // operator config. Operators override it, or add more channels, via AddAlertChannel.
-    private const string DefaultAlertChannelName = "default";
-
-    // Routing consistency: every alerting definition must resolve to a channel configured for this
-    // worker namespace: its declared AlertChannelName, else the implicit "default". Disabled or deprecated
-    // channels count as configured here; delivery policy decides whether a concrete alert is sent.
-    private void ValidateAlertRouting(ImmutableArray<JobDescriptor> descriptors)
-    {
-        var mode = _options.Value.AlertChannelValidationMode;
-        if (mode == AlertChannelValidationMode.Off)
-        {
-            return;
-        }
-
-        foreach (var descriptor in descriptors)
-        {
-            if (descriptor.AlertProfile == JobAlertProfileCode.None)
-            {
-                continue;
-            }
-
-            var channel = descriptor.AlertChannelName ?? DefaultAlertChannelName;
-
-            if (_alertChannels.IsConfigured(_workerRegistration!.NamespaceName, channel))
-            {
-                continue;
-            }
-
-            var message =
-                $"Job '{descriptor.JobName}' routes alerts to channel '{channel}', but worker namespace "
-                + $"'{_workerRegistration!.NamespaceName}' does not configure that channel. "
-                + $"Add w.AddAlertChannel(\"{channel}\", ...).";
-
-            if (mode == AlertChannelValidationMode.Fail)
-            {
-                throw new InvalidOperationException(message);
-            }
-
-            _log.LogWarning(
-                "Acta alerting: job {JobName} routes to unconfigured channel '{Channel}' in namespace {Namespace}; add it to worker startup configuration with w.AddAlertChannel(...).",
-                descriptor.JobName,
-                channel,
-                _workerRegistration!.NamespaceName
-            );
         }
     }
 

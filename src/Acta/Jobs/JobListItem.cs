@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One job row in a <see cref="IJobs.ListJobsAsync"/> page. Carries identity, lifecycle, and
+/// One job row in a <see cref="IActaOperations.ListJobsAsync"/> page. Carries identity, lifecycle, and
 /// audit-facing fields only; the input payload is never exposed by list reads. JSON serialization
 /// carries the public refs and hides the numeric ids.
 /// </summary>

@@ -50,7 +50,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
     private async Task<HashSet<long>> EventIdsAsync(long jobId, CancellationToken ct)
     {
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
         var page = await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: 100), ct);
         return page.Items.Select(e => e.JobEventId).ToHashSet();
     }
@@ -59,7 +59,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task JobId_filter_returns_exact_event_id_set()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var outcomes = await EnqueueAsync([AddNumbersRow(), AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
@@ -87,7 +87,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task LineageRootId_filter_returns_exact_lineage_events()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Root → child, plus an unrelated job
         var roots = await EnqueueAsync([AddNumbersRow()], ct);
@@ -126,7 +126,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     {
         var ct = TestContext.Current.CancellationToken;
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Register a second namespace with the test definitions
         var ns2Name = TestKey("ns2");
@@ -154,7 +154,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task EventCode_filter_returns_exact_code_partition()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
@@ -189,7 +189,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task JobDefinitionId_filter_partitions_events_and_count_is_definition_scoped()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Two jobs from different definitions (add-numbers vs echo)
         var j1Outcomes = await EnqueueAsync([AddNumbersRow()], ct);
@@ -253,7 +253,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task TenantId_filter_returns_exact_tenant_events()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
         var dialect = Services.GetRequiredService<ISqlDialect>();
 
         var t1Key = TestKey("t1");
@@ -302,12 +302,12 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task ActorCode_filter_partitions_by_actor()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Cancelling a Ready job stamps an Operator-actor event alongside the enqueue-time actor.
         var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
-        await queries.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
+        await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
 
         var all = (await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
         Assert.NotEmpty(all);
@@ -331,11 +331,11 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task ReasonCode_filter_returns_exact_reason_partition()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
-        await queries.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
+        await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
 
         var all = (await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
         Assert.Contains(all, e => e.ReasonCode == JobEventReasonCode.JobControlManual);
@@ -353,7 +353,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
     public async Task Created_range_filters_split_at_boundary()
     {
         var ct = TestContext.Current.CancellationToken;
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;

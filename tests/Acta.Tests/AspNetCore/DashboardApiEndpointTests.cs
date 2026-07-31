@@ -533,7 +533,9 @@ public sealed class DashboardApiEndpointTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        builder.Services.AddSingleton<IJobs>(new TestDashboardHost.FakeJobs());
+        var fake = new TestDashboardHost.FakeJobs();
+        builder.Services.AddSingleton<IJobs>(fake);
+        builder.Services.AddSingleton<IActaOperations>(fake);
         var app = builder.Build();
         app.MapActaApi("/ops/api");
         await app.StartAsync(TestContext.Current.CancellationToken);

@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Filters and paging for <see cref="IJobs.ListJobsAsync"/>. Jobs are ordered newest first
+/// Filters and paging for <see cref="IActaOperations.ListJobsAsync"/>. Jobs are ordered newest first
 /// (created_at_utc descending, id descending).
 /// </summary>
 /// <param name="JobNamespace">Restrict to one namespace; required when <paramref name="JobName"/> is set.</param>

@@ -156,7 +156,7 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
     private CliCommandRunner CreateRunner(out StringWriter output)
     {
         output = new StringWriter();
-        return new CliCommandRunner(Jobs, [Runtime], [TestNamespace], output, output);
+        return new CliCommandRunner(Jobs, Operations, [Runtime], [TestNamespace], output, output);
     }
 
     private static CliCommand Parse(string commandLine)

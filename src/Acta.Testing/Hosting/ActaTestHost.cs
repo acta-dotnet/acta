@@ -64,6 +64,9 @@ public interface IActaTestHost : IAsyncDisposable
     /// <summary>The public job control / enqueue surface.</summary>
     IJobs Jobs { get; }
 
+    /// <summary>The operator facade (list reads, domain facades, overview).</summary>
+    IActaOperations Operations { get; }
+
     /// <summary>Claim + execute at most one job in <paramref name="jobNamespace"/>; returns what happened.</summary>
     Task<ActaRunOutcome> RunOnceAsync(string jobNamespace, CancellationToken ct = default);
 
@@ -103,7 +106,8 @@ public static class ActaTestHost
     /// <summary>
     /// Build and initialize a test host. <paramref name="configureJobs"/> receives the
     /// <see cref="IActaBuilder"/> and the target schema; the integrator calls e.g.
-    /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.ApplyMigrationsOnStartup = true; }).AddManifest&lt;TManifest&gt;().Run&lt;TManifest&gt;(ns)</c>.
+    /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.ApplyMigrationsOnStartup = true; }).Run&lt;TManifest&gt;(ns)</c>
+    /// (or <c>j.Run(ns, w =&gt; w.AddManifest&lt;TManifest&gt;())</c> for several manifests).
     /// </summary>
     public static async Task<IActaTestHost> StartAsync(
         Action<IActaBuilder, string> configureJobs,
@@ -143,6 +147,8 @@ public static class ActaTestHost
         public IServiceProvider Services => provider;
 
         public IJobs Jobs => provider.GetRequiredService<IJobs>();
+
+        public IActaOperations Operations => provider.GetRequiredService<IActaOperations>();
 
         private IDbSession Db => provider.GetRequiredService<IDbSession>();
 

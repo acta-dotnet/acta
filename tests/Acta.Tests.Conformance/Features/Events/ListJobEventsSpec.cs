@@ -32,7 +32,7 @@ public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var ct = TestContext.Current.CancellationToken;
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var enqueued = await EnqueueTestOps.EnqueueBatchAsync(

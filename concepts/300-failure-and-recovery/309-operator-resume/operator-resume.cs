@@ -17,7 +17,7 @@ using var host = builder.Build();
 await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before
 // the worker can claim it. The delay is resolved on the database clock (db_now + 5s).

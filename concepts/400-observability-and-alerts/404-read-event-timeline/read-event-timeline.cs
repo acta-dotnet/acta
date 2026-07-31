@@ -16,7 +16,7 @@ using var host = builder.Build();
 await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // Enqueue the parent; it will start a child that deliberately fails.
 Console.WriteLine("enqueuing parent job...");

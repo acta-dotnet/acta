@@ -7,7 +7,6 @@ namespace Anvil;
 
 /// <summary>Builds the single state snapshot polled by the Anvil cockpit.</summary>
 public sealed class AnvilStateReader(
-    IJobs queries,
     IActaOperations operations,
     WorkerProcessLauncher launcher,
     AnvilSession session,
@@ -44,7 +43,7 @@ public sealed class AnvilStateReader(
             .AsTask();
         var doneTask = CountAsync(JobStatusCode.Done, ct).AsTask();
         var workerRowsTask = operations.Workers.ListAsync(new ListWorkersQuery(_namespaceName, PageSize: 50), ct).AsTask();
-        var eventsTask = queries.ListJobEventsAsync(new ListJobEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct).AsTask();
+        var eventsTask = operations.ListJobEventsAsync(new ListJobEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct).AsTask();
         await Task.WhenAll(overviewTask, doneTask, workerRowsTask, eventsTask);
 
         var overview = await overviewTask;
@@ -122,7 +121,7 @@ public sealed class AnvilStateReader(
 
     private async ValueTask<long> CountAsync(JobStatusCode status, CancellationToken ct)
     {
-        var page = await queries.ListJobsAsync(new ListJobsQuery(_namespaceName, Status: status, PageSize: 1, IncludeTotal: true), ct);
+        var page = await operations.ListJobsAsync(new ListJobsQuery(_namespaceName, Status: status, PageSize: 1, IncludeTotal: true), ct);
         return page.TotalCount ?? 0;
     }
 

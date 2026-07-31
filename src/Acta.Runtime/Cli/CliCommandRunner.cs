@@ -6,11 +6,13 @@ using Acta.Payloads;
 namespace Acta.Cli;
 
 /// <summary>
-/// Executes one parsed CLI command against the IJobs facade and writes the outcome. Returns the
-/// process exit code: 0 applied/found, 1 rejected/failed, 2 not found, 64 usage error.
+/// Executes one parsed CLI command against the IJobs facade (IActaOperations for the events read)
+/// and writes the outcome. Returns the process exit code: 0 applied/found, 1 rejected/failed,
+/// 2 not found, 64 usage error.
 /// </summary>
 internal sealed class CliCommandRunner(
     IJobs jobs,
+    IActaOperations operations,
     IReadOnlyList<WorkerRuntime> runtimes,
     IReadOnlyList<string> namespaces,
     TextWriter output,
@@ -206,7 +208,7 @@ internal sealed class CliCommandRunner(
             return ExitNotFound;
         }
 
-        var page = await jobs.ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: take, Cursor: cursor), ct);
+        var page = await operations.ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: take, Cursor: cursor), ct);
         CliOutput.WriteEvents(output, jobId.Value, page, json);
         return ExitOk;
     }

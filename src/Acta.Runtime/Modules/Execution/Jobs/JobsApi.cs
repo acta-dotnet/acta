@@ -12,7 +12,6 @@ using Acta.Modules.Execution.Schedules;
 using Acta.Modules.Execution.Signals;
 using Acta.Modules.Execution.Tenants;
 using Acta.Modules.Execution.Workers;
-using Acta.Modules.Operations.Api;
 using Acta.Payloads;
 using Acta.Querying;
 using Acta.Services.Time;
@@ -32,7 +31,6 @@ internal sealed class JobsApi(
     JobDescriptorIndex descriptorIndex,
     IOptions<JobsOptions> options,
     IWorkerWakeup wakeup,
-    IJobEventFeed events,
     JobsService jobsService,
     SignalService signalService
 ) : IJobs
@@ -504,12 +502,6 @@ internal sealed class JobsApi(
         string? actorKey,
         CancellationToken ct
     ) => signalService.RaiseAsync(job, name, valueFormatId, value, actorKey, ct);
-
-    public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
-        jobsService.ListJobsAsync(query, ct);
-
-    public ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
-        events.ListJobEventsAsync(query, ct);
 
     public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
         descriptorIndex.Find(jobNamespace, jobName) is { } descriptor

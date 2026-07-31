@@ -469,12 +469,6 @@ public interface IJobs
         CancellationToken ct = default
     );
 
-    /// <summary>List jobs newest first, optionally filtered by namespace, status, definition, tenant, correlation id, or tags.</summary>
-    ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default);
-
-    /// <summary>List audit events newest first, optionally scoped to a job, lineage, namespace, or event code.</summary>
-    ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default);
-
     /// <summary>
     /// The input contract of a registered job, read from the in-process generated manifest: no
     /// database round-trip, no reflection. Returns null when this host has not registered the job's
