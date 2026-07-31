@@ -218,6 +218,10 @@ textarea {
   border-radius: var(--radius-control);
 }
 
+/* Native select popups derive their row colors from the options. Without this the OS popup paints
+   its own white sheet regardless of the dark themes' color-scheme. */
+option { background-color: var(--panel); color: var(--ink); }
+
 /* Accessibility floor: a visible keyboard focus ring on every interactive element, and motion kept
    calm when the OS asks for it. */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -225,7 +229,7 @@ textarea {
    An outset ring on those draws at and past the sidebar's own edges, so it reads as a box around
    the whole column and gets clipped. Inset the ring instead. */
 nav.side a:focus-visible,
-.side-scope .scope select:focus-visible,
+.side-scope .scope .trigger:focus-visible,
 .side-theme .trigger:focus-visible { outline-offset: -2px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -981,7 +985,7 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--held); }
 .side-scope .scope { display: block; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
 /* No border or fill: a bordered control insets its own text and would be the one thing in the
    sidebar not sitting on the shared 20px left margin. */
-.side-scope .scope select {
+.side-scope .scope .trigger {
   padding: 8px 40px 8px 20px;
   border: 0;
   border-radius: 0;
@@ -991,6 +995,9 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--held); }
   appearance: none;
   width: 100%;
   cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
   background-color: transparent;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--muted) 50%),
@@ -1001,7 +1008,7 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--held); }
   background-repeat: no-repeat;
   background-size: 5px 5px;
 }
-.side-scope .scope select:hover { background-color: var(--panel-subtle); }
+.side-scope .scope .trigger:hover { background-color: var(--panel-subtle); }
 
 .lineage-trail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-bottom: 16px; font-size: var(--text-md); }
 .lineage-trail .sep { color: var(--muted); }
