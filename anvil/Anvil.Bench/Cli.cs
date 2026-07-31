@@ -357,6 +357,7 @@ public static class BenchCli
               acta-bench quick --db pg
               acta-bench full --db mssql
               acta-bench quick --db all
+              acta-bench full --db mssql --scenario throughput:bulk --scenario drain:bulk
 
             Exit codes: 0 ok; 2 usage.
             """
