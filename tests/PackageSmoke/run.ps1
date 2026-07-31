@@ -30,8 +30,8 @@ else {
     dotnet build "$root/src/Acta.Generators/Acta.Generators.csproj" -c Release --nologo
     if ($LASTEXITCODE -ne 0) { throw 'build failed: Acta.Generators' }
 
-    # Redis and Testing are packed (not consumed) so a metadata or reference regression fails here
-    # rather than at release time; Acta.AspNetCore needs Node-built dashboard assets and stays out.
+    # Redis and Testing are packed here and consumed below; Acta.AspNetCore needs Node-built dashboard
+    # assets so it is only consumed when an existing feed (CI) already contains it.
     foreach ($project in @('Acta', 'Acta.Runtime', 'Acta.Relational', 'Acta.Redis', 'Acta.Testing') + $providers) {
         dotnet pack "$root/src/$project/$project.csproj" -c Release -o $feed --nologo
         if ($LASTEXITCODE -ne 0) { throw "pack failed: $project" }
@@ -59,6 +59,25 @@ try {
         dotnet run --project "$PSScriptRoot/Smoke/Smoke.csproj" -c Release --nologo `
             -p:ActaPackageVersion=$version -p:ActaProvider=$provider
         if ($LASTEXITCODE -ne 0) { throw "package smoke failed: $provider" }
+    }
+
+    # Non-provider packages, each layered once on the cheapest provider (Sqlite) so their dependency
+    # graphs are consume-proven from the feed too. AspNetCore only exists in a CI-produced feed.
+    $extras = @('Acta.Redis', 'Acta.Testing')
+    if (Get-ChildItem $feed -Filter 'Acta.AspNetCore.*.nupkg' -ErrorAction SilentlyContinue) { $extras += 'Acta.AspNetCore' }
+    foreach ($extra in $extras) {
+        $packages = @(Get-ChildItem $feed -Filter "$extra.*.nupkg")
+        if ($packages.Count -ne 1) { throw "expected exactly one $extra package, found $($packages.Count)" }
+        $version = $packages[0].BaseName -replace ('^' + [regex]::Escape($extra) + '\.'), ''
+
+        foreach ($stale in @("$PSScriptRoot/Smoke/bin", "$PSScriptRoot/Smoke/obj")) {
+            if (Test-Path $stale) { Remove-Item -Recurse -Force $stale }
+        }
+
+        Write-Host "PackageSmoke: consuming $extra $version (on Acta.Sqlite)"
+        dotnet run --project "$PSScriptRoot/Smoke/Smoke.csproj" -c Release --nologo `
+            -p:ActaPackageVersion=$version -p:ActaProvider=Acta.Sqlite -p:ActaExtra=$extra
+        if ($LASTEXITCODE -ne 0) { throw "package smoke failed: $extra" }
     }
 }
 finally {
