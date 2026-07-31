@@ -91,7 +91,10 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
         var queries = Services.GetRequiredService<IActaOperations>();
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace.ToUpperInvariant(), JobName: "add-numbers"), ct)
+            await queries.Ledger.ListJobsAsync(
+                new ListJobsQuery(JobNamespace: TestNamespace.ToUpperInvariant(), JobName: "add-numbers"),
+                ct
+            )
         );
     }
 

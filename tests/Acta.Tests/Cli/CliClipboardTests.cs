@@ -150,7 +150,7 @@ public class CliRunnerClipboardTests
         Assert.Equal(json, System.Text.Encoding.UTF8.GetString(Value!));
     }
 
-    private sealed class NothingJobs : IJobs, IActaOperations
+    private sealed class NothingJobs : IJobs, IActaOperations, ILedger
     {
         public ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default) =>
             ValueTask.FromResult<JobSnapshot?>(null);
@@ -174,12 +174,13 @@ public class CliRunnerClipboardTests
         public ITenants Tenants => throw new NotSupportedException();
         public INamespaces Namespaces => throw new NotSupportedException();
         public ITags Tags => throw new NotSupportedException();
+        public ILedger Ledger => this;
         public DbProvider Provider => DbProvider.Sqlite;
 
         public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
+        public ValueTask<PagedResult<JobEventListItem>> ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>

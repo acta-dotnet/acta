@@ -98,14 +98,14 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // JobName scopes out the recurring-ping slot job so only seeded rows appear in the Ready set
-        var readyPage = await queries.ListJobsAsync(
+        var readyPage = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", Status: JobStatusCode.Ready, IncludeTotal: true),
             ct
         );
         Assert.Equal([j1, j2], readyPage.Items.Select(static i => i.JobId).ToHashSet());
         Assert.Equal(2L, readyPage.TotalCount);
 
-        var failedPage = await queries.ListJobsAsync(
+        var failedPage = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", Status: JobStatusCode.Failed),
             ct
         );
@@ -132,11 +132,11 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
 
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var p1Page = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, ParentJobId: p1), ct);
+        var p1Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, ParentJobId: p1), ct);
         Assert.Equal([c1, c2], p1Page.Items.Select(static i => i.JobId).ToHashSet());
         Assert.DoesNotContain(p1Page.Items, i => i.JobId == c3);
 
-        var p2Page = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, ParentJobId: p2), ct);
+        var p2Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, ParentJobId: p2), ct);
         Assert.Equal([c3], p2Page.Items.Select(static i => i.JobId).ToHashSet());
         Assert.DoesNotContain(p2Page.Items, i => i.JobId == c1 || i.JobId == c2);
     }
@@ -165,11 +165,11 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
 
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var t1Page = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantId: t1Id), ct);
+        var t1Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantId: t1Id), ct);
         Assert.Equal([ta, tb], t1Page.Items.Select(static i => i.JobId).ToHashSet());
         Assert.DoesNotContain(t1Page.Items, i => i.JobId == tc);
 
-        var t2Page = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantId: t2Id), ct);
+        var t2Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantId: t2Id), ct);
         Assert.Equal([tc], t2Page.Items.Select(static i => i.JobId).ToHashSet());
     }
 
@@ -203,7 +203,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
 
         // Scope the primary namespace to the add-numbers job so the recurring-ping slot is excluded.
         // The first two rows should be present, the second namespace row absent, and the total exact.
-        var ns1Page = await queries.ListJobsAsync(
+        var ns1Page = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", IncludeTotal: true),
             ct
         );
@@ -212,7 +212,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         Assert.Equal(2L, ns1Page.TotalCount);
 
         // The second namespace contains only its own row and reports the matching total.
-        var ns2Page = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: ns2Name, IncludeTotal: true), ct);
+        var ns2Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: ns2Name, IncludeTotal: true), ct);
         Assert.Equal([j3], ns2Page.Items.Select(static i => i.JobId).ToHashSet());
         Assert.Equal(1L, ns2Page.TotalCount);
     }
@@ -239,7 +239,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
 
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var aPage = await queries.ListJobsAsync(
+        var aPage = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, CorrelationKey: "trace-a", IncludeTotal: true),
             ct
         );
@@ -248,7 +248,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         // The projected value round-trips onto the list item.
         Assert.All(aPage.Items, i => Assert.Equal("trace-a", i.CorrelationKey));
 
-        var bPage = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, CorrelationKey: "trace-b"), ct);
+        var bPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, CorrelationKey: "trace-b"), ct);
         Assert.Equal([b1], bPage.Items.Select(static i => i.JobId).ToHashSet());
         Assert.DoesNotContain(bPage.Items, i => i.JobId == a1 || i.JobId == a2 || i.JobId == none);
     }
@@ -281,12 +281,12 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // add-numbers filter: includes seeded add-numbers rows; excludes echo rows
-        var addPage = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers"), ct);
+        var addPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers"), ct);
         var addIds = addPage.Items.Select(static i => i.JobId).ToHashSet();
         Assert.Equal([an1, an2], addIds);
 
         // echo filter: includes echo rows; excludes add-numbers rows
-        var echoPage = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, JobName: "echo"), ct);
+        var echoPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, JobName: "echo"), ct);
         var echoIds = echoPage.Items.Select(static i => i.JobId).ToHashSet();
         Assert.Equal([e1, e2], echoIds);
     }
@@ -314,7 +314,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
 
         foreach (var value in new[] { "eu-west", "EU-WEST", "Eu-West" })
         {
-            var page = await queries.ListJobsAsync(
+            var page = await queries.Ledger.ListJobsAsync(
                 new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", Tags: [new TagFilter("region", value)]),
                 ct
             );
@@ -322,13 +322,13 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
             Assert.DoesNotContain(page.Items, i => i.JobId == us || i.JobId == presenceOnly);
         }
 
-        var presencePage = await queries.ListJobsAsync(
+        var presencePage = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", Tags: [new TagFilter("region")]),
             ct
         );
         Assert.Equal([eu1, eu2, us, presenceOnly], presencePage.Items.Select(static i => i.JobId).ToHashSet());
 
-        var andPage = await queries.ListJobsAsync(
+        var andPage = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(
                 JobNamespace: TestNamespace,
                 JobName: "add-numbers",

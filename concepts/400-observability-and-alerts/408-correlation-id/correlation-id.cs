@@ -46,7 +46,9 @@ Console.WriteLine("pipeline done");
 // (It is also on JobSnapshot via GetAsync when you want the full per-job detail.)
 Console.WriteLine($"operator read: ListJobs filtered by CorrelationKey={correlationKey}");
 var operations = host.Services.GetRequiredService<IActaOperations>();
-var trace = await operations.ListJobsAsync(new ListJobsQuery(JobNamespace: "correlation-id", CorrelationKey: correlationKey, PageSize: 10));
+var trace = await operations.Ledger.ListJobsAsync(
+    new ListJobsQuery(JobNamespace: "correlation-id", CorrelationKey: correlationKey, PageSize: 10)
+);
 foreach (var item in trace.Items)
 {
     Console.WriteLine($"  id={item.JobId} job={item.JobName} correlation_key={item.CorrelationKey}");

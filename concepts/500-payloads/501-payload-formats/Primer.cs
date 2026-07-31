@@ -38,7 +38,7 @@ internal sealed class Primer(
         completionTimeout.CancelAfter(TimeSpan.FromMinutes(2));
         while (true)
         {
-            var done = await operations.ListJobsAsync(
+            var done = await operations.Ledger.ListJobsAsync(
                 new ListJobsQuery(
                     JobNamespace: Namespace,
                     Status: JobStatusCode.Done,

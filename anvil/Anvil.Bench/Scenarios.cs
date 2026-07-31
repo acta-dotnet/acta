@@ -800,14 +800,17 @@ public sealed class QueryScenario : IScenario
         for (var round = 0; round < Rounds; round++)
         {
             var sw = Stopwatch.GetTimestamp();
-            var page = await host.Queries.ListJobsAsync(new ListJobsQuery(JobNamespace: BenchHost.Namespace, PageSize: PageSize), ct);
+            var page = await host.Queries.Ledger.ListJobsAsync(
+                new ListJobsQuery(JobNamespace: BenchHost.Namespace, PageSize: PageSize),
+                ct
+            );
             ms.Add(Stopwatch.GetTimestamp() - sw);
 
             var cursor = page.NextCursor;
             for (var depth = 0; depth < 3 && cursor is not null; depth++)
             {
                 var s2 = Stopwatch.GetTimestamp();
-                var deep = await host.Queries.ListJobsAsync(
+                var deep = await host.Queries.Ledger.ListJobsAsync(
                     new ListJobsQuery(JobNamespace: BenchHost.Namespace, PageSize: PageSize, Cursor: cursor),
                     ct
                 );

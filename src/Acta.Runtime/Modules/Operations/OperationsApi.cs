@@ -6,10 +6,10 @@ using Acta.Runtime.Modules.Operations.Overview;
 namespace Acta.Runtime.Modules.Operations;
 
 /// <summary>
-/// <see cref="IActaOperations"/> implementation: composes the module-owned domain facades, the
-/// overview read, and the list reads (jobs through Execution's declared query API, events through
-/// the module's own read model). Operations holds no Execution stores; each facade is registered by
-/// its owning module and injected here, so this class is pure composition.
+/// <see cref="IActaOperations"/> implementation: composes the module-owned domain facades and the
+/// ledger reads (jobs through Execution's declared query API, events through the module's own read
+/// model). Operations holds no Execution stores; each facade is registered by its owning module and
+/// injected here, so this class is pure composition.
 /// </summary>
 internal sealed class OperationsApi(
     ActaProviderInfo provider,
@@ -33,14 +33,20 @@ internal sealed class OperationsApi(
     public INamespaces Namespaces => namespaces;
     public ITags Tags => tags;
 
+    public ILedger Ledger { get; } = new LedgerApi(overview, executionQueries, events);
+
+    public DbProvider Provider => provider.Provider;
+}
+
+/// <summary><see cref="ILedger"/> implementation: the cross-resource reads composed from the owning modules.</summary>
+internal sealed class LedgerApi(OverviewService overview, IExecutionQueries executionQueries, EventsService events) : ILedger
+{
     public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
         executionQueries.ListJobsAsync(query, ct);
 
-    public ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
+    public ValueTask<PagedResult<JobEventListItem>> ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
         events.ListJobEventsAsync(query, ct);
 
     public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>
         overview.GetOverviewAsync(query, ct);
-
-    public DbProvider Provider => provider.Provider;
 }

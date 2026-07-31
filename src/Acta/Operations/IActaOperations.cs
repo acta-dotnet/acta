@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// The operator and administration facade: resource-oriented domains (schedules, definitions,
-/// workers, alerts, tenants, namespaces, tags), the overview read, and runtime capabilities.
+/// workers, alerts, tenants, namespaces, tags), the ledger reads, and runtime capabilities.
 /// Application code injects <see cref="IJobs"/> alone; dashboards, CLIs, and operator hosts inject
 /// this. The two facades never overlap.
 /// </summary>
@@ -29,14 +29,8 @@ public interface IActaOperations
     /// <summary>Exact searchable metadata attachments. See <see cref="ITags"/>.</summary>
     ITags Tags { get; }
 
-    /// <summary>List jobs newest first, optionally filtered by namespace, status, definition, tenant, correlation id, or tags.</summary>
-    ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default);
-
-    /// <summary>List audit events newest first, optionally scoped to a job, lineage, namespace, or event code.</summary>
-    ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default);
-
-    /// <summary>One-shot dashboard health counters, optionally scoped to a namespace.</summary>
-    ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default);
+    /// <summary>Cross-resource ledger reads (job list, audit trail, overview). See <see cref="ILedger"/>.</summary>
+    ILedger Ledger { get; }
 
     /// <summary>The durable provider backing this runtime (surfaced by the capabilities read).</summary>
     DbProvider Provider { get; }

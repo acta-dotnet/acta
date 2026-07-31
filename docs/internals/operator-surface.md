@@ -20,9 +20,9 @@ mapped only when `ActaEndpointOptions.EnableControls` is set. CLI verbs run as `
 | Explain | `IJobs.ExplainAsync` | (in detail) | `explain` | Explain AI core input |
 | Lineage map | `IJobs.GetLineageMapAsync` | (in detail) | | cost joins (demo) |
 | Resolve by key | `IJobs.ResolveJobIdAsync` | `GET /jobs/by-key` | target syntax | |
-| List jobs | `IActaOperations.ListJobsAsync` | `GET /jobs` | | |
-| List events | `IActaOperations.ListJobEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{id}/events` | `events` | Explain bundle |
-| Overview | `IActaOperations.GetOverviewAsync` | `GET /overview` | | |
+| List jobs | `ILedger.ListJobsAsync` | `GET /jobs` | | |
+| List events | `ILedger.ListEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{id}/events` | `events` | Explain bundle |
+| Overview | `ILedger.GetOverviewAsync` | `GET /overview` | | |
 | Namespaces | `Namespaces.ListAsync` / `ListItemsAsync` | `GET /namespaces`, `/namespaces/admin` | | |
 | Definitions | `Definitions.ListAsync` / `GetAsync` | `GET /definitions`, `GET /definitions/{id}` | | |
 | Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/preview` | | |

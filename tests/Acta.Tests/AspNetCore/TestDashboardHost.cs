@@ -67,7 +67,7 @@ internal static class TestDashboardHost
                 )
         );
 
-    public sealed class FakeJobs : IJobs, IActaOperations
+    public sealed class FakeJobs : IJobs, IActaOperations, ILedger
     {
         public static readonly JobListItem Job = new(
             JobId: 42,
@@ -190,6 +190,8 @@ internal static class TestDashboardHost
 
         public ITags Tags => TagsFake;
 
+        public ILedger Ledger => this;
+
         public DbProvider Provider => DbProvider.Sqlite;
 
         public FakeJobs()
@@ -224,7 +226,7 @@ internal static class TestDashboardHost
 
         public ListJobEventsQuery? LastEventsQuery { get; private set; }
 
-        public ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default)
+        public ValueTask<PagedResult<JobEventListItem>> ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default)
         {
             LastEventsQuery = query;
             return ValueTask.FromResult(new PagedResult<JobEventListItem>([], null, false, 50, query.IncludeTotal ? 0L : null));

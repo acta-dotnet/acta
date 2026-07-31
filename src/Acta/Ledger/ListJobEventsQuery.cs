@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>Filters and paging for <see cref="IActaOperations.ListJobEventsAsync"/>; newest first, IncludeTotal requires a JobId scope.</summary>
+/// <summary>Filters and paging for <see cref="ILedger.ListEventsAsync"/>; newest first, IncludeTotal requires a JobId scope.</summary>
 /// <param name="JobId">Restrict to one job's timeline.</param>
 /// <param name="LineageRootId">Restrict to one lineage tree.</param>
 /// <param name="JobNamespace">Restrict to one namespace.</param>

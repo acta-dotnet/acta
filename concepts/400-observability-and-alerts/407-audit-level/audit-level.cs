@@ -22,13 +22,13 @@ var queries = host.Services.GetRequiredService<IActaOperations>();
 // Audit: emits job.execution.started and job.execution.finished for every run.
 var auditOutcome = await jobs.EnqueueAsync(new AuditWork("report-a"));
 await Task.Delay(500);
-var auditEvents = await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: auditOutcome.JobId));
+var auditEvents = await queries.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: auditOutcome.JobId));
 Console.WriteLine($"Audit level  -> event count: {auditEvents.Items.Count}");
 
 // Failures: suppresses started/finished for successful runs; only failure events emit.
 var failuresOutcome = await jobs.EnqueueAsync(new FailuresWork("report-b"));
 await Task.Delay(500);
-var failuresEvents = await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: failuresOutcome.JobId));
+var failuresEvents = await queries.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: failuresOutcome.JobId));
 Console.WriteLine(
     $"Failures level -> event count: {failuresEvents.Items.Count} (expected 0: a successful run emits nothing at Failures level)"
 );
@@ -36,7 +36,7 @@ Console.WriteLine(
 // Off: suppresses all audit-filtered per-job events; the job runs but the ledger stays silent.
 var offOutcome = await jobs.EnqueueAsync(new OffWork("report-c"));
 await Task.Delay(500);
-var offEvents = await queries.ListJobEventsAsync(new ListJobEventsQuery(JobId: offOutcome.JobId));
+var offEvents = await queries.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: offOutcome.JobId));
 Console.WriteLine($"Off level    -> event count: {offEvents.Items.Count}");
 
 await host.StopAsync();

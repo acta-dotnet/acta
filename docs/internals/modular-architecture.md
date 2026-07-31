@@ -318,7 +318,7 @@ keeps assembly ownership visible and makes namespace conventions mechanically en
 
 `IJobs` is the application-facing job client, not the root service locator for the entire product.
 
-The split as shipped (operator list reads such as `ListJobsAsync`/`ListJobEventsAsync` live on
+The split as shipped (operator list reads such as `ListJobsAsync`/`ListEventsAsync` live on
 `IActaOperations`, not `IJobs`):
 
 ```csharp

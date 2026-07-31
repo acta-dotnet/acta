@@ -109,7 +109,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
             }
         }
 
-        var page = await Operations.ListJobEventsAsync(new ListJobEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
+        var page = await Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
         Assert.Contains(page.Items, i => i.EventCode == JobEventCode.JobInputAmended && i.DetailText is not null);
         foreach (var item in page.Items)
         {

@@ -32,7 +32,7 @@ if (parentTerminal.Status != JobStatusCode.Done)
     throw new InvalidOperationException($"Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.");
 }
 
-var byTenant = await operations.ListJobsAsync(
+var byTenant = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: jobNamespace, TenantId: acmeId, CorrelationKey: runId, IncludeTotal: true)
 );
 Console.WriteLine($"IJobs tenant + correlation filter returned {byTenant.TotalCount} current-run Acme job(s): parent and inherited child.");

@@ -196,7 +196,10 @@ internal static class ActaApiEndpoints
                         IncludeTotal: includeTotal ?? false,
                         Tags: QueryBinding.Tags(http.Request.Query)
                     );
-                    return Results.Json(await operations.ListJobsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobListItem);
+                    return Results.Json(
+                        await operations.Ledger.ListJobsAsync(query, ct),
+                        DashboardJsonContext.Default.PagedResultJobListItem
+                    );
                 });
             }
         );
@@ -294,7 +297,7 @@ internal static class ActaApiEndpoints
             {
                 var query = new OverviewQuery(JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"));
                 return Guard(async () =>
-                    Results.Json(await operations.GetOverviewAsync(query, ct), DashboardJsonContext.Default.OverviewSnapshot)
+                    Results.Json(await operations.Ledger.GetOverviewAsync(query, ct), DashboardJsonContext.Default.OverviewSnapshot)
                 );
             }
         );
@@ -465,7 +468,10 @@ internal static class ActaApiEndpoints
                     Tags: QueryBinding.Tags(http.Request.Query)
                 );
                 return Guard(async () =>
-                    Results.Json(await operations.ListJobEventsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobEventListItem)
+                    Results.Json(
+                        await operations.Ledger.ListEventsAsync(query, ct),
+                        DashboardJsonContext.Default.PagedResultJobEventListItem
+                    )
                 );
             }
         );
@@ -501,7 +507,7 @@ internal static class ActaApiEndpoints
                             IncludeTotal: includeTotal ?? false
                         );
                         return Results.Json(
-                            await operations.ListJobEventsAsync(query, ct),
+                            await operations.Ledger.ListEventsAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultJobEventListItem
                         );
                     });
@@ -572,7 +578,10 @@ internal static class ActaApiEndpoints
                     Cursor: QueryBinding.Text(http.Request.Query, "cursor")
                 );
                 return Guard(async () =>
-                    Results.Json(await operations.ListJobEventsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobEventListItem)
+                    Results.Json(
+                        await operations.Ledger.ListEventsAsync(query, ct),
+                        DashboardJsonContext.Default.PagedResultJobEventListItem
+                    )
                 );
             }
         );

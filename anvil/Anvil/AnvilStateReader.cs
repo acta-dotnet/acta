@@ -37,11 +37,16 @@ public sealed class AnvilStateReader(
     {
         var staleAfterSeconds = (int)_workerDeadAfter.TotalSeconds;
         var overviewTask = operations
-            .GetOverviewAsync(new OverviewQuery(_namespaceName, StaleWorkerAfterSeconds: staleAfterSeconds, IncludeSlowCounts: true), ct)
+            .Ledger.GetOverviewAsync(
+                new OverviewQuery(_namespaceName, StaleWorkerAfterSeconds: staleAfterSeconds, IncludeSlowCounts: true),
+                ct
+            )
             .AsTask();
         var doneTask = CountAsync(JobStatusCode.Done, ct).AsTask();
         var workerRowsTask = operations.Workers.ListAsync(new ListWorkersQuery(_namespaceName, PageSize: 50), ct).AsTask();
-        var eventsTask = operations.ListJobEventsAsync(new ListJobEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct).AsTask();
+        var eventsTask = operations
+            .Ledger.ListEventsAsync(new ListJobEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct)
+            .AsTask();
         await Task.WhenAll(overviewTask, doneTask, workerRowsTask, eventsTask);
 
         var overview = await overviewTask;
@@ -119,7 +124,10 @@ public sealed class AnvilStateReader(
 
     private async ValueTask<long> CountAsync(JobStatusCode status, CancellationToken ct)
     {
-        var page = await operations.ListJobsAsync(new ListJobsQuery(_namespaceName, Status: status, PageSize: 1, IncludeTotal: true), ct);
+        var page = await operations.Ledger.ListJobsAsync(
+            new ListJobsQuery(_namespaceName, Status: status, PageSize: 1, IncludeTotal: true),
+            ct
+        );
         return page.TotalCount ?? 0;
     }
 

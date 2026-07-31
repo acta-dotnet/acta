@@ -185,7 +185,7 @@ independent jobs through enqueue operations.
 | 406 | [automatic-failure-alerts](../../concepts/400-observability-and-alerts/406-automatic-failure-alerts/) | An automatic failure alert via `[Job(AlertProfile=...)]`; same-job repeats dedupe and count up |
 | 407 | [audit-level](../../concepts/400-observability-and-alerts/407-audit-level/) | `AuditLevel` (Off/Failures/Audit) changes how many `JobEvent`s a job emits |
 | 408 | [correlation-id](../../concepts/400-observability-and-alerts/408-correlation-id/) | Propagate a `CorrelationKey` parent->child (read via log scope / raw SQL) |
-| 409 | [operator-queries](../../concepts/400-observability-and-alerts/409-operator-queries/) | `IJobs` reads: filters, `NextCursor` paging, `IncludeTotal`, `GetOverviewAsync` |
+| 409 | [operator-queries](../../concepts/400-observability-and-alerts/409-operator-queries/) | `ILedger` reads: filters, `NextCursor` paging, `IncludeTotal`, `GetOverviewAsync` |
 | 410 | [http-api-controls](../../concepts/400-observability-and-alerts/410-http-api-controls/) | HTTP control API: `MapActaApi` + `EnableControls`, the `X-Acta-Control` header, `LocalOnly` |
 | 411 | [alert-escalation](../../concepts/400-observability-and-alerts/411-alert-escalation/) | Alert escalation stages: FirstFailure -> ThresholdReached -> FinalFailure |
 | 412 | [tenant-scope](../../concepts/400-observability-and-alerts/412-tenant-scope/) | **Engineering Lab.** Tenant catalog resolution, child inheritance, filtering, and unknown/suspended rejection |
