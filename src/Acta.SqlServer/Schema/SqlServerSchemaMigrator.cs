@@ -10,7 +10,7 @@ namespace Acta.SqlServer.Schema;
 /// <c>QUOTED_IDENTIFIER ON; ANSI_NULLS ON;</c> on (M001 has filtered indexes that require it;
 /// the option is session-scoped, so the runner sets it on every entry).
 /// </summary>
-public static partial class SqlServerSchemaMigrator
+internal static partial class SqlServerSchemaMigrator
 {
     private static readonly SchemaMigrationProviderHooks Hooks = new(
         ProviderAssembly: typeof(SqlServerSchemaMigrator).Assembly,

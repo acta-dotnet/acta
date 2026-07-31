@@ -8,7 +8,7 @@ namespace Acta.Postgres.Schema;
 /// Applies <c>Mnnn_*.sql</c> migrations on PostgreSQL. PG scripts execute as a single
 /// <c>NpgsqlCommand</c> (no <c>GO</c> splitter).
 /// </summary>
-public static class PostgresSchemaMigrator
+internal static class PostgresSchemaMigrator
 {
     private static readonly SchemaMigrationProviderHooks Hooks = new(
         ProviderAssembly: typeof(PostgresSchemaMigrator).Assembly,

@@ -91,6 +91,27 @@ public sealed class ArchitectureBoundaryTests
     }
 
     /// <summary>
+    /// Concrete schema migrators are implementation mechanics, not a consumer contract: provider
+    /// installation goes through the builder extensions (with ApplyMigrationsOnStartup), so the
+    /// migrator classes stay internal.
+    /// </summary>
+    [Fact]
+    public void Provider_schema_migrators_are_internal()
+    {
+        string[] migrators =
+        [
+            "Acta.Postgres.Schema.PostgresSchemaMigrator, Acta.Postgres",
+            "Acta.SqlServer.Schema.SqlServerSchemaMigrator, Acta.SqlServer",
+            "Acta.Sqlite.Schema.SqliteSchemaMigrator, Acta.Sqlite",
+        ];
+        foreach (var name in migrators)
+        {
+            var type = Type.GetType(name, throwOnError: true)!;
+            Assert.False(type.IsPublic, $"{type.FullName} must stay internal.");
+        }
+    }
+
+    /// <summary>
     /// The operations adapter consumes the public Acta API only: provider and schema capabilities
     /// arrive through SDK types (SqlProviderOptions), never through relational or runtime internals.
     /// </summary>

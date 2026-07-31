@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
+    <InternalsVisibleTo Include="Anvil.Bench" />
   </ItemGroup>
 
   <ItemGroup>

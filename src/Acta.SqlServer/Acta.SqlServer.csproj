@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Acta.Tests" />
+    <InternalsVisibleTo Include="Anvil.Bench" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
   </ItemGroup>
 
