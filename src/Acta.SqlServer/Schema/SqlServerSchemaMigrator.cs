@@ -90,7 +90,7 @@ public static partial class SqlServerSchemaMigrator
                     await rcsi.ExecuteNonQueryAsync(ct);
                     break;
                 }
-                catch (SqlException) when (attempt < 60)
+                catch (SqlException ex) when (attempt < 60 && IsTransientBootstrapNumber(ex.Number))
                 {
                     // Transient bootstrap contention: 5061 (a lock could not be placed - a concurrent
                     // bootstrapper is creating the DB or flipping RCSI itself), or a severe error that
@@ -130,7 +130,7 @@ public static partial class SqlServerSchemaMigrator
             }
             // A database mid-restart rejects logins (18456 "Infrastructure error") or kills the
             // command ("A severe error occurred"); both surface as SqlException. Retry, bounded.
-            catch (SqlException) when (attempt < 60)
+            catch (SqlException ex) when (attempt < 60 && IsTransientBootstrapNumber(ex.Number))
             {
                 await conn.DisposeAsync();
                 await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
@@ -154,6 +154,16 @@ public static partial class SqlServerSchemaMigrator
 
         await SchemaMigrationRunner.ResetSchemaAsync(connection, schemaName, Hooks, ct);
     }
+
+    // The bounded bootstrap retries admit only documented transient conditions; a permanent
+    // configuration error (missing permission, syntax, definitively bad credentials) surfaces on the
+    // first attempt instead of burning the whole 30s budget. 1205 deadlock victim; 1807/5061
+    // concurrent CREATE/ALTER DATABASE contention; 4060 database not yet openable (mid-create or
+    // mid-restart); 18456 login rejected while the freshly-bounced database settles (credentials
+    // were already proven against master before either retry loop runs, so this cannot mask a wrong
+    // password); -2 client timeout; 0/64/233/10053/10054/10060 connection killed or reset.
+    internal static bool IsTransientBootstrapNumber(int number) =>
+        number is 1205 or 1807 or 5061 or 4060 or 18456 or -2 or 0 or 64 or 233 or 10053 or 10054 or 10060;
 
     // Splits on a line containing only `GO`. Don't put a bare `GO` inside string literals.
     internal static IEnumerable<string> SplitOnGo(string script) => GoSeparatorRegex().Split(script);
