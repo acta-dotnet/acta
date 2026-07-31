@@ -4,10 +4,8 @@ namespace Acta;
 
 /// <summary>
 /// One audit event row in a <see cref="IActaOperations.ListJobEventsAsync"/> page. JSON serialization
-/// carries the public job refs and hides the numeric job ids. Events outlive their job: the subject
-/// <see cref="JobRef"/> is denormalized onto the event row and survives the job's purge, while
-/// <see cref="LineageRootJobRef"/> is resolved from the live root job row and goes null once the
-/// root is purged.
+/// carries the public job refs and hides the numeric job ids; events outlive their job, and each
+/// ref parameter documents whether it survives the purge.
 /// </summary>
 /// <param name="JobEventId">Event row id.</param> <param name="EventCode">What happened.</param> <param name="CreatedAtUtc">When it happened.</param>
 /// <param name="JobNamespace">Owning namespace name.</param> <param name="JobId">Subject job id, or null for namespace-level events.</param>

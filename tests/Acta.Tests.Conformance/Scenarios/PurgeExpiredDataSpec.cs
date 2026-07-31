@@ -296,13 +296,22 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
 
-        // Call 1 deletes the leaf everywhere; loop dialects may already climb to the parent.
+        // Call 1 deletes the leaf everywhere; the parent becomes a leaf and drains on a later tick.
         await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
         Assert.Null(await Db.From<Job>().Where(j => j.Id == child.JobId).SingleOrDefaultAsync(ct));
 
-        // By the next tick the parent is a leaf and drains too.
-        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-        Assert.Null(await Db.From<Job>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct));
+        // Under suite parallelism a concurrent spec's purge can hold rows this call's SKIP LOCKED
+        // sweep skipped, so drain the parent with bounded retries rather than one call.
+        for (var attempt = 0; ; attempt++)
+        {
+            await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+            if (await Db.From<Job>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct) is null)
+            {
+                break;
+            }
+            Assert.True(attempt < 10, $"expired parent {parent.JobId} never drained after its child was purged");
+            await Task.Delay(100, ct);
+        }
     }
 
     // A real parent/child pair through the enqueue path: the child is enqueued under the parent's id
@@ -363,11 +372,25 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             );
             Assert.True(bounded.Locks <= 1, $"lock sweep deleted {bounded.Locks} rows under a 1x1 budget");
 
-            // A full-budget run clears this test's remaining dead rows; the live row survives both.
-            await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-            foreach (var key in deadKeys)
+            // Full-budget runs clear this test's remaining dead rows; drain with bounded retries
+            // because a concurrent spec's purge can hold rows this call's SKIP LOCKED sweep skipped.
+            for (var attempt = 0; ; attempt++)
             {
-                Assert.Null(await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct));
+                await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+                var remaining = new List<string>();
+                foreach (var key in deadKeys)
+                {
+                    if (await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct) is not null)
+                    {
+                        remaining.Add(key);
+                    }
+                }
+                if (remaining.Count == 0)
+                {
+                    break;
+                }
+                Assert.True(attempt < 10, "expired locks never drained: " + string.Join(", ", remaining));
+                await Task.Delay(100, ct);
             }
             Assert.NotNull(await Db.From<Lease>().Where(l => l.LeaseKey == liveKey).SingleOrDefaultAsync(ct));
         }

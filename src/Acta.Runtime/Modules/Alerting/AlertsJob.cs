@@ -231,7 +231,7 @@ internal sealed class AlertsJob
         var (title, message) = Render(e, reason);
 
         // The two proven poison shapes are re-tagged here, at the site that proves them, so the
-        // projector's skip path never swallows an unrelated ArgumentException from a future bug.
+        // projector's skip path never swallows an ArgumentException raised by an unrelated defect.
         RaiseJobAlertCommand command;
         try
         {
