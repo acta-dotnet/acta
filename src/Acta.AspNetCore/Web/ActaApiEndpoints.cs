@@ -52,22 +52,39 @@ internal static class ActaApiEndpoints
                     // Classify without echoing exception text: driver messages can carry connection
                     // strings. A fixed reason keyed off the exception family stays safe and still tells
                     // a local developer what actually broke; the full detail is in the host log above.
-                    var databaseFailure = false;
+                    // Only the known-transient family (database/network/timeout, including a provider
+                    // command timeout surfacing as a non-abort cancellation) reports 503 retry-later;
+                    // anything else is a server fault and reports 500 so it is never mistaken for a
+                    // recoverable outage.
+                    var transientFailure = false;
                     for (var cause = ex; cause is not null; cause = cause.InnerException)
                     {
-                        if (cause is System.Data.Common.DbException or System.Net.Sockets.SocketException or TimeoutException)
+                        if (
+                            cause
+                            is System.Data.Common.DbException
+                                or System.Net.Sockets.SocketException
+                                or TimeoutException
+                                or OperationCanceledException
+                        )
                         {
-                            databaseFailure = true;
+                            transientFailure = true;
                             break;
                         }
                     }
 
+                    if (transientFailure)
+                    {
+                        return Results.Problem(
+                            statusCode: StatusCodes.Status503ServiceUnavailable,
+                            title: "Service unavailable.",
+                            detail: "The Acta API is temporarily unavailable: the database is unreachable or rejected the request."
+                        );
+                    }
+
                     return Results.Problem(
-                        statusCode: StatusCodes.Status503ServiceUnavailable,
-                        title: "Service unavailable.",
-                        detail: databaseFailure
-                            ? "The Acta API is temporarily unavailable: the database is unreachable or rejected the request."
-                            : "The Acta API is temporarily unavailable."
+                        statusCode: StatusCodes.Status500InternalServerError,
+                        title: "Internal server error.",
+                        detail: "The Acta API failed to process the request; see the host log for detail."
                     );
                 }
             }

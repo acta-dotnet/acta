@@ -48,7 +48,7 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Unhandled_api_exceptions_map_to_generic_503_without_leaking_message()
+    public async Task Unhandled_api_exceptions_map_to_generic_500_without_leaking_message()
     {
         var jobs = new TestDashboardHost.FakeJobs
         {
@@ -64,8 +64,8 @@ public sealed class DashboardApiEndpointTests
         var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Contains("The Acta API is temporarily unavailable.", body);
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Contains("The Acta API failed to process the request", body);
         Assert.DoesNotContain("prod-db", body);
         Assert.DoesNotContain("secret", body);
     }
