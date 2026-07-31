@@ -997,7 +997,7 @@ Stable family-local event identifiers.
 | 73 | `job.restarted` | Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged). | Active |
 | 74 | `job.reprioritized` | Operator changed the job's claim priority; ReasonMessage carries the operator's reason, if any. | Active |
 | 75 | `job.purged` | Operator hard-deleted a terminal job. job_id/job_ref are null (the row is gone); ReasonMessage carries the purged job's ref and name. Always emitted regardless of audit level. | Active |
-| 76 | `job.input-amended` | Operator amended a job's stored input payload; the full previous payload is preserved in the event Detail and ReasonMessage carries the why. | Active |
+| 76 | `job.input-amended` | Operator amended a job's stored input payload; Detail carries bounded JSON metadata (format name and byte count) about the previous payload and ReasonMessage carries the why. | Active |
 | 80 | `job.signal.raised` | Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed. | Active |
 | 81 | `job.state-reset` | Handler called ctx.ResetStateAsync; the Job's JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new. | Active |
 | 100 | `schedule.paused` | A recurring schedule was paused; ReasonMessage carries the schedule name. | Active |

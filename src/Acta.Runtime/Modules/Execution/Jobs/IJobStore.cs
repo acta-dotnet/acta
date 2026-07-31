@@ -97,7 +97,7 @@ internal interface IJobStore
     /// <summary>Changes a waiting job's priority.</summary>
     Task<JobControlOutcome> ReprioritizeJobAsync(long jobId, JobPriorityCode priority, JobControlInput input, CancellationToken ct);
 
-    /// <summary>Amends a job's stored input; the previous payload is preserved in the audit event detail.</summary>
+    /// <summary>Amends a job's stored input; the audit event detail carries the previous payload's format and byte count, never the payload.</summary>
     Task<JobControlOutcome> UpdateJobInputAsync(long jobId, JobPayload input, JobControlInput controlInput, CancellationToken ct);
 
     /// <summary>Hard-deletes a terminal job; the surviving events carry the public ref.</summary>

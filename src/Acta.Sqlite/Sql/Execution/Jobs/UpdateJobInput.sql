@@ -6,8 +6,9 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_id;
 
--- Audit event carries the FULL previous payload in (detail_format_id, detail); emitted before the
--- update so j.input still holds the old value, and gated on the same non-dispatched/executing guard.
+-- The audit event carries only bounded JSON metadata about the previous payload (format name and
+-- byte count), never the payload itself. Emitted BEFORE the update so j.input_format_id / j.input
+-- still hold the old value, and gated on the same non-dispatched/executing guard.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     actor_code, actor_key,
@@ -26,7 +27,21 @@ SELECT
     NULL,
     NULL, NULL,
     NULL, NULL,
-    j.input_format_id, j.input,
+    CASE WHEN j.input_format_id = 0 /* JobPayloadFormat.None */
+         THEN 0 /* JobPayloadFormat.None */
+         ELSE 1 /* JobPayloadFormat.Json */ END,
+    CASE WHEN j.input_format_id = 0 /* JobPayloadFormat.None */
+         THEN NULL
+         ELSE CAST(json_object(
+                  'format',
+                  CASE j.input_format_id
+                      WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+                      WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+                      WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+                      ELSE 'custom-' || j.input_format_id
+                  END,
+                  'bytes', length(j.input)) AS BLOB)
+         END,
     @p_reason_code, @p_reason_message
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
