@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **31 families**, **159 values**.
+This release: **31 families**, **160 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -197,6 +197,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobExecutionTimeout` | 22 | `job.execution-timeout` | Execution exceeded JobDefinition.ExecutionTimeout for this attempt. | Active |
 | `JobNonRetryableException` | 23 | `job.non-retryable-exception` | Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException); terminal Failed without consuming the retry budget. | Active |
 | `JobDeadlineExceeded` | 24 | `job.deadline-exceeded` | Job passed its whole-job deadline; the engine terminated it Cancelled without consuming the retry budget. | Active |
+| `JobAttemptAborted` | 25 | `job.attempt-aborted` | Worker aborted the attempt mid-flight (lease renewal at risk or a held lock lost); retried under the failure budget. | Active |
 | `JobSchedulesExhausted` | 30 | `job.schedules-exhausted` | Recurring slot has no live JobSchedule yielding a next instant; row is system-paused. | Active |
 | `JobControlManual` | 40 | `job.control-manual` | Operator-initiated control transition via an IJobs control verb (Cancel/Pause/Resume/Restart). | Active |
 | `JobParentCancelled` | 41 | `job.parent-cancelled` | Job was cancelled because an ancestor job in its lineage was cancelled (recursive cascade). | Active |

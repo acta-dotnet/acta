@@ -282,9 +282,18 @@ internal sealed class JobRunner(
                 }
                 else
                 {
-                    // The heartbeat cancelled this attempt: the job was cancelled or its lease stolen
-                    // externally. Stop cooperatively; the complete CAS below no-ops against the terminal row.
-                    _log.LogInformation("WorkerRuntime: job {JobId} cancelled mid-flight; handler stopped cooperatively.", job.JobId);
+                    // The attempt token was cancelled without a timeout: an external cancel, a stolen
+                    // lease, the watchdog's lease-runway margin, or a lost handler lock. The first two
+                    // leave a row this worker no longer owns (the CAS below no-ops), but the watchdog
+                    // and lock-loss cancel while the row is still Executing and still leased here, so
+                    // a reason-less completion would land terminal Failed on a recoverable job. Submit
+                    // a retryable failure instead: owned rows re-arm under the failure budget, unowned
+                    // rows still no-op. Writing (not skipping) matters because a live worker's heartbeat
+                    // renews every row it leases, so a skipped write could leave a zombie Executing row
+                    // renewed forever.
+                    failureReason = JobEventReasonCode.JobAttemptAborted;
+                    failureMessage = "Attempt aborted: the lease or a held lock could no longer be guaranteed.";
+                    _log.LogWarning("WorkerRuntime: job {JobId} attempt aborted mid-flight; handler stopped cooperatively.", job.JobId);
                 }
             }
             catch (StepOwnershipLostException ownershipLost)
@@ -501,7 +510,7 @@ internal sealed class JobRunner(
         }
         else if (outcome == ExecutionOutcome.Failed && IsRetryable(failureReason))
         {
-            // One-shot failure (unhandled exception / execution timeout): honor the retry budget.
+            // One-shot failure (unhandled exception / execution timeout / aborted attempt): honor the retry budget.
             // In budget: re-arm to Ready with a backoff delay and persist the bumped failure_count.
             // Exhausted: terminal Failed, keeping the final count.
             // A Strict deadline guard above may have already converted this to Cancelled+handlerStatusCode,
@@ -668,11 +677,14 @@ internal sealed class JobRunner(
             _ => "unknown",
         };
 
-    // Failures eligible for the one-shot retry budget: an unhandled exception or an execution timeout.
-    // A deliberate ctx.FailAsync (HandlerFailed) takes the handler-status path and never retries; an
-    // external cancel carries no reason and falls through to a no-op terminal completion.
+    // Failures eligible for the one-shot retry budget: an unhandled exception, an execution timeout,
+    // or an attempt aborted by lease/lock pressure. A deliberate ctx.FailAsync (HandlerFailed) takes
+    // the handler-status path and never retries; a null reason falls through to a terminal completion.
     private static bool IsRetryable(JobEventReasonCode? reason) =>
-        reason is JobEventReasonCode.JobUnhandledException or JobEventReasonCode.JobExecutionTimeout;
+        reason
+            is JobEventReasonCode.JobUnhandledException
+                or JobEventReasonCode.JobExecutionTimeout
+                or JobEventReasonCode.JobAttemptAborted;
 
     // Recurring completion outcome, computed in C# from the attempt result and the planned slot MIN.
     // A recurring slot re-arms Ready on failure regardless of the consecutive-failure count: MaxAttempts
