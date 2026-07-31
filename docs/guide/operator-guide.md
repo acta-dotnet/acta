@@ -389,7 +389,9 @@ The surface is local-only by default (`LocalOnly = true`): requests from non-loo
 addresses are rejected with 403, so the dashboard works with zero setup from the same machine. The
 package ships no authentication; exposing the surface remotely means setting `LocalOnly = false` and
 wiring host authorization through `ConfigureEndpoints`, which covers the HTML, the hashed assets,
-the query API, and the control API together. CORS is not authorization and plays no part in this
+the query API, and the control API together. Mapping fails closed: `LocalOnly = false` without
+`ConfigureEndpoints` throws at startup unless the host explicitly opts into anonymous exposure with
+`UnsafeAllowAnonymousRemoteAccess = true`. CORS is not authorization and plays no part in this
 guard; it never prevents direct access to the URL. `MapActaApi` maps the JSON endpoints alone
 and carries the same local-only default. The dashboard works under any base path.
 

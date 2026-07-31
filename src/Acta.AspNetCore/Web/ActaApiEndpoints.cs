@@ -44,6 +44,12 @@ internal static class ActaApiEndpoints
                         extensions: new Dictionary<string, object?> { ["reasonCode"] = ex.Reason.ToString() }
                     );
                 }
+                catch (BadHttpRequestException ex)
+                {
+                    // The server (or the BoundedReadStream body ceiling) rejected the request itself,
+                    // e.g. an over-limit chunked body surfacing mid-read as 413.
+                    return Results.Problem(statusCode: ex.StatusCode, title: "Invalid request.", detail: ex.Message);
+                }
                 catch (Exception ex)
                 {
                     var loggerFactory = context.HttpContext.RequestServices.GetService(typeof(ILoggerFactory)) as ILoggerFactory;
@@ -91,6 +97,27 @@ internal static class ActaApiEndpoints
             static async (context, next) =>
             {
                 context.HttpContext.Response.Headers.CacheControl = "no-store";
+                return await next(context);
+            }
+        );
+
+        // Aggregate request-body ceiling for every mapped endpoint. Declared lengths reject up front;
+        // the bounded stream keeps the ceiling honest for chunked bodies, surfacing an overrun as the
+        // 413 BadHttpRequestException the error backstop above translates.
+        group.AddEndpointFilter(
+            async (context, next) =>
+            {
+                var request = context.HttpContext.Request;
+                if (request.ContentLength is { } declared && declared > options.MaxRequestBodyBytes)
+                {
+                    return Results.Problem(
+                        statusCode: StatusCodes.Status413PayloadTooLarge,
+                        title: "Request body too large.",
+                        detail: $"Request bodies on this endpoint are capped at {options.MaxRequestBodyBytes} bytes."
+                    );
+                }
+
+                request.Body = new BoundedReadStream(request.Body, options.MaxRequestBodyBytes);
                 return await next(context);
             }
         );

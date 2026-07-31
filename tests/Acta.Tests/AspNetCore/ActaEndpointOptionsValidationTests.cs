@@ -40,4 +40,42 @@ public sealed class ActaEndpointOptionsValidationTests
         var (app, _) = await TestDashboardHost.StartAsync();
         await using var _2 = app;
     }
+
+    [Fact]
+    public async Task MapActa_rejects_non_positive_MaxRequestBodyBytes()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            TestDashboardHost.StartAsync(configureDashboard: o => o.MaxRequestBodyBytes = 0)
+        );
+    }
+
+    [Fact]
+    public async Task LocalOnly_false_without_authorization_or_acknowledgement_throws()
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            TestDashboardHost.StartAsync(configureDashboard: o => o.LocalOnly = false)
+        );
+    }
+
+    [Fact]
+    public async Task LocalOnly_false_with_an_endpoint_configuration_hook_maps()
+    {
+        var (app, _) = await TestDashboardHost.StartAsync(configureDashboard: o =>
+        {
+            o.LocalOnly = false;
+            o.ConfigureEndpoints = group => { };
+        });
+        await using var _2 = app;
+    }
+
+    [Fact]
+    public async Task LocalOnly_false_with_the_unsafe_acknowledgement_maps()
+    {
+        var (app, _) = await TestDashboardHost.StartAsync(configureDashboard: o =>
+        {
+            o.LocalOnly = false;
+            o.UnsafeAllowAnonymousRemoteAccess = true;
+        });
+        await using var _2 = app;
+    }
 }
