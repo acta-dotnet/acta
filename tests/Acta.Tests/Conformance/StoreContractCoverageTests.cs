@@ -64,10 +64,11 @@ public sealed class StoreContractCoverageTests
         Assert.True(overloaded.Count == 0, "Overloaded store methods (rename to unique names):\n" + string.Join("\n", overloaded));
     }
 
-    // The internal store ports: I*Store interfaces under Acta.Features/Acta.Services in the core
-    // assembly. This is the single discovery convention for store ports - the coverage gate, the
-    // provider completeness gate, and the architecture boundary check all read it, so a newly
-    // declared port is picked up by all three with no registry to update.
+    // The internal store ports: I*Store interfaces under Acta.Modules/Acta.Services (plus
+    // Acta.Maintenance) in the runtime assembly. This is the single discovery convention for store
+    // ports - the coverage gate, the provider binding/completeness gates, and the architecture
+    // boundary check all read it, so a newly declared port is picked up by all with no registry to
+    // update.
     internal static List<Type> StoreInterfaces() =>
         typeof(ActaServiceCollectionExtensions)
             .Assembly.GetTypes()

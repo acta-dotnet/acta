@@ -11,7 +11,9 @@ namespace Acta.Tests.Architecture;
 /// kernel routines declared one by one. The module tier is the architectural gate: a write crossing
 /// module lines needs its own declaration, so within-Execution coupling (enqueue touching runtimes,
 /// completion advancing schedules) stays visible at the fine tier without weakening the module rule.
-/// The <c>events</c> ledger is append-anywhere by design.
+/// The <c>events</c> ledger is Execution-owned: Execution capabilities append freely, any other
+/// module's append is declared one by one, and nothing outside the declared purge routines may
+/// update or delete ledger rows.
 /// </summary>
 public sealed class SqlOwnershipTests
 {
@@ -22,7 +24,8 @@ public sealed class SqlOwnershipTests
         // The slot substrate: signals, timers, variables, latches, and progress share one table.
         ["checkpoints"] = ["Checkpoints", "Signals", "Timers", "Execution"],
         ["definitions"] = ["Definitions"],
-        ["events"] = ["Events"],
+        // The ledger: write ownership is Execution's; the Operations Events capability is read-only.
+        ["events"] = ["Execution"],
         ["jobs"] = ["Jobs"],
         ["leases"] = ["Locks"],
         ["namespaces"] = ["Namespaces"],
@@ -89,20 +92,51 @@ public sealed class SqlOwnershipTests
     };
 
     /// <summary>
-    /// The strictly smaller set of routines whose writes cross MODULE lines: enqueue and purge
-    /// touching the tags/alerts substrates, and the retention sweep. Everything else in
-    /// <see cref="CrossOwnerRoutines"/> is within-Execution coupling.
+    /// The declared process-manager routines (the proposal's cross-owner atomic exception), each
+    /// with the exact foreign tables it may write: enqueue stamping tags, single-job purge removing
+    /// the job's tag/alert satellites, and the retention sweep. A new foreign-table write inside one
+    /// of these routines fails until its table is declared here.
     /// </summary>
-    private static readonly HashSet<string> CrossModuleRoutines = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string[]> ProcessManagerRoutines = new(StringComparer.Ordinal)
     {
-        "Jobs/EnqueueOne",
-        "Jobs/EnqueueBatch",
-        "Jobs/PurgeJob",
-        "Maintenance/PurgeExpiredData",
+        ["Jobs/EnqueueOne"] = ["tags"],
+        ["Jobs/EnqueueBatch"] = ["tags"],
+        ["Jobs/PurgeJob"] = ["tags", "alerts"],
+        ["Maintenance/PurgeExpiredData"] =
+        [
+            "jobs",
+            "runtimes",
+            "checkpoints",
+            "steps",
+            "results",
+            "events",
+            "alerts",
+            "workers",
+            "leases",
+            "tags",
+        ],
     };
 
+    /// <summary>
+    /// Non-Execution routines allowed to APPEND to the Execution-owned <c>events</c> ledger:
+    /// Alerting's operator verbs record their audit event with the status flip in one transaction.
+    /// </summary>
+    private static readonly HashSet<string> ForeignEventAppendRoutines = new(StringComparer.Ordinal)
+    {
+        "Alerting/AcknowledgeJobAlert",
+        "Alerting/ResolveJobAlertManual",
+    };
+
+    // Write targets across dialects: plain INSERT/UPDATE/DELETE plus the T-SQL alias forms
+    // ("DELETE a FROM {{schema}}.alerts a", "UPDATE r ... FROM {{schema}}.runtimes r"), which the
+    // plain patterns would silently skip.
     private static readonly Regex WriteTarget = new(
-        @"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+\{\{schema\}\}\.(?<table>[a-z_]+)",
+        @"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+(?:\w+\s+)?FROM)\s+\{\{schema\}\}\.(?<table>[a-z_]+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
+
+    private static readonly Regex AliasedUpdateTarget = new(
+        @"\bUPDATE\s+(?<alias>[a-z]\w*)\s+SET\b[\s\S]*?\bFROM\s+\{\{schema\}\}\.(?<table>[a-z_]+)\s+\k<alias>\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled
     );
 
@@ -134,11 +168,18 @@ public sealed class SqlOwnershipTests
                 violations.Add($"{dialect}:{path}: capability '{capability}' belongs under Sql/{declaredModule}/, not Sql/{module}/");
             }
 
-            foreach (Match match in WriteTarget.Matches(sql))
+            var writes = WriteTarget
+                .Matches(sql)
+                .Select(m =>
+                    (
+                        Table: m.Groups["table"].Value.ToLowerInvariant(),
+                        IsInsert: m.Value.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                .Concat(AliasedUpdateTarget.Matches(sql).Select(m => (Table: m.Groups["table"].Value.ToLowerInvariant(), IsInsert: false)));
+            foreach (var (table, isInsert) in writes)
             {
-                var table = match.Groups["table"].Value.ToLowerInvariant();
-                var isInsert = match.Value.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase);
-                if (table == "events" && isInsert)
+                if (table == "events" && isInsert && (module == "Execution" || ForeignEventAppendRoutines.Contains(routine)))
                 {
                     continue;
                 }
@@ -155,10 +196,13 @@ public sealed class SqlOwnershipTests
                 }
 
                 var ownerModule = CapabilityModule[owners[0]];
-                if (ownerModule != module && !CrossModuleRoutines.Contains(routine))
+                if (
+                    ownerModule != module
+                    && !(ProcessManagerRoutines.TryGetValue(routine, out var foreignTables) && foreignTables.Contains(table))
+                )
                 {
                     violations.Add(
-                        $"{dialect}:{path}: {module}-module routine writes {ownerModule}-owned table '{table}' (declare '{routine}' in CrossModuleRoutines or move the write)"
+                        $"{dialect}:{path}: {module}-module routine writes {ownerModule}-owned table '{table}' (declare the table under '{routine}' in ProcessManagerRoutines or move the write)"
                     );
                 }
             }
