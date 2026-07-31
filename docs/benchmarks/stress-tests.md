@@ -12,7 +12,7 @@ tools/sql-compare.ps1 -List
 ```
 
 The resolver maps `Jobs/EnqueueBatch` to each provider's
-`src/Acta.<Provider>/Sql/Jobs/EnqueueBatch*.sql` file and runs pairwise diffs. CI emits the
+`src/Acta.<Provider>/Sql/Execution/Jobs/EnqueueBatch*.sql` file and runs pairwise diffs. CI emits the
 same logical-resource sibling report whenever provider feature/service SQL changes in a pull request.
 
 Every run writes two files with the same timestamped basename:
