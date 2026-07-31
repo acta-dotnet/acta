@@ -297,19 +297,19 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Guard_logs_argument_exceptions_at_warning_before_returning_400()
+    public async Task Internal_argument_exception_is_a_sanitized_500_not_a_400()
     {
-        var provider = new RecordingLoggerProvider();
-        var (app, client) = await TestDashboardHost.StartAsync(configureBuilder: b => b.Logging.AddProvider(provider));
+        // Only the typed validation exceptions map to 400. A plain ArgumentException thrown by a
+        // server-side bug must reach the sanitized 500 handler and must not echo its message.
+        var jobs = new TestDashboardHost.FakeJobs { ListJobsException = new ArgumentException("secret internal detail") };
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/overview?jobNamespace=Not%20Kebab", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains(
-            provider.Entries,
-            e => e.Category == "Acta.AspNetCore.Web" && e.Level == LogLevel.Warning && e.Message.Contains("Argument exception")
-        );
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.DoesNotContain("secret internal detail", body);
     }
 
     [Fact]

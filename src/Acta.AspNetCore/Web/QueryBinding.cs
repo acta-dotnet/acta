@@ -183,7 +183,8 @@ internal static class QueryBinding
     /// <summary>
     /// Repeated <c>tag</c> filters: each value is <c>name</c> or <c>name:value</c> (split on the
     /// first colon; values may contain colons). Name syntax is validated downstream by the query
-    /// service, which maps invalid names to a 400 through the endpoint's ArgumentException guard.
+    /// service, which maps invalid names to a 400 through the endpoint's
+    /// <see cref="InvalidQueryException"/> guard.
     /// </summary>
     public static IReadOnlyList<Acta.TagFilter>? Tags(IQueryCollection query, string name = "tag")
     {

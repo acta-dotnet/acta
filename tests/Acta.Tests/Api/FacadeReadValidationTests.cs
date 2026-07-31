@@ -190,9 +190,11 @@ public sealed class FacadeReadValidationTests
     [Fact]
     public async Task Job_name_requires_namespace()
     {
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs().ListJobsAsync(new ListJobsQuery(JobName: "send-invoice"), Ct));
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
+            await Jobs().ListJobsAsync(new ListJobsQuery(JobName: "send-invoice"), Ct)
+        );
 
-        await Assert.ThrowsAsync<ArgumentException>(async () =>
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await Schedules().ListAsync(new ListJobSchedulesQuery(JobName: "send-invoice"), Ct)
         );
     }
@@ -200,7 +202,7 @@ public sealed class FacadeReadValidationTests
     [Fact]
     public async Task Invalid_namespace_shape_throws()
     {
-        await Assert.ThrowsAsync<ArgumentException>(async () =>
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await Jobs().ListJobsAsync(new ListJobsQuery(JobNamespace: "Not Kebab"), Ct)
         );
     }
@@ -218,15 +220,13 @@ public sealed class FacadeReadValidationTests
     [InlineData(-5)]
     public async Task Page_size_below_one_throws(int pageSize)
     {
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await Jobs().ListJobsAsync(new ListJobsQuery(PageSize: pageSize), Ct)
-        );
+        await Assert.ThrowsAsync<InvalidQueryException>(async () => await Jobs().ListJobsAsync(new ListJobsQuery(PageSize: pageSize), Ct));
     }
 
     [Fact]
     public async Task Events_total_without_job_id_throws()
     {
-        await Assert.ThrowsAsync<ArgumentException>(async () =>
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await Events().ListJobEventsAsync(new ListJobEventsQuery(IncludeTotal: true), Ct)
         );
     }
@@ -272,11 +272,11 @@ public sealed class FacadeReadValidationTests
     [Fact]
     public async Task Undefined_enum_filter_values_throw()
     {
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await Jobs().ListJobsAsync(new ListJobsQuery(Status: (JobStatusCode)99), Ct)
         );
 
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await Alerts().ListAsync(new ListJobAlertsQuery(SeverityAtLeast: (AlertSeverityCode)200), Ct)
         );
     }
@@ -286,13 +286,11 @@ public sealed class FacadeReadValidationTests
     [InlineData(-7)]
     public async Task Non_positive_id_filters_throw(long jobId)
     {
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await Events().ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId), Ct)
         );
 
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await Alerts().ListAsync(new ListJobAlertsQuery(JobId: jobId), Ct)
-        );
+        await Assert.ThrowsAsync<InvalidQueryException>(async () => await Alerts().ListAsync(new ListJobAlertsQuery(JobId: jobId), Ct));
     }
 
     [Fact]

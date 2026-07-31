@@ -90,7 +90,7 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        await Assert.ThrowsAsync<ArgumentException>(async () =>
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace.ToUpperInvariant(), JobName: "add-numbers"), ct)
         );
     }

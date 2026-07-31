@@ -1,7 +1,9 @@
 namespace Acta.Runtime.Querying;
 
 /// <summary>
-/// Filter validation shared by the <see cref="IJobs"/> implementation.
+/// Filter validation shared by the <see cref="IJobs"/> implementation. Caller-input failures throw
+/// <see cref="InvalidQueryException"/> so HTTP endpoints can map exactly these to 400 while any
+/// other exception stays a server fault.
 /// </summary>
 internal static class QueryValidation
 {
@@ -15,7 +17,14 @@ internal static class QueryValidation
     {
         if (value is not null)
         {
-            value = IdentifierSyntax.CanonicalizeKebab(value, paramName);
+            try
+            {
+                value = IdentifierSyntax.CanonicalizeKebab(value, paramName);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new InvalidQueryException(ex.Message);
+            }
         }
         return value;
     }
@@ -35,14 +44,14 @@ internal static class QueryValidation
 
         if (value.Length > 128)
         {
-            throw new ArgumentException($"{paramName} must be at most 128 characters.", paramName);
+            throw new InvalidQueryException($"{paramName} must be at most 128 characters.");
         }
 
         foreach (var ch in value)
         {
             if (!char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')
             {
-                throw new ArgumentException($"{paramName} must contain only lowercase kebab characters (a-z, 0-9, '-').", paramName);
+                throw new InvalidQueryException($"{paramName} must contain only lowercase kebab characters (a-z, 0-9, '-').");
             }
         }
 
@@ -64,17 +73,14 @@ internal static class QueryValidation
 
         if (value.Length > IdentifierSyntax.ExtendedMaxLength)
         {
-            throw new ArgumentException($"{paramName} must be at most {IdentifierSyntax.ExtendedMaxLength} characters.", paramName);
+            throw new InvalidQueryException($"{paramName} must be at most {IdentifierSyntax.ExtendedMaxLength} characters.");
         }
 
         foreach (var ch in value)
         {
             if (!char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-' && ch != '.')
             {
-                throw new ArgumentException(
-                    $"{paramName} must contain only lowercase kebab characters (a-z, 0-9, '-') and '.'.",
-                    paramName
-                );
+                throw new InvalidQueryException($"{paramName} must contain only lowercase kebab characters (a-z, 0-9, '-') and '.'.");
             }
         }
 
@@ -95,11 +101,18 @@ internal static class QueryValidation
 
         if (namespaceValue is null)
         {
-            throw new ArgumentException("JobName requires JobNamespace.", paramName);
+            throw new InvalidQueryException("JobName requires JobNamespace.");
         }
 
         var bare = IdentifierSyntax.StartsWithSystemPrefix(value) ? value[IdentifierSyntax.SystemPrefix.Length..] : value;
-        IdentifierSyntax.ValidateKebab(bare, paramName, IdentifierSyntax.ExtendedMaxLength);
+        try
+        {
+            IdentifierSyntax.ValidateKebab(bare, paramName, IdentifierSyntax.ExtendedMaxLength);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidQueryException(ex.Message);
+        }
         return value;
     }
 
@@ -112,7 +125,7 @@ internal static class QueryValidation
     {
         if (value is not null && !Enum.IsDefined(value.Value))
         {
-            throw new ArgumentOutOfRangeException(paramName, value, $"Unknown {typeof(T).Name} value.");
+            throw new InvalidQueryException($"{paramName} has an unknown {typeof(T).Name} value.");
         }
     }
 
@@ -121,9 +134,9 @@ internal static class QueryValidation
     /// </summary>
     public static void ValidatePositiveId(long? value, string paramName)
     {
-        if (value is not null)
+        if (value is < 1)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThan(value.Value, 1, paramName);
+            throw new InvalidQueryException($"{paramName} must be positive.");
         }
     }
 }

@@ -178,6 +178,6 @@ public sealed class PageCursorCodecTests
     [InlineData(-1)]
     public void Page_size_below_one_throws(int requested)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => JobsQueryLimits.NormalizePageSize(requested));
+        Assert.Throws<InvalidQueryException>(() => JobsQueryLimits.NormalizePageSize(requested));
     }
 }
