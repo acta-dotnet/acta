@@ -15,10 +15,16 @@
     <DefineConstants Condition="'$(ActaProvider)' == 'Acta.Postgres'">$(DefineConstants);SMOKE_POSTGRES</DefineConstants>
     <DefineConstants Condition="'$(ActaProvider)' == 'Acta.Sqlite'">$(DefineConstants);SMOKE_SQLITE</DefineConstants>
     <DefineConstants Condition="'$(ActaProvider)' == 'Acta.SqlServer'">$(DefineConstants);SMOKE_SQLSERVER</DefineConstants>
+    <!-- run.ps1 optionally layers one non-provider package on top of the provider via -p:ActaExtra,
+         so Redis/Testing/AspNetCore are consume-proven from the feed too, not just packed. -->
+    <DefineConstants Condition="'$(ActaExtra)' == 'Acta.Redis'">$(DefineConstants);SMOKE_REDIS</DefineConstants>
+    <DefineConstants Condition="'$(ActaExtra)' == 'Acta.Testing'">$(DefineConstants);SMOKE_TESTING</DefineConstants>
+    <DefineConstants Condition="'$(ActaExtra)' == 'Acta.AspNetCore'">$(DefineConstants);SMOKE_ASPNETCORE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <!-- The whole point: ONE provider package, no project references. Compiling proves the
          [Job] source generator and ACTA analyzers flow from the package's analyzer assets. -->
     <PackageReference Include="$(ActaProvider)" Version="$(ActaPackageVersion)" />
+    <PackageReference Include="$(ActaExtra)" Version="$(ActaPackageVersion)" Condition="'$(ActaExtra)' != ''" />
   </ItemGroup>
 </Project>
