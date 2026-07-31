@@ -232,10 +232,13 @@ public sealed class JobsOptions
     public int BatchCompletionSize { get; set; } = 100;
 
     /// <summary>
-    /// <see cref="ExecutionProfile.Bulk"/> only. Maximum age of the oldest buffered completion before a
-    /// flush is forced (so a trickle still settles promptly). Must be positive and well below the lease
-    /// window: startup rejects a value above <see cref="LeaseTtlSeconds"/> / 4, so a buffered-but-unflushed
-    /// job never loses its lease before it is flushed. Default 250ms.
+    /// <see cref="ExecutionProfile.Bulk"/> only. How long a flusher accumulates its batch before a
+    /// flush is forced (so a trickle still settles promptly). This bounds batch accumulation, not
+    /// end-to-end buffered latency: a completion can additionally wait behind a slow store call. That
+    /// wait is lease-safe while the worker lives (the heartbeat renews every row the worker leases,
+    /// flushed or not); a crash loses the buffer under Bulk's at-least-once contract. Must be positive
+    /// and well below the lease window (startup rejects a value above <see cref="LeaseTtlSeconds"/> / 4)
+    /// so buffering stays a small fraction of the lease. Default 250ms.
     /// </summary>
     public TimeSpan BatchCompletionInterval { get; set; } = TimeSpan.FromMilliseconds(250);
 

@@ -74,8 +74,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.MaxInlinePayloadBytes must be >= 1: it is the hard cap on inline payload size.");
         }
 
-        // Bulk-profile group-commit knobs. Validated unconditionally (harmless on other profiles); the
-        // flush-interval-vs-lease relationship keeps a buffered-but-unflushed job from losing its lease.
+        // Bulk-profile group-commit knobs. Validated unconditionally (harmless on other profiles). The
+        // interval bounds batch accumulation only; lease safety for buffered rows comes from the worker
+        // heartbeat, which renews every row the worker leases whether flushed or not.
         if (options.BatchCompletionSize < 1)
         {
             failures.Add("JobsOptions.BatchCompletionSize must be >= 1: it is the Bulk-profile group-commit batch size.");
@@ -93,7 +94,7 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         else if (options.LeaseTtlSeconds > 0 && options.BatchCompletionInterval > TimeSpan.FromSeconds(options.LeaseTtlSeconds / 4.0))
         {
             failures.Add(
-                "JobsOptions.BatchCompletionInterval must be <= LeaseTtlSeconds / 4: a slower flush risks a buffered Bulk completion losing its lease before it is committed."
+                "JobsOptions.BatchCompletionInterval must be <= LeaseTtlSeconds / 4: buffered Bulk completions should settle in a small fraction of the lease window."
             );
         }
 

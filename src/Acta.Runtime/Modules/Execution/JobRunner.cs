@@ -584,8 +584,11 @@ internal sealed class JobRunner(
             && completeCommand is { FinalStatus: null, RescheduleStatusCode: null, HandlerStatusCode: null, WaitSignalName: null }
         )
         {
-            await sink.EnqueueAsync(new BufferedCompletion(completeCommand, jobContext.JobNamespace, job.JobId, resultBytes.Length));
-            _metrics?.RecordExecution(jobContext.JobNamespace, descriptor.JobName, OutcomeTag(outcome), failureReason?.Code, durationMs);
+            // No metric here: the sink records "acta.executions" when the flush durably finalizes the
+            // row, so Bulk counts what the store confirmed, same as the post-CAS emit below.
+            await sink.EnqueueAsync(
+                new BufferedCompletion(completeCommand, jobContext.JobNamespace, descriptor.JobName, job.JobId, resultBytes.Length)
+            );
             return outcome switch
             {
                 ExecutionOutcome.Succeeded or ExecutionOutcome.Cancelled => RunOnceOutcome.Completed,
@@ -664,8 +667,9 @@ internal sealed class JobRunner(
     }
 
     // Stable low-cardinality tag value for the executions/duration metrics. Kept off ToString() so an
-    // enum rename can't silently rename an operator-facing metric dimension.
-    private static string OutcomeTag(ExecutionOutcome outcome) =>
+    // enum rename can't silently rename an operator-facing metric dimension. Internal: the Bulk
+    // completion sink emits the same metric at durable finalization and must share the tag values.
+    internal static string OutcomeTag(ExecutionOutcome outcome) =>
         outcome switch
         {
             ExecutionOutcome.Succeeded => "succeeded",
