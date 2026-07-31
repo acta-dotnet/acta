@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Checklist for preparing an Acta release. This is a manual process checklist, not CI automation.
+Checklist for preparing an Acta release. This is a manual process checklist; the only automated step
+is publishing: pushing a `v*` tag makes CI pack and, once all jobs are green, push the packages to
+nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the `release` environment).
 
 ## Build and test
 
