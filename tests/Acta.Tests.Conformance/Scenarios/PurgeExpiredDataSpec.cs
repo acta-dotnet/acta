@@ -1,5 +1,6 @@
 using Acta.Maintenance;
 using Acta.Modules.Alerting;
+using Acta.Modules.Execution;
 using Acta.Modules.Execution.Workers;
 using Acta.Relational.Entities;
 using Acta.Services.Locks;
@@ -264,6 +265,69 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             // Drop the held row so the shared schema carries no hour-long lease out of this test.
             await Services.GetRequiredService<ILockStore>().ReleaseAsync(liveToken!.Value, ct);
         }
+    }
+
+    [Fact(DisplayName = "An expired terminal parent survives the sweep while a live child still references it")]
+    public async Task Expired_terminal_parent_survives_while_a_child_is_alive()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var (parent, child) = await EnqueueParentAndChildAsync(ct);
+
+        // Parent to terminal with zero retention; the child stays Ready (default 90-day window).
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+
+        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+
+        // The lineage guard keeps the expired parent until its descendant is deletable, so the
+        // child's parent_id / lineage_root_id never dangle.
+        Assert.NotNull(await Db.From<Job>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<Job>().Where(j => j.Id == child.JobId).SingleOrDefaultAsync(ct));
+    }
+
+    [Fact(DisplayName = "A fully expired subtree drains child-first and then releases the parent")]
+    public async Task Fully_expired_subtree_drains_child_first()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var (parent, child) = await EnqueueParentAndChildAsync(ct);
+
+        // Both terminal with zero retention: the whole subtree is immediately eligible.
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
+
+        // Call 1 deletes the leaf everywhere; loop dialects may already climb to the parent.
+        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        Assert.Null(await Db.From<Job>().Where(j => j.Id == child.JobId).SingleOrDefaultAsync(ct));
+
+        // By the next tick the parent is a leaf and drains too.
+        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        Assert.Null(await Db.From<Job>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct));
+    }
+
+    // A real parent/child pair through the enqueue path: the child is enqueued under the parent's id
+    // (while the parent is still Ready), so lineage columns are stamped by the provider routine.
+    private async Task<(JobEnqueueOutcome Parent, JobEnqueueOutcome Child)> EnqueueParentAndChildAsync(CancellationToken ct)
+    {
+        var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
+        var json = serializers.Resolve(JobPayloadFormat.Json.Id);
+        var parent = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "purge-now", json.Serialize(new PurgeProbe("parent")), null, null, null),
+            ct
+        );
+        var child = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(
+                TestNamespace,
+                "purge-now",
+                json.Serialize(new PurgeProbe("child")),
+                null,
+                null,
+                null,
+                ParentId: parent.JobId
+            ),
+            ct
+        );
+        return (parent, child);
     }
 
     [Fact(DisplayName = "The lock sweep is bounded by batch size and iterations like every other section")]

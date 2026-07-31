@@ -33,6 +33,10 @@ BEGIN
                AND r.status_code        IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                AND r.retention_until_utc IS NOT NULL
                AND r.retention_until_utc <= v_now
+               -- Lineage guard: parent_id carries no FK, so purging a parent whose children still
+               -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
+               -- delete; a fully-expired subtree drains bottom-up across iterations.
+               AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = j.id)
              ORDER BY r.retention_until_utc, r.job_id
              LIMIT p_batch_size
              FOR UPDATE OF j, r SKIP LOCKED) q;

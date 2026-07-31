@@ -10,6 +10,10 @@ SELECT r.job_id AS id FROM {{schema}}.runtimes r
    AND r.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
    AND r.retention_until_utc IS NOT NULL
    AND r.retention_until_utc <= {{now}}
+   -- Lineage guard: parent_id carries no FK, so purging a parent whose children still exist would
+   -- orphan their lineage (same rule as the manual purge_job). Only leaves delete in this pass; a
+   -- fully-expired subtree drains bottom-up across successive retention ticks.
+   AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = r.job_id)
  ORDER BY r.retention_until_utc, r.job_id
  LIMIT (@p_batch_size * @p_max_iterations);
 
