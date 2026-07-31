@@ -114,6 +114,15 @@ public sealed class BackoffTests
         Assert.False(Backoff.TryParse("99999999999999999999d", out _));
     }
 
+    // Parity with the generator's BackoffExpressionValidator: the multiplier bound must agree so an
+    // expression accepted at runtime (e.g. a definition override) is never rejected in a [Job] attribute.
+    [Fact]
+    public void Multiplier_bound_matches_the_generator()
+    {
+        Assert.Equal(99999.9999, Backoff.Parse("1s..2s x99999.9999").Multiplier);
+        Assert.False(Backoff.TryParse("1s..2s x100000", out _));
+    }
+
     [Fact]
     public void WithJitter_sets_the_fraction()
     {
