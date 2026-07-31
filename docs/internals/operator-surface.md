@@ -45,7 +45,7 @@ mapped only when `ActaEndpointOptions.EnableControls` is set. CLI verbs run as `
 | Reprioritize | `ReprioritizeAsync` | `POST .../reprioritize` | | |
 | Purge | `PurgeAsync` | `POST .../purge` | | full erase + tombstone event, by design |
 | Raise signal | `RaiseSignalAsync` | `POST .../signals/{name}` | `signal` | |
-| Amend input | `UpdateJobInputAsync` | `POST .../input` | | format-faithful (one of input/text/base64 vs stored format, json fallback, none rejected); event carries old payload |
+| Amend input | `UpdateJobInputAsync` | `POST .../input` | | format-faithful (one of input/text/base64 vs stored format, json fallback, none rejected); event carries old-payload metadata (format + byte count), not the payload |
 | Enqueue | `EnqueueAsync` / `EnqueueBatchAsync` | `POST /jobs` | | single enqueue (clone UI); batch has no HTTP surface |
 | Execute and wait | `ExecuteAndWaitAsync` | | | client-side wait loop |
 | Debug run | (CLI-only composition) | | `debug` | claims + executes in-process |

@@ -15,6 +15,8 @@ BEGIN
     DECLARE @from_status TINYINT, @namespace_id SMALLINT,
             @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
             @job_ref UNIQUEIDENTIFIER, @old_format_id TINYINT, @old_input VARBINARY(MAX);
+    DECLARE @detail VARBINARY(MAX);
+    DECLARE @detail_format_id TINYINT = 0 /* JobPayloadFormat.None */;
 
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -57,7 +59,22 @@ BEGIN
 
         IF @audit_level = 20 /* JobAuditLevelCode.Audit */
         BEGIN
-            -- The FULL previous payload is preserved in (detail_format_id, detail); captured before the update.
+            -- The event carries only bounded JSON metadata about the previous payload (format name
+            -- and byte count), never the payload itself. Pure ASCII, so VARCHAR -> VARBINARY is UTF-8.
+            IF @old_format_id <> 0 /* JobPayloadFormat.None */
+            BEGIN
+                SET @detail_format_id = 1 /* JobPayloadFormat.Json */;
+                SET @detail = CONVERT(VARBINARY(MAX),
+                    '{"format":"'
+                    + CASE @old_format_id
+                          WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+                          WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+                          WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+                          ELSE 'custom-' + CONVERT(VARCHAR(3), @old_format_id)
+                      END
+                    + '","bytes":' + CONVERT(VARCHAR(20), DATALENGTH(@old_input)) + '}');
+            END;
+
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
                 actor_code, actor_key,
@@ -76,7 +93,7 @@ BEGIN
                 NULL,
                 NULL, NULL,
                 NULL, NULL,
-                @old_format_id, @old_input,
+                @detail_format_id, @detail,
                 @p_reason_code, @p_reason_message);
         END
 

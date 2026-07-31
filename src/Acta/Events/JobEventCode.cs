@@ -88,7 +88,7 @@ public enum JobEventCode : byte
 
     [Code(
         "job.input-amended",
-        "Operator amended a job's stored input payload; the full previous payload is preserved in the event Detail and ReasonMessage carries the why."
+        "Operator amended a job's stored input payload; Detail carries bounded JSON metadata (format name and byte count) about the previous payload and ReasonMessage carries the why."
     )]
     JobInputAmended = 76,
 

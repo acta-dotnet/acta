@@ -21,6 +21,8 @@ DECLARE
     v_job_ref       UUID;
     v_old_format_id SMALLINT;
     v_old_input     BYTEA;
+    v_detail_format_id SMALLINT := 0 /* JobPayloadFormat.None */;
+    v_detail        BYTEA;
 BEGIN
     SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code,
            j.job_ref, j.input_format_id, j.input
@@ -46,7 +48,22 @@ BEGIN
      WHERE id = p_id;
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
-        -- The FULL previous payload is preserved in (detail_format_id, detail); captured before the update.
+        -- The event carries only bounded JSON metadata about the previous payload (format name and
+        -- byte count), never the payload itself, so nothing outlives the job's payload retention.
+        IF v_old_format_id <> 0 /* JobPayloadFormat.None */ THEN
+            v_detail_format_id := 1 /* JobPayloadFormat.Json */;
+            v_detail := convert_to(
+                '{"format":"'
+                    || CASE v_old_format_id
+                           WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+                           WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+                           WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+                           ELSE 'custom-' || v_old_format_id::text
+                       END
+                    || '","bytes":' || octet_length(v_old_input)::text || '}',
+                'UTF8');
+        END IF;
+
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,
             actor_code, actor_key,
@@ -65,7 +82,7 @@ BEGIN
             NULL,
             NULL, NULL,
             NULL, NULL,
-            v_old_format_id, v_old_input,
+            v_detail_format_id, v_detail,
             p_reason_code, p_reason_message);
     END IF;
 

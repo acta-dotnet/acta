@@ -1594,7 +1594,7 @@
           {
             "Id": 76,
             "Code": "job.input-amended",
-            "Description": "Operator amended a job\u0027s stored input payload; the full previous payload is preserved in the event Detail and ReasonMessage carries the why.",
+            "Description": "Operator amended a job\u0027s stored input payload; Detail carries bounded JSON metadata (format name and byte count) about the previous payload and ReasonMessage carries the why.",
             "Lifecycle": "Active"
           },
           {

@@ -395,8 +395,9 @@ public interface IJobs
     /// status except <c>Dispatched</c>/<c>Executing</c> (a mid-flight handler may already have read the
     /// input); an in-flight job is <see cref="JobControlAction.Rejected"/> and a missing job is
     /// <see cref="JobControlAction.NotFound"/>. On success the job's input and format are replaced and
-    /// the transition is audited (job.input-amended), with the full previous payload preserved in the
-    /// event detail so the old value stays provable. <paramref name="reasonMessage"/> is recorded on the
+    /// the transition is audited (job.input-amended); the event detail carries bounded metadata about
+    /// the previous payload (format name and byte count), never the payload itself, so the amended-away
+    /// value cannot outlive the job's payload retention. <paramref name="reasonMessage"/> is recorded on the
     /// audit event and <paramref name="actorKey"/> is recorded on the audit event as the operator
     /// identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>

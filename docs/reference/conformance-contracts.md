@@ -593,13 +593,14 @@
 - **Store methods:**
   - `Acta.Modules.Execution.Jobs.IJobStore.RescheduleJobAsync`
 
-### Operator update-input amends stored input and preserves the previous payload.
-- **Contract:** UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with the full previous payload in the detail.
-- **Arrange:** A Ready job, an executing job, a dispatched job, a failed job, and no job for an unknown lookup.
-- **Act:** UpdateJobInput is invoked with a new payload against each job, and a restarted failed job is re-run.
-- **Assert:** Ready and failed jobs adopt the new input with an audited old-payload event, in-flight jobs are rejected unchanged, and the unknown lookup is NotFound.
+### Operator update-input amends stored input and audits bounded payload metadata.
+- **Contract:** UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload.
+- **Arrange:** A Ready job, an executing job, a dispatched job, a failed job, a terminal job later purged, and no job for an unknown lookup.
+- **Act:** UpdateJobInput is invoked with a new payload against each job, a failed job is re-run after restart, and the retention sweep purges the terminal job.
+- **Assert:** Applied amends audit only the old payload's format and byte count, in-flight jobs reject, unknown is NotFound, and no purged payload byte survives.
 - **Guarantees:**
-  - UpdateJobInput amends a Ready job's input and audits the previous payload in the event detail
+  - UpdateJobInput amends a Ready job's input and audits the old payload's format and byte count
+  - UpdateJobInput audit metadata outlives the purged job without leaking payload bytes
   - UpdateJobInput rejects a Dispatched or Executing job and leaves its input unchanged
   - UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync
   - UpdateJobInput stores the new payload's format id, so a text job amends as text
@@ -2178,7 +2179,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.ResolveJobIdByRefAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null |
 | `IJobStore.RestartJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
 | `IJobStore.ResumeJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
-| `IJobStore.UpdateJobInputAsync` | Operator update-input amends stored input and preserves the previous payload. |
+| `IJobStore.UpdateJobInputAsync` | Operator update-input amends stored input and audits bounded payload metadata. |
 | `INamespaceStore.ListNamespaceItemsAsync` | ListNamespaceItems pages namespaces with status, metadata, and version |
 | `INamespaceStore.ListNamespacesAsync` | ListNamespaces pages namespaces name-ascending with an opt-in total |
 | `INamespaceStore.ResumeNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
