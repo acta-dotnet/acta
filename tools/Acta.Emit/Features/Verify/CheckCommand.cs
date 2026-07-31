@@ -24,7 +24,7 @@ internal static class CheckCommand
             var (path, expected) in new (string Path, string Expected)[]
             {
                 (Path.Combine(repoRoot, "docs", "reference", "data-model.md"), DataModelEmitter.EmitDataModelReference(model)),
-                (Path.Combine(repoRoot, "docs", "reference", "code-families.md"), CodeFamilyEmitter.EmitCodes(model)),
+                (Path.Combine(repoRoot, "docs", "reference", "code-families.md"), CodeFamilyEmitter.EmitCodes(model, repoRoot)),
             }
         )
         {
