@@ -53,7 +53,6 @@ internal static partial class ProviderStoreBindingCheck
             "SQLite resets sqlite_master objects in provider code because it has no DROP SCHEMA operation.",
     };
 
-    private static readonly Regex StoreName = StoreNameRegex();
     private static readonly Dictionary<ushort, OpCode> OpCodesByValue = typeof(OpCodes)
         .GetFields(BindingFlags.Public | BindingFlags.Static)
         .Where(static field => field.FieldType == typeof(OpCode))
@@ -162,19 +161,7 @@ internal static partial class ProviderStoreBindingCheck
         return after.EndsWith(".routine", StringComparison.Ordinal) ? after[..^".routine".Length] : after;
     }
 
-    private static IEnumerable<Type> StoreContracts() =>
-        typeof(ActaServiceCollectionExtensions)
-            .Assembly.GetTypes()
-            .Where(type =>
-                type.IsInterface
-                && StoreName.IsMatch(type.Name)
-                && type.Namespace is { } ns
-                && (
-                    ns.StartsWith("Acta.Modules.", StringComparison.Ordinal)
-                    || ns.StartsWith("Acta.Services.", StringComparison.Ordinal)
-                    || ns == "Acta.Maintenance"
-                )
-            );
+    private static IEnumerable<Type> StoreContracts() => StoreContractCoverageTests.StoreInterfaces();
 
     private static bool ReachesCommandPreparation(MethodBase method, Assembly providerAssembly, HashSet<MethodBase> visited)
     {
@@ -350,7 +337,4 @@ internal static partial class ProviderStoreBindingCheck
         value.EndsWith(".sql", StringComparison.Ordinal) && value.StartsWith("Sql/", StringComparison.Ordinal);
 
     private static string ResourcePath(string tail) => SqlLogicalPath.FromResourceTail(tail);
-
-    [GeneratedRegex(@"^I\w+Store$", RegexOptions.CultureInvariant)]
-    private static partial Regex StoreNameRegex();
 }

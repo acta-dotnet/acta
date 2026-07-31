@@ -188,7 +188,18 @@ public sealed class ArchitectureBoundaryTests
         var coreRoot = Path.Combine(sourceRoot, "Acta.Runtime");
         var failures = new List<string>();
 
-        string[] obsoleteCoreFolders = ["SystemJobs", "Runtime", "Storage", "Entities", "Schema", "Builders", "Errors"];
+        string[] obsoleteCoreFolders =
+        [
+            "SystemJobs",
+            "Runtime",
+            "Storage",
+            "Entities",
+            "Schema",
+            "Builders",
+            "Errors",
+            "Features",
+            "Operations",
+        ];
         failures.AddRange(
             obsoleteCoreFolders
                 .Select(folder => Path.Combine(coreRoot, folder))

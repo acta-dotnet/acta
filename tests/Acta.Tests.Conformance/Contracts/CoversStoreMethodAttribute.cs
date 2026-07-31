@@ -3,7 +3,7 @@ namespace Acta.Tests.Conformance.Contracts;
 /// <summary>
 /// Declares one store method a conformance spec covers (one attribute per method). The metadata feeds
 /// the store-method coverage gate and the generated conformance-contract inventory. The
-/// store must be an internal <c>I*Store</c> interface under <c>Acta.Features</c> or <c>Acta.Services</c>,
+/// store must be an internal <c>I*Store</c> interface under <c>Acta.Modules</c> or <c>Acta.Services</c>,
 /// and the method name should be written with <c>nameof</c> so renames stay compile-checked.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]

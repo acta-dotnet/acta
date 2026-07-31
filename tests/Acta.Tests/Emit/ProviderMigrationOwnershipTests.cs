@@ -18,9 +18,18 @@ public sealed class ProviderMigrationOwnershipTests
     {
         var root = IntegrationConfig.FindRepoRoot();
 
-        Assert.False(
-            Directory.Exists(Path.Combine(root, "src", "Acta.Runtime", "Migrations")),
-            "Core src/Acta/Migrations must not exist; migrations are provider-owned."
+        // Allowed-locations rule: the only Migrations directories anywhere under src/ are the three
+        // provider Schema/Migrations trees, so a stray folder in Acta, Acta.Runtime, or a future
+        // project fails here without needing its path enumerated.
+        var strayMigrations = Directory
+            .EnumerateDirectories(Path.Combine(root, "src"), "Migrations", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/'))
+            .Where(relative => !relative.Contains("/bin/") && !relative.Contains("/obj/"))
+            .Where(relative => !Providers.Any(p => relative == $"src/{p}/Schema/Migrations"))
+            .ToArray();
+        Assert.True(
+            strayMigrations.Length == 0,
+            "Migrations are provider-owned (src/{Provider}/Schema/Migrations only); stray: " + string.Join(", ", strayMigrations)
         );
 
         foreach (var provider in Providers)
