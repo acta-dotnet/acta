@@ -100,7 +100,7 @@ internal sealed class AlertsJob
             {
                 await ProjectAsync(ctx, e, windowStart, ct);
             }
-            catch (ArgumentException ex)
+            catch (AlertProjectionDataException ex)
             {
                 await RecordProjectionSkipAsync(ctx, e, ex, ct);
             }
@@ -112,9 +112,14 @@ internal sealed class AlertsJob
         }
     }
 
-    private async Task RecordProjectionSkipAsync(JobContext ctx, AlertableEvent e, ArgumentException exception, CancellationToken ct)
+    private async Task RecordProjectionSkipAsync(
+        JobContext ctx,
+        AlertableEvent e,
+        AlertProjectionDataException exception,
+        CancellationToken ct
+    )
     {
-        var reason = string.Equals(exception.ParamName, "jobId", StringComparison.Ordinal) ? "unknown-job" : "invalid-event";
+        var reason = exception.Reason;
         var variableName = SkipVariablePrefix + e.EventId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var detail = exception.Message.Truncate(ActaTextLimits.ReasonMessage);
         var durableRecord =
@@ -204,7 +209,7 @@ internal sealed class AlertsJob
         }
     }
 
-    private Task<int> EmitAsync(
+    private async Task<int> EmitAsync(
         JobContext ctx,
         AlertableEvent e,
         string channel,
@@ -225,8 +230,12 @@ internal sealed class AlertsJob
 
         var (title, message) = Render(e, reason);
 
-        return _store.RaiseJobAlertAsync(
-            RaiseJobAlertCommand.Create(
+        // The two proven poison shapes are re-tagged here, at the site that proves them, so the
+        // projector's skip path never swallows an unrelated ArgumentException from a future bug.
+        RaiseJobAlertCommand command;
+        try
+        {
+            command = RaiseJobAlertCommand.Create(
                 ctx.JobNamespace,
                 e.JobId,
                 AlertOriginCode.Automatic,
@@ -238,9 +247,25 @@ internal sealed class AlertsJob
                 AlertDeliveryStatusCode.Pending,
                 deduplicationKey,
                 windowStart
-            ),
-            ct
-        );
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            // A stored field (channel name, deduplication key) failed canonicalization: the event
+            // itself is malformed, and retrying can never fix it.
+            throw new AlertProjectionDataException("invalid-event", ex.Message, ex);
+        }
+
+        try
+        {
+            return await _store.RaiseJobAlertAsync(command, ct);
+        }
+        catch (ArgumentException ex) when (string.Equals(ex.ParamName, "jobId", StringComparison.Ordinal))
+        {
+            // The provider's ACTA:ALERT_UNKNOWN_JOB signal: the subject job row is gone (purged
+            // between the event write and this projection), so the event can never project.
+            throw new AlertProjectionDataException("unknown-job", ex.Message, ex);
+        }
     }
 
     private static (string Title, string Message) Render(AlertableEvent e, AlertKindCode reason)

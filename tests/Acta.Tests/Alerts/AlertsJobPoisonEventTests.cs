@@ -48,10 +48,27 @@ public sealed class AlertsJobPoisonEventTests
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
     }
 
+    [Fact]
+    public async Task Unrelated_ArgumentException_fails_the_pass_instead_of_being_poison_skipped()
+    {
+        // An ArgumentException that is NOT the provider's unknown-job shape (different ParamName)
+        // is an internal bug, not malformed ledger data: the pass must fail without advancing the
+        // cursor or recording a skip, so the event is retried once the bug is fixed.
+        var store = new PoisonAlertStore(deterministicFailure: false, failure: new ArgumentException("internal bug", "batchSize"));
+        var job = CreateJob(store, new RecordingLogger());
+        var ctx = new RecordingJobContext();
+        var ct = TestContext.Current.CancellationToken;
+
+        await Assert.ThrowsAsync<ArgumentException>(() => job.Handle(ctx, ct));
+
+        Assert.Equal(0L, await ctx.GetVariableOrDefaultAsync("alerts-cursor", 0L, ct));
+        Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
+    }
+
     private static AlertsJob CreateJob(IAlertStore store, ILogger<AlertsJob> logger) =>
         new(store, new FixedClock(), channels: null!, transports: null!, Options.Create(new JobsOptions()), logger);
 
-    private sealed class PoisonAlertStore(bool deterministicFailure) : IAlertStore
+    private sealed class PoisonAlertStore(bool deterministicFailure, Exception? failure = null) : IAlertStore
     {
         private static readonly AlertableEvent[] Events = [Event(11, 101), Event(12, 102)];
 
@@ -63,9 +80,14 @@ public sealed class AlertsJobPoisonEventTests
             RaiseAttempts.Add(eventId);
             if (command.JobId == 101)
             {
-                return deterministicFailure
-                    ? Task.FromException<int>(new ArgumentException("The referenced job id does not exist.", "jobId"))
-                    : Task.FromException<int>(new TimeoutException("provider timeout"));
+                return Task.FromException<int>(
+                    failure
+                        ?? (
+                            deterministicFailure
+                                ? new ArgumentException("The referenced job id does not exist.", "jobId")
+                                : new TimeoutException("provider timeout")
+                        )
+                );
             }
             return Task.FromResult(1);
         }
