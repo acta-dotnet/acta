@@ -7,7 +7,9 @@ document defers to this one. Reopening anything here is a category-reshaping cha
 
 The vocabulary itself (Job, Execution, Attempt, Status, namespace, durable slot, provider, the three
 identities, the substrate tables) is defined once in [`concepts.md`](../guide/concepts.md). This
-document explains why the model is shaped that way; it does not re-teach the mechanics.
+document explains why the model is shaped that way; it does not re-teach the mechanics. The internal
+module structure, its rationale, and the migration record live in
+[`modular-architecture.md`](modular-architecture.md).
 
 ## What Acta is
 
