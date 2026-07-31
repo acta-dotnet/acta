@@ -4,13 +4,15 @@ namespace Acta;
 
 /// <summary>
 /// One audit event row in a <see cref="IActaOperations.ListJobEventsAsync"/> page. JSON serialization
-/// carries the public job refs and hides the numeric job ids; refs go null once the subject job
-/// row is purged (events outlive their job).
+/// carries the public job refs and hides the numeric job ids. Events outlive their job: the subject
+/// <see cref="JobRef"/> is denormalized onto the event row and survives the job's purge, while
+/// <see cref="LineageRootJobRef"/> is resolved from the live root job row and goes null once the
+/// root is purged.
 /// </summary>
 /// <param name="JobEventId">Event row id.</param> <param name="EventCode">What happened.</param> <param name="CreatedAtUtc">When it happened.</param>
 /// <param name="JobNamespace">Owning namespace name.</param> <param name="JobId">Subject job id, or null for namespace-level events.</param>
-/// <param name="JobRef">Subject job's public ref, or null when namespace-level or purged.</param>
-/// <param name="LineageRootId">Root id of the subject's lineage tree, or null.</param> <param name="LineageRootJobRef">Lineage root's public ref, or null.</param>
+/// <param name="JobRef">Subject job's public ref, or null for namespace-level events; denormalized on the event row, so it survives the job's purge.</param>
+/// <param name="LineageRootId">Root id of the subject's lineage tree, or null.</param> <param name="LineageRootJobRef">Lineage root's public ref, or null when there is no lineage or the root row was purged.</param>
 /// <param name="JobDefinitionId">Catalog definition id, or null.</param> <param name="TenantId">Tenant id for job-scoped events, or null.</param>
 /// <param name="WorkerId">Acting worker id, or null.</param> <param name="ExecutionNumber">Attempt the event belongs to, or null.</param>
 /// <param name="ActorCode">Who initiated the transition.</param> <param name="ActorKey">Actor identity text, or null.</param>
