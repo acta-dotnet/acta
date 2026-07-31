@@ -1,5 +1,6 @@
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Features.Verify;
+using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Emit;
@@ -16,6 +17,23 @@ public sealed class SchemaCommandsTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), $"acta-cmd-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_root);
+
+        // Docs emission resolves each code family by locating src/Acta/<Area>/<Name>.cs by file name
+        // only; mirror the real tree as empty files so the throwaway root resolves the same areas.
+        var actaRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta");
+        var separators = new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+        foreach (var file in Directory.EnumerateFiles(actaRoot, "*.cs", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(actaRoot, file);
+            if (relative.Split(separators).Any(part => part is "bin" or "obj"))
+            {
+                continue;
+            }
+
+            var target = Path.Combine(_root, "src", "Acta", relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Create(target).Dispose();
+        }
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
