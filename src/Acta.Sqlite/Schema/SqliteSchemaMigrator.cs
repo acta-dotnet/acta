@@ -11,7 +11,7 @@ namespace Acta.Sqlite.Schema;
 /// runs as a single multi-statement command (no <c>GO</c> splitter, no prelude). The schema name is
 /// always <c>main</c> (the connection's attached database).
 /// </summary>
-public static class SqliteSchemaMigrator
+internal static class SqliteSchemaMigrator
 {
     private static readonly SchemaMigrationProviderHooks Hooks = new(
         ProviderAssembly: typeof(SqliteSchemaMigrator).Assembly,
