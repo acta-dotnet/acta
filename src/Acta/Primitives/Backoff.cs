@@ -169,10 +169,14 @@ public readonly record struct Backoff
         return text;
     }
 
+    // The upper bound mirrors the generator's BackoffExpressionValidator so a multiplier accepted
+    // here (e.g. through a definition override) is never rejected in a [Job] declaration.
     private static double ParsePositiveNumber(string text, string name)
     {
-        return !double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number) || number < 1.0
-            ? throw new FormatException($"{name} must be at least 1.0.")
+        return
+            !double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number)
+            || number is < 1.0 or > 99999.9999
+            ? throw new FormatException($"{name} must be between 1.0 and 99999.9999.")
             : number;
     }
 
