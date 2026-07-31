@@ -35,7 +35,7 @@ public sealed class CompletionSinkByteThresholdTests
         const int perItem = int.MaxValue / 2 + 1;
         for (var jobId = 1L; jobId <= 3; jobId++)
         {
-            await sink.EnqueueAsync(new BufferedCompletion(Request(jobId), "ns", jobId, perItem));
+            await sink.EnqueueAsync(new BufferedCompletion(Request(jobId), "ns", "load-echo", jobId, perItem));
         }
         sink.CompleteWriter();
         await sink.RunFlusherAsync();

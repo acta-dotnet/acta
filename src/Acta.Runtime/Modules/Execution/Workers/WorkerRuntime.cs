@@ -100,7 +100,7 @@ internal sealed class WorkerRuntime
         // (SQL Server, Postgres) get a sink - Bulk degrades to Direct on inline-only providers (SQLite),
         // which have no batched-completion routine.
         var completionSink = provider.SupportsRoutines
-            ? new CompletionSink(rootServices.GetRequiredService<IExecutionStore>(), publisher, options, logger)
+            ? new CompletionSink(rootServices.GetRequiredService<IExecutionStore>(), publisher, options, logger, metrics)
             : null;
 
         var runner = new JobRunner(

@@ -61,7 +61,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         // Drive through the sink (child has a parent → batch self-filters → fallback scalar path).
         var spy = new WakeupSpy();
         var sink = MakeSink(spy);
-        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimedChild, workerId), TestNamespace, child.Id, 0));
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimedChild, workerId), TestNamespace, "add-numbers", child.Id, 0));
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 
@@ -105,7 +105,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         );
 
         var sink = MakeSink(new WakeupSpy());
-        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, child.Id, 0));
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, "add-numbers", child.Id, 0));
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 
@@ -142,7 +142,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
 
         var spy = new WakeupSpy();
         var sink = MakeSink(spy);
-        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, enq.JobId, 0));
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, "add-numbers", enq.JobId, 0));
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 
@@ -196,9 +196,11 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
             Options.Create(new JobsOptions { BatchCompletionSize = 100 })
         );
 
-        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(Claimed, workerId), TestNamespace, JobId, 0));
-        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(secondChild.Claimed, workerId), TestNamespace, secondChild.JobId, 0));
-        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(plain.Claimed, workerId), TestNamespace, plain.JobId, 0));
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(Claimed, workerId), TestNamespace, "add-numbers", JobId, 0));
+        await sink.EnqueueAsync(
+            new BufferedCompletion(MakeRequest(secondChild.Claimed, workerId), TestNamespace, "add-numbers", secondChild.JobId, 0)
+        );
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(plain.Claimed, workerId), TestNamespace, "add-numbers", plain.JobId, 0));
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 

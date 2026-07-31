@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -6,8 +7,14 @@ using Microsoft.Extensions.Options;
 
 namespace Acta.Runtime.Modules.Execution;
 
-/// <summary>One buffered terminal completion plus what the post-flush wakeup needs.</summary>
-internal sealed record BufferedCompletion(CompleteExecutionRequest Request, string JobNamespace, long JobId, int ResultBytes);
+/// <summary>One buffered terminal completion plus what the post-flush wakeup and metric need.</summary>
+internal sealed record BufferedCompletion(
+    CompleteExecutionRequest Request,
+    string JobNamespace,
+    string JobName,
+    long JobId,
+    int ResultBytes
+);
 
 /// <summary>
 /// The <see cref="ExecutionProfile.Bulk"/> completion buffer. Plain terminal completions are written here
@@ -29,17 +36,20 @@ internal sealed class CompletionSink
     private readonly TimeSpan _interval;
     private readonly int _maxBytes;
     private readonly ILogger _log;
+    private readonly JobMetrics? _metrics;
     private readonly Channel<BufferedCompletion> _channel;
 
     public CompletionSink(
         Acta.Runtime.Modules.Execution.IExecutionStore execution,
         WorkerWakeupPublisher wakeupPublisher,
         IOptions<JobsOptions> options,
-        ILogger? log = null
+        ILogger? log = null,
+        JobMetrics? metrics = null
     )
     {
         _execution = execution;
         _wakeupPublisher = wakeupPublisher;
+        _metrics = metrics;
         var o = options.Value;
         _batchSize = Math.Max(1, o.BatchCompletionSize);
         _interval = o.BatchCompletionInterval;
@@ -165,6 +175,7 @@ internal sealed class CompletionSink
         {
             if (finalized[i])
             {
+                RecordDurableCompletion(batch[i]);
                 continue;
             }
 
@@ -172,6 +183,10 @@ internal sealed class CompletionSink
             {
                 // Not finalized in the batch: complete per-job with full semantics (parent child-done latch).
                 results[i] = await _execution.CompleteExecutionAsync(batch[i].Request, CancellationToken.None).ConfigureAwait(false);
+                if (results[i] is { Action: CompleteExecutionAction.Completed })
+                {
+                    RecordDurableCompletion(batch[i]);
+                }
             }
             catch (Exception ex)
             {
@@ -238,6 +253,14 @@ internal sealed class CompletionSink
     {
         if (result.Action != CompleteExecutionAction.Completed)
         {
+            // The per-job CAS matched nothing: an external control or a reclaim moved the row while
+            // the completion sat buffered. Nothing was finalized here; recovery or the concurrent
+            // winner owns the row now. Say so, or the buffered completion vanishes without a trace.
+            _log.LogWarning(
+                "Bulk fallback completion for job {JobId} returned {Action}; nothing was finalized here.",
+                b.JobId,
+                result.Action
+            );
             return;
         }
 
@@ -255,4 +278,16 @@ internal sealed class CompletionSink
                 .ConfigureAwait(false);
         }
     }
+
+    // The Bulk execution metric is recorded here, at durable finalization, not at handler finish:
+    // a buffered completion can still lose its CAS or fail to flush, and "acta.executions" must
+    // count what the store confirmed, matching the Direct/Buffered post-CAS semantics.
+    private void RecordDurableCompletion(BufferedCompletion b) =>
+        _metrics?.RecordExecution(
+            b.JobNamespace,
+            b.JobName,
+            JobRunner.OutcomeTag(b.Request.Outcome),
+            b.Request.JobEventReasonCode?.Code,
+            b.Request.DurationMs ?? 0
+        );
 }
