@@ -2,7 +2,8 @@
 
 This page explains the knobs operators actually set. The source of truth is still
 `src/Acta/Configuration/JobsOptions.cs` and `src/Acta/Configuration/SqlProviderOptions.cs`; update
-those XML docs first when behavior changes.
+those XML docs first when behavior changes. Like the rest of the SDK, the option types live in the
+single `Acta` namespace: `using Acta;` covers ordinary wiring and direct option use alike.
 
 ## Wiring Shape
 
