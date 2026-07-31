@@ -1,26 +1,11 @@
 using Acta.Postgres.Configuration;
 using Acta.Postgres.Hosting;
 using Acta.Postgres.Services;
+using Acta.Relational;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Resources;
-using Acta.Relational.Stores;
 using Acta.Runtime.Hosting;
-using Acta.Runtime.Maintenance;
-using Acta.Runtime.Modules.Alerting;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Namespaces;
-using Acta.Runtime.Modules.Execution.Schedules;
-using Acta.Runtime.Modules.Execution.Signals;
-using Acta.Runtime.Modules.Execution.Tenants;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Modules.Operations.Events;
-using Acta.Runtime.Modules.Operations.Overview;
-using Acta.Runtime.Modules.Operations.Tags;
-using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -68,22 +53,7 @@ public static class PostgresActaBuilderExtensions
             typeof(PostgresDialect).Assembly,
             sp.GetRequiredService<SqlProviderOptions>().Schema
         ));
-        builder.Services.AddSingleton<IOverviewStore, RelationalOverviewStore>();
-        builder.Services.AddSingleton<IEventStore, RelationalEventStore>();
-        builder.Services.AddSingleton<IDefinitionStore, RelationalDefinitionStore>();
-        builder.Services.AddSingleton<INamespaceStore, RelationalNamespaceStore>();
-        builder.Services.AddSingleton<ITenantStore, RelationalTenantStore>();
-        builder.Services.AddSingleton<IJobStore, RelationalJobStore>();
-        builder.Services.AddSingleton<ITagStore, RelationalTagStore>();
-        builder.Services.AddSingleton<ISignalStore, RelationalSignalStore>();
-        builder.Services.AddSingleton<IScheduleStore, RelationalScheduleStore>();
-        builder.Services.AddSingleton<IWorkerStore, RelationalWorkerStore>();
-        builder.Services.AddSingleton<IAlertStore, RelationalAlertStore>();
-        builder.Services.AddSingleton<IRetentionStore, RelationalRetentionStore>();
-        builder.Services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
-        builder.Services.TryAddSingleton<ILockStore, RelationalLockStore>();
-        builder.Services.AddSingleton<IServerClock, RelationalActaClock>();
-        builder.Services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IServerClock>());
+        builder.Services.AddActaRelationalStores();
 
         return builder;
     }
