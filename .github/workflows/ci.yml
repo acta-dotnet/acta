@@ -19,19 +19,27 @@ jobs:
     name: Format + emit drift
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'Directory.Build.props', 'global.json') }}
           restore-keys: |
             nuget-${{ runner.os }}-
+      # Actions are pinned to full commit SHAs so a retargeted or compromised tag cannot change
+      # what runs in a release build. The comment after each pin records the tag it resolved from.
+      - name: Enforce SHA-pinned actions
+        run: |
+          if grep -nE 'uses:[^#]*@(v[0-9]|main|master)' .github/workflows/*.yml; then
+            echo 'Workflow actions must be pinned to full commit SHAs (uses: owner/repo@<sha> # vX.Y.Z).'
+            exit 1
+          fi
       - name: Docs link check
         run: bash tools/check-md-links.sh
       - name: Provider SQL changed-sibling report
@@ -53,10 +61,10 @@ jobs:
     name: Dashboard build (Vite)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '22'
           cache: npm
@@ -72,7 +80,7 @@ jobs:
         run: npm run build
       - name: Verify dashboard assets
         run: test -f src/Acta.AspNetCore/DashboardApp/dist/index.html
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dashboard-dist
           path: src/Acta.AspNetCore/DashboardApp/dist
@@ -83,13 +91,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality, dashboard]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dashboard-dist
           path: src/Acta.AspNetCore/DashboardApp/dist
@@ -98,7 +106,7 @@ jobs:
       # Central package management without a lock file: key the restore cache on the package manifests
       # and SDK pin, so a graph change invalidates it.
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'Directory.Build.props', 'global.json') }}
@@ -117,12 +125,12 @@ jobs:
       - name: Capture database logs
         if: failure()
         run: docker compose logs --no-color > db-logs.txt
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: db-logs
           path: db-logs.txt
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: test-results
@@ -139,20 +147,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality, dashboard]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dashboard-dist
           path: src/Acta.AspNetCore/DashboardApp/dist
       - name: Verify dashboard assets
         run: test -f src/Acta.AspNetCore/DashboardApp/dist/index.html
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'Directory.Build.props', 'global.json') }}
@@ -182,7 +190,7 @@ jobs:
       - name: Package smoke
         shell: pwsh
         run: tests/PackageSmoke/run.ps1 -ExistingFeed artifacts
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: packages
           path: |
@@ -199,14 +207,14 @@ jobs:
     # a clean native compile (ACTA_AOT_PUBLISH_TEST=1 enables the otherwise-skipped test).
     if: github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'Directory.Build.props', 'global.json') }}
@@ -224,6 +232,12 @@ jobs:
   # Publishes the pack-smoke artifact to nuget.org on v* tags via Trusted Publishing (OIDC, no
   # long-lived API key): NuGet/login exchanges the GitHub OIDC token for a 1-hour key scoped by
   # the nuget.org policy (repo acta-dotnet/acta, workflow ci.yml, environment release).
+  #
+  # Provenance policy: package identity is established by Trusted Publishing (the OIDC exchange ties
+  # the upload to this repo/workflow/environment), SHA-pinned actions (enforced above), and the
+  # retained `packages` artifact of the tag run, whose run URL and commit connect the published
+  # bytes to the reviewed source. Author signing and SBOM generation are deliberately deferred until
+  # after 0.3.0-alpha.1; nuget.org repository-signs all packages on ingestion regardless.
   publish-nuget:
     name: Publish to nuget.org
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -234,12 +248,12 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: packages
           path: artifacts
       - name: NuGet login (OIDC -> temp API key)
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         id: login
         with:
           user: ${{ secrets.NUGET_USER }}
