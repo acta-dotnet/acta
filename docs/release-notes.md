@@ -1,5 +1,45 @@
 # Release notes
 
+## 0.3.0-alpha.1 (preview)
+
+The runtime is reorganized into explicit modules, the release pipeline hardens, and the Bulk
+execution profile gets correctness fixes for aborted attempts and batched completions.
+
+> **Schema note:** the `M001` baseline was re-cut in this release (the completion batch TVP is now
+> keyed by request ordinal and its job column is named `job_id`). Preview compatibility policy
+> applies: drop and reprovision the Acta database; the bootstrap refuses a mismatched baseline.
+
+### Modular architecture
+
+- One flat `Acta` namespace for the whole SDK; module boundaries (Jobs, Execution, Ledger, ...)
+  are formalized behind `IActaOperations`, with dependency-graph and SQL-ownership gates in CI.
+- Provider SQL trees mirror the module layout; relational store registrations are shared across
+  providers; concrete schema migrators are internal.
+
+### Execution correctness
+
+- An attempt aborted mid-flight (lease renewal at risk, or a held handler lock lost) now retries
+  under the failure budget with the new `job.attempt-aborted` reason instead of landing terminal
+  Failed while the row was still recoverable.
+- SQL Server batched completions accept two attempts of the same job in one batch (correlation is
+  by request ordinal) and bind failure reason codes correctly, so a terminal failure no longer
+  fails the whole flush batch.
+- Bulk records the `acta.executions` metric at durable finalization, matching Direct/Buffered
+  semantics, and a swallowed fallback completion result is now logged.
+
+### Security and release hardening
+
+- The dashboard/API HTTP ingress perimeter is closed by default; unknown API faults return 500 and
+  only the documented transient family returns 503.
+- Workflow actions are pinned to commit SHAs with automated pin updates; packages publish to
+  nuget.org via Trusted Publishing on release tags; the package-consumer smoke covers every
+  shippable package.
+
+### Operator polish
+
+- Job and tenant panels surface the retry budget; the scope selector uses a themed popover;
+  automatic retention is lineage-safe and purge sections are uniformly bounded.
+
 ## 0.2.0 (preview)
 
 Multi-tenancy lands as a first-class part of the ledger, the external outbox gains ledger-native

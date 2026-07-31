@@ -6,7 +6,7 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Preview status
 
-Acta is an early 0.1.x preview. APIs and behavior may change without deprecation until stability is
+Acta is an early preview. APIs and behavior may change without deprecation until stability is
 declared. The migration history freezes at 1.0.0 and not before: until then the schema baseline
 (`M001`) may be re-cut in any release, and from 1.0.0 schema changes ship only as additive `Mnnn`
 migrations. During the preview, upgrade compatibility between preview builds is not promised; a
