@@ -16,7 +16,7 @@ public sealed class ProcessPaymentJob(IJobs jobs)
             var decision = await ctx.WaitSignalAsync<FraudDecisionV1>("fraud-review", ct);
             if (decision is not { Approved: true })
             {
-                await JobContext.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
+                await ctx.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
                 return;
             }
 

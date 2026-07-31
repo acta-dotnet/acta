@@ -27,7 +27,7 @@ public static class JobSleepRescheduleProbes
     public static async Task RescheduleDelay(JobContext ctx, CancellationToken ct)
     {
         await ctx.SetVariableAsync("ran.before", true, ct);
-        await JobContext.RescheduleAsync(TimeSpan.FromMinutes(10), "cooldown", ct);
+        await ctx.RescheduleAsync(TimeSpan.FromMinutes(10), "cooldown", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
 
