@@ -40,6 +40,12 @@ public enum JobEventReasonCode : byte
     )]
     JobDeadlineExceeded = 24,
 
+    [Code(
+        "job.attempt-aborted",
+        "Worker aborted the attempt mid-flight (lease renewal at risk or a held lock lost); retried under the failure budget."
+    )]
+    JobAttemptAborted = 25,
+
     [Code("job.schedules-exhausted", "Recurring slot has no live JobSchedule yielding a next instant; row is system-paused.")]
     JobSchedulesExhausted = 30,
 
