@@ -274,7 +274,16 @@ public static class BaselineSuite
             );
         }
 
-        return scenarios is null ? specs : [.. specs.Where(s => scenarios.Contains(s.Scenario, StringComparer.OrdinalIgnoreCase))];
+        return scenarios is null ? specs : [.. specs.Where(s => scenarios.Any(token => MatchesScenarioToken(s, token)))];
+    }
+
+    // A scenario token is "scenario" or "scenario:profile" (e.g. "throughput:bulk"), so targeted
+    // A/B runs can skip execution profiles that never touch the code under test.
+    private static bool MatchesScenarioToken(BaselineCellSpec spec, string token)
+    {
+        var parts = token.Split(':', 2);
+        return string.Equals(spec.Scenario, parts[0], StringComparison.OrdinalIgnoreCase)
+            && (parts.Length == 1 || string.Equals(spec.KeyProfile?.ToString(), parts[1], StringComparison.OrdinalIgnoreCase));
     }
 
     public static IReadOnlyList<string> NormalizeProviders(IReadOnlyList<string>? providers)
