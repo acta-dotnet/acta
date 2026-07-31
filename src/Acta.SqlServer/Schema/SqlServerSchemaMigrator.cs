@@ -158,8 +158,8 @@ internal static partial class SqlServerSchemaMigrator
     // The bounded bootstrap retries admit only documented transient conditions; a permanent
     // configuration error (missing permission, syntax, definitively bad credentials) surfaces on the
     // first attempt instead of burning the whole 30s budget. 1205 deadlock victim; 1807/5061
-    // concurrent CREATE/ALTER DATABASE contention; 4060 database not yet openable (mid-create or
-    // mid-restart); 18456 login rejected while the freshly-bounced database settles (credentials
+    // concurrent CREATE/ALTER DATABASE contention; 4060 database unopenable mid-create or
+    // mid-restart; 18456 login rejected while the freshly-bounced database settles (credentials
     // were already proven against master before either retry loop runs, so this cannot mask a wrong
     // password); -2 client timeout; 0/64/233/10053/10054/10060 connection killed or reset.
     internal static bool IsTransientBootstrapNumber(int number) =>

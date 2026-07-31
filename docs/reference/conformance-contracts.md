@@ -1660,6 +1660,9 @@
   - A Dead worker is reaped and an Active worker is kept
   - A settled alert past the window is deleted and an in-flight alert is kept
   - An expired lock row is reaped and a live lock is kept
+  - An expired terminal parent survives the sweep while a live child still references it
+  - A fully expired subtree drains child-first and then releases the parent
+  - The lock sweep is bounded by batch size and iterations like every other section
   - Batching caps a single call at max iterations and a full run clears the rest
 - **Store methods:**
   - `Acta.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
