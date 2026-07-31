@@ -63,7 +63,8 @@ See [`contract-evolution.md`](../guide/contract-evolution.md).
 Dashboard auth is the host application's responsibility. Acta ships no login system.
 
 The dashboard and JSON API are local-only by default, and controls are disabled by default. Remote
-exposure requires `LocalOnly = false` plus host authorization through `ConfigureEndpoints`.
+exposure requires `LocalOnly = false` plus host authorization through `ConfigureEndpoints`; mapping
+without either throws at startup unless `UnsafeAllowAnonymousRemoteAccess = true` is set explicitly.
 
 Behind a reverse proxy on the same host, do not rely on `LocalOnly`; use real authorization.
 

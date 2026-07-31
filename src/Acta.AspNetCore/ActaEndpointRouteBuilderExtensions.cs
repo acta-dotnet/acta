@@ -96,6 +96,22 @@ public static class ActaEndpointRouteBuilderExtensions
         {
             throw new ArgumentOutOfRangeException(nameof(options), "ActaEndpointOptions.MaxReasonMessageLength must be >= 1.");
         }
+
+        if (options.MaxRequestBodyBytes < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "ActaEndpointOptions.MaxRequestBodyBytes must be >= 1.");
+        }
+
+        // Fail closed: dropping the loopback guard without any authorization in place must be an
+        // explicit, unmistakable decision rather than the silent result of one flipped flag.
+        if (!options.LocalOnly && options.ConfigureEndpoints is null && !options.UnsafeAllowAnonymousRemoteAccess)
+        {
+            throw new InvalidOperationException(
+                "LocalOnly = false removes the loopback guard with no authorization configured. Supply "
+                    + "ConfigureEndpoints (e.g. group => group.RequireAuthorization()) or acknowledge the "
+                    + "exposure with UnsafeAllowAnonymousRemoteAccess = true."
+            );
+        }
     }
 
     private static void GuardLocalOnly(RouteGroupBuilder group, ActaEndpointOptions options)

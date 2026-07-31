@@ -90,7 +90,11 @@ public sealed class LocalOnlyTests
     public async Task LocalOnly_false_admits_remote_requests()
     {
         var (app, client) = await TestDashboardHost.StartAsync(
-            configureDashboard: options => options.LocalOnly = false,
+            configureDashboard: options =>
+            {
+                options.LocalOnly = false;
+                options.UnsafeAllowAnonymousRemoteAccess = true;
+            },
             configureApp: RemoteAddress("203.0.113.10")
         );
         await using var _ = app;
