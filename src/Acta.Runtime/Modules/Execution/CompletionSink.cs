@@ -95,7 +95,9 @@ internal sealed class CompletionSink
         while (await reader.WaitToReadAsync().ConfigureAwait(false))
         {
             buffer.Clear();
-            var bytes = 0;
+            // Long accumulator: a batch of near-int-max results must trip the byte threshold, never
+            // wrap negative and disable it (each item is int-bounded, so the long sum cannot overflow).
+            var bytes = 0L;
             using var window = new CancellationTokenSource(_interval);
             while (buffer.Count < _batchSize && bytes < _maxBytes)
             {
