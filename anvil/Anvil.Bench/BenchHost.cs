@@ -363,7 +363,7 @@ public sealed class BenchHost : IAsyncDisposable
     private readonly IHost _host;
     private int _disposed;
 
-    private BenchHost(IHost host, IJobs jobs, IJobs queries, BenchSink sink, string provider, string schema)
+    private BenchHost(IHost host, IJobs jobs, IActaOperations queries, BenchSink sink, string provider, string schema)
     {
         _host = host;
         Jobs = jobs;
@@ -377,7 +377,7 @@ public sealed class BenchHost : IAsyncDisposable
     public IJobs Jobs { get; }
 
     /// <summary>The read/list surface (dashboard queries).</summary>
-    public IJobs Queries { get; }
+    public IActaOperations Queries { get; }
 
     /// <summary>The per-cell completion and latency collector.</summary>
     public BenchSink Sink { get; }
@@ -514,7 +514,7 @@ public sealed class BenchHost : IAsyncDisposable
         await host.StartAsync(ct);
 
         var jobs = host.Services.GetRequiredService<IJobs>();
-        var queries = host.Services.GetRequiredService<IJobs>();
+        var queries = host.Services.GetRequiredService<IActaOperations>();
         return new BenchHost(host, jobs, queries, sink, opt.Provider, opt.Schema);
     }
 

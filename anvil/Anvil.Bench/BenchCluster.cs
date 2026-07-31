@@ -33,7 +33,7 @@ public sealed class BenchCluster : IAsyncDisposable
     public IJobs Jobs => Surviving().Jobs;
 
     /// <summary>The read surface of the first host that is still alive.</summary>
-    public IJobs Queries => Surviving().Queries;
+    public IActaOperations Queries => Surviving().Queries;
 
     /// <summary>
     /// Resets the schema once, then starts <paramref name="workers"/> hosts from the template, each with

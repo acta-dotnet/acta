@@ -9,8 +9,13 @@ namespace Acta.Concepts.PayloadFormats;
 /// <see cref="IJobs.EnqueueBatchAsync"/>. Every job round-trips a single Guid; only the wire
 /// format differs.
 /// </summary>
-internal sealed class Primer(IJobs jobs, IJobPayloadSerializerRegistry serializers, ConceptLab lab, IHostApplicationLifetime lifetime)
-    : BackgroundService
+internal sealed class Primer(
+    IJobs jobs,
+    IActaOperations operations,
+    IJobPayloadSerializerRegistry serializers,
+    ConceptLab lab,
+    IHostApplicationLifetime lifetime
+) : BackgroundService
 {
     private const string Namespace = "payload-formats";
     private const int RowsPerFormat = 250;
@@ -34,7 +39,7 @@ internal sealed class Primer(IJobs jobs, IJobPayloadSerializerRegistry serialize
         completionTimeout.CancelAfter(TimeSpan.FromMinutes(2));
         while (true)
         {
-            var done = await jobs.ListJobsAsync(
+            var done = await operations.ListJobsAsync(
                 new ListJobsQuery(
                     JobNamespace: Namespace,
                     Status: JobStatusCode.Done,

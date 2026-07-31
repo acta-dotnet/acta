@@ -1,7 +1,7 @@
 using Acta.Configuration;
 using Acta.Kernel;
-using Acta.Modules.Alerting.Api;
 using Acta.Modules.Execution;
+using Acta.Modules.Execution.Api;
 using Acta.Modules.Execution.Definitions;
 using Acta.Modules.Execution.Jobs;
 using Acta.Modules.Execution.Schedules;
@@ -65,7 +65,7 @@ internal sealed class WorkerRuntime
         JobMetrics? metrics = null,
         IWorkerWakeup? wakeup = null,
         WorkerWakeupPublisher? wakeupPublisher = null,
-        IAlertChannelRegistry? alertChannels = null
+        IAlertRoutingCheck? alertRouting = null
     )
     {
         var logger = log ?? NullLogger<WorkerRuntime>.Instance;
@@ -84,7 +84,6 @@ internal sealed class WorkerRuntime
             metrics?.AddExecutingSource(registration.NamespaceName, () => _context.RunningAttempts.Count);
         }
 
-        var channelRegistry = alertChannels ?? IAlertChannelRegistry.ForWorkers(workerRegistration is null ? [] : [workerRegistration]);
         _initializer = new WorkerRuntimeInitializer(
             rootServices.GetRequiredService<DefinitionsService>(),
             rootServices.GetRequiredService<IDefinitionStore>(),
@@ -93,7 +92,7 @@ internal sealed class WorkerRuntime
             clock,
             rootServices.GetRequiredService<IServerClock>(),
             serializers,
-            channelRegistry,
+            alertRouting,
             options,
             workerRegistration,
             _context,
@@ -162,7 +161,7 @@ internal sealed class WorkerRuntime
             sp.GetService<JobMetrics>(),
             sp.GetRequiredService<IWorkerWakeup>(),
             sp.GetRequiredService<WorkerWakeupPublisher>(),
-            sp.GetRequiredService<IAlertChannelRegistry>()
+            sp.GetRequiredService<IAlertRoutingCheck>()
         );
 
     /// <summary>This worker's declared namespace; null for an enqueue-only runtime.</summary>

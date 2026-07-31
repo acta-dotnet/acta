@@ -21,25 +21,16 @@ namespace Acta.Tests.Api;
 /// <summary>
 /// Validation behavior of the facade read methods with no database: filter dependencies, identifier
 /// shape, page-size bounds, the events total guard, and cursor envelope rejection. Each read is
-/// exercised on its owner: job/event reads on <see cref="JobsApi"/>, schedules on <see cref="SchedulesApi"/>,
-/// alerts on <see cref="AlertsApi"/>. The store stub returns empty pages so cursor checks run before
-/// any data access matters; the JobsApi facade's unused collaborators are null because the read path
-/// only touches the store.
+/// exercised on its owner: the job list on <see cref="JobsService"/>, the event list on
+/// <see cref="EventsService"/>, schedules on <see cref="SchedulesApi"/>, alerts on
+/// <see cref="AlertsApi"/>. The store stub returns empty pages so cursor checks run before any data
+/// access matters; unused collaborators are null because the read path only touches the store.
 /// </summary>
 public sealed class FacadeReadValidationTests
 {
-    private static JobsApi Jobs() =>
-        new(
-            null!,
-            null!,
-            null!,
-            null!,
-            Options.Create(new JobsOptions()),
-            null!,
-            new EventsService(new EmptyEventStore()),
-            JobsReadService(),
-            new SignalService(null!, JobsReadService(), null!, Options.Create(new JobsOptions()))
-        );
+    private static JobsService Jobs() => JobsReadService();
+
+    private static EventsService Events() => new(new EmptyEventStore());
 
     private static JobsService JobsReadService() =>
         new(new EmptyJobStore(), null!, null!, null!, new EmptyScheduleStore(), null!, null!, Options.Create(new JobsOptions()));
@@ -245,14 +236,14 @@ public sealed class FacadeReadValidationTests
     public async Task Events_total_without_job_id_throws()
     {
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Jobs().ListJobEventsAsync(new ListJobEventsQuery(IncludeTotal: true), Ct)
+            await Events().ListJobEventsAsync(new ListJobEventsQuery(IncludeTotal: true), Ct)
         );
     }
 
     [Fact]
     public async Task Events_total_with_job_id_is_allowed()
     {
-        var result = await Jobs().ListJobEventsAsync(new ListJobEventsQuery(JobId: 1, IncludeTotal: true), Ct);
+        var result = await Events().ListJobEventsAsync(new ListJobEventsQuery(JobId: 1, IncludeTotal: true), Ct);
 
         Assert.Equal(0L, result.TotalCount);
     }
@@ -305,7 +296,7 @@ public sealed class FacadeReadValidationTests
     public async Task Non_positive_id_filters_throw(long jobId)
     {
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await Jobs().ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId), Ct)
+            await Events().ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId), Ct)
         );
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>

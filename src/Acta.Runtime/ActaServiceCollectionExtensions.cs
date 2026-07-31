@@ -90,13 +90,15 @@ public static class ActaServiceCollectionExtensions
         // themselves (e.g. IOverviewStore); the composite grows one property per migrated feature.
         services.TryAddSingleton<OverviewService>();
         services.TryAddSingleton<EventsService>();
-        services.TryAddSingleton<Modules.Operations.Api.IJobEventFeed>(static sp => sp.GetRequiredService<EventsService>());
         services.TryAddSingleton<DefinitionsService>();
         services.TryAddSingleton<NamespacesService>();
         services.TryAddSingleton<TenantsService>();
         services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
+        // Execution's declared read API for the Operations module (tags target resolution, the
+        // operator job list); the same JobsService instance behind IJobs serves it.
+        services.TryAddSingleton<IExecutionQueries>(static sp => sp.GetRequiredService<JobsService>());
         services.TryAddSingleton<SignalService>();
         services.TryAddSingleton<IAlertSink, AlertStoreSink>();
 
@@ -159,6 +161,15 @@ public static class ActaServiceCollectionExtensions
         }
 
         services.TryAddSingleton<IAlertChannelRegistry>(new AlertChannelRegistry(builder.Workers));
+
+        // Execution's startup routing seam, implemented by Alerting: worker init validates each
+        // namespace's alert routing through this Execution-owned port, keeping the module edge
+        // Alerting -> Execution.Api only.
+        services.TryAddSingleton<IAlertRoutingCheck>(sp => new AlertRoutingCheck(
+            sp.GetRequiredService<IAlertChannelRegistry>(),
+            sp.GetRequiredService<IOptions<JobsOptions>>(),
+            sp.GetService<ILogger<AlertRoutingCheck>>()
+        ));
 
         // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and ExecuteAndWaitAsync facade.
         // Built from the declared catalogs: Reference contributes routes without a worker, Run contributes

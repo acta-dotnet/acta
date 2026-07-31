@@ -19,7 +19,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 var operations = host.Services.GetRequiredService<IActaOperations>();
-var queries = host.Services.GetRequiredService<IJobs>();
+var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // Enqueue several jobs so there is data to query against.
 Console.WriteLine("Enqueuing jobs across two definitions...");

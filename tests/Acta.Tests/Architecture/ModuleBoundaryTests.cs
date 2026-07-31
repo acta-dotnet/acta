@@ -103,23 +103,21 @@ public sealed class ModuleBoundaryTests
     }
 
     /// <summary>
-    /// The reference graph itself: every cross-module reference in module source must match a
-    /// declared edge, and every module except Operations (the sanctioned cross-module reader) may
-    /// target only the referenced module's <c>Api</c> namespace. No baseline: the graph is clean,
-    /// so a new edge is a design decision that lands here and in design.md together.
+    /// The declared module graph: every cross-module reference in module source (Operations
+    /// included) must match one of these edges and may target only the referenced module's
+    /// <c>Api</c> namespace. No baseline: the graph is clean, so a new edge is a design decision
+    /// that lands here and in design.md together.
     /// </summary>
+    private static readonly HashSet<string> ApiEdges = new(StringComparer.Ordinal)
+    {
+        "Alerting -> Execution",
+        "Outbox -> Execution",
+        "Operations -> Execution",
+    };
+
     [Fact]
     public void Cross_module_references_follow_the_declared_graph()
     {
-        var apiEdges = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "Alerting -> Execution",
-            "Outbox -> Execution",
-            "Execution -> Alerting",
-            "Execution -> Operations",
-        };
-        var readerModules = new HashSet<string>(StringComparer.Ordinal) { "Operations" };
-
         var modulesRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Runtime", "Modules");
         var reference = new Regex(@"Acta\.Modules\.(?<module>\w+)(?:\.(?<sub>\w+))?", RegexOptions.Compiled);
         var violations = new List<string>();
@@ -134,13 +132,8 @@ public sealed class ModuleBoundaryTests
                     continue;
                 }
 
-                if (readerModules.Contains(consumer))
-                {
-                    continue;
-                }
-
                 var edge = $"{consumer} -> {target}";
-                if (!apiEdges.Contains(edge))
+                if (!ApiEdges.Contains(edge))
                 {
                     violations.Add($"{Path.GetFileName(file)}: undeclared edge {edge}");
                 }
@@ -152,6 +145,46 @@ public sealed class ModuleBoundaryTests
         }
 
         Assert.True(violations.Count == 0, "Module reference graph violations:\n" + string.Join("\n", violations));
+    }
+
+    /// <summary>
+    /// The declared graph is acyclic (the proposal's cycle-freedom rule): a new edge that closes a
+    /// loop between modules fails here even before any source references it, so a cycle can never
+    /// be legalized by declaration.
+    /// </summary>
+    [Fact]
+    public void Declared_module_graph_is_free_of_cycles()
+    {
+        var edges = ApiEdges.Select(e => e.Split(" -> ")).ToLookup(parts => parts[0], parts => parts[1]);
+
+        var finished = new HashSet<string>(StringComparer.Ordinal);
+        var path = new List<string>();
+
+        void Visit(string module)
+        {
+            if (finished.Contains(module))
+            {
+                return;
+            }
+            var cycleStart = path.IndexOf(module);
+            if (cycleStart >= 0)
+            {
+                Assert.Fail("Module dependency cycle: " + string.Join(" -> ", path.Skip(cycleStart).Append(module)));
+            }
+
+            path.Add(module);
+            foreach (var target in edges[module])
+            {
+                Visit(target);
+            }
+            path.RemoveAt(path.Count - 1);
+            finished.Add(module);
+        }
+
+        foreach (var module in edges.Select(g => g.Key))
+        {
+            Visit(module);
+        }
     }
 
     private static string? ModuleOf(string? ns)

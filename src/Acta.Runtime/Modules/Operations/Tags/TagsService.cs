@@ -1,8 +1,8 @@
-using Acta.Modules.Execution.Jobs;
+using Acta.Modules.Execution.Api;
 
 namespace Acta.Modules.Operations.Tags;
 
-internal sealed class TagsService(ITagStore store, JobsService jobs) : ITags
+internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITags
 {
     public async ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default)
     {

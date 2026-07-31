@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One audit event row in a <see cref="IJobs.ListJobEventsAsync"/> page. JSON serialization
+/// One audit event row in a <see cref="IActaOperations.ListJobEventsAsync"/> page. JSON serialization
 /// carries the public job refs and hides the numeric job ids; refs go null once the subject job
 /// row is purged (events outlive their job).
 /// </summary>

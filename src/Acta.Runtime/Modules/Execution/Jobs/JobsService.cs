@@ -28,7 +28,7 @@ internal sealed class JobsService(
     IExecutionStore executionStore,
     WorkerWakeupPublisher wakeupPublisher,
     IOptions<JobsOptions> options
-)
+) : IExecutionQueries
 {
     internal const int MaxBatchRows = 5000;
     internal const long MaxBatchPayloadBytes = 64L * 1024 * 1024;

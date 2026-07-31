@@ -49,7 +49,7 @@ public abstract class ListJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = (await SeedJobsForList(5)).ToHashSet();
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var seen = new List<JobListItem>();
         string? cursor = null;
@@ -90,7 +90,7 @@ public abstract class ListJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
         await SeedJobsForList(3);
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var withoutTotal = await queries.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", PageSize: 1),

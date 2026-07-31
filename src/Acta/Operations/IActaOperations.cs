@@ -29,6 +29,12 @@ public interface IActaOperations
     /// <summary>Exact searchable metadata attachments. See <see cref="ITags"/>.</summary>
     ITags Tags { get; }
 
+    /// <summary>List jobs newest first, optionally filtered by namespace, status, definition, tenant, correlation id, or tags.</summary>
+    ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default);
+
+    /// <summary>List audit events newest first, optionally scoped to a job, lineage, namespace, or event code.</summary>
+    ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct = default);
+
     /// <summary>One-shot dashboard health counters, optionally scoped to a namespace.</summary>
     ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default);
 

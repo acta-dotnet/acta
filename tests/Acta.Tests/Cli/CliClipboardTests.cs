@@ -55,7 +55,8 @@ public class CliRunnerClipboardTests
     {
         var output = new StringWriter();
         var error = new StringWriter();
-        var runner = new CliCommandRunner(new NothingJobs(), [], ["shop"], output, error, clipboard);
+        var jobs = new NothingJobs();
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], output, error, clipboard);
 
         var exitCode = await runner.RunAsync(
             new CliCommand(CliVerb.Info, Target: null, null, null, null, null, Json: false),
@@ -99,8 +100,10 @@ public class CliRunnerClipboardTests
     {
         var output = new StringWriter();
         var error = new StringWriter();
+        var jobs = new NothingJobs();
         var runner = new CliCommandRunner(
-            new NothingJobs(),
+            jobs,
+            jobs,
             [],
             ["shop"],
             output,
@@ -120,7 +123,7 @@ public class CliRunnerClipboardTests
     public async Task Signal_without_value_raises_presence_only()
     {
         var jobs = new NothingJobs();
-        var runner = new CliCommandRunner(jobs, [], ["shop"], new StringWriter(), new StringWriter(), () => null);
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], new StringWriter(), new StringWriter(), () => null);
 
         var exit = await runner.RunAsync(
             new CliCommand(CliVerb.Signal, Target: "42", SignalName: "approval", SignalValue: null, null, null, Json: false),
@@ -136,7 +139,7 @@ public class CliRunnerClipboardTests
     public async Task Signal_with_value_passes_a_json_payload_through()
     {
         var jobs = new NothingJobs();
-        var runner = new CliCommandRunner(jobs, [], ["shop"], new StringWriter(), new StringWriter(), () => null);
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], new StringWriter(), new StringWriter(), () => null);
         const string json = "{\"approved\":true}";
 
         var exit = await runner.RunAsync(
@@ -150,7 +153,7 @@ public class CliRunnerClipboardTests
         Assert.Equal(json, System.Text.Encoding.UTF8.GetString(call.Value!));
     }
 
-    private sealed class NothingJobs : IJobs
+    private sealed class NothingJobs : IJobs, IActaOperations
     {
         public ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default) =>
             ValueTask.FromResult<JobSnapshot?>(null);

@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.AspNetCore.Web;
 
 /// <summary>
-/// Minimal-API endpoints over <see cref="IJobs"/>: GET list and
+/// Minimal-API endpoints over <see cref="IJobs"/> and <see cref="IActaOperations"/>: GET list and
 /// detail reads plus, when enabled, the POST job-control verbs. Query values bind explicitly so
 /// malformed input maps to 400, an invalid cursor maps to 400, and a missing job maps to 404.
 /// Responses are never cached.
@@ -106,7 +106,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/jobs",
-            (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            (HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -157,7 +157,7 @@ internal static class ActaApiEndpoints
                             IncludeTotal: includeTotal ?? false,
                             Tags: QueryBinding.Tags(http.Request.Query)
                         );
-                        return Results.Json(await jobs.ListJobsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobListItem);
+                        return Results.Json(await operations.ListJobsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobListItem);
                     }
                 );
             }
@@ -181,13 +181,7 @@ internal static class ActaApiEndpoints
         // clone prefill) and would otherwise pay the whole detail composition for one field.
         group.MapGet(
             "/jobs/{jobRef}/input",
-            async Task<IResult> (
-                string jobRef,
-                IJobs jobs,
-                IActaOperations operations,
-                IOptions<JobsOptions> jobsOptions,
-                CancellationToken ct
-            ) =>
+            async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
             {
                 if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                 {
@@ -403,7 +397,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/events",
-            static (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -450,14 +444,17 @@ internal static class ActaApiEndpoints
                 return Guard(
                     http,
                     async () =>
-                        Results.Json(await jobs.ListJobEventsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobEventListItem)
+                        Results.Json(
+                            await operations.ListJobEventsAsync(query, ct),
+                            DashboardJsonContext.Default.PagedResultJobEventListItem
+                        )
                 );
             }
         );
 
         group.MapGet(
             "/jobs/{jobRef}/events",
-            (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            (string jobRef, HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
             {
                 if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                 {
@@ -492,7 +489,7 @@ internal static class ActaApiEndpoints
                             IncludeTotal: includeTotal ?? false
                         );
                         return Results.Json(
-                            await jobs.ListJobEventsAsync(query, ct),
+                            await operations.ListJobEventsAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultJobEventListItem
                         );
                     }
@@ -551,7 +548,7 @@ internal static class ActaApiEndpoints
 
         group.MapGet(
             "/definitions/{defId:int}/events",
-            static (int defId, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            static (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 string? error = null;
                 if (
@@ -571,7 +568,10 @@ internal static class ActaApiEndpoints
                 return Guard(
                     http,
                     async () =>
-                        Results.Json(await jobs.ListJobEventsAsync(query, ct), DashboardJsonContext.Default.PagedResultJobEventListItem)
+                        Results.Json(
+                            await operations.ListJobEventsAsync(query, ct),
+                            DashboardJsonContext.Default.PagedResultJobEventListItem
+                        )
                 );
             }
         );

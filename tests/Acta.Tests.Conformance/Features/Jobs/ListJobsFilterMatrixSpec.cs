@@ -97,7 +97,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
             );
         Assert.Equal(CompleteExecutionAction.Completed, cr3.Action);
 
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // JobName scopes out the recurring-ping slot job so only seeded rows appear in the Ready set
         var readyPage = await queries.ListJobsAsync(
@@ -132,7 +132,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var children2 = await EnqueueAsync([AddNumbersRow(parentId: p2)], ct);
         var c3 = children2[0].JobId;
 
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var p1Page = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, ParentJobId: p1), ct);
         Assert.Equal(new HashSet<long> { c1, c2 }, p1Page.Items.Select(static i => i.JobId).ToHashSet());
@@ -165,7 +165,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var tb = t1Outcomes[1].JobId;
         var tc = t2Outcomes[0].JobId;
 
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var t1Page = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantId: t1Id), ct);
         Assert.Equal(new HashSet<long> { ta, tb }, t1Page.Items.Select(static i => i.JobId).ToHashSet());
@@ -201,7 +201,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         );
         var j3 = ns2Outcomes[0].JobId;
 
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // Scope the primary namespace to the add-numbers job so the recurring-ping slot is excluded.
         // The first two rows should be present, the second namespace row absent, and the total exact.
@@ -239,7 +239,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var b1 = outcomes[2].JobId;
         var none = outcomes[3].JobId;
 
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         var aPage = await queries.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, CorrelationKey: "trace-a", IncludeTotal: true),
@@ -280,7 +280,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var e1 = echoOutcomes[0].JobId;
         var e2 = echoOutcomes[1].JobId;
 
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         // add-numbers filter: includes seeded add-numbers rows; excludes echo rows
         var addPage = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers"), ct);
@@ -312,7 +312,7 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var us = outcomes[2].JobId;
         var presenceOnly = outcomes[3].JobId;
 
-        var queries = Services.GetRequiredService<IJobs>();
+        var queries = Services.GetRequiredService<IActaOperations>();
 
         foreach (var value in new[] { "eu-west", "EU-WEST", "Eu-West" })
         {
