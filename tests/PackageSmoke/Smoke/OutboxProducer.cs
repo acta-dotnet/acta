@@ -1,9 +1,15 @@
 using Acta;
 #if SMOKE_POSTGRES
+using Acta.Postgres;
+using Acta.Postgres.Hosting;
 using Npgsql;
 #elif SMOKE_SQLITE
+using Acta.Sqlite;
+using Acta.Sqlite.Hosting;
 using Microsoft.Data.Sqlite;
 #elif SMOKE_SQLSERVER
+using Acta.SqlServer;
+using Acta.SqlServer.Hosting;
 using Microsoft.Data.SqlClient;
 #endif
 
