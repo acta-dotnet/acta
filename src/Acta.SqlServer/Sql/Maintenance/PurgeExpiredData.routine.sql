@@ -117,11 +117,22 @@ BEGIN
         SET @iter = @iter + 1;
     END;
 
-    DELETE t
-      FROM {{schema}}.leases t WITH (ROWLOCK, READPAST)
-     WHERE t.kind_code = 10 /* LeaseKindCode.Lock */
-       AND t.expires_at_utc <= @now;
-    SET @locks_deleted = @@ROWCOUNT;
+    SET @rows = 1;
+    SET @iter = 0;
+    WHILE @rows > 0 AND @iter < @p_max_iterations
+    BEGIN
+        WITH expired AS (
+            SELECT TOP (@p_batch_size) *
+              FROM {{schema}}.leases WITH (ROWLOCK, READPAST)
+             WHERE kind_code = 10 /* LeaseKindCode.Lock */
+               AND expires_at_utc <= @now
+             ORDER BY expires_at_utc
+        )
+        DELETE FROM expired;
+        SET @rows = @@ROWCOUNT;
+        SET @locks_deleted = @locks_deleted + @rows;
+        SET @iter = @iter + 1;
+    END;
 
     SELECT @jobs_deleted AS jobs_deleted, @events_deleted AS events_deleted, @alerts_deleted AS alerts_deleted, @workers_deleted AS workers_deleted, @locks_deleted AS locks_deleted;
 END;

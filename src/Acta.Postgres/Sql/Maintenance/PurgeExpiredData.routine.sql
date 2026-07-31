@@ -108,13 +108,21 @@ BEGIN
         v_iter := v_iter + 1;
     END LOOP;
 
-    DELETE FROM {{schema}}.leases
-     WHERE ctid IN (
-         SELECT ctid FROM {{schema}}.leases
-          WHERE kind_code = 10 /* LeaseKindCode.Lock */
-            AND expires_at_utc <= v_now
-          FOR UPDATE SKIP LOCKED);
-    GET DIAGNOSTICS v_locks = ROW_COUNT;
+    v_rows := 1;
+    v_iter := 0;
+    WHILE v_rows > 0 AND v_iter < p_max_iterations LOOP
+        DELETE FROM {{schema}}.leases
+         WHERE ctid IN (
+             SELECT ctid FROM {{schema}}.leases
+              WHERE kind_code = 10 /* LeaseKindCode.Lock */
+                AND expires_at_utc <= v_now
+              ORDER BY expires_at_utc
+              LIMIT p_batch_size
+              FOR UPDATE SKIP LOCKED);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        v_locks := v_locks + v_rows;
+        v_iter := v_iter + 1;
+    END LOOP;
 
     RETURN QUERY SELECT v_jobs, v_events, v_alerts, v_workers, v_locks;
 END;
