@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { displayFormatter } from '../../format.ts';
+  import { displayFormatter, TERMINAL_STATUSES } from '../../format.ts';
   import CopyButton from '../../components/CopyButton.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StatusBadge from '../../components/StatusBadge.svelte';
@@ -8,7 +8,7 @@
   import { routes } from '../../routes.ts';
   import JobRef from '../../components/JobRef.svelte';
 
-  let { job, tenantKey = undefined, lastEvent = null }: { job: JobSnapshot; tenantKey?: string; lastEvent?: JobEvent | null } = $props();
+  let { job, tenantKey = undefined, lastEvent = null, maxAttempts = null }: { job: JobSnapshot; tenantKey?: string; lastEvent?: JobEvent | null; maxAttempts?: number | null } = $props();
 </script>
 
 <section class="panel" aria-labelledby="job-summary-heading">
@@ -24,10 +24,10 @@
   <p class="detail-kicker">Execution</p>
   <dl class="kv">
     <dt>Status</dt><dd><StatusBadge status={job.status} /></dd>
-    <dt>Created</dt><dd><RelativeTime value={job.createdAtUtc} /> <span class="dim">{displayFormatter.timestamp(job.createdAtUtc)}</span></dd>
-    <dt>Modified</dt><dd><RelativeTime value={job.modifiedAtUtc} /></dd>
-    <dt>Next run</dt><dd><RelativeTime value={job.nextRunAtUtc} /></dd>
-    <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {displayFormatter.number(job.failureCount)} consecutive failures</dd>
+    {#if !TERMINAL_STATUSES.includes(job.status)}
+      <dt>Next run</dt><dd><RelativeTime value={job.nextRunAtUtc} /></dd>
+    {/if}
+    <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {displayFormatter.number(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
     <dt>Last event</dt><dd>
       {#if lastEvent}
         {lastEvent.eventCode}{#if lastEvent.reasonCode} <span class="dim">· {lastEvent.reasonCode}</span>{/if}{#if lastEvent.reasonMessage} · “{lastEvent.reasonMessage}”{/if}
@@ -45,5 +45,7 @@
     </dd>
     <dt>Parent</dt><dd>{#if job.parentJobRef}<JobRef value={job.parentJobRef} href={routes.job(job.parentJobRef, { namespace: job.jobNamespace })} />{:else}-{/if}</dd>
     <dt>Lineage root</dt><dd>{#if job.lineageRootJobRef}<JobRef value={job.lineageRootJobRef} href={routes.job(job.lineageRootJobRef, { namespace: job.jobNamespace })} />{:else}<span class="dim">this job</span>{/if}</dd>
+    <dt>Created</dt><dd><RelativeTime value={job.createdAtUtc} /> <span class="dim">{displayFormatter.timestamp(job.createdAtUtc)}</span></dd>
+    <dt>Modified</dt><dd><RelativeTime value={job.modifiedAtUtc} /></dd>
   </dl>
 </section>

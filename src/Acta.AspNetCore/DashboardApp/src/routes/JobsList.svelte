@@ -19,7 +19,7 @@
   import CopyButton from '../components/CopyButton.svelte';
   import { routes } from '../routes.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
-  import { displayFormatter } from '../format.ts';
+  import { displayFormatter, TERMINAL_STATUSES } from '../format.ts';
 
   interface JobRow {
     jobRef: string;
@@ -191,7 +191,7 @@
     {/snippet}
     {#snippet statusCell(job: JobRow)}<StatusBadge status={job.status} />{/snippet}
     {#snippet ageCell(job: JobRow)}<RelativeTime value={job.createdAtUtc} />{/snippet}
-    {#snippet nextRunCell(job: JobRow)}<RelativeTime value={job.nextRunAtUtc} />{/snippet}
+    {#snippet nextRunCell(job: JobRow)}<RelativeTime value={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} />{/snippet}
     {#snippet attemptsCell(job: JobRow)}{displayFormatter.number(job.executionNumber)}{job.failureCount > 0 ? ' (' + displayFormatter.number(job.failureCount) + ' failed)' : ''}{/snippet}
 
     <ActaGrid
