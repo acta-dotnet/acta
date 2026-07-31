@@ -182,8 +182,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             -- Bulk execution profile. Consumed by acta.complete_executions_batch's @p_batch sproc parameter.
             IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
-                ordinal           INT            NOT NULL,
-                id                BIGINT         NOT NULL PRIMARY KEY,
+                ordinal           INT            NOT NULL PRIMARY KEY,
+                job_id            BIGINT         NOT NULL,
                 worker_id         INT            NOT NULL,
                 execution_number  INT            NOT NULL,
                 succeeded         BIT            NOT NULL,

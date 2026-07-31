@@ -14,16 +14,17 @@ namespace Acta.Tests.Conformance.Features.Execution;
 /// declines mismatched-lease rows, and aligns the returned <c>bool[]</c> to the original input
 /// ordinals. Executing rows without a parent and with a matching lease are finalized: exclusive-key
 /// rows included, since the key's lock is released C#-side, independent of the completion write; all
-/// others are declined (caller must retry via the scalar path).
+/// others are declined (caller must retry via the scalar path). Duplicate job ids in one batch are
+/// legal (a stale attempt can be buffered alongside its reclaimed successor); correlation is by ordinal.
 /// </summary>
 [ConformanceSpec(
     "complete-executions-batch.self-filter",
     "CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals",
     Area = "Execution",
-    Contract = "CompleteExecutionsBatch finalizes plain Executing rows including keyed ones and declines those with a parent or mismatched lease, one bool per ordinal.",
+    Contract = "CompleteExecutionsBatch finalizes plain Executing rows, declines parented or mismatched-lease rows, and accepts duplicate job ids, one bool per ordinal.",
     Arrange = "Plain, child, exclusive-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.",
     Act = "CompleteExecutionsBatch runs over the Executing rows batched in interleaved order.",
-    Assert = "The returned bool list aligns to the original ordinals, finalizing eligible rows with true and declining the rest with false."
+    Assert = "The returned bool list aligns to the original ordinals, finalizing eligible rows and declining the rest, even when one job id appears twice."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionsBatchAsync))]
 public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -242,6 +243,45 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         var finished = Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished));
         Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished.JobEventReasonCode);
         Assert.Equal(JobStatusCode.Failed, finished.ToStatus);
+    }
+
+    [Fact(DisplayName = "Duplicate job id in one batch: stale attempt declines, current attempt finalizes, unrelated row unaffected")]
+    public async Task Duplicate_job_id_stale_declines_current_finalizes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+
+        if (dialect.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompleteExecutionsBatch is not supported on SQLite (Bulk degrades to Direct there).");
+        }
+
+        var aEnq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var bEnq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2))), ct);
+
+        var a = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, aEnq.JobId, ct);
+        var b = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, bEnq.JobId, ct);
+
+        // A stale attempt for job A (mismatched execution number) buffered alongside the current one:
+        // exactly the overlap the runtime produces when a reclaimed job is re-dispatched in-process
+        // while the previous attempt is still unwinding. Both rows share one job id in one batch.
+        var requests = new List<CompleteExecutionRequest>
+        {
+            MakeRequest(a, workerId, wrongExecutionNumber: true),
+            MakeRequest(a, workerId),
+            MakeRequest(b, workerId),
+        };
+
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
+
+        Assert.Equal([false, true, true], results);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(aEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(bEnq.JobId, ct)).Status);
+
+        // Exactly one finished event for job A: the stale request must not fan out through the
+        // ordinal correlation.
+        var events = await GetEventsByJobId.Run(Services, aEnq.JobId, ct);
+        Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished));
     }
 
     [Fact(DisplayName = "Wrong-owner batch entry declines with false and scalar CompleteExecution returns NotOwner")]

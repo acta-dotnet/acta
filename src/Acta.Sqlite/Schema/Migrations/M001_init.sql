@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_execution_status_code CHECK (execution_status_code IS NULL OR execution_status_code IN (50, 100, 150, 151, 152, 200, 220, 230))
-    , CONSTRAINT ck_events_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
+    , CONSTRAINT ck_events_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 25, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
     , CONSTRAINT ck_events_detail_format_id_byte CHECK (detail_format_id BETWEEN 0 AND 255)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_lineage_timeline ON events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
     , CONSTRAINT ck_steps_state_code CHECK (state_code IN (10, 100, 200, 230))
-    , CONSTRAINT ck_steps_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
+    , CONSTRAINT ck_steps_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 25, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
@@ -414,5 +414,5 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (1, 'init-byte-codes-v1', '{{schema}}')
+VALUES (1, 'init-ordinal-tvp-v1', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
