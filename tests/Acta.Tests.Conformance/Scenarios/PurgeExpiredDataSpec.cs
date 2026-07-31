@@ -266,6 +266,53 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         }
     }
 
+    [Fact(DisplayName = "The lock sweep is bounded by batch size and iterations like every other section")]
+    public async Task Lock_sweep_is_bounded_by_batch_size_and_iterations()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var locks = Services.GetRequiredService<ILockStore>();
+
+        // Three immediately-reapable rows (negative TTL) plus one live row. The reap is global, so a
+        // concurrent spec's full purge may sweep some dead rows first; the call's OWN count is still
+        // deterministically capped by batch x iterations, which is the property under test.
+        string[] deadKeys = [TestKey("lock-batch.d1"), TestKey("lock-batch.d2"), TestKey("lock-batch.d3")];
+        foreach (var key in deadKeys)
+        {
+            Assert.NotNull(await locks.TryAcquireAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct));
+        }
+        var liveKey = TestKey("lock-batch.live");
+        var liveToken = await locks.TryAcquireAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct);
+        Assert.NotNull(liveToken);
+
+        try
+        {
+            var bounded = await RetentionTestOps.PurgeAsync(
+                Services,
+                ns,
+                NoEventPurgeDays,
+                NoAlertPurgeDays,
+                NoWorkerPurgeSeconds,
+                batchSize: 1,
+                maxIterations: 1,
+                ct
+            );
+            Assert.True(bounded.Locks <= 1, $"lock sweep deleted {bounded.Locks} rows under a 1x1 budget");
+
+            // A full-budget run clears this test's remaining dead rows; the live row survives both.
+            await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+            foreach (var key in deadKeys)
+            {
+                Assert.Null(await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct));
+            }
+            Assert.NotNull(await Db.From<Lease>().Where(l => l.LeaseKey == liveKey).SingleOrDefaultAsync(ct));
+        }
+        finally
+        {
+            await locks.ReleaseAsync(liveToken!.Value, ct);
+        }
+    }
+
     [Fact(DisplayName = "Batching caps a single call at max iterations and a full run clears the rest")]
     public async Task Batching_caps_a_single_call_at_max_iterations_and_a_full_run_clears_the_rest()
     {
