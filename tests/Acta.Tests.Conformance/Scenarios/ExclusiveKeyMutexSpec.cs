@@ -1,8 +1,6 @@
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Locks;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Services.Locks;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,7 +66,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
     public async Task A_single_claim_admits_every_same_key_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, leaseTtl, ns, workerId) = await ClaimDepsAsync(ct);
+        var (_, leaseTtl, ns, workerId) = await ClaimDepsAsync(ct);
         var key = TestKey("ck-admit");
 
         await EnqueueSameKeyAsync(key, 5, ct);

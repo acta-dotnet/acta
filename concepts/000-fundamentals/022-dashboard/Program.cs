@@ -1,5 +1,6 @@
 using Acta;
 using Acta.AspNetCore;
+using Acta.AspNetCore;
 using Acta.Concepts.DashboardSample;
 using Acta.Labs;
 using Microsoft.Extensions.Logging;
@@ -119,20 +120,20 @@ namespace Acta.Concepts.DashboardSample
     public static class AwaitApprovalJob
     {
         [Job("await-approval")]
-        public static async Task Handle(AwaitApproval input, JobContext ctx, CancellationToken ct)
+        public static async Task Handle(AwaitApproval input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[{input.InvoiceId}] waiting for approval");
-            await ctx.WaitSignalAsync("approval", ct);
+            await context.WaitSignalAsync("approval", ct);
         }
     }
 
     public static class PreviewJob
     {
         [Job("build-preview")]
-        public static async Task Handle(BuildPreview input, JobContext ctx, CancellationToken ct)
+        public static async Task Handle(BuildPreview input, JobContext context, CancellationToken ct)
         {
-            var child = await ctx.StartChildAsync("thumbnail", new RenderThumbnail(input.CatalogId), ct: ct);
-            await ctx.WaitChildrenAsync([child.JobId], ct);
+            var child = await context.StartChildAsync("thumbnail", new RenderThumbnail(input.CatalogId), ct: ct);
+            await context.WaitChildrenAsync([child.JobId], ct);
         }
 
         [Job("render-thumbnail")]

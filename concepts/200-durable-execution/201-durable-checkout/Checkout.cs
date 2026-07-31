@@ -11,12 +11,12 @@ public sealed record CheckoutResult(string OrderId, string ChargeId);
 public sealed class CheckoutJob
 {
     [Job("checkout")]
-    public async Task<CheckoutResult> Handle(Checkout order, JobContext ctx, CancellationToken ct)
+    public async Task<CheckoutResult> Handle(Checkout order, JobContext context, CancellationToken ct)
     {
         // Normal durable steps replay completed outcomes, but an in-flight body can run again after a
         // crash. These simulated external calls therefore carry stable deduplication keys. A real
         // inventory, payment, or mail service must persist and honor the same contract.
-        await ctx.RunStepAsync(
+        await context.RunStepAsync(
             "reserve-inventory",
             async innerCt =>
             {
@@ -26,7 +26,7 @@ public sealed class CheckoutJob
             ct: ct
         );
 
-        var charge = await ctx.RunStepAsync(
+        var charge = await context.RunStepAsync(
             "charge-card",
             async innerCt =>
             {
@@ -38,16 +38,16 @@ public sealed class CheckoutJob
         );
 
         // Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.
-        var chargeId = await ctx.GetOrSetVariableAsync("charge-id", () => charge.ChargeId, ct);
+        var chargeId = await context.GetOrSetVariableAsync("charge-id", () => charge.ChargeId, ct);
 
         if (order.Amount >= 500m)
         {
             // No thread or executor waits here. Acta stores the signal checkpoint, releases the lease,
             // and re-enters this handler from the top after another actor raises the signal.
-            var decision = await ctx.WaitSignalAsync<FraudDecision>("fraud-review", ct);
+            var decision = await context.WaitSignalAsync<FraudDecision>("fraud-review", ct);
             if (decision is not { Approved: true })
             {
-                await ctx.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
+                await context.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
             }
 
             // Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and
@@ -56,13 +56,13 @@ public sealed class CheckoutJob
         }
 
         // The named timer stores an intention in SQL. It does not preserve a process-local continuation.
-        await ctx.SleepAsync("settlement-delay", TimeSpan.FromSeconds(5), "simulated settlement window", ct);
+        await context.SleepAsync("settlement-delay", TimeSpan.FromSeconds(5), "simulated settlement window", ct);
 
-        await ctx.RunStepAsync(
+        await context.RunStepAsync(
             "send-receipt",
             async innerCt =>
             {
-                var storedChargeId = await ctx.GetRequiredVariableAsync<string>("charge-id", innerCt);
+                var storedChargeId = await context.GetRequiredVariableAsync<string>("charge-id", innerCt);
                 await Task.Delay(100, innerCt);
                 Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: deduplication-key=receipt:{order.OrderId}");
             },

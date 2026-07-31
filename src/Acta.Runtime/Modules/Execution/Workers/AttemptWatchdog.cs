@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using Acta.Configuration;
+using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Enforces the per-attempt lease deadlines the renewers feed. Runs on its own loop and does no I/O - only

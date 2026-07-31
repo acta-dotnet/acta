@@ -1,5 +1,4 @@
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +28,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var worker1 = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         var (_, worker2) = await WorkerTestOps.StartAsync(
             Services,
             TestNamespace,

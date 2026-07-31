@@ -1,6 +1,4 @@
-using Acta.Modules.Execution.Definitions;
-
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Persistence port for worker lifecycle: the atomic bootstrap (namespace upsert + worker row +

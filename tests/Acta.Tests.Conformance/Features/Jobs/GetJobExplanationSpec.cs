@@ -1,5 +1,4 @@
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
+using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +29,7 @@ public abstract class GetJobExplanationSpec<TFixture> : ActaRuntimeTestBase<TFix
     public async Task Returns_explain_data_for_known_job_id()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));

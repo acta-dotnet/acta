@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Jobs;
+namespace Acta.Runtime.Modules.Execution.Jobs;
 
 /// <summary>
 /// Turns the durable rows read by <c>GetJobExplanationAsync</c> into a plain-English

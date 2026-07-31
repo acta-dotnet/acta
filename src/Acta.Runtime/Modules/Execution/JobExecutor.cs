@@ -1,21 +1,18 @@
 using System.Diagnostics;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Services.Locks;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans
@@ -24,44 +21,30 @@ namespace Acta.Modules.Execution;
 /// exclusive-key lock after the start CAS and bounces a loser back to Ready). Claiming jobs from the
 /// DB and dispatching them to executors is the worker loop's job.
 /// </summary>
-internal sealed class JobExecutor
+internal sealed class JobExecutor(
+    ILockStore lockStore,
+    IActaClock clock,
+    IJobPayloadSerializerRegistry serializers,
+    IServiceProvider rootServices,
+    IOptions<JobsOptions> options,
+    WorkerContext context,
+    JobRunner runner,
+    ILogger? log = null,
+    JobMetrics? metrics = null
+)
 {
-    private readonly int _leaseTtlSeconds;
-    private readonly ILockStore _lockStore;
-    private readonly IActaClock _clock;
-    private readonly IJobPayloadSerializerRegistry _serializers;
-    private readonly IServiceProvider _rootServices;
-    private readonly IOptions<JobsOptions> _options;
-    private readonly WorkerContext _context;
-    private readonly JobRunner _runner;
-    private readonly Acta.Modules.Execution.IExecutionStore _execution;
-    private readonly ILogger _log;
-    private readonly JobMetrics? _metrics;
-
-    public JobExecutor(
-        ILockStore lockStore,
-        IActaClock clock,
-        IJobPayloadSerializerRegistry serializers,
-        IServiceProvider rootServices,
-        IOptions<JobsOptions> options,
-        WorkerContext context,
-        JobRunner runner,
-        ILogger? log = null,
-        JobMetrics? metrics = null
-    )
-    {
-        _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-        _lockStore = lockStore;
-        _clock = clock;
-        _serializers = serializers;
-        _rootServices = rootServices;
-        _options = options;
-        _context = context;
-        _runner = runner;
-        _execution = rootServices.GetRequiredService<Acta.Modules.Execution.IExecutionStore>();
-        _log = log ?? NullLogger.Instance;
-        _metrics = metrics;
-    }
+    private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly ILockStore _lockStore = lockStore;
+    private readonly IActaClock _clock = clock;
+    private readonly IJobPayloadSerializerRegistry _serializers = serializers;
+    private readonly IServiceProvider _rootServices = rootServices;
+    private readonly IOptions<JobsOptions> _options = options;
+    private readonly WorkerContext _context = context;
+    private readonly JobRunner _runner = runner;
+    private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution =
+        rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.IExecutionStore>();
+    private readonly ILogger _log = log ?? NullLogger.Instance;
+    private readonly JobMetrics? _metrics = metrics;
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
@@ -130,12 +113,14 @@ internal sealed class JobExecutor
         // attempt also lets the heartbeat extend every lock it holds.
         var timeoutCts = new CancellationTokenSource();
         var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-        var attempt = new RunningAttempt(attemptCts, timeoutCts: timeoutCts);
-        // Seed the monotonic job-lease deadline. The claim stamped the DB lease at most `now` (dispatch
-        // runs after the claim), so now + LeaseTtl is a slight over-estimate of it; the first worker
-        // heartbeat re-seeds it conservatively from that renewal's request-start, and the watchdog's
-        // unwind margin absorbs the seed's slack in the meantime.
-        attempt.JobLeaseGoodUntil = Stopwatch.GetTimestamp() + (long)(_leaseTtlSeconds * (double)Stopwatch.Frequency);
+        var attempt = new RunningAttempt(attemptCts, timeoutCts: timeoutCts)
+        {
+            // Seed the monotonic job-lease deadline. The claim stamped the DB lease at most `now` (dispatch
+            // runs after the claim), so now + LeaseTtl is a slight over-estimate of it; the first worker
+            // heartbeat re-seeds it conservatively from that renewal's request-start, and the watchdog's
+            // unwind margin absorbs the seed's slack in the meantime.
+            JobLeaseGoodUntil = Stopwatch.GetTimestamp() + (long)(_leaseTtlSeconds * (double)Stopwatch.Frequency),
+        };
         var timeoutSeconds = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         if (timeoutSeconds > 0)
         {
@@ -172,7 +157,9 @@ internal sealed class JobExecutor
             // Resolve the external tenant key off the process-lifetime cache (one point read per
             // distinct tenant); the claim projection itself stays join-free.
             var tenantKey = job.TenantId is { } jobTenantId
-                ? await _rootServices.GetRequiredService<Acta.Modules.Execution.Tenants.TenantKeyCache>().ResolveAsync(jobTenantId, ct)
+                ? await _rootServices
+                    .GetRequiredService<Acta.Runtime.Modules.Execution.Tenants.TenantKeyCache>()
+                    .ResolveAsync(jobTenantId, ct)
                 : null;
 
             var jobContext = new RuntimeJobContext(
@@ -182,9 +169,9 @@ internal sealed class JobExecutor
                 namespaceId,
                 _options.Value.LeaseTtlSeconds,
                 _rootServices.GetRequiredService<IJobStore>(),
-                _rootServices.GetRequiredService<Acta.Modules.Execution.Signals.ISignalStore>(),
+                _rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.Signals.ISignalStore>(),
                 _rootServices.GetRequiredService<IAlertSink>(),
-                _rootServices.GetRequiredService<Acta.Modules.Execution.IExecutionStore>(),
+                _rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.IExecutionStore>(),
                 _serializers,
                 _lockStore,
                 _clock,

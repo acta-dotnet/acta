@@ -164,12 +164,12 @@ namespace Acta.Concepts.DurableSleep
     public sealed class FollowUpJob
     {
         [Job("send-follow-up")]
-        public async Task Handle(SendFollowUp input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(SendFollowUp input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[{input.UserEmail}] handler entered; preserving the cool-down in a durable timer");
 
             // Ends this execution and re-arms the job for the database due time. On wake, the handler re-enters here.
-            await ctx.SleepAsync("cool-down", TimeSpan.FromSeconds(input.CoolDownSeconds), ct: ct);
+            await context.SleepAsync("cool-down", TimeSpan.FromSeconds(input.CoolDownSeconds), ct: ct);
 
             // Durable sleep preserves when work becomes due; it does not make a later external delivery exactly once.
             Console.WriteLine($"[{input.UserEmail}] follow-up is due; delivery still needs its own idempotency policy");

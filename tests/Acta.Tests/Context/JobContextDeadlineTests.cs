@@ -1,20 +1,17 @@
-using Acta.Payloads;
 using Xunit;
 
 namespace Acta.Tests.Context;
 
 public class JobContextDeadlineTests
 {
-    private sealed class FakeCtx : JobContext
+    private sealed class FakeCtx(DateTime? deadline) : JobContext
     {
         public override long JobId => 1;
         public override string JobNamespace => "ns";
         public override short NamespaceId => 1;
         public override string JobName => "j";
         public override CancellationToken CancellationToken => default;
-        public override DateTime? DeadlineAtUtc { get; }
-
-        public FakeCtx(DateTime? deadline) => DeadlineAtUtc = deadline;
+        public override DateTime? DeadlineAtUtc { get; } = deadline;
 
         protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct) => Task.CompletedTask;
 

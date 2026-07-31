@@ -1,9 +1,12 @@
 using System.Globalization;
 using System.Net.Sockets;
 using Acta;
-using Acta.Configuration;
+using Acta.Postgres;
 using Acta.Postgres.Schema;
+using Acta.Redis;
+using Acta.Sqlite;
 using Acta.Sqlite.Schema;
+using Acta.SqlServer;
 using Acta.SqlServer.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
@@ -218,17 +221,15 @@ public static class ProviderConn
                         (SELECT ISNULL(SUM(wait_time_ms), 0) FROM sys.dm_os_wait_stats WHERE wait_type = 'WRITELOG')
                     """;
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
-                if (!await reader.ReadAsync(ct) || reader.IsDBNull(0))
-                {
-                    return null;
-                }
-                return new BenchLockStats(
-                    reader.GetInt64(0),
-                    reader.GetInt64(1),
-                    reader.GetInt64(2),
-                    reader.GetInt64(3),
-                    reader.GetInt64(4)
-                );
+                return !await reader.ReadAsync(ct) || reader.IsDBNull(0)
+                    ? null
+                    : new BenchLockStats(
+                        reader.GetInt64(0),
+                        reader.GetInt64(1),
+                        reader.GetInt64(2),
+                        reader.GetInt64(3),
+                        reader.GetInt64(4)
+                    );
             }
             return null;
         }

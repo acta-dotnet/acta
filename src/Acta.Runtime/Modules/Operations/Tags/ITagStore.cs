@@ -1,4 +1,4 @@
-namespace Acta.Modules.Operations.Tags;
+namespace Acta.Runtime.Modules.Operations.Tags;
 
 internal interface ITagStore
 {

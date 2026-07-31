@@ -1,12 +1,11 @@
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Alerting.Api;
-using Acta.Services.Time;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Alerting.Api;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// Recurring <c>sys.alerts</c> projector and delivery job, competitively claimed once per namespace.
@@ -17,7 +16,15 @@ namespace Acta.Modules.Alerting;
 /// suppressed, retryable, or terminal outcomes. Delivery is at least once: a crash after send but
 /// before settlement may resend a rare duplicate.
 /// </summary>
-internal sealed class AlertsJob
+internal sealed class AlertsJob(
+    IAlertStore store,
+    IActaClock clock,
+    IAlertChannelRegistry channels,
+    IAlertTransportRegistry transports,
+    IOptions<JobsOptions> options,
+    ILogger<AlertsJob>? log = null,
+    JobMetrics? metrics = null
+)
 {
     // User-kebab: stored on the sys.alerts slot's own variable bag, so no user
     // variable collides.
@@ -31,36 +38,15 @@ internal sealed class AlertsJob
     // (the ranged-expression defaults) - parsed once from the same DSL every definition uses.
     private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
 
-    private readonly IAlertStore _store;
-    private readonly IActaClock _clock;
-    private readonly IAlertChannelRegistry _channels;
-    private readonly IAlertTransportRegistry _transports;
-    private readonly int _maxDeliveryRetries;
-    private readonly int _failureThreshold;
-    private readonly TimeSpan _dedupeWindow;
-    private readonly ILogger _log;
-    private readonly JobMetrics? _metrics;
-
-    public AlertsJob(
-        IAlertStore store,
-        IActaClock clock,
-        IAlertChannelRegistry channels,
-        IAlertTransportRegistry transports,
-        IOptions<JobsOptions> options,
-        ILogger<AlertsJob>? log = null,
-        JobMetrics? metrics = null
-    )
-    {
-        _store = store;
-        _clock = clock;
-        _channels = channels;
-        _transports = transports;
-        _maxDeliveryRetries = options.Value.AlertDeliveryMaxRetries;
-        _failureThreshold = options.Value.AlertFailureThreshold;
-        _dedupeWindow = options.Value.AlertDedupeWindow;
-        _log = log ?? NullLogger<AlertsJob>.Instance;
-        _metrics = metrics;
-    }
+    private readonly IAlertStore _store = store;
+    private readonly IActaClock _clock = clock;
+    private readonly IAlertChannelRegistry _channels = channels;
+    private readonly IAlertTransportRegistry _transports = transports;
+    private readonly int _maxDeliveryRetries = options.Value.AlertDeliveryMaxRetries;
+    private readonly int _failureThreshold = options.Value.AlertFailureThreshold;
+    private readonly TimeSpan _dedupeWindow = options.Value.AlertDedupeWindow;
+    private readonly ILogger _log = log ?? NullLogger<AlertsJob>.Instance;
+    private readonly JobMetrics? _metrics = metrics;
 
     /// <summary>
     /// Runs one alerting pass for the firing namespace: projects new alert-relevant events into

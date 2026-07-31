@@ -1,4 +1,4 @@
-using Acta.Modules.Alerting;
+using Acta.Runtime.Modules.Alerting;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -79,13 +79,13 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         // Filter by j1: exact set + total, j2 excluded
         var j1Page = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, JobId: j1, IncludeTotal: true), ct);
-        Assert.Equal(aIds, j1Page.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal(aIds, [.. j1Page.Items.Select(a => a.JobAlertId)]);
         Assert.Equal(2L, j1Page.TotalCount);
         Assert.Empty(j1Page.Items.Select(a => a.JobAlertId).Intersect(bIds));
 
         // Filter by j2: exact set, j1 excluded
         var j2Page = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, JobId: j2), ct);
-        Assert.Equal(bIds, j2Page.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal(bIds, [.. j2Page.Items.Select(a => a.JobAlertId)]);
         Assert.Empty(j2Page.Items.Select(a => a.JobAlertId).Intersect(aIds));
     }
 
@@ -112,7 +112,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             new ListJobAlertsQuery(JobNamespace: TestNamespace, DeliveryStatus: AlertDeliveryStatusCode.Pending, IncludeTotal: true),
             ct
         );
-        Assert.Equal(pendingIds, pPage.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal(pendingIds, [.. pPage.Items.Select(a => a.JobAlertId)]);
         Assert.Equal(2L, pPage.TotalCount);
         Assert.Empty(pPage.Items.Select(a => a.JobAlertId).Intersect(failedIds));
 
@@ -121,7 +121,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             new ListJobAlertsQuery(JobNamespace: TestNamespace, DeliveryStatus: AlertDeliveryStatusCode.Failed),
             ct
         );
-        Assert.Equal(failedIds, fPage.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal(failedIds, [.. fPage.Items.Select(a => a.JobAlertId)]);
         Assert.Empty(fPage.Items.Select(a => a.JobAlertId).Intersect(pendingIds));
     }
 
@@ -149,7 +149,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             new ListJobAlertsQuery(JobNamespace: TestNamespace, SeverityAtLeast: AlertSeverityCode.Error, IncludeTotal: true),
             ct
         );
-        Assert.Equal(highIds, floorPage.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal(highIds, [.. floorPage.Items.Select(a => a.JobAlertId)]);
         Assert.Equal(2L, floorPage.TotalCount);
         Assert.Empty(floorPage.Items.Select(a => a.JobAlertId).Intersect(lowIds));
     }
@@ -189,13 +189,13 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             new ListJobAlertsQuery(JobNamespace: TestNamespace, UnresolvedOnly: true, IncludeTotal: true),
             ct
         );
-        Assert.Equal(new HashSet<long> { bId }, unresolvedPage.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal([bId], unresolvedPage.Items.Select(a => a.JobAlertId).ToHashSet());
         Assert.Equal(1L, unresolvedPage.TotalCount);
-        Assert.Empty(unresolvedPage.Items.Select(a => a.JobAlertId).Intersect(new[] { aId }));
+        Assert.Empty(unresolvedPage.Items.Select(a => a.JobAlertId).Intersect([aId]));
 
         // unresolvedOnly=null: both A (resolved) and B (open)
         var allPage = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace), ct);
-        Assert.Equal(new HashSet<long> { aId, bId }, allPage.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal([aId, bId], allPage.Items.Select(a => a.JobAlertId).ToHashSet());
     }
 
     [Fact(DisplayName = "JobNamespace filter scopes alerts to exactly one namespace and excludes all other namespaces")]

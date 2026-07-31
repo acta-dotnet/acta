@@ -1,4 +1,3 @@
-using Acta.Relational.Connections;
 using Acta.Relational.Schema;
 
 namespace Acta.Testing.Relational.Querying;

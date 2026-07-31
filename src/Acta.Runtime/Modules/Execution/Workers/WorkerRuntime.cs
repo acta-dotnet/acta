@@ -1,20 +1,17 @@
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Services.Locks;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Worker-runtime singleton. Owns everything for its namespace: catalog upsert (namespace +
@@ -41,7 +38,6 @@ internal sealed class WorkerRuntime
     private readonly LockLeaseHeartbeat _lockHeartbeat;
     private readonly AttemptWatchdog _watchdog;
     private readonly DefinitionPolicyReloader _policyReloader;
-    private readonly string? _workerNamespaceName;
 
     // Cancelled by BeginDrainAsync to stop the claim loop's producer while the heartbeat and in-flight
     // handlers run on under the host token. Lives for the runtime's lifetime so the drain signal is never
@@ -50,7 +46,6 @@ internal sealed class WorkerRuntime
 
     // The claim/dispatch loop task, captured so the host can await the actual drain (all claimed + in-flight
     // work finished), not a sampled in-flight count that misses channel-buffered claims.
-    private Task _loopTask = Task.CompletedTask;
 
     public WorkerRuntime(
         ActaProviderInfo provider,
@@ -70,7 +65,7 @@ internal sealed class WorkerRuntime
     {
         var logger = log ?? NullLogger<WorkerRuntime>.Instance;
         _context = new WorkerContext(workerRegistration);
-        _workerNamespaceName = workerRegistration?.NamespaceName;
+        WorkerNamespaceName = workerRegistration?.NamespaceName;
 
         // Direct-ctor (test seam) callers get a private in-process wakeup pair; the composition root
         // passes the container singletons so enqueue publishes reach this loop.
@@ -165,7 +160,7 @@ internal sealed class WorkerRuntime
         );
 
     /// <summary>This worker's declared namespace; null for an enqueue-only runtime.</summary>
-    public string? WorkerNamespaceName => _workerNamespaceName;
+    public string? WorkerNamespaceName { get; }
 
     public IReadOnlyDictionary<string, short> RegisteredNamespaceIds => _context.RegisteredNamespaceIds;
 
@@ -191,9 +186,9 @@ internal sealed class WorkerRuntime
         // The loop's producer stops on _drainCts (graceful drain) or ct (hard stop); the renewers, watchdog
         // and in-flight execution run on ct, so a drain finishes in-flight work before the loop returns. The
         // loop task is held so the host can await that drain via DrainCompletion.
-        _loopTask = _loop.RunLoopAsync(ct, _drainCts.Token);
+        DrainCompletion = _loop.RunLoopAsync(ct, _drainCts.Token);
         return Task.WhenAll(
-            _loopTask,
+            DrainCompletion,
             _heartbeat.RunAsync(ct),
             _lockHeartbeat.RunAsync(ct),
             _watchdog.RunAsync(ct),
@@ -231,7 +226,7 @@ internal sealed class WorkerRuntime
     /// just the live attempt count sampled to zero. The signal the host awaits to bound a graceful drain;
     /// already-completed (so instant) before <see cref="RunAsync"/> starts and for an enqueue-only runtime.
     /// </summary>
-    public Task DrainCompletion => _loopTask;
+    public Task DrainCompletion { get; private set; } = Task.CompletedTask;
 
     /// <summary>This runtime's live in-flight attempt count; exposed for observability and drain assertions.</summary>
     public int InFlightCount => _context.RunningAttempts.Count;
@@ -269,5 +264,5 @@ internal sealed class WorkerRuntime
     /// override taking effect without a restart.
     /// </summary>
     public Task RunDefinitionReloadOnceAsync(CancellationToken ct) =>
-        _workerNamespaceName is { } ns ? _policyReloader.TickAsync(ns, ct) : Task.CompletedTask;
+        WorkerNamespaceName is { } ns ? _policyReloader.TickAsync(ns, ct) : Task.CompletedTask;
 }

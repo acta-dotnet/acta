@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// Internal control-flow signal raised by <c>RuntimeJobContext.RunStepCoreAsync</c> when an inline
@@ -12,26 +12,18 @@ namespace Acta.Modules.Execution;
 /// retry is <c>ctx.RunStepAsync</c>, which records the durable slot before signalling. Handlers must
 /// not catch framework control exceptions unless rethrowing.
 /// </remarks>
-internal sealed class StepRetrySignal : JobControlException
+/// <remarks>
+/// Initializes the signal with the parent re-arm instant <paramref name="resumeAtUtc"/>, the
+/// <paramref name="stepName"/>, and an operator <paramref name="reasonMessage"/>.
+/// </remarks>
+internal sealed class StepRetrySignal(DateTime resumeAtUtc, string stepName, string? reasonMessage) : JobControlException(reasonMessage)
 {
-    /// <summary>
-    /// Initializes the signal with the parent re-arm instant <paramref name="resumeAtUtc"/>, the
-    /// <paramref name="stepName"/>, and an operator <paramref name="reasonMessage"/>.
-    /// </summary>
-    public StepRetrySignal(DateTime resumeAtUtc, string stepName, string? reasonMessage)
-        : base(reasonMessage)
-    {
-        ResumeAtUtc = resumeAtUtc;
-        StepName = stepName;
-        ReasonMessage = reasonMessage;
-    }
-
     /// <summary>The instant the parent Job re-arms to; routed to <c>complete_execution.@p_reschedule_resume_at_utc</c>.</summary>
-    public DateTime ResumeAtUtc { get; }
+    public DateTime ResumeAtUtc { get; } = resumeAtUtc;
 
     /// <summary>The step slot that scheduled the retry.</summary>
-    public string StepName { get; }
+    public string StepName { get; } = stepName;
 
     /// <summary>Operator-readable retry reason (the failing attempt's message, when known).</summary>
-    public string? ReasonMessage { get; }
+    public string? ReasonMessage { get; } = reasonMessage;
 }

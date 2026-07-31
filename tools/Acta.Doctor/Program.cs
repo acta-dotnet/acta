@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Acta;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -237,7 +238,7 @@ static void PrintConnect(string provider, IConfiguration config)
         .Where(p => p.Length == 2)
         .ToDictionary(p => p[0].Trim().ToLowerInvariant(), p => p[1].Trim());
     string Get(params string[] keys) => keys.Select(k => kv.GetValueOrDefault(k)).FirstOrDefault(v => !string.IsNullOrEmpty(v)) ?? "";
-    var masked = System.Text.RegularExpressions.Regex.Replace(cs, "(?i)(password|pwd)=([^;]*)", "$1=****");
+    var masked = PasswordRegex().Replace(cs, "$1=****");
 
     Console.WriteLine();
     if (LocalDatabase.IsSqlite(provider))
@@ -480,4 +481,10 @@ static (int Code, string Output) RunProcess(string fileName, string arguments, i
     {
         return (-1, ex.Message);
     }
+}
+
+partial class Program
+{
+    [GeneratedRegex("(password|pwd)=([^;]*)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PasswordRegex();
 }

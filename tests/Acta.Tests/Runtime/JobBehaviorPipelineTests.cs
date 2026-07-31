@@ -1,4 +1,4 @@
-using Acta.Modules.Execution;
+using Acta.Runtime.Modules.Execution;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -30,11 +30,11 @@ public sealed class JobBehaviorPipelineTests
             _ => new RecordingBehavior("B", log),
             _ => new RecordingBehavior("C", log),
         ]);
-        JobBehaviorDelegate handler = () =>
+        ValueTask<JobHandlerInvocationResult> handler()
         {
             log.Add("handler");
             return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
-        };
+        }
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
         await chain();
@@ -48,11 +48,11 @@ public sealed class JobBehaviorPipelineTests
         var handlerRan = false;
         var shortCircuitResult = new JobHandlerInvocationResult(true, "cached");
         var pipeline = new JobBehaviorPipeline([_ => new ShortCircuitBehavior(shortCircuitResult)]);
-        JobBehaviorDelegate handler = () =>
+        ValueTask<JobHandlerInvocationResult> handler()
         {
             handlerRan = true;
             return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
-        };
+        }
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
         var result = await chain();
@@ -66,7 +66,7 @@ public sealed class JobBehaviorPipelineTests
     {
         var thrown = new RescheduleJobException(TimeSpan.FromSeconds(5));
         var pipeline = new JobBehaviorPipeline([_ => new RecordingBehavior("A", [])]);
-        JobBehaviorDelegate handler = () => throw thrown;
+        ValueTask<JobHandlerInvocationResult> handler() => throw thrown;
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
 
@@ -79,11 +79,11 @@ public sealed class JobBehaviorPipelineTests
     {
         var handlerRuns = 0;
         var pipeline = new JobBehaviorPipeline([_ => new DoubleNextBehavior()]);
-        JobBehaviorDelegate handler = () =>
+        ValueTask<JobHandlerInvocationResult> handler()
         {
             handlerRuns++;
             return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
-        };
+        }
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
 

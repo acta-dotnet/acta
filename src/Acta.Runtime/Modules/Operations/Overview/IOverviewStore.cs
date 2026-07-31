@@ -1,4 +1,4 @@
-namespace Acta.Modules.Operations.Overview;
+namespace Acta.Runtime.Modules.Operations.Overview;
 
 /// <summary>
 /// Persistence port for the cross-feature Overview read model: the one-row health summary the

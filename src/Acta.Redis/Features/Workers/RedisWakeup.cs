@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
-using Acta.Modules.Execution.Workers;
 using Acta.Redis.Configuration;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

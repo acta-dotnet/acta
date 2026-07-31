@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// One-shot ambient flag for the CLI <c>jobs debug --break</c> path. Set true by

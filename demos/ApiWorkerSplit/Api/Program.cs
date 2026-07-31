@@ -1,15 +1,9 @@
 using Acta;
 using Acta.Demos.ApiWorkerSplit.Contracts;
-using Acta.Payloads;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(builder.Configuration);
-
-    // Enqueue-only: no j.Run<...>(), no worker loop, no handler code. The worker process owns those.
-});
+builder.Services.UseActa(j => j.UseLocalDatabase(builder.Configuration));
 
 var app = builder.Build();
 
@@ -48,20 +42,17 @@ app.MapGet(
         }
 
         var snapshot = await jobs.GetAsync(parsed, ct);
-        if (snapshot is null)
-        {
-            return Results.NotFound();
-        }
-
-        return Results.Ok(
-            new WelcomeEmailStatus(
-                snapshot.JobRef,
-                snapshot.Status.ToString(),
-                snapshot.DeduplicationKey,
-                snapshot.CreatedAtUtc,
-                snapshot.ModifiedAtUtc
-            )
-        );
+        return snapshot is null
+            ? Results.NotFound()
+            : Results.Ok(
+                new WelcomeEmailStatus(
+                    snapshot.JobRef,
+                    snapshot.Status.ToString(),
+                    snapshot.DeduplicationKey,
+                    snapshot.CreatedAtUtc,
+                    snapshot.ModifiedAtUtc
+                )
+            );
     }
 );
 

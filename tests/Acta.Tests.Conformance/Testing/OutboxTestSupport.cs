@@ -1,6 +1,5 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Outbox;
 
 namespace Acta.Tests.Conformance.Testing;
 
@@ -79,10 +78,6 @@ internal sealed class HookedJobSubmission(IJobSubmission inner) : IJobSubmission
 
     public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(IReadOnlyList<JobEnqueueRequest> requests, CancellationToken ct)
     {
-        if (FailInstead is { } make)
-        {
-            throw make();
-        }
-        return inner.EnqueueBatchAsync(requests, ct);
+        return FailInstead is { } make ? throw make() : inner.EnqueueBatchAsync(requests, ct);
     }
 }

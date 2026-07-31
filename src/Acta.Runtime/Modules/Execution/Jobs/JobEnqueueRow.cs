@@ -1,6 +1,4 @@
-using Acta.Payloads;
-
-namespace Acta.Modules.Execution.Jobs;
+namespace Acta.Runtime.Modules.Execution.Jobs;
 
 /// <summary>
 /// Caller-supplied per-row enqueue request, shared by the scalar <c>EnqueueOne</c> and the
@@ -48,7 +46,7 @@ internal static class JobEnqueueRows
     // CorrelationKey is an external token and is preserved exactly.
     internal static JobEnqueueRow Canonicalize(JobEnqueueRow row)
     {
-        IReadOnlyList<TagInput>? tags = row.Tags is null ? null : row.Tags.Select((t, i) => TagInput.Normalize(t, $"Tags[{i}]")).ToList();
+        IReadOnlyList<TagInput>? tags = row.Tags?.Select((t, i) => TagInput.Normalize(t, $"Tags[{i}]")).ToList();
 
         return row with
         {

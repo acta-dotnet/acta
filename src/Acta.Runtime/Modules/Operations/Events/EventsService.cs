@@ -1,9 +1,8 @@
 using System.Globalization;
-using Acta.Kernel;
-using Acta.Modules.Operations.Tags;
-using Acta.Querying;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Querying;
 
-namespace Acta.Modules.Operations.Events;
+namespace Acta.Runtime.Modules.Operations.Events;
 
 /// <summary>
 /// Events feature behavior: validates the public query, owns keyset-cursor decode/encode and page

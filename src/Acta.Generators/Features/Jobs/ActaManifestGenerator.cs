@@ -83,11 +83,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         {
             return null;
         }
-        if (method.GetAttributes().Any(a => a.AttributeClass is not null && TypeFullName(a.AttributeClass) == JobAttributeMetadataName))
-        {
-            return null;
-        }
-        return Diagnostics.ScheduleWithoutJob(method, method.Locations.FirstOrDefault() ?? Location.None);
+        return method.GetAttributes().Any(a => a.AttributeClass is not null && TypeFullName(a.AttributeClass) == JobAttributeMetadataName)
+            ? null
+            : Diagnostics.ScheduleWithoutJob(method, method.Locations.FirstOrDefault() ?? Location.None);
     }
 
     private static CustomPayloadFormat? TransformPayloadFormat(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
@@ -249,7 +247,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             Description: policy.Description,
             Schedules: schedules,
             Location: method.Locations.FirstOrDefault() ?? Location.None,
-            Diagnostics: diagnostics.ToImmutableArray()
+            Diagnostics: [.. diagnostics]
         );
     }
 
@@ -862,12 +860,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         }
 
         // Ref-like types (Span<T>, ref struct).
-        if (type.IsRefLikeType)
-        {
-            return true;
-        }
-
-        return type.SpecialType == SpecialType.System_Void;
+        return type.IsRefLikeType ? true : type.SpecialType == SpecialType.System_Void;
     }
 
     // True when `new T()` is safe AND the type has no instance state (canonical: empty record).
@@ -939,13 +932,11 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         {
             return true;
         }
-        if (type is not INamedTypeSymbol nt || type.IsAbstract || type.TypeKind == TypeKind.Interface)
-        {
-            return false;
-        }
-        return nt.InstanceConstructors.Any(c =>
-            c.Parameters.IsEmpty && c.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
-        );
+        return type is not INamedTypeSymbol nt || type.IsAbstract || type.TypeKind == TypeKind.Interface
+            ? false
+            : nt.InstanceConstructors.Any(c =>
+                c.Parameters.IsEmpty && c.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
+            );
     }
 
     private static ImmutableArray<DiscoveredSchedule> ReadSchedules(IMethodSymbol method, string jobName)
@@ -990,7 +981,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                         misfireName = mf == 20 ? "Skip" : "FireOnceCatchUp";
                         break;
                     case "Environments" when !named.Value.IsNull:
-                        environments = named.Value.Values.Select(v => v.Value as string ?? "").ToImmutableArray();
+                        environments = [.. named.Value.Values.Select(v => v.Value as string ?? "")];
                         break;
                 }
             }
@@ -1085,12 +1076,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             return "text";
         }
 
-        if (name is "System.Guid" or "System.DateTimeOffset" or "System.TimeSpan" or "System.DateOnly" or "System.TimeOnly")
-        {
-            return "text";
-        }
-
-        return "json";
+        return name is "System.Guid" or "System.DateTimeOffset" or "System.TimeSpan" or "System.DateOnly" or "System.TimeOnly"
+            ? "text"
+            : "json";
     }
 
     private static void Emit(
@@ -1100,8 +1088,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string rootNamespace
     )
     {
-        // The framework assembly alone may use the reserved `sys.` name prefix.
-        var isFrameworkAssembly = rootNamespace == "Acta";
+        // Framework assemblies alone may use the reserved `sys.` name prefix.
+        var isFrameworkAssembly = rootNamespace is "Acta" or "Acta.Runtime";
 
         var customFormatById = ValidatePayloadFormats(spc, customFormats);
 
@@ -1311,11 +1299,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     // or a positive ISO 8601 duration via XmlConvert; cron uses the conservative Cronos-dialect validator.
     private static bool IsValidScheduleExpression(string expression, string kindName)
     {
-        if (kindName == "Interval")
-        {
-            return TryParseInterval(expression.Trim(), out var span) && span > TimeSpan.Zero;
-        }
-        return CronExpressionValidator.IsValid(expression);
+        return kindName == "Interval"
+            ? TryParseInterval(expression.Trim(), out var span) && span > TimeSpan.Zero
+            : CronExpressionValidator.IsValid(expression);
     }
 
     private static bool TryParseInterval(string e, out TimeSpan span)

@@ -13,9 +13,9 @@ namespace Acta.Tests.Conformance.Sql;
 /// <c>FOR UPDATE</c> row-locking clause and an <c>ON CONFLICT (...) DO UPDATE SET</c> upsert are not
 /// standalone DML statements and are skipped.
 /// </summary>
-public static class UnsafeDmlAssert
+public static partial class UnsafeDmlAssert
 {
-    private static readonly Regex DmlStart = new(@"\b(UPDATE|DELETE)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex DmlStart = MyRegex();
     private static readonly Regex Target = new(
         @"^\s*(FROM\s+)?(?<target>[@A-Za-z_][A-Za-z0-9_.]*)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase
@@ -207,4 +207,7 @@ public static class UnsafeDmlAssert
 
         return line;
     }
+
+    [GeneratedRegex(@"\b(UPDATE|DELETE)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "sl-SI")]
+    private static partial Regex MyRegex();
 }

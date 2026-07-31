@@ -1,6 +1,4 @@
-using Acta.Querying;
-
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// <see cref="IDefinitions"/> implementation: a thin adapter over the Definitions feature service,

@@ -12,7 +12,7 @@ public sealed class RateTelemetry
     public const int Capacity = 120;
     private static readonly TimeSpan MinInterval = TimeSpan.FromMilliseconds(500);
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Queue<RatePoint> _points = new(Capacity);
 
     public void Record(DateTime utcNow, long done, long ready, long executing)

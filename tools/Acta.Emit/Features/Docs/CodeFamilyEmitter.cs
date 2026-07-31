@@ -123,12 +123,12 @@ internal static class CodeFamilyEmitter
         // Payload domain is special: JobPayloadFormat is the only family.
         if (!groups.ContainsKey(CodeFamilyInference.CodeDomain.Payloads))
         {
-            groups[CodeFamilyInference.CodeDomain.Payloads] = new List<CodeFamilyModel>();
+            groups[CodeFamilyInference.CodeDomain.Payloads] = [];
         }
 
         sb.AppendLine("## Domain groups");
         sb.AppendLine();
-        foreach (CodeFamilyInference.CodeDomain domain in Enum.GetValues(typeof(CodeFamilyInference.CodeDomain)))
+        foreach (CodeFamilyInference.CodeDomain domain in Enum.GetValues<CodeFamilyInference.CodeDomain>())
         {
             if (!groups.TryGetValue(domain, out var domainFamilies) && domain != CodeFamilyInference.CodeDomain.Payloads)
             {
@@ -142,7 +142,7 @@ internal static class CodeFamilyEmitter
             sb.AppendLine();
 
             // Family list for the group
-            var list = domainFamilies ?? new List<CodeFamilyModel>();
+            var list = domainFamilies ?? [];
             foreach (var f in list)
             {
                 var ck = f.CodeKind is null ? "_meta-enum_" : $"`{f.CodeKind}`";
@@ -306,21 +306,13 @@ internal static class CodeFamilyEmitter
     private static string AppearsInLine(SchemaModel schema, string familyName)
     {
         var refs = CodeFamilyInference.ColumnsForFamily(schema, familyName);
-        if (refs.Count == 0)
-        {
-            return "·";
-        }
-        return string.Join(", ", refs.Select(r => Anchors.LinkColumnToDataModel(r.Table, r.Column)));
+        return refs.Count == 0 ? "·" : string.Join(", ", refs.Select(r => Anchors.LinkColumnToDataModel(r.Table, r.Column)));
     }
 
     private static string AppearsInPayloadLine(SchemaModel schema)
     {
         var refs = CodeFamilyInference.PayloadFormatColumns(schema);
-        if (refs.Count == 0)
-        {
-            return "·";
-        }
-        return string.Join(", ", refs.Select(r => Anchors.LinkColumnToDataModel(r.Table, r.Column)));
+        return refs.Count == 0 ? "·" : string.Join(", ", refs.Select(r => Anchors.LinkColumnToDataModel(r.Table, r.Column)));
     }
 }
 

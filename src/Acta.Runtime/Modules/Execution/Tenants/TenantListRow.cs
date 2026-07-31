@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Tenants;
+namespace Acta.Runtime.Modules.Execution.Tenants;
 
 /// <summary>
 /// Flat tenant list row projected from storage.

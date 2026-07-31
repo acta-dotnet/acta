@@ -57,14 +57,14 @@ namespace Acta.Concepts.AlertChannel
     public sealed class CheckDiskSpaceJob
     {
         [Job("check-disk-space")]
-        public async Task Handle(CheckDiskSpace input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(CheckDiskSpace input, JobContext context, CancellationToken ct)
         {
             await Task.Delay(50, ct);
 
             if (input.FreePercent < 10)
             {
                 // Route to the "ops" channel instead of the default.
-                await ctx.AlertAsync(
+                await context.AlertAsync(
                     title: $"Low disk space on {input.Server}",
                     message: $"Only {input.FreePercent}% free on {input.Server}.",
                     severityCode: AlertSeverityCode.Error,

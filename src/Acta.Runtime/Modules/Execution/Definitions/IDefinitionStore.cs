@@ -1,7 +1,6 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Api;
 
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Persistence port for the definitions catalog: the contract/policy read used by worker startup and

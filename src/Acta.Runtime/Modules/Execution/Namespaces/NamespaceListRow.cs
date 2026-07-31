@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Namespaces;
+namespace Acta.Runtime.Modules.Execution.Namespaces;
 
 /// <summary>
 /// Flat namespace admin-list row projected from storage. The ctor order is the positional

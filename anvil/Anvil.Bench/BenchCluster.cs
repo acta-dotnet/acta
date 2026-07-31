@@ -11,7 +11,7 @@ namespace Anvil.Bench;
 public sealed class BenchCluster : IAsyncDisposable
 {
     private readonly List<BenchHost> _hosts;
-    private readonly HashSet<int> _killed = new();
+    private readonly HashSet<int> _killed = [];
 
     private BenchCluster(List<BenchHost> hosts, BenchSink sink, RecoveryCoordinator recovery)
     {

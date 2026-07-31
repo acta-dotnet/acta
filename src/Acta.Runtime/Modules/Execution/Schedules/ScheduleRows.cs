@@ -1,7 +1,6 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Api;
 
-namespace Acta.Modules.Execution.Schedules;
+namespace Acta.Runtime.Modules.Execution.Schedules;
 
 /// <summary>
 /// An effective schedule row read for one slot. Expression and time zone are the effective values

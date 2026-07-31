@@ -1,8 +1,5 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Schedules;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -25,50 +22,49 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
     private const string ScheduleName = "beat";
 
     public static JobDescriptorManifest Descriptors { get; } =
-        new(
-            ImmutableArray.Create(
-                new JobDescriptor(
-                    JobName: JobName,
-                    HandlerType: typeof(PrioritySlotHandler),
-                    MethodName: nameof(PrioritySlotHandler.Run),
-                    InputType: typeof(NoInput),
-                    OutputType: null,
-                    InputPayloadFormat: JobPayloadFormat.None,
-                    OutputPayloadFormat: null,
-                    InvocationKind: JobInvocationKind.Task,
-                    RequiresJobContextParameter: true,
-                    RequiresCancellationToken: true,
-                    Priority: JobPriorityCode.Critical,
-                    MaxAttempts: 2,
-                    AuditLevel: JobAuditLevelCode.Audit,
-                    AlertProfile: JobAlertProfileCode.OnFailure,
-                    Invoker: static async (_, _, ctx, ct) =>
-                    {
-                        await PrioritySlotHandler.Run(ctx, ct);
-                        return new JobHandlerInvocationResult(false, null);
-                    },
-                    DeserializeInput: static (_, _) => new NoInput(),
-                    SerializeOutput: null
-                )
+        new([
+            new JobDescriptor(
+                JobName: JobName,
+                HandlerType: typeof(PrioritySlotHandler),
+                MethodName: nameof(PrioritySlotHandler.Run),
+                InputType: typeof(NoInput),
+                OutputType: null,
+                InputPayloadFormat: JobPayloadFormat.None,
+                OutputPayloadFormat: null,
+                InvocationKind: JobInvocationKind.Task,
+                RequiresJobContextParameter: true,
+                RequiresCancellationToken: true,
+                Priority: JobPriorityCode.Critical,
+                MaxAttempts: 2,
+                AuditLevel: JobAuditLevelCode.Audit,
+                AlertProfile: JobAlertProfileCode.OnFailure,
+                Invoker: static async (_, _, ctx, ct) =>
                 {
-                    Schedules = ImmutableArray.Create(
-                        new JobScheduleDescriptor(
-                            JobName: JobName,
-                            ScheduleName: ScheduleName,
-                            Expression: "PT30S",
-                            TimeZone: null,
-                            Misfire: MisfireStrategyCode.Skip,
-                            ExpressionKind: ScheduleExpressionKindCode.Interval,
-                            Description: null,
-                            Environments: ImmutableArray<string>.Empty
-                        )
-                    ),
-                    CreateDefaultInput = static () => new NoInput(),
-                    SerializeInput = null,
-                    RecurringResultCap = 3,
-                }
+                    await PrioritySlotHandler.Run(ctx, ct);
+                    return new JobHandlerInvocationResult(false, null);
+                },
+                DeserializeInput: static (_, _) => new NoInput(),
+                SerializeOutput: null
             )
-        );
+            {
+                Schedules =
+                [
+                    new JobScheduleDescriptor(
+                        JobName: JobName,
+                        ScheduleName: ScheduleName,
+                        Expression: "PT30S",
+                        TimeZone: null,
+                        Misfire: MisfireStrategyCode.Skip,
+                        ExpressionKind: ScheduleExpressionKindCode.Interval,
+                        Description: null,
+                        Environments: []
+                    ),
+                ],
+                CreateDefaultInput = static () => new NoInput(),
+                SerializeInput = null,
+                RecurringResultCap = 3,
+            },
+        ]);
 }
 
 /// <summary>
@@ -160,6 +156,6 @@ public abstract class ScheduledSlotPrioritySpec<TFixture> : ActaRuntimeTestBase<
             slotSchedules
         );
 
-        await ScheduleTestOps.RegisterAsync(Services, new[] { command }, ct);
+        await ScheduleTestOps.RegisterAsync(Services, [command], ct);
     }
 }

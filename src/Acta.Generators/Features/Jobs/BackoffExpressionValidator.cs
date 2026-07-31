@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Xml;
 
@@ -151,11 +150,9 @@ internal static class BackoffExpressionValidator
         {
             return FormatNumber(value.TotalSeconds) + "s";
         }
-        if (value.Ticks % TimeSpan.TicksPerMillisecond == 0)
-        {
-            return FormatNumber(value.TotalMilliseconds) + "ms";
-        }
-        return FormatNumber(value.TotalSeconds) + "s";
+        return value.Ticks % TimeSpan.TicksPerMillisecond == 0
+            ? FormatNumber(value.TotalMilliseconds) + "ms"
+            : FormatNumber(value.TotalSeconds) + "s";
     }
 
     private static bool TryParseHuman(string s, out TimeSpan span, out Error error)

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Acta.Configuration;
+namespace Acta.Runtime.Configuration;
 
 /// <summary>
 /// Validates <see cref="JobsOptions"/> at host startup (paired with <c>ValidateOnStart</c>) so a

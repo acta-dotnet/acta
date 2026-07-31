@@ -12,7 +12,7 @@ namespace Acta.Tests.Architecture;
 /// facades) or the durable event ledger. Survivors of the restructure are declared one by one in
 /// <see cref="Baseline"/> so they shrink but never silently grow.
 /// </summary>
-public sealed class ModuleBoundaryTests
+public sealed partial class ModuleBoundaryTests
 {
     /// <summary>"{ConsumerType}: {StorePort}" pairs allowed to cross modules, with the reason.</summary>
     private static readonly HashSet<string> Baseline = new(StringComparer.Ordinal) { };
@@ -37,7 +37,7 @@ public sealed class ModuleBoundaryTests
                     var parameterType = parameter.ParameterType;
                     if (
                         !parameterType.IsInterface
-                        || !parameterType.Name.StartsWith("I", StringComparison.Ordinal)
+                        || !parameterType.Name.StartsWith('I')
                         || !parameterType.Name.EndsWith("Store", StringComparison.Ordinal)
                     )
                     {
@@ -74,7 +74,7 @@ public sealed class ModuleBoundaryTests
         {
             if (
                 type.IsInterface
-                && type.Name.StartsWith("I", StringComparison.Ordinal)
+                && type.Name.StartsWith('I')
                 && type.Name.EndsWith("Store", StringComparison.Ordinal)
                 && ModuleOf(type.Namespace) is { } module
             )
@@ -84,7 +84,7 @@ public sealed class ModuleBoundaryTests
         }
 
         var modulesRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Runtime", "Modules");
-        var locate = new Regex(@"Get(?:Required)?Service<(?<store>I\w+Store)>", RegexOptions.Compiled);
+        var locate = MyRegex();
         var violations = new List<string>();
         foreach (var file in Directory.EnumerateFiles(modulesRoot, "*.cs", SearchOption.AllDirectories))
         {
@@ -189,7 +189,7 @@ public sealed class ModuleBoundaryTests
 
     private static string? ModuleOf(string? ns)
     {
-        const string prefix = "Acta.Modules.";
+        const string prefix = "Acta.Runtime.Modules.";
         if (ns is null || !ns.StartsWith(prefix, StringComparison.Ordinal))
         {
             return null;
@@ -199,4 +199,7 @@ public sealed class ModuleBoundaryTests
         var dot = rest.IndexOf('.');
         return dot < 0 ? rest : rest[..dot];
     }
+
+    [GeneratedRegex(@"Get(?:Required)?Service<(?<store>I\w+Store)>", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

@@ -1,6 +1,4 @@
-using Acta.Modules.Execution;
-
-namespace Acta.Modules.Execution.Schedules;
+namespace Acta.Runtime.Modules.Execution.Schedules;
 
 /// <summary>
 /// Result of planning one recurring fire: the due schedule names (ordered) the handler sees, the

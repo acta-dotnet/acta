@@ -2,7 +2,9 @@ root = true
 
 # All files
 [*]
+end_of_line = lf
 indent_style = space
+trim_trailing_whitespace = true
 
 # Xml files
 [*.xml]
@@ -29,7 +31,7 @@ indent_size = 4
 tab_width = 4
 
 # New line preferences
-insert_final_newline = false
+insert_final_newline = true
 
 
 #### .NET Coding Conventions ####
@@ -67,11 +69,12 @@ dotnet_style_namespace_match_folder = true:suggestion
 dotnet_style_null_propagation = true:suggestion
 dotnet_style_object_initializer = true:suggestion
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
+dotnet_diagnostic.IDE0046.severity = none
 dotnet_style_prefer_auto_properties = true:suggestion
 dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
 dotnet_style_prefer_compound_assignment = true:suggestion
 dotnet_style_prefer_conditional_expression_over_assignment = true:suggestion
-dotnet_style_prefer_conditional_expression_over_return = true:suggestion
+dotnet_style_prefer_conditional_expression_over_return = false:silent
 dotnet_style_prefer_foreach_explicit_cast_in_source = when_strongly_typed:suggestion
 dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
 dotnet_style_prefer_inferred_tuple_names = true:suggestion
@@ -165,7 +168,7 @@ csharp_new_line_between_query_expression_clauses = true
 csharp_indent_block_contents = true
 csharp_indent_braces = false
 csharp_indent_case_contents = true
-csharp_indent_case_contents_when_block = true
+csharp_indent_case_contents_when_block = false
 csharp_indent_labels = one_less_than_current
 csharp_indent_switch_labels = true
 
@@ -387,3 +390,11 @@ dotnet_naming_style.s_camelcase.required_prefix = s_
 dotnet_naming_style.s_camelcase.required_suffix = 
 dotnet_naming_style.s_camelcase.word_separator = 
 dotnet_naming_style.s_camelcase.capitalization = camel_case
+
+# Concepts are executable documentation; preserve their intentionally instance-oriented handlers.
+[concepts/**/*.cs]
+dotnet_diagnostic.CA1822.severity = none
+
+# These control verbs intentionally hang off the current JobContext instance for API fluency.
+[src/Acta/Execution/JobContext.cs]
+dotnet_diagnostic.CA1822.severity = none

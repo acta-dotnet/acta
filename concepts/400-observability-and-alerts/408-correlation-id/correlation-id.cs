@@ -69,12 +69,12 @@ namespace Acta.Concepts.CorrelationKey
         // The framework opens a log scope with the job identity before calling this handler;
         // CorrelationKey is one of the scope properties. Every log line below inherits it automatically.
         [Job("run-pipeline")]
-        public async Task Handle(RunPipeline input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(RunPipeline input, JobContext context, CancellationToken ct)
         {
             _log.LogInformation("parent handler: RunId={RunId}; look for CorrelationKey in Scopes", input.RunId);
 
-            var child = await ctx.StartChildAsync("step-1", new ProcessStep(input.RunId, 1), ct: ct);
-            await ctx.WaitChildAsync(child.JobId, ct);
+            var child = await context.StartChildAsync("step-1", new ProcessStep(input.RunId, 1), ct: ct);
+            await context.WaitChildAsync(child.JobId, ct);
 
             _log.LogInformation("parent handler complete");
         }

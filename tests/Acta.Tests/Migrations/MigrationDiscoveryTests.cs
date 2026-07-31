@@ -1,4 +1,3 @@
-using Acta.Relational.Schema;
 using Xunit;
 
 namespace Acta.Tests.Migrations;

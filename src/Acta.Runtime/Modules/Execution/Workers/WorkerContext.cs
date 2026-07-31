@@ -1,8 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Acta.Services.Locks;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Services.Locks;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Shared mutable worker state threaded between the initializer (writer) and the claim/dispatch
@@ -13,16 +14,9 @@ namespace Acta.Modules.Execution.Workers;
 /// <remarks>
 /// All state collections stay empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
 /// </remarks>
-internal sealed class WorkerContext
+internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 {
-    private readonly WorkerRegistration? _workerRegistration;
-
-    public WorkerContext(WorkerRegistration? workerRegistration)
-    {
-        _workerRegistration = workerRegistration;
-    }
-
-    public WorkerRegistration? WorkerRegistration => _workerRegistration;
+    public WorkerRegistration? WorkerRegistration { get; } = workerRegistration;
 
     // Worker-only state. All four fields stay empty in enqueue-only mode.
     public Dictionary<string, short> NamespaceIds { get; } = new(StringComparer.Ordinal);
@@ -39,7 +33,7 @@ internal sealed class WorkerContext
 
     // Slot job ids (one per recurring definition) returned by the startup schedule upsert. Consulted
     // on the execution hot path to branch a claimed slot fire into the recurring path.
-    public HashSet<long> RecurringSlotJobIds { get; } = new();
+    public HashSet<long> RecurringSlotJobIds { get; } = [];
 
     // Jobs this worker is mid-execution on: job_id -> the attempt's cancellation source + held locks.
     // The dispatcher registers an entry around each attempt; the heartbeat cancels the source when
@@ -64,25 +58,23 @@ internal sealed class WorkerContext
     // Shared by RunOnceAsync and the production claim loop.
     public (short NamespaceId, int WorkerId) ResolveWorker(string namespaceName)
     {
-        if (_workerRegistration is null)
+        if (WorkerRegistration is null)
         {
             throw new InvalidOperationException("Worker mode required. Call j.Run<TManifest>(namespaceName, ...) inside UseActa.");
         }
-        if (namespaceName != _workerRegistration.NamespaceName)
+        if (namespaceName != WorkerRegistration.NamespaceName)
         {
             throw new InvalidOperationException(
-                $"Namespace mismatch: this runtime is registered as the worker for '{_workerRegistration.NamespaceName}', not '{namespaceName}'."
+                $"Namespace mismatch: this runtime is registered as the worker for '{WorkerRegistration.NamespaceName}', not '{namespaceName}'."
             );
         }
         if (!NamespaceIds.TryGetValue(namespaceName, out var namespaceId))
         {
             throw new InvalidOperationException($"Namespace '{namespaceName}' has no id yet. Call InitializeAsync before claiming.");
         }
-        if (!WorkerIdByNamespace.TryGetValue(namespaceName, out var workerId))
-        {
-            throw new InvalidOperationException($"Worker id for namespace '{namespaceName}' not assigned. Call InitializeAsync first.");
-        }
-        return (namespaceId, workerId);
+        return !WorkerIdByNamespace.TryGetValue(namespaceName, out var workerId)
+            ? throw new InvalidOperationException($"Worker id for namespace '{namespaceName}' not assigned. Call InitializeAsync first.")
+            : ((short NamespaceId, int WorkerId))(namespaceId, workerId);
     }
 }
 
@@ -96,10 +88,10 @@ internal sealed class WorkerContext
 /// a lapsed lease look live; the job-lease field is read/written through Volatile and the locks live in a
 /// ConcurrentDictionary, since a renewer writes while the watchdog and handler read.
 /// </summary>
-internal sealed class RunningAttempt
+internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTokenSource? timeoutCts = null)
 {
-    private readonly CancellationTokenSource _cts;
-    private readonly CancellationTokenSource? _timeoutCts;
+    private readonly CancellationTokenSource _cts = cts;
+    private readonly CancellationTokenSource? _timeoutCts = timeoutCts;
 
     // Held lock -> monotonic Stopwatch timestamp its lease is conservatively good until.
     private readonly ConcurrentDictionary<LockToken, long> _heldLocks = new();
@@ -107,12 +99,6 @@ internal sealed class RunningAttempt
     // Job lease's conservative good-until (monotonic Stopwatch timestamp). Written by the worker heartbeat,
     // read by the watchdog on another thread - accessed only through Volatile.
     private long _jobLeaseGoodUntil;
-
-    public RunningAttempt(CancellationTokenSource cts, CancellationTokenSource? timeoutCts = null)
-    {
-        _cts = cts;
-        _timeoutCts = timeoutCts;
-    }
 
     /// <summary>
     /// The job lease's conservative good-until as a monotonic <see cref="Stopwatch"/> timestamp. Seeded

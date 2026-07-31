@@ -1,9 +1,8 @@
-using Acta.Configuration;
-using Acta.Modules.Execution.Api;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// Implements execution's <see cref="IAlertSink"/> over the alert store, keeping alert policy on

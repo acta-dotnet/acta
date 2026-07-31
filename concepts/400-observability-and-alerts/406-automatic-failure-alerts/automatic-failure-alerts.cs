@@ -1,9 +1,8 @@
-// Concept: a failing job raises an automatic alert with no ctx.AlertAsync; same-job retries
+// Concept: a failing job raises an automatic alert with no context.AlertAsync; same-job retries
 // deduplicate onto the same row, incrementing OccurrenceCount rather than opening new alerts.
 
 using Acta;
 using Acta.Concepts.AutomaticFailureAlerts;
-using Acta.Querying;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 

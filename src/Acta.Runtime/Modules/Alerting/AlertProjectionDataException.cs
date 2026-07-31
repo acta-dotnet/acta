@@ -1,4 +1,4 @@
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// The alert projector's poison classification: raised only for the two proven malformed-ledger

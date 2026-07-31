@@ -240,12 +240,7 @@ internal static class SqlSchemaEmitter
     //   2. otherwise → no default
     private static string RenderAllocation(ColumnModel c, SqlDdlDialect dialect)
     {
-        if (c.IsSolePrimaryKey && !c.IsManualPrimaryKey && IsIdentityEligible(c.Kind))
-        {
-            return dialect.RenderIdentity();
-        }
-
-        return "";
+        return c.IsSolePrimaryKey && !c.IsManualPrimaryKey && IsIdentityEligible(c.Kind) ? dialect.RenderIdentity() : "";
     }
 
     private static bool IsIdentityEligible(DbKind kind) => kind is DbKind.Byte or DbKind.Int16 or DbKind.Int32 or DbKind.Int64;

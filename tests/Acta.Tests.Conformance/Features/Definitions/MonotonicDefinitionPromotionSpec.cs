@@ -1,8 +1,6 @@
 using System.Collections.Immutable;
-using Acta.Configuration;
-using Acta.Modules.Execution.Definitions;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,7 +64,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     public async Task Newer_generation_updates_policy_and_bumps_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var name = TestKey("promote");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 3, typeof(int))], ct);
@@ -84,7 +82,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     public async Task Older_generation_does_not_change_policy()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var name = TestKey("no-downgrade");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(name, 9, typeof(int))], ct);
@@ -102,7 +100,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     public async Task Equal_generation_applies_a_real_difference()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var name = TestKey("equal-correction");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 3, typeof(int))], ct);
@@ -116,7 +114,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     public async Task Unchanged_restart_writes_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var name = TestKey("idempotent");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(name, 4, typeof(int))], ct);
@@ -132,7 +130,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     public async Task Older_worker_does_not_retire_a_newer_definition_it_omits()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var keep = TestKey("keep");
         var newer = TestKey("newer-only");
 
@@ -147,7 +145,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     public async Task Equal_or_newer_worker_retires_a_genuinely_removed_definition()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var keep = TestKey("retire-keep");
         var gone = TestKey("retire-gone");
 
@@ -162,7 +160,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     public async Task Older_worker_cannot_reactivate_or_rewrite_a_newer_retired_definition()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         var job = TestKey("react-job");
         var other = TestKey("react-other");
 

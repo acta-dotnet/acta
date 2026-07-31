@@ -72,20 +72,17 @@ internal static class ActaApiEndpoints
                         }
                     }
 
-                    if (transientFailure)
-                    {
-                        return Results.Problem(
+                    return transientFailure
+                        ? Results.Problem(
                             statusCode: StatusCodes.Status503ServiceUnavailable,
                             title: "Service unavailable.",
                             detail: "The Acta API is temporarily unavailable: the database is unreachable or rejected the request."
+                        )
+                        : Results.Problem(
+                            statusCode: StatusCodes.Status500InternalServerError,
+                            title: "Internal server error.",
+                            detail: "The Acta API failed to process the request; see the host log for detail."
                         );
-                    }
-
-                    return Results.Problem(
-                        statusCode: StatusCodes.Status500InternalServerError,
-                        title: "Internal server error.",
-                        detail: "The Acta API failed to process the request; see the host log for detail."
-                    );
                 }
             }
         );
@@ -255,21 +252,18 @@ internal static class ActaApiEndpoints
             {
                 var jobNamespace = QueryBinding.Text(http.Request.Query, "jobNamespace");
                 var deduplicationKey = QueryBinding.Text(http.Request.Query, "deduplicationKey");
-                if (jobNamespace is null || deduplicationKey is null)
-                {
-                    return Task.FromResult(BadRequest("jobNamespace and deduplicationKey are required."));
-                }
-
-                return Guard(
-                    http,
-                    async () =>
-                    {
-                        var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey), ct);
-                        return snapshot is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.")
-                            : Results.Json(snapshot, DashboardJsonContext.Default.JobSnapshot);
-                    }
-                );
+                return jobNamespace is null || deduplicationKey is null
+                    ? Task.FromResult(BadRequest("jobNamespace and deduplicationKey are required."))
+                    : Guard(
+                        http,
+                        async () =>
+                        {
+                            var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey), ct);
+                            return snapshot is null
+                                ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.")
+                                : Results.Json(snapshot, DashboardJsonContext.Default.JobSnapshot);
+                        }
+                    );
             }
         );
 
@@ -479,38 +473,34 @@ internal static class ActaApiEndpoints
                 }
 
                 string? error = null;
-                if (
+                return
                     !QueryBinding.TryEventCode(http.Request.Query, "eventCode", out var eventCode, ref error)
                     || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                     || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                )
-                {
-                    return Task.FromResult(BadRequest(error));
-                }
-
-                return Guard(
-                    http,
-                    async () =>
-                    {
-                        var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
-                        if (jobId is null)
+                    ? Task.FromResult(BadRequest(error))
+                    : Guard(
+                        http,
+                        async () =>
                         {
-                            return NotFound();
-                        }
+                            var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
+                            if (jobId is null)
+                            {
+                                return NotFound();
+                            }
 
-                        var query = new ListJobEventsQuery(
-                            JobId: jobId,
-                            EventCode: eventCode,
-                            PageSize: pageSize,
-                            Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                            IncludeTotal: includeTotal ?? false
-                        );
-                        return Results.Json(
-                            await operations.ListJobEventsAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobEventListItem
-                        );
-                    }
-                );
+                            var query = new ListJobEventsQuery(
+                                JobId: jobId,
+                                EventCode: eventCode,
+                                PageSize: pageSize,
+                                Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
+                                IncludeTotal: includeTotal ?? false
+                            );
+                            return Results.Json(
+                                await operations.ListJobEventsAsync(query, ct),
+                                DashboardJsonContext.Default.PagedResultJobEventListItem
+                            );
+                        }
+                    );
             }
         );
 

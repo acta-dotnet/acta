@@ -51,10 +51,10 @@ namespace Acta.Concepts.MapParallelJoin
     public sealed class PhotoJobs
     {
         [Job("process-photo")]
-        public async Task<PhotoResult> Process(ProcessPhoto photo, JobContext ctx, CancellationToken ct)
+        public async Task<PhotoResult> Process(ProcessPhoto photo, JobContext context, CancellationToken ct)
         {
             // Parallel: independent analyzes, no branch needs another's result, so they run at once.
-            var analyze = await ctx.ParallelAsync(
+            var analyze = await context.ParallelAsync(
                 "analyze",
                 p =>
                     p.Child("exif", new ExtractExif(photo.AssetId, photo.SourceUrl))
@@ -67,7 +67,7 @@ namespace Acta.Concepts.MapParallelJoin
 
             // Map: one resize per width, keyed by width so replay dedupes onto the same children.
             int[] widths = [256, 512, 1024, 2048];
-            var resized = await ctx.MapAsync(
+            var resized = await context.MapAsync(
                 "resize",
                 widths,
                 itemKey: width => width,
@@ -79,9 +79,9 @@ namespace Acta.Concepts.MapParallelJoin
             var renditionsReady = resized.Items.Count(i => i.Outcome.Succeeded);
 
             // Join: start two independent side effects by hand and wait on the handles.
-            var cdn = await ctx.StartChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct: ct);
-            var index = await ctx.StartChildAsync("update-index", new UpdateIndex(photo.AssetId), ct: ct);
-            var published = await ctx.JoinAsync([cdn, index], ct);
+            var cdn = await context.StartChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct: ct);
+            var index = await context.StartChildAsync("update-index", new UpdateIndex(photo.AssetId), ct: ct);
+            var published = await context.JoinAsync([cdn, index], ct);
 
             return new PhotoResult(photo.AssetId, renditionsReady, published.Succeeded);
         }

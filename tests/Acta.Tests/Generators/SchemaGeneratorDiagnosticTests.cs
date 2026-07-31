@@ -120,7 +120,7 @@ public class SchemaGeneratorDiagnosticTests
         return CSharpGeneratorDriver.Create(new ActaSchemaGenerator()).RunGenerators(compilation).GetRunResult();
     }
 
-    private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => result.Diagnostics.Where(d => d.Id == id).ToArray();
+    private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => [.. result.Diagnostics.Where(d => d.Id == id)];
 
     // ----------------------------------------------------------------------------------------
     // ACTA0401: schema declarations must be complete

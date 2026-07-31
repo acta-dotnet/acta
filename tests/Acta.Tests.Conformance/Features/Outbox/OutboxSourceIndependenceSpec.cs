@@ -1,4 +1,4 @@
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Outbox;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

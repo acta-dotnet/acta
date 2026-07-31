@@ -37,7 +37,7 @@ namespace Acta.Concepts.ExecutionTimeout
         // ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken
         // and the attempt ends as a timeout.
         [Job("slow-report", ExecutionTimeout = "2s", MaxAttempts = 1)]
-        public async Task Handle(SlowReport input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(SlowReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[{input.Name}] generating report (this runs too long)...");
             await Task.Delay(TimeSpan.FromSeconds(10), ct); // exceeds the 2s timeout, so ct trips here

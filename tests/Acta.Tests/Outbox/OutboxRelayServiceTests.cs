@@ -1,5 +1,5 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Outbox;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Outbox;
 using Xunit;
 
 namespace Acta.Tests.Outbox;
@@ -58,7 +58,7 @@ public sealed class OutboxRelayServiceTests
         var batch = Assert.Single(target.Batches);
         var request = Assert.Single(batch);
         Assert.Equal("k1", request.DeduplicationKey);
-        Assert.Equal(new HashSet<Guid> { early.OutboxId, late.OutboxId }, store.Deleted.ToHashSet());
+        Assert.Equal([early.OutboxId, late.OutboxId], store.Deleted.ToHashSet());
         // Two rows claimed, one job inserted, one coalesced member absorbed as a dedup.
         Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0), summary);
         Assert.Equal("claimed=2 relayed=1 dedup=1 quarantined=0 backlog=0", summary.ToString());
@@ -80,7 +80,7 @@ public sealed class OutboxRelayServiceTests
 
         var batch = Assert.Single(target.Batches);
         Assert.Single(batch);
-        Assert.Equal(new HashSet<Guid> { upper.OutboxId, lower.OutboxId }, store.Deleted.ToHashSet());
+        Assert.Equal([upper.OutboxId, lower.OutboxId], store.Deleted.ToHashSet());
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class OutboxRelayServiceTests
     [Fact]
     public async Task A_tick_processes_at_most_twenty_batches_of_two_hundred_fifty_six_rows()
     {
-        var store = new FakeStore(Enumerable.Range(0, 20 * 256 + 300).Select(i => Row($"k{i}")).ToArray());
+        var store = new FakeStore([.. Enumerable.Range(0, 20 * 256 + 300).Select(i => Row($"k{i}"))]);
         var target = new FakeSubmission();
         var svc = new OutboxRelayService(store, target);
 

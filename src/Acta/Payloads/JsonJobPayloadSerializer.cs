@@ -13,7 +13,7 @@ namespace Acta;
 /// different behavior either supply their own <see cref="JsonSerializerOptions"/> through the
 /// constructor or register a different <see cref="IJobPayloadSerializer"/> for the <c>json</c> format id.
 /// </summary>
-public sealed class JsonJobPayloadSerializer : IJobPayloadSerializer
+public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJobPayloadSerializer
 {
     /// <summary>
     /// Framework defaults: <see cref="JsonSerializerDefaults.Web"/> baseline (camelCase property naming
@@ -32,15 +32,10 @@ public sealed class JsonJobPayloadSerializer : IJobPayloadSerializer
     /// </summary>
     public static JsonJobPayloadSerializer Default { get; } = new();
 
-    private readonly JsonSerializerOptions _options;
+    private readonly JsonSerializerOptions _options = options ?? throw new ArgumentNullException(nameof(options));
 
     public JsonJobPayloadSerializer()
         : this(DefaultJsonOptions) { }
-
-    public JsonJobPayloadSerializer(JsonSerializerOptions options)
-    {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-    }
 
     /// <summary>
     /// Builds a serializer whose options resolve payload type metadata from <paramref name="resolver"/>

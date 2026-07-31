@@ -5,15 +5,13 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Schedules;
 using Acta.Relational.Commands;
-using Acta.Relational.Connections;
 using Acta.Relational.Schema;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Microsoft.Data.Sqlite;
 
 namespace Acta.Sqlite.Services;
@@ -69,7 +67,7 @@ internal sealed class SqliteDialect : ISqlDialect
     // connection skip re-registering the functions and the foreign_keys PRAGMA round trip. Keyed weakly so
     // a collected caller connection drops out; Microsoft.Data.Sqlite re-applies CreateFunction on reopen,
     // so a prepared connection stays valid across the caller's own close/reopen.
-    private static readonly ConditionalWeakTable<DbConnection, object> PreparedCallerConnections = new();
+    private static readonly ConditionalWeakTable<DbConnection, object> PreparedCallerConnections = [];
 
     // Caller-transaction preparation: the caller made this SqliteConnection itself, so our StateChange
     // hook never ran. Install only the two connection-local functions the inline enqueue SQL needs and
@@ -140,19 +138,16 @@ internal sealed class SqliteDialect : ISqlDialect
 
     internal static object ToSqliteValue(DbKind kind, object value)
     {
-        if (value is DBNull)
-        {
-            return DBNull.Value;
-        }
-
-        return kind switch
-        {
-            DbKind.UtcInstant => ToUnixMs((DateTime)value),
-            DbKind.Boolean => (bool)value ? 1L : 0L,
-            DbKind.Guid => ((Guid)value).ToString(),
-            DbKind.Decimal => Convert.ToDouble(value, CultureInfo.InvariantCulture),
-            _ => value,
-        };
+        return value is DBNull
+            ? DBNull.Value
+            : kind switch
+            {
+                DbKind.UtcInstant => ToUnixMs((DateTime)value),
+                DbKind.Boolean => (bool)value ? 1L : 0L,
+                DbKind.Guid => ((Guid)value).ToString(),
+                DbKind.Decimal => Convert.ToDouble(value, CultureInfo.InvariantCulture),
+                _ => value,
+            };
     }
 
     internal static long ToUnixMs(DateTime value) => (long)(DbParams.ToUtc(value) - UnixEpoch).TotalMilliseconds;

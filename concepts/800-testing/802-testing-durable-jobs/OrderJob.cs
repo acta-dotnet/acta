@@ -14,9 +14,9 @@ public static class OrderJob
     public static int ReserveCount;
 
     [Job("process-order")]
-    public static async Task<OrderResult> Handle(PlaceOrder order, JobContext ctx, CancellationToken ct)
+    public static async Task<OrderResult> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
     {
-        await ctx.RunStepAsync(
+        await context.RunStepAsync(
             "reserve-stock",
             _ =>
             {
@@ -28,13 +28,13 @@ public static class OrderJob
 
         // Suspend until the signal arrives; on resume the job replays from the top but the recorded
         // reserve step is NOT re-run.
-        var decision = await ctx.WaitSignalAsync<ApprovalDecision>("approval", ct);
+        var decision = await context.WaitSignalAsync<ApprovalDecision>("approval", ct);
         if (!decision!.Approved)
         {
             return new OrderResult(order.OrderId, Charged: false);
         }
 
-        await ctx.RunStepAsync("charge", _ => Task.CompletedTask, ct: ct);
+        await context.RunStepAsync("charge", _ => Task.CompletedTask, ct: ct);
         return new OrderResult(order.OrderId, Charged: true);
     }
 }

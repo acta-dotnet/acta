@@ -31,7 +31,7 @@ namespace Acta.Concepts.Reschedule
         private static int _tries;
 
         [Job("poll-resource")]
-        public async Task Handle(PollResource input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(PollResource input, JobContext context, CancellationToken ct)
         {
             var ready = Interlocked.Increment(ref _tries) >= 2;
             if (!ready)
@@ -39,7 +39,7 @@ namespace Acta.Concepts.Reschedule
                 // RescheduleAsync re-arms the job after a delay without burning the retry budget; the
                 // handler stops here and replays on the next run (RescheduleUntilAsync takes an absolute time).
                 Console.WriteLine($"[{input.Url}] not ready, rescheduling...");
-                await ctx.RescheduleAsync(TimeSpan.FromSeconds(1), "resource not ready", ct);
+                await context.RescheduleAsync(TimeSpan.FromSeconds(1), "resource not ready", ct);
             }
 
             Console.WriteLine($"[{input.Url}] ready - processed");

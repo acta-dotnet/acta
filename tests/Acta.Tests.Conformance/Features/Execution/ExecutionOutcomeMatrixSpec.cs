@@ -1,6 +1,5 @@
-using Acta.Modules.Execution;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,7 +34,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
     public async Task Start_wrong_worker_returns_not_owner_and_no_event()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect, ns, workerId) = await DepsAsync(ct);
+        var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
@@ -59,7 +58,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
     public async Task Start_terminal_job_returns_already_terminal_and_no_additional_event()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect, ns, workerId) = await DepsAsync(ct);
+        var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))),
@@ -101,7 +100,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
     public async Task Complete_wrong_worker_returns_not_owner_and_no_event()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect, ns, workerId) = await DepsAsync(ct);
+        var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(5, 6))),
@@ -132,7 +131,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
     public async Task Complete_double_returns_already_terminal_and_no_additional_event()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect, ns, workerId) = await DepsAsync(ct);
+        var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(7, 8))),
@@ -172,7 +171,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
     public async Task Stolen_row_stale_complete_returns_not_owner_and_job_stays_dispatched()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect, ns, workerId) = await DepsAsync(ct);
+        var (db, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(9, 10))),

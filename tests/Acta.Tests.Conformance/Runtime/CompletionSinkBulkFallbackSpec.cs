@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -84,7 +82,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
     public async Task Fallback_equals_scalar_parity()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+        var (_, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
 
         if (dialect.Provider == DbProvider.Sqlite)
         {
@@ -184,7 +182,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
 
         // Two children (parent → batch self-filters → scalar fallback) and one plain row the batch
         // finalizes. The plain row goes last so it sits after the failing fallback in flush order.
-        var firstChild = await StartedChildAsync(leaseTtl, ns, workerId, ct);
+        var (JobId, Claimed) = await StartedChildAsync(leaseTtl, ns, workerId, ct);
         var secondChild = await StartedChildAsync(leaseTtl, ns, workerId, ct);
         var plain = await StartedPlainAsync(leaseTtl, ns, workerId, ct);
 
@@ -198,14 +196,14 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
             Options.Create(new JobsOptions { BatchCompletionSize = 100 })
         );
 
-        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(firstChild.Claimed, workerId), TestNamespace, firstChild.JobId, 0));
+        await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(Claimed, workerId), TestNamespace, JobId, 0));
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(secondChild.Claimed, workerId), TestNamespace, secondChild.JobId, 0));
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(plain.Claimed, workerId), TestNamespace, plain.JobId, 0));
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 
         // The injected failure strands its own job and nothing else.
-        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(firstChild.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(JobId, ct)).Status);
 
         // The fallback after it still ran: iteration does not stop at the first failure.
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(secondChild.JobId, ct)).Status);
@@ -285,7 +283,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
 
     private sealed class WakeupSpy : IWorkerWakeup
     {
-        private readonly ConcurrentBag<(WorkerWakeupChannel Channel, WorkerWakeupReason Reason)> _wakes = new();
+        private readonly ConcurrentBag<(WorkerWakeupChannel Channel, WorkerWakeupReason Reason)> _wakes = [];
 
         public IReadOnlyCollection<(WorkerWakeupChannel Channel, WorkerWakeupReason Reason)> Wakes => _wakes;
 

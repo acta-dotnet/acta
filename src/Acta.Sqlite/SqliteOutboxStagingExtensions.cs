@@ -4,7 +4,7 @@ using Acta.Relational.Outbox;
 using Acta.Sqlite.Services;
 using Microsoft.Data.Sqlite;
 
-namespace Acta;
+namespace Acta.Sqlite;
 
 /// <summary>
 /// Transactional external-outbox staging for SQLite producers. Validates a <see cref="JobEnqueueRequest"/>

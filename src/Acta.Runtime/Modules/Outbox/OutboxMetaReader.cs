@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Acta.Modules.Outbox;
+namespace Acta.Runtime.Modules.Outbox;
 
 /// <summary>
 /// AOT-safe source-generated parse of the external-outbox <c>meta</c> bag, the mirror of

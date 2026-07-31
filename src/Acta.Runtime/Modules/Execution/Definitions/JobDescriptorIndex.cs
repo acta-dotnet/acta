@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Maps a (namespace, job name) pair to its generated <see cref="JobDescriptor"/>, backing

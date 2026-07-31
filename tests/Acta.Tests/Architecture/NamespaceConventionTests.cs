@@ -8,15 +8,12 @@ namespace Acta.Tests.Architecture;
 /// Pins the architecture rule that source namespaces follow project roots and physical folders,
 /// with deliberate exceptions. The Acta SDK project's whole public surface lives in the flat
 /// <c>Acta</c> namespace so consumers need a single using; folders there group by capability only.
-/// Registration surface (<c>*Extensions.cs</c> at a project root: <c>AddActa</c>/<c>Use*</c>/
-/// <c>MapActa</c>) sits at the package root for discoverability and declares <c>Acta</c> so
-/// <c>using Acta;</c> alone lights it up - provider choice is a package reference, not a using.
-/// Internal machinery left in <c>Hosting</c> folders collapses to the same entry namespace
-/// (<c>Acta</c> for product assemblies, the root namespace for Acta.Testing).
+/// Core registration remains in <c>Acta</c>; provider and adapter registration use their package
+/// root namespaces. All implementation namespaces append their physical folder path.
 /// </summary>
-public sealed class NamespaceConventionTests
+public sealed partial class NamespaceConventionTests
 {
-    private static readonly Regex NamespaceRx = new(@"^namespace\s+([^\s;{]+)", RegexOptions.Multiline | RegexOptions.Compiled);
+    private static readonly Regex NamespaceRx = MyRegex();
 
     private const string FlatNamespaceProject = "Acta";
 
@@ -61,18 +58,14 @@ public sealed class NamespaceConventionTests
 
                 inspected++;
                 var relativeDirectory = Path.GetDirectoryName(relative);
-                var isEntryNamespaceFile =
-                    relativeDirectory == "Hosting"
-                    || (string.IsNullOrEmpty(relativeDirectory) && relative.EndsWith("Extensions.cs", StringComparison.Ordinal));
-                var expected = isEntryNamespaceFile
-                    ? Path.GetFileName(projectDirectory) == "Acta.Testing"
-                        ? rootNamespace
-                        : "Acta"
-                    : Path.GetFileName(projectDirectory) == FlatNamespaceProject || string.IsNullOrEmpty(relativeDirectory)
-                        ? rootNamespace
-                        : rootNamespace
-                            + "."
-                            + relativeDirectory.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
+                var projectName = Path.GetFileName(projectDirectory);
+                var isActaConsumerEntry = projectName == "Acta.Runtime" && relative == "ActaServiceCollectionExtensions.cs";
+                var expected =
+                    projectName == FlatNamespaceProject || string.IsNullOrEmpty(relativeDirectory) && !isActaConsumerEntry ? rootNamespace
+                    : isActaConsumerEntry ? "Acta"
+                    : rootNamespace
+                        + "."
+                        + relativeDirectory!.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
                 if (match.Groups[1].Value != expected)
                 {
                     failures.Add($"{Path.GetRelativePath(repoRoot, file)}: namespace is '{match.Groups[1].Value}', expected '{expected}'");
@@ -101,4 +94,7 @@ public sealed class NamespaceConventionTests
             "NamespaceConventionTests could not locate Acta.slnx marking the repo root from " + AppContext.BaseDirectory
         );
     }
+
+    [GeneratedRegex(@"^namespace\s+([^\s;{]+)", RegexOptions.Multiline | RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

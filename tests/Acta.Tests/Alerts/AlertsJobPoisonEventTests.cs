@@ -1,7 +1,5 @@
-using Acta.Configuration;
-using Acta.Modules.Alerting;
-using Acta.Modules.Execution.Jobs;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Alerting;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Context;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -78,18 +76,16 @@ public sealed class AlertsJobPoisonEventTests
         {
             var eventId = command.JobId == 101 ? 11L : 12L;
             RaiseAttempts.Add(eventId);
-            if (command.JobId == 101)
-            {
-                return Task.FromException<int>(
+            return command.JobId == 101
+                ? Task.FromException<int>(
                     failure
                         ?? (
                             deterministicFailure
                                 ? new ArgumentException("The referenced job id does not exist.", "jobId")
                                 : new TimeoutException("provider timeout")
                         )
-                );
-            }
-            return Task.FromResult(1);
+                )
+                : Task.FromResult(1);
         }
 
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(

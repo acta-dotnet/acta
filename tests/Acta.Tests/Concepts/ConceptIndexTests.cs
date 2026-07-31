@@ -9,7 +9,7 @@ namespace Acta.Tests.Concepts;
 /// numbered rung must have a row in <c>docs/guide/tutorials.md</c> (or it is undiscoverable). The reverse
 /// direction is checked too: a solution path with no project on disk is a stale entry.
 /// </summary>
-public sealed class ConceptIndexTests
+public sealed partial class ConceptIndexTests
 {
     private static readonly string[] CategoryFolders =
     [
@@ -26,7 +26,7 @@ public sealed class ConceptIndexTests
     ];
 
     // Concept folders are named NNN-kebab and live under the category for their numeric band.
-    private static readonly Regex RungFolder = new(@"^\d{3}-[a-z0-9-]+$", RegexOptions.Compiled);
+    private static readonly Regex RungFolder = MyRegex();
 
     [Fact]
     public void EveryConceptProjectIsListedInTheSolution()
@@ -173,4 +173,7 @@ public sealed class ConceptIndexTests
             "ConceptIndexTests could not locate Acta.slnx marking the repo root from " + AppContext.BaseDirectory
         );
     }
+
+    [GeneratedRegex(@"^\d{3}-[a-z0-9-]+$", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

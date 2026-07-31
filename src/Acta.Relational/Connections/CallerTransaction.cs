@@ -21,11 +21,8 @@ internal static class CallerTransaction
                 "The supplied transaction is detached from its connection; it may have been committed, rolled back, or disposed.",
                 nameof(transaction)
             );
-        if (connection.State != ConnectionState.Open)
-        {
-            throw new ArgumentException("The supplied transaction's connection is not open.", nameof(transaction));
-        }
-
-        return connection;
+        return connection.State != ConnectionState.Open
+            ? throw new ArgumentException("The supplied transaction's connection is not open.", nameof(transaction))
+            : connection;
     }
 }

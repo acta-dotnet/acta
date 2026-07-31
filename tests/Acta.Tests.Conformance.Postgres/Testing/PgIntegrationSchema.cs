@@ -46,10 +46,7 @@ public sealed class PgIntegrationSchema : IIntegrationSchema
         await s_bootstrapGate.WaitAsync();
         try
         {
-            if (s_bootstrappedConnectionString is null)
-            {
-                s_bootstrappedConnectionString = await BootstrapAsync();
-            }
+            s_bootstrappedConnectionString ??= await BootstrapAsync();
 
             return new PgIntegrationSchema(s_bootstrappedConnectionString);
         }

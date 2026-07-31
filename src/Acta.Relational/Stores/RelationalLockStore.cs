@@ -1,7 +1,7 @@
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
-using Acta.Services.Locks;
+using Acta.Runtime.Services.Locks;
 
 namespace Acta.Relational.Stores;
 

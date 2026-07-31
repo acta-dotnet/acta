@@ -35,10 +35,10 @@ namespace Acta.Concepts.DurableVariable
         private static int _attempts;
 
         [Job("sync-users", MaxAttempts = 2, Backoff = "2s")]
-        public async Task Handle(SyncUsers input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(SyncUsers input, JobContext context, CancellationToken ct)
         {
             // Pin the sync window once: GetOrSet stores it on the first pass and replays it on the retry, so the window can't shift between attempts.
-            var syncedAt = await ctx.GetOrSetVariableAsync("synced-at-utc", () => DateTime.UtcNow, ct);
+            var syncedAt = await context.GetOrSetVariableAsync("synced-at-utc", () => DateTime.UtcNow, ct);
             Console.WriteLine($"[{input.Source}] syncing changes as of {syncedAt:HH:mm:ss.fff} UTC");
 
             // Fail the first attempt; the same timestamp comes back on the retry.

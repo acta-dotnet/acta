@@ -41,8 +41,7 @@ public sealed class JobEnqueueRequestValidationTests
     }
 
     public static TheoryData<JobEnqueueRequest> InvalidRequests() =>
-        new()
-        {
+        [
             new JobEnqueueRequest("bad namespace", Name),
             new JobEnqueueRequest("Billing", Name),
             new JobEnqueueRequest(Ns, "Send-Invoice"),
@@ -59,5 +58,5 @@ public sealed class JobEnqueueRequestValidationTests
             new JobEnqueueRequest(Ns, Name, DelaySeconds: -1),
             new JobEnqueueRequest(Ns, Name, ParentId: 0),
             new JobEnqueueRequest(Ns, Name, Priority: (JobPriorityCode)255),
-        };
+        ];
 }

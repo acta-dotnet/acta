@@ -3,7 +3,7 @@ using Acta.Relational.Outbox;
 using Npgsql;
 using NpgsqlTypes;
 
-namespace Acta;
+namespace Acta.Postgres;
 
 /// <summary>
 /// Transactional external-outbox staging for PostgreSQL producers. Validates a <see cref="JobEnqueueRequest"/>

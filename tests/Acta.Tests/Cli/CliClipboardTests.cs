@@ -1,7 +1,4 @@
-using Acta.Cli;
-using Acta.Configuration;
-using Acta.Payloads;
-using Acta.Querying;
+using Acta.Runtime.Cli;
 using Xunit;
 
 namespace Acta.Tests.Cli;
@@ -148,9 +145,9 @@ public class CliRunnerClipboardTests
         );
 
         Assert.Equal(0, exit);
-        var call = Assert.Single(jobs.Signals);
-        Assert.Equal((byte)1, call.FormatId);
-        Assert.Equal(json, System.Text.Encoding.UTF8.GetString(call.Value!));
+        var (Name, FormatId, Value) = Assert.Single(jobs.Signals);
+        Assert.Equal((byte)1, FormatId);
+        Assert.Equal(json, System.Text.Encoding.UTF8.GetString(Value!));
     }
 
     private sealed class NothingJobs : IJobs, IActaOperations

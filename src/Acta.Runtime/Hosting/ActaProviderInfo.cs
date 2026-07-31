@@ -1,7 +1,6 @@
-using Acta.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Acta;
+namespace Acta.Runtime.Hosting;
 
 /// <summary>Provider-neutral runtime facts supplied by the selected durable provider package.</summary>
 internal sealed record ActaProviderInfo(DbProvider Provider, bool SupportsRoutines);

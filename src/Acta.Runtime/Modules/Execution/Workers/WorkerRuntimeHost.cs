@@ -1,8 +1,9 @@
+using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// Process-level <see cref="BackgroundService"/>. Runs provider bootstrap exactly once (migrations /
@@ -20,24 +21,17 @@ namespace Acta.Modules.Execution.Workers;
 /// bootstraps no-op cheaply, so startup stays fast. An enqueue-only process (no <c>j.Run(...)</c> call)
 /// registers no workers: bootstrap still runs so the catalog exists, then the host idles until shutdown.
 /// </remarks>
-internal sealed class WorkerRuntimeHost : BackgroundService
+internal sealed class WorkerRuntimeHost(
+    IEnumerable<WorkerRuntime> runtimes,
+    IEnumerable<IProviderBootstrap> bootstraps,
+    ILogger<WorkerRuntimeHost>? log = null
+) : BackgroundService
 {
     private static readonly TimeSpan LifecycleStampTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly IReadOnlyList<WorkerRuntime> _runtimes;
-    private readonly IReadOnlyList<IProviderBootstrap> _bootstraps;
-    private readonly ILogger _log;
-
-    public WorkerRuntimeHost(
-        IEnumerable<WorkerRuntime> runtimes,
-        IEnumerable<IProviderBootstrap> bootstraps,
-        ILogger<WorkerRuntimeHost>? log = null
-    )
-    {
-        _runtimes = runtimes.ToArray();
-        _bootstraps = bootstraps.ToArray();
-        _log = log ?? NullLogger<WorkerRuntimeHost>.Instance;
-    }
+    private readonly IReadOnlyList<WorkerRuntime> _runtimes = runtimes.ToArray();
+    private readonly IReadOnlyList<IProviderBootstrap> _bootstraps = bootstraps.ToArray();
+    private readonly ILogger _log = log ?? NullLogger<WorkerRuntimeHost>.Instance;
 
     /// <summary>
     /// Runs provider bootstrap (migrations / schema) and every worker's catalog initialization to

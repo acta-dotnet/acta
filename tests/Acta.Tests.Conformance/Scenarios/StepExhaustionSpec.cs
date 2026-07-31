@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using Acta.Modules.Execution;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -60,61 +59,57 @@ internal static class StepExhaustionProbes
 public sealed class StepExhaustionManifest : IJobManifest
 {
     public static JobDescriptorManifest Descriptors { get; } =
-        new(
-            ImmutableArray.Create(
-                // step-exhaust-replay: parent MaxAttempts=2, zero parent backoff
-                new JobDescriptor(
-                    JobName: "step-exhaust-replay",
-                    HandlerType: typeof(StepExhaustionProbes),
-                    MethodName: nameof(StepExhaustionProbes.ExhaustReplay),
-                    InputType: typeof(NoInput),
-                    OutputType: null,
-                    InputPayloadFormat: JobPayloadFormat.None,
-                    OutputPayloadFormat: null,
-                    InvocationKind: JobInvocationKind.Task,
-                    RequiresJobContextParameter: true,
-                    RequiresCancellationToken: true,
-                    Priority: JobPriorityCode.Normal,
-                    MaxAttempts: 2,
-                    AuditLevel: JobAuditLevelCode.Audit,
-                    AlertProfile: JobAlertProfileCode.OnFailure,
-                    Invoker: static async (_, _, ctx, ct) =>
-                    {
-                        await StepExhaustionProbes.ExhaustReplay(ctx, ct);
-                        return new JobHandlerInvocationResult(false, null);
-                    },
-                    DeserializeInput: static (_, _) => new NoInput(),
-                    SerializeOutput: null
-                )
+        new([
+            new JobDescriptor(
+                JobName: "step-exhaust-replay",
+                HandlerType: typeof(StepExhaustionProbes),
+                MethodName: nameof(StepExhaustionProbes.ExhaustReplay),
+                InputType: typeof(NoInput),
+                OutputType: null,
+                InputPayloadFormat: JobPayloadFormat.None,
+                OutputPayloadFormat: null,
+                InvocationKind: JobInvocationKind.Task,
+                RequiresJobContextParameter: true,
+                RequiresCancellationToken: true,
+                Priority: JobPriorityCode.Normal,
+                MaxAttempts: 2,
+                AuditLevel: JobAuditLevelCode.Audit,
+                AlertProfile: JobAlertProfileCode.OnFailure,
+                Invoker: static async (_, _, ctx, ct) =>
                 {
-                    Backoff = "0s",
+                    await StepExhaustionProbes.ExhaustReplay(ctx, ct);
+                    return new JobHandlerInvocationResult(false, null);
                 },
-                // step-window-exhaust: parent MaxAttempts=1; step has huge MaxAttempts, tiny window
-                new JobDescriptor(
-                    JobName: "step-window-exhaust",
-                    HandlerType: typeof(StepExhaustionProbes),
-                    MethodName: nameof(StepExhaustionProbes.WindowExhaust),
-                    InputType: typeof(NoInput),
-                    OutputType: null,
-                    InputPayloadFormat: JobPayloadFormat.None,
-                    OutputPayloadFormat: null,
-                    InvocationKind: JobInvocationKind.Task,
-                    RequiresJobContextParameter: true,
-                    RequiresCancellationToken: true,
-                    Priority: JobPriorityCode.Normal,
-                    MaxAttempts: 1,
-                    AuditLevel: JobAuditLevelCode.Audit,
-                    AlertProfile: JobAlertProfileCode.OnFailure,
-                    Invoker: static async (_, _, ctx, ct) =>
-                    {
-                        await StepExhaustionProbes.WindowExhaust(ctx, ct);
-                        return new JobHandlerInvocationResult(false, null);
-                    },
-                    DeserializeInput: static (_, _) => new NoInput(),
-                    SerializeOutput: null
-                )
+                DeserializeInput: static (_, _) => new NoInput(),
+                SerializeOutput: null
             )
-        );
+            {
+                Backoff = "0s",
+            },
+            new JobDescriptor(
+                JobName: "step-window-exhaust",
+                HandlerType: typeof(StepExhaustionProbes),
+                MethodName: nameof(StepExhaustionProbes.WindowExhaust),
+                InputType: typeof(NoInput),
+                OutputType: null,
+                InputPayloadFormat: JobPayloadFormat.None,
+                OutputPayloadFormat: null,
+                InvocationKind: JobInvocationKind.Task,
+                RequiresJobContextParameter: true,
+                RequiresCancellationToken: true,
+                Priority: JobPriorityCode.Normal,
+                MaxAttempts: 1,
+                AuditLevel: JobAuditLevelCode.Audit,
+                AlertProfile: JobAlertProfileCode.OnFailure,
+                Invoker: static async (_, _, ctx, ct) =>
+                {
+                    await StepExhaustionProbes.WindowExhaust(ctx, ct);
+                    return new JobHandlerInvocationResult(false, null);
+                },
+                DeserializeInput: static (_, _) => new NoInput(),
+                SerializeOutput: null
+            ),
+        ]);
 }
 
 // ---------- spec ----------

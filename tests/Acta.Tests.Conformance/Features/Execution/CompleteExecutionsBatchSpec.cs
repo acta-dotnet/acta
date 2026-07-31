@@ -1,7 +1,5 @@
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,7 +93,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
         // Pin exact per-ordinal bool outcomes.
-        Assert.Equal(new[] { true, false, true, true, false }, results);
+        Assert.Equal([true, false, true, true, false], results);
 
         // Pin post-state: true → Done (100); false → still Executing (50).
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
@@ -156,7 +154,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
-        Assert.Equal(new[] { false, true, false, true }, results);
+        Assert.Equal([false, true, false, true], results);
 
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(childEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
@@ -192,7 +190,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
-        Assert.Equal(new[] { true, true, true }, results);
+        Assert.Equal([true, true, true], results);
 
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqA.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqB.JobId, ct)).Status);
@@ -218,8 +216,8 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         var wrongOwnerRequest = MakeRequest(claimed, fakeWorkerId);
 
         // Batch declines: the runtime row's leased_by_worker_id is workerId but the request says fakeWorkerId.
-        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(new[] { wrongOwnerRequest }, ct);
-        Assert.Equal(new[] { false }, results);
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync([wrongOwnerRequest], ct);
+        Assert.Equal([false], results);
 
         // Job must still be Executing: the batch left it untouched.
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enq.JobId, ct)).Status);

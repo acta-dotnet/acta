@@ -151,16 +151,16 @@ namespace Acta.Concepts.AtMostOnceStep
             Path.Combine(Path.GetTempPath(), $"acta-at-most-once-side-effects-{jobRef}.log");
 
         [Job("charge-card", MaxAttempts = 3, Backoff = "0s")]
-        public static async Task Handle(ChargeCard input, JobContext ctx, CancellationToken ct)
+        public static async Task Handle(ChargeCard input, JobContext context, CancellationToken ct)
         {
             try
             {
-                await ctx.RunStepAsync(
+                await context.RunStepAsync(
                     "charge-card",
                     _ =>
                     {
                         // Simulated external system: this write cannot share Acta's SQL transaction.
-                        File.AppendAllText(SideEffectFile(ctx.JobRef), $"{input.OrderId}:{input.AmountCents}{Environment.NewLine}");
+                        File.AppendAllText(SideEffectFile(context.JobRef), $"{input.OrderId}:{input.AmountCents}{Environment.NewLine}");
                         Console.WriteLine("SIDE EFFECT COMMITTED. Terminating before Acta can record the step outcome...");
                         Console.Out.Flush();
                         Environment.FailFast("Intentional at-most-once lab crash after the external side effect.");
@@ -172,7 +172,7 @@ namespace Acta.Concepts.AtMostOnceStep
             }
             catch (StepInterruptedException interrupted)
             {
-                var sideEffectFile = SideEffectFile(ctx.JobRef);
+                var sideEffectFile = SideEffectFile(context.JobRef);
                 var matchingCharges = File.Exists(sideEffectFile)
                     ? File.ReadLines(sideEffectFile).Count(line => line.StartsWith(input.OrderId + ":", StringComparison.Ordinal))
                     : 0;

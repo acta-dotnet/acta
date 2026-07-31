@@ -1,5 +1,3 @@
-using Acta.Payloads;
-
 namespace Acta.Concepts.PayloadFormats;
 
 /// <summary>

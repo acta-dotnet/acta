@@ -1,10 +1,7 @@
 using System.Diagnostics;
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -99,7 +96,7 @@ public abstract class StressLoadSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Console.WriteLine($"[stress] {Fixture.GetType().Name} jobs={jobs} executors={Executors} claimBatch={ClaimBatch}");
         Console.WriteLine($"[stress] enqueue   {jobs / enqueue.Elapsed.TotalSeconds, 8:F0}/s  ({enqueue.Elapsed.TotalSeconds:F2}s)");
         Console.WriteLine($"[stress] complete  {jobs / drain.Elapsed.TotalSeconds, 8:F0}/s  ({drain.Elapsed.TotalSeconds:F2}s)");
-        Console.WriteLine($"[stress] latency ms  {Percentiles(sink.ElapsedTicks.ToArray())}  (enqueue to handler, under depth {jobs})");
+        Console.WriteLine($"[stress] latency ms  {Percentiles([.. sink.ElapsedTicks])}  (enqueue to handler, under depth {jobs})");
     }
 
     [Fact(DisplayName = "Per-phase claim, start, and complete costs are reported (diagnostic)")]

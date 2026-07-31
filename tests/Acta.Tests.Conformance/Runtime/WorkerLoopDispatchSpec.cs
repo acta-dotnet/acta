@@ -1,10 +1,7 @@
 using System.Diagnostics;
-using Acta.Configuration;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -150,7 +147,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
     public async Task An_unpublished_ready_row_is_discovered_by_the_safety_poll()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);

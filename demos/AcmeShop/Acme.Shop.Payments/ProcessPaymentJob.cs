@@ -1,7 +1,6 @@
 using Acme.Shop.Payments.Contracts;
 using Acme.Shop.Shipping.Contracts;
 using Acta;
-using Acta.Payloads;
 
 namespace Acme.Shop.Payments;
 
@@ -17,7 +16,7 @@ public sealed class ProcessPaymentJob(IJobs jobs)
             var decision = await ctx.WaitSignalAsync<FraudDecisionV1>("fraud-review", ct);
             if (decision is not { Approved: true })
             {
-                await ctx.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
+                await JobContext.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
                 return;
             }
 

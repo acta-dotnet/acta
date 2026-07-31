@@ -29,7 +29,7 @@ namespace Acta.Concepts.Progress
     public sealed class ImportFileJob
     {
         [Job("import-file")]
-        public async Task Handle(ImportFile input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(ImportFile input, JobContext context, CancellationToken ct)
         {
             for (var row = 1; row <= input.Rows; row++)
             {
@@ -38,7 +38,7 @@ namespace Acta.Concepts.Progress
                 var percent = row * 100 / input.Rows;
 
                 // Writes durable state read out-of-band (the __progress variable), not by the caller.
-                await ctx.SetProgressAsync(percent, ct);
+                await context.SetProgressAsync(percent, ct);
 
                 var filled = percent / 10;
                 Console.Write($"\r[{input.Name}] [{new string('#', filled)}{new string('-', 10 - filled)}] {percent, 3}%");

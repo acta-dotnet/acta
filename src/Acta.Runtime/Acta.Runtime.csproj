@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>Acta</RootNamespace>
+    <RootNamespace>Acta.Runtime</RootNamespace>
     <!-- Emit XML doc file so Acta.Emit can read entity/property summaries for docs/reference/data-model.md. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Suppress "missing XML comment" warnings: not every public member needs one. -->

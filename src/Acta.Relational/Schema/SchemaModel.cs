@@ -109,16 +109,8 @@ internal sealed record DbColumnSpec(
 /// Typed handle for a column; adds the parameter name the runtime uses when binding
 /// <typeparamref name="T"/> values to the untyped <see cref="DbColumnSpec"/>.
 /// </summary>
-internal readonly struct DbColumnSpec<T>
+internal readonly struct DbColumnSpec<T>(DbColumnSpec untyped, string table, string column, string parameterName)
 {
-    public DbColumnSpec(DbColumnSpec untyped, string table, string column, string parameterName)
-    {
-        Untyped = untyped;
-        Table = table;
-        Column = column;
-        ParameterName = parameterName;
-    }
-
     public DbColumnSpec(
         string table,
         string column,
@@ -145,13 +137,13 @@ internal readonly struct DbColumnSpec<T>
             parameterName
         ) { }
 
-    public DbColumnSpec Untyped { get; }
+    public DbColumnSpec Untyped { get; } = untyped;
 
-    public string Table { get; }
+    public string Table { get; } = table;
 
-    public string Column { get; }
+    public string Column { get; } = column;
 
-    public string ParameterName { get; }
+    public string ParameterName { get; } = parameterName;
 
     public string Name => Untyped.Name;
 

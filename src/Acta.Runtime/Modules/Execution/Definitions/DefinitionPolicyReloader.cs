@@ -1,10 +1,9 @@
-using Acta.Configuration;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Hosting;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// The runtime-owned definition-policy reload loop. Every <see cref="JobsOptions.SafetyPollInterval"/> it
@@ -16,29 +15,20 @@ namespace Acta.Modules.Execution.Definitions;
 /// <c>modified_at_utc</c> so only rows written since the last sweep are re-overlaid; self-gates to a no-op
 /// in enqueue-only mode.
 /// </summary>
-internal sealed class DefinitionPolicyReloader
+internal sealed class DefinitionPolicyReloader(
+    IDefinitionStore store,
+    IOptions<JobsOptions> options,
+    WorkerRegistration? workerRegistration,
+    WorkerContext context,
+    ILogger log
+)
 {
-    private readonly IDefinitionStore _store;
-    private readonly WorkerRegistration? _workerRegistration;
-    private readonly WorkerContext _context;
-    private readonly TimeSpan _interval;
-    private readonly ILogger _log;
+    private readonly IDefinitionStore _store = store;
+    private readonly WorkerRegistration? _workerRegistration = workerRegistration;
+    private readonly WorkerContext _context = context;
+    private readonly TimeSpan _interval = options.Value.SafetyPollInterval;
+    private readonly ILogger _log = log;
     private DateTime _watermarkUtc = DateTime.MinValue;
-
-    public DefinitionPolicyReloader(
-        IDefinitionStore store,
-        IOptions<JobsOptions> options,
-        WorkerRegistration? workerRegistration,
-        WorkerContext context,
-        ILogger log
-    )
-    {
-        _store = store;
-        _workerRegistration = workerRegistration;
-        _context = context;
-        _interval = options.Value.SafetyPollInterval;
-        _log = log;
-    }
 
     public async Task RunAsync(CancellationToken ct)
     {

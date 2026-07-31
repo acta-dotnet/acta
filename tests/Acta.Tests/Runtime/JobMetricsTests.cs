@@ -1,6 +1,5 @@
 using System.Diagnostics.Metrics;
-using Acta.Kernel;
-using Acta.Modules.Execution;
+using Acta.Runtime.Kernel;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -18,7 +17,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(
                 metrics,
                 "acta.executions",
@@ -26,10 +25,10 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.Equal(1, m.Value);
-        Assert.Equal("billing", m.Tags["namespace"]);
-        Assert.Equal("send-receipt", m.Tags["job_name"]);
-        Assert.Equal("succeeded", m.Tags["outcome"]);
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("send-receipt", Tags["job_name"]);
+        Assert.Equal("succeeded", Tags["outcome"]);
     }
 
     [Fact]
@@ -37,7 +36,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<double>(
                 metrics,
                 "Acta.duration",
@@ -45,10 +44,10 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.Equal(42, m.Value);
-        Assert.Equal("billing", m.Tags["namespace"]);
-        Assert.Equal("failed", m.Tags["outcome"]);
-        Assert.DoesNotContain("reason_code", m.Tags.Keys);
+        Assert.Equal(42, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("failed", Tags["outcome"]);
+        Assert.DoesNotContain("reason_code", Tags.Keys);
     }
 
     [Fact]
@@ -56,7 +55,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(
                 metrics,
                 "acta.executions",
@@ -64,7 +63,7 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.Equal("unhandled-exception", m.Tags["reason_code"]);
+        Assert.Equal("unhandled-exception", Tags["reason_code"]);
     }
 
     [Fact]
@@ -72,7 +71,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(
                 metrics,
                 "acta.executions",
@@ -80,7 +79,7 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.DoesNotContain("reason_code", m.Tags.Keys);
+        Assert.DoesNotContain("reason_code", Tags.Keys);
     }
 
     [Fact]
@@ -88,11 +87,11 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(Collect<long>(metrics, "acta.claims", () => metrics.RecordClaim("billing", "nothing-claimed")));
+        var (Value, Tags) = Assert.Single(Collect<long>(metrics, "acta.claims", () => metrics.RecordClaim("billing", "nothing-claimed")));
 
-        Assert.Equal(1, m.Value);
-        Assert.Equal("billing", m.Tags["namespace"]);
-        Assert.Equal("nothing-claimed", m.Tags["result"]);
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("nothing-claimed", Tags["result"]);
     }
 
     [Fact]
@@ -100,7 +99,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(
                 metrics,
                 "acta.wakeup.publish.attempts",
@@ -108,10 +107,10 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.Equal(1, m.Value);
-        Assert.Equal("billing", m.Tags["namespace"]);
-        Assert.Equal("worker_namespace", m.Tags["channel"]);
-        Assert.Equal("work_available", m.Tags["reason"]);
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("worker_namespace", Tags["channel"]);
+        Assert.Equal("work_available", Tags["reason"]);
     }
 
     [Fact]
@@ -119,7 +118,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(
                 metrics,
                 "acta.wakeup.publish.attempts",
@@ -127,8 +126,8 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.DoesNotContain("namespace", m.Tags.Keys);
-        Assert.Equal("job_completion", m.Tags["channel"]);
+        Assert.DoesNotContain("namespace", Tags.Keys);
+        Assert.Equal("job_completion", Tags["channel"]);
     }
 
     [Fact]
@@ -136,7 +135,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(
                 metrics,
                 "acta.wakeup.publish.failures",
@@ -144,11 +143,11 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.Equal(1, m.Value);
-        Assert.Equal("*", m.Tags["namespace"]);
-        Assert.Equal("all_worker_namespaces", m.Tags["channel"]);
-        Assert.Equal("horizon_changed", m.Tags["reason"]);
-        Assert.Equal("TimeoutException", m.Tags["exception_type"]);
+        Assert.Equal(1, Value);
+        Assert.Equal("*", Tags["namespace"]);
+        Assert.Equal("all_worker_namespaces", Tags["channel"]);
+        Assert.Equal("horizon_changed", Tags["reason"]);
+        Assert.Equal("TimeoutException", Tags["exception_type"]);
     }
 
     [Fact]
@@ -156,11 +155,13 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(Collect<long>(metrics, "acta.wakeup.waits", () => metrics.RecordWakeupWait("billing", "signaled")));
+        var (Value, Tags) = Assert.Single(
+            Collect<long>(metrics, "acta.wakeup.waits", () => metrics.RecordWakeupWait("billing", "signaled"))
+        );
 
-        Assert.Equal(1, m.Value);
-        Assert.Equal("billing", m.Tags["namespace"]);
-        Assert.Equal("signaled", m.Tags["result"]);
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("signaled", Tags["result"]);
     }
 
     [Fact]
@@ -168,7 +169,7 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(
                 metrics,
                 "acta.lock.release.failures",
@@ -176,11 +177,11 @@ public sealed class JobMetricsTests
             )
         );
 
-        Assert.Equal(1, m.Value);
-        Assert.Equal("billing", m.Tags["namespace"]);
-        Assert.Equal("send-receipt", m.Tags["job_name"]);
-        Assert.Equal("exclusive_key", m.Tags["lock_kind"]);
-        Assert.Equal("TimeoutException", m.Tags["exception_type"]);
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("send-receipt", Tags["job_name"]);
+        Assert.Equal("exclusive_key", Tags["lock_kind"]);
+        Assert.Equal("TimeoutException", Tags["exception_type"]);
     }
 
     [Fact]
@@ -188,13 +189,13 @@ public sealed class JobMetricsTests
     {
         using var metrics = new JobMetrics();
 
-        var m = Assert.Single(
+        var (Value, Tags) = Assert.Single(
             Collect<long>(metrics, "acta.alert.projection.skips", () => metrics.RecordAlertProjectionSkip("billing", "unknown-job"))
         );
 
-        Assert.Equal(1, m.Value);
-        Assert.Equal("billing", m.Tags["namespace"]);
-        Assert.Equal("unknown-job", m.Tags["reason"]);
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("unknown-job", Tags["reason"]);
     }
 
     [Fact]

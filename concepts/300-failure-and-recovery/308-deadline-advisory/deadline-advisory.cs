@@ -40,20 +40,22 @@ namespace Acta.Concepts.DeadlineAdvisory
     public static class GenerateReportJob
     {
         // Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an
-        // overdue job. The handler reads ctx.IsOverdue (and ctx.TimeUntilDeadline) and degrades on its
+        // overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its
         // own; here it emits a quick summary instead of the expensive full report when it is late.
         [Job("generate-report", Deadline = "2s", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]
-        public static async Task Handle(GenerateReport input, JobContext ctx, CancellationToken ct)
+        public static async Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
         {
-            if (ctx.IsOverdue)
+            if (context.IsOverdue)
             {
-                Console.WriteLine($"[{ctx.JobRef}] running late by {ctx.TimeUntilDeadline}; emitting a quick {input.Quarter} summary.");
+                Console.WriteLine(
+                    $"[{context.JobRef}] running late by {context.TimeUntilDeadline}; emitting a quick {input.Quarter} summary."
+                );
                 return;
             }
 
-            Console.WriteLine($"[{ctx.JobRef}] on time; building the full {input.Quarter} report...");
+            Console.WriteLine($"[{context.JobRef}] on time; building the full {input.Quarter} report...");
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            Console.WriteLine($"[{ctx.JobRef}] {input.Quarter} report done.");
+            Console.WriteLine($"[{context.JobRef}] {input.Quarter} report done.");
         }
     }
 }

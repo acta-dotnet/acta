@@ -11,32 +11,24 @@ namespace Acta;
 /// catch it to run compensation and continue. On a parent replay the slot is already <c>Exhausted</c>,
 /// so the next <c>RunStepAsync</c> call for the same name re-throws this immediately.
 /// </remarks>
-public sealed class StepExhaustedException : Exception
+/// <remarks>
+/// Creates the exception for the exhausted step <paramref name="stepName"/> after
+/// <paramref name="attemptCount"/> attempt(s), carrying the final failure context.
+/// </remarks>
+public sealed class StepExhaustedException(string stepName, int attemptCount, JobEventReasonCode? lastReasonCode, string? lastReasonMessage)
+    : Exception(
+        $"Step '{stepName}' exhausted after {attemptCount} attempt(s): {lastReasonMessage ?? lastReasonCode?.ToString() ?? "no reason recorded"}."
+    )
 {
-    /// <summary>
-    /// Creates the exception for the exhausted step <paramref name="stepName"/> after
-    /// <paramref name="attemptCount"/> attempt(s), carrying the final failure context.
-    /// </summary>
-    public StepExhaustedException(string stepName, int attemptCount, JobEventReasonCode? lastReasonCode, string? lastReasonMessage)
-        : base(
-            $"Step '{stepName}' exhausted after {attemptCount} attempt(s): {lastReasonMessage ?? lastReasonCode?.ToString() ?? "no reason recorded"}."
-        )
-    {
-        StepName = stepName;
-        AttemptCount = attemptCount;
-        LastReasonCode = lastReasonCode;
-        LastReasonMessage = lastReasonMessage;
-    }
-
     /// <summary>The step slot name that exhausted.</summary>
-    public string StepName { get; }
+    public string StepName { get; } = stepName;
 
     /// <summary>The number of attempts made before exhaustion.</summary>
-    public int AttemptCount { get; }
+    public int AttemptCount { get; } = attemptCount;
 
     /// <summary>Reason code of the final failed attempt, or <c>null</c> when none was recorded.</summary>
-    public JobEventReasonCode? LastReasonCode { get; }
+    public JobEventReasonCode? LastReasonCode { get; } = lastReasonCode;
 
     /// <summary>Operator-readable message of the final failed attempt.</summary>
-    public string? LastReasonMessage { get; }
+    public string? LastReasonMessage { get; } = lastReasonMessage;
 }

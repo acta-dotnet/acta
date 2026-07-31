@@ -1,4 +1,3 @@
-using Acta.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

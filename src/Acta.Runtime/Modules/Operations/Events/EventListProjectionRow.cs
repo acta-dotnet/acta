@@ -1,7 +1,6 @@
 using System.Text;
-using Acta.Payloads;
 
-namespace Acta.Modules.Operations.Events;
+namespace Acta.Runtime.Modules.Operations.Events;
 
 /// <summary>
 /// Flat event list row in SELECT order, shared by the provider event stores so the generated binder

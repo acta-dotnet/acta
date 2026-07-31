@@ -1,6 +1,5 @@
 using Acta;
 using Acta.Concepts.CrossNamespaceChild;
-using Acta.Payloads;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -55,9 +54,9 @@ namespace Acta.Concepts.CrossNamespaceChild
         // The raw StartChildAsync overload names an explicit (namespace, job) route; the completion
         // latch lands on the parent regardless of where the child ran.
         [Job("place-order")]
-        public async Task<OrderConfirmation> Handle(PlaceOrder order, JobContext ctx, CancellationToken ct)
+        public async Task<OrderConfirmation> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
         {
-            var charge = await ctx.StartChildAsync(
+            var charge = await context.StartChildAsync(
                 "charge",
                 "billing",
                 "charge-payment",
@@ -65,13 +64,13 @@ namespace Acta.Concepts.CrossNamespaceChild
                 ct: ct
             );
 
-            var outcome = await ctx.WaitChildAsync(charge.JobId, ct);
+            var outcome = await context.WaitChildAsync(charge.JobId, ct);
             if (!outcome.Succeeded)
             {
-                await ctx.FailAsync($"billing declined ({outcome.Status}); see the child's job events for the reason", ct);
+                await context.FailAsync($"billing declined ({outcome.Status}); see the child's job events for the reason", ct);
             }
 
-            var receipt = await ctx.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct);
+            var receipt = await context.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct);
             return new OrderConfirmation(order.OrderId, receipt!.TransactionId);
         }
 

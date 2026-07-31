@@ -1,6 +1,6 @@
 using Acta;
 using Acta.AspNetCore;
-using Acta.Configuration;
+using Acta.Sqlite;
 using Anvil;
 
 var role = GetArg(args, "--role") ?? "dashboard";
@@ -93,10 +93,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
     builder.Services.AddScoped<AnvilStateReader>();
 
     // Source-generated JSON for AOT: lab DTOs resolve without reflection (string enums baked in).
-    builder.Services.ConfigureHttpJsonOptions(o =>
-    {
-        o.SerializerOptions.TypeInfoResolverChain.Insert(0, AnvilJsonContext.Default);
-    });
+    builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.TypeInfoResolverChain.Insert(0, AnvilJsonContext.Default));
 
     var app = builder.Build();
     // Serve wwwroot from disk in dev so UI edits show on refresh (no rebuild); fall back to the embedded

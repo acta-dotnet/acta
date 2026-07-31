@@ -1,12 +1,11 @@
 using System.Data.Common;
-using System.Globalization;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Checkpoints;
-using Acta.Modules.Execution.ChildLatches;
-using Acta.Modules.Execution.Timers;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Checkpoints;
+using Acta.Runtime.Modules.Execution.ChildLatches;
+using Acta.Runtime.Modules.Execution.Timers;
 
 namespace Acta.Relational.Stores;
 
@@ -86,46 +85,40 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct)
     {
-        if (request.MaxBatch <= 0)
-        {
-            return Task.FromResult(ClaimResult.Empty);
-        }
-
-        return MapClaimAsync(
-            new StoreCommand("Execution", "ClaimBatch"),
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimLimit, request.MaxBatch));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
-            },
-            rows => ClaimResultMapper.Map(rows),
-            ct
-        );
+        return request.MaxBatch <= 0
+            ? Task.FromResult(ClaimResult.Empty)
+            : MapClaimAsync(
+                new StoreCommand("Execution", "ClaimBatch"),
+                cmd =>
+                {
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimLimit, request.MaxBatch));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
+                },
+                rows => ClaimResultMapper.Map(rows),
+                ct
+            );
     }
 
     public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct)
     {
-        if (jobId is null)
-        {
-            return ClaimBatchAsync(request with { MaxBatch = 1 }, leaseTtlSeconds, ct);
-        }
-
-        return MapClaimAsync(
-            new StoreCommand("Execution", "ClaimOne"),
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId.Value));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
-            },
-            rows => rows.Count == 0 ? ClaimResult.Empty : new ClaimResult(rows.Select(ClaimResultMapper.ToClaimedJob).ToList(), null),
-            ct
-        );
+        return jobId is null
+            ? ClaimBatchAsync(request with { MaxBatch = 1 }, leaseTtlSeconds, ct)
+            : MapClaimAsync(
+                new StoreCommand("Execution", "ClaimOne"),
+                cmd =>
+                {
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId.Value));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
+                },
+                rows => rows.Count == 0 ? ClaimResult.Empty : new ClaimResult(rows.Select(ClaimResultMapper.ToClaimedJob).ToList(), null),
+                ct
+            );
     }
 
     private async Task<ClaimResult> MapClaimAsync(

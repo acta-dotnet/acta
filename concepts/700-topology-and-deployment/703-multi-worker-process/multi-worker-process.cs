@@ -1,6 +1,5 @@
 using Acta;
 using Acta.Concepts.MultiWorker;
-using Acta.Payloads;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 

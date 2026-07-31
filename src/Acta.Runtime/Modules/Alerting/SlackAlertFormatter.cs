@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 
-namespace Acta.Modules.Alerting;
+namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// Builds the Slack incoming-webhook payload for an alert: a header line with a severity emoji and title,

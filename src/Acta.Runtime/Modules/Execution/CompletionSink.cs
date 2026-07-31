@@ -1,12 +1,10 @@
 using System.Threading.Channels;
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>One buffered terminal completion plus what the post-flush wakeup needs.</summary>
 internal sealed record BufferedCompletion(CompleteExecutionRequest Request, string JobNamespace, long JobId, int ResultBytes);
@@ -14,9 +12,9 @@ internal sealed record BufferedCompletion(CompleteExecutionRequest Request, stri
 /// <summary>
 /// The <see cref="ExecutionProfile.Bulk"/> completion buffer. Plain terminal completions are written here
 /// instead of being committed per job; parallel flusher loops drain them and group-commit each batch via
-/// <see cref="Acta.Modules.Execution.IExecutionStore.CompleteExecutionsBatchAsync"/> (one set-based round trip, one commit), then publish the
+/// <see cref="Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionsBatchAsync"/> (one set-based round trip, one commit), then publish the
 /// deferred wakeups. Rows the set-based routine self-filtered (a parent) fall back to
-/// per-job <see cref="Acta.Modules.Execution.IExecutionStore.CompleteExecutionAsync"/>. The bounded channel backpressures the claim loop so the
+/// per-job <see cref="Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync"/>. The bounded channel backpressures the claim loop so the
 /// buffer cannot grow without limit. A crash loses the unflushed buffer: those jobs stay Executing and
 /// <c>sys.recovery</c> re-runs them (at-least-once). A flush is not all-or-nothing past the set call:
 /// the set-based commit and each per-job fallback are separate transactions, so a mid-flush failure
@@ -25,7 +23,7 @@ internal sealed record BufferedCompletion(CompleteExecutionRequest Request, stri
 /// </summary>
 internal sealed class CompletionSink
 {
-    private readonly Acta.Modules.Execution.IExecutionStore _execution;
+    private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution;
     private readonly WorkerWakeupPublisher _wakeupPublisher;
     private readonly int _batchSize;
     private readonly TimeSpan _interval;
@@ -34,7 +32,7 @@ internal sealed class CompletionSink
     private readonly Channel<BufferedCompletion> _channel;
 
     public CompletionSink(
-        Acta.Modules.Execution.IExecutionStore execution,
+        Acta.Runtime.Modules.Execution.IExecutionStore execution,
         WorkerWakeupPublisher wakeupPublisher,
         IOptions<JobsOptions> options,
         ILogger? log = null

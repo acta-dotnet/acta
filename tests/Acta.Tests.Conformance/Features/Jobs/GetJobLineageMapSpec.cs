@@ -1,5 +1,4 @@
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
+using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,7 +53,7 @@ public abstract class GetJobLineageMapSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Single(data.Ancestors);
         Assert.Equal(root, data.Ancestors[0].JobId);
         Assert.Null(data.Ancestors[0].ParentJobId);
-        Assert.Equal([childA, childB], data.Children.Select(c => c.JobId).OrderBy(id => id).ToArray());
+        Assert.Equal([childA, childB], [.. data.Children.Select(c => c.JobId).OrderBy(id => id)]);
         Assert.Empty(data.Steps);
         Assert.Empty(data.Checkpoints);
     }
@@ -70,7 +69,7 @@ public abstract class GetJobLineageMapSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var data = await Services.GetRequiredService<IJobStore>().GetJobLineageMapAsync(leaf, 100, ct);
 
         Assert.NotNull(data);
-        Assert.Equal([root, mid], data!.Ancestors.Select(a => a.JobId).ToArray());
+        Assert.Equal([root, mid], [.. data!.Ancestors.Select(a => a.JobId)]);
         Assert.Empty(data.Children);
     }
 

@@ -1,7 +1,6 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Api;
 
-namespace Acta.Modules.Execution.Schedules;
+namespace Acta.Runtime.Modules.Execution.Schedules;
 
 /// <summary>
 /// Persistence port for recurring schedules: the slot-scoped live read, the namespace-scoped stored

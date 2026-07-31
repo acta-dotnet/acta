@@ -1,6 +1,5 @@
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -156,7 +155,7 @@ public abstract class EnqueueRejectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
     private async Task<IReadOnlyList<JobEnqueueOutcome>> RunAsync(IReadOnlyList<JobEnqueueRow> command, CancellationToken ct)
     {
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         return await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct);
     }
 

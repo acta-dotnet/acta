@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
-using Acta.Relational.Schema;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Sql;
@@ -11,15 +10,12 @@ namespace Acta.Tests.Conformance.Sql;
 /// <c>Type.Member</c> value. Versioned migrations participate in value verification but not presence
 /// scanning because their code checks are generated directly from the schema model.
 /// </summary>
-public static class SqlCodePolicyAssert
+public static partial class SqlCodePolicyAssert
 {
     private static readonly string[] CodeNames = BuildCodeNames();
     private static readonly string CodeToken = BuildCodeToken();
 
-    private static readonly Regex PostgresReturnTable = new(
-        @"\bRETURNS\s+TABLE\s*\((?<columns>[^;]*?)\)\s*(?:LANGUAGE|AS|$)",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Singleline
-    );
+    private static readonly Regex PostgresReturnTable = MyRegex();
 
     private static readonly Regex PostgresReturnQuery = new(
         @"\bRETURN\s+QUERY\s+SELECT\s+(?<items>.*?);",
@@ -234,17 +230,17 @@ public static class SqlCodePolicyAssert
         {
             var columns = ReadInsertColumns(insert);
             var rows = insert.Groups["rows"];
-            foreach (var row in SplitTopLevel(rows.Value))
+            foreach (var (Start, Text) in SplitTopLevel(rows.Value))
             {
-                var openParenthesis = row.Text.IndexOf('(');
-                var closeParenthesis = row.Text.LastIndexOf(')');
+                var openParenthesis = Text.IndexOf('(');
+                var closeParenthesis = Text.LastIndexOf(')');
                 if (openParenthesis < 0 || closeParenthesis <= openParenthesis)
                 {
                     continue;
                 }
 
-                var itemsStart = row.Start + openParenthesis + 1;
-                var itemsText = row.Text[(openParenthesis + 1)..closeParenthesis];
+                var itemsStart = Start + openParenthesis + 1;
+                var itemsText = Text[(openParenthesis + 1)..closeParenthesis];
                 ScanInsertExpressions(logicalPath, sql, columns, rows.Index + itemsStart, itemsText, reported, failures);
             }
         }
@@ -258,10 +254,11 @@ public static class SqlCodePolicyAssert
     }
 
     private static string[] ReadInsertColumns(Match insert) =>
-        SplitTopLevel(insert.Groups["columns"].Value)
-            .Select(static part => ResultColumnName.Match(part.Text))
-            .Select(static match => match.Success ? match.Groups["name"].Value : string.Empty)
-            .ToArray();
+        [
+            .. SplitTopLevel(insert.Groups["columns"].Value)
+                .Select(static part => ResultColumnName.Match(part.Text))
+                .Select(static match => match.Success ? match.Groups["name"].Value : string.Empty),
+        ];
 
     private static void ScanInsertExpressions(
         string logicalPath,
@@ -422,30 +419,32 @@ public static class SqlCodePolicyAssert
 
     private static string[] BuildCodeNames()
     {
-        return ActaSchema
-            .Entities.SelectMany(static entity => entity.Columns)
-            .Where(static column =>
-                column.IsCoded || column.CodeKind is not null || column.Name.EndsWith("_format_id", StringComparison.Ordinal)
-            )
-            .Select(static column => column.Name)
-            .Concat([
-                "action",
-                "outcome",
-                "status",
-                "state",
-                "fmt",
-                "rfid",
-                "from_status",
-                "to_status",
-                "cur_status",
-                "sig_state",
-                "outcome_code",
-                "p_action",
-                "p_mutation",
-            ])
-            .Distinct(StringComparer.Ordinal)
-            .OrderByDescending(static name => name.Length)
-            .ToArray();
+        return
+        [
+            .. ActaSchema
+                .Entities.SelectMany(static entity => entity.Columns)
+                .Where(static column =>
+                    column.IsCoded || column.CodeKind is not null || column.Name.EndsWith("_format_id", StringComparison.Ordinal)
+                )
+                .Select(static column => column.Name)
+                .Concat([
+                    "action",
+                    "outcome",
+                    "status",
+                    "state",
+                    "fmt",
+                    "rfid",
+                    "from_status",
+                    "to_status",
+                    "cur_status",
+                    "sig_state",
+                    "outcome_code",
+                    "p_action",
+                    "p_mutation",
+                ])
+                .Distinct(StringComparer.Ordinal)
+                .OrderByDescending(static name => name.Length),
+        ];
     }
 
     private static string BuildCodeToken()
@@ -453,4 +452,10 @@ public static class SqlCodePolicyAssert
         var escapedNames = CodeNames.Select(Regex.Escape);
         return $@"(?:@?(?:{string.Join("|", escapedNames)})|[a-z_][a-z0-9_]*\.(?:{string.Join("|", escapedNames)}))";
     }
+
+    [GeneratedRegex(
+        @"\bRETURNS\s+TABLE\s*\((?<columns>[^;]*?)\)\s*(?:LANGUAGE|AS|$)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex MyRegex();
 }

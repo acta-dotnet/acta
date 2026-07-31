@@ -29,7 +29,7 @@ public sealed class MapAsyncTests
         );
 
         Assert.Equal("resize-images", resized.GroupName);
-        Assert.Equal(new[] { 1, 2, 3 }, resized.Items.Select(i => i.Key));
+        Assert.Equal([1, 2, 3], resized.Items.Select(i => i.Key));
         Assert.All(resized.Items, i => Assert.True(i.Outcome.Succeeded));
         Assert.Equal(resized.Items.Select(i => i.ChildJobId), resized.Items.Select(i => i.Outcome.ChildJobId));
     }
@@ -47,7 +47,7 @@ public sealed class MapAsyncTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(new[] { "resize-images-1", "resize-images-2", "resize-images-3" }, ctx.Started.Select(s => s.Name));
+        Assert.Equal(["resize-images-1", "resize-images-2", "resize-images-3"], ctx.Started.Select(s => s.Name));
     }
 
     [Fact]

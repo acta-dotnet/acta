@@ -1,6 +1,8 @@
-﻿using Acta.Sqlite.Configuration;
+using Acta.Runtime.Hosting;
+using Acta.Sqlite.Configuration;
+using Acta.Sqlite.Hosting;
 
-namespace Acta;
+namespace Acta.Sqlite;
 
 /// <summary>
 /// Selects SQLite as an external-outbox relay source. Captures its own connection options and records

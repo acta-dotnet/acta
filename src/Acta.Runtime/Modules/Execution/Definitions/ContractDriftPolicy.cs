@@ -1,8 +1,6 @@
-using Acta.Configuration;
-using Acta.Payloads;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Applies <see cref="PayloadContractDriftMode"/> to detected contract drift: fails worker startup

@@ -1,6 +1,4 @@
-using Acta.Payloads;
-
-namespace Acta.Modules.Execution.Definitions;
+namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Resolved enqueue route for a job input type: the namespace it was registered under, its job name,
@@ -89,11 +87,7 @@ internal sealed class JobTypeIndex
                         + $"Registered namespaces: {string.Join(", ", routes.Select(r => r.Namespace))}."
                 );
             }
-            if (scoped.Count > 1)
-            {
-                throw AmbiguousWithinNamespace(inputType, namespaceHint, scoped);
-            }
-            return scoped[0];
+            return scoped.Count > 1 ? throw AmbiguousWithinNamespace(inputType, namespaceHint, scoped) : scoped[0];
         }
 
         if (routes.Count > 1)

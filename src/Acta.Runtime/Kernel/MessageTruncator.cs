@@ -1,4 +1,4 @@
-namespace Acta.Kernel;
+namespace Acta.Runtime.Kernel;
 
 /// <summary>
 /// Caps free-form operator and diagnostic text at the application boundary so it fits the bounded

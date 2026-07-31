@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace Acta;
@@ -62,11 +63,9 @@ public readonly record struct WorkerWakeupChannel
     internal const string WorkerNamespacePrefix = "ns:";
     internal const string JobCompletionPrefix = "job:";
 
-    private readonly string? _name;
-
     private WorkerWakeupChannel(string? name, WorkerWakeupChannelKind kind)
     {
-        _name = name;
+        Name = name;
         Kind = kind;
     }
 
@@ -77,7 +76,8 @@ public readonly record struct WorkerWakeupChannel
     /// The canonical channel name. A default-constructed channel normalizes to
     /// <see cref="AllWorkerNamespacesName"/>.
     /// </summary>
-    public string Name => _name ?? AllWorkerNamespacesName;
+    [AllowNull]
+    public string Name => field ?? AllWorkerNamespacesName;
 
     /// <summary>
     /// Whether a wake to this channel may create the channel entry (latching a pre-wait wake).
@@ -94,15 +94,12 @@ public readonly record struct WorkerWakeupChannel
     public static WorkerWakeupChannel WorkerNamespace(string namespaceName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(namespaceName);
-        if (namespaceName == AllWorkerNamespacesName)
-        {
-            throw new ArgumentException(
+        return namespaceName == AllWorkerNamespacesName
+            ? throw new ArgumentException(
                 $"'{AllWorkerNamespacesName}' is reserved for WorkerWakeupChannel.AllWorkerNamespaces.",
                 nameof(namespaceName)
-            );
-        }
-
-        return new WorkerWakeupChannel(WorkerNamespacePrefix + namespaceName, WorkerWakeupChannelKind.WorkerNamespace);
+            )
+            : new WorkerWakeupChannel(WorkerNamespacePrefix + namespaceName, WorkerWakeupChannelKind.WorkerNamespace);
     }
 
     /// <summary>The channel addressing every worker namespace; wakes all current claim-loop waiters.</summary>

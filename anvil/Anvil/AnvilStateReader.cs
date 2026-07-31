@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using Acta;
-using Acta.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Anvil;

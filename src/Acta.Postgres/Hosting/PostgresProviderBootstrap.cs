@@ -1,7 +1,7 @@
 using Acta.Postgres.Schema;
-using Acta.Relational.Connections;
+using Acta.Runtime.Hosting;
 
-namespace Acta;
+namespace Acta.Postgres.Hosting;
 
 internal sealed class PostgresProviderBootstrap(SqlProviderOptions options) : IProviderBootstrap
 {

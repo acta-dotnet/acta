@@ -1,7 +1,4 @@
 using System.Text.RegularExpressions;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Aot;
@@ -18,7 +15,7 @@ namespace Acta.Tests.Aot;
 /// from the allowlist after a scrub ratchets the policy. <c>docs/ideas/**</c> and
 /// <c>tests/**</c> are outside the scanned roots by construction.
 /// </remarks>
-public sealed class CommentStyleTests
+public sealed partial class CommentStyleTests
 {
     /// <summary>
     /// Source roots subject to the comment-style policy: the runtime core plus the three durable SQL
@@ -48,7 +45,7 @@ public sealed class CommentStyleTests
 
     private static readonly StaleMarker[] StaleMarkers =
     [
-        new("stub", new Regex(@"\bstub\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
+        new("stub", MyRegex(), Allow()),
         new("placeholder", new Regex(@"\bplaceholder\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
         new("future", new Regex(@"\bfuture\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
         new("later", new Regex(@"\blater\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
@@ -255,8 +252,8 @@ public sealed class CommentStyleTests
             .Concat(InternalRemarksAllowlist.Select(e => ("internal-remarks", e)));
 
         var stale = allowlisted
-            .Where(x => !present.Contains(x.Item2))
-            .Select(x => $"{x.Item1}: '{x.Item2}'")
+            .Where(x => !present.Contains(x.e))
+            .Select(x => $"{x.Item1}: '{x.e}'")
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 
@@ -298,11 +295,7 @@ public sealed class CommentStyleTests
         for (var i = docLineIndex + 1; i < lines.Length; i++)
         {
             var trimmed = lines[i].TrimStart();
-            if (
-                trimmed.StartsWith("///", StringComparison.Ordinal)
-                || trimmed.StartsWith("[", StringComparison.Ordinal)
-                || trimmed.Length == 0
-            )
+            if (trimmed.StartsWith("///", StringComparison.Ordinal) || trimmed.StartsWith('[') || trimmed.Length == 0)
             {
                 continue;
             }
@@ -363,4 +356,7 @@ public sealed class CommentStyleTests
             "CommentStyleTests could not locate Acta.slnx marking the repo root from " + AppContext.BaseDirectory
         );
     }
+
+    [GeneratedRegex(@"\bstub\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "sl-SI")]
+    private static partial Regex MyRegex();
 }

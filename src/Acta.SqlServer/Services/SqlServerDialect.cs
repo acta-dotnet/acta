@@ -1,14 +1,12 @@
 using System.Data;
 using System.Data.Common;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Schedules;
 using Acta.Relational.Commands;
-using Acta.Relational.Connections;
 using Acta.Relational.Schema;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
 
@@ -219,12 +217,7 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     private static IEnumerable<SqlDataRecord>? BuildTagRecords(IReadOnlyList<JobEnqueueRow> rows)
     {
-        if (!rows.Any(row => row.Tags is { Count: > 0 }))
-        {
-            return null;
-        }
-
-        return Stream(rows);
+        return !rows.Any(row => row.Tags is { Count: > 0 }) ? null : Stream(rows);
 
         static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<JobEnqueueRow> rows)
         {
@@ -299,12 +292,7 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     private static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<JobDefinitionRow> rows)
     {
-        if (rows.Count == 0)
-        {
-            return null;
-        }
-
-        return Stream(rows);
+        return rows.Count == 0 ? null : Stream(rows);
 
         static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<JobDefinitionRow> rows)
         {
@@ -384,12 +372,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         IReadOnlyList<Guid> slotRefs
     )
     {
-        if (definitions.Count == 0)
-        {
-            return null;
-        }
-
-        return Stream(definitions, slotRefs);
+        return definitions.Count == 0 ? null : Stream(definitions, slotRefs);
 
         static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<DefinitionSchedules> definitions, IReadOnlyList<Guid> slotRefs)
         {
@@ -424,12 +407,7 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     private static IEnumerable<SqlDataRecord>? BuildScheduleUpsertRecords(IReadOnlyList<DefinitionSchedules> definitions)
     {
-        if (!definitions.Any(definition => definition.Schedules.Any()))
-        {
-            return null;
-        }
-
-        return Stream(definitions);
+        return !definitions.Any(definition => definition.Schedules.Any()) ? null : Stream(definitions);
 
         static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<DefinitionSchedules> definitions)
         {
@@ -540,12 +518,7 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     private static IEnumerable<SqlDataRecord>? BuildCompleteBatchRecords(IReadOnlyList<CompleteExecutionRequest> requests)
     {
-        if (requests.Count == 0)
-        {
-            return null;
-        }
-
-        return Stream(requests);
+        return requests.Count == 0 ? null : Stream(requests);
 
         static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<CompleteExecutionRequest> requests)
         {
@@ -578,12 +551,7 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     private static IEnumerable<SqlDataRecord>? BuildScheduleAdvanceRecords(IReadOnlyList<ScheduleAdvance>? advances)
     {
-        if (advances is not { Count: > 0 })
-        {
-            return null;
-        }
-
-        return Stream(advances);
+        return advances is not { Count: > 0 } ? null : Stream(advances);
 
         static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<ScheduleAdvance> advances)
         {

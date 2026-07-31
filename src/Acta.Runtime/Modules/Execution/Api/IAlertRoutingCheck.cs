@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Acta.Modules.Execution.Api;
+namespace Acta.Runtime.Modules.Execution.Api;
 
 /// <summary>
 /// Execution's startup alert-routing seam, mirroring <see cref="IAlertSink"/>: worker init hands

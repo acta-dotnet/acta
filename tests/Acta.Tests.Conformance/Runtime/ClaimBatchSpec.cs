@@ -1,11 +1,8 @@
 using System.Diagnostics;
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,7 +51,7 @@ public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var workerId = await WorkerIdAsync(Db, ns, ct);
 

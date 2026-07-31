@@ -1,4 +1,4 @@
-using Acta.Querying;
+using Acta.Runtime.Querying;
 using Xunit;
 
 namespace Acta.Tests.Jobs;

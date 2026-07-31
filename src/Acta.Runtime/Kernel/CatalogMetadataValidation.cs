@@ -1,4 +1,4 @@
-namespace Acta.Kernel;
+namespace Acta.Runtime.Kernel;
 
 /// <summary>Validates catalog metadata before it reaches a provider store.</summary>
 internal static class CatalogMetadataValidation

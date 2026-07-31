@@ -1,7 +1,6 @@
 using Acta;
 using Acta.Concepts.PayloadFormats;
 using Acta.Labs;
-using Acta.Payloads;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSingleton(new ConceptLab(builder.Configuration, args));

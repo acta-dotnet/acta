@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.ChildLatches;
+namespace Acta.Runtime.Modules.Execution.ChildLatches;
 
 /// <summary>
 /// One stale child-done latch: a parent's Pending <c>sys.child.{id}</c> slot whose child is already

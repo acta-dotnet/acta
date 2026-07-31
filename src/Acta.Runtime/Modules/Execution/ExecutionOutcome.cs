@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>Coarse outcome the worker reports back after handler invocation.</summary>
 internal enum ExecutionOutcome : byte

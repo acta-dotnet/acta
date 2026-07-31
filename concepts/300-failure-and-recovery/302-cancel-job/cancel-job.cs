@@ -31,12 +31,12 @@ namespace Acta.Concepts.CancelJob
     public sealed class ImportFeedJob
     {
         [Job("import-feed", MaxAttempts = 5)]
-        public async Task Handle(ImportFeed feed, JobContext ctx, CancellationToken ct)
+        public async Task Handle(ImportFeed feed, JobContext context, CancellationToken ct)
         {
             if (feed.SourceGone)
             {
                 // CancelAsync ends the job as Cancelled: terminal, not a failure, so no retry and no alert.
-                await ctx.CancelAsync("source feed no longer exists", ct);
+                await context.CancelAsync("source feed no longer exists", ct);
             }
 
             Console.WriteLine($"[{feed.Url}] imported");

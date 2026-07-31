@@ -5,19 +5,13 @@ namespace Acta;
 /// child job did not land Done. Carries the non-succeeded child outcomes (failed or cancelled); the
 /// group wait itself never throws.
 /// </summary>
-public sealed class ChildGroupException : Exception
+/// <remarks>
+/// Builds the exception from the non-succeeded child outcomes that triggered the escalation.
+/// </remarks>
+public sealed class ChildGroupException(IReadOnlyList<ChildJobOutcome> failed) : Exception(BuildMessage(failed))
 {
-    /// <summary>
-    /// Builds the exception from the non-succeeded child outcomes that triggered the escalation.
-    /// </summary>
-    public ChildGroupException(IReadOnlyList<ChildJobOutcome> failed)
-        : base(BuildMessage(failed))
-    {
-        Failed = failed;
-    }
-
     /// <summary>The non-succeeded child outcomes (failed or cancelled).</summary>
-    public IReadOnlyList<ChildJobOutcome> Failed { get; }
+    public IReadOnlyList<ChildJobOutcome> Failed { get; } = failed;
 
     private static string BuildMessage(IReadOnlyList<ChildJobOutcome> failed)
     {

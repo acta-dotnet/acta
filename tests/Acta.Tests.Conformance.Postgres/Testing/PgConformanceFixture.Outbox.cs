@@ -1,4 +1,3 @@
-using Acta;
 using Acta.Tests.Conformance.Testing;
 using Npgsql;
 using NpgsqlTypes;
@@ -21,7 +20,7 @@ public sealed partial class PgConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
-        await ExecOutboxAsync(Acta.PostgresOutboxDdl.CreateScript(table, Schema));
+        await ExecOutboxAsync(Acta.Postgres.Hosting.PostgresOutboxDdl.CreateScript(table, Schema));
     }
 
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
@@ -65,7 +64,7 @@ public sealed partial class PgConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxStore(string table) => Acta.PostgresOutboxSource.CreateStore(Conn, Schema, table);
+    public object CreateOutboxStore(string table) => Acta.Postgres.Hosting.PostgresOutboxSource.CreateStore(Conn, Schema, table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {
@@ -74,7 +73,7 @@ public sealed partial class PgConformanceFixture
     }
 
     /// <summary>Count Postgres-ledger jobs in a namespace carrying a deduplication key (mixed-provider proof).</summary>
-    public async ValueTask<int> CountLedgerJobsByDedupAsync(short namespaceId, string dedup)
+    public static async ValueTask<int> CountLedgerJobsByDedupAsync(short namespaceId, string dedup)
     {
         await using var c = new NpgsqlConnection(Conn);
         await c.OpenAsync();
@@ -139,20 +138,17 @@ public sealed partial class PgConformanceFixture
             """;
         cmd.Parameters.Add(new NpgsqlParameter("@id", NpgsqlDbType.Uuid) { Value = outboxId });
         await using var r = await cmd.ExecuteReaderAsync();
-        if (!await r.ReadAsync())
-        {
-            return default;
-        }
-
-        return new OutboxRowState(
-            Exists: true,
-            StatusCode: (byte)r.GetInt16(0),
-            FailureCount: r.GetInt32(1),
-            ClaimToken: r.IsDBNull(2) ? null : r.GetGuid(2),
-            ClaimUntilUtc: r.IsDBNull(3) ? null : Utc(r.GetDateTime(3)),
-            NextAttemptAtUtc: Utc(r.GetDateTime(4)),
-            LastError: r.IsDBNull(5) ? null : r.GetString(5)
-        );
+        return !await r.ReadAsync()
+            ? default
+            : new OutboxRowState(
+                Exists: true,
+                StatusCode: (byte)r.GetInt16(0),
+                FailureCount: r.GetInt32(1),
+                ClaimToken: r.IsDBNull(2) ? null : r.GetGuid(2),
+                ClaimUntilUtc: r.IsDBNull(3) ? null : Utc(r.GetDateTime(3)),
+                NextAttemptAtUtc: Utc(r.GetDateTime(4)),
+                LastError: r.IsDBNull(5) ? null : r.GetString(5)
+            );
     }
 
     public async ValueTask<int> CountOutboxAsync(string table)

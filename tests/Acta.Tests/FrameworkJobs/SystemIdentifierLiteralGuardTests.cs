@@ -48,15 +48,11 @@ public sealed class SystemIdentifierLiteralGuardTests
 
     private static bool IsGuardedTextFile(string file)
     {
-        if (
+        return
             file.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
             || file.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
             || file.Contains(Path.DirectorySeparatorChar + "node_modules" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-        )
-        {
-            return false;
-        }
-
-        return Path.GetExtension(file) is ".cs" or ".sql" or ".md" or ".json";
+            ? false
+            : Path.GetExtension(file) is ".cs" or ".sql" or ".md" or ".json";
     }
 }

@@ -1,23 +1,10 @@
-using System.Buffers;
 using System.Data.Common;
 using System.Diagnostics;
-using System.Globalization;
-using System.Text;
-using System.Text.Json;
-using Acta.Configuration;
-using Acta.Kernel;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Namespaces;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Signals;
-using Acta.Modules.Execution.Tenants;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
-using Acta.Querying;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Modules.Execution.Signals;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Modules.Execution.Jobs;
+namespace Acta.Runtime.Modules.Execution.Jobs;
 
 /// <summary>
 /// <see cref="IJobs"/> implementation. Routing resolves namespace and definition by SQL JOIN in the
@@ -99,7 +86,7 @@ internal sealed class JobsApi(
         JobContract<NoInput> job,
         JobEnqueueOptions? options = null,
         CancellationToken ct = default
-    ) => EnqueueAsync(transaction, BuildContractRequest(job, default(NoInput), options), ct);
+    ) => EnqueueAsync(transaction, BuildContractRequest(job, default, options), ct);
 
     public async ValueTask<JobOutcome> ExecuteAndWaitAsync<TInput>(
         TInput input,
@@ -114,17 +101,14 @@ internal sealed class JobsApi(
         var outcome = await EnqueueAsync(input, options, ct);
         var (snapshot, timedOut) = await AwaitTerminalAsync(outcome.JobId, options, ct);
 
-        if (timedOut)
-        {
-            return JobOutcome.TimedOut(outcome.JobId, snapshot?.Status ?? JobStatusCode.Ready);
-        }
-
-        return snapshot!.Status switch
-        {
-            JobStatusCode.Done => JobOutcome.Done(outcome.JobId),
-            JobStatusCode.Cancelled => JobOutcome.Cancelled(outcome.JobId),
-            _ => JobOutcome.Failed(outcome.JobId),
-        };
+        return timedOut
+            ? JobOutcome.TimedOut(outcome.JobId, snapshot?.Status ?? JobStatusCode.Ready)
+            : snapshot!.Status switch
+            {
+                JobStatusCode.Done => JobOutcome.Done(outcome.JobId),
+                JobStatusCode.Cancelled => JobOutcome.Cancelled(outcome.JobId),
+                _ => JobOutcome.Failed(outcome.JobId),
+            };
     }
 
     public async ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
@@ -152,12 +136,9 @@ internal sealed class JobsApi(
             throw new ArgumentOutOfRangeException(nameof(options), options.WaitTimeout, "WaitTimeout must be greater than zero.");
         }
 
-        if (options.PollInterval <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), options.PollInterval, "PollInterval must be greater than zero.");
-        }
-
-        return options;
+        return options.PollInterval <= TimeSpan.Zero
+            ? throw new ArgumentOutOfRangeException(nameof(options), options.PollInterval, "PollInterval must be greater than zero.")
+            : options;
     }
 
     // Resolve the input type to its route, serialize, and fold the typed options onto a wire request.
@@ -220,7 +201,7 @@ internal sealed class JobsApi(
         JobContract<NoInput> job,
         JobEnqueueOptions? options = null,
         CancellationToken ct = default
-    ) => EnqueueAsync(BuildContractRequest(job, default(NoInput), options), ct);
+    ) => EnqueueAsync(BuildContractRequest(job, default, options), ct);
 
     public async ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
@@ -295,11 +276,9 @@ internal sealed class JobsApi(
         {
             throw new ArgumentException("JobContract is uninitialized (default); use a generated manifest member.", nameof(job));
         }
-        if (!typeof(IJobManifest).IsAssignableFrom(job.ManifestType))
-        {
-            throw new ArgumentException($"JobContract.ManifestType '{job.ManifestType.FullName}' is not an IJobManifest.", nameof(job));
-        }
-        return job.ManifestType;
+        return !typeof(IJobManifest).IsAssignableFrom(job.ManifestType)
+            ? throw new ArgumentException($"JobContract.ManifestType '{job.ManifestType.FullName}' is not an IJobManifest.", nameof(job))
+            : job.ManifestType;
     }
 
     // Wait for terminal status then materialize the typed result. Shared by the type-inference and

@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using Acta;
-using Acta.Configuration;
 
 namespace Anvil.Bench;
 

@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xunit;
@@ -6,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>Locks the dependency and source-layout boundaries established by ARCHITECTURE.md.</summary>
-public sealed class ArchitectureBoundaryTests
+public sealed partial class ArchitectureBoundaryTests
 {
     private static readonly string[] ProviderProjects = ["Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite"];
 
@@ -291,7 +290,7 @@ public sealed class ArchitectureBoundaryTests
                 var path = Relative(providerRoot, sqlFile);
                 // One executable-SQL root per provider: Sql/{Capability}/{Operation}.sql (operations may
                 // nest one level, e.g. Sql/Execution/Checkpoints/). Ordered DDL stays under Schema/Migrations.
-                var capabilitySql = Regex.IsMatch(path, @"^Sql/[^/]+/.+\.sql$", RegexOptions.CultureInvariant);
+                var capabilitySql = MyRegex().IsMatch(path);
                 var migrationSql = Regex.IsMatch(path, @"^Schema/Migrations/.+\.sql$", RegexOptions.CultureInvariant);
                 if (!capabilitySql && !migrationSql)
                 {
@@ -346,4 +345,7 @@ public sealed class ArchitectureBoundaryTests
         }
         throw new InvalidOperationException("Could not locate Acta.slnx from " + AppContext.BaseDirectory);
     }
+
+    [GeneratedRegex(@"^Sql/[^/]+/.+\.sql$", RegexOptions.CultureInvariant)]
+    private static partial Regex MyRegex();
 }

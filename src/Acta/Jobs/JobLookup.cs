@@ -39,12 +39,9 @@ public readonly record struct JobLookup
     /// </summary>
     public static JobLookup ByRef(JobRef jobRef)
     {
-        if (jobRef.Value == Guid.Empty)
-        {
-            throw new ArgumentException("Job ref is empty.", nameof(jobRef));
-        }
-
-        return new JobLookup(JobLookupKind.JobRef, 0, null, null, jobRef);
+        return jobRef.Value == Guid.Empty
+            ? throw new ArgumentException("Job ref is empty.", nameof(jobRef))
+            : new JobLookup(JobLookupKind.JobRef, 0, null, null, jobRef);
     }
 
     /// <summary>
@@ -65,12 +62,9 @@ public readonly record struct JobLookup
     /// </summary>
     public static JobLookup ById(long jobId)
     {
-        if (jobId <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
-        }
-
-        return new JobLookup(JobLookupKind.JobId, jobId, null, null, default);
+        return jobId <= 0
+            ? throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.")
+            : new JobLookup(JobLookupKind.JobId, jobId, null, null, default);
     }
 
     public static implicit operator JobLookup(JobRef jobRef) => ByRef(jobRef);

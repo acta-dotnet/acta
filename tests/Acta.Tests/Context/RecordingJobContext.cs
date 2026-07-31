@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using Acta.Payloads;
 
 namespace Acta.Tests.Context;
 
@@ -12,7 +11,7 @@ namespace Acta.Tests.Context;
 /// </summary>
 internal sealed class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>? seeded = null) : JobContext
 {
-    private readonly Dictionary<long, string> _idToName = new();
+    private readonly Dictionary<long, string> _idToName = [];
     private readonly Dictionary<string, object> _variables = new(StringComparer.Ordinal);
     private long _nextId;
 

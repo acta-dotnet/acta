@@ -12,20 +12,14 @@ internal static class DbScalarCoercion
         var underlying = Nullable.GetUnderlyingType(targetType);
         if (underlying is not null)
         {
-            if (!IsSupportedRequiredType(underlying))
-            {
-                throw Unsupported(targetType);
-            }
-
-            return value => value is null or DBNull ? default! : (T)Coerce(NotNull(value, operation, emptyMessage), underlying);
+            return !IsSupportedRequiredType(underlying)
+                ? throw Unsupported(targetType)
+                : (value => value is null or DBNull ? default! : (T)Coerce(NotNull(value, operation, emptyMessage), underlying));
         }
 
-        if (!IsSupportedRequiredType(targetType))
-        {
-            throw Unsupported(targetType);
-        }
-
-        return value => (T)Coerce(NotNull(value, operation, emptyMessage), targetType);
+        return !IsSupportedRequiredType(targetType)
+            ? throw Unsupported(targetType)
+            : (value => (T)Coerce(NotNull(value, operation, emptyMessage), targetType));
     }
 
     private static bool IsSupportedRequiredType(Type targetType) =>
@@ -68,18 +62,17 @@ internal static class DbScalarCoercion
         {
             return DbCellCoercion.ToUtc(raw);
         }
-        if (targetType == typeof(Guid))
-        {
-            return raw switch
-            {
-                Guid guid => guid,
-                string text => Guid.Parse(text),
-                byte[] bytes => new Guid(bytes),
-                _ => throw new InvalidOperationException($"Cannot coerce scalar value of type '{raw.GetType().FullName}' to Guid."),
-            };
-        }
-
-        throw Unsupported(targetType);
+        return targetType == typeof(Guid)
+            ? (object)(
+                raw switch
+                {
+                    Guid guid => guid,
+                    string text => Guid.Parse(text),
+                    byte[] bytes => new Guid(bytes),
+                    _ => throw new InvalidOperationException($"Cannot coerce scalar value of type '{raw.GetType().FullName}' to Guid."),
+                }
+            )
+            : throw Unsupported(targetType);
     }
 
     private static object NotNull(object? raw, string operation, string? emptyMessage) =>

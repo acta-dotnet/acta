@@ -1,5 +1,3 @@
-using Acta.Configuration;
-using Acta.Relational.Connections;
 using Acta.Sqlite.Configuration;
 using Microsoft.Extensions.Options;
 using Xunit;

@@ -75,10 +75,10 @@ namespace Acta.Concepts.JobsCli
     public static class ReviewDocumentJob
     {
         [Job("review-document")]
-        public static async Task Handle(ReviewDocument input, JobContext ctx, CancellationToken ct)
+        public static async Task Handle(ReviewDocument input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[{input.DocumentId}] indexed; waiting for legal approval");
-            await ctx.WaitSignalAsync("legal-approval", ct);
+            await context.WaitSignalAsync("legal-approval", ct);
             Console.WriteLine($"[{input.DocumentId}] approved");
         }
     }

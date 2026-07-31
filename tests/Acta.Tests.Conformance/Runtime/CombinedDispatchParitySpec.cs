@@ -1,5 +1,3 @@
-using Acta.Configuration;
-using Acta.Payloads;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

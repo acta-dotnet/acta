@@ -1,10 +1,7 @@
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Namespaces;
-using Acta.Modules.Execution.Tenants;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Tenants;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -148,7 +145,7 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
 
     private async Task<IReadOnlyList<JobEnqueueOutcome>> EnqueueAsync(IReadOnlyList<JobEnqueueRow> rows, CancellationToken ct)
     {
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         return await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
     }
 }

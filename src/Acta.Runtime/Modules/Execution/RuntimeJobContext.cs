@@ -1,97 +1,67 @@
 #nullable enable
 
 using System.Diagnostics;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Checkpoints;
-using Acta.Modules.Execution.ChildLatches;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Signals;
-using Acta.Modules.Execution.Timers;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Checkpoints;
+using Acta.Runtime.Modules.Execution.ChildLatches;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Execution.Signals;
+using Acta.Runtime.Modules.Execution.Timers;
+using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Services.Locks;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Modules.Execution;
+namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// Per-attempt <see cref="JobContext"/> supplied to handlers. Inspection fields come from the
 /// claimed row; progress, variable, and sleep operations delegate to the per-routine slice handlers.
 /// </summary>
-internal sealed class RuntimeJobContext : JobContext
+internal sealed class RuntimeJobContext(
+    ClaimedJob job,
+    string jobName,
+    string namespaceName,
+    short namespaceId,
+    int leaseTtlSeconds,
+    IJobStore jobStore,
+    Acta.Runtime.Modules.Execution.Signals.ISignalStore signalStore,
+    IAlertSink alerts,
+    Acta.Runtime.Modules.Execution.IExecutionStore executionStore,
+    IJobPayloadSerializerRegistry serializers,
+    ILockStore lockStore,
+    IActaClock clock,
+    CancellationToken cancellationToken,
+    IReadOnlyList<string> triggeringScheduleNames,
+    DateTime? deadlineAtUtc,
+    int maxInlinePayloadBytes = int.MaxValue,
+    RunningAttempt? runningAttempt = null,
+    StepRetryDefaults stepRetryDefaults = default,
+    ILogger? log = null,
+    JobMetrics? metrics = null,
+    IJobs? jobs = null,
+    string? tenantKey = null
+) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
 
-    private readonly IJobStore _jobStore;
-    private readonly Acta.Modules.Execution.Signals.ISignalStore _signalStore;
-    private readonly IAlertSink _alerts;
-    private readonly Acta.Modules.Execution.IExecutionStore _executionStore;
-    private readonly IJobPayloadSerializerRegistry _serializers;
-    private readonly ILockStore _lockStore;
-    private readonly IActaClock _clock;
-    private readonly short _namespaceId;
-    private readonly int _leaseTtlSeconds;
-    private readonly int _maxInlinePayloadBytes;
-    private readonly RunningAttempt? _runningAttempt;
-    private readonly StepRetryDefaults _stepRetryDefaults;
-    private readonly ILogger _log;
-    private readonly JobMetrics? _metrics;
-    private readonly IJobs? _jobs;
-
-    public RuntimeJobContext(
-        ClaimedJob job,
-        string jobName,
-        string namespaceName,
-        short namespaceId,
-        int leaseTtlSeconds,
-        IJobStore jobStore,
-        Acta.Modules.Execution.Signals.ISignalStore signalStore,
-        IAlertSink alerts,
-        Acta.Modules.Execution.IExecutionStore executionStore,
-        IJobPayloadSerializerRegistry serializers,
-        ILockStore lockStore,
-        IActaClock clock,
-        CancellationToken cancellationToken,
-        IReadOnlyList<string> triggeringScheduleNames,
-        DateTime? deadlineAtUtc,
-        int maxInlinePayloadBytes = int.MaxValue,
-        RunningAttempt? runningAttempt = null,
-        StepRetryDefaults stepRetryDefaults = default,
-        ILogger? log = null,
-        JobMetrics? metrics = null,
-        IJobs? jobs = null,
-        string? tenantKey = null
-    )
-    {
-        JobNamespace = namespaceName;
-        JobName = jobName;
-        JobId = job.JobId;
-        JobRef = new JobRef(job.JobRef);
-        TenantId = job.TenantId;
-        TenantKey = tenantKey;
-        CancellationToken = cancellationToken;
-        TriggeringScheduleNames = triggeringScheduleNames;
-        DeadlineAtUtc = deadlineAtUtc;
-        _namespaceId = namespaceId;
-        _leaseTtlSeconds = leaseTtlSeconds;
-        _jobStore = jobStore;
-        _signalStore = signalStore;
-        _alerts = alerts;
-        _executionStore = executionStore;
-        _serializers = serializers;
-        _lockStore = lockStore;
-        _clock = clock;
-        _maxInlinePayloadBytes = maxInlinePayloadBytes;
-        _runningAttempt = runningAttempt;
-        _stepRetryDefaults = stepRetryDefaults;
-        _log = log ?? NullLogger.Instance;
-        _metrics = metrics;
-        _jobs = jobs;
-    }
+    private readonly IJobStore _jobStore = jobStore;
+    private readonly Acta.Runtime.Modules.Execution.Signals.ISignalStore _signalStore = signalStore;
+    private readonly IAlertSink _alerts = alerts;
+    private readonly Acta.Runtime.Modules.Execution.IExecutionStore _executionStore = executionStore;
+    private readonly IJobPayloadSerializerRegistry _serializers = serializers;
+    private readonly ILockStore _lockStore = lockStore;
+    private readonly IActaClock _clock = clock;
+    private readonly short _namespaceId = namespaceId;
+    private readonly int _leaseTtlSeconds = leaseTtlSeconds;
+    private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;
+    private readonly RunningAttempt? _runningAttempt = runningAttempt;
+    private readonly StepRetryDefaults _stepRetryDefaults = stepRetryDefaults;
+    private readonly ILogger _log = log ?? NullLogger.Instance;
+    private readonly JobMetrics? _metrics = metrics;
+    private readonly IJobs? _jobs = jobs;
 
     /// <summary>
     /// Whether this attempt's cancellation was the execution-timeout firing rather than an external
@@ -99,16 +69,16 @@ internal sealed class RuntimeJobContext : JobContext
     /// </summary>
     internal bool AttemptTimedOut => _runningAttempt?.TimedOut ?? false;
 
-    public override long JobId { get; }
-    public override string JobNamespace { get; }
+    public override long JobId { get; } = job.JobId;
+    public override string JobNamespace { get; } = namespaceName;
     public override short NamespaceId => _namespaceId;
-    public override int? TenantId { get; }
-    public override string? TenantKey { get; }
-    public override string JobName { get; }
-    public override JobRef JobRef { get; }
-    public override CancellationToken CancellationToken { get; }
-    public override IReadOnlyList<string> TriggeringScheduleNames { get; }
-    public override DateTime? DeadlineAtUtc { get; }
+    public override int? TenantId { get; } = job.TenantId;
+    public override string? TenantKey { get; } = tenantKey;
+    public override string JobName { get; } = jobName;
+    public override JobRef JobRef { get; } = new JobRef(job.JobRef);
+    public override CancellationToken CancellationToken { get; } = cancellationToken;
+    public override IReadOnlyList<string> TriggeringScheduleNames { get; } = triggeringScheduleNames;
+    public override DateTime? DeadlineAtUtc { get; } = deadlineAtUtc;
 
     protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct)
     {
@@ -153,12 +123,9 @@ internal sealed class RuntimeJobContext : JobContext
             return Deserialize<T>(existing);
         }
 
-        var value = await valueFactory(ct);
-        if (value is null)
-        {
-            throw new InvalidOperationException("Variable factory returned null. Use DeleteVariableAsync to clear a variable.");
-        }
-
+        var value =
+            await valueFactory(ct)
+            ?? throw new InvalidOperationException("Variable factory returned null. Use DeleteVariableAsync to clear a variable.");
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
@@ -178,7 +145,7 @@ internal sealed class RuntimeJobContext : JobContext
     {
         var delaySeconds = delay is { } d ? (int)d.TotalSeconds : (int?)null;
         var decision = await _executionStore.ArmOrConsumeSleepTimerAsync(
-            new Acta.Modules.Execution.ArmOrConsumeSleepTimerCommand(JobId, name, delaySeconds, resumeAtUtc),
+            new Acta.Runtime.Modules.Execution.ArmOrConsumeSleepTimerCommand(JobId, name, delaySeconds, resumeAtUtc),
             ct
         );
         switch (decision.Outcome)
@@ -201,16 +168,12 @@ internal sealed class RuntimeJobContext : JobContext
             ? JobCheckpointKindCode.ChildLatch
             : JobCheckpointKindCode.Signal;
         var decision = await _signalStore.WaitSignalAsync(JobId, kind, name, ct);
-        switch (decision.Outcome)
+        return decision.Outcome switch
         {
-            case SignalWaitOutcomeCode.ContinueSet:
-                return new SignalWaitOutcome(decision.ValueFormatId, decision.Value);
-            case SignalWaitOutcomeCode.SuspendPending:
-                // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
-                throw new SignalSuspendSignal(name, reasonMessage: null);
-            default:
-                throw new InvalidOperationException($"wait_signal returned an unknown outcome for job {JobId}, signal '{name}'.");
-        }
+            SignalWaitOutcomeCode.ContinueSet => new SignalWaitOutcome(decision.ValueFormatId, decision.Value),
+            SignalWaitOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
+            _ => throw new InvalidOperationException($"wait_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
+        };
     }
 
     protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)

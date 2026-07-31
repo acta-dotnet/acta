@@ -36,12 +36,12 @@ namespace Acta.Concepts.FailJob
     {
         // FailAsync is terminal even with MaxAttempts = 5: it ends the job, it does not retry.
         [Job("process-upload", MaxAttempts = 5)]
-        public async Task Handle(ProcessUpload upload, JobContext ctx, CancellationToken ct)
+        public async Task Handle(ProcessUpload upload, JobContext context, CancellationToken ct)
         {
             if (upload.Corrupt)
             {
                 // FailAsync ends the job as Failed now (no retry); a thrown exception retries to MaxAttempts.
-                await ctx.FailAsync("file is corrupt and cannot be processed", ct);
+                await context.FailAsync("file is corrupt and cannot be processed", ct);
             }
 
             Console.WriteLine($"[{upload.FileName}] file processed");

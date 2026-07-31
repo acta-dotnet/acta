@@ -1,4 +1,4 @@
-namespace Acta.Cli;
+namespace Acta.Runtime.Cli;
 
 /// <summary>
 /// The CLI verbs. Read verbs and control verbs take an id-or-deduplication-key target; Debug runs an

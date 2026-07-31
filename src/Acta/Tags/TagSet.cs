@@ -5,25 +5,23 @@ namespace Acta;
 /// <summary>An immutable, name-ordered snapshot of the tags attached to one existing target.</summary>
 public sealed class TagSet : IReadOnlyList<TagItem>
 {
-    private readonly IReadOnlyList<TagItem> _items;
-
     public TagSet(IReadOnlyList<TagItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
-        _items = items.OrderBy(static item => item.Name, StringComparer.Ordinal).ToArray();
+        Tags = items.OrderBy(static item => item.Name, StringComparer.Ordinal).ToArray();
     }
 
     /// <summary>The tags, ordered by normalized name using ordinal comparison.</summary>
-    public IReadOnlyList<TagItem> Items => _items;
+    public IReadOnlyList<TagItem> Items => Tags;
 
     /// <summary>Alias for <see cref="Items"/> for object-style serialization and binding.</summary>
-    public IReadOnlyList<TagItem> Tags => _items;
+    public IReadOnlyList<TagItem> Tags { get; }
 
-    public int Count => _items.Count;
+    public int Count => Tags.Count;
 
-    public TagItem this[int index] => _items[index];
+    public TagItem this[int index] => Tags[index];
 
-    public IEnumerator<TagItem> GetEnumerator() => _items.GetEnumerator();
+    public IEnumerator<TagItem> GetEnumerator() => Tags.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

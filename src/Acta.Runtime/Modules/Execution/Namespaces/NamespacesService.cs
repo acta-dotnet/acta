@@ -1,10 +1,9 @@
 using System.Globalization;
-using Acta.Kernel;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
-using Acta.Querying;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Querying;
 
-namespace Acta.Modules.Execution.Namespaces;
+namespace Acta.Runtime.Modules.Execution.Namespaces;
 
 /// <summary>
 /// Namespaces feature behavior: the name-list validation and cursor math plus operator
@@ -28,11 +27,9 @@ internal sealed class NamespacesService(INamespaceStore store)
     {
         ArgumentNullException.ThrowIfNull(name);
         var canonical = IdentifierSyntax.CanonicalizeKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
-        if (IdentifierSyntax.IsReservedSystemName(canonical))
-        {
-            throw new ArgumentException("The system namespace sys cannot be suspended or edited.", nameof(name));
-        }
-        return canonical;
+        return IdentifierSyntax.IsReservedSystemName(canonical)
+            ? throw new ArgumentException("The system namespace sys cannot be suspended or edited.", nameof(name))
+            : canonical;
     }
 
     public async ValueTask<PagedResult<string>> ListAsync(ListNamespacesQuery query, CancellationToken ct)

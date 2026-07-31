@@ -2,7 +2,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Text;
-using Acta.Configuration;
 using Acta.Relational.Commands;
 using Acta.Relational.Schema;
 

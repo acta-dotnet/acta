@@ -1,9 +1,5 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Schedules;
-using Acta.Modules.Execution.Workers;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -151,10 +147,7 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
         var stored = await Services.GetRequiredService<IScheduleStore>().GetScheduleStateAsync(TestNamespaceId, ct);
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
 
-        var declared = new[]
-        {
-            new JobScheduleDescriptor(jobName, ScheduleName, expression, null, misfire, kind, null, ImmutableArray<string>.Empty),
-        };
+        var declared = new[] { new JobScheduleDescriptor(jobName, ScheduleName, expression, null, misfire, kind, null, []) };
         var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
 
         return await RegisterAsync(

@@ -50,14 +50,11 @@ internal static partial class SchemaMigrationDiscovery
             );
         }
 
-        if (found.Count == 0)
-        {
-            throw new InvalidOperationException(
+        return found.Count == 0
+            ? throw new InvalidOperationException(
                 $"No migration scripts found matching 'M{{nnn}}_*.sql' in {assembly.GetName().Name}. "
                     + "The provider package must embed its complete Schema/Migrations/*.sql sequence."
-            );
-        }
-
-        return found.OrderBy(m => m.Version).ToArray();
+            )
+            : [.. found.OrderBy(m => m.Version)];
     }
 }

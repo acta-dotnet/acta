@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using Acta.Modules.Execution;
-using Acta.Payloads;
 using Acta.Relational.Entities;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,33 +47,31 @@ public sealed class DeferredRetryStepManifest : IJobManifest
     private const string ProbeName = "deferred-retry-step-probe";
 
     public static JobDescriptorManifest Descriptors { get; } =
-        new(
-            ImmutableArray.Create(
-                new JobDescriptor(
-                    JobName: ProbeName,
-                    HandlerType: typeof(DeferredRetryStepHandler),
-                    MethodName: nameof(DeferredRetryStepHandler.RunAsync),
-                    InputType: typeof(NoInput),
-                    OutputType: null,
-                    InputPayloadFormat: JobPayloadFormat.None,
-                    OutputPayloadFormat: null,
-                    InvocationKind: JobInvocationKind.Task,
-                    RequiresJobContextParameter: true,
-                    RequiresCancellationToken: true,
-                    Priority: JobPriorityCode.Normal,
-                    MaxAttempts: 5,
-                    AuditLevel: JobAuditLevelCode.Audit,
-                    AlertProfile: JobAlertProfileCode.OnFailure,
-                    Invoker: static async (_, _, ctx, ct) =>
-                    {
-                        await DeferredRetryStepHandler.RunAsync(ctx, ct);
-                        return new JobHandlerInvocationResult(false, null);
-                    },
-                    DeserializeInput: static (_, _) => new NoInput(),
-                    SerializeOutput: null
-                )
-            )
-        );
+        new([
+            new JobDescriptor(
+                JobName: ProbeName,
+                HandlerType: typeof(DeferredRetryStepHandler),
+                MethodName: nameof(DeferredRetryStepHandler.RunAsync),
+                InputType: typeof(NoInput),
+                OutputType: null,
+                InputPayloadFormat: JobPayloadFormat.None,
+                OutputPayloadFormat: null,
+                InvocationKind: JobInvocationKind.Task,
+                RequiresJobContextParameter: true,
+                RequiresCancellationToken: true,
+                Priority: JobPriorityCode.Normal,
+                MaxAttempts: 5,
+                AuditLevel: JobAuditLevelCode.Audit,
+                AlertProfile: JobAlertProfileCode.OnFailure,
+                Invoker: static async (_, _, ctx, ct) =>
+                {
+                    await DeferredRetryStepHandler.RunAsync(ctx, ct);
+                    return new JobHandlerInvocationResult(false, null);
+                },
+                DeserializeInput: static (_, _) => new NoInput(),
+                SerializeOutput: null
+            ),
+        ]);
 }
 
 /// <summary>

@@ -1,8 +1,6 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Definitions;
-using Acta.Modules.Execution.Jobs;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -64,7 +62,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
 
     private async Task<int> RegisterAsync(string name, short maxAttempts, CancellationToken ct)
     {
-        var (db, dialect) = Store();
+        var (_, _) = Store();
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen, [Def(name, maxAttempts)], ct);
         return (await ReadAsync(name, ct)).Id;
     }
@@ -73,7 +71,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     public async Task Set_override_recomputes_effective()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, _) = Store();
+        var (_, _) = Store();
         var name = TestKey("set-ovr");
         var id = await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
@@ -101,7 +99,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     public async Task Clear_override_reverts_effective()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, _) = Store();
+        var (_, _) = Store();
         var name = TestKey("clear-ovr");
         var id = await RegisterAsync(name, 4, ct);
 
@@ -120,7 +118,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     public async Task Stale_version_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, _) = Store();
+        var (_, _) = Store();
         var name = TestKey("stale");
         var id = await RegisterAsync(name, 5, ct);
         var before = await ReadAsync(name, ct);
@@ -234,7 +232,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     public async Task Unknown_id_is_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (db, _) = Store();
+        var (_, _) = Store();
 
         var outcome = await DefinitionTestOps.SetOverridesAsync(
             Services,

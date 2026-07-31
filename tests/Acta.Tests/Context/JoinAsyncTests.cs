@@ -20,7 +20,7 @@ public sealed class JoinAsyncTests
 
         var joined = await ctx.JoinAsync([c, a, b], TestContext.Current.CancellationToken);
 
-        Assert.Equal(new[] { c.JobId, a.JobId, b.JobId }, joined.Children.Select(o => o.ChildJobId));
+        Assert.Equal([c.JobId, a.JobId, b.JobId], joined.Children.Select(o => o.ChildJobId));
         Assert.Equal(3, ctx.Events.Count(e => e.StartsWith("wait:")));
         Assert.True(joined.Succeeded);
     }

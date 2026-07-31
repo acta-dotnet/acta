@@ -1,4 +1,3 @@
-using Acta.Configuration;
 using Acta.Relational.Schema;
 
 namespace Acta.Relational.Entities;

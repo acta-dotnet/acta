@@ -1,5 +1,4 @@
-using System.Collections.Immutable;
-using Acta.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -22,7 +21,7 @@ public class ScheduleEnvironmentTests
     [Fact]
     public void Empty_array_is_a_wildcard_active_in_every_environment()
     {
-        Assert.True(ScheduleEnvironment.IsActiveIn(ImmutableArray<string>.Empty, "staging"));
+        Assert.True(ScheduleEnvironment.IsActiveIn([], "staging"));
     }
 
     [Fact]

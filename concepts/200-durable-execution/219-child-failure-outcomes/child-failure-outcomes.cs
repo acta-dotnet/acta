@@ -66,11 +66,11 @@ namespace Acta.Concepts.ChildFailureOutcomes
         // Scenario 1: map over three items; one item is rigged to fail. After waiting, the handler
         // checks MapOutcome.Failed and returns a partial summary; the parent lands Done.
         [Job("run-map-soft")]
-        public async Task<MapReport> HandleMapSoft(RunMapSoft _, JobContext ctx, CancellationToken ct)
+        public async Task<MapReport> HandleMapSoft(RunMapSoft _, JobContext context, CancellationToken ct)
         {
             string[] ids = ["item-a", "item-b", "item-c"];
 
-            var result = await ctx.MapAsync(
+            var result = await context.MapAsync(
                 "process",
                 ids,
                 itemKey: id => id,
@@ -105,9 +105,9 @@ namespace Acta.Concepts.ChildFailureOutcomes
         // calls ThrowIfAnyFailed; ChildGroupException propagates and the parent lands Failed.
         // MaxAttempts = 1 keeps the parent from retrying after the escalation throws.
         [Job("run-parallel-escalated", MaxAttempts = 1)]
-        public async Task HandleParallelEscalated(RunParallelEscalated _, JobContext ctx, CancellationToken ct)
+        public async Task HandleParallelEscalated(RunParallelEscalated _, JobContext context, CancellationToken ct)
         {
-            var result = await ctx.ParallelAsync(
+            var result = await context.ParallelAsync(
                 "analyze",
                 p => p.Child("good", new RunBranch("good", ShouldFail: false)).Child("bad", new RunBranch("bad", ShouldFail: true)),
                 ct
@@ -139,12 +139,12 @@ namespace Acta.Concepts.ChildFailureOutcomes
         // ThrowIfAnyFailed on the JoinOutcome; the parent lands Failed.
         // MaxAttempts = 1 keeps the parent from retrying after the escalation throws.
         [Job("run-join-escalated", MaxAttempts = 1)]
-        public async Task HandleJoinEscalated(RunJoinEscalated _, JobContext ctx, CancellationToken ct)
+        public async Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
         {
-            var alpha = await ctx.StartChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct: ct);
-            var beta = await ctx.StartChildAsync("beta", new RunChild("beta", ShouldFail: true), ct: ct);
+            var alpha = await context.StartChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct: ct);
+            var beta = await context.StartChildAsync("beta", new RunChild("beta", ShouldFail: true), ct: ct);
 
-            var result = await ctx.JoinAsync([alpha, beta], ct);
+            var result = await context.JoinAsync([alpha, beta], ct);
 
             foreach (var child in result.Failed)
             {

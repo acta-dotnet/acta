@@ -151,24 +151,24 @@ namespace Acta.Concepts.ChildJobs
         // StartChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent
         // (holding no executor) until every child is terminal; cancelling the parent cascades to children.
         [Job("build-snowman")]
-        public async Task<FinishedSnowman> Handle(BuildSnowman input, JobContext ctx, CancellationToken ct)
+        public async Task<FinishedSnowman> Handle(BuildSnowman input, JobContext context, CancellationToken ct)
         {
-            var bottom = await ctx.StartChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct: ct);
-            var middle = await ctx.StartChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct: ct);
-            var head = await ctx.StartChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct: ct);
+            var bottom = await context.StartChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct: ct);
+            var middle = await context.StartChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct: ct);
+            var head = await context.StartChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct: ct);
 
-            var outcomes = await ctx.WaitChildrenAsync([bottom.JobId, middle.JobId, head.JobId], ct);
+            var outcomes = await context.WaitChildrenAsync([bottom.JobId, middle.JobId, head.JobId], ct);
             foreach (var outcome in outcomes)
             {
                 if (!outcome.Succeeded)
                 {
-                    await ctx.FailAsync($"child {outcome.ChildJobId} ended {outcome.Status}; see its job events for the reason", ct);
+                    await context.FailAsync($"child {outcome.ChildJobId} ended {outcome.Status}; see its job events for the reason", ct);
                 }
             }
 
-            var b = await ctx.GetChildResultAsync<Snowball>(bottom.JobId, ct);
-            var m = await ctx.GetChildResultAsync<Snowball>(middle.JobId, ct);
-            var h = await ctx.GetChildResultAsync<Snowball>(head.JobId, ct);
+            var b = await context.GetChildResultAsync<Snowball>(bottom.JobId, ct);
+            var m = await context.GetChildResultAsync<Snowball>(middle.JobId, ct);
+            var h = await context.GetChildResultAsync<Snowball>(head.JobId, ct);
 
             var height = b!.Diameter + m!.Diameter + h!.Diameter;
             Console.WriteLine($"[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall");

@@ -1,9 +1,6 @@
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Workers;
-using Acta.Modules.Outbox;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Outbox;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -39,7 +36,7 @@ public abstract class OutboxRelayIntegrationBase<TFixture> : ActaRuntimeTestBase
 
     private protected IJobSubmission OwnedSubmission => new JobsSubmission(Jobs);
 
-    private protected OutboxRelayService Relay(IOutboxRelayStore store, IJobSubmission target) => new(store, target);
+    private protected static OutboxRelayService Relay(IOutboxRelayStore store, IJobSubmission target) => new(store, target);
 
     private protected OutboxRelayTickOptions TickOptions(int quarantineThreshold = 5, int leaseTtlSeconds = 180, int? maxPayload = null) =>
         new(SourceTable, quarantineThreshold, leaseTtlSeconds, maxPayload ?? MaxInlinePayloadBytes);

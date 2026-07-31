@@ -12,9 +12,9 @@ namespace Acta.Tests.Conformance.Sql;
 /// <see cref="SqlParameterCoverage"/> and the provider-store binding gate cover inline commands,
 /// which have no separate header/body indirection to drift.
 /// </summary>
-public static class RoutineBodyParameterAssert
+public static partial class RoutineBodyParameterAssert
 {
-    private static readonly Regex MssqlHeaderBoundary = new(@"\bAS\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex MssqlHeaderBoundary = MyRegex();
     private static readonly Regex AtParam = new(@"@p_[A-Za-z0-9_]*", RegexOptions.Compiled);
     private static readonly Regex ParamName = new(@"^\s*([A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
 
@@ -163,4 +163,7 @@ public static class RoutineBodyParameterAssert
 
         yield return s[start..];
     }
+
+    [GeneratedRegex(@"\bAS\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "sl-SI")]
+    private static partial Regex MyRegex();
 }

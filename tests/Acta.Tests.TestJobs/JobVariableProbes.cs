@@ -211,6 +211,8 @@ public static class JobVariableProbes
         return new VariableRaceResult(stored, observed.Distinct().Count(), observed, factoryCalls);
     }
 
+    private static readonly string[] value = new[] { "apple", "banana", "cherry" };
+
     [Job("job-variable-roundtrip")]
     public static async Task<VariableRoundTripResult> RoundTrip(JobContext ctx, CancellationToken ct)
     {
@@ -234,7 +236,7 @@ public static class JobVariableProbes
         await ctx.SetVariableAsync("object.complex", new VariableComplexObject("complex test"), ct);
         await ctx.SetVariableAsync("object.record", new VariableSomeRecord("record test", 123), ct);
         await ctx.SetVariableAsync("object.list", new List<int> { 1, 2, 3, 4, 5 }, ct);
-        await ctx.SetVariableAsync("object.array", new[] { "apple", "banana", "cherry" }, ct);
+        await ctx.SetVariableAsync("object.array", value, ct);
         await ctx.SetVariableAsync("object.dictionary", new Dictionary<string, int> { { "key1", 100 }, { "key2", 200 } }, ct);
 
         await ctx.SetVariableAsync("overwrite.value", "initial", ct);
@@ -268,8 +270,8 @@ public static class JobVariableProbes
         var objectValues =
             await ctx.GetRequiredVariableAsync<VariableComplexObject>("object.complex", ct) == new VariableComplexObject("complex test")
             && await ctx.GetRequiredVariableAsync<VariableSomeRecord>("object.record", ct) == new VariableSomeRecord("record test", 123)
-            && list.SequenceEqual(new[] { 1, 2, 3, 4, 5 })
-            && array.SequenceEqual(new[] { "apple", "banana", "cherry" })
+            && list.SequenceEqual([1, 2, 3, 4, 5])
+            && array.SequenceEqual(["apple", "banana", "cherry"])
             && dictionary.Count == 2
             && dictionary["key1"] == 100
             && dictionary["key2"] == 200;

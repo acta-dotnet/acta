@@ -81,11 +81,11 @@ namespace Acta.Concepts.DurableStep
 
         // MaxAttempts = 2: first attempt fails, second succeeds; retry waits 2s.
         [Job("freeze-box", MaxAttempts = 2, Backoff = "2s")]
-        public async Task Handle(FreezeBox box, JobContext ctx, CancellationToken ct)
+        public async Task Handle(FreezeBox box, JobContext context, CancellationToken ct)
         {
             // In this controlled path the later failure happens after step success is durable, so execution two reuses that outcome.
             // A process crash after the external request but before Acta records success could invoke a normal step body again.
-            await ctx.RunStepAsync(
+            await context.RunStepAsync(
                 "start-freeze-cycle",
                 _ =>
                 {

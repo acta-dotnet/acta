@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using Acta.Runtime.Hosting;
 
 namespace Acta.Relational.Resources;
 
@@ -71,12 +72,9 @@ internal sealed class SqlResourceCatalog
             var stem = resource[..^".view.sql".Length];
             var view = stem[(stem.LastIndexOf('.') + 1)..];
             var name = System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(view);
-            if (!name.EndsWith("_view", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException($"Provider view resource '{resource}' must install as a plural '_view' name.");
-            }
-
-            yield return (name, Render(resource));
+            yield return !name.EndsWith("_view", StringComparison.Ordinal)
+                ? throw new InvalidOperationException($"Provider view resource '{resource}' must install as a plural '_view' name.")
+                : ((string Name, string Body))(name, Render(resource));
         }
     }
 

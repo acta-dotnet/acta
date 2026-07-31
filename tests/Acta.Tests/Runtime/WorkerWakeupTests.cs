@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
-using Acta.Kernel;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Workers;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Workers;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -311,10 +311,10 @@ public sealed class WorkerWakeupTests
             );
         }
 
-        var failure = Assert.Single(captured);
-        Assert.Equal("billing", failure.Tags["namespace"]);
-        Assert.Equal("worker_namespace", failure.Tags["channel"]);
-        Assert.Equal("InvalidOperationException", failure.Tags["exception_type"]);
+        var (Value, Tags) = Assert.Single(captured);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("worker_namespace", Tags["channel"]);
+        Assert.Equal("InvalidOperationException", Tags["exception_type"]);
     }
 
     [Fact]
@@ -344,10 +344,10 @@ public sealed class WorkerWakeupTests
             );
         }
 
-        var attempt = Assert.Single(captured);
-        Assert.Equal("*", attempt.Tags["namespace"]);
-        Assert.Equal("all_worker_namespaces", attempt.Tags["channel"]);
-        Assert.Equal("horizon_changed", attempt.Tags["reason"]);
+        var (Value, Tags) = Assert.Single(captured);
+        Assert.Equal("*", Tags["namespace"]);
+        Assert.Equal("all_worker_namespaces", Tags["channel"]);
+        Assert.Equal("horizon_changed", Tags["reason"]);
     }
 
     [Fact]
@@ -365,10 +365,10 @@ public sealed class WorkerWakeupTests
             );
         }
 
-        var attempt = Assert.Single(captured);
-        Assert.DoesNotContain("namespace", attempt.Tags.Keys);
-        Assert.Equal("job_completion", attempt.Tags["channel"]);
-        Assert.Equal("job_finished", attempt.Tags["reason"]);
+        var (Value, Tags) = Assert.Single(captured);
+        Assert.DoesNotContain("namespace", Tags.Keys);
+        Assert.Equal("job_completion", Tags["channel"]);
+        Assert.Equal("job_finished", Tags["reason"]);
     }
 
     // ---- WorkerWakeupChannel ----
@@ -424,13 +424,15 @@ public sealed class WorkerWakeupTests
         List<(long Value, IReadOnlyDictionary<string, object?> Tags)> captured
     )
     {
-        var listener = new MeterListener();
-        listener.InstrumentPublished = (inst, l) =>
+        var listener = new MeterListener
         {
-            if (ReferenceEquals(inst.Meter, metrics.Meter) && inst.Name == instrumentName)
+            InstrumentPublished = (inst, l) =>
             {
-                l.EnableMeasurementEvents(inst);
-            }
+                if (ReferenceEquals(inst.Meter, metrics.Meter) && inst.Name == instrumentName)
+                {
+                    l.EnableMeasurementEvents(inst);
+                }
+            },
         };
         listener.SetMeasurementEventCallback<long>(
             (_, value, tags, _) => captured.Add((value, tags.ToArray().ToDictionary(t => t.Key, t => t.Value)))

@@ -1,7 +1,4 @@
 using System.Security.Claims;
-using Acta.Configuration;
-using Acta.Payloads;
-using Acta.Querying;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -135,8 +132,8 @@ internal static class TestDashboardHost
         /// <summary>Recorded enqueue requests; EnqueueAsync stores each input under a fresh ref for read-back.</summary>
         public List<JobEnqueueRequest> EnqueueRequests { get; } = [];
 
-        private readonly Dictionary<Guid, long> _enqueuedRefs = new();
-        private readonly Dictionary<long, JobPayload?> _enqueuedInputs = new();
+        private readonly Dictionary<Guid, long> _enqueuedRefs = [];
+        private readonly Dictionary<long, JobPayload?> _enqueuedInputs = [];
 
         /// <summary>Recorded tenant register calls. A key of "bad key" reports an invalid opaque key.</summary>
         public List<(string TenantKey, string? DisplayName, string? Description)> TenantCalls { get; } = [];
@@ -220,12 +217,9 @@ internal static class TestDashboardHost
                 throw ListJobsException;
             }
 
-            if (query.Cursor is not null)
-            {
-                throw new InvalidPageCursorException("Cursor operation does not match this query.");
-            }
-
-            return new PagedResult<JobListItem>([Job], null, false, 50, null);
+            return query.Cursor is not null
+                ? throw new InvalidPageCursorException("Cursor operation does not match this query.")
+                : new PagedResult<JobListItem>([Job], null, false, 50, null);
         }
 
         public ListJobEventsQuery? LastEventsQuery { get; private set; }
@@ -244,15 +238,11 @@ internal static class TestDashboardHost
                 await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             }
 
-            if (
+            return
                 query.JobNamespace is not null
                 && query.JobNamespace.Any(ch => !char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')
-            )
-            {
-                throw new ArgumentException("JobNamespace must be a kebab-case identifier.");
-            }
-
-            return new OverviewSnapshot(3, 120, 1, 2, 4, 1, 1, 2, 5, 10, 3);
+                ? throw new ArgumentException("JobNamespace must be a kebab-case identifier.")
+                : new OverviewSnapshot(3, 120, 1, 2, 4, 1, 1, 2, 5, 10, 3);
         }
 
         /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
@@ -796,12 +786,9 @@ internal static class TestDashboardHost
             )
             {
                 // Mirror the production guard: an out-of-range override surfaces as ArgumentOutOfRangeException.
-                if (overrides.MaxAttempts is <= 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.");
-                }
-
-                return ValueTask.FromResult(new DefinitionOverrideResult(JobControlAction.Applied));
+                return overrides.MaxAttempts is <= 0
+                    ? throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.")
+                    : ValueTask.FromResult(new DefinitionOverrideResult(JobControlAction.Applied));
             }
 
             public ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct = default) =>

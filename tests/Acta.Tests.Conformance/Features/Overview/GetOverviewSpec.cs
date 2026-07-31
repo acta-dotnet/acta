@@ -1,10 +1,7 @@
-using Acta.Modules.Alerting;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Workers;
-using Acta.Modules.Operations.Overview;
-using Acta.Payloads;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Modules.Operations.Overview;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +36,7 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     public async Task Namespace_scoped_ReadyCount_reflects_enqueued_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dialect = Services.GetRequiredService<ISqlDialect>();
+        _ = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));

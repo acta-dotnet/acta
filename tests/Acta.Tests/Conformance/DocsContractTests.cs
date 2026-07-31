@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -121,11 +120,11 @@ public sealed class DocsContractTests
             .SelectMany(store => StoreContractCoverageTests.DeclaredMethods(store).Select(method => (Store: store, Method: method)))
             .OrderBy(item => item.Store.FullName, StringComparer.Ordinal)
             .ThenBy(item => item.Method.Name, StringComparer.Ordinal);
-        foreach (var item in storeMethods)
+        foreach (var (Store, Method) in storeMethods)
         {
-            var identity = $"{item.Store.FullName}.{item.Method.Name}";
+            var identity = $"{Store.FullName}.{Method.Name}";
             var covers = coveringSpecs.TryGetValue(identity, out var titles) ? string.Join("<br>", titles.Select(EscapeCell)) : "·";
-            sb.AppendLine(CultureInfo.InvariantCulture, $"| `{item.Store.Name}.{item.Method.Name}` | {covers} |");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"| `{Store.Name}.{Method.Name}` | {covers} |");
         }
 
         sb.AppendLine();

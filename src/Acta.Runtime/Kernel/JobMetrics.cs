@@ -1,13 +1,12 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Acta.Kernel;
 
-namespace Acta.Kernel;
+namespace Acta.Runtime.Kernel;
 
 /// <summary>
 /// Owns the <c>Acta</c> meter and its instruments. A process-wide singleton: the runtime emits
-/// one execution measurement at the single completion point in <see cref="Acta.Modules.Execution.JobRunner"/>, one claim
-/// measurement per claim attempt in <see cref="Acta.Modules.Execution.JobExecutor"/>, and observes the live in-flight count.
+/// one execution measurement at the single completion point in <see cref="Acta.Runtime.Modules.Execution.JobRunner"/>, one claim
+/// measurement per claim attempt in <see cref="Acta.Runtime.Modules.Execution.JobExecutor"/>, and observes the live in-flight count.
 /// Counters are additive: the backend aggregates and slices by tag, so no running totals are kept
 /// in process.
 /// </summary>
@@ -22,9 +21,8 @@ internal sealed class JobMetrics : IDisposable
 
     // Exposed so tests can scope a MeterListener to THIS instance's meter; same-named meters from
     // parallel test hosts would otherwise cross-capture identical instrument/tag measurements.
-    internal Meter Meter => _meter;
+    internal Meter Meter { get; }
 
-    private readonly Meter _meter;
     private readonly Counter<long> _executions;
     private readonly Histogram<double> _executionDurationMs;
     private readonly Counter<long> _claims;
@@ -41,33 +39,33 @@ internal sealed class JobMetrics : IDisposable
 
     public JobMetrics()
     {
-        _meter = new Meter(MeterName);
-        _executions = _meter.CreateCounter<long>("acta.executions", "{execution}", "Completed job executions, tagged by outcome.");
-        _executionDurationMs = _meter.CreateHistogram<double>("Acta.duration", "ms", "Handler execution duration.");
-        _claims = _meter.CreateCounter<long>("acta.claims", "{claim}", "Job claim attempts, tagged by result.");
-        _steps = _meter.CreateCounter<long>("acta.steps", "{step}", "Durable step outcomes, tagged by outcome.");
-        _lockReleaseFailures = _meter.CreateCounter<long>(
+        Meter = new Meter(MeterName);
+        _executions = Meter.CreateCounter<long>("acta.executions", "{execution}", "Completed job executions, tagged by outcome.");
+        _executionDurationMs = Meter.CreateHistogram<double>("Acta.duration", "ms", "Handler execution duration.");
+        _claims = Meter.CreateCounter<long>("acta.claims", "{claim}", "Job claim attempts, tagged by result.");
+        _steps = Meter.CreateCounter<long>("acta.steps", "{step}", "Durable step outcomes, tagged by outcome.");
+        _lockReleaseFailures = Meter.CreateCounter<long>(
             "acta.lock.release.failures",
             "{failure}",
             "Best-effort lock releases that failed and were left for TTL cleanup."
         );
-        _alertProjectionSkips = _meter.CreateCounter<long>(
+        _alertProjectionSkips = Meter.CreateCounter<long>(
             "acta.alert.projection.skips",
             "{skip}",
             "Poison alert events durably skipped by the automatic projector."
         );
-        _wakeupPublishes = _meter.CreateCounter<long>(
+        _wakeupPublishes = Meter.CreateCounter<long>(
             "acta.wakeup.publish.attempts",
             "{publish}",
             "Wake publishes, tagged by channel and reason."
         );
-        _wakeupPublishFailures = _meter.CreateCounter<long>(
+        _wakeupPublishFailures = Meter.CreateCounter<long>(
             "acta.wakeup.publish.failures",
             "{publish}",
             "Wake publishes the transport failed to deliver."
         );
-        _wakeupWaits = _meter.CreateCounter<long>("acta.wakeup.waits", "{wait}", "Idle claim-loop waits, tagged by how they returned.");
-        _meter.CreateObservableGauge("acta.executing", ObserveExecuting, "{job}", "Currently executing jobs per namespace.");
+        _wakeupWaits = Meter.CreateCounter<long>("acta.wakeup.waits", "{wait}", "Idle claim-loop waits, tagged by how they returned.");
+        Meter.CreateObservableGauge("acta.executing", ObserveExecuting, "{job}", "Currently executing jobs per namespace.");
     }
 
     public void RecordExecution(string @namespace, string jobName, string outcome, string? reasonCode, double durationMs)
@@ -180,5 +178,5 @@ internal sealed class JobMetrics : IDisposable
         }
     }
 
-    public void Dispose() => _meter.Dispose();
+    public void Dispose() => Meter.Dispose();
 }

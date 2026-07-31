@@ -1,10 +1,7 @@
-using Acta.Configuration;
-using Acta.Modules.Execution;
-using Acta.Modules.Execution.Checkpoints;
-using Acta.Payloads;
-using Acta.Relational.Schema;
-using Acta.Services.Locks;
-using Acta.Services.Time;
+using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Checkpoints;
+using Acta.Runtime.Services.Locks;
+using Acta.Runtime.Services.Time;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -91,12 +88,12 @@ public sealed class RuntimeJobContextCancellationTests
 
         public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<Acta.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
+        public Task<IReadOnlyList<Acta.Runtime.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
             short namespaceId,
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<Acta.Modules.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
+        public Task<Acta.Runtime.Modules.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
             ArmOrConsumeSleepTimerCommand command,
             CancellationToken ct
         ) => throw new NotSupportedException();

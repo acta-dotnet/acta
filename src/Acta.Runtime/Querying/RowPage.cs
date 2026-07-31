@@ -1,4 +1,4 @@
-namespace Acta.Querying;
+namespace Acta.Runtime.Querying;
 
 /// <summary>
 /// One page of a keyset list operation: the page <see cref="Rows"/> plus the opt-in filter-wide

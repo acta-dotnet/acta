@@ -64,12 +64,7 @@ public sealed class BaselineCultureTests
         thread.Start();
         thread.Join();
 
-        if (failure is not null)
-        {
-            throw new InvalidOperationException("Culture-isolated benchmark assertion failed.", failure);
-        }
-
-        return result!;
+        return failure is not null ? throw new InvalidOperationException("Culture-isolated benchmark assertion failed.", failure) : result!;
     }
 
     private static BaselineFile Fixture()

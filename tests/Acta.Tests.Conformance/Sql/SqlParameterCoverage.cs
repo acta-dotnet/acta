@@ -11,11 +11,11 @@ namespace Acta.Tests.Conformance.Sql;
 /// not parameters and are excluded by the tokenizer. Provider-store and conformance gates exercise
 /// the command builders independently.
 /// </summary>
-public static class SqlParameterCoverage
+public static partial class SqlParameterCoverage
 {
     // The negative lookbehind drops the second @ of a @@system-function token (@@ROWCOUNT), which is
     // not a bound parameter; a single-@ token must still satisfy the @p_/local convention.
-    private static readonly Regex AnyAtParam = new(@"(?<!@)@[a-zA-Z_][a-zA-Z0-9_]*", RegexOptions.Compiled);
+    private static readonly Regex AnyAtParam = MyRegex();
 
     /// <summary>
     /// Matches every <c>@name</c> token following a TSQL <c>DECLARE</c> keyword so the prefix
@@ -70,4 +70,7 @@ public static class SqlParameterCoverage
             Assert.Fail(string.Join("\n", failures));
         }
     }
+
+    [GeneratedRegex(@"(?<!@)@[a-zA-Z_][a-zA-Z0-9_]*", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

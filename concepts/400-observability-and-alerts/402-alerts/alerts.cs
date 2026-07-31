@@ -36,7 +36,7 @@ namespace Acta.Concepts.Alerts
     public sealed class VerifyBackupJob
     {
         [Job("verify-backup")]
-        public async Task Handle(VerifyBackup input, JobContext ctx, CancellationToken ct)
+        public async Task Handle(VerifyBackup input, JobContext context, CancellationToken ct)
         {
             await Task.Delay(50, ct);
 
@@ -44,7 +44,7 @@ namespace Acta.Concepts.Alerts
             {
                 // No channel name routes to the implicit "default" channel (log transport). The
                 // database stores only the channel name; delivery configuration comes from worker startup.
-                await ctx.AlertAsync(
+                await context.AlertAsync(
                     title: $"Backup verification failed: {input.FolderName}",
                     message: $"The nightly backup of '{input.FolderName}' is missing or corrupt.",
                     severityCode: AlertSeverityCode.Error,

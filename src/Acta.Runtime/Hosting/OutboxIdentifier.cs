@@ -1,4 +1,4 @@
-namespace Acta;
+namespace Acta.Runtime.Hosting;
 
 /// <summary>
 /// The single bare-SQL-identifier validation for an external-outbox schema or table name, shared by the

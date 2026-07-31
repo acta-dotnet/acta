@@ -1,10 +1,6 @@
-using Acta;
-using Acta.Kernel;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
-using Acta.Modules.Execution.Namespaces;
-using Acta.Modules.Execution.Tenants;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.Tenants;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

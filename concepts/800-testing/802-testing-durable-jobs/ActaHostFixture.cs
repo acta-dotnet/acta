@@ -1,6 +1,6 @@
 // xUnit class fixture: one ActaTestHost per test class, like 801, for a durable multi-step job.
 
-using Acta.Testing;
+using Acta.Testing.Hosting;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 

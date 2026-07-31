@@ -1,4 +1,4 @@
-using Acta.Modules.Execution;
+using Acta.Runtime.Modules.Execution;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.Tests.Conformance.Testing;

@@ -1,8 +1,7 @@
-using Acta.Kernel;
-using Acta.Modules.Execution.Api;
-using Acta.Modules.Execution.Jobs;
+using Acta.Runtime.Kernel;
+using Acta.Runtime.Modules.Execution.Api;
 
-namespace Acta.Modules.Execution.Namespaces;
+namespace Acta.Runtime.Modules.Execution.Namespaces;
 
 /// <summary>
 /// Persistence port for the namespaces control plane: the alphabetical name list and the operator

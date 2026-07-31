@@ -2,8 +2,6 @@
 // ExecutionProfile.Direct - and how the worker respects the concurrency cap.
 using Acta;
 using Acta.Concepts.WorkerTuning;
-using Acta.Configuration;
-using Acta.Payloads;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 

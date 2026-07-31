@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
 /// The namespace and worker ids the bootstrap routine assigns - the single-row result of the start.

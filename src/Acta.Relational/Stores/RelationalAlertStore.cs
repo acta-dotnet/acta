@@ -1,9 +1,9 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Modules.Alerting;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
+using Acta.Runtime.Modules.Alerting;
 
 namespace Acta.Relational.Stores;
 

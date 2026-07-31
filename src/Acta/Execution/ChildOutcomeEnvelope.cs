@@ -55,11 +55,8 @@ internal static class ChildOutcomeEnvelope
             }
         }
 
-        if (childJobId == 0 || status == 0)
-        {
-            throw new InvalidOperationException("Child outcome envelope is missing childJobId or status.");
-        }
-
-        return new ChildJobOutcome(childJobId, (JobStatusCode)status);
+        return childJobId == 0 || status == 0
+            ? throw new InvalidOperationException("Child outcome envelope is missing childJobId or status.")
+            : new ChildJobOutcome(childJobId, (JobStatusCode)status);
     }
 }

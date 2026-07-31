@@ -1,4 +1,4 @@
-namespace Acta.Cli;
+namespace Acta.Runtime.Cli;
 
 /// <summary>
 /// Hand-rolled parser for the jobs CLI: verb, positional target (and signal name), then flags.

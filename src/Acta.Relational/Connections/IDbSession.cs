@@ -1,5 +1,4 @@
 using System.Data.Common;
-using Acta.Configuration;
 using Acta.Relational.Commands;
 
 namespace Acta.Relational.Connections;

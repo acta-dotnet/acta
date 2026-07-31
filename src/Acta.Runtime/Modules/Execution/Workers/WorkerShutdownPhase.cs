@@ -1,4 +1,4 @@
-namespace Acta.Modules.Execution.Workers;
+namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>Runs a best-effort worker lifecycle phase concurrently under a linked deadline.</summary>
 internal static class WorkerShutdownPhase
@@ -14,10 +14,7 @@ internal static class WorkerShutdownPhase
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(onFailure);
-        if (timeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(timeout));
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
         if (items.Count == 0)
         {
             return true;
