@@ -121,6 +121,13 @@ Each baseline captures comparability metadata:
 
 ## Recorded Baselines
 
+- [2026-07-31 full all-provider report](./baseline-20260731T194410Z.md): 105 cells, one warmup and
+  three measured repeats per cell; all 420 measurements completed. First baseline after the
+  completion-batch TVP was re-keyed by request ordinal and aborted attempts became retryable, on the
+  `init-ordinal-tvp-v1` schema baseline. A targeted interleaved A/B on the SQL Server Bulk drain
+  cells around that change measured it as neutral. The
+  [source JSON](./baseline-20260731T194410Z.json) contains the complete measurements and
+  environment metadata.
 - [2026-07-19 full all-provider report](./baseline-20260719T135917Z.md): 105 cells, one warmup and
   three measured repeats per cell; all 420 measurements completed. First baseline with the SQL Server
   container started with `-T3979` (see docker-compose.yml), which removes the Linux-only forced
