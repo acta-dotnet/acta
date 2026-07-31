@@ -148,7 +148,7 @@
     <div class="detail-workspace">
       <div class="detail-main">
         <JobLineage {job} {lineage} />
-        <JobSummary {job} tenantKey={detail.tenantKey} {lastEvent} />
+        <JobSummary {job} tenantKey={detail.tenantKey} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} />
         <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
         <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
         <JobSchedulesPanel schedules={detail.schedules} total={detail.schedulesTotal} onChanged={reload} />

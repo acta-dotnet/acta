@@ -76,6 +76,9 @@ internal sealed record JobDetailResponse(
     // Echo of the snapshot's tenant key at the top level so the summary link needs no snapshot dig.
     // Absent when the job has no tenant.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TenantKey,
+    // Effective retry budget from the definition so the summary can render "n of m consecutive
+    // failures" without a second read. Absent when the definition row is gone.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] short? MaxAttemptsEffective,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<JobWorkerListItem>? Workers,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal
 )
@@ -114,6 +117,7 @@ internal sealed record JobDetailResponse(
             ),
             ct
         );
+        var definition = await operations.Definitions.GetAsync(snapshot.JobDefinitionId, ct);
         // Every worker in the namespace, not just the live ones: the "why isn't this running?" panel
         // needs the whole set to tell "no workers at all" from "workers, none of them active".
         var workers =
@@ -134,6 +138,7 @@ internal sealed record JobDetailResponse(
             schedules.Items,
             schedules.TotalCount,
             snapshot.TenantKey,
+            definition?.MaxAttemptsEffective,
             workers?.Items,
             workers?.TotalCount
         );

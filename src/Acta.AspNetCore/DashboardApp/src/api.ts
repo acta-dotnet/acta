@@ -400,6 +400,8 @@ export interface JobDetailView {
   // Filter-wide counts: above the array length means this is the first page, not the whole set.
   schedulesTotal: number | null;
   tenantKey?: string;
+  // Effective retry budget from the definition; absent when the definition row is gone.
+  maxAttemptsEffective?: number;
   workers: JobWorker[] | null;
   workersTotal?: number;
 }

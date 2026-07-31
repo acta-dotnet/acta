@@ -31,8 +31,8 @@
   const columns = [
     { key: 'tenantKey', header: 'Tenant key', class: 'mono' },
     { key: 'displayName', header: 'Display name' },
-    { key: 'description', header: 'Description' },
     { key: 'status', header: 'Status' },
+    { key: 'description', header: 'Description' },
     { key: 'createdAtUtc', header: 'Created' },
     { key: 'modifiedAtUtc', header: 'Modified' },
     { key: 'actions', header: '', class: 'col-open' }
