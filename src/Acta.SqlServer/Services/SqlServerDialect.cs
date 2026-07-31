@@ -532,7 +532,7 @@ internal sealed class SqlServerDialect : ISqlDialect
                 record.SetInt32(3, request.ExpectedExecutionNumber);
                 record.SetBoolean(4, request.Outcome == ExecutionOutcome.Succeeded);
                 SetNullableInt32(record, 5, request.DurationMs);
-                SetNullableInt16(record, 6, request.JobEventReasonCode is { } reason ? (short)reason : null);
+                SetNullableByte(record, 6, request.JobEventReasonCode is { } reason ? (byte)reason : null);
                 SetNullableString(record, 7, request.ReasonMessage);
                 record.SetByte(8, request.ResultFormatId);
                 SetBytesOrNull(record, 9, request.Result, !request.Result.IsEmpty);
@@ -596,6 +596,18 @@ internal sealed class SqlServerDialect : ISqlDialect
         else
         {
             record.SetString(ordinal, value);
+        }
+    }
+
+    private static void SetNullableByte(SqlDataRecord record, int ordinal, byte? value)
+    {
+        if (value is { } number)
+        {
+            record.SetByte(ordinal, number);
+        }
+        else
+        {
+            record.SetDBNull(ordinal);
         }
     }
 

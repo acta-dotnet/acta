@@ -197,6 +197,53 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqC.JobId, ct)).Status);
     }
 
+    [Fact(DisplayName = "Batch with a terminal failure row finalizes it as Failed and the event keeps the reason code")]
+    public async Task Failure_row_with_reason_code_finalizes_and_event_keeps_reason()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect, leaseTtl, ns, workerId) = await DepsAsync(ct);
+
+        if (dialect.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompleteExecutionsBatch is not supported on SQLite (Bulk degrades to Direct there).");
+        }
+
+        var okEnq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var failEnq = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2))),
+            ct
+        );
+
+        var ok = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, okEnq.JobId, ct);
+        var fail = await ClaimAndStartAsync(db, dialect, ns, workerId, leaseTtl, failEnq.JobId, ct);
+
+        // A terminal failure with an exhausted retry budget carries a non-null reason code through the
+        // batch TVP; this is the payload shape the scalar path always handled but the batch never saw.
+        var requests = new List<CompleteExecutionRequest>
+        {
+            MakeRequest(ok, workerId),
+            MakeRequest(
+                fail,
+                workerId,
+                outcome: ExecutionOutcome.Failed,
+                reason: JobEventReasonCode.JobExecutionTimeout,
+                reasonMessage: "Execution exceeded the configured timeout.",
+                failureCount: 3
+            ),
+        };
+
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
+
+        Assert.Equal([true, true], results);
+        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(okEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(failEnq.JobId, ct)).Status);
+
+        var events = await GetEventsByJobId.Run(Services, failEnq.JobId, ct);
+        var finished = Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished));
+        Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished.JobEventReasonCode);
+        Assert.Equal(JobStatusCode.Failed, finished.ToStatus);
+    }
+
     [Fact(DisplayName = "Wrong-owner batch entry declines with false and scalar CompleteExecution returns NotOwner")]
     public async Task Wrong_owner_batch_entry_declines_and_scalar_complete_returns_not_owner()
     {
@@ -260,13 +307,24 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         return claimed;
     }
 
-    private static CompleteExecutionRequest MakeRequest(ClaimedJob claimed, int workerId, bool wrongExecutionNumber = false) =>
+    private static CompleteExecutionRequest MakeRequest(
+        ClaimedJob claimed,
+        int workerId,
+        bool wrongExecutionNumber = false,
+        ExecutionOutcome outcome = ExecutionOutcome.Succeeded,
+        JobEventReasonCode? reason = null,
+        string? reasonMessage = null,
+        short? failureCount = null
+    ) =>
         new(
             JobId: claimed.JobId,
             WorkerId: workerId,
             ExpectedExecutionNumber: claimed.ExecutionNumber + (wrongExecutionNumber ? StaleOffset : 0),
-            Outcome: ExecutionOutcome.Succeeded,
+            Outcome: outcome,
             ResultFormatId: 0,
-            Result: ReadOnlyMemory<byte>.Empty
+            Result: ReadOnlyMemory<byte>.Empty,
+            JobEventReasonCode: reason,
+            ReasonMessage: reasonMessage,
+            FailureCount: failureCount
         );
 }
