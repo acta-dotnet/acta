@@ -190,12 +190,22 @@ jobs:
       - name: Package smoke
         shell: pwsh
         run: tests/PackageSmoke/run.ps1 -ExistingFeed artifacts
+      # Retained hash manifest ties the published bytes back to this run and commit (the recorded
+      # provenance policy for the release; see the publish job).
+      - name: Hash packages
+        shell: pwsh
+        run: |
+          Get-FileHash artifacts/*.nupkg, artifacts/*.snupkg -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLowerInvariant())  $(Split-Path -Leaf $_.Path)" } |
+            Set-Content artifacts/SHA256SUMS.txt
+          Get-Content artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: packages
           path: |
             artifacts/*.nupkg
             artifacts/*.snupkg
+            artifacts/SHA256SUMS.txt
           if-no-files-found: error
 
   aot-publish:

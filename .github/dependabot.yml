@@ -1,0 +1,8 @@
+# Keeps the SHA-pinned actions in ci.yml current: dependabot bumps the pinned commit and its
+# version comment together, so pins never rot into stale (potentially vulnerable) action code.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
