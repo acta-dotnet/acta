@@ -37,14 +37,14 @@ await Task.Delay(800);
 
 // ListJobsAsync with a namespace filter: all jobs in this namespace.
 Console.WriteLine("=== ListJobsAsync (namespace filter, page size 3) ===");
-var page1 = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 3, IncludeTotal: true));
+var page1 = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 3, IncludeTotal: true));
 Console.WriteLine($"Page 1: {page1.Items.Count} items, total={page1.TotalCount}, hasMore={page1.HasMore}");
 foreach (var item in page1.Items)
     Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
 
 // ListJobsAsync with a status filter.
 Console.WriteLine("=== ListJobsAsync (status=Cancelled filter) ===");
-var cancelled = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", Status: JobStatusCode.Cancelled));
+var cancelled = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", Status: JobStatusCode.Cancelled));
 Console.WriteLine($"Cancelled jobs: {cancelled.Items.Count}");
 foreach (var item in cancelled.Items)
     Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
@@ -53,7 +53,9 @@ foreach (var item in cancelled.Items)
 Console.WriteLine("=== Keyset paging: second page via NextCursor ===");
 if (page1.HasMore && page1.NextCursor is not null)
 {
-    var page2 = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 3, Cursor: page1.NextCursor));
+    var page2 = await queries.Ledger.ListJobsAsync(
+        new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 3, Cursor: page1.NextCursor)
+    );
     Console.WriteLine($"Page 2: {page2.Items.Count} items, hasMore={page2.HasMore}");
     foreach (var item in page2.Items)
         Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
@@ -65,13 +67,13 @@ else
 
 // IncludeTotal: total count across the filter.
 Console.WriteLine("=== IncludeTotal: total across namespace ===");
-var withTotal = await queries.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 1, IncludeTotal: true));
+var withTotal = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 1, IncludeTotal: true));
 Console.WriteLine($"TotalCount across namespace: {withTotal.TotalCount}");
 
 // GetOverviewAsync: one-shot health counters for the whole system.
 // Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in rung 404.
 Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
-var overview = await operations.GetOverviewAsync(new OverviewQuery());
+var overview = await operations.Ledger.GetOverviewAsync(new OverviewQuery());
 Console.WriteLine($"Jobs={overview.JobCount} (system={overview.SystemJobCount}, user={overview.JobCount - overview.SystemJobCount})");
 Console.WriteLine($"Ready={overview.ReadyCount} Executing={overview.ExecutingCount} Failed={overview.FailedCount}");
 Console.WriteLine($"UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers={overview.DeadWorkerCount}");

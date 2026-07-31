@@ -122,7 +122,7 @@ internal static class ScenarioDiagnostics
         }
         sb.AppendLine();
 
-        var events = await host.Operations.ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: 8), ct);
+        var events = await host.Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: 8), ct);
         if (events.Items.Count > 0)
         {
             sb.AppendLine("Recent events:");

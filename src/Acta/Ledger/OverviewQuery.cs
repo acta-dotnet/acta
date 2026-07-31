@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Scope and thresholds for <see cref="IActaOperations.GetOverviewAsync"/>. Null namespace means
+/// Scope and thresholds for <see cref="ILedger.GetOverviewAsync"/>. Null namespace means
 /// whole system.
 /// </summary>
 /// <param name="JobNamespace">Optional namespace scope.</param>

@@ -162,10 +162,10 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             x => x.JobDefinitionId == targets.DefinitionId
         );
 
-        var jobs = await Operations.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var jobs = await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(jobs.Items, x => x.JobId == targets.JobId);
         Assert.DoesNotContain(
-            (await Operations.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobId == targets.JobId
         );
 
@@ -190,10 +190,10 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             x => x.JobAlertId == targets.AlertId
         );
 
-        var events = await Operations.ListJobEventsAsync(new ListJobEventsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var events = await Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(events.Items, x => x.JobEventId == targets.EventId);
         Assert.DoesNotContain(
-            (await Operations.ListJobEventsAsync(new ListJobEventsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobEventId == targets.EventId
         );
     }

@@ -195,7 +195,7 @@ internal sealed class CliCommandRunner(
 
     /// <summary>
     /// Prints the job's audit timeline newest first: resolves the target to a job id, then reads one
-    /// page of ListJobEventsAsync scoped to that id. This is the operator path to the "why" behind a
+    /// page of ILedger.ListEventsAsync scoped to that id. This is the operator path to the "why" behind a
     /// terminal status, which the job snapshot no longer carries.
     /// </summary>
     private async Task<int> EventsAsync(JobLookup lookup, int? take, string? cursor, bool json, CancellationToken ct)
@@ -207,7 +207,7 @@ internal sealed class CliCommandRunner(
             return ExitNotFound;
         }
 
-        var page = await operations.ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: take, Cursor: cursor), ct);
+        var page = await operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: take, Cursor: cursor), ct);
         CliOutput.WriteEvents(output, jobId.Value, page, json);
         return ExitOk;
     }

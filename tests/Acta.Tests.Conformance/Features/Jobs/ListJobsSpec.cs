@@ -55,7 +55,7 @@ public abstract class ListJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var pages = 0;
         do
         {
-            var page = await queries.ListJobsAsync(
+            var page = await queries.Ledger.ListJobsAsync(
                 new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", PageSize: 2, Cursor: cursor),
                 ct
             );
@@ -91,13 +91,13 @@ public abstract class ListJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         await SeedJobsForList(3);
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var withoutTotal = await queries.ListJobsAsync(
+        var withoutTotal = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", PageSize: 1),
             ct
         );
         Assert.Null(withoutTotal.TotalCount);
 
-        var withTotal = await queries.ListJobsAsync(
+        var withTotal = await queries.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", PageSize: 1, IncludeTotal: true),
             ct
         );
