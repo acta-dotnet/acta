@@ -745,7 +745,7 @@ internal static class ActaApiEndpoints
         );
     }
 
-    // Only the two typed validation exceptions are caller errors; anything else (including a plain
+    // Only the typed validation exceptions are caller errors; anything else (including a plain
     // ArgumentException thrown by a server-side bug) falls through to the sanitized 500 handler.
     private static async Task<IResult> Guard(Func<Task<IResult>> action)
     {
@@ -753,11 +753,7 @@ internal static class ActaApiEndpoints
         {
             return await action();
         }
-        catch (InvalidPageCursorException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (InvalidQueryException ex)
+        catch (ArgumentException ex) when (ex is InvalidPageCursorException or InvalidQueryException)
         {
             return BadRequest(ex.Message);
         }
