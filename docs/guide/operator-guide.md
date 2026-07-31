@@ -484,7 +484,7 @@ Acta ships no login system; the dashboard and JSON API are local-only by default
 
 ## Production checklist
 
-Acta is in early 0.1.x preview and not recommended for production yet. Use this for production-like evaluation and staging.
+Acta is in early preview and not recommended for production yet. Use this for production-like evaluation and staging.
 
 Version and schema:
 - The migration history freezes at 1.0.0. Before it, `M001` may be re-cut in any release, which means dropping and reprovisioning the database (bootstrap refuses to start on a baseline mismatch rather than applying it). From 1.0.0 schema changes ship as additive `Mnnn` migrations. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
