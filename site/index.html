@@ -535,11 +535,11 @@
       <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default, with mutating verbs off until you enable them.</p>
       <figure class="shot">
         <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
-          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with action-needed banner, job counts, failed jobs, dead workers, and unresolved alerts" loading="lazy" width="3200" height="2000" />
+          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with health verdict, job counts, workers with heartbeats, and next schedules" loading="lazy" width="3200" height="2000" />
         </div>
         <figcaption>
-          <span class="stamp">Field record · Anvil crash lab</span>
-          <span>Captured mid-experiment: 15 worker processes killed on purpose. The ledger shows what died, what failed, and what remains eligible for recovery. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Operator guide →</a></span>
+          <span class="stamp">Field record · Anvil steady run</span>
+          <span>Captured mid-run: 10,000 jobs draining through two workers. The ledger shows the backlog, the oldest ready job, live heartbeats, and the next schedule firings. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Operator guide →</a></span>
         </figcaption>
       </figure>
     </section>
