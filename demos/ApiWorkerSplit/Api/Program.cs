@@ -1,4 +1,5 @@
 using Acta;
+using Acta.Demos.ApiWorkerSplit;
 using Acta.Demos.ApiWorkerSplit.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);

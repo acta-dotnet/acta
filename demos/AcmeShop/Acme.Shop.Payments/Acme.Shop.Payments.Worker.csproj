@@ -8,4 +8,14 @@
     <ProjectReference Include="..\Acme.Shop.Shipping.Contracts\Acme.Shop.Shipping.Contracts.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The SDK this app codes against, plus every provider LocalDatabase.cs can select at runtime. -->
+    <PackageReference Include="Acta" />
+    <PackageReference Include="Acta.Postgres" />
+    <PackageReference Include="Acta.SqlServer" />
+    <PackageReference Include="Acta.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\LocalDatabase.cs" Link="LocalDatabase.cs" />
+  </ItemGroup>
 </Project>

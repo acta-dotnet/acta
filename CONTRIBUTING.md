@@ -190,7 +190,8 @@ docs/       hand-written guides + generated references (index: docs/README.md)
 src/        production packages, source generators, emit tooling
 tests/      unit, dashboard, conformance, and provider-specific tests
 concepts/   runnable single-concept tutorial rungs (one idea each)
-demos/      larger multi-project apps (production shapes)
+demos/      larger multi-project apps (production shapes); consume the published Acta packages,
+            so they are not in Acta.slnx and build independently of src/
 anvil/      Acta Anvil (interactive proof/dashboard harness) and Anvil.Bench (benchmark/load rig)
 support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
 tools/      Acta.Emit CLI (generated docs and initial SQL migrations), Acta.Doctor (environment preflight + concept smoke)

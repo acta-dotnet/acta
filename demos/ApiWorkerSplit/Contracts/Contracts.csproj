@@ -3,6 +3,6 @@
     <RootNamespace>Acta.Demos.ApiWorkerSplit.Contracts</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Acta\Acta.csproj" />
+    <PackageReference Include="Acta" />
   </ItemGroup>
 </Project>

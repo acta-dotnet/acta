@@ -1,3 +1,4 @@
+using Acme.Shop;
 using Acme.Shop.Shipping;
 using Acta;
 using Microsoft.Extensions.Hosting;
