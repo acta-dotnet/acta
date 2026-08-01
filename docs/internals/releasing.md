@@ -39,6 +39,14 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 - Release notes/changelog reviewed when applicable.
 - Preview compatibility policy stated in known limitations still matches the release.
 
+## After publishing
+
+- Bump the Acta `PackageVersion` entries in `demos/Directory.Packages.props` to the released version.
+- Build both demos (`dotnet build demos/AcmeShop`, `dotnet build demos/ApiWorkerSplit`) and run one end
+  to end. The demos consume the published packages, so this is the release verification that the packaged
+  artifacts work in a real multi-project app: analyzers and the `[Job]` generator flowing from package
+  assets, the dashboard serving from the embedded assets, providers resolving transitively.
+
 ## Final checks
 
 - No generated docs drift.

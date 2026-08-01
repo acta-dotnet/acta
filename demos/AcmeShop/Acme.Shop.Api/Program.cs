@@ -1,3 +1,4 @@
+using Acme.Shop;
 using Acme.Shop.Api;
 using Acme.Shop.Api.Domain;
 using Acme.Shop.Payments.Contracts;

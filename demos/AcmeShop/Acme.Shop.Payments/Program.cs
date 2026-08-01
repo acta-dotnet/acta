@@ -1,3 +1,4 @@
+using Acme.Shop;
 using Acme.Shop.Payments;
 using Acta;
 using Microsoft.Extensions.Hosting;

@@ -108,19 +108,6 @@
     <Project Path="concepts/900-runtime-and-tuning/903-redis-wakeup/903-redis-wakeup.csproj" />
     <Project Path="concepts/900-runtime-and-tuning/904-worker-tuning/904-worker-tuning.csproj" />
   </Folder>
-  <Folder Name="/demos/" />
-  <Folder Name="/demos/ApiWorkerSplit/">
-    <Project Path="demos/ApiWorkerSplit/Contracts/Contracts.csproj" />
-    <Project Path="demos/ApiWorkerSplit/Api/Api.csproj" />
-    <Project Path="demos/ApiWorkerSplit/Worker/Worker.csproj" />
-  </Folder>
-  <Folder Name="/demos/AcmeShop/">
-    <Project Path="demos/AcmeShop/Acme.Shop.Payments.Contracts/Acme.Shop.Payments.Contracts.csproj" />
-    <Project Path="demos/AcmeShop/Acme.Shop.Shipping.Contracts/Acme.Shop.Shipping.Contracts.csproj" />
-    <Project Path="demos/AcmeShop/Acme.Shop.Api/Acme.Shop.Api.csproj" />
-    <Project Path="demos/AcmeShop/Acme.Shop.Payments/Acme.Shop.Payments.Worker.csproj" />
-    <Project Path="demos/AcmeShop/Acme.Shop.Shipping/Acme.Shop.Shipping.Worker.csproj" />
-  </Folder>
   <Folder Name="/anvil/">
     <Project Path="anvil/Anvil/Anvil.csproj" />
     <Project Path="anvil/Anvil.Bench/Anvil.Bench.csproj" />

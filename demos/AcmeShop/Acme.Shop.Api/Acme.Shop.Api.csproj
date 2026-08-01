@@ -4,6 +4,16 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Acme.Shop.Payments.Contracts\Acme.Shop.Payments.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
+    <PackageReference Include="Acta.AspNetCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The SDK this app codes against, plus every provider LocalDatabase.cs can select at runtime. -->
+    <PackageReference Include="Acta" />
+    <PackageReference Include="Acta.Postgres" />
+    <PackageReference Include="Acta.SqlServer" />
+    <PackageReference Include="Acta.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\LocalDatabase.cs" Link="LocalDatabase.cs" />
   </ItemGroup>
 </Project>
