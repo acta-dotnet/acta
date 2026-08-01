@@ -116,6 +116,8 @@ internal sealed record JobPageRequest(
     int? TenantId,
     string? CorrelationKey,
     string? TagFiltersJson,
+    bool? TerminalOnly,
+    bool? RecurringOnly,
     DateTime? CursorCreatedAtUtc,
     long? CursorId,
     int Take,

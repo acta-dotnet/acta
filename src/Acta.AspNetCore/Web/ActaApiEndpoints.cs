@@ -155,6 +155,8 @@ internal static class ActaApiEndpoints
                     || !QueryBinding.TryInt(http.Request.Query, "tenantId", out var tenantId, ref error)
                     || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                     || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
+                    || !QueryBinding.TryBool(http.Request.Query, "terminalOnly", out var terminalOnly, ref error)
+                    || !QueryBinding.TryBool(http.Request.Query, "recurringOnly", out var recurringOnly, ref error)
                 )
                 {
                     return Task.FromResult(BadRequest(error));
@@ -194,7 +196,9 @@ internal static class ActaApiEndpoints
                         PageSize: pageSize,
                         Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
                         IncludeTotal: includeTotal ?? false,
-                        Tags: QueryBinding.Tags(http.Request.Query)
+                        Tags: QueryBinding.Tags(http.Request.Query),
+                        TerminalOnly: terminalOnly,
+                        RecurringOnly: recurringOnly
                     );
                     return Results.Json(
                         await operations.Ledger.ListJobsAsync(query, ct),

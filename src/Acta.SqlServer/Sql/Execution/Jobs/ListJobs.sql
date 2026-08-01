@@ -37,6 +37,12 @@ SELECT TOP (@p_take)
                   AND (f.value_search IS NULL OR t.value_search = f.value_search)
          )
    ))
+   AND (@p_terminal_only IS NULL OR r.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+   AND (@p_recurring_only IS NULL OR EXISTS (
+        SELECT 1
+          FROM {{schema}}.schedules s
+         WHERE s.job_id = j.id AND s.orphaned_at_utc IS NULL
+   ))
    AND (@p_cursor_created_at_utc IS NULL
         OR j.created_at_utc < @p_cursor_created_at_utc
         OR (j.created_at_utc = @p_cursor_created_at_utc AND j.id < @p_cursor_id))
@@ -68,6 +74,12 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
                            AND t.name = f.name
                            AND (f.value_search IS NULL OR t.value_search = f.value_search)
                   )
+            ))
+            AND (@p_terminal_only IS NULL OR r.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+            AND (@p_recurring_only IS NULL OR EXISTS (
+                 SELECT 1
+                   FROM {{schema}}.schedules s
+                  WHERE s.job_id = j.id AND s.orphaned_at_utc IS NULL
             ))
        ) END
  OPTION (RECOMPILE);

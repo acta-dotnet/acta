@@ -113,7 +113,10 @@ public abstract class ListJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var page_total = await Services
             .GetRequiredService<IJobStore>()
-            .ListJobsAsync(new JobPageRequest(TestNamespace, null, "add-numbers", null, null, null, null, null, null, 2, true), ct);
+            .ListJobsAsync(
+                new JobPageRequest(TestNamespace, null, "add-numbers", null, null, null, null, null, null, null, null, 2, true),
+                ct
+            );
         var (rows, total) = (page_total.Rows, page_total.Total);
 
         Assert.Equal(2, rows.Count);
