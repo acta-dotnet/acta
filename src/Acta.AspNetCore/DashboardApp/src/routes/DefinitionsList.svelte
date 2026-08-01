@@ -3,6 +3,7 @@
   import { hashParams, updateHashParams } from '../router';
   import { scope } from '../scope';
   import { displayFormatter } from '../format';
+  import Icon from '../components/Icon.svelte';
   import Page from '../components/Page.svelte';
   import ActaGrid from '../components/grid/ActaGrid.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
@@ -77,7 +78,7 @@
     </FilterBar>
     <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
     {#snippet statusCell(def: DefinitionRow)}<StatusBadge status={def.status} />{/snippet}
-    {#snippet nameCell(def: DefinitionRow)}<a href={detailHref(def)}>{def.jobName}</a> <a class="dim" href={jobsHref(def)} title="View jobs">jobs</a>{/snippet}
+    {#snippet nameCell(def: DefinitionRow)}<a href={detailHref(def)}>{def.jobName}</a> <a class="jobs-drill" href={jobsHref(def)} title="View this definition's jobs" aria-label="View this definition's jobs"><Icon name="chevron-right" /></a>{/snippet}
     {#snippet inputCell(def: DefinitionRow)}<span title={def.inputTypeName}>{displayFormatter.typeName(def.inputTypeName)}</span>{/snippet}
     {#snippet outputCell(def: DefinitionRow)}<span title={def.outputTypeName ?? ''}>{displayFormatter.typeName(def.outputTypeName)}</span>{/snippet}
     {#snippet priorityCell(def: DefinitionRow)}{def.priorityEffective}{#if def.priorityOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
@@ -107,6 +108,11 @@
 </Page>
 
 <style>
+  /* Row drill-through to the definition's jobs: quiet chevron that takes the accent on hover. */
+  .jobs-drill { color: var(--muted); margin-left: 4px; }
+  .jobs-drill:hover { color: var(--accent); }
+  .jobs-drill :global(.ic) { top: 2px; }
+
   .ovr {
     color: var(--accent);
     font-weight: 700;
