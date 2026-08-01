@@ -218,14 +218,20 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
 
         var page_matched = await Services
             .GetRequiredService<IJobStore>()
-            .ListJobsAsync(new JobPageRequest(TestNamespace, null, null, null, tenantId, null, null, null, null, 100, false), ct);
+            .ListJobsAsync(
+                new JobPageRequest(TestNamespace, null, null, null, tenantId, null, null, null, null, null, null, 100, false),
+                ct
+            );
         var (matched, _) = (page_matched.Rows, page_matched.Total);
         Assert.Contains(matched, r => r.JobId == jobId && r.TenantId == tenantId);
 
         // A different (non-existent) tenant id excludes the row.
         var page_other = await Services
             .GetRequiredService<IJobStore>()
-            .ListJobsAsync(new JobPageRequest(TestNamespace, null, null, null, tenantId + 100_000, null, null, null, null, 100, false), ct);
+            .ListJobsAsync(
+                new JobPageRequest(TestNamespace, null, null, null, tenantId + 100_000, null, null, null, null, null, null, 100, false),
+                ct
+            );
         var (other, _) = (page_other.Rows, page_other.Total);
         Assert.DoesNotContain(other, r => r.JobId == jobId);
     }

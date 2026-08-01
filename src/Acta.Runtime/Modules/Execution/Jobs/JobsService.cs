@@ -147,6 +147,9 @@ internal sealed class JobsService(
         QueryValidation.ValidatePositiveId(query.ParentJobId, nameof(query.ParentJobId));
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
         var tagFiltersJson = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
+        // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
+        var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
+        var recurringOnly = query.RecurringOnly == true ? (bool?)true : null;
 
         var filterHash = QueryFilterHash.Compute([
             ("ns", query.JobNamespace),
@@ -156,6 +159,8 @@ internal sealed class JobsService(
             ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
             ("correlation", query.CorrelationKey),
             ("tags", tagFiltersJson),
+            ("terminal", terminalOnly is null ? null : "1"),
+            ("recurring", recurringOnly is null ? null : "1"),
         ]);
 
         DateTime? cursorCreatedAtUtc = null;
@@ -184,6 +189,8 @@ internal sealed class JobsService(
                 query.TenantId,
                 query.CorrelationKey,
                 tagFiltersJson,
+                terminalOnly,
+                recurringOnly,
                 cursorCreatedAtUtc,
                 cursorId,
                 pageSize + 1,

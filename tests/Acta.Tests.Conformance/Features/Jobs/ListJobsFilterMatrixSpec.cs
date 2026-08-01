@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Reads",
     Contract = "ListJobs filters partition the result to exactly the matching rows and exclude all non-matching rows for each filter dimension.",
     Arrange = "Job rows differing only by the filtered field are seeded per-test in isolation.",
-    Act = "ListJobs runs once per filter dimension: status, parentJobId, tenantId, namespace, jobName, and correlationKey.",
+    Act = "ListJobs runs once per filter dimension: status, parentJobId, tenantId, namespace, jobName, correlationKey, terminalOnly, and recurringOnly.",
     Assert = "The returned id set equals exactly the matching ids with non-matching ids absent."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ListJobsAsync))]
@@ -110,6 +110,69 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
             ct
         );
         Assert.Equal([j3], failedPage.Items.Select(static i => i.JobId).ToHashSet());
+    }
+
+    [Fact(DisplayName = "TerminalOnly restricts to terminal rows and RecurringOnly to jobs with a live schedule attached")]
+    public async Task TerminalOnly_and_RecurringOnly_flags_restrict_exactly()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        const int LeaseTtl = 300;
+
+        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        Assert.NotNull(worker);
+
+        // One row stays Ready, one is driven to terminal Failed.
+        var outcomes = await EnqueueAsync([AddNumbersRow(), AddNumbersRow()], ct);
+        var ready = outcomes[0].JobId;
+        var failed = outcomes[1].JobId;
+
+        var execution = Services.GetRequiredService<IExecutionStore>();
+        var claim = Assert.Single(await execution.ClaimOneAsync(ns, worker!.Id, LeaseTtl, failed, ct));
+        Assert.Equal(
+            StartExecutionAction.Started,
+            await execution.StartExecutionAsync(claim.JobId, worker.Id, claim.ExecutionNumber, claim.Version, LeaseTtl, ct)
+        );
+        var completed = await execution.CompleteExecutionAsync(
+            new CompleteExecutionRequest(
+                claim.JobId,
+                worker.Id,
+                claim.ExecutionNumber,
+                ExecutionOutcome.Failed,
+                0,
+                ReadOnlyMemory<byte>.Empty
+            )
+            {
+                HandlerStatusCode = (byte)JobStatusCode.Failed,
+            },
+            ct
+        );
+        Assert.Equal(CompleteExecutionAction.Completed, completed.Action);
+
+        var queries = Services.GetRequiredService<IActaOperations>();
+
+        // TerminalOnly: only the failed row survives; the Ready sibling is excluded and the total matches.
+        var terminalPage = await queries.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", TerminalOnly: true, IncludeTotal: true),
+            ct
+        );
+        Assert.Equal([failed], terminalPage.Items.Select(static i => i.JobId).ToHashSet());
+        Assert.Equal(1L, terminalPage.TotalCount);
+
+        // RecurringOnly: only the namespace's recurring slot jobs carry a live schedule; the plain
+        // enqueued add-numbers rows are excluded.
+        var recurringPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, RecurringOnly: true), ct);
+        var recurringNames = recurringPage.Items.Select(static i => i.JobName).ToHashSet();
+        Assert.Contains("recurring-ping", recurringNames);
+        Assert.DoesNotContain("add-numbers", recurringNames);
+        Assert.DoesNotContain(recurringPage.Items, i => i.JobId == ready || i.JobId == failed);
+
+        // False is a no-op, identical to the unfiltered read.
+        var falsePage = await queries.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", TerminalOnly: false, RecurringOnly: false),
+            ct
+        );
+        Assert.Equal([ready, failed], falsePage.Items.Select(static i => i.JobId).ToHashSet());
     }
 
     [Fact(DisplayName = "ParentJobId filter returns exactly the direct children of that parent and no other children")]

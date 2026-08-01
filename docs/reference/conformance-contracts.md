@@ -1474,10 +1474,11 @@
 ### ListJobs filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobs filters partition the result to exactly the matching rows and exclude all non-matching rows for each filter dimension.
 - **Arrange:** Job rows differing only by the filtered field are seeded per-test in isolation.
-- **Act:** ListJobs runs once per filter dimension: status, parentJobId, tenantId, namespace, jobName, and correlationKey.
+- **Act:** ListJobs runs once per filter dimension: status, parentJobId, tenantId, namespace, jobName, correlationKey, terminalOnly, and recurringOnly.
 - **Assert:** The returned id set equals exactly the matching ids with non-matching ids absent.
 - **Guarantees:**
   - Status filter returns only jobs at the specified status and the total matches the filtered count
+  - TerminalOnly restricts to terminal rows and RecurringOnly to jobs with a live schedule attached
   - ParentJobId filter returns exactly the direct children of that parent and no other children
   - TenantId filter returns exactly the jobs for that tenant and excludes all other tenants' jobs
   - Namespace filter returns only jobs in the requested namespace and the total matches the filtered count

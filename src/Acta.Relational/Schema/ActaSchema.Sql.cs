@@ -596,6 +596,26 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
+        // ListJobs tri-state flags: true restricts to terminal rows / rows with a live schedule
+        // attached; NULL skips each (false is folded to NULL before binding).
+        public static readonly DbValueSpec<bool?> TerminalOnlyFlag = new(
+            ParameterName: "p_terminal_only",
+            Kind: DbKind.Boolean,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
+        public static readonly DbValueSpec<bool?> RecurringOnlyFlag = new(
+            ParameterName: "p_recurring_only",
+            Kind: DbKind.Boolean,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         // List-read tri-state flag: null skips the filter, true/false restrict to acknowledged/unacknowledged
         // rows (unlike the "only" flags above, both non-null states are meaningful, not just true).
         public static readonly DbValueSpec<bool?> AcknowledgedFilter = new(
