@@ -1,14 +1,17 @@
 <script>
-  import { displayFormatter, statusClass } from '../format';
+  import { displayFormatter } from '../format';
   import {
     failedTimelineAttempts,
     matchesTimelineCategory,
-    timelineAttemptNumbers
+    timelineAttemptNumbers,
+    timelinePresentation
   } from './jobTimelineState.ts';
+  import Icon from './Icon.svelte';
   import RelativeTime from './RelativeTime.svelte';
 
   let {
     events = [],
+    nextRunAtUtc = null,
     hasMore = false,
     loadingMore = false,
     onLoadMore = () => {}
@@ -30,6 +33,15 @@
   );
 
   let attempts = $derived(group(filteredEvents));
+  // The newest visible event is the rail's one bold moment when it is a settled outcome. Events
+  // arrive newest-first, so the head of the filtered list is the chronological tail of the rail
+  // (a terminal job.cancelled lives in the Lifecycle group, not the highest attempt).
+  let terminalEventId = $derived.by(() => {
+    const newest = filteredEvents[0];
+    if (!newest) return null;
+    const tone = timelinePresentation(newest).tone;
+    return tone === 'ok' || tone === 'bad' ? newest.jobEventId : null;
+  });
 
   function jumpToFailedAttempt() {
     if (failedAttempts.length > 0) attemptFilter = String(failedAttempts[0]);
@@ -83,21 +95,40 @@
   <div class="timeline">
     {#each attempts as [attempt, steps]}
       <div class="timeline-attempt" id={'attempt-' + attempt}>
-        <span class="timeline-attempt-label">{attempt === 0 ? 'Lifecycle' : 'Attempt ' + displayFormatter.number(attempt)}</span>
-        <div class="timeline-steps">
-          {#each steps as evt}
-            <span class="timeline-step">
-              <span class="badge {statusClass(evt.toStatus ?? evt.executionStatus ?? '')}">{evt.eventCode}</span>
-              {#if evt.durationMs != null}<span class="dim">{displayFormatter.milliseconds(evt.durationMs)}</span>{/if}
-              {#if evt.reasonMessage || evt.reasonCode}
-                <span class="timeline-reason">
-                  {#if evt.reasonCode}<span class="mono">{evt.reasonCode}</span>{/if}{#if evt.reasonCode && evt.reasonMessage}: {/if}{evt.reasonMessage ?? ''}
-                </span>
-              {/if}
-            </span>
-          {/each}
+        <div class="timeline-eyebrow">
+          <span class:flag={failedAttempts.includes(attempt)}>{attempt === 0 ? 'Lifecycle' : 'Attempt ' + displayFormatter.number(attempt)}</span>
         </div>
-        <RelativeTime value={steps[steps.length - 1].createdAtUtc} />
+        <ol class="rail">
+          {#each steps as evt (evt.jobEventId)}
+            {@const p = timelinePresentation(evt)}
+            <li class={'t-' + p.tone}>
+              <span class="rail-node" class:terminal={evt.jobEventId === terminalEventId}><Icon name={p.icon} /></span>
+              <div class="rail-body">
+                <div class="rail-title">
+                  {p.title}
+                  {#if evt.durationMs != null}<span class="rail-chip">{displayFormatter.milliseconds(evt.durationMs)}</span>{/if}
+                </div>
+                {#if evt.reasonMessage || evt.reasonCode}
+                  <div class="rail-reason">
+                    {#if evt.reasonCode}<span class="mono">{evt.reasonCode}</span>{/if}{#if evt.reasonCode && evt.reasonMessage}&nbsp;·&nbsp;{/if}{evt.reasonMessage ?? ''}
+                  </div>
+                {/if}
+                <div class="rail-code">{evt.eventCode}</div>
+              </div>
+              <span class="rail-when"><RelativeTime value={evt.createdAtUtc} /></span>
+            </li>
+          {/each}
+          {#if nextRunAtUtc && attempt === attempts[attempts.length - 1][0]}
+            <li class="t-neutral future">
+              <span class="rail-node ghost"><Icon name="clock" /></span>
+              <div class="rail-body">
+                <div class="rail-title">Next run</div>
+                <div class="rail-code">due {displayFormatter.rowTimestamp(nextRunAtUtc)}</div>
+              </div>
+              <span class="rail-when"><RelativeTime value={nextRunAtUtc} /></span>
+            </li>
+          {/if}
+        </ol>
       </div>
     {/each}
   </div>

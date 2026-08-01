@@ -15,8 +15,15 @@
     jobRef,
     enabled = true,
     polling = true,
+    nextRunAtUtc = null,
     onEventsChange = () => {}
-  }: { jobRef: string; enabled?: boolean; polling?: boolean; onEventsChange?: (events: JobEvent[]) => void } = $props();
+  }: {
+    jobRef: string;
+    enabled?: boolean;
+    polling?: boolean;
+    nextRunAtUtc?: string | null;
+    onEventsChange?: (events: JobEvent[]) => void;
+  } = $props();
 
   // The router remounts this component for a different job ref.
   // svelte-ignore state_referenced_locally
@@ -58,6 +65,7 @@
     {#if history.error}<p class="control-message warn">Latest events are still visible, but older history could not be loaded: {history.error.message}</p>{/if}
     <JobTimeline
       {events}
+      {nextRunAtUtc}
       hasMore={history.hasNextPage}
       loadingMore={history.isFetchingNextPage}
       onLoadMore={() => history.fetchNextPage()} />

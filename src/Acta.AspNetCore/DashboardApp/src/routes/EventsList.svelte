@@ -101,7 +101,8 @@
   const columns = [
     { key: 'createdAtUtc', header: 'Time' },
     { key: 'eventCode', header: 'Event' },
-    { key: 'job', header: 'Job' },
+    { key: 'job', header: 'Job', class: 'shrink' },
+    { key: 'jobName', header: 'Name', dimRepeats: true },
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
     { key: 'executionNumber', header: 'Attempt', align: 'right' },
     { key: 'actor', header: 'Actor' },
@@ -171,6 +172,9 @@
         <span class="dim">-</span>
       {/if}
     {/snippet}
+    {#snippet nameCell(evt)}
+      {#if evt.jobName}<a href={routes.jobs({ jobName: evt.jobName, namespace: evt.jobNamespace })}>{evt.jobName}</a>{:else}<span class="dim">-</span>{/if}
+    {/snippet}
     {#snippet actorCell(evt)}
       {evt.actorCode}{#if evt.actorKey}<span class="dim"> · {evt.actorKey}</span>{/if}
     {/snippet}
@@ -189,7 +193,7 @@
       emptyText={activeChips.length > 0
         ? 'No events match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
         : 'No events retained for this scope.'}
-      cells={{ createdAtUtc: timeCell, job: jobCell, executionNumber: attemptCell, actor: actorCell, reason: reasonCell }} />
+      cells={{ createdAtUtc: timeCell, job: jobCell, jobName: nameCell, executionNumber: attemptCell, actor: actorCell, reason: reasonCell }} />
   </div>
 </Page>
 

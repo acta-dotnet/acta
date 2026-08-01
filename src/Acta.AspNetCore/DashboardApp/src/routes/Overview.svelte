@@ -120,37 +120,37 @@
 
     <div class="metrics">
       <MetricCard
-        label="Total jobs"
+        label="Total jobs" icon="cube"
         value={overview.jobCount}
         note={overview.systemJobCount > 0 ? '+' + displayFormatter.number(overview.systemJobCount) + ' system' : ''}
         hint={displayFormatter.number(overview.systemJobCount) + ' framework (sys.-prefixed) jobs of ' + displayFormatter.number(overview.jobCount) + ' total'}
         href={routes.jobs({ namespace: $scope })} />
-      <MetricCard label="Ready" value={overview.readyCount} href={routes.jobs({ namespace: $scope, status: 'Ready' })} />
+      <MetricCard label="Ready" icon="clock" value={overview.readyCount} href={routes.jobs({ namespace: $scope, status: 'Ready' })} />
       <MetricCard
-        label="Oldest ready"
+        label="Oldest ready" icon="stopwatch"
         value={displayFormatter.duration(overview.oldestReadyAgeSeconds)}
         tone={overview.oldestReadyAgeSeconds > 300 ? 'warn' : ''}
         hint="How long the oldest due job has been waiting for a worker" />
-      <MetricCard label="Executing" value={overview.executingCount} href={routes.jobs({ namespace: $scope, status: 'Executing' })} />
+      <MetricCard label="Executing" icon="lightning-bolt" value={overview.executingCount} href={routes.jobs({ namespace: $scope, status: 'Executing' })} />
       <MetricCard
-        label="Failed"
+        label="Failed" icon="x-circle"
         value={overview.failedCount}
         tone={overview.failedCount > 0 ? 'bad' : 'ok'}
         href={routes.jobs({ namespace: $scope, status: 'Failed' })} />
       <MetricCard
-        label="Unresolved alerts"
+        label="Unresolved alerts" icon="bell"
         value={overview.unresolvedAlertCount}
         tone={overview.unresolvedCriticalAlertCount > 0 ? 'bad' : overview.unresolvedAlertCount > 0 ? 'warn' : 'ok'}
         hint={displayFormatter.number(overview.unresolvedCriticalAlertCount) + ' critical'}
         href={routes.alerts({ namespace: $scope })} />
       <MetricCard
-        label="Dead workers"
+        label="Dead workers" icon="person"
         value={overview.deadWorkerCount}
         tone={overview.deadWorkerCount > 0 ? 'warn' : 'ok'}
         hint={displayFormatter.number(overview.staleWorkerCount) + ' stale'}
         href={routes.workers({ namespace: $scope, status: 'Dead' })} />
       <MetricCard
-        label="Due soon"
+        label="Due soon" icon="calendar"
         value={overview.dueSoonScheduleCount}
         hint="Live schedules due within the next hour"
         href={routes.schedules({ namespace: $scope })} />

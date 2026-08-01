@@ -36,9 +36,18 @@
   const statuses = ['', 'Paused', 'Suspended', 'Ready', 'Dispatched', 'Executing', 'Done', 'Failed', 'Cancelled'];
   const initial = hashParams();
   const filters = createUrlFilters(
-    { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantId: 'tenantId', tags: 'tags' },
-    { status: '', jobName: '', correlationKey: '', tenantId: '', tags: '' }
+    { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantId: 'tenantId', tags: 'tags', view: 'view' },
+    { status: '', jobName: '', correlationKey: '', tenantId: '', tags: '', view: '' }
   );
+  // Nav-alias views: the sidebar's Recurring jobs / Job history entries are this screen with a
+  // baked-in view filter (schedule-attached rows / terminal rows).
+  let view = $derived($filters.view === 'recurring' || $filters.view === 'history' ? $filters.view : '');
+  let pageTitle = $derived(view === 'recurring' ? 'Recurring jobs' : view === 'history' ? 'Job history' : 'Jobs');
+  function clearView() {
+    // patch pushes a new hash, so hashchange fires and the sidebar's alias highlight follows;
+    // the other filters survive, keeping the chip contract of removing exactly its own filter.
+    filters.patch({ view: '' });
+  }
   const capabilities = createQuery(() => capabilitiesQuery());
   let canControlNow = $derived(canControl(capabilities.data));
   let jump = $state('');
@@ -46,6 +55,7 @@
   let showMore = $state(!!(initial.get('correlationKey') || initial.get('tags')));
 
   const columns: ColumnDef<JobRow>[] = [
+    { key: 'jobRef', header: 'Ref', class: 'shrink' },
     { key: 'job', header: 'Job' },
     { key: 'status', header: 'Status' },
     { key: 'jobNamespace', header: 'Namespace', class: 'mobile-hide', dimRepeats: true },
@@ -63,6 +73,7 @@
   // chip removes exactly its own filter. jobName only applies within a namespace scope.
   let activeChips = $derived(
     [
+      view ? { label: 'View', value: view === 'recurring' ? 'Recurring' : 'History', onRemove: clearView } : null,
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
       $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null,
@@ -124,7 +135,7 @@
   }
 </script>
 
-<Page title="Jobs">
+<Page title={pageTitle}>
   {#snippet actions()}
     {#if canControlNow}
       <a class="enqueue-action" href={routes.enqueue({ namespace: $scope })}><Icon name="plus" />Enqueue job</a>
@@ -183,10 +194,12 @@
 
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />
 
+    {#snippet refCell(job: JobRow)}
+      <JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: $scope })} />
+    {/snippet}
     {#snippet jobCell(job: JobRow)}
       <a href={routes.job(job.jobRef, { namespace: $scope })}>
         {job.jobName} {#if job.jobName?.startsWith('sys.')}<span class="badge system">system</span>{/if}
-        <JobRef value={job.jobRef} />
       </a>
     {/snippet}
     {#snippet statusCell(job: JobRow)}<StatusBadge status={job.status} />{/snippet}
@@ -205,7 +218,9 @@
         correlationKey: $filters.correlationKey.trim(),
         jobNamespace: $scope,
         tenantId: $filters.tenantId,
-        tag: parseTagTokens($filters.tags)
+        tag: parseTagTokens($filters.tags),
+        terminalOnly: view === 'history' ? 'true' : '',
+        recurringOnly: view === 'recurring' ? 'true' : ''
       })}
       countMode="on-demand"
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
@@ -214,7 +229,7 @@
       emptyText={activeChips.length > 0
         ? 'No jobs match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
         : 'No jobs yet in this view.'}
-      cells={{ job: jobCell, status: statusCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }} />
+      cells={{ jobRef: refCell, job: jobCell, status: statusCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }} />
   </div>
 </Page>
 

@@ -1,10 +1,13 @@
 <script>
   import { onMount } from 'svelte';
-  import { route } from './router';
+  import { hashParams, route } from './router';
   import { scope } from './scope';
   import { api, online } from './api';
   import ScopeSelector from './components/ScopeSelector.svelte';
   import AppearanceMenu from './components/AppearanceMenu.svelte';
+  import Icon from './components/Icon.svelte';
+  import LogoMark from './components/LogoMark.svelte';
+  import { sidebarRail, toggleSidebarRail } from './theme/sidebar.ts';
   import Overview from './routes/Overview.svelte';
   import JobsList from './routes/JobsList.svelte';
   import JobDetail from './routes/JobDetail.svelte';
@@ -33,6 +36,14 @@
   const capabilities = createQuery(() => capabilitiesQuery(), () => queryClient);
 
   let currentMetadata = $derived(routeMetadata[$route.name]);
+  // The jobs list serves three nav entries (Jobs / Recurring jobs / Job history); the baked-in
+  // view param decides which one lights up. hashchange re-runs this via $route.
+  let activeNavName = $derived.by(() => {
+    const base = currentMetadata.activeNav;
+    if (base !== 'jobs' || $route.name !== 'jobs') return base;
+    const view = hashParams().get('view');
+    return view === 'recurring' ? 'jobs-recurring' : view === 'history' ? 'jobs-history' : 'jobs';
+  });
 
   // Read-only gate every control surface reads (directly, via canControl(capabilities.data) on its
   // own createQuery(() => capabilitiesQuery()) - same cache key, one fetch). Fails closed (false)
@@ -98,9 +109,11 @@
 
   <div class="shell">
     {#if mobileNavOpen}<button class="nav-scrim" aria-label="Close navigation" onclick={() => (mobileNavOpen = false)}></button>{/if}
-    <nav id="dashboard-navigation" class="side" class:mobile-open={mobileNavOpen} aria-label="Dashboard sections">
+    <nav id="dashboard-navigation" class="side" class:rail={$sidebarRail} class:mobile-open={mobileNavOpen} aria-label="Dashboard sections">
       <div class="brand-q">
-        <div class="brand" aria-label="Acta">Acta<span class="brand-dot">.</span></div>
+        <div class="brand" aria-label="Acta">
+          <span class="brand-mark"><LogoMark size={30} /></span><span class="nav-label">Acta<span class="brand-dot">.</span></span>
+        </div>
         <div class="brand-sub">operator dashboard</div>
       </div>
       <div class="side-scope"><ScopeSelector /></div>
@@ -111,11 +124,25 @@
           <section class="nav-group" aria-labelledby={'nav-' + group.label.toLowerCase()}>
             <h2 class="nav-group-label" id={'nav-' + group.label.toLowerCase()}>{group.label}</h2>
             {#each group.routes as item}
-              <a href={navigationHref(item, $scope)} class:active={currentMetadata.activeNav === item.name} onclick={() => (mobileNavOpen = false)}>{item.label}</a>
+              <a
+                href={navigationHref(item, $scope)}
+                class:active={activeNavName === item.name}
+                title={$sidebarRail ? item.label : undefined}
+                onclick={() => (mobileNavOpen = false)}>
+                {#if item.icon}<Icon name={item.icon} />{/if}<span class="nav-label">{item.label}</span>
+              </a>
             {/each}
           </section>
         {/each}
       </div>
+      <button
+        class="side-collapse"
+        onclick={toggleSidebarRail}
+        title={$sidebarRail ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={$sidebarRail ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!$sidebarRail}>
+        <Icon name={$sidebarRail ? 'chevron-right' : 'chevron-left'} />
+      </button>
       <div class="side-theme"><AppearanceMenu /></div>
     </nav>
     <main class:fill-page={currentMetadata.fullHeight}>
