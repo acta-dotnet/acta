@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Start here/">
+    <File Path="README.md" />
+    <File Path="LocalDatabase.cs" />
+  </Folder>
+  <Project Path="Acme.Shop.Api/Acme.Shop.Api.csproj" />
+  <Project Path="Acme.Shop.Payments/Acme.Shop.Payments.Worker.csproj" />
+  <Project Path="Acme.Shop.Payments.Contracts/Acme.Shop.Payments.Contracts.csproj" />
+  <Project Path="Acme.Shop.Shipping/Acme.Shop.Shipping.Worker.csproj" />
+  <Project Path="Acme.Shop.Shipping.Contracts/Acme.Shop.Shipping.Contracts.csproj" />
+</Solution>

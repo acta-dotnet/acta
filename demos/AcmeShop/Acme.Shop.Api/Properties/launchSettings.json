@@ -2,7 +2,8 @@
   "profiles": {
     "Acme.Shop.Api": {
       "commandName": "Project",
-      "launchBrowser": false,
+      "launchBrowser": true,
+      "launchUrl": "",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
