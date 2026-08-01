@@ -31,7 +31,8 @@ internal sealed record EventListProjectionRow(
     Guid? LineageRootJobRef,
     int? TenantId,
     byte DetailFormatId,
-    byte[]? Detail
+    byte[]? Detail,
+    string? JobName
 )
 {
     public JobEventListItem ToListItem() =>
@@ -40,6 +41,7 @@ internal sealed record EventListProjectionRow(
             EventCode,
             CreatedAtUtc,
             JobNamespace,
+            JobName,
             JobId,
             JobRef is { } jobRef ? new JobRef(jobRef) : null,
             LineageRootId,

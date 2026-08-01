@@ -8,7 +8,7 @@ namespace Acta;
 /// ref parameter documents whether it survives the purge.
 /// </summary>
 /// <param name="JobEventId">Event row id.</param> <param name="EventCode">What happened.</param> <param name="CreatedAtUtc">When it happened.</param>
-/// <param name="JobNamespace">Owning namespace name.</param> <param name="JobId">Subject job id, or null for namespace-level events.</param>
+/// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Subject job's definition name resolved from the catalog (survives the purge), or null.</param> <param name="JobId">Subject job id, or null for namespace-level events.</param>
 /// <param name="JobRef">Subject job's public ref, or null for namespace-level events; denormalized on the event row, so it survives the job's purge.</param>
 /// <param name="LineageRootId">Root id of the subject's lineage tree, or null.</param> <param name="LineageRootJobRef">Lineage root's public ref, or null when there is no lineage or the root row was purged.</param>
 /// <param name="JobDefinitionId">Catalog definition id, or null.</param> <param name="TenantId">Tenant id for job-scoped events, or null.</param>
@@ -23,6 +23,7 @@ public sealed record JobEventListItem(
     JobEventCode EventCode,
     DateTime CreatedAtUtc,
     string JobNamespace,
+    string? JobName,
     [property: JsonIgnore] long? JobId,
     JobRef? JobRef,
     [property: JsonIgnore] long? LineageRootId,
