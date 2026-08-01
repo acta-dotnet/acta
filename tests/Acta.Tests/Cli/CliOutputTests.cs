@@ -142,6 +142,7 @@ public class CliOutputTests
             EventCode: code,
             CreatedAtUtc: new DateTime(2026, 6, 21, 12, 30, 1, DateTimeKind.Utc),
             JobNamespace: "shop",
+            JobName: "send-invoice",
             JobId: 7,
             JobRef: JobRef.New(),
             LineageRootId: null,
