@@ -110,9 +110,9 @@ app.MapPost(
 );
 
 // Live operations dashboard (read plus controls). Local-only by default; remote requests get 403.
-app.MapActa("/acta/jobs", o => o.EnableControls = true);
+app.MapActa("/acta", o => o.EnableControls = true);
 
-Console.WriteLine("Acme Shop API: console at http://localhost:5000  -  dashboard at http://localhost:5000/acta/jobs");
+Console.WriteLine("Acme Shop API: console at http://localhost:5000  -  dashboard at http://localhost:5000/acta");
 Console.WriteLine("Enqueue-only. Run the workers in other terminals (or use the VS multi-project launch):");
 Console.WriteLine("  dotnet run --project demos/AcmeShop/Acme.Shop.Payments");
 Console.WriteLine("  dotnet run --project demos/AcmeShop/Acme.Shop.Shipping");

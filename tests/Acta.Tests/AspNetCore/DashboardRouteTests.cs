@@ -21,12 +21,12 @@ public sealed partial class DashboardRouteTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta", TestContext.Current.CancellationToken);
         var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html; charset=utf-8", response.Content.Headers.ContentType?.ToString());
-        Assert.Contains("<base href=\"/acta/jobs/\">", html);
+        Assert.Contains("<base href=\"/acta/\">", html);
         Assert.Equal("no-cache", response.Headers.CacheControl?.ToString());
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
         Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").Single());
@@ -41,8 +41,8 @@ public sealed partial class DashboardRouteTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var spa = await client.GetAsync("/acta/jobs/some/client/route", ct);
-        var unknownApi = await client.GetAsync("/acta/jobs/api/nope", ct);
+        var spa = await client.GetAsync("/acta/some/client/route", ct);
+        var unknownApi = await client.GetAsync("/acta/api/nope", ct);
 
         Assert.Equal(HttpStatusCode.OK, spa.StatusCode);
         Assert.Equal("text/html; charset=utf-8", spa.Content.Headers.ContentType?.ToString());
@@ -57,11 +57,11 @@ public sealed partial class DashboardRouteTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var index = await (await client.GetAsync("/acta/jobs", ct)).Content.ReadAsStringAsync(ct);
+        var index = await (await client.GetAsync("/acta", ct)).Content.ReadAsStringAsync(ct);
         var match = MyRegex().Match(index);
         Assert.True(match.Success, "index.html does not reference a hashed script");
 
-        var asset = await client.GetAsync("/acta/jobs/" + match.Groups[1].Value, ct);
+        var asset = await client.GetAsync("/acta/" + match.Groups[1].Value, ct);
 
         Assert.Equal(HttpStatusCode.OK, asset.StatusCode);
         Assert.Equal("text/javascript; charset=utf-8", asset.Content.Headers.ContentType?.ToString());
@@ -75,8 +75,8 @@ public sealed partial class DashboardRouteTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var dotDot = await client.GetAsync("/acta/jobs/assets/..%2Findex.html", ct);
-        var backslash = await client.GetAsync("/acta/jobs/assets/..%5C..%5Csecrets.txt", ct);
+        var dotDot = await client.GetAsync("/acta/assets/..%2Findex.html", ct);
+        var backslash = await client.GetAsync("/acta/assets/..%5C..%5Csecrets.txt", ct);
 
         Assert.Equal(HttpStatusCode.NotFound, dotDot.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, backslash.StatusCode);
@@ -92,7 +92,7 @@ public sealed partial class DashboardRouteTests
         });
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta", TestContext.Current.CancellationToken);
         var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("http://localhost:5173/src/main.ts", html);

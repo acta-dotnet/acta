@@ -4,7 +4,7 @@ import { get } from 'svelte/store';
 import { api, ApiError, controlRequest, online } from './api.ts';
 
 (globalThis as unknown as { document: { baseURI: string } }).document = {
-  baseURI: 'http://localhost/acta/jobs/'
+  baseURI: 'http://localhost/acta/'
 };
 
 test('api constructs a base-path URL and serializes nonblank query values', async () => {
@@ -17,7 +17,7 @@ test('api constructs a base-path URL and serializes nonblank query values', asyn
   await api('jobs', { status: 'failed', empty: '', missing: null, pageSize: 50, exact: true });
 
   const url = new URL(requested);
-  assert.equal(url.pathname, '/acta/jobs/api/jobs');
+  assert.equal(url.pathname, '/acta/api/jobs');
   assert.equal(url.searchParams.get('status'), 'failed');
   assert.equal(url.searchParams.get('pageSize'), '50');
   assert.equal(url.searchParams.get('exact'), 'true');

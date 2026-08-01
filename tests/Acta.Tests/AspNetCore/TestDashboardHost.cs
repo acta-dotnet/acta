@@ -41,7 +41,7 @@ internal static class TestDashboardHost
 
         var app = builder.Build();
         configureApp?.Invoke(app);
-        app.MapActa("/acta/jobs", configureDashboard);
+        app.MapActa("/acta", configureDashboard);
         await app.StartAsync(TestContext.Current.CancellationToken);
         return (app, app.GetTestClient());
     }

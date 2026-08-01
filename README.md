@@ -34,7 +34,7 @@ Run it first (the preview is source-first; the only prerequisite is the .NET 10 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
 dotnet run --project concepts/000-fundamentals/001-hello-acta   # zero setup: embedded SQLite
-dotnet run --project anvil/Anvil    # lab UI + Acta dashboard at http://127.0.0.1:5059/acta/jobs
+dotnet run --project anvil/Anvil    # lab UI + Acta dashboard at http://127.0.0.1:5059/acta
 ```
 
 What the wiring looks like in your own app:
@@ -109,7 +109,7 @@ Prerequisite: the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.
 git clone https://github.com/acta-dotnet/acta && cd Acta
 dotnet run --project tools/Acta.Doctor        # optional preflight: SDK, SQLite, Docker, ports, env vars
 dotnet run --project concepts/000-fundamentals/001-hello-acta  # first concept, enqueue a job, watch a worker run it (Ctrl+C to stop)
-dotnet run --project anvil/Anvil              # local lab + the Acta dashboard at http://127.0.0.1:5059/acta/jobs
+dotnet run --project anvil/Anvil              # local lab + the Acta dashboard at http://127.0.0.1:5059/acta
 ```
 
 SQLite state is one file, `acta-local.db`, in your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` on macOS/Linux); delete `acta-local*.db` there to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`.

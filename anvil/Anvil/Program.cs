@@ -104,7 +104,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
         : new Microsoft.Extensions.FileProviders.ManifestEmbeddedFileProvider(typeof(AnvilSession).Assembly, "wwwroot");
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = webRoot });
     app.UseStaticFiles(new StaticFileOptions { FileProvider = webRoot });
-    app.MapActa("/acta/jobs", o => o.EnableControls = true);
+    app.MapActa("/acta", o => o.EnableControls = true);
     app.MapAnvil();
     app.Lifetime.ApplicationStopping.Register(() => app.Services.GetRequiredService<WorkerProcessLauncher>().Dispose());
 

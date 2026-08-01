@@ -17,7 +17,7 @@ the result. `Ctrl+C` stops it. The dashboard comes from the bundled lab host:
 
 ```bash
 dotnet run --project anvil/Anvil
-# Acta dashboard at http://127.0.0.1:5059/acta/jobs (the root URL is Anvil's own lab UI)
+# Acta dashboard at http://127.0.0.1:5059/acta (the root URL is Anvil's own lab UI)
 ```
 
 The dashboard UI is built by npm during the .NET build, so it needs Node.js 20+ on PATH once;

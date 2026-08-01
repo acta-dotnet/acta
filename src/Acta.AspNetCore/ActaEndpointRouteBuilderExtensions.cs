@@ -22,7 +22,7 @@ public static class ActaEndpointRouteBuilderExtensions
     /// </summary>
     public static RouteGroupBuilder MapActaApi(
         this IEndpointRouteBuilder endpoints,
-        string pattern = "/acta/jobs/api",
+        string pattern = "/acta/api",
         Action<ActaEndpointOptions>? configure = null
     )
     {
@@ -46,7 +46,7 @@ public static class ActaEndpointRouteBuilderExtensions
     /// </summary>
     public static RouteGroupBuilder MapActa(
         this IEndpointRouteBuilder endpoints,
-        string pattern = "/acta/jobs",
+        string pattern = "/acta",
         Action<ActaDashboardOptions>? configure = null
     )
     {

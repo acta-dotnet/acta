@@ -11,7 +11,7 @@ public sealed class SignalGateTests
 
     private static HttpRequestMessage Signal(bool withHeader)
     {
-        var req = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{Ref}/signals/go")
+        var req = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Ref}/signals/go")
         {
             Content = new StringContent("", Encoding.UTF8, "application/json"),
         };

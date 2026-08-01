@@ -23,7 +23,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -42,7 +42,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs?cursor=bogus", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs?cursor=bogus", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -61,7 +61,7 @@ public sealed class DashboardApiEndpointTests
         );
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
@@ -80,7 +80,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -95,9 +95,9 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var badEnum = await client.GetAsync("/acta/jobs/api/jobs?status=nope", TestContext.Current.CancellationToken);
-        var badInt = await client.GetAsync("/acta/jobs/api/jobs?pageSize=abc", TestContext.Current.CancellationToken);
-        var badBool = await client.GetAsync("/acta/jobs/api/alerts?unresolvedOnly=maybe", TestContext.Current.CancellationToken);
+        var badEnum = await client.GetAsync("/acta/api/jobs?status=nope", TestContext.Current.CancellationToken);
+        var badInt = await client.GetAsync("/acta/api/jobs?pageSize=abc", TestContext.Current.CancellationToken);
+        var badBool = await client.GetAsync("/acta/api/alerts?unresolvedOnly=maybe", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, badEnum.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, badInt.StatusCode);
@@ -112,7 +112,7 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
 
         var ok = await client.GetAsync(
-            "/acta/jobs/api/events?eventCode=namespace.metadata-changed&jobId=7&tenantId=3&workerId=9",
+            "/acta/api/events?eventCode=namespace.metadata-changed&jobId=7&tenantId=3&workerId=9",
             TestContext.Current.CancellationToken
         );
 
@@ -125,14 +125,14 @@ public sealed class DashboardApiEndpointTests
 
         // A divergent wire code (member JobDefinitionPolicyChanged) binds via its [Code] string, not the member name.
         var divergent = await client.GetAsync(
-            "/acta/jobs/api/events?eventCode=definition.policy-changed",
+            "/acta/api/events?eventCode=definition.policy-changed",
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.OK, divergent.StatusCode);
         Assert.Equal(Acta.JobEventCode.JobDefinitionPolicyChanged, jobs.LastEventsQuery!.EventCode);
 
-        var badCode = await client.GetAsync("/acta/jobs/api/events?eventCode=nope", TestContext.Current.CancellationToken);
-        var badJobId = await client.GetAsync("/acta/jobs/api/events?jobId=abc", TestContext.Current.CancellationToken);
+        var badCode = await client.GetAsync("/acta/api/events?eventCode=nope", TestContext.Current.CancellationToken);
+        var badJobId = await client.GetAsync("/acta/api/events?jobId=abc", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, badCode.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, badJobId.StatusCode);
@@ -144,9 +144,9 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var known = await client.GetAsync($"/acta/jobs/api/jobs/{Found}", TestContext.Current.CancellationToken);
-        var missing = await client.GetAsync($"/acta/jobs/api/jobs/{Missing}", TestContext.Current.CancellationToken);
-        var malformed = await client.GetAsync("/acta/jobs/api/jobs/42", TestContext.Current.CancellationToken);
+        var known = await client.GetAsync($"/acta/api/jobs/{Found}", TestContext.Current.CancellationToken);
+        var missing = await client.GetAsync($"/acta/api/jobs/{Missing}", TestContext.Current.CancellationToken);
+        var malformed = await client.GetAsync("/acta/api/jobs/42", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
@@ -166,11 +166,11 @@ public sealed class DashboardApiEndpointTests
 
         foreach (var segment in new[] { "explain", "lineage", "result", "checkpoints" })
         {
-            var response = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/{segment}", ct);
+            var response = await client.GetAsync($"/acta/api/jobs/{Found}/{segment}", ct);
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
 
-        var input = await client.GetAsync($"/acta/jobs/api/jobs/{Found}/input", ct);
+        var input = await client.GetAsync($"/acta/api/jobs/{Found}/input", ct);
         Assert.Equal(HttpStatusCode.OK, input.StatusCode);
     }
 
@@ -180,7 +180,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var byId = await client.GetAsync("/acta/jobs/api/jobs/id:42", TestContext.Current.CancellationToken);
+        var byId = await client.GetAsync("/acta/api/jobs/id:42", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, byId.StatusCode);
     }
@@ -192,10 +192,10 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync("/acta/jobs/api/jobs/id:42", ct);
-        var missing = await client.GetAsync("/acta/jobs/api/jobs/id:99", ct);
-        var bare = await client.GetAsync("/acta/jobs/api/jobs/42", ct);
-        var events = await client.GetAsync("/acta/jobs/api/jobs/id:42/events", ct);
+        var known = await client.GetAsync("/acta/api/jobs/id:42", ct);
+        var missing = await client.GetAsync("/acta/api/jobs/id:99", ct);
+        var bare = await client.GetAsync("/acta/api/jobs/42", ct);
+        var events = await client.GetAsync("/acta/api/jobs/id:42/events", ct);
 
         var body = await known.Content.ReadAsStringAsync(ct);
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
@@ -215,7 +215,7 @@ public sealed class DashboardApiEndpointTests
 
         foreach (var path in new[] { "jobs", $"jobs/{Found}/events", "definitions", "schedules", "workers", "alerts", "tenants" })
         {
-            var response = await client.GetAsync($"/acta/jobs/api/{path}", ct);
+            var response = await client.GetAsync($"/acta/api/{path}", ct);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
     }
@@ -227,9 +227,9 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync("/acta/jobs/api/workers/42", ct);
-        var missing = await client.GetAsync("/acta/jobs/api/workers/404", ct);
-        var malformed = await client.GetAsync("/acta/jobs/api/workers/nope", ct);
+        var known = await client.GetAsync("/acta/api/workers/42", ct);
+        var missing = await client.GetAsync("/acta/api/workers/404", ct);
+        var malformed = await client.GetAsync("/acta/api/workers/nope", ct);
         var body = await known.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
@@ -247,7 +247,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/overview", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/overview", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -267,7 +267,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var body = await client.GetStringAsync("/acta/jobs/api/overview/outbox", TestContext.Current.CancellationToken);
+        var body = await client.GetStringAsync("/acta/api/overview/outbox", TestContext.Current.CancellationToken);
 
         Assert.Contains("\"jobNamespace\":\"billing\"", body);
         Assert.Contains("claimed=5120", body);
@@ -280,7 +280,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var body = await client.GetStringAsync("/acta/jobs/api/overview/outbox", TestContext.Current.CancellationToken);
+        var body = await client.GetStringAsync("/acta/api/overview/outbox", TestContext.Current.CancellationToken);
 
         Assert.Equal("[]", body);
     }
@@ -291,7 +291,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/overview?jobNamespace=Not%20Kebab", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/overview?jobNamespace=Not%20Kebab", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -305,7 +305,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -321,7 +321,7 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        var requestTask = client.GetAsync("/acta/jobs/api/jobs", cts.Token);
+        var requestTask = client.GetAsync("/acta/api/jobs", cts.Token);
         await Task.Delay(50, TestContext.Current.CancellationToken);
         cts.Cancel();
 
@@ -350,7 +350,7 @@ public sealed class DashboardApiEndpointTests
         );
         await using var _ = app;
 
-        var request = client.GetAsync("/acta/jobs/api/overview", TestContext.Current.CancellationToken);
+        var request = client.GetAsync("/acta/api/overview", TestContext.Current.CancellationToken);
         await jobs.OverviewStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         requestAborted.Cancel();
         var response = await request;
@@ -367,7 +367,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs, configureBuilder: b => b.Logging.AddProvider(provider));
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Contains(provider.Entries, e => e.Category == "Acta.AspNetCore.Web" && e.Level == LogLevel.Error);
@@ -423,7 +423,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/namespaces", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/namespaces", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -437,7 +437,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/tenants", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/tenants", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -453,8 +453,8 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var ok = await client.GetAsync("/acta/jobs/api/jobs?tenantId=1", ct);
-        var bad = await client.GetAsync("/acta/jobs/api/jobs?tenantId=abc", ct);
+        var ok = await client.GetAsync("/acta/api/jobs?tenantId=1", ct);
+        var bad = await client.GetAsync("/acta/api/jobs?tenantId=abc", ct);
 
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
@@ -467,7 +467,7 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/jobs/api/jobs/by-key?jobNamespace=billing&deduplicationKey=ck-1",
+            "/acta/api/jobs/by-key?jobNamespace=billing&deduplicationKey=ck-1",
             TestContext.Current.CancellationToken
         );
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -484,7 +484,7 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/jobs/api/jobs/by-key?jobNamespace=billing&deduplicationKey=nope",
+            "/acta/api/jobs/by-key?jobNamespace=billing&deduplicationKey=nope",
             TestContext.Current.CancellationToken
         );
 
@@ -497,7 +497,7 @@ public sealed class DashboardApiEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs/by-key?deduplicationKey=ck-1", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs/by-key?deduplicationKey=ck-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -509,12 +509,9 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync(
-            "/acta/jobs/api/schedules/preview?jobNamespace=billing&jobName=send-invoice&scheduleName=daily",
-            ct
-        );
+        var known = await client.GetAsync("/acta/api/schedules/preview?jobNamespace=billing&jobName=send-invoice&scheduleName=daily", ct);
         var missing = await client.GetAsync(
-            "/acta/jobs/api/schedules/preview?jobNamespace=billing&jobName=send-invoice&scheduleName=missing",
+            "/acta/api/schedules/preview?jobNamespace=billing&jobName=send-invoice&scheduleName=missing",
             ct
         );
         var body = await known.Content.ReadAsStringAsync(ct);
