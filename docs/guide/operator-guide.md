@@ -339,7 +339,7 @@ The optional `Acta.AspNetCore` package serves that surface over HTTP plus an emb
 single-page dashboard:
 
 ```csharp
-app.MapActa("/acta/jobs", options =>
+app.MapActa("/acta", options =>
 {
     options.LocalOnly = false;
     options.ConfigureEndpoints = group => group.RequireAuthorization("ActaOperators");
@@ -347,8 +347,8 @@ app.MapActa("/acta/jobs", options =>
 ```
 
 The dashboard has a top-level Events page for the latest retained audit timeline, optionally scoped
-by namespace; the JSON endpoint is `GET /acta/jobs/api/events?jobNamespace=...`. Jobs are addressed
-in the URL by their public ref (`GET /acta/jobs/api/jobs/{jobRef}`, `/jobs/{jobRef}/events`,
+by namespace; the JSON endpoint is `GET /acta/api/events?jobNamespace=...`. Jobs are addressed
+in the URL by their public ref (`GET /acta/api/jobs/{jobRef}`, `/jobs/{jobRef}/events`,
 `POST /jobs/{jobRef}/{verb}`); the numeric id never appears in a route or in the JSON. A job can
 also be looked up by deduplication key (`GET /jobs/by-key?jobNamespace=&deduplicationKey=`).
 For the rare debug case where you have only an internal id (from a log line), set

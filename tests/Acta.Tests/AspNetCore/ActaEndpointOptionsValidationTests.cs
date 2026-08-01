@@ -31,7 +31,7 @@ public sealed class ActaEndpointOptionsValidationTests
         builder.Services.AddSingleton<IJobs>(new TestDashboardHost.FakeJobs());
         var app = builder.Build();
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => app.MapActaApi("/acta/jobs/api", o => o.MaxReasonMessageLength = -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => app.MapActaApi("/acta/api", o => o.MaxReasonMessageLength = -1));
     }
 
     [Fact]

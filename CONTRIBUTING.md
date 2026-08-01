@@ -177,7 +177,7 @@ Anvil (`anvil/Anvil`) is the local proof harness for crash recovery, retries, wo
 dashboard visibility, and benchmark runs:
 
 ```bash
-dotnet run --project anvil/Anvil                                        # loopback UI + embedded dashboard at /acta/jobs
+dotnet run --project anvil/Anvil                                        # loopback UI + embedded dashboard at /acta
 dotnet run --project anvil/Anvil.Bench -- quick --db pg                 # short comparable benchmark capture
 ```
 

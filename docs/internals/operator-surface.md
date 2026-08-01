@@ -5,7 +5,7 @@ ledger. Every surface (dashboard HTTP endpoints, CLI, future Explain AI / AiStep
 nothing gets its own parallel data path. A new operation lands on `IJobs` first, then surfaces
 adopt it.
 
-HTTP paths are relative to the mounted API group (default `/acta/jobs/api`); mutating endpoints are
+HTTP paths are relative to the mounted API group (default `/acta/api`); mutating endpoints are
 mapped only when `ActaEndpointOptions.EnableControls` is set. CLI verbs run as `<exe> jobs <verb>`.
 
 ## Reads

@@ -23,7 +23,7 @@ public sealed class RequestBodyLimitTests
 
     private static HttpRequestMessage Pause(string body, bool declaredLength)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{TestDashboardHost.FoundJobRef}/pause")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{TestDashboardHost.FoundJobRef}/pause")
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };

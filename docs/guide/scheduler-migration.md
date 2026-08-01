@@ -51,7 +51,7 @@ you want the database to be the source of truth.
 | --- | --- |
 | Background job | `[Job]` + `IJobs.EnqueueAsync` |
 | Recurring job | `[JobSchedule]` on the `[Job]` method |
-| Dashboard | `MapActa()` under `/acta/jobs` |
+| Dashboard | `MapActa()` under `/acta` |
 | Retry policy | `[Job(MaxAttempts = ...)]` and backoff settings |
 | Queue | Job namespace and worker registration |
 | Job id | `JobRef` for public references, `JobId` internally |

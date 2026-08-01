@@ -20,7 +20,7 @@ builder.Logging.AddFilter("Acta", LogLevel.Error);
 var app = builder.Build();
 
 var enableControls = builder.Configuration.GetValue<bool>("Acta:Dashboard:EnableControls");
-app.MapActa("/acta/jobs", options => options.EnableControls = enableControls);
+app.MapActa("/acta", options => options.EnableControls = enableControls);
 
 await app.StartAsync();
 
@@ -69,7 +69,7 @@ await lab.ShowAsync(
 
 Console.WriteLine();
 Console.WriteLine("Seeded success, failure, retry, signal, recurring, parent, and child states for inspection.");
-Console.WriteLine($"Dashboard: {app.Urls.FirstOrDefault() ?? "http://localhost:5000"}/acta/jobs");
+Console.WriteLine($"Dashboard: {app.Urls.FirstOrDefault() ?? "http://localhost:5000"}/acta");
 Console.WriteLine($"Dashboard controls: {(enableControls ? "ENABLED" : "DISABLED")}");
 if (!enableControls)
 {

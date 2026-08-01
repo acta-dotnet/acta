@@ -542,7 +542,7 @@ function render(state) {
   currentState = state;
   renderProvider(state.provider);
   el("namespace-name").textContent = state.namespaceName;
-  el("acta-link").href = `acta/jobs/#/?ns=${encodeURIComponent(state.namespaceName)}`;
+  el("acta-link").href = `acta/#/?ns=${encodeURIComponent(state.namespaceName)}`;
 
   if (state.dbError && !databaseUnavailable) {
     databaseUnavailable = true;

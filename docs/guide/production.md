@@ -151,7 +151,7 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
-app.MapActa("/acta/jobs", options =>
+app.MapActa("/acta", options =>
 {
     options.LocalOnly = false;
     options.EnableControls = true;
@@ -172,7 +172,7 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
-app.MapActa("/acta/jobs", options =>
+app.MapActa("/acta", options =>
 {
     options.LocalOnly = false;
     options.EnableControls = false;

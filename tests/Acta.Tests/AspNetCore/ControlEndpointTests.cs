@@ -61,7 +61,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/jobs/api/jobs/{Found}/{verb}"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/{verb}"), TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -82,7 +82,7 @@ public sealed class ControlEndpointTests
         );
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/jobs/api/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var call = Assert.Single(jobs.ControlCalls);
@@ -95,7 +95,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/jobs/api/jobs/{Rejected}/pause"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Rejected}/pause"), TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -109,7 +109,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/jobs/api/jobs/{Missing}/cancel"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Missing}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Contains("\"action\":\"notFound\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
@@ -122,10 +122,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(
-            Post($"/acta/jobs/api/jobs/{Found}/pause", confirm: false),
-            TestContext.Current.CancellationToken
-        );
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/pause", confirm: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(jobs.ControlCalls);
@@ -137,10 +134,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(configure: options => options.RequireControlConfirmationHeader = false);
         await using var _ = app;
 
-        var response = await client.SendAsync(
-            Post($"/acta/jobs/api/jobs/{Found}/pause", confirm: false),
-            TestContext.Current.CancellationToken
-        );
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/pause", confirm: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -152,7 +146,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/jobs/api/jobs/{Found}/pause"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/pause"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Empty(jobs.ControlCalls);
@@ -169,7 +163,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/jobs/api/jobs/{jobRef}/pause"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{jobRef}/pause"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -182,7 +176,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(
-            Post($"/acta/jobs/api/jobs/{Found}/pause", reason: new string('x', 600)),
+            Post($"/acta/api/jobs/{Found}/pause", reason: new string('x', 600)),
             TestContext.Current.CancellationToken
         );
 
@@ -198,8 +192,8 @@ public sealed class ControlEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        await client.SendAsync(Post($"/acta/jobs/api/jobs/{Found}/pause", reason: "  spaced out  "), ct);
-        await client.SendAsync(Post($"/acta/jobs/api/jobs/{Found}/resume", reason: "   "), ct);
+        await client.SendAsync(Post($"/acta/api/jobs/{Found}/pause", reason: "  spaced out  "), ct);
+        await client.SendAsync(Post($"/acta/api/jobs/{Found}/resume", reason: "   "), ct);
 
         Assert.Equal("spaced out", jobs.ControlCalls[0].Reason);
         Assert.Null(jobs.ControlCalls[1].Reason);
@@ -213,16 +207,16 @@ public sealed class ControlEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var bare = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{Found}/pause");
+        var bare = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/pause");
         bare.Headers.Add(Confirm, "true");
         var noBody = await client.SendAsync(bare, ct);
 
-        var text = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{Found}/pause");
+        var text = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/pause");
         text.Headers.Add(Confirm, "true");
         text.Content = new StringContent("reason=oops", Encoding.UTF8, "application/x-www-form-urlencoded");
         var formBody = await client.SendAsync(text, ct);
 
-        var garbage = await client.SendAsync(Post($"/acta/jobs/api/jobs/{Found}/pause", rawBody: "{not json"), ct);
+        var garbage = await client.SendAsync(Post($"/acta/api/jobs/{Found}/pause", rawBody: "{not json"), ct);
 
         Assert.Equal(HttpStatusCode.OK, noBody.StatusCode);
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, formBody.StatusCode);
@@ -238,7 +232,7 @@ public sealed class ControlEndpointTests
         string? rawBody = null
     )
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{Found}/reschedule");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/reschedule");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -334,7 +328,7 @@ public sealed class ControlEndpointTests
         string? rawBody = null
     )
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{Found}/reprioritize");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/reprioritize");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -410,7 +404,7 @@ public sealed class ControlEndpointTests
         string? rawBody = null
     )
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/schedules/trigger");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/schedules/trigger");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -494,7 +488,7 @@ public sealed class ControlEndpointTests
         string? rawBody = null
     )
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/schedules/overrides");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/schedules/overrides");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -604,7 +598,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/jobs/api/jobs/{Found}/purge"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/purge"), TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -620,10 +614,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(
-            Post($"/acta/jobs/api/jobs/{Found}/purge", confirm: false),
-            TestContext.Current.CancellationToken
-        );
+        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/purge", confirm: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(jobs.PurgeCalls);
@@ -636,7 +627,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(Post("/acta/jobs/api/jobs/" + "batch"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post("/acta/api/jobs/" + "batch"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -645,7 +636,7 @@ public sealed class ControlEndpointTests
 
     private static HttpRequestMessage AmendInput(object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{Found}/input");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/input");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -668,7 +659,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
 
-        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        var body = await (await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"format\":\"text\"", body);
         Assert.Contains("\"formatId\":3", body);
         Assert.Contains("\"text\":\"new body\"", body);
@@ -690,7 +681,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(200, amended.Format.Id);
         Assert.Equal(bytes, amended.Data.ToArray());
 
-        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        var body = await (await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"formatId\":200", body);
         Assert.Contains($"\"base64\":\"{Convert.ToBase64String(bytes)}\"", body);
     }
@@ -707,7 +698,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
 
-        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        var body = await (await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"format\":\"json\"", body);
     }
 
@@ -723,7 +714,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
 
-        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
+        var body = await (await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"format\":\"json\"", body);
     }
 
@@ -779,7 +770,7 @@ public sealed class ControlEndpointTests
 
     private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/jobs");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/jobs");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -811,7 +802,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(jobs.EnqueueRequests).Input.Format.Id);
 
         var jobRef = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct)).RootElement.GetProperty("jobRef").GetString();
-        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
+        var body = await (await client.GetAsync($"/acta/api/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"format\":\"text\"", body);
         Assert.Contains("\"text\":\"hello\"", body);
     }
@@ -844,7 +835,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(bytes, enqueued.Input.Data.ToArray());
 
         var jobRef = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct)).RootElement.GetProperty("jobRef").GetString();
-        var body = await (await client.GetAsync($"/acta/jobs/api/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
+        var body = await (await client.GetAsync($"/acta/api/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains($"\"base64\":\"{Convert.ToBase64String(bytes)}\"", body);
     }
 
@@ -894,7 +885,7 @@ public sealed class ControlEndpointTests
 
     private static HttpRequestMessage PostTenant(object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/tenants");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/tenants");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -1012,7 +1003,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Patch, "/acta/jobs/api/definitions/1")
+        var request = new HttpRequestMessage(HttpMethod.Patch, "/acta/api/definitions/1")
         {
             Content = JsonContent.Create(new { version = 1, overrides = new { maxAttempts = 0 } }),
         };
@@ -1031,7 +1022,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/alerts/7/" + verb)
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/alerts/7/" + verb)
         {
             Content = JsonContent.Create(new { note = "because" }),
         };
@@ -1056,7 +1047,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/alerts/0/" + verb);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/alerts/0/" + verb);
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -1074,7 +1065,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/alerts/7/" + verb);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/alerts/7/" + verb);
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -1091,7 +1082,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/jobs/api/jobs/input-template?jobNamespace=billing&jobName=send-invoice",
+            "/acta/api/jobs/input-template?jobNamespace=billing&jobName=send-invoice",
             TestContext.Current.CancellationToken
         );
 
@@ -1111,7 +1102,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/jobs/api/jobs/input-template?jobNamespace=billing&jobName=unknown",
+            "/acta/api/jobs/input-template?jobNamespace=billing&jobName=unknown",
             TestContext.Current.CancellationToken
         );
 
@@ -1127,10 +1118,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync(
-            "/acta/jobs/api/jobs/input-template?jobNamespace=billing",
-            TestContext.Current.CancellationToken
-        );
+        var response = await client.GetAsync("/acta/api/jobs/input-template?jobNamespace=billing", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -1145,7 +1133,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Post, "/acta/jobs/api/alerts/7/" + verb),
+            new HttpRequestMessage(HttpMethod.Post, "/acta/api/alerts/7/" + verb),
             TestContext.Current.CancellationToken
         );
 

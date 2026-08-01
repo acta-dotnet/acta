@@ -18,7 +18,7 @@ public sealed class CapabilitiesEndpointTests
             o.ControlConfirmationHeaderName = "X-Test-Confirm";
         });
         await using var _ = app;
-        var res = await client.GetAsync("/acta/jobs/api/capabilities", TestContext.Current.CancellationToken);
+        var res = await client.GetAsync("/acta/api/capabilities", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var body = await res.Content.ReadFromJsonAsync<CapabilitiesDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(body);
@@ -37,7 +37,7 @@ public sealed class CapabilitiesEndpointTests
             b.Services.AddSingleton<SqlProviderOptions>(new FixedSchemaOptions("ops"))
         );
         await using var _ = app;
-        var res = await client.GetAsync("/acta/jobs/api/capabilities", TestContext.Current.CancellationToken);
+        var res = await client.GetAsync("/acta/api/capabilities", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var body = await res.Content.ReadFromJsonAsync<CapabilitiesDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(body);
@@ -55,7 +55,7 @@ public sealed class CapabilitiesEndpointTests
     {
         var (app, client) = await TestDashboardHost.StartAsync(o => o.EnableControls = false);
         await using var _ = app;
-        var res = await client.GetAsync("/acta/jobs/api/capabilities", TestContext.Current.CancellationToken);
+        var res = await client.GetAsync("/acta/api/capabilities", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var body = await res.Content.ReadFromJsonAsync<CapabilitiesDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(body);

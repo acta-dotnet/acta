@@ -39,7 +39,7 @@ public sealed class DashboardAuthorizationTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        foreach (var path in new[] { "/acta/jobs", "/acta/jobs/assets/anything.js", "/acta/jobs/api/jobs" })
+        foreach (var path in new[] { "/acta", "/acta/assets/anything.js", "/acta/api/jobs" })
         {
             var response = await client.GetAsync(path, ct);
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -53,7 +53,7 @@ public sealed class DashboardAuthorizationTests
         await using var _ = app;
         client.DefaultRequestHeaders.Add("X-Test-User", "operator");
 
-        var response = await client.GetAsync("/acta/jobs/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -65,7 +65,7 @@ public sealed class DashboardAuthorizationTests
         var (app, client) = await StartProtectedAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{TestDashboardHost.FoundJobRef}/pause");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{TestDashboardHost.FoundJobRef}/pause");
         request.Headers.Add("X-Acta-Control", "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -80,7 +80,7 @@ public sealed class DashboardAuthorizationTests
         var (app, client) = await StartProtectedAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/jobs/api/jobs/{TestDashboardHost.FoundJobRef}/pause");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{TestDashboardHost.FoundJobRef}/pause");
         request.Headers.Add("X-Acta-Control", "true");
         request.Headers.Add("X-Test-User", "operator");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
