@@ -35,7 +35,7 @@ public interface IConformanceFixture
 
     /// <summary>The columns of <paramref name="tableName"/> in <paramref name="schemaName"/> as
     /// (name, nullable) pairs, via a provider catalog query.</summary>
-    ValueTask<IReadOnlyList<(string Name, bool Nullable)>> ListColumnsAsync(string schemaName, string tableName);
+    ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(string schemaName, string tableName);
 
     /// <summary>Indexes on <paramref name="tableName"/> (by name, with uniqueness flag and ordered key columns).</summary>
     ValueTask<IReadOnlyList<DbIndexInfo>> ListIndexesAsync(string schemaName, string tableName);

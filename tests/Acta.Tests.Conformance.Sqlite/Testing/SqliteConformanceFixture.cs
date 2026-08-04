@@ -12,7 +12,10 @@ namespace Acta.Tests.Conformance.Sqlite.Testing;
 /// </summary>
 public sealed partial class SqliteConformanceFixture : IConformanceFixture
 {
-    public async ValueTask<IReadOnlyList<(string Name, bool Nullable)>> ListColumnsAsync(string schemaName, string tableName)
+    public async ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(
+        string schemaName,
+        string tableName
+    )
     {
         await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await c.OpenAsync();
@@ -21,11 +24,12 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         // only truly-hidden columns (none in this schema), keeping normal (0) and generated (2/3).
         cmd.CommandText = "SELECT name, \"notnull\" FROM pragma_table_xinfo(@t) WHERE hidden <> 1 ORDER BY name;";
         cmd.Parameters.AddWithValue("@t", tableName);
-        var cols = new List<(string, bool)>();
+        // SQLite drops declared text/blob lengths entirely, so it reports no width to compare.
+        var cols = new List<(string, bool, int?)>();
         await using var r = await cmd.ExecuteReaderAsync();
         while (await r.ReadAsync())
         {
-            cols.Add((r.GetString(0), r.GetInt64(1) == 0));
+            cols.Add((r.GetString(0), r.GetInt64(1) == 0, null));
         }
 
         return cols;

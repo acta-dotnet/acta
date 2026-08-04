@@ -49,20 +49,23 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
         return names;
     }
 
-    public async ValueTask<IReadOnlyList<(string Name, bool Nullable)>> ListColumnsAsync(string schemaName, string tableName)
+    public async ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(
+        string schemaName,
+        string tableName
+    )
     {
         await using var c = new NpgsqlConnection(IntegrationConfig.PostgresConnectionString!);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText =
-            "SELECT column_name, is_nullable FROM information_schema.columns WHERE table_schema = @s AND table_name = @t ORDER BY column_name;";
+            "SELECT column_name, is_nullable, character_maximum_length FROM information_schema.columns WHERE table_schema = @s AND table_name = @t ORDER BY column_name;";
         cmd.Parameters.AddWithValue("@s", schemaName);
         cmd.Parameters.AddWithValue("@t", tableName);
-        var cols = new List<(string, bool)>();
+        var cols = new List<(string, bool, int?)>();
         await using var r = await cmd.ExecuteReaderAsync();
         while (await r.ReadAsync())
         {
-            cols.Add((r.GetString(0), r.GetString(1) == "YES"));
+            cols.Add((r.GetString(0), r.GetString(1) == "YES", r.IsDBNull(2) ? null : r.GetInt32(2)));
         }
 
         return cols;
