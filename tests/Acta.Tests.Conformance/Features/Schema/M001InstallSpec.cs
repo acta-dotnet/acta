@@ -82,6 +82,22 @@ public abstract class M001InstallSpec<TFixture> : IntegrationSpec<TFixture>
                     $"Nullability mismatch on {entity.TableName}.{col.Name}: model says {(col.IsNullable ? "NULL" : "NOT NULL")}, db reports {(actualNullable.GetValueOrDefault(col.Name) ? "NULL" : "NOT NULL")}."
                 );
             }
+
+            // 3. Declared width of sized columns. A hand-edited migration that narrows varchar(128) to
+            // varchar(64) passes every other assertion here. Only compared where the provider reports a
+            // width at all: SQLite drops declared text/blob lengths, and Postgres reports none for bytea.
+            var actualWidth = cols.ToDictionary(c => c.Name, c => c.MaxLength, StringComparer.Ordinal);
+            foreach (var col in entity.Columns.Where(c => c.Size is not null))
+            {
+                if (actualWidth.GetValueOrDefault(col.Name) is not { } width)
+                {
+                    continue;
+                }
+                Assert.True(
+                    width == col.Size,
+                    $"Width mismatch on {entity.TableName}.{col.Name}: model says {col.Size}, db reports {width}."
+                );
+            }
         }
     }
 
@@ -158,6 +174,55 @@ public abstract class M001InstallSpec<TFixture> : IntegrationSpec<TFixture>
             }
         }
     }
+
+    [Fact(DisplayName = "No table carries an index, foreign key or check the model does not declare")]
+    public async Task InstallsNoUnmodelledConstraints()
+    {
+        // Presence assertions alone cannot see a hand-edited migration that ADDS something. An extra
+        // index silently changes the query plan on one provider only; an extra constraint silently
+        // changes what the database accepts.
+        foreach (var entity in ActaSchema.Entities)
+        {
+            var modelledIndexes = entity.Indexes.Select(i => i.Name).ToHashSet(StringComparer.Ordinal);
+            var extraIndexes = (await Fixture.ListIndexesAsync(Schema.SchemaName, entity.TableName))
+                .Select(i => i.Name)
+                // Provider-owned backing indexes: the declared PK, and SQLite's implicit UNIQUE indexes.
+                .Where(n =>
+                    !modelledIndexes.Contains(n)
+                    && !n.StartsWith("pk_", StringComparison.Ordinal)
+                    && !n.StartsWith("sqlite_autoindex", StringComparison.Ordinal)
+                )
+                .ToList();
+            Assert.True(extraIndexes.Count == 0, $"Unmodelled index on {entity.TableName}: [{string.Join(", ", extraIndexes)}]");
+
+            var modelledFks = entity.ForeignKeys.Select(fk => fk.Column).ToHashSet(StringComparer.Ordinal);
+            var extraFks = (await Fixture.ListForeignKeysAsync(Schema.SchemaName, entity.TableName))
+                .Where(d => !modelledFks.Contains(d.Column))
+                .Select(d => $"{d.Column} -> {d.TargetTable}.{d.TargetColumn}")
+                .ToList();
+            Assert.True(extraFks.Count == 0, $"Unmodelled foreign key on {entity.TableName}: [{string.Join(", ", extraFks)}]");
+
+            var modelledChecks = entity.Checks.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+            var extraChecks = (await Fixture.ListCheckConstraintsAsync(Schema.SchemaName, entity.TableName))
+                .Select(c => c.Name)
+                .Where(n => !modelledChecks.Contains(n) && !IsEmitterSynthesized(n, entity))
+                .ToList();
+            Assert.True(extraChecks.Count == 0, $"Unmodelled check on {entity.TableName}: [{string.Join(", ", extraChecks)}]");
+        }
+    }
+
+    /// <summary>
+    /// Recognizes the constraints the emitter synthesizes per column rather than from a <c>[DbCheck]</c>:
+    /// the closed-family <c>IN</c>-list check, and the Postgres/SQLite byte-range and octet-length checks
+    /// that stand in for a native bounded type. Anything else on the table is drift.
+    /// </summary>
+    private static bool IsEmitterSynthesized(string name, DbEntitySpec entity) =>
+        entity.Columns.Any(c =>
+            name == $"ck_{entity.TableName}_{c.Name}"
+            || name == $"ck_{entity.TableName}_{c.Name}_code"
+            || name == $"ck_{entity.TableName}_{c.Name}_byte"
+            || name == $"ck_{entity.TableName}_{c.Name}_bytes"
+        );
 
     [Fact(DisplayName = "No installed column carries an explicit non-default collation")]
     public async Task InstallsNoCollationOverrides()

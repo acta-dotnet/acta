@@ -19,6 +19,49 @@ public sealed partial class TvpParityTests
 
     private static readonly Regex ColumnLine = new(@"^(\w+)\s+([A-Z0-9]+(?:\((?:\d+|MAX)\))?)", RegexOptions.Compiled);
 
+    /// <summary>
+    /// The key of every TVP, pinned. A TVP is bound positionally and its key decides which rows the
+    /// receiving routine treats as distinct: keying <c>job_enqueue_batch</c> on anything a caller can
+    /// repeat within one batch makes the whole batch fail on a duplicate. That is the defect this
+    /// pinning exists to catch, and it is why the current baseline is keyed on <c>ordinal</c> - a
+    /// position the caller cannot collide - rather than on any caller-supplied value.
+    /// </summary>
+    private static readonly Dictionary<string, string> ExpectedKeys = new(StringComparer.Ordinal)
+    {
+        ["job_enqueue_batch"] = "ordinal",
+        ["job_enqueue_tag_batch"] = "ordinal, name",
+        ["job_definition_batch"] = "name",
+        ["job_schedule_slot_batch"] = "definition_id",
+        ["job_schedule_upsert_batch"] = "definition_id, name",
+        ["job_schedule_advance_batch"] = "schedule_id",
+        ["complete_executions_batch"] = "ordinal",
+    };
+
+    [Fact]
+    public void M001_tvp_types_declare_the_pinned_primary_keys()
+    {
+        var m001 = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "src", "Acta.SqlServer", "Schema", "Migrations", "M001_init.sql"));
+        var actual = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (Match block in TvpBlock.Matches(m001))
+        {
+            var key = block
+                .Groups[2]
+                .Value.Split('\n')
+                .Select(line => line.Trim())
+                .Select(line =>
+                    line.StartsWith("PRIMARY KEY", StringComparison.Ordinal) ? line["PRIMARY KEY".Length..].Trim().Trim('(', ')', ',')
+                    : line.Contains("PRIMARY KEY", StringComparison.Ordinal) ? line.Split(' ')[0]
+                    : null
+                )
+                .FirstOrDefault(k => k is not null);
+
+            actual[block.Groups[1].Value] = key ?? "<none>";
+        }
+
+        Assert.Equal(ExpectedKeys.OrderBy(p => p.Key, StringComparer.Ordinal), actual.OrderBy(p => p.Key, StringComparer.Ordinal));
+    }
+
     [Fact]
     public void M001_tvp_types_match_the_runtime_record_shapes()
     {
