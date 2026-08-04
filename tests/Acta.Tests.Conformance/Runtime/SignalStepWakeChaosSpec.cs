@@ -140,10 +140,13 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         _wakeup.ReleaseWait(WorkerWakeupWaitResult.TimedOut);
 
         // --- 2. The safety poll claims and completes the job without a delivered wake.
+        // Delay, not Task.Yield: yielding spins the thread pool and hammers the store, starving the very
+        // worker loop this waits on. Under full-suite load on SQLite (single writer, one shared file)
+        // that spin could exhaust the budget below and fail a passing product path.
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
         while (DateTime.UtcNow < deadline && await Jobs.GetStatusAsync(enqueued, ct) != JobStatusCode.Done)
         {
-            await Task.Yield();
+            await Task.Delay(20, ct);
         }
 
         await loopCts.CancelAsync();
