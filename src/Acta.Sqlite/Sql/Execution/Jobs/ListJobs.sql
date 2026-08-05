@@ -30,7 +30,7 @@ SELECT j.id, ns.name, jd.name, j.parent_id, j.lineage_root_id, j.deduplication_k
    AND (@p_recurring_only IS NULL OR EXISTS (
         SELECT 1
           FROM {{schema}}.schedules s
-         WHERE s.job_id = j.id AND s.orphaned_at_utc IS NULL
+         WHERE s.job_id = j.id AND s.status_code <> 230 /* ScheduleStatusCode.Orphaned */
    ))
    AND (@p_cursor_created_at_utc IS NULL
         OR j.created_at_utc < @p_cursor_created_at_utc
@@ -65,6 +65,6 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
             AND (@p_recurring_only IS NULL OR EXISTS (
                  SELECT 1
                    FROM {{schema}}.schedules s
-                  WHERE s.job_id = j.id AND s.orphaned_at_utc IS NULL
+                  WHERE s.job_id = j.id AND s.status_code <> 230 /* ScheduleStatusCode.Orphaned */
             ))
        ) END;

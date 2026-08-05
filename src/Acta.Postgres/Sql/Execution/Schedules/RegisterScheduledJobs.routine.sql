@@ -79,13 +79,13 @@ BEGIN
     INSERT INTO {{schema}}.schedules (
         namespace_id, job_id, definition_id, name, origin_code,
         expression, time_zone_id, expression_kind_code, misfire_strategy_code,
-        next_run_at_utc, expression_override, time_zone_id_override, orphaned_at_utc,
+        next_run_at_utc, expression_override, time_zone_id_override,
         status_code, paused_until_utc, description,
         created_at_utc, modified_at_utc, version)
     SELECT
         p_namespace_id, sl.slot_id, s.definition_id, s.name, 40 /* ScheduleOriginCode.Definition */,
         s.expression, s.time_zone, s.expression_kind, s.misfire,
-        s.next_run, NULL, NULL, NULL,
+        s.next_run, NULL, NULL,
         10 /* ScheduleStatusCode.Active */, NULL, s.description,
         now(), now(), 0
       FROM unnest(
@@ -100,7 +100,6 @@ BEGIN
         misfire_strategy_code         = EXCLUDED.misfire_strategy_code,
         next_run_at_utc               = EXCLUDED.next_run_at_utc,
         definition_id             = EXCLUDED.definition_id,
-        orphaned_at_utc               = NULL,
         status_code                   = CASE WHEN {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
                                              THEN 10 /* ScheduleStatusCode.Active */
                                              ELSE {{schema}}.schedules.status_code END,
@@ -109,13 +108,14 @@ BEGIN
         version                       = {{schema}}.schedules.version + 1;
 
     UPDATE {{schema}}.schedules AS js
-       SET orphaned_at_utc = now(),
-           status_code     = 230 /* ScheduleStatusCode.Orphaned */,
+       SET status_code     = 230 /* ScheduleStatusCode.Orphaned */,
+           paused_until_utc = NULL,
            modified_at_utc = now(),
            version         = js.version + 1
       FROM _reg_slots AS sl
      WHERE js.job_id = sl.slot_id
-       AND js.orphaned_at_utc IS NULL
+       AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+       AND js.origin_code = 40 /* ScheduleOriginCode.Definition */
        AND NOT EXISTS (
            SELECT 1
              FROM unnest(p_s_definition_id, p_s_name) AS s(definition_id, name)

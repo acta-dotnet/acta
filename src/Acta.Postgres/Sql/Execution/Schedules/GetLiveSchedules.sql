@@ -11,5 +11,5 @@ SELECT t.id,
        t.time_zone_id AS base_time_zone
   FROM {{schema}}.schedules t
  WHERE t.job_id = @p_job_id
-   AND t.orphaned_at_utc IS NULL
+   AND t.status_code <> 230 /* ScheduleStatusCode.Orphaned */
  ORDER BY t.name;

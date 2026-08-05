@@ -236,6 +236,29 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         Assert.Equal(until, schedule.PausedUntilUtc);
     }
 
+    [Fact(DisplayName = "Orphaning a timed-paused schedule clears the pause deadline along with the status")]
+    public async Task Orphaning_a_paused_schedule_clears_its_pause_deadline()
+    {
+        // ck_schedules_paused_pair only allows a pause deadline while the row is Paused, so the
+        // reconcile that orphans a declaration must clear it in the same write. An orphaned schedule
+        // cannot fire, which makes a pending expiry meaningless anyway.
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var now = FloorSeconds(await NowAsync(ct));
+        var jobName = TestKey("orphan-paused");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(30), [Slot("only", now.AddMinutes(30))], JobStatusCode.Ready, ct);
+
+        await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: now.AddMinutes(45), ct: ct);
+
+        // Re-register with the declaration gone: reconciliation orphans the surviving row.
+        await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
+
+        var schedule = await ScheduleAsync(Db, jobName, "only", ct);
+        Assert.Equal(ScheduleStatusCode.Orphaned, schedule.Status);
+        Assert.Null(schedule.PausedUntilUtc);
+    }
+
     [Fact(
         DisplayName = "Initial sync stores the attribute description with Note left NULL, and catalog re-sync does not overwrite an operator note"
     )]

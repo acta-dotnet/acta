@@ -5,7 +5,7 @@ SELECT js.id AS schedule_id
 FROM {{schema}}.schedules js
 WHERE js.job_id = @p_job_id
   AND js.name = @p_name
-  AND js.orphaned_at_utc IS NULL;
+  AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
@@ -40,7 +40,7 @@ UPDATE {{schema}}.schedules
        version          = version + 1
  WHERE job_id = @p_job_id
    AND name = @p_name
-   AND orphaned_at_utc IS NULL;
+   AND status_code <> 230 /* ScheduleStatusCode.Orphaned */;
 
 UPDATE {{schema}}.runtimes
    SET next_run_at_utc = @p_job_next_run_at_utc,

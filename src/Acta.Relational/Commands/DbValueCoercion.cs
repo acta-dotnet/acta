@@ -42,4 +42,18 @@ internal static class DbValueCoercion
         }
         return provider == DbProvider.Postgres && value is byte b ? (short)b : value;
     }
+
+    /// <summary>
+    /// Pins the parameter's type where the driver cannot infer it from the value. A null
+    /// <c>byte[]</c> binds as <see cref="DBNull"/>, which SQL Server infers as <c>nvarchar</c> and then
+    /// refuses to assign to a <c>varbinary</c> column; the CLR property type is the only thing that
+    /// still knows it is binary. Values the driver infers correctly are left alone.
+    /// </summary>
+    public static void ApplyType(System.Data.Common.DbParameter parameter, Type clrType)
+    {
+        if ((Nullable.GetUnderlyingType(clrType) ?? clrType) == typeof(byte[]))
+        {
+            parameter.DbType = System.Data.DbType.Binary;
+        }
+    }
 }

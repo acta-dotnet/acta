@@ -21,7 +21,7 @@ SELECT
     {{decode:misfire-strategy:s.misfire_strategy_code}} AS misfire_strategy,
     s.misfire_strategy_code,
     s.next_run_at_utc,
-    s.orphaned_at_utc,
+    s.last_occurrence_at_utc,
     s.paused_until_utc,
     s.description,
     s.note,

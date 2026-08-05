@@ -104,11 +104,7 @@ internal sealed record RaiseJobAlertCommand(
         channelName = IdentifierSyntax.CanonicalizeKebab(channelName, nameof(channelName), ActaTextLimits.AlertChannelName);
         if (deduplicationKey is not null)
         {
-            deduplicationKey = IdentifierSyntax.NormalizeKey(
-                deduplicationKey,
-                nameof(deduplicationKey),
-                ActaTextLimits.AlertDeduplicationKey
-            );
+            deduplicationKey = IdentifierSyntax.NormalizeKey(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDedupeKey);
         }
 
         return new RaiseJobAlertCommand(
@@ -121,7 +117,7 @@ internal sealed record RaiseJobAlertCommand(
             message.Truncate(ActaTextLimits.AlertMessage)!,
             channelName,
             deliveryStatus,
-            deduplicationKey.Truncate(ActaTextLimits.AlertDeduplicationKey),
+            deduplicationKey.Truncate(ActaTextLimits.AlertDedupeKey),
             dedupeWindowStartUtc
         );
     }

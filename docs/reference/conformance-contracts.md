@@ -1804,6 +1804,7 @@
   - Resume reconciles the cursor by misfire: Skip advances past now and FireOnceCatchUp keeps the past instant
   - An orphaned schedule cannot be paused or resumed
   - Catalog re-registration preserves operator pause state
+  - Orphaning a timed-paused schedule clears the pause deadline along with the status
   - Initial sync stores the attribute description with Note left NULL, and catalog re-sync does not overwrite an operator note
   - Pause and resume emit audit events against the slot job
 - **Store methods:**
@@ -1893,6 +1894,7 @@
   - Each modelled index is installed with matching uniqueness and key columns
   - Each modelled foreign key is installed with matching target and on-delete action
   - Each modelled check constraint is installed
+  - No table carries an index, foreign key or check the model does not declare
   - No installed column carries an explicit non-default collation
 
 ### Schema bootstrap installs curated operator views

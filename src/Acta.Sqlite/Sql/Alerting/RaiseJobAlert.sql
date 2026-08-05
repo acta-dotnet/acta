@@ -4,7 +4,7 @@
 INSERT INTO {{schema}}.alerts (
     namespace_id, job_id, job_ref,
     origin_code, severity_code, kind_code, title, message, channel_name,
-    deduplication_key, dedupe_window_start_utc, occurrence_count,
+    dedupe_key, dedupe_window_start_utc, occurrence_count,
     delivery_status_code, retry_count)
 SELECT
     ns.id, @p_job_id,
@@ -12,12 +12,12 @@ SELECT
          THEN acta_error('ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id')
          ELSE jr.job_ref END,
     @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-    @p_deduplication_key, @p_dedupe_window_start_utc, 1,
+    @p_dedupe_key, @p_dedupe_window_start_utc, 1,
     @p_delivery_status_code, 0
 FROM {{schema}}.namespaces ns
 LEFT JOIN {{schema}}.jobs jr ON jr.id = @p_job_id
 WHERE ns.name = @p_namespace_name
-ON CONFLICT (namespace_id, deduplication_key, dedupe_window_start_utc) WHERE deduplication_key IS NOT NULL
+ON CONFLICT (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL
 DO UPDATE SET
     job_id            = excluded.job_id,
     job_ref           = excluded.job_ref,

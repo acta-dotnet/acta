@@ -31,8 +31,11 @@ internal sealed class Lease : IEntity
     public string LeaseKey { get; init; } = default!;
 
     /// <summary>
-    /// Which lock primitive owns this row (<c>Lock</c> today; the discriminator keeps the kind
-    /// space open without a migration). The retention reap sweeps expired rows by kind.
+    /// Which lock primitive owns this row; <c>Lock</c> is the only kind. The family is deliberately
+    /// closed: <c>ck_leases_kind_code</c> pins the value list, so adding a kind is a migration. That is
+    /// the honest cost, because the retention reap filters on this column
+    /// (<c>PurgeExpiredData</c>, <c>WHERE kind_code = 10</c>) - an unrecognized kind would not be a
+    /// display gap, it would be lease rows that never get reaped.
     /// </summary>
     [DbColumn("kind_code")]
     public LeaseKindCode Kind { get; init; } = LeaseKindCode.Lock;

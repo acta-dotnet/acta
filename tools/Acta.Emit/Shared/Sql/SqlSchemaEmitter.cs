@@ -126,7 +126,10 @@ internal static class SqlSchemaEmitter
         // Per-coded-column IN-list CHECK: invalid enum ids fail at the DB layer, not just in C#.
         // Constraint name dedupes the `_code` suffix if the column already ends in `_code` (the
         // Acta column convention for code-bearing columns); avoids `_code_code` doubling.
-        foreach (var c in e.Columns.Where(c => c.IsCoded))
+        // Skipped for extensible families (the point of Extensible is that new members need no
+        // migration) and for generated columns whose every source column already carries the CHECK
+        // (COALESCE cannot leave a set both inputs are constrained to).
+        foreach (var c in e.Columns.Where(c => c.IsCoded && !c.IsExtensible && !IsImpliedBySources(c, e)))
         {
             var values = EnumValueList(c);
             if (values is null)
@@ -260,6 +263,50 @@ internal static class SqlSchemaEmitter
         var values = Enum.GetValues(underlying).Cast<object>().Select(Convert.ToInt64).OrderBy(v => v);
         return string.Join(", ", values);
     }
+
+    /// <summary>
+    /// <c>true</c> when a generated column's IN-list CHECK would be redundant. Recognizes exactly the
+    /// override triple - <c>x_effective = COALESCE(x_override, x)</c> over two sibling columns of the
+    /// same code family, each already carrying its own CHECK - because COALESCE only ever returns one
+    /// of its arguments. Deliberately narrow: any other expression may compute a value outside the set
+    /// its inputs are constrained to, so it keeps its CHECK.
+    /// </summary>
+    private static bool IsImpliedBySources(ColumnModel c, EntityModel e)
+    {
+        if (!c.IsGenerated || c.Generated is not { } expr || !expr.TrimStart().StartsWith("COALESCE(", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var sources = e.Columns.Where(s => !ReferenceEquals(s, c) && ReferencesColumn(expr, s.Name)).ToList();
+
+        return sources.Count == 2 && sources.All(s => s.IsCoded && !s.IsExtensible && s.EnumTypeName == c.EnumTypeName);
+    }
+
+    /// <summary>
+    /// Whole-identifier match, so <c>priority_code</c> does not match inside <c>priority_code_override</c>.
+    /// </summary>
+    private static bool ReferencesColumn(string expression, string columnName)
+    {
+        for (
+            var i = expression.IndexOf(columnName, StringComparison.Ordinal);
+            i >= 0;
+            i = expression.IndexOf(columnName, i + 1, StringComparison.Ordinal)
+        )
+        {
+            var endsAt = i + columnName.Length;
+            var boundedLeft = i == 0 || !IsIdentifierChar(expression[i - 1]);
+            var boundedRight = endsAt >= expression.Length || !IsIdentifierChar(expression[endsAt]);
+            if (boundedLeft && boundedRight)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsIdentifierChar(char ch) => char.IsLetterOrDigit(ch) || ch == '_';
 
     private static string RenderOnDelete(DbForeignKeyAction action) =>
         action switch

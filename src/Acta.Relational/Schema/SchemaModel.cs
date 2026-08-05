@@ -65,7 +65,7 @@ internal sealed class DbEntitySpec
 /// <param name="Precision">Decimal total digits.</param> <param name="Scale">Decimal digits right of the point.</param> <param name="IsNullable">Whether the CLR property is nullable (<c>T?</c> or reference + nullable annotation).</param>
 /// <param name="Default">Server-side DEFAULT selector (<see cref="DbDefault.None"/> = no DEFAULT, caller supplies the value at INSERT).</param>
 /// <param name="IsCoded"><c>true</c> iff the CLR property is an enum (the generator sets this). Coded columns store their enum's underlying width in <see cref="Kind"/> (<see cref="DbKind.Byte"/> / <see cref="DbKind.Int16"/> / <see cref="DbKind.Int32"/>) and get a generated CHECK over the enum's known values.</param>
-/// <param name="IsPrimaryKey"><c>true</c> iff this column is part of the entity's PK.</param> <param name="IsSolePrimaryKey"><c>true</c> iff the PK has exactly one column and this is it (drives identity emission).</param>
+/// <param name="IsExtensible"><c>true</c> iff the code family is <c>[CodeKind(Extensible = true)]</c>: no IN-list CHECK, and unknown ids read back as <c>Unspecified = 0</c>.</param> <param name="IsPrimaryKey"><c>true</c> iff this column is part of the entity's PK.</param> <param name="IsSolePrimaryKey"><c>true</c> iff the PK has exactly one column and this is it (drives identity emission).</param>
 /// <param name="IsManualPrimaryKey"><c>true</c> iff the PK is single-column with <c>Manual = true</c> (suppresses provider-native identity; caller assigns at INSERT).</param>
 /// <param name="IsConcurrencyToken"><c>true</c> iff the column carries <c>DbConcurrencyToken</c>; UPDATEs increment via <c>SET version = version + 1</c>.</param>
 /// <param name="EnumTypeName">CLR enum type name when the property is an enum; <c>null</c> otherwise; drives catalog seeding and docs.</param>
@@ -81,6 +81,7 @@ internal sealed record DbColumnSpec(
     bool IsNullable = false,
     DbDefault Default = DbDefault.None,
     bool IsCoded = false,
+    bool IsExtensible = false,
     bool IsPrimaryKey = false,
     bool IsSolePrimaryKey = false,
     bool IsManualPrimaryKey = false,
@@ -160,6 +161,8 @@ internal readonly struct DbColumnSpec<T>(DbColumnSpec untyped, string table, str
     public DbDefault Default => Untyped.Default;
 
     public bool IsCoded => Untyped.IsCoded;
+
+    public bool IsExtensible => Untyped.IsExtensible;
 
     public bool IsPrimaryKey => Untyped.IsPrimaryKey;
 

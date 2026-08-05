@@ -16,7 +16,7 @@ internal abstract class SqlDdlDialect
     // at bootstrap by SchemaMigrationRunner.RequiredBaselineStamp. The history is not frozen until 1.0,
     // so a re-cut baseline is expected; bump this and that constant together on every `schema reset` so
     // a database built from the previous baseline fails loudly rather than taking a mismatched schema.
-    protected const string BaselineStamp = "init-ordinal-tvp-v1";
+    protected const string BaselineStamp = "init-extensible-v1";
 
     protected static string PersistedMigrationName(int version, string name) =>
         version == 1 && string.Equals(name, "init", StringComparison.Ordinal) ? BaselineStamp : name;

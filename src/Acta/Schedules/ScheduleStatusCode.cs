@@ -12,9 +12,6 @@ public enum ScheduleStatusCode : byte
     [Code("paused", "Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set.")]
     Paused = 30,
 
-    [Code(
-        "orphaned",
-        "Origin declaration disappeared from the catalog; set by reconciliation alongside OrphanedAtUtc. Cannot fire or be paused/resumed."
-    )]
+    [Code("orphaned", "Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed.")]
     Orphaned = 230,
 }

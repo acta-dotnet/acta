@@ -10,7 +10,9 @@ internal sealed record TenantMetadataPatchRequest(
     string? ReasonMessage = null
 );
 
-/// <summary>PATCH body for a namespace metadata edit. Null field clears it. ExpectedVersion drives the CAS.</summary>
+/// <summary>
+/// PATCH body for a namespace metadata edit. Null field clears it. ExpectedVersion drives the CAS.
+/// </summary>
 internal sealed record NamespaceMetadataPatchRequest(
     string? OwnerTeam = null,
     string? Description = null,

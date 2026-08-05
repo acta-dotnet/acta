@@ -40,7 +40,7 @@ BEGIN
       FROM {{schema}}.schedules js
      WHERE js.job_id = p_job_id
        AND js.name = p_name
-       AND js.orphaned_at_utc IS NULL
+       AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
      FOR UPDATE;
 
     IF NOT FOUND THEN

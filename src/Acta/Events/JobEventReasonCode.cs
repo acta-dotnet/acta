@@ -7,9 +7,17 @@ namespace Acta;
 /// runtime subject, subgroup, or outcome semantics. Detailed diagnostics remain structured event data.
 /// </summary>
 [JsonConverter(typeof(JobEventReasonCodeJsonConverter))]
-[CodeKind("job-event-reason")]
+[CodeKind("job-event-reason", Extensible = true)]
 public enum JobEventReasonCode : byte
 {
+    /// <summary>
+    /// The persisted id is not one this build knows: the row was written by a newer Acta that added a
+    /// reason. Distinct from <see cref="Other"/>, which is the writer stating that no catalog code fit.
+    /// Never written by Acta; only produced when reading forward.
+    /// </summary>
+    [Code("unspecified", "Reason id not recognized by this build; the row was written by a newer Acta.")]
+    Unspecified = 0,
+
     // ---------- Job transitions ----------
 
     /// <summary>

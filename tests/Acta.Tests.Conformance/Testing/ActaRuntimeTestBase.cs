@@ -77,10 +77,10 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             // At this point the namespace's only Ready rows are the seeded schedule slots.
             var parked = DateTime.UtcNow.AddDays(1);
             var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-            // OrphanedAtUtc == null matches ix_schedules_namespace_next's filter so SQL Server seeks
+            // A non-Orphaned status matches ix_schedules_namespace_next's filter so SQL Server seeks
             // instead of scanning pk_schedules into unrelated fixtures' purge locks.
             await Db.From<JobSchedule>()
-                .Where(s => s.NamespaceId == ns && s.OrphanedAtUtc == null)
+                .Where(s => s.NamespaceId == ns && s.Status != ScheduleStatusCode.Orphaned)
                 .UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct);
             await Db.From<JobRuntime>()
                 .Where(r => r.NamespaceId == ns && r.Status == JobStatusCode.Ready)

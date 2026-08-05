@@ -5,4 +5,4 @@ SELECT t.definition_id,
        t.paused_until_utc
   FROM {{schema}}.schedules t
  WHERE t.namespace_id = @p_namespace_id
-   AND t.orphaned_at_utc IS NULL;
+   AND t.status_code <> 230 /* ScheduleStatusCode.Orphaned */;

@@ -3,10 +3,10 @@ using Acta.Relational.Schema;
 namespace Acta.Relational.Entities;
 
 /// <summary>
-/// One materialized alert. Rows carrying a non-null <see cref="DeduplicationKey"/> collapse repeats inside the
+/// One materialized alert. Rows carrying a non-null <see cref="DedupeKey"/> collapse repeats inside the
 /// window onto a single row (incrementing <see cref="OccurrenceCount"/>); the unique
-/// <c>(namespace_id, deduplication_key, dedupe_window_start_utc)</c> index is the rate limit, and a null
-/// <see cref="DeduplicationKey"/> always inserts a fresh row. <see cref="ResolvedAtUtc"/> is the single source
+/// <c>(namespace_id, dedupe_key, dedupe_window_start_utc)</c> index is the rate limit, and a null
+/// <see cref="DedupeKey"/> always inserts a fresh row. <see cref="ResolvedAtUtc"/> is the single source
 /// of truth for whether the alert is resolved: set when the underlying condition clears, cleared back to
 /// NULL if the condition re-fires inside the same window.
 /// </summary>
@@ -14,8 +14,8 @@ namespace Acta.Relational.Entities;
 [DbPrimaryKey(Name = "pk_alerts", Columns = ["id"])]
 [DbUniqueIndex(
     Name = "ux_alerts_dedupe",
-    Columns = ["namespace_id", "deduplication_key", "dedupe_window_start_utc"],
-    Filter = "deduplication_key IS NOT NULL",
+    Columns = ["namespace_id", "dedupe_key", "dedupe_window_start_utc"],
+    Filter = "dedupe_key IS NOT NULL",
     Usage = "uniqueness"
 )]
 [DbIndex(
@@ -39,7 +39,7 @@ namespace Acta.Relational.Entities;
 [DbCheck(Name = "ck_alerts_job_ref_pair", Sql = "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)")]
 [DbCheck(
     Name = "ck_alerts_dedupe_pair",
-    Sql = "(deduplication_key IS NULL AND dedupe_window_start_utc IS NULL) OR (deduplication_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL)"
+    Sql = "(dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_alerts_occurrence_count", Sql = "occurrence_count >= 1")]
 internal sealed class JobAlert : IEntity<long>
@@ -112,16 +112,18 @@ internal sealed class JobAlert : IEntity<long>
 
     /// <summary>
     /// Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null, the unique
-    /// <c>(namespace_id, deduplication_key, dedupe_window_start_utc)</c> index collapses repeats inside the
+    /// <c>(namespace_id, dedupe_key, dedupe_window_start_utc)</c> index collapses repeats inside the
     /// window onto one row; when null, every call inserts a fresh row. Sized for the Automatic-origin
-    /// default template <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c>.
+    /// default template <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c>. Deliberately not
+    /// named <c>deduplication_key</c>: unlike the caller-supplied <c>jobs.deduplication_key</c> (128, an
+    /// idempotency key), this one is composed by Acta and sized for the generated template.
     /// </summary>
-    [DbColumn("deduplication_key", DbKind.AsciiString, Size = 512)]
-    public string? DeduplicationKey { get; init; }
+    [DbColumn("dedupe_key", DbKind.AsciiString, Size = 512)]
+    public string? DedupeKey { get; init; }
 
     /// <summary>
     /// Window-bucket start aligned to <c>JobsOptions.AlertDedupeWindow</c>; the dedupe window IS the rate
-    /// limit. NULL when <see cref="DeduplicationKey"/> is null (no dedupe).
+    /// limit. NULL when <see cref="DedupeKey"/> is null (no dedupe).
     /// </summary>
     [DbColumn("dedupe_window_start_utc", DbKind.UtcInstant)]
     public DateTime? DedupeWindowStartUtc { get; init; }

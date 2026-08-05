@@ -63,7 +63,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         var threshold = Assert.Single(alerts, a => a.Kind == AlertKindCode.ThresholdReached);
         Assert.Equal(AlertSeverityCode.Error, threshold.SeverityCode);
         Assert.Equal(1, threshold.OccurrenceCount);
-        Assert.Contains("threshold-reached", threshold.DeduplicationKey);
+        Assert.Contains("threshold-reached", threshold.DedupeKey);
 
         // FirstFailure.OccurrenceCount == 2 proves both non-terminal failure events were processed,
         // confirming the single ThresholdReached (not missing events, not over-counting).
@@ -94,7 +94,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(AlertOriginCode.Automatic, threshold.OriginCode);
         Assert.Equal(AlertKindCode.ThresholdReached, threshold.Kind);
         Assert.Equal(1, threshold.OccurrenceCount);
-        Assert.Contains("threshold-reached", threshold.DeduplicationKey);
+        Assert.Contains("threshold-reached", threshold.DedupeKey);
 
         // FirstFailure.OccurrenceCount == 2 proves the above-threshold occurrence was processed
         // but did not emit a second ThresholdReached: the suppression guard ran.
@@ -156,7 +156,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
 
         // Capture the row id; confirm alert is unresolved.
         var afterRaise = await ReadAlertsAsync(NamespaceId, ct);
-        var raised = Assert.Single(afterRaise, a => a.Kind == AlertKindCode.ThresholdReached && a.DeduplicationKey == deduplicationKey);
+        var raised = Assert.Single(afterRaise, a => a.Kind == AlertKindCode.ThresholdReached && a.DedupeKey == deduplicationKey);
         var capturedId = raised.Id;
         Assert.Null(raised.ResolvedAtUtc);
 
@@ -186,7 +186,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
 
         // Same row id (no new row), resolved_at_utc back to NULL, occurrence_count bumped to 2.
         var afterReopen = await ReadAlertsAsync(NamespaceId, ct);
-        var reopened = Assert.Single(afterReopen, a => a.Kind == AlertKindCode.ThresholdReached && a.DeduplicationKey == deduplicationKey);
+        var reopened = Assert.Single(afterReopen, a => a.Kind == AlertKindCode.ThresholdReached && a.DedupeKey == deduplicationKey);
         Assert.Equal(capturedId, reopened.Id);
         Assert.Null(reopened.ResolvedAtUtc);
         Assert.Equal(2, reopened.OccurrenceCount);

@@ -183,7 +183,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Message, command.Message));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.ChannelName, command.ChannelName));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)command.DeliveryStatus));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeduplicationKey, command.DeduplicationKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeKey, command.DeduplicationKey));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeWindowStartUtc, command.DedupeWindowStartUtc));
     }
 

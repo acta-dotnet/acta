@@ -242,6 +242,7 @@ internal sealed class DbFrom<TEntity, TProjection>
             var p = cmd.CreateParameter();
             p.ParameterName = name;
             p.Value = DbValueCoercion.Coerce(value, clrType, _session.Provider);
+            DbValueCoercion.ApplyType(p, clrType);
             cmd.Parameters.Add(p);
         }
         sb.Append(')');

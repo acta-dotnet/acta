@@ -53,13 +53,13 @@ SELECT json_extract(d.value, '$.definition_id') AS definition_id, j.id AS slot_i
 INSERT INTO {{schema}}.schedules (
     namespace_id, job_id, definition_id, name, origin_code,
     expression, time_zone_id, expression_kind_code, misfire_strategy_code,
-    next_run_at_utc, expression_override, time_zone_id_override, orphaned_at_utc,
+    next_run_at_utc, expression_override, time_zone_id_override,
     status_code, paused_until_utc, description)
 SELECT
     @p_namespace_id, sl.slot_id, json_extract(s.value, '$.definition_id'), json_extract(s.value, '$.name'), 40 /* ScheduleOriginCode.Definition */,
     json_extract(s.value, '$.expression'), json_extract(s.value, '$.time_zone_id'),
     json_extract(s.value, '$.expression_kind_code'), json_extract(s.value, '$.misfire_strategy_code'),
-    json_extract(s.value, '$.next_run_at_utc'), NULL, NULL, NULL,
+    json_extract(s.value, '$.next_run_at_utc'), NULL, NULL,
     10 /* ScheduleStatusCode.Active */, NULL, json_extract(s.value, '$.description')
   FROM json_each(@p_schedules) s
   JOIN temp._reg_slots sl ON sl.definition_id = json_extract(s.value, '$.definition_id')
@@ -70,7 +70,6 @@ ON CONFLICT (job_id, name) DO UPDATE SET
     misfire_strategy_code         = excluded.misfire_strategy_code,
     next_run_at_utc               = excluded.next_run_at_utc,
     definition_id             = excluded.definition_id,
-    orphaned_at_utc               = NULL,
     status_code                   = CASE WHEN {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
                                          THEN 10 /* ScheduleStatusCode.Active */
                                          ELSE {{schema}}.schedules.status_code END,
@@ -79,12 +78,13 @@ ON CONFLICT (job_id, name) DO UPDATE SET
     version                       = {{schema}}.schedules.version + 1;
 
 UPDATE {{schema}}.schedules
-   SET orphaned_at_utc = {{now}},
-       status_code     = 230 /* ScheduleStatusCode.Orphaned */,
+   SET status_code     = 230 /* ScheduleStatusCode.Orphaned */,
+       paused_until_utc = NULL,
        modified_at_utc = {{now}},
        version         = version + 1
  WHERE job_id IN (SELECT slot_id FROM temp._reg_slots)
-   AND orphaned_at_utc IS NULL
+   AND status_code <> 230 /* ScheduleStatusCode.Orphaned */
+   AND origin_code = 40 /* ScheduleOriginCode.Definition */
    AND NOT EXISTS (
        SELECT 1 FROM json_each(@p_schedules) s
         JOIN temp._reg_slots sl ON sl.definition_id = json_extract(s.value, '$.definition_id')

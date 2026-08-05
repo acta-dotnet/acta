@@ -14,9 +14,10 @@ internal static class SchemaMigrationRunner
     // The migration history is not frozen until 1.0: the baseline stays re-cuttable, and a re-cut
     // baseline cannot be translated onto a database built from an older one. This stamp is how that
     // fails loudly instead of silently applying a mismatched schema. Every `schema reset` bumps it,
-    // in both places that own it: SqlDdlDialect.PreviewBaselineName (which writes it into the
-    // generated M001 bodies) and the constant here (which requires it at bootstrap).
-    private const string RequiredBaselineStamp = "init-ordinal-tvp-v1";
+    // in both places that own it: SqlDdlDialect.BaselineStamp (which writes it into the generated
+    // M001 bodies) and the constant here (which requires it at bootstrap). BaselineStampParityTests
+    // fails the build if the two drift apart.
+    internal const string RequiredBaselineStamp = "init-extensible-v1";
 
     /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the

@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     title text NOT NULL,
     message text NOT NULL,
     channel_name text NOT NULL,
-    deduplication_key text NULL,
+    dedupe_key text NULL,
     dedupe_window_start_utc integer NULL,
     occurrence_count integer NOT NULL,
     resolved_at_utc integer NULL,
@@ -31,18 +31,17 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
-    , CONSTRAINT ck_alerts_dedupe_pair CHECK ((deduplication_key IS NULL AND dedupe_window_start_utc IS NULL) OR (deduplication_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL))
+    , CONSTRAINT ck_alerts_dedupe_pair CHECK ((dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
     , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
     , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
-    , CONSTRAINT ck_alerts_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
     , CONSTRAINT ck_alerts_delivery_status_code CHECK (delivery_status_code IN (10, 20, 30, 100, 200))
     , CONSTRAINT ck_alerts_retry_count_byte CHECK (retry_count BETWEEN 0 AND 255)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_delivery_due ON alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_created ON alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_unresolved ON alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_dedupe ON alerts (namespace_id, deduplication_key, dedupe_window_start_utc) WHERE deduplication_key IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_dedupe ON alerts (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL;
 
 -- JobDefinition
 CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
@@ -113,16 +112,12 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     , CONSTRAINT ck_definitions_tenant_requirement_code CHECK (tenant_requirement_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_priority_code_override_code CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
-    , CONSTRAINT ck_definitions_priority_code_effective_code CHECK (priority_code_effective IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_deadline_behavior_code CHECK (deadline_behavior_code IN (10, 20))
     , CONSTRAINT ck_definitions_deadline_behavior_code_override_code CHECK (deadline_behavior_code_override IS NULL OR deadline_behavior_code_override IN (10, 20))
-    , CONSTRAINT ck_definitions_deadline_behavior_code_effective_code CHECK (deadline_behavior_code_effective IN (10, 20))
     , CONSTRAINT ck_definitions_audit_level_code CHECK (audit_level_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_audit_level_code_override_code CHECK (audit_level_code_override IS NULL OR audit_level_code_override IN (0, 10, 20))
-    , CONSTRAINT ck_definitions_audit_level_code_effective_code CHECK (audit_level_code_effective IN (0, 10, 20))
     , CONSTRAINT ck_definitions_alert_profile_code CHECK (alert_profile_code IN (0, 10, 20, 30, 40))
     , CONSTRAINT ck_definitions_alert_profile_code_override_code CHECK (alert_profile_code_override IS NULL OR alert_profile_code_override IN (0, 10, 20, 30, 40))
-    , CONSTRAINT ck_definitions_alert_profile_code_effective_code CHECK (alert_profile_code_effective IN (0, 10, 20, 30, 40))
     , CONSTRAINT ck_definitions_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
     , CONSTRAINT ck_definitions_output_format_id_byte CHECK (output_format_id BETWEEN 0 AND 255)
 ) STRICT;
@@ -152,12 +147,10 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     detail_format_id integer DEFAULT 0 NOT NULL,
     detail blob NULL
     , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
-    , CONSTRAINT ck_events_event_code CHECK (event_code IN (10, 11, 12, 20, 21, 22, 30, 40, 41, 50, 60, 61, 70, 71, 72, 73, 74, 75, 76, 80, 81, 100, 101, 102, 103, 104, 120, 121, 122, 140, 141))
     , CONSTRAINT ck_events_actor_code CHECK (actor_code IN (10, 20, 50, 70))
     , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_execution_status_code CHECK (execution_status_code IS NULL OR execution_status_code IN (50, 100, 150, 151, 152, 200, 220, 230))
-    , CONSTRAINT ck_events_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 25, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
     , CONSTRAINT ck_events_detail_format_id_byte CHECK (detail_format_id BETWEEN 0 AND 255)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_lineage_timeline ON events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
@@ -277,7 +270,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     expression_kind_code integer NOT NULL,
     misfire_strategy_code integer NOT NULL,
     next_run_at_utc integer NULL,
-    orphaned_at_utc integer NULL,
+    last_occurrence_at_utc integer NULL,
     status_code integer NOT NULL,
     paused_until_utc integer NULL,
     description text NULL,
@@ -285,6 +278,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
+    , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
     , CONSTRAINT ck_schedules_origin_code CHECK (origin_code IN (20, 40))
     , CONSTRAINT ck_schedules_expression_kind_code CHECK (expression_kind_code IN (10, 20))
     , CONSTRAINT ck_schedules_misfire_strategy_code CHECK (misfire_strategy_code IN (10, 20))
@@ -292,7 +287,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (id)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_namespace_next ON schedules (namespace_id, next_run_at_utc, id) WHERE orphaned_at_utc IS NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_namespace_next ON schedules (namespace_id, next_run_at_utc, id) WHERE status_code <> 230;
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_schedules_job_name ON schedules (job_id, name);
 
 -- Setting
@@ -332,7 +327,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
     , CONSTRAINT ck_steps_state_code CHECK (state_code IN (10, 100, 200, 230))
-    , CONSTRAINT ck_steps_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 25, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
@@ -414,5 +408,5 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (1, 'init-ordinal-tvp-v1', '{{schema}}')
+VALUES (1, 'init-extensible-v1', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
