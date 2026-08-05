@@ -72,18 +72,26 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         await Operations.Tags.UpsertAsync(TagTarget.ForEvent(eventRow.Id), new TagInput("retention", "event"), ct);
         await Operations.Tags.UpsertAsync(TagTarget.ForAlert(alertRow.Id), new TagInput("retention", "alert"), ct);
 
-        var result = await RetentionTestOps.PurgeAsync(
-            Services,
-            ns,
-            NoEventPurgeDays,
-            NoAlertPurgeDays,
-            NoWorkerPurgeSeconds,
-            1000,
-            50,
-            ct
-        );
+        // Drain rather than assert a single call deletes it: the sweep selects WITH (UPDLOCK, READPAST),
+        // so a row contended by the live claim loop is skipped rather than waited for. The count still
+        // has to come to exactly one across the whole drain, because only this job is expired.
+        var purgedJobs = 0;
+        for (var pass = 1; pass <= 20 && purgedJobs == 0; pass++)
+        {
+            var result = await RetentionTestOps.PurgeAsync(
+                Services,
+                ns,
+                NoEventPurgeDays,
+                NoAlertPurgeDays,
+                NoWorkerPurgeSeconds,
+                1000,
+                50,
+                ct
+            );
+            purgedJobs += result.Jobs;
+        }
 
-        Assert.Equal(1, result.Jobs);
+        Assert.Equal(1, purgedJobs);
         Assert.Null(await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Empty(await Db.From<JobResult>().Where(r => r.JobId == jobId).ToListAsync(ct));
         Assert.Null(await Operations.Tags.GetAsync(TagTarget.ForJob(JobLookup.ById(jobId)), ct));
