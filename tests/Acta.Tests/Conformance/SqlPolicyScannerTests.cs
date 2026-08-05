@@ -121,7 +121,7 @@ public sealed class SqlCodePolicyAssertTests
         Assert.Empty(
             SqlCodePolicyAssert.ScanRequiredAnnotations(
                 "Fake/Fake.sql",
-                "SELECT 1 WHERE status_code IN (10 /* JobStatusCode.Ready */, 100 /* JobStatusCode.Done */);"
+                "SELECT 1 WHERE status_code IN (10 /* JobStatusCode.Ready */, 100 /* JobStatusCode.Succeeded */);"
             )
         );
 

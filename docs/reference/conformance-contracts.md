@@ -903,9 +903,9 @@
 - **Act:** StartExecution and CompleteExecution are invoked with a wrong worker, on terminal jobs, as a double complete, and from a displaced worker.
 - **Assert:** Each no-op path returns its exact action such as NotOwner or AlreadyTerminal and writes no new event.
 - **Guarantees:**
-  - StartExecution with wrong worker returns NotOwner and writes no job.execution.started event
+  - StartExecution with wrong worker returns NotOwner and writes no job.execution-started event
   - StartExecution on a terminal job returns AlreadyTerminal and writes no additional started event
-  - CompleteExecution with wrong worker returns NotOwner and writes no job.execution.finished event
+  - CompleteExecution with wrong worker returns NotOwner and writes no job.execution-finished event
   - Second CompleteExecution on a terminal job returns AlreadyTerminal with no additional finished event
   - Stale CompleteExecution by a displaced worker returns NotOwner and leaves job owned by the new claimant
 - **Store methods:**
@@ -1816,7 +1816,7 @@
 ### Operator sets a CAS-guarded full-set schedule expression/time-zone override
 - **Contract:** A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state.
 - **Arrange:** A recurring slot carries one schedule at its default expression and time zone.
-- **Act:** An operator sets, clears, or attempts a stale-version override through ISchedules.SetOverridesAsync.
+- **Act:** An operator sets, clears, or attempts a stale-version override through ISchedules.UpdateOverridesAsync.
 - **Assert:** Applied writes recompute the cursor from the new effective expression and bump version, while rejected or invalid attempts leave the row untouched.
 - **Guarantees:**
   - Setting an expression override moves the cursor to the new expression's next instant and audits the change

@@ -50,6 +50,19 @@ public sealed class CanonicalVocabularyTests
             "namespace." + "metadata-changed",
             "tenant." + "metadata-changed",
             "ValidateMetadata" + "Length",
+            // 0.4.0 aligned the event names on two segments and named modification events for the
+            // Update* call that causes them. The bare status words (the old terminal-success and
+            // in-flight spellings) are ordinary English and cannot be pinned here.
+            "job.execution" + ".started",
+            "job.execution" + ".finished",
+            "job.recurring" + ".rolled-over",
+            "job.signal" + ".raised",
+            "definition." + "policy-changed",
+            "schedule." + "overrides-changed",
+            "JobDefinition" + "PolicyChanged",
+            "ScheduleOverrides" + "Changed",
+            "SetOverrides" + "Async",
+            "job." + "other",
         };
 
         var root = IntegrationConfig.FindRepoRoot();

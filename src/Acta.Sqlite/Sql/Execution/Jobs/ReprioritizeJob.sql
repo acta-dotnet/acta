@@ -28,19 +28,19 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_id
   AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-  AND r.status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+  AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 UPDATE {{schema}}.runtimes
    SET priority_code   = @p_priority_code,
        modified_at_utc = {{now}},
        version         = version + 1
  WHERE job_id = @p_id
-   AND status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+   AND status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* JobControlAction.NotFound */
-        WHEN s.from_status NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 1 /* JobControlAction.Applied */
+        WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 1 /* JobControlAction.Applied */
         ELSE 3 /* JobControlAction.Rejected */
     END AS action,
     s.from_status AS status_code

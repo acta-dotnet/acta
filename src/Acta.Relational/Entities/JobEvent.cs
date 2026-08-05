@@ -5,7 +5,7 @@ namespace Acta.Relational.Entities;
 /// <summary>
 /// Append-only lifecycle timeline and execution ledger. Carries the audit trail of <c>JobRuntime.Status</c>
 /// transitions, suspend/resume hops, signal arrivals, and definition/worker lifecycle events, plus the
-/// canonical per-attempt record via paired <c>job.execution.started</c> / <c>job.execution.finished</c>
+/// canonical per-attempt record via paired <c>job.execution-started</c> / <c>job.execution-finished</c>
 /// events. Carries lifecycle facts and outcomes, plus an optional <see cref="Detail"/> payload for
 /// free-form (text) or structured (json) context beyond <see cref="ReasonCode"/> /
 /// <see cref="ReasonMessage"/>; richer event-specific data still belongs in OTel spans and structured
@@ -47,7 +47,7 @@ internal sealed class JobEvent : IEntity<long>
 
     /// <summary>
     /// What happened; the numeric id decodes via the <c>event</c> family in docs/98, e.g.
-    /// <c>41 = "job.execution.finished"</c>. Closed taxonomy.
+    /// <c>41 = "job.execution-finished"</c>. Closed taxonomy.
     /// </summary>
     [DbColumn("event_code")]
     public JobEventCode EventCode { get; init; }
@@ -153,14 +153,14 @@ internal sealed class JobEvent : IEntity<long>
     public JobStatusCode? ToStatus { get; init; }
 
     /// <summary>
-    /// Per-execution outcome for <c>job.execution.finished</c> events; null otherwise. The failure budget
+    /// Per-execution outcome for <c>job.execution-finished</c> events; null otherwise. The failure budget
     /// on <c>JobRuntime.FailureCount</c> charges only on <c>Failed</c> / <c>Orphaned</c>.
     /// </summary>
     [DbColumn("execution_status_code")]
     public ExecutionStatusCode? ExecutionStatus { get; init; }
 
     /// <summary>
-    /// Wall-clock duration of the attempt in milliseconds; written on <c>job.execution.finished</c>
+    /// Wall-clock duration of the attempt in milliseconds; written on <c>job.execution-finished</c>
     /// (computed in code from start to finish, not from event timestamps, so it tolerates clock skew
     /// between operation invocations). NULL on every other event type.
     /// <c>JobDefinition.ExecutionTimeoutSeconds</c> carries a CHECK that keeps attempt durations within

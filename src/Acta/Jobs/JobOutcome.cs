@@ -25,7 +25,7 @@ public class JobOutcome
     public JobStatusCode TerminalStatus { get; }
     public bool IsTimedOut { get; }
 
-    public bool IsSuccess => !IsTimedOut && TerminalStatus == JobStatusCode.Done;
+    public bool IsSuccess => !IsTimedOut && TerminalStatus == JobStatusCode.Succeeded;
     public bool IsFailed => !IsTimedOut && TerminalStatus == JobStatusCode.Failed;
     public bool IsCancelled => !IsTimedOut && TerminalStatus == JobStatusCode.Cancelled;
 
@@ -48,7 +48,7 @@ public class JobOutcome
         throw new JobFailedException(JobId, TerminalStatus);
     }
 
-    internal static JobOutcome Done(long jobId) => new(jobId, JobStatusCode.Done, isTimedOut: false);
+    internal static JobOutcome Done(long jobId) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false);
 
     internal static JobOutcome Failed(long jobId) => new(jobId, JobStatusCode.Failed, isTimedOut: false);
 
@@ -96,7 +96,7 @@ public sealed class JobOutcome<T> : JobOutcome
         return Value ?? throw new InvalidOperationException($"Job {JobId} succeeded but the result Value is null.");
     }
 
-    internal static JobOutcome<T> Done(long jobId, T value) => new(jobId, JobStatusCode.Done, isTimedOut: false, value);
+    internal static JobOutcome<T> Done(long jobId, T value) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false, value);
 
     internal static new JobOutcome<T> Failed(long jobId) => new(jobId, JobStatusCode.Failed, isTimedOut: false, value: default);
 

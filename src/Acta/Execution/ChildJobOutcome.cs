@@ -9,5 +9,5 @@ namespace Acta;
 public sealed record ChildJobOutcome(long ChildJobId, JobStatusCode Status)
 {
     /// <summary>True when the child landed <c>Done</c>.</summary>
-    public bool Succeeded => Status == JobStatusCode.Done;
+    public bool Succeeded => Status == JobStatusCode.Succeeded;
 }

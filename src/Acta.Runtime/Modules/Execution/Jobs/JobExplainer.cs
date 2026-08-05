@@ -95,7 +95,7 @@ internal static class JobExplainer
                 }
                 break;
 
-            case JobStatusCode.Done:
+            case JobStatusCode.Succeeded:
                 headline = "Done.";
                 actions.Add(new JobExplainAction("view-result", "view the result with 'jobs result' if the job stores one"));
                 actions.Add(new JobExplainAction("inspect-timeline", "inspect the event timeline if needed"));

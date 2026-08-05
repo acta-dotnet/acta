@@ -67,7 +67,7 @@ BEGIN
                 COALESCE(st.lineage_root_id, st.id), st.definition_id, st.tenant_id,
                 @p_leased_by_worker_id,
                 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
-                50 /* ExecutionStatusCode.Running */, NULL,
+                50 /* ExecutionStatusCode.Executing */, NULL,
                 NULL, NULL
               FROM @started st
              WHERE st.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
@@ -86,7 +86,7 @@ BEGIN
             SET @action = CASE
                 WHEN @curStatus IS NULL
                   OR @curStatus IN (
-                        100 /* JobStatusCode.Done */,
+                        100 /* JobStatusCode.Succeeded */,
                         200 /* JobStatusCode.Failed */,
                         220 /* JobStatusCode.Cancelled */
                     )

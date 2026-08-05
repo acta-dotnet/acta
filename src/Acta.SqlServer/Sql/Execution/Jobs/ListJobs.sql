@@ -37,7 +37,7 @@ SELECT TOP (@p_take)
                   AND (f.value_search IS NULL OR t.value_search = f.value_search)
          )
    ))
-   AND (@p_terminal_only IS NULL OR r.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+   AND (@p_terminal_only IS NULL OR r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
    AND (@p_recurring_only IS NULL OR EXISTS (
         SELECT 1
           FROM {{schema}}.schedules s
@@ -75,7 +75,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
                            AND (f.value_search IS NULL OR t.value_search = f.value_search)
                   )
             ))
-            AND (@p_terminal_only IS NULL OR r.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+            AND (@p_terminal_only IS NULL OR r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
             AND (@p_recurring_only IS NULL OR EXISTS (
                  SELECT 1
                    FROM {{schema}}.schedules s

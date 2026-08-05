@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
 /// Operator full-set override of a single named schedule's expression/time zone, CAS-guarded on
 /// <c>version</c>. A stale expected version is rejected carrying the schedule's current state; an
 /// applied write recomputes the schedule's own cursor under the new effective expression and the owning
-/// slot's MIN, and emits an audit-gated <c>schedule.overrides-changed</c> event. Invalid input (a bad
+/// slot's MIN, and emits an audit-gated <c>schedule.overrides-updated</c> event. Invalid input (a bad
 /// expression or an unrecognized time zone) fails in C# before any write.
 /// </summary>
 [ConformanceSpec(
@@ -21,7 +21,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     Area = "Scheduling",
     Contract = "A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state.",
     Arrange = "A recurring slot carries one schedule at its default expression and time zone.",
-    Act = "An operator sets, clears, or attempts a stale-version override through ISchedules.SetOverridesAsync.",
+    Act = "An operator sets, clears, or attempts a stale-version override through ISchedules.UpdateOverridesAsync.",
     Assert = "Applied writes recompute the cursor from the new effective expression and bump version, while rejected or invalid attempts leave the row untouched."
 )]
 [CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.SetScheduleOverridesAsync))]
@@ -52,7 +52,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
         var before = await ScheduleAsync(Db, jobName, "only", ct);
-        var result = await Schedules.SetOverridesAsync(
+        var result = await Schedules.UpdateOverridesAsync(
             Lookup(jobName, "only"),
             before.Version,
             DailyCron,
@@ -79,7 +79,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
 
         var slotId = await SlotIdAsync(jobName, ct);
         var events = await Db.From<JobEvent>()
-            .Where(e => e.JobId == slotId && e.EventCode == JobEventCode.ScheduleOverridesChanged)
+            .Where(e => e.JobId == slotId && e.EventCode == JobEventCode.ScheduleOverridesUpdated)
             .ToListAsync(ct);
         var changed = Assert.Single(events);
         Assert.Equal("operator-1", changed.ActorKey);
@@ -99,7 +99,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
         var before = await ScheduleAsync(Db, jobName, "only", ct);
-        var result = await Schedules.SetOverridesAsync(Lookup(jobName, "only"), before.Version + 1, DailyCron, null, ct: ct);
+        var result = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), before.Version + 1, DailyCron, null, ct: ct);
 
         Assert.Equal(JobControlAction.Rejected, result.Action);
         Assert.Equal(before.Version, result.Version); // current version, so the caller can re-read
@@ -122,11 +122,11 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         var v1 = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal("UTC", v1.TimeZoneId);
         Assert.Equal("UTC", v1.TimeZoneIdEffective);
-        var set = await Schedules.SetOverridesAsync(Lookup(jobName, "only"), v1.Version, DailyCron, "Europe/Ljubljana", ct: ct);
+        var set = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), v1.Version, DailyCron, "Europe/Ljubljana", ct: ct);
         Assert.Equal(JobControlAction.Applied, set.Action);
 
         var v2 = await ScheduleAsync(Db, jobName, "only", ct);
-        var cleared = await Schedules.SetOverridesAsync(Lookup(jobName, "only"), v2.Version, null, null, ct: ct);
+        var cleared = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), v2.Version, null, null, ct: ct);
         Assert.Equal(JobControlAction.Applied, cleared.Action);
 
         var v3 = await ScheduleAsync(Db, jobName, "only", ct);
@@ -148,7 +148,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
 
         var before = await ScheduleAsync(Db, jobName, "only", ct);
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Schedules.SetOverridesAsync(Lookup(jobName, "only"), before.Version, "not a cron expression", null, ct: ct).AsTask()
+            Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), before.Version, "not a cron expression", null, ct: ct).AsTask()
         );
 
         var after = await ScheduleAsync(Db, jobName, "only", ct);
@@ -168,7 +168,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
 
         var before = await ScheduleAsync(Db, jobName, "only", ct);
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Schedules.SetOverridesAsync(Lookup(jobName, "only"), before.Version, null, "Not/A_Zone", ct: ct).AsTask()
+            Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), before.Version, null, "Not/A_Zone", ct: ct).AsTask()
         );
 
         var after = await ScheduleAsync(Db, jobName, "only", ct);
@@ -188,14 +188,14 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
 
         Assert.Equal(
             JobControlAction.NotFound,
-            (await Schedules.SetOverridesAsync(Lookup(jobName, "nope"), 0, DailyCron, null, ct: ct)).Action
+            (await Schedules.UpdateOverridesAsync(Lookup(jobName, "nope"), 0, DailyCron, null, ct: ct)).Action
         );
 
         // Re-register with no declared schedules: the orphan sweep stamps orphaned_at_utc on "gone".
         await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
         Assert.Equal(
             JobControlAction.NotFound,
-            (await Schedules.SetOverridesAsync(Lookup(jobName, "gone"), 0, DailyCron, null, ct: ct)).Action
+            (await Schedules.UpdateOverridesAsync(Lookup(jobName, "gone"), 0, DailyCron, null, ct: ct)).Action
         );
     }
 
@@ -215,7 +215,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         var beforeOverride = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(ScheduleStatusCode.Paused, beforeOverride.Status);
 
-        var result = await Schedules.SetOverridesAsync(Lookup(jobName, "only"), beforeOverride.Version, DailyCron, null, ct: ct);
+        var result = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), beforeOverride.Version, DailyCron, null, ct: ct);
         Assert.Equal(JobControlAction.Applied, result.Action);
 
         var expectedNext = NextOccurrenceCalculator.Next(DailyCron, null, ScheduleExpressionKindCode.Cron, now);

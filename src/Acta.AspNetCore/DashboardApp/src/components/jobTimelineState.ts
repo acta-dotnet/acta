@@ -20,8 +20,8 @@ export function matchesTimelineCategory(evt: TimelineEvent, category: TimelineCa
   if (category === 'control') {
     return /job\.(paused|resumed|restarted|cancelled|rescheduled|reprioritized|purged)/.test(code);
   }
-  if (category === 'signal') return code.startsWith('job.signal.');
-  if (category === 'schedule') return code.startsWith('schedule.') || code === 'job.recurring.rolled-over';
+  if (category === 'signal') return code.startsWith('job.signal-');
+  if (category === 'schedule') return code.startsWith('schedule.') || code === 'job.recurring-rolled-over';
   return true;
 }
 
@@ -38,9 +38,9 @@ export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
   const code = String(evt.eventCode ?? '').toLowerCase();
   const outcome = String(evt.executionStatus ?? evt.toStatus ?? '').toLowerCase();
   switch (code) {
-    case 'job.execution.started':
+    case 'job.execution-started':
       return { icon: 'lightning-bolt', tone: 'run', title: 'Execution started' };
-    case 'job.execution.finished':
+    case 'job.execution-finished':
       // outcome carries the ExecutionStatusCode name: succeeded/failed/rescheduled/suspended/paused/cancelled/orphaned.
       if (outcome === 'succeeded') return { icon: 'check', tone: 'ok', title: 'Completed' };
       if (outcome === 'failed') return { icon: 'x', tone: 'bad', title: 'Execution failed' };
@@ -52,7 +52,7 @@ export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
       return { icon: 'minus-circle', tone: 'neutral', title: 'Execution finished' };
     case 'job.rescheduled':
       return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'Rescheduled' };
-    case 'job.recurring.rolled-over':
+    case 'job.recurring-rolled-over':
       return { icon: 'calendar', tone: 'held', title: 'Recurrence advanced' };
     case 'job.suspended':
       return { icon: 'clock', tone: 'held', title: 'Sleeping' };
@@ -72,7 +72,7 @@ export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
       return { icon: 'person', tone: 'held', title: 'Input amended' };
     case 'job.state-reset':
       return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'State reset' };
-    case 'job.signal.raised':
+    case 'job.signal-raised':
       return { icon: 'target', tone: 'run', title: 'Signal raised' };
   }
   if (code.startsWith('schedule.')) {

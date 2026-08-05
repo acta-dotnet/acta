@@ -30,7 +30,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 
     // ---------- StartExecution outcomes ----------
 
-    [Fact(DisplayName = "StartExecution with wrong worker returns NotOwner and writes no job.execution.started event")]
+    [Fact(DisplayName = "StartExecution with wrong worker returns NotOwner and writes no job.execution-started event")]
     public async Task Start_wrong_worker_returns_not_owner_and_no_event()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -89,14 +89,14 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
             .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
 
         Assert.Equal(StartExecutionAction.AlreadyTerminal, action);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Count must remain at 1: no second started event written by the no-op.
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionStarted, ct));
     }
 
     // ---------- CompleteExecution outcomes ----------
 
-    [Fact(DisplayName = "CompleteExecution with wrong worker returns NotOwner and writes no job.execution.finished event")]
+    [Fact(DisplayName = "CompleteExecution with wrong worker returns NotOwner and writes no job.execution-finished event")]
     public async Task Complete_wrong_worker_returns_not_owner_and_no_event()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -154,7 +154,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         );
 
         // Baseline: Done with exactly one finished event.
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         var finishedBefore = await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
         Assert.Equal(1, finishedBefore);
 
@@ -162,7 +162,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         var result2 = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionAsync(req, ct);
 
         Assert.Equal(CompleteExecutionAction.AlreadyTerminal, result2.Action);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Event count must be unchanged: no second finished event.
         Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct));
     }

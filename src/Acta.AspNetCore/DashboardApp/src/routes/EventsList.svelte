@@ -20,18 +20,18 @@
   const EVENT_CODES = [
     'tenant.suspended', 'tenant.resumed', 'tenant.updated',
     'namespace.suspended', 'namespace.resumed', 'namespace.updated',
-    'definition.policy-changed',
-    'job.execution.started', 'job.execution.finished', 'job.recurring.rolled-over',
+    'definition.overrides-updated',
+    'job.execution-started', 'job.execution-finished', 'job.recurring-rolled-over',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',
     'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
-    'job.signal.raised', 'job.state-reset',
-    'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-changed', 'schedule.triggered',
+    'job.signal-raised', 'job.state-reset',
+    'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered',
     'worker.started', 'worker.stopped', 'worker.dead',
     'alert.acknowledged', 'alert.resolved'
   ];
   const ACTOR_CODES = ['sys', 'operator', 'job', 'worker'];
   const REASON_CODES = [
-    'job.other', 'job.unhandled-exception', 'job.lease-expired', 'job.execution-timeout',
+    'job.unclassified', 'job.unhandled-exception', 'job.lease-expired', 'job.execution-timeout',
     'job.non-retryable-exception', 'job.deadline-exceeded', 'job.schedules-exhausted',
     'job.control-manual', 'job.parent-cancelled', 'job.definition-retired',
     'job.handler-rescheduled', 'job.handler-suspended', 'job.handler-failed', 'job.handler-cancelled', 'job.handler-paused',

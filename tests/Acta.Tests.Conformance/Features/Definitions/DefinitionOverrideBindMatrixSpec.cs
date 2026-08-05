@@ -86,7 +86,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         var displayName = "Renamed By Operator";
         var description = "Operator description.";
 
-        var outcome = await DefinitionTestOps.SetOverridesAsync(
+        var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             id,
             before.Version,
@@ -158,7 +158,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         var id = await RegisterAsync(name, ct);
 
         var v0 = (await ReadAsync(name, ct)).Version;
-        await DefinitionTestOps.SetOverridesAsync(
+        await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             id,
             v0,
@@ -183,7 +183,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         );
 
         var set = await ReadAsync(name, ct);
-        await DefinitionTestOps.SetOverridesAsync(Services, id, set.Version, new JobDefinitionPolicyOverrides(), Actor, "clear all", ct);
+        await DefinitionTestOps.UpdateOverridesAsync(Services, id, set.Version, new JobDefinitionPolicyOverrides(), Actor, "clear all", ct);
 
         var cleared = await ReadAsync(name, ct);
 

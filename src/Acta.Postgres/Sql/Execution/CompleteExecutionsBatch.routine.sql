@@ -30,7 +30,7 @@ BEGIN
     ),
     updated AS (
         UPDATE {{schema}}.runtimes r
-           SET status_code          = CASE WHEN b.succeeded THEN 100 /* JobStatusCode.Done */ ELSE 200 /* JobStatusCode.Failed */ END,
+           SET status_code          = CASE WHEN b.succeeded THEN 100 /* JobStatusCode.Succeeded */ ELSE 200 /* JobStatusCode.Failed */ END,
                failure_count        = COALESCE(b.failure_count, r.failure_count),
                leased_by_worker_id  = NULL,
                lease_expires_at_utc = NULL,
@@ -66,7 +66,7 @@ BEGIN
         SELECT 41 /* JobEventCode.JobExecutionFinished */, now(), u.namespace_id, 70 /* JobActorCode.Worker */, NULL,
                u.job_id, u.job_ref, u.execution_number, COALESCE(u.lineage_root_id, u.job_id), u.definition_id, u.tenant_id,
                u.worker_id, 50 /* JobStatusCode.Executing */,
-               CASE WHEN u.succeeded THEN 100 /* JobStatusCode.Done */ ELSE 200 /* JobStatusCode.Failed */ END,
+               CASE WHEN u.succeeded THEN 100 /* JobStatusCode.Succeeded */ ELSE 200 /* JobStatusCode.Failed */ END,
                CASE WHEN u.succeeded THEN 100 /* ExecutionStatusCode.Succeeded */ ELSE 200 /* ExecutionStatusCode.Failed */ END, u.duration_ms,
                u.reason_code, u.reason_message
           FROM updated u

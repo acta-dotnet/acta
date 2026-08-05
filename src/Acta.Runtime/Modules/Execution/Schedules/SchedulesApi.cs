@@ -98,7 +98,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         return ToResult(outcome);
     }
 
-    public async ValueTask<ScheduleControlResult> SetOverridesAsync(
+    public async ValueTask<ScheduleControlResult> UpdateOverridesAsync(
         JobScheduleLookup schedule,
         int expectedVersion,
         string? expression,

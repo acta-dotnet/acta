@@ -90,7 +90,7 @@ BEGIN
             execution_status_code, duration_ms,
             reason_code, reason_message)
         VALUES (
-            103 /* JobEventCode.ScheduleOverridesChanged */, now(), v_ns,
+            103 /* JobEventCode.ScheduleOverridesUpdated */, now(), v_ns,
             p_actor_code, p_actor_key,
             p_job_id, v_job_ref, v_en,
             COALESCE(v_lineage, p_job_id), v_def,

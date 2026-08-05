@@ -107,7 +107,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
         // --- 3. Releasing the probe lets the original run finish Done.
         ChaosProbes.Release(enqueued.JobId);
         Assert.Equal(RunOnceOutcome.Completed, await run);
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
     }
 
     [Fact(DisplayName = "Cancel while executing records both execution-finished Cancelled and job-cancelled")]

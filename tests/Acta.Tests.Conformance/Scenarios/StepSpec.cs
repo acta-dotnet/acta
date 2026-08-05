@@ -36,7 +36,7 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal("ok", await Jobs.GetResultAsync<string>(enqueued, ct));
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
 
@@ -80,7 +80,7 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "step.value", ct));
     }
 
@@ -112,7 +112,7 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         Assert.Equal(JobStepStateCode.Succeeded, (await ReadStepsAsync(enqueued.JobId, ct)).Single().State);
 
         var done = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Done, done.Status);
+        Assert.Equal(JobStatusCode.Succeeded, done.Status);
         Assert.Equal((short)0, done.FailureCount);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "step.done", ct));
     }

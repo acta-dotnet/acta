@@ -272,7 +272,7 @@ export function parseUtcDateTimeInput(value: string): UtcDateTimeInputResult {
 // Code-family enums arrive kebab-case on the wire ('ready', 'retry-after', 'critical').
 export function statusClass(status: string): string {
   switch (status) {
-    case 'done':
+    case 'succeeded':
     case 'active':
     case 'delivered':
       return 'ok';
@@ -300,7 +300,7 @@ export function statusClass(status: string): string {
 // Icon name (see Icon.svelte) for a status/severity. '' -> no icon (badge keeps its dot).
 export function statusIcon(status: string): string {
   switch (status) {
-    case 'done':
+    case 'succeeded':
     case 'active':
     case 'delivered':
       return 'check-circle';
@@ -333,4 +333,4 @@ export function statusIcon(status: string): string {
   }
 }
 
-export const TERMINAL_STATUSES = ['done', 'failed', 'cancelled'];
+export const TERMINAL_STATUSES = ['succeeded', 'failed', 'cancelled'];

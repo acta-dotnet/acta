@@ -41,7 +41,7 @@ for (var i = 0; i < 60; i++)
     await Task.Delay(500);
     var reportStatus = await jobs.GetStatusAsync(report);
     var pollStatus = await jobs.GetStatusAsync(poll);
-    if (reportStatus == JobStatusCode.Done && pollStatus == JobStatusCode.Done)
+    if (reportStatus == JobStatusCode.Succeeded && pollStatus == JobStatusCode.Succeeded)
     {
         break;
     }

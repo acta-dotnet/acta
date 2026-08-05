@@ -85,7 +85,7 @@ BEGIN
       FROM unnest(p_b_parent_id) AS b(parent_id)
       INNER JOIN {{schema}}.jobs pj ON pj.id = b.parent_id
       INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
-     WHERE pr.status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+     WHERE pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
     IF parent_count IS DISTINCT FROM parent_live THEN
         RAISE EXCEPTION 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.'

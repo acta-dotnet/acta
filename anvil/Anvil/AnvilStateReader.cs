@@ -42,7 +42,7 @@ public sealed class AnvilStateReader(
                 ct
             )
             .AsTask();
-        var doneTask = CountAsync(JobStatusCode.Done, ct).AsTask();
+        var doneTask = CountAsync(JobStatusCode.Succeeded, ct).AsTask();
         var workerRowsTask = operations.Workers.ListAsync(new ListWorkersQuery(_namespaceName, PageSize: 50), ct).AsTask();
         var eventsTask = operations
             .Ledger.ListEventsAsync(new ListJobEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct)

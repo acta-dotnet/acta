@@ -65,7 +65,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         Assert.Equal(1, await CountEventsAsync(parent.JobId, JobEventCode.JobResumed, ct));
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(parent.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
     }
 
@@ -96,7 +96,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         // The parent's wait never throws: it returns the outcome record (terminal status only), which
         // the parent stores as its own result, round-tripping the SQL-built JSON envelope through the parser.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(parent.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         var outcome = await Jobs.GetResultAsync<ChildJobOutcome>(parent, ct);
         Assert.NotNull(outcome);
@@ -127,7 +127,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
             }
         }
 
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(parent.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.Equal(12, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
     }
 
@@ -181,7 +181,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
             Assert.Equal(1, await CountEventsAsync(descendantId, JobEventCode.JobCancelled, ct));
         }
 
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(done.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(done.JobId, ct)).Status);
     }
 
     [Fact(DisplayName = "A handler self-cancel cascades to its children with reason ParentCancelled")]
@@ -210,15 +210,15 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-fire-and-forget", JobPayload.None), ct);
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(parent.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(JobStatusCode.Ready, child.Status);
 
         // The orphaned child still runs; its raise hits a terminal parent and writes nothing.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child.Id, ct));
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(child.Id, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(parent.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.Empty(await ReadSignalsAsync(parent.JobId, ct));
     }
 
@@ -355,7 +355,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         foreach (var child in children)
         {
             var job = await ReadJobAsync(child.JobId, ct);
-            Assert.True(job.Status is JobStatusCode.Done or JobStatusCode.Cancelled, $"child {child.JobId} ended {job.Status}");
+            Assert.True(job.Status is JobStatusCode.Succeeded or JobStatusCode.Cancelled, $"child {child.JobId} ended {job.Status}");
         }
     }
 

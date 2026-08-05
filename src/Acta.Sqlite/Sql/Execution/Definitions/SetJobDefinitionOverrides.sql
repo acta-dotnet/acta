@@ -15,7 +15,7 @@ INSERT INTO {{schema}}.events (
     execution_status_code, duration_ms,
     reason_code, reason_message)
 SELECT
-    30 /* JobEventCode.JobDefinitionPolicyChanged */, {{now}}, s.namespace_id,
+    30 /* JobEventCode.JobDefinitionOverridesUpdated */, {{now}}, s.namespace_id,
     @p_actor_code, @p_actor_key,
     NULL, NULL, NULL,
     NULL, s.id,

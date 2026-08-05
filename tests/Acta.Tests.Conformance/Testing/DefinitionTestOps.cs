@@ -26,7 +26,7 @@ internal static class DefinitionTestOps
             .RegisterAsync(namespaceId, manifestGenerationUtc, descriptors, stored, ct);
     }
 
-    public static async Task<DefinitionOverrideResult> SetOverridesAsync(
+    public static async Task<DefinitionOverrideResult> UpdateOverridesAsync(
         IServiceProvider services,
         int definitionId,
         int expectedVersion,
@@ -37,5 +37,5 @@ internal static class DefinitionTestOps
     ) =>
         await services
             .GetRequiredService<DefinitionsService>()
-            .SetOverridesAsync(definitionId, expectedVersion, overrides, actor.ActorKey, note, ct);
+            .UpdateOverridesAsync(definitionId, expectedVersion, overrides, actor.ActorKey, note, ct);
 }

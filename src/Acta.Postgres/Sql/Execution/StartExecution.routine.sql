@@ -42,7 +42,7 @@ AS $$
             COALESCE(u.lineage_root_id, u.id), u.definition_id, u.tenant_id,
             p_leased_by_worker_id,
             40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
-            50 /* ExecutionStatusCode.Running */, NULL,
+            50 /* ExecutionStatusCode.Executing */, NULL,
             NULL, NULL
           FROM updated u
          WHERE u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
@@ -58,7 +58,7 @@ AS $$
             WHEN EXISTS (SELECT 1 FROM updated) THEN 1 /* StartExecutionAction.Started */
             WHEN NOT EXISTS (SELECT 1 FROM current) THEN 4 /* StartExecutionAction.AlreadyTerminal */
             WHEN (SELECT status_code FROM current) IN (
-                100 /* JobStatusCode.Done */,
+                100 /* JobStatusCode.Succeeded */,
                 200 /* JobStatusCode.Failed */,
                 220 /* JobStatusCode.Cancelled */
             ) THEN 4 /* StartExecutionAction.AlreadyTerminal */

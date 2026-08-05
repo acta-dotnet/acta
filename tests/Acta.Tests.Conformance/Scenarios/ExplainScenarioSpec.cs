@@ -56,7 +56,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
 
         Assert.NotNull(x);
-        Assert.Equal(JobStatusCode.Done, x!.Status);
+        Assert.Equal(JobStatusCode.Succeeded, x!.Status);
         Assert.Equal("Done.", x.Headline);
         Assert.Null(x.ActiveWait);
     }
@@ -71,7 +71,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
 
         Assert.NotNull(x);
-        Assert.Equal(JobStatusCode.Done, x!.Status);
+        Assert.Equal(JobStatusCode.Succeeded, x!.Status);
         var step = Assert.Single(x.Steps);
         Assert.Equal("compute", step.Name);
         Assert.Equal(JobStepStateCode.Succeeded, step.State);

@@ -126,7 +126,7 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var exit = await runner.RunAsync(Parse($"debug {enqueued.JobId}"), ct);
 
         Assert.Equal(0, exit);
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Contains("run: Completed", output.ToString());
 
         // The result verb surfaces the handler's payload: AddNumbers(2, 3) produced Sum = 5.
@@ -148,8 +148,8 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Assert.Equal(0, await eventsRunner.RunAsync(Parse($"events {enqueued.JobId}"), ct));
         var text = eventsOutput.ToString();
         Assert.Contains($"Events for job {enqueued.JobId}", text);
-        Assert.Contains("job.execution.started", text);
-        Assert.Contains("job.execution.finished", text);
+        Assert.Contains("job.execution-started", text);
+        Assert.Contains("job.execution-finished", text);
     }
 
     private CliCommandRunner CreateRunner(out StringWriter output)

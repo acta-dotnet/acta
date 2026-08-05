@@ -89,7 +89,7 @@ AS $$
             COALESCE(u.lineage_root_id, u.id), u.definition_id, u.tenant_id,
             p_leased_by_worker_id,
             10 /* JobStatusCode.Ready */, 50 /* JobStatusCode.Executing */,
-            50 /* ExecutionStatusCode.Running */, NULL,
+            50 /* ExecutionStatusCode.Executing */, NULL,
             NULL, NULL
           FROM updated u
          WHERE p_start_executing AND u.audit_level_code = 20 /* JobAuditLevelCode.Audit */

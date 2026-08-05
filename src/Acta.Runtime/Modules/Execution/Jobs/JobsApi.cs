@@ -105,7 +105,7 @@ internal sealed class JobsApi(
             ? JobOutcome.TimedOut(outcome.JobId, snapshot?.Status ?? JobStatusCode.Ready)
             : snapshot!.Status switch
             {
-                JobStatusCode.Done => JobOutcome.Done(outcome.JobId),
+                JobStatusCode.Succeeded => JobOutcome.Done(outcome.JobId),
                 JobStatusCode.Cancelled => JobOutcome.Cancelled(outcome.JobId),
                 _ => JobOutcome.Failed(outcome.JobId),
             };
@@ -301,7 +301,7 @@ internal sealed class JobsApi(
 
         switch (snapshot!.Status)
         {
-            case JobStatusCode.Done:
+            case JobStatusCode.Succeeded:
                 var payload =
                     await GetResultAsync(lookup, ct)
                     ?? throw new InvalidOperationException(

@@ -77,7 +77,7 @@ public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
 
         // Let the handler finish: the drain runs it to completion (Done), never cancel-and-reclaim.
         DrainGate.Release(TestNamespace);
-        await WaitForStatusAsync(enqueued.JobId, JobStatusCode.Done, ct);
+        await WaitForStatusAsync(enqueued.JobId, JobStatusCode.Succeeded, ct);
         // Poll, not an instant assert: the inline-completion profiles write Done to the DB just before the
         // attempt is removed from RunningAttempts, so the count can lag the committed Done read by a tick.
         await WaitForInFlightZeroAsync(ct);

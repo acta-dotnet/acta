@@ -1542,25 +1542,25 @@
           },
           {
             "Id": 30,
-            "Code": "definition.policy-changed",
+            "Code": "definition.overrides-updated",
             "Description": "An operator changed a job definition\u0027s policy overrides; ReasonMessage summarizes the change.",
             "Lifecycle": "Active"
           },
           {
             "Id": 40,
-            "Code": "job.execution.started",
-            "Description": "Handler invocation began; paired with job.execution.finished on (JobId, ExecutionNumber).",
+            "Code": "job.execution-started",
+            "Description": "Handler invocation began; paired with job.execution-finished on (JobId, ExecutionNumber).",
             "Lifecycle": "Active"
           },
           {
             "Id": 41,
-            "Code": "job.execution.finished",
+            "Code": "job.execution-finished",
             "Description": "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated.",
             "Lifecycle": "Active"
           },
           {
             "Id": 50,
-            "Code": "job.recurring.rolled-over",
+            "Code": "job.recurring-rolled-over",
             "Description": "Recurring Job\u0027s NextRunAtUtc advanced to the next firing instant.",
             "Lifecycle": "Active"
           },
@@ -1620,7 +1620,7 @@
           },
           {
             "Id": 80,
-            "Code": "job.signal.raised",
+            "Code": "job.signal-raised",
             "Description": "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.",
             "Lifecycle": "Active"
           },
@@ -1650,7 +1650,7 @@
           },
           {
             "Id": 103,
-            "Code": "schedule.overrides-changed",
+            "Code": "schedule.overrides-updated",
             "Description": "Operator changed a schedule\u0027s expression/timezone overrides; ReasonMessage summarizes the change and carries the schedule name.",
             "Lifecycle": "Active"
           },
@@ -1697,7 +1697,7 @@
         "Values": [
           {
             "Id": 50,
-            "Code": "running",
+            "Code": "executing",
             "Description": "Handler in flight.",
             "Lifecycle": "Active"
           },
@@ -1716,7 +1716,7 @@
           {
             "Id": 151,
             "Code": "suspended",
-            "Description": "Handler called ctx.SleepAsync; suspended until the sleep timer\u0027s due instant; does not charge budget.",
+            "Description": "The attempt ended because the job parked: a ctx.SleepAsync timer, an awaited signal, or awaited children. Does not charge budget.",
             "Lifecycle": "Active"
           },
           {
@@ -1792,7 +1792,7 @@
           {
             "Id": 10,
             "Code": "failures",
-            "Description": "Emit failed job.execution.finished only; suppress other audit-filtered per-job events.",
+            "Description": "Emit failed job.execution-finished only; suppress other audit-filtered per-job events.",
             "Lifecycle": "Active"
           },
           {
@@ -1906,7 +1906,7 @@
           },
           {
             "Id": 10,
-            "Code": "job.other",
+            "Code": "job.unclassified",
             "Description": "None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage.",
             "Lifecycle": "Active"
           },
@@ -2050,7 +2050,7 @@
           {
             "Id": 20,
             "Code": "suspended",
-            "Description": "Awaiting an external signal via ctx.WaitSignalAsync.",
+            "Description": "Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync.",
             "Lifecycle": "Active"
           },
           {
@@ -2068,12 +2068,12 @@
           {
             "Id": 50,
             "Code": "executing",
-            "Description": "Handler is running. JobEvent(job.execution.started) has been appended; matching job.execution.finished pending.",
+            "Description": "Handler is running. JobEvent(job.execution-started) has been appended; matching job.execution-finished pending.",
             "Lifecycle": "Active"
           },
           {
             "Id": 100,
-            "Code": "done",
+            "Code": "succeeded",
             "Description": "Terminal success.",
             "Lifecycle": "Active"
           },

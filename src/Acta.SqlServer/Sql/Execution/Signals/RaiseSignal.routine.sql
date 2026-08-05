@@ -45,7 +45,7 @@ BEGIN
             RETURN;
         END;
 
-        IF @from_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        IF @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         BEGIN
             COMMIT TRANSACTION;
             SELECT CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action, @from_status AS status_code;

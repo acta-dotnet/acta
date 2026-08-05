@@ -200,7 +200,7 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(JobStepStateCode.Interrupted, row.State);
 
         var status = await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct);
-        Assert.Equal(JobStatusCode.Done, status);
+        Assert.Equal(JobStatusCode.Succeeded, status);
     }
 
     private async Task<JobStep> ReadStepAsync(long jobId, CancellationToken ct)

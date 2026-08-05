@@ -33,7 +33,7 @@ internal sealed class RecoveryJob(
     /// <summary>
     /// Runs one recovery pass: sweeps dead workers globally (all namespaces), then reclaims stuck
     /// jobs and raises stale child latches for the firing namespace. <c>AuditLevel.Failures</c> keeps
-    /// idle ticks out of <c>events</c>: reclaim emits per-job orphaned <c>job.execution.finished</c>
+    /// idle ticks out of <c>events</c>: reclaim emits per-job orphaned <c>job.execution-finished</c>
     /// events on affected jobs, so a quiet pass writes nothing. A pass that reclaimed jobs publishes a
     /// wakeup: the reclaimed rows are Ready and their original worker is gone, so a live worker should
     /// pick them up without waiting out the safety poll.

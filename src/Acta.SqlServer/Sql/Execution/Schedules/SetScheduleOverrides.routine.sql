@@ -92,7 +92,7 @@ BEGIN
                 execution_status_code, duration_ms,
                 reason_code, reason_message)
             VALUES (
-                103 /* JobEventCode.ScheduleOverridesChanged */, @now, @ns,
+                103 /* JobEventCode.ScheduleOverridesUpdated */, @now, @ns,
                 @p_actor_code, @p_actor_key,
                 @p_job_id, @job_ref, @en,
                 COALESCE(@lineage, @p_job_id), @def,

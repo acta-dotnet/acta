@@ -79,7 +79,7 @@ public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
 
         var snapshot = await Jobs.GetAsync(enqueued, ct);
-        Assert.Equal(JobStatusCode.Done, snapshot!.Status);
+        Assert.Equal(JobStatusCode.Succeeded, snapshot!.Status);
         Assert.Equal(0, snapshot.FailureCount);
 
         var overdue = await CheckpointSlot.GetAsync(

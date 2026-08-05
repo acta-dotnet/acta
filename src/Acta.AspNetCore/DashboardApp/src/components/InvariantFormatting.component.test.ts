@@ -62,8 +62,8 @@ describe('invariant dashboard formatting', () => {
         events: [
           {
             executionNumber: 12345,
-            eventCode: 'job.execution.finished',
-            executionStatus: 'done',
+            eventCode: 'job.execution-finished',
+            executionStatus: 'succeeded',
             durationMs: 1234567,
             createdAtUtc: '2026-07-15T14:05:06Z'
           }

@@ -6,8 +6,8 @@ namespace Acta;
 [CodeKind("execution-status")]
 public enum ExecutionStatusCode : byte
 {
-    [Code("running", "Handler in flight.")]
-    Running = 50,
+    [Code("executing", "Handler in flight.")]
+    Executing = 50,
 
     [Code("succeeded", "Handler returned successfully. Resets the runtime failure count.")]
     Succeeded = 100,
@@ -15,7 +15,10 @@ public enum ExecutionStatusCode : byte
     [Code("rescheduled", "Handler threw RescheduleJobException; does not charge budget.")]
     Rescheduled = 150,
 
-    [Code("suspended", "Handler called ctx.SleepAsync; suspended until the sleep timer's due instant; does not charge budget.")]
+    [Code(
+        "suspended",
+        "The attempt ended because the job parked: a ctx.SleepAsync timer, an awaited signal, or awaited children. Does not charge budget."
+    )]
     Suspended = 151,
 
     [Code("paused", "Handler threw PauseJobException.")]
@@ -61,7 +64,7 @@ public static partial class ExecutionStatusExtensions
         public ExecutionBehavior GetBehavior() =>
             value switch
             {
-                ExecutionStatusCode.Running => ExecutionBehavior.Live,
+                ExecutionStatusCode.Executing => ExecutionBehavior.Live,
                 ExecutionStatusCode.Succeeded => ExecutionBehavior.Success,
                 ExecutionStatusCode.Rescheduled or ExecutionStatusCode.Suspended or ExecutionStatusCode.Paused =>
                     ExecutionBehavior.Controlled,

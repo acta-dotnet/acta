@@ -109,7 +109,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal(RunOnceOutcome.Completed, run);
 
         var beforeRestart = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Done, beforeRestart.Status);
+        Assert.Equal(JobStatusCode.Succeeded, beforeRestart.Status);
         Assert.True(beforeRestart.ExecutionNumber > 0);
 
         var restart = await Jobs.RestartAsync(enqueued, "retry from scratch", ct: ct);
@@ -127,7 +127,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         // The message lives on the event.
         var restartEvent = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobRestarted, ct);
         Assert.Equal(JobActorCode.Operator, restartEvent.ActorCode);
-        Assert.Equal(JobStatusCode.Done, restartEvent.FromStatus);
+        Assert.Equal(JobStatusCode.Succeeded, restartEvent.FromStatus);
         Assert.Equal(JobStatusCode.Ready, restartEvent.ToStatus);
         Assert.Equal("retry from scratch", restartEvent.ReasonMessage);
     }

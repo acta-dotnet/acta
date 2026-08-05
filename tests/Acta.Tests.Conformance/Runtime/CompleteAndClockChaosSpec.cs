@@ -55,7 +55,7 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Done);
+        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
         Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
@@ -68,14 +68,14 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
         // --- 1. CompleteExecution commits, then the post-commit failure surfaces; the job stays Done.
         _faults.ThrowAfterCompleteOnce();
         await Assert.ThrowsAsync<TimeoutException>(() => Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         // --- 2. A retry finds nothing to claim; the handler ran exactly once.
         Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Done);
+        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
     }
 }
 

@@ -100,7 +100,7 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Contains("\"action\":\"rejected\"", body);
-        Assert.Contains("\"status\":\"done\"", body);
+        Assert.Contains("\"status\":\"succeeded\"", body);
     }
 
     [Fact]

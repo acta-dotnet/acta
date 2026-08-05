@@ -5,7 +5,7 @@ SELECT js.id AS schedule_id,
        CASE
            WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* JobControlAction.Rejected */
            WHEN r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 3 /* JobControlAction.Rejected */
-           WHEN r.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* JobControlAction.Rejected */
+           WHEN r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* JobControlAction.Rejected */
            ELSE 1 /* JobControlAction.Applied */
        END AS action
 FROM {{schema}}.schedules js

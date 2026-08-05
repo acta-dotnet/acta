@@ -89,7 +89,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         return new PagedResult<JobDefinitionListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
-    public async ValueTask<DefinitionOverrideResult> SetOverridesAsync(
+    public async ValueTask<DefinitionOverrideResult> UpdateOverridesAsync(
         int definitionId,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
@@ -272,7 +272,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
 
         // Hand-authored IJobManifest descriptors bypass the generator's compile-time Backoff check, so
         // this is the only remaining gate before an invalid expression reaches the DB - mirrors the
-        // override write gate in SetOverridesAsync so a bad value fails fast at worker init instead of
+        // override write gate in UpdateOverridesAsync so a bad value fails fast at worker init instead of
         // crash-looping every execution.
         var maxBackoffLength = ActaTextLimits.DefinitionBackoff;
         if (!Backoff.TryParse(backoff, out _) || backoff.Length > maxBackoffLength)

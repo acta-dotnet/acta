@@ -31,7 +31,7 @@ do
 {
     await Task.Delay(500);
     snapshot = await jobs.GetAsync(outcome);
-} while (snapshot is null or { Status: not (JobStatusCode.Done or JobStatusCode.Failed or JobStatusCode.Cancelled) });
+} while (snapshot is null or { Status: not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled) });
 
 // Cancelled (the finishing event reason is JobDeadlineExceeded). FailureCount stays 0: a deadline
 // cancel does not consume the retry budget.

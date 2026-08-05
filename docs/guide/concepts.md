@@ -19,7 +19,7 @@ see [`design.md`](../internals/design.md). For a diagram-first view of the same 
 | Term | Meaning |
 | --- | --- |
 | **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `runtimes`. One-shot work, delayed work, recurring slots, coordinating parents, child jobs, and system maintenance all use the same tables. |
-| **Execution** | One recorded run of a handler. Every run (success or failure) is recorded as a paired `job.execution.started` / `job.execution.finished` event on `(JobId, ExecutionNumber)`. |
+| **Execution** | One recorded run of a handler. Every run (success or failure) is recorded as a paired `job.execution-started` / `job.execution-finished` event on `(JobId, ExecutionNumber)`. |
 | **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the unified retry budget for both jobs and steps. Successful executions are recorded but do not consume the budget. |
 | **Status** | The lifecycle-or-outcome enum column on every entity that has one (`JobRuntime.Status`, `JobWorker.Status`, ...). The job's `runtimes` row stores current status; events explain transitions. |
 | **state** | The column substrate tables use (`JobCheckpoint.state`, `JobStep.state`), marking them Job-internal rather than operator-facing lifecycle. |

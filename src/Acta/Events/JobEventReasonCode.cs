@@ -12,7 +12,7 @@ public enum JobEventReasonCode : byte
 {
     /// <summary>
     /// The persisted id is not one this build knows: the row was written by a newer Acta that added a
-    /// reason. Distinct from <see cref="Other"/>, which is the writer stating that no catalog code fit.
+    /// reason. Distinct from <see cref="Unclassified"/>, which is the writer stating that no catalog code fit.
     /// Never written by Acta; only produced when reading forward.
     /// </summary>
     [Code("unspecified", "Reason id not recognized by this build; the row was written by a newer Acta.")]
@@ -24,8 +24,8 @@ public enum JobEventReasonCode : byte
     /// Default catch-all when no system-catalog code fits. The operator-readable story lives in
     /// <c>ReasonMessage</c>.
     /// </summary>
-    [Code("job.other", "None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage.")]
-    Other = 10,
+    [Code("job.unclassified", "None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage.")]
+    Unclassified = 10,
 
     [Code("job.unhandled-exception", "Handler threw an exception that was not raised via ctx.Fail.")]
     JobUnhandledException = 20,

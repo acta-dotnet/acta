@@ -143,7 +143,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(JobCheckpointStateCode.Consumed, timer.State);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Done, job.Status);
+        Assert.Equal(JobStatusCode.Succeeded, job.Status);
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
@@ -157,7 +157,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Empty(await ReadTimersAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
 

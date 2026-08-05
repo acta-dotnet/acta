@@ -60,7 +60,7 @@ internal sealed class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOu
                 {
                     ChildJobId = id,
                 }
-                : new ChildJobOutcome(id, JobStatusCode.Done);
+                : new ChildJobOutcome(id, JobStatusCode.Succeeded);
         return Task.FromResult(new SignalWaitOutcome(0, EnvelopeBytes(outcome)));
     }
 
