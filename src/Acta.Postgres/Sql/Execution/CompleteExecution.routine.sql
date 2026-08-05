@@ -66,7 +66,7 @@ DECLARE
 BEGIN
 
     IF v_signal_suspend THEN
-        SELECT state_code INTO v_sig_state
+        SELECT status_code INTO v_sig_state
           FROM {{schema}}.checkpoints
          WHERE job_id = p_id
            AND kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
@@ -75,7 +75,7 @@ BEGIN
     END IF;
 
     v_to_status := CASE
-        WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStateCode.Set */ THEN 10 /* JobStatusCode.Ready */
+        WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
         WHEN v_signal_suspend THEN 20 /* JobStatusCode.Suspended */
         WHEN p_reschedule_status_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
         WHEN v_handler THEN p_handler_status_code
@@ -87,7 +87,7 @@ BEGIN
     UPDATE {{schema}}.runtimes r
        SET status_code          = v_to_status,
            next_run_at_utc      = CASE
-                                      WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStateCode.Set */ THEN now()
+                                      WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN now()
                                       WHEN v_signal_suspend THEN NULL
                                       WHEN v_rearm THEN COALESCE(p_reschedule_resume_at_utc, now() + make_interval(secs => p_reschedule_delay_seconds))
                                       WHEN v_handler THEN NULL
@@ -277,7 +277,7 @@ BEGIN
     IF v_to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND v_parent_id IS NOT NULL THEN
         v_sig := 'sys.child.' || p_id::text;
 
-        SELECT js.state_code INTO v_psig
+        SELECT js.status_code INTO v_psig
           FROM {{schema}}.checkpoints js
          WHERE js.job_id = v_parent_id AND js.kind_code = 50 /* JobCheckpointKindCode.ChildLatch */ AND js.name = v_sig
            FOR UPDATE;
@@ -290,14 +290,14 @@ BEGIN
            FOR UPDATE OF pr;
 
         IF v_pstatus IS NOT NULL AND v_pstatus NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-            INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, state_code, value_format_id, value, created_at_utc, modified_at_utc, version)
-            VALUES (v_parent_id, 50 /* JobCheckpointKindCode.ChildLatch */, v_sig, 20 /* JobCheckpointStateCode.Set */, 1 /* JobPayloadFormat.Json */,
+            INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, created_at_utc, modified_at_utc, version)
+            VALUES (v_parent_id, 50 /* JobCheckpointKindCode.ChildLatch */, v_sig, 20 /* JobCheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */,
                     convert_to(json_build_object(
                         'childJobId', p_id,
                         'status', v_to_status)::text, 'UTF8'),
                     now(), now(), 0)
             ON CONFLICT (job_id, kind_code, name) DO UPDATE
-                SET state_code      = 20 /* JobCheckpointStateCode.Set */,
+                SET status_code      = 20 /* JobCheckpointStatusCode.Set */,
                     value_format_id = EXCLUDED.value_format_id,
                     value           = EXCLUDED.value,
                     modified_at_utc = now(),

@@ -53,7 +53,7 @@ public class JobExplainerTests
     private static ExplainCheckpointRow Checkpoint(
         JobCheckpointKindCode kind,
         string name,
-        JobCheckpointStateCode? state,
+        JobCheckpointStatusCode? state,
         DateTime? dueAtUtc = null
     ) => new(kind, name, state, dueAtUtc);
 
@@ -62,7 +62,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStateCode.Pending)]
+            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStatusCode.Pending)]
         );
 
         var x = JobExplainer.Explain(data, Now);
@@ -81,7 +81,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.Timer, "acta.sleep", JobCheckpointStateCode.Pending, Now.AddMinutes(30))]
+            checkpoints: [Checkpoint(JobCheckpointKindCode.Timer, "acta.sleep", JobCheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
         var x = JobExplainer.Explain(data, Now);
@@ -206,7 +206,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended, lastExecutedByWorkerId: 17, lastExecutedByWorkerName: "payments-v42"),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStateCode.Pending)]
+            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStatusCode.Pending)]
         );
 
         var x = JobExplainer.Explain(data, Now);
@@ -231,21 +231,21 @@ public class JobExplainerTests
             [
                 new ExplainStepRow(
                     "reserve-stock",
-                    JobStepStateCode.Succeeded,
+                    JobStepStatusCode.Succeeded,
                     AttemptNumber: 1,
                     NextRetryAtUtc: null,
                     ReasonMessage: null
                 ),
                 new ExplainStepRow(
                     "charge-card",
-                    JobStepStateCode.Pending,
+                    JobStepStatusCode.Pending,
                     AttemptNumber: 2,
                     NextRetryAtUtc: Now.AddMinutes(1),
                     ReasonMessage: "declined"
                 ),
                 new ExplainStepRow(
                     "ship",
-                    JobStepStateCode.Exhausted,
+                    JobStepStatusCode.Exhausted,
                     AttemptNumber: 5,
                     NextRetryAtUtc: null,
                     ReasonMessage: "carrier down"
@@ -266,7 +266,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Succeeded),
-            steps: [new ExplainStepRow("reserve-stock", JobStepStateCode.Succeeded, 1, null, null)]
+            steps: [new ExplainStepRow("reserve-stock", JobStepStatusCode.Succeeded, 1, null, null)]
         );
 
         var x = JobExplainer.Explain(data, Now);

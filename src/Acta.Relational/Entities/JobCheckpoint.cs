@@ -9,7 +9,7 @@ namespace Acta.Relational.Entities;
 /// (attempt counters, retry budget) and stay in the separate <c>steps</c> table.
 /// </summary>
 /// <remarks>
-/// Variables and progress are stateless UPSERT slots (last-writer-wins, <see cref="State"/> NULL).
+/// Variables and progress are stateless UPSERT slots (last-writer-wins, <see cref="Status"/> NULL).
 /// Signals and child latches move <c>Pending</c> to <c>Set</c>; timers move <c>Pending</c> to
 /// <c>Consumed</c> with <see cref="DueAtUtc"/> carrying the named wait's due instant. The composite
 /// primary key is the natural identity; there is no surrogate id. This is Job-internal substrate,
@@ -56,8 +56,8 @@ internal sealed class JobCheckpoint : IEntity
     /// <c>Pending</c> / <c>Set</c> (signals, child latches) or <c>Pending</c> / <c>Consumed</c>
     /// (timers). NULL for the stateless kinds (variable, progress).
     /// </summary>
-    [DbColumn("state_code")]
-    public JobCheckpointStateCode? State { get; set; }
+    [DbColumn("status_code")]
+    public JobCheckpointStatusCode? Status { get; set; }
 
     /// <summary>
     /// The named wait's due instant for timer checkpoints; NULL for every other kind. Distinct from

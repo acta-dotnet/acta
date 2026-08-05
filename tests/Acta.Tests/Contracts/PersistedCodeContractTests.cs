@@ -107,13 +107,13 @@ public sealed class PersistedCodeContractTests
         JobCheckpointKindCode.Timer=30|timer
         JobCheckpointKindCode.Progress=40|progress
         JobCheckpointKindCode.ChildLatch=50|child-latch
-        JobCheckpointStateCode.Pending=10|pending
-        JobCheckpointStateCode.Set=20|set
-        JobCheckpointStateCode.Consumed=100|consumed
-        JobStepStateCode.Pending=10|pending
-        JobStepStateCode.Succeeded=100|succeeded
-        JobStepStateCode.Exhausted=200|exhausted
-        JobStepStateCode.Interrupted=230|interrupted
+        JobCheckpointStatusCode.Pending=10|pending
+        JobCheckpointStatusCode.Set=20|set
+        JobCheckpointStatusCode.Consumed=100|consumed
+        JobStepStatusCode.Pending=10|pending
+        JobStepStatusCode.Succeeded=100|succeeded
+        JobStepStatusCode.Exhausted=200|exhausted
+        JobStepStatusCode.Interrupted=230|interrupted
         LeaseKindCode.Lock=10|lock
         DeadlineBehaviorCode.Strict=10|strict
         DeadlineBehaviorCode.Advisory=20|advisory
@@ -170,7 +170,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "90B4D8C27E0E958C3D625289B9D527CFFA435AD5BA4723FC1075E6967262E26F";
+    private const string ExpectedDescriptionHash = "95198B63D2346B72866CEE3599471EFA31846F4276606AFE94A3921A3927E058";
 
     [Fact]
     public void Frozen_contract_covers_all_30_families_and_159_values()
@@ -200,7 +200,7 @@ public sealed class PersistedCodeContractTests
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
         Assert.Equal((byte)200, (byte)ExecutionStatusCode.Failed);
-        Assert.Equal((byte)200, (byte)JobStepStateCode.Exhausted);
+        Assert.Equal((byte)200, (byte)JobStepStatusCode.Exhausted);
         Assert.Equal((byte)200, (byte)AlertDeliveryStatusCode.Failed);
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 

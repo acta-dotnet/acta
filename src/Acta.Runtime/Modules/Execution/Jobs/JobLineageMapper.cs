@@ -22,7 +22,7 @@ internal static class JobLineageMapper
         var steps = new List<JobLineageStep>(data.Steps.Count);
         foreach (var s in data.Steps)
         {
-            steps.Add(new JobLineageStep(s.Name, s.State, s.State.Description));
+            steps.Add(new JobLineageStep(s.Name, s.Status, s.Status.Description));
         }
 
         var children = new List<JobLineageChild>();
@@ -55,14 +55,14 @@ internal static class JobLineageMapper
     {
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Signal && c.State == JobCheckpointStateCode.Pending)
+            if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
             {
                 return new JobLineageWait(JobLineageWaitKind.Signal, c.Name, null);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Timer && c.State == JobCheckpointStateCode.Pending)
+            if (c.Kind == JobCheckpointKindCode.Timer && c.Status == JobCheckpointStatusCode.Pending)
             {
                 return new JobLineageWait(JobLineageWaitKind.Timer, c.Name, c.DueAtUtc);
             }

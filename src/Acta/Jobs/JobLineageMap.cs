@@ -46,7 +46,7 @@ public sealed record JobLineageJob(
 );
 
 /// <summary>One step slot of the focused Job, with <see cref="Explanation"/> as the state's plain-English meaning.</summary>
-public sealed record JobLineageStep(string Name, JobStepStateCode State, string Explanation);
+public sealed record JobLineageStep(string Name, JobStepStatusCode Status, string Explanation);
 
 /// <summary>The durable wait the focused Job is blocked on: a signal name, or a timer slot and its due instant.</summary>
 public sealed record JobLineageWait(JobLineageWaitKind Kind, string Name, DateTime? DueAtUtc);

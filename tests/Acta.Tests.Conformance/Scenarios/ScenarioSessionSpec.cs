@@ -59,13 +59,13 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
 
         await session.RunUntilSignalAsync("go", ct: ct);
         Assert.Equal(JobStatusCode.Suspended, await session.StatusAsync(ct));
-        Assert.Equal(JobCheckpointStateCode.Pending, (await session.SignalAsync("go", ct))!.State);
+        Assert.Equal(JobCheckpointStatusCode.Pending, (await session.SignalAsync("go", ct))!.Status);
 
         var raise = await session.RaiseSignalAsync("go", ct);
         Assert.Equal(JobControlAction.Applied, raise.Action);
 
         await session.RunUntilDoneAsync(ct: ct);
-        Assert.Equal(JobCheckpointStateCode.Set, (await session.SignalAsync("go", ct))!.State);
+        Assert.Equal(JobCheckpointStatusCode.Set, (await session.SignalAsync("go", ct))!.Status);
     }
 
     [Fact(DisplayName = "Timer and step retry helpers fast-forward only the pinned session job")]
@@ -78,19 +78,19 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
         Assert.Equal(ActaRunOutcome.Rearmed, await sleep.RunOnceAsync(ct));
         var timer = Assert.Single(await sleep.TimersAsync(ct));
         Assert.Equal("nap", timer.Name);
-        Assert.Equal(JobCheckpointStateCode.Pending, timer.State);
+        Assert.Equal(JobCheckpointStatusCode.Pending, timer.Status);
 
         await sleep.FastForwardToNextTimerAsync(ct);
         await sleep.RunUntilDoneAsync(ct: ct);
-        Assert.Equal(JobCheckpointStateCode.Consumed, (await sleep.TimerAsync("nap", ct))!.State);
+        Assert.Equal(JobCheckpointStatusCode.Consumed, (await sleep.TimerAsync("nap", ct))!.Status);
 
         var step = await Scenario.For(TestJobsManifest.JobStepRetry, host).EnqueueAsync(ct: ct);
         Assert.Equal(ActaRunOutcome.Rearmed, await step.RunOnceAsync(ct));
-        Assert.Equal(JobStepStateCode.Pending, (await step.StepAsync("flaky", ct))!.State);
+        Assert.Equal(JobStepStatusCode.Pending, (await step.StepAsync("flaky", ct))!.Status);
 
         await step.FastForwardToStepRetryAsync("flaky", ct);
         await step.RunUntilDoneAsync(ct: ct);
-        Assert.Equal(JobStepStateCode.Succeeded, (await step.StepAsync("flaky", ct))!.State);
+        Assert.Equal(JobStepStatusCode.Succeeded, (await step.StepAsync("flaky", ct))!.Status);
     }
 
     [Fact(DisplayName = "RunUntilFailed stops on Failed and assertion failures include a scenario dump")]

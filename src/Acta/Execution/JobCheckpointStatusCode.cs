@@ -8,9 +8,9 @@ namespace Acta;
 /// <c>Pending</c> (armed) to <c>Consumed</c> (the replayed handler passed the due instant).
 /// Stateless kinds (variable, progress) carry a NULL state.
 /// </summary>
-[JsonConverter(typeof(JobCheckpointStateCodeJsonConverter))]
-[CodeKind("job-checkpoint-state")]
-public enum JobCheckpointStateCode : byte
+[JsonConverter(typeof(JobCheckpointStatusCodeJsonConverter))]
+[CodeKind("job-checkpoint-status")]
+public enum JobCheckpointStatusCode : byte
 {
     /// <summary>Awaited or armed; the slot has not been satisfied yet.</summary>
     [Code("pending", "Awaited or armed; the slot has not been satisfied yet.")]

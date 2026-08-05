@@ -314,7 +314,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     id integer PRIMARY KEY AUTOINCREMENT,
     job_id integer NOT NULL,
     name text NOT NULL,
-    state_code integer NOT NULL,
+    status_code integer NOT NULL,
     attempt_number integer NOT NULL,
     next_retry_at_utc integer NULL,
     reason_code integer NULL,
@@ -326,7 +326,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
-    , CONSTRAINT ck_steps_state_code CHECK (state_code IN (10, 100, 200, 230))
+    , CONSTRAINT ck_steps_status_code CHECK (status_code IN (10, 100, 200, 230))
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
@@ -391,7 +391,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     job_id integer NOT NULL,
     kind_code integer NOT NULL,
     name text NOT NULL,
-    state_code integer NULL,
+    status_code integer NULL,
     due_at_utc integer NULL,
     value_format_id integer DEFAULT 0 NOT NULL,
     value blob NULL,
@@ -401,7 +401,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
-    , CONSTRAINT ck_checkpoints_state_code CHECK (state_code IS NULL OR state_code IN (10, 20, 100))
+    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 100))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;

@@ -94,7 +94,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var timers = await ReadTimersAsync(enqueued.JobId, ct);
         var nap = Assert.Single(timers);
         Assert.Equal("nap", nap.Name);
-        Assert.Equal(JobCheckpointStateCode.Pending, nap.State);
+        Assert.Equal(JobCheckpointStatusCode.Pending, nap.Status);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
@@ -120,7 +120,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timer = Assert.Single(await ReadTimersAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStateCode.Pending, timer.State);
+        Assert.Equal(JobCheckpointStatusCode.Pending, timer.Status);
         Assert.Equal(originalDue, timer.DueAtUtc);
     }
 
@@ -140,7 +140,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timer = Assert.Single(await ReadTimersAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStateCode.Consumed, timer.State);
+        Assert.Equal(JobCheckpointStatusCode.Consumed, timer.Status);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, job.Status);
@@ -240,7 +240,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
     private static Task InsertPendingTimerAsync(IDbSession db, long jobId, string name, DateTime due, CancellationToken ct) =>
         db.ExecuteRawAsync(
             """
-            INSERT INTO {schema}.checkpoints (job_id, kind_code, name, state_code, due_at_utc, created_at_utc, modified_at_utc, version)
+            INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, due_at_utc, created_at_utc, modified_at_utc, version)
             VALUES (@p_id, 30, @p_name, 10, @p_due, @p_now, @p_now, 0)
             """,
             ct,

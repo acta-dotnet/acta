@@ -23,24 +23,24 @@ BEGIN
           FROM {{schema}}.runtimes WITH (UPDLOCK, HOLDLOCK)
          WHERE job_id = @p_job_id;
 
-        SELECT @existing_state = state_code,
+        SELECT @existing_state = status_code,
                @existing_due   = due_at_utc
           FROM {{schema}}.checkpoints
          WHERE job_id = @p_job_id
            AND kind_code = 30 /* JobCheckpointKindCode.Timer */
            AND name   = @p_name;
 
-        IF @existing_state = 10 /* JobCheckpointStateCode.Pending */ AND @existing_due > @now
+        IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */ AND @existing_due > @now
         BEGIN
 
             SET @outcome = 1 /* SleepOutcome.Suspend */;
             SET @result_due = @existing_due;
         END
-        ELSE IF @existing_state = 10 /* JobCheckpointStateCode.Pending */
+        ELSE IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */
         BEGIN
 
             UPDATE {{schema}}.checkpoints
-               SET state_code      = 100 /* JobCheckpointStateCode.Consumed */,
+               SET status_code      = 100 /* JobCheckpointStatusCode.Consumed */,
                    modified_at_utc = @now,
                    version         = version + 1
              WHERE job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND name = @p_name;
@@ -65,17 +65,17 @@ BEGIN
         END
         ELSE IF EXISTS (
             SELECT 1 FROM {{schema}}.checkpoints
-             WHERE job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND state_code = 10 /* JobCheckpointStateCode.Pending */)
+             WHERE job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND status_code = 10 /* JobCheckpointStatusCode.Pending */)
         BEGIN
             SET @outcome = 3 /* SleepOutcome.Reject */;
         END
         ELSE
         BEGIN
             INSERT INTO {{schema}}.checkpoints (
-                job_id, kind_code, name, state_code, due_at_utc,
+                job_id, kind_code, name, status_code, due_at_utc,
                 created_at_utc, modified_at_utc, version)
             VALUES (
-                @p_job_id, 30 /* JobCheckpointKindCode.Timer */, @p_name, 10 /* JobCheckpointStateCode.Pending */, @due,
+                @p_job_id, 30 /* JobCheckpointKindCode.Timer */, @p_name, 10 /* JobCheckpointStatusCode.Pending */, @due,
                 @now, @now, 0);
 
             SET @outcome = 1 /* SleepOutcome.Suspend */;

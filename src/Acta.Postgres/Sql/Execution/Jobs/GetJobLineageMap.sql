@@ -42,13 +42,13 @@ SELECT j.id, j.job_ref,
  ORDER BY anc.depth DESC;
 
 -- 3) Focus job steps, creation order.
-SELECT s.name, s.state_code
+SELECT s.name, s.status_code
   FROM {{schema}}.steps s
  WHERE s.job_id = @p_id
  ORDER BY s.id;
 
 -- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait.
-SELECT c.kind_code, c.name, c.state_code, c.due_at_utc
+SELECT c.kind_code, c.name, c.status_code, c.due_at_utc
   FROM {{schema}}.checkpoints c
  WHERE c.job_id = @p_id
  ORDER BY c.kind_code, c.name;

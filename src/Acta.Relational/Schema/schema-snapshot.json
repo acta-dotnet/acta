@@ -141,8 +141,8 @@
             "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "state_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-state|values=10,20,100"
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-status|values=10,20,100"
           },
           {
             "Name": "due_at_utc",
@@ -1071,8 +1071,8 @@
             "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "state_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-state|values=10,100,200,230"
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-status|values=10,100,200,230"
           },
           {
             "Name": "attempt_number",
@@ -1839,7 +1839,7 @@
         ]
       },
       {
-        "CodeKind": "job-checkpoint-state",
+        "CodeKind": "job-checkpoint-status",
         "Values": [
           {
             "Id": 10,
@@ -2092,7 +2092,7 @@
         ]
       },
       {
-        "CodeKind": "job-step-state",
+        "CodeKind": "job-step-status",
         "Values": [
           {
             "Id": 10,

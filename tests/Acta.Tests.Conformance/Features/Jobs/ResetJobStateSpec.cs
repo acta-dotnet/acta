@@ -118,11 +118,11 @@ public abstract class ResetJobStateSpec<TFixture> : ActaRuntimeTestBase<TFixture
             );
 
         await db.ExecuteRawAsync(
-            "INSERT INTO {schema}.steps (job_id, name, state_code, attempt_number, result_format_id) VALUES (@p_job_id, @p_name, @p_state, 1, 0)",
+            "INSERT INTO {schema}.steps (job_id, name, status_code, attempt_number, result_format_id) VALUES (@p_job_id, @p_name, @p_state, 1, 0)",
             ct,
             ("@p_job_id", jobId),
             ("@p_name", "a.test"),
-            ("@p_state", (byte)JobStepStateCode.Succeeded)
+            ("@p_state", (byte)JobStepStatusCode.Succeeded)
         );
 
         await db.ExecuteRawAsync(

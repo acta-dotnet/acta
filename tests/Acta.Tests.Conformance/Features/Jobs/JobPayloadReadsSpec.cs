@@ -97,7 +97,7 @@ public abstract class JobPayloadReadsSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var variable = items[0];
         Assert.Equal(JobCheckpointKindCode.Variable, variable.Kind);
         Assert.Equal("fetch.status", variable.Name);
-        Assert.Null(variable.State);
+        Assert.Null(variable.Status);
         Assert.NotNull(variable.Value);
         Assert.Equal(variableValue.Format.Id, variable.Value!.Value.Format.Id);
         Assert.Equal(variableValue.Data.ToArray(), variable.Value.Value.Data.ToArray());
@@ -105,7 +105,7 @@ public abstract class JobPayloadReadsSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var signal = items[1];
         Assert.Equal(JobCheckpointKindCode.Signal, signal.Kind);
         Assert.Equal("s.ready", signal.Name);
-        Assert.Equal(JobCheckpointStateCode.Set, signal.State);
+        Assert.Equal(JobCheckpointStatusCode.Set, signal.Status);
         Assert.NotNull(signal.Value);
         Assert.Equal(signalValue.Data.ToArray(), signal.Value!.Value.Data.ToArray());
     }

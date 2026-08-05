@@ -157,7 +157,7 @@ internal static class CliOutput
                     {
                         w.WriteStartObject();
                         w.WriteString("name", s.Name);
-                        w.WriteString("state", s.State.ToString());
+                        w.WriteString("state", s.Status.ToString());
                         w.WriteString("explanation", s.Explanation);
                         w.WriteEndObject();
                     }

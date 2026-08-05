@@ -360,7 +360,7 @@ CREATE TABLE {{schema}}.steps (
     id bigint IDENTITY(1,1) NOT NULL,
     job_id bigint NOT NULL,
     name varchar(128) NOT NULL,
-    state_code tinyint NOT NULL,
+    status_code tinyint NOT NULL,
     attempt_number smallint NOT NULL,
     next_retry_at_utc datetime2(3) NULL,
     reason_code tinyint NULL,
@@ -373,7 +373,7 @@ CREATE TABLE {{schema}}.steps (
     , CONSTRAINT pk_steps PRIMARY KEY (id)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
-    , CONSTRAINT ck_steps_state_code CHECK (state_code IN (10, 100, 200, 230))
+    , CONSTRAINT ck_steps_status_code CHECK (status_code IN (10, 100, 200, 230))
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX ux_steps_job_name ON {{schema}}.steps (job_id, name);
@@ -455,7 +455,7 @@ CREATE TABLE {{schema}}.checkpoints (
     job_id bigint NOT NULL,
     kind_code tinyint NOT NULL,
     name varchar(128) NOT NULL,
-    state_code tinyint NULL,
+    status_code tinyint NULL,
     due_at_utc datetime2(3) NULL,
     value_format_id tinyint DEFAULT 0 NOT NULL,
     value varbinary(max) NULL,
@@ -465,7 +465,7 @@ CREATE TABLE {{schema}}.checkpoints (
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
-    , CONSTRAINT ck_checkpoints_state_code CHECK (state_code IS NULL OR state_code IN (10, 20, 100))
+    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 100))
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 END

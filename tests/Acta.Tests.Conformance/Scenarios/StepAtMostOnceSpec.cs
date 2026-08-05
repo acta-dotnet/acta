@@ -139,7 +139,7 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(StartStepOutcomeCode.Interrupted, first.Outcome);
 
         var row1 = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStateCode.Interrupted, row1.State);
+        Assert.Equal(JobStepStatusCode.Interrupted, row1.Status);
         var versionAfterInterrupt = row1.Version;
 
         // A later replay of an already-Interrupted slot returns Interrupted again with NO further mutation.
@@ -147,7 +147,7 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(StartStepOutcomeCode.Interrupted, second.Outcome);
 
         var row2 = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStateCode.Interrupted, row2.State);
+        Assert.Equal(JobStepStatusCode.Interrupted, row2.Status);
         Assert.Equal(versionAfterInterrupt, row2.Version);
     }
 
@@ -169,7 +169,7 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
         // The slot is terminal Interrupted with the step-interrupted reason stamped by start_step.
         var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStateCode.Interrupted, row.State);
+        Assert.Equal(JobStepStatusCode.Interrupted, row.Status);
         Assert.Equal(JobEventReasonCode.JobStepInterrupted, row.ReasonCode);
 
         // Explain surfaces the interruption at both job and step level.
@@ -177,7 +177,7 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Failed, x!.Status);
         var step = Assert.Single(x.Steps);
-        Assert.Equal(JobStepStateCode.Interrupted, step.State);
+        Assert.Equal(JobStepStatusCode.Interrupted, step.Status);
         Assert.Contains("reconcile", step.Explanation, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -197,7 +197,7 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.False(AtMostOnceStepHandler.BodyInvocations.ContainsKey(enqueued.JobId));
 
         var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStateCode.Interrupted, row.State);
+        Assert.Equal(JobStepStatusCode.Interrupted, row.Status);
 
         var status = await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct);
         Assert.Equal(JobStatusCode.Succeeded, status);

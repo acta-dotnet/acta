@@ -149,7 +149,7 @@ internal sealed record JobDetailResponse(
 internal sealed record JobCheckpointResponse(
     JobCheckpointKindCode Kind,
     string Name,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobCheckpointStateCode? State,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobCheckpointStatusCode? Status,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTime? DueAtUtc,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadResponse? Value,
     DateTime CreatedAtUtc,
@@ -160,7 +160,7 @@ internal sealed record JobCheckpointResponse(
         new(
             item.Kind,
             item.Name,
-            item.State,
+            item.Status,
             item.DueAtUtc,
             item.Value is { } value ? JobPayloadResponse.From(value, maxInlineBytes) : null,
             item.CreatedAtUtc,

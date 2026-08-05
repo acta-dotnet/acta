@@ -22,7 +22,7 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        SELECT @existing = state_code
+        SELECT @existing = status_code
           FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
          WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
@@ -54,12 +54,12 @@ BEGIN
 
         IF @existing IS NULL
             INSERT INTO {{schema}}.checkpoints (
-                job_id, kind_code, name, state_code, value_format_id, value,
+                job_id, kind_code, name, status_code, value_format_id, value,
                 created_at_utc, modified_at_utc, version)
-            VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStateCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
+            VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
         ELSE
             UPDATE {{schema}}.checkpoints
-               SET state_code      = 20 /* JobCheckpointStateCode.Set */,
+               SET status_code      = 20 /* JobCheckpointStatusCode.Set */,
                    value_format_id = @p_value_format_id,
                    value           = @p_value,
                    modified_at_utc = @now,

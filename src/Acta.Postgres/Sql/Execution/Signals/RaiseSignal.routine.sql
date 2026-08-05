@@ -25,7 +25,7 @@ DECLARE
     v_job_ref           UUID;
 BEGIN
 
-    SELECT js.state_code INTO v_existing
+    SELECT js.status_code INTO v_existing
       FROM {{schema}}.checkpoints js
      WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
        FOR UPDATE;
@@ -49,10 +49,10 @@ BEGIN
         RETURN;
     END IF;
 
-    INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, state_code, value_format_id, value, created_at_utc, modified_at_utc, version)
-    VALUES (p_job_id, p_kind_code, p_name, 20 /* JobCheckpointStateCode.Set */, p_value_format_id, p_value, v_now, v_now, 0)
+    INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, created_at_utc, modified_at_utc, version)
+    VALUES (p_job_id, p_kind_code, p_name, 20 /* JobCheckpointStatusCode.Set */, p_value_format_id, p_value, v_now, v_now, 0)
     ON CONFLICT (job_id, kind_code, name) DO UPDATE
-        SET state_code      = 20 /* JobCheckpointStateCode.Set */,
+        SET status_code      = 20 /* JobCheckpointStatusCode.Set */,
             value_format_id = EXCLUDED.value_format_id,
             value           = EXCLUDED.value,
             modified_at_utc = v_now,

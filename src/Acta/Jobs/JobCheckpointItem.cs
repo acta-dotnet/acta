@@ -7,7 +7,7 @@ namespace Acta;
 /// </summary>
 /// <param name="Kind">Which substrate feature owns the slot (variable / signal / timer / progress / child-latch).</param>
 /// <param name="Name">Slot name; dotted-kebab for user slots, <c>sys.*</c> for system slots.</param>
-/// <param name="State">Pending/Set (signals, child latches) or Pending/Consumed (timers); <c>null</c> for the stateless kinds.</param>
+/// <param name="Status">Pending/Set (signals, child latches) or Pending/Consumed (timers); <c>null</c> for the stateless kinds.</param>
 /// <param name="DueAtUtc">The named wait's due instant for timer slots; <c>null</c> for every other kind.</param>
 /// <param name="Value">The decoded slot payload, or <c>null</c> when the slot carries none.</param>
 /// <param name="CreatedAtUtc">First-write instant.</param>
@@ -15,7 +15,7 @@ namespace Acta;
 public sealed record JobCheckpointItem(
     JobCheckpointKindCode Kind,
     string Name,
-    JobCheckpointStateCode? State,
+    JobCheckpointStatusCode? Status,
     DateTime? DueAtUtc,
     JobPayload? Value,
     DateTime CreatedAtUtc,

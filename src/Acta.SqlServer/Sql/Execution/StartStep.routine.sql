@@ -22,7 +22,7 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        SELECT @state         = state_code,
+        SELECT @state         = status_code,
                @attempt       = attempt_number,
                @version       = version,
                @existing_next = next_retry_at_utc,
@@ -36,10 +36,10 @@ BEGIN
         IF @state IS NULL
         BEGIN
             INSERT INTO {{schema}}.steps (
-                job_id, name, state_code, attempt_number,
+                job_id, name, status_code, attempt_number,
                 result_format_id, created_at_utc, modified_at_utc, version)
             VALUES (
-                @p_job_id, @p_name, 10 /* JobStepStateCode.Pending */, 1,
+                @p_job_id, @p_name, 10 /* JobStepStatusCode.Pending */, 1,
                 0 /* JobPayloadFormat.None */, @now, @now, 0);
 
             SET @outcome = 1 /* StartStepOutcomeCode.Invoke */;
@@ -51,21 +51,21 @@ BEGIN
             SET @rmsg = NULL;
             SET @next = NULL;
         END
-        ELSE IF @state = 100 /* JobStepStateCode.Succeeded */
+        ELSE IF @state = 100 /* JobStepStatusCode.Succeeded */
         BEGIN
             SET @outcome = 3 /* StartStepOutcomeCode.ReplaySuccess */;
             SET @next = NULL;
             SET @rcode = NULL;
             SET @rmsg = NULL;
         END
-        ELSE IF @state = 200 /* JobStepStateCode.Exhausted */
+        ELSE IF @state = 200 /* JobStepStatusCode.Exhausted */
         BEGIN
             SET @outcome = 4 /* StartStepOutcomeCode.Exhausted */;
             SET @next = NULL;
             SET @rfid = 0 /* JobPayloadFormat.None */;
             SET @result = NULL;
         END
-        ELSE IF @state = 230 /* JobStepStateCode.Interrupted */
+        ELSE IF @state = 230 /* JobStepStatusCode.Interrupted */
         BEGIN
             -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
             SET @outcome = 5 /* StartStepOutcomeCode.Interrupted */;
@@ -90,7 +90,7 @@ BEGIN
             -- the pending row but before complete_step. Do not re-invoke; terminalize the row Interrupted
             -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
             UPDATE {{schema}}.steps
-               SET state_code      = 230 /* JobStepStateCode.Interrupted */,
+               SET status_code      = 230 /* JobStepStatusCode.Interrupted */,
                    reason_code     = 63 /* JobEventReasonCode.JobStepInterrupted */,
                    reason_message  = N'At-most-once step re-entered before completion; outcome unknown.',
                    modified_at_utc = @now,

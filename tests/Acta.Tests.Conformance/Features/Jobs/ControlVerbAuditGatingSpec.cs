@@ -147,12 +147,12 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
-        Assert.Equal(JobCheckpointStateCode.Set, (await ReadSignalsAsync(jobL, ct)).Single().State);
+        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobL, ct)).Single().Status);
         Assert.Equal(0, await CountEventsAsync(jobL, JobEventCode.JobSignalRaised, ct));
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
-        Assert.Equal(JobCheckpointStateCode.Set, (await ReadSignalsAsync(jobF, ct)).Single().State);
+        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobF, ct)).Single().Status);
         Assert.Equal(1, await CountEventsAsync(jobF, JobEventCode.JobSignalRaised, ct));
     }
 

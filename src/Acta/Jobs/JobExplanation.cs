@@ -51,7 +51,7 @@ public sealed record JobExplainLease(
 );
 
 /// <summary>One step slot's state, with <see cref="Explanation"/> rendering it as a plain-English clause.</summary>
-public sealed record JobExplainStep(string Name, JobStepStateCode State, string Explanation);
+public sealed record JobExplainStep(string Name, JobStepStatusCode Status, string Explanation);
 
 /// <summary>
 /// A suggested operator move. <see cref="Kind"/> is a stable slug

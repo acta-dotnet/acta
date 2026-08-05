@@ -153,14 +153,14 @@ internal static class JobExplainer
     {
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Signal && c.State == JobCheckpointStateCode.Pending)
+            if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
             {
                 return new JobExplainWait(JobExplainWaitKind.Signal, c.Name, null);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Timer && c.State == JobCheckpointStateCode.Pending)
+            if (c.Kind == JobCheckpointKindCode.Timer && c.Status == JobCheckpointStatusCode.Pending)
             {
                 return new JobExplainWait(JobExplainWaitKind.Timer, c.Name, c.DueAtUtc);
             }
@@ -214,26 +214,26 @@ internal static class JobExplainer
         var list = new List<JobExplainStep>(rows.Count);
         foreach (var s in rows)
         {
-            list.Add(new JobExplainStep(s.Name, s.State, StepPhrase(s)));
+            list.Add(new JobExplainStep(s.Name, s.Status, StepPhrase(s)));
         }
         return list;
     }
 
     private static string StepPhrase(ExplainStepRow s) =>
-        s.State switch
+        s.Status switch
         {
-            JobStepStateCode.Succeeded => "succeeded and will not rerun",
-            JobStepStateCode.Exhausted => s.ReasonMessage is { Length: > 0 } m
+            JobStepStatusCode.Succeeded => "succeeded and will not rerun",
+            JobStepStatusCode.Exhausted => s.ReasonMessage is { Length: > 0 } m
                 ? $"exhausted after {Attempts(s.AttemptNumber)}: {m}"
                 : $"exhausted after {Attempts(s.AttemptNumber)}",
-            JobStepStateCode.Pending => s.NextRetryAtUtc is not null
+            JobStepStatusCode.Pending => s.NextRetryAtUtc is not null
                 ? s.ReasonMessage is { Length: > 0 } retryReason
                     ? $"is waiting for retry attempt {s.AttemptNumber}: {retryReason}"
                     : $"is waiting for retry attempt {s.AttemptNumber}"
                 : "is in progress",
-            JobStepStateCode.Interrupted =>
+            JobStepStatusCode.Interrupted =>
                 "was interrupted before its outcome was recorded; it may have run 0 or 1 times - reconcile externally",
-            _ => s.State.Description,
+            _ => s.Status.Description,
         };
 
     private static string Attempts(short count) => count == 1 ? "1 attempt" : $"{count} attempts";
