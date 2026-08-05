@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>Provider-independent length limits for tenant and namespace operator metadata.</summary>
+/// <summary>Provider-independent length limits for catalog operator metadata.</summary>
 public static class CatalogMetadataLimits
 {
     public const int TenantDisplayName = 128;

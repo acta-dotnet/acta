@@ -97,7 +97,6 @@ BEGIN
                misfire_strategy_code         = src.misfire_strategy_code,
                next_run_at_utc               = src.next_run_at_utc,
                definition_id             = src.definition_id,
-               orphaned_at_utc               = NULL,
                status_code                   = CASE WHEN tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
                                                     THEN 10 /* ScheduleStatusCode.Active */
                                                     ELSE tgt.status_code END,
@@ -113,13 +112,13 @@ BEGIN
         INSERT INTO {{schema}}.schedules (
             namespace_id, job_id, definition_id, name, origin_code,
             expression, time_zone_id, expression_kind_code, misfire_strategy_code,
-            next_run_at_utc, expression_override, time_zone_id_override, orphaned_at_utc,
+            next_run_at_utc, expression_override, time_zone_id_override,
             status_code, paused_until_utc, description,
             created_at_utc, modified_at_utc, version)
         SELECT
             @p_namespace_id, sl.slot_id, src.definition_id, src.name, 40 /* ScheduleOriginCode.Definition */,
             src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
-            src.next_run_at_utc, NULL, NULL, NULL,
+            src.next_run_at_utc, NULL, NULL,
             10 /* ScheduleStatusCode.Active */, NULL, src.description,
             @now, @now, 0
           FROM @p_schedules AS src
@@ -137,7 +136,8 @@ BEGIN
         SELECT js.id
           FROM {{schema}}.schedules AS js
           INNER JOIN @slots AS sl ON sl.slot_id = js.job_id
-         WHERE js.orphaned_at_utc IS NULL
+         WHERE js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+           AND js.origin_code = 40 /* ScheduleOriginCode.Definition */
            AND NOT EXISTS (
                SELECT 1
                  FROM @p_schedules AS src
@@ -146,8 +146,8 @@ BEGIN
            );
 
         UPDATE js
-           SET orphaned_at_utc = @now,
-               status_code     = 230 /* ScheduleStatusCode.Orphaned */,
+           SET status_code     = 230 /* ScheduleStatusCode.Orphaned */,
+               paused_until_utc = NULL,
                modified_at_utc = @now,
                version         = js.version + 1
           FROM {{schema}}.schedules AS js

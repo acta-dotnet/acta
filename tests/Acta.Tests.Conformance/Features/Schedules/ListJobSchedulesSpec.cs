@@ -53,7 +53,7 @@ public abstract class ListJobSchedulesSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         Assert.NotEmpty(seen);
         Assert.All(seen, static s => Assert.NotNull(s.NextRunAtUtc));
-        Assert.All(seen, static s => Assert.Null(s.OrphanedAtUtc));
+        Assert.All(seen, static s => Assert.NotEqual(ScheduleStatusCode.Orphaned, s.Status));
         Assert.All(seen, static s => Assert.False(string.IsNullOrEmpty(s.Expression)));
         Assert.All(seen, static s => Assert.True(s.Version >= 0, "the list row must carry the schedule's optimistic-concurrency version"));
         Assert.Equal(seen.Count, seen.Select(static s => s.JobScheduleId).Distinct().Count());

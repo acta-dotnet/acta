@@ -169,6 +169,10 @@ public sealed class CodeGenerator : IIncrementalGenerator
                 codeKind = declaredKind;
             }
 
+            // Extensible families emit no IN-list CHECK and read unknown ids back as Unspecified = 0
+            // instead of throwing, so new members ship without a migration.
+            var extensible = codeKindAttr?.NamedArguments.FirstOrDefault(a => a.Key == "Extensible").Value.Value is true;
+
             var underlying = enumType.EnumUnderlyingType?.SpecialType ?? SpecialType.None;
             var storage = underlying == SpecialType.System_Byte ? StorageKind.Byte : StorageKind.Invalid;
 
@@ -181,7 +185,17 @@ public sealed class CodeGenerator : IIncrementalGenerator
                         Fatal: true
                     )
                 );
-                yield return new FamilyModel(ns, enumType.Name, codeKind, StorageKind.Byte, [], [], [], diagnostics.ToImmutable());
+                yield return new FamilyModel(
+                    ns,
+                    enumType.Name,
+                    codeKind,
+                    extensible,
+                    StorageKind.Byte,
+                    [],
+                    [],
+                    [],
+                    diagnostics.ToImmutable()
+                );
                 continue;
             }
 
@@ -244,12 +258,25 @@ public sealed class CodeGenerator : IIncrementalGenerator
 
             ValidateReservations(enumType.Name, codes, reservations, reservedRanges, diagnostics);
 
+            if (extensible && !codes.Any(c => c.Id == 0))
+            {
+                diagnostics.Add(
+                    new DiagnosticRecord(
+                        "ACTA0201",
+                        $"`[CodeKind(Extensible = true)]` on `{enumType.Name}` requires a member with id 0 "
+                            + $"(by convention `Unspecified`), which unknown persisted ids read back as.",
+                        Fatal: true
+                    )
+                );
+            }
+
             codes.Sort((a, b) => a.Id.CompareTo(b.Id));
 
             yield return new FamilyModel(
                 ns,
                 enumType.Name,
                 codeKind,
+                extensible,
                 storage,
                 [.. codes],
                 reservations,
@@ -580,9 +607,23 @@ public sealed class CodeGenerator : IIncrementalGenerator
             sb.Append("            ").Append(c.Id).Append(" => ").Append(typeName).Append('.').Append(c.MemberName).AppendLine(",");
         }
 
-        sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, \"Unknown ")
-            .Append(typeName)
-            .AppendLine(" id.\"),");
+        // Extensible families tolerate ids this build does not know: the row was written by a newer
+        // Acta, and a forward read must not throw. FromCode stays strict either way - it parses caller
+        // input, where an unrecognized code is a bad request, not a version gap.
+        if (family.Extensible)
+        {
+            // Whichever member holds id 0, not a hardcoded name: the ACTA0201 guard requires id 0 to
+            // exist but does not dictate what it is called.
+            var fallback = family.Codes.First(c => c.Id == 0).MemberName;
+            sb.Append("            _ => ").Append(typeName).Append('.').Append(fallback).AppendLine(",");
+        }
+        else
+        {
+            sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, \"Unknown ")
+                .Append(typeName)
+                .AppendLine(" id.\"),");
+        }
+
         sb.AppendLine("        };");
         sb.AppendLine();
 
@@ -869,6 +910,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         string? ContainingNamespace,
         string StructName,
         string CodeKind,
+        bool Extensible,
         StorageKind Storage,
         ImmutableArray<CodeModel> Codes,
         ImmutableArray<ReservationModel> Reservations,

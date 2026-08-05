@@ -52,7 +52,6 @@ SELECT
   (SELECT COUNT_BIG(*)
      FROM {{schema}}.schedules s
     WHERE s.next_run_at_utc IS NOT NULL
-      AND s.orphaned_at_utc IS NULL
       AND s.status_code = 10 /* ScheduleStatusCode.Active */
       AND s.next_run_at_utc <= DATEADD(second, @p_due_soon_seconds, @now)
       AND (@p_namespace_name IS NULL OR s.namespace_id = @ns_id)) AS due_soon_schedule_count,

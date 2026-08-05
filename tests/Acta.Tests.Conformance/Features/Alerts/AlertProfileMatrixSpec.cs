@@ -136,7 +136,7 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         var seeded = Assert.Single(alerts, a => a.Kind == AlertKindCode.FinalFailure);
         Assert.Equal(1, seeded.OccurrenceCount);
         Assert.Null(seeded.ResolvedAtUtc);
-        Assert.NotNull(seeded.DeduplicationKey);
+        Assert.NotNull(seeded.DedupeKey);
         Assert.NotNull(seeded.DedupeWindowStartUtc);
 
         // Resolve it.
@@ -156,7 +156,7 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
             seeded.Message,
             seeded.ChannelName,
             AlertDeliveryStatusCode.Pending,
-            seeded.DeduplicationKey,
+            seeded.DedupeKey,
             seeded.DedupeWindowStartUtc,
             ct
         );

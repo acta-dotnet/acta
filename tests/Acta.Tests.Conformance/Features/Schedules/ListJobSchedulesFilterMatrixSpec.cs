@@ -181,8 +181,8 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
         var allItems = (
             await Queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, LiveOnly: false), ct)
         ).Items;
-        var liveIds = allItems.Where(s => s.OrphanedAtUtc is null).Select(s => s.JobScheduleId).ToHashSet();
-        var orphanedIds = allItems.Where(s => s.OrphanedAtUtc is not null).Select(s => s.JobScheduleId).ToHashSet();
+        var liveIds = allItems.Where(s => s.Status != ScheduleStatusCode.Orphaned).Select(s => s.JobScheduleId).ToHashSet();
+        var orphanedIds = allItems.Where(s => s.Status == ScheduleStatusCode.Orphaned).Select(s => s.JobScheduleId).ToHashSet();
 
         // Verify our seeded schedules landed in the right partitions
         Assert.Contains(allItems.Single(s => s.JobName == jobAName).JobScheduleId, liveIds);

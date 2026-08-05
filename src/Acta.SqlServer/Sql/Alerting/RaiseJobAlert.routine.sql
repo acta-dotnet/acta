@@ -8,7 +8,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.raise_job_alert
     @p_message                NVARCHAR(512),
     @p_channel_name           VARCHAR(128),
     @p_delivery_status_code   TINYINT,
-    @p_deduplication_key             VARCHAR(512),
+    @p_dedupe_key             VARCHAR(512),
     @p_dedupe_window_start_utc DATETIME2(3)
 AS
 BEGIN
@@ -26,12 +26,12 @@ BEGIN
     IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
         THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
 
-    IF @p_deduplication_key IS NULL
+    IF @p_dedupe_key IS NULL
     BEGIN
         INSERT INTO {{schema}}.alerts (
             namespace_id, job_id, job_ref,
             origin_code, severity_code, kind_code, title, message, channel_name,
-            deduplication_key, dedupe_window_start_utc, occurrence_count,
+            dedupe_key, dedupe_window_start_utc, occurrence_count,
             delivery_status_code, retry_count,
             created_at_utc, modified_at_utc, version)
         VALUES (
@@ -65,7 +65,7 @@ BEGIN
         OUTPUT inserted.occurrence_count INTO @updated
           FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK, INDEX(ux_alerts_dedupe))
          WHERE ja.namespace_id        = @v_ns
-           AND ja.deduplication_key              = @p_deduplication_key
+           AND ja.dedupe_key              = @p_dedupe_key
            AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc;
 
         IF NOT EXISTS (SELECT 1 FROM @updated)
@@ -73,14 +73,14 @@ BEGIN
             INSERT INTO {{schema}}.alerts (
                 namespace_id, job_id, job_ref,
                 origin_code, severity_code, kind_code, title, message, channel_name,
-                deduplication_key, dedupe_window_start_utc, occurrence_count,
+                dedupe_key, dedupe_window_start_utc, occurrence_count,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version)
             OUTPUT inserted.occurrence_count INTO @updated
             VALUES (
                 @v_ns, @p_job_id, @v_job_ref,
                 @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                @p_deduplication_key, @p_dedupe_window_start_utc, 1,
+                @p_dedupe_key, @p_dedupe_window_start_utc, 1,
                 @p_delivery_status_code, 0,
                 @now, @now, 0);
         END

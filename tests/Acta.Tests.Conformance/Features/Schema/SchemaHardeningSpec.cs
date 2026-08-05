@@ -80,7 +80,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
                 Title = "schema-hardening check",
                 Message = "schema-hardening check",
                 ChannelName = "default",
-                DeduplicationKey = deduplicationKey,
+                DedupeKey = deduplicationKey,
                 DedupeWindowStartUtc = dedupeWindow,
                 OccurrenceCount = occurrenceCount,
                 DeliveryStatusCode = AlertDeliveryStatusCode.Pending,

@@ -28,7 +28,10 @@ public interface INamespaces
         CancellationToken ct = default
     );
 
-    /// <summary>Update a namespace owner team / description with a version CAS. Null clears the field. Emits namespace.metadata-changed. Rejects the sys namespace.</summary>
+    /// <summary>
+    /// Update a namespace owner team / description with a version CAS. Null clears the field.
+    /// Emits namespace.metadata-changed. Rejects the sys namespace.
+    /// </summary>
     ValueTask<AdminControlResult> UpdateMetadataAsync(
         string name,
         string? ownerTeam,

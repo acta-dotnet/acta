@@ -8,7 +8,7 @@ namespace Acta;
 /// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Job definition name.</param> <param name="ScheduleName">Schedule name within the job.</param>
 /// <param name="Origin">How the schedule was registered.</param> <param name="ExpressionKind">Expression syntax kind.</param>
 /// <param name="Expression">Effective schedule expression.</param> <param name="TimeZone">Effective IANA time zone id.</param> <param name="MisfireStrategy">Misfire handling.</param>
-/// <param name="NextRunAtUtc">Next computed fire instant, or null.</param> <param name="OrphanedAtUtc">When the schedule was orphaned, or null while live.</param>
+/// <param name="NextRunAtUtc">Next computed fire instant, or null.</param> <param name="LastOccurrenceAtUtc">Most recent occurrence this schedule was advanced past (including misfire skips), or null before the first advance.</param>
 /// <param name="Status">Lifecycle state (Active / Paused / Orphaned).</param> <param name="PausedUntilUtc">When a timed pause expires, or null.</param>
 /// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 /// <param name="Version">Optimistic-concurrency row version; pass as the expected version to a CAS control verb.</param>
@@ -25,7 +25,7 @@ public sealed record JobScheduleListItem(
     string TimeZone,
     MisfireStrategyCode MisfireStrategy,
     DateTime? NextRunAtUtc,
-    DateTime? OrphanedAtUtc,
+    DateTime? LastOccurrenceAtUtc,
     ScheduleStatusCode Status,
     DateTime? PausedUntilUtc,
     DateTime CreatedAtUtc,

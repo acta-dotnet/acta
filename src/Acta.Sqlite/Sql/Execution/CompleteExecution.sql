@@ -101,6 +101,7 @@ SELECT
 
 UPDATE {{schema}}.schedules
    SET next_run_at_utc  = (SELECT json_extract(a.value, '$.next_run_at_utc') FROM json_each(@p_schedule_advances) a WHERE json_extract(a.value, '$.schedule_id') = {{schema}}.schedules.id),
+       last_occurrence_at_utc = next_run_at_utc,
        status_code      = 10 /* ScheduleStatusCode.Active */,
        paused_until_utc = NULL,
        modified_at_utc  = {{now}},

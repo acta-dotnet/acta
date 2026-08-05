@@ -157,6 +157,7 @@ BEGIN
 
                 UPDATE js
                    SET js.next_run_at_utc  = adv.next_run_at_utc,
+                       js.last_occurrence_at_utc = js.next_run_at_utc,
                        js.status_code      = 10 /* ScheduleStatusCode.Active */,
                        js.paused_until_utc = NULL,
                        js.modified_at_utc  = @now,

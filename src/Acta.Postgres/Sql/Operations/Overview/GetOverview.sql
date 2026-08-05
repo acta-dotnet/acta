@@ -47,7 +47,6 @@ SELECT
      FROM {{schema}}.schedules s
      JOIN {{schema}}.namespaces ns ON ns.id = s.namespace_id
     WHERE s.next_run_at_utc IS NOT NULL
-      AND s.orphaned_at_utc IS NULL
       AND s.status_code = 10 /* ScheduleStatusCode.Active */
       AND s.next_run_at_utc <= now() + make_interval(secs => @p_due_soon_seconds)
       AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)) AS due_soon_schedule_count,

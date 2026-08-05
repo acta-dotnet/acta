@@ -160,6 +160,7 @@ BEGIN
 
             UPDATE {{schema}}.schedules js
                SET next_run_at_utc  = adv.next_run,
+                   last_occurrence_at_utc = js.next_run_at_utc,
                    status_code      = 10 /* ScheduleStatusCode.Active */,
                    paused_until_utc = NULL,
                    modified_at_utc  = now(),

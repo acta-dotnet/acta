@@ -30,9 +30,11 @@ namespace Acta.Relational.Entities;
 [DbIndex(
     Name = "ix_schedules_namespace_next",
     Columns = ["namespace_id", "next_run_at_utc", "id"],
-    Filter = "orphaned_at_utc IS NULL",
+    Filter = "status_code <> 230",
     Usage = "scheduler"
 )]
+[DbCheck(Name = "ck_schedules_paused_pair", Sql = "status_code = 30 OR paused_until_utc IS NULL")]
+[DbCheck(Name = "ck_schedules_orphan_origin", Sql = "origin_code = 40 OR status_code <> 230")]
 internal sealed class JobSchedule : IEntity<long>
 {
     /// <summary>
@@ -80,7 +82,7 @@ internal sealed class JobSchedule : IEntity<long>
 
     // ---------- Schedule expression (paired: code/origin default, then operator _override) ----------
     // Convention matches JobDefinition: the bare-named field is the origin-of-truth default (Definition:
-    // refreshed by catalog upsert; Operator/Api: set at creation); its _override is the operator edit
+    // refreshed by catalog upsert; Operator: set at creation); its _override is the operator edit
     // (NULL = inherit). Effective = COALESCE(_override, bare), coalesced at the read site.
 
     /// <summary>Cron or interval duration, human ("5m") or ISO 8601 ("PT5M") (the origin-of-truth default).</summary>
@@ -134,24 +136,27 @@ internal sealed class JobSchedule : IEntity<long>
     [DbColumn("next_run_at_utc", DbKind.UtcInstant)]
     public DateTime? NextRunAtUtc { get; set; }
 
-    // ---------- Flags ----------
-
     /// <summary>
-    /// When this row was orphaned (descriptor declaration disappeared); only meaningful for
-    /// <c>Origin = Definition</c>. NULL means the row is not orphaned. Set by catalog upsert when the
-    /// <c>[JobSchedule]</c> declaration disappears; the walker ignores rows where this is NOT NULL.
-    /// Always NULL for <c>Operator</c> and <c>Api</c> (no descriptor anchor to be orphaned from).
+    /// The most recent schedule occurrence this row was advanced past, set to the outgoing
+    /// <see cref="NextRunAtUtc"/> on every advance. Deliberately an occurrence, not a run: the cursor
+    /// also moves when the misfire policy skips, so this records the latest schedule point *crossed*
+    /// rather than a completed execution. NULL until the schedule first advances. Explains why
+    /// <see cref="NextRunAtUtc"/> holds its current value, and is the only per-schedule history when
+    /// several schedules share one recurring slot Job.
     /// </summary>
-    [DbColumn("orphaned_at_utc", DbKind.UtcInstant)]
-    public DateTime? OrphanedAtUtc { get; set; }
+    [DbColumn("last_occurrence_at_utc", DbKind.UtcInstant)]
+    public DateTime? LastOccurrenceAtUtc { get; set; }
 
     // ---------- Operator lifecycle ----------
 
     /// <summary>
-    /// Lifecycle state. <c>Active</c> schedules fire; <c>Paused</c> schedules do not and are excluded
-    /// from the slot's MIN; <c>Orphaned</c> is set by catalog reconciliation alongside
-    /// <see cref="OrphanedAtUtc"/> when the origin declaration disappears. Operator pause survives a
-    /// redeploy; an orphaned row that is re-declared resets to <c>Active</c>.
+    /// Lifecycle state and the single source of truth for orphaning. <c>Active</c> schedules fire;
+    /// <c>Paused</c> schedules do not and are excluded from the slot's MIN; <c>Orphaned</c> is set by
+    /// catalog reconciliation when the origin declaration disappears, and the walker ignores those rows
+    /// (<c>ix_schedules_namespace_next</c> filters them out). Only <c>Definition</c>-origin rows can be
+    /// orphaned, since no other origin has a descriptor anchor to be orphaned from. An orphaned row that
+    /// is re-declared resets to <c>Active</c>: the pause does not survive, because a schedule that
+    /// vanished and came back warrants a fresh operator decision.
     /// </summary>
     [DbColumn("status_code")]
     public ScheduleStatusCode Status { get; set; }

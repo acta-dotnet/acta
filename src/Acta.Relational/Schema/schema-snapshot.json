@@ -31,7 +31,7 @@
           },
           {
             "Name": "kind_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind|values=10,20,30,40,50"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind|values=0,10,20,30,40,50"
           },
           {
             "Name": "title",
@@ -46,7 +46,7 @@
             "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "deduplication_key",
+            "Name": "dedupe_key",
             "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
           },
           {
@@ -105,13 +105,13 @@
           },
           {
             "Name": "ux_alerts_dedupe",
-            "Signature": "U|cols=namespace_id,deduplication_key,dedupe_window_start_utc|inc=|desc=|filter=deduplication_key IS NOT NULL"
+            "Signature": "U|cols=namespace_id,dedupe_key,dedupe_window_start_utc|inc=|desc=|filter=dedupe_key IS NOT NULL"
           }
         ],
         "Checks": [
           {
             "Name": "ck_alerts_dedupe_pair",
-            "Sql": "(deduplication_key IS NULL AND dedupe_window_start_utc IS NULL) OR (deduplication_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL)"
+            "Sql": "(dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL)"
           },
           {
             "Name": "ck_alerts_job_ref_pair",
@@ -460,7 +460,7 @@
           },
           {
             "Name": "event_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=10,11,12,20,21,22,30,40,41,50,60,61,70,71,72,73,74,75,76,80,81,100,101,102,103,104,120,121,122,140,141"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=0,10,11,12,20,21,22,30,40,41,50,60,61,70,71,72,73,74,75,76,80,81,100,101,102,103,104,120,121,122,140,141"
           },
           {
             "Name": "created_at_utc",
@@ -524,7 +524,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
           },
           {
             "Name": "reason_message",
@@ -928,7 +928,7 @@
             "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "orphaned_at_utc",
+            "Name": "last_occurrence_at_utc",
             "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
           },
           {
@@ -963,14 +963,23 @@
         "Indexes": [
           {
             "Name": "ix_schedules_namespace_next",
-            "Signature": "I|cols=namespace_id,next_run_at_utc,id|inc=|desc=|filter=orphaned_at_utc IS NULL"
+            "Signature": "I|cols=namespace_id,next_run_at_utc,id|inc=|desc=|filter=status_code \u003C\u003E 230"
           },
           {
             "Name": "ux_schedules_job_name",
             "Signature": "U|cols=job_id,name|inc=|desc=|filter="
           }
         ],
-        "Checks": [],
+        "Checks": [
+          {
+            "Name": "ck_schedules_orphan_origin",
+            "Sql": "origin_code = 40 OR status_code \u003C\u003E 230"
+          },
+          {
+            "Name": "ck_schedules_paused_pair",
+            "Sql": "status_code = 30 OR paused_until_utc IS NULL"
+          }
+        ],
         "ForeignKeys": [
           {
             "Name": "fk_schedules_definitions",
@@ -1075,7 +1084,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
           },
           {
             "Name": "reason_message",
@@ -1403,6 +1412,12 @@
         "CodeKind": "alert-kind",
         "Values": [
           {
+            "Id": 0,
+            "Code": "unspecified",
+            "Description": "Alert kind not recognized by this build; the row was written by a newer Acta.",
+            "Lifecycle": "Active"
+          },
+          {
             "Id": 10,
             "Code": "first-failure",
             "Description": "First failure in a window; emitted by Automatic origin on non-terminal failure.",
@@ -1483,6 +1498,12 @@
       {
         "CodeKind": "event",
         "Values": [
+          {
+            "Id": 0,
+            "Code": "unspecified",
+            "Description": "Event id not recognized by this build; the row was written by a newer Acta.",
+            "Lifecycle": "Active"
+          },
           {
             "Id": 10,
             "Code": "tenant.suspended",
@@ -1878,6 +1899,12 @@
         "CodeKind": "job-event-reason",
         "Values": [
           {
+            "Id": 0,
+            "Code": "unspecified",
+            "Description": "Reason id not recognized by this build; the row was written by a newer Acta.",
+            "Lifecycle": "Active"
+          },
+          {
             "Id": 10,
             "Code": "job.other",
             "Description": "None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage.",
@@ -2271,7 +2298,7 @@
           {
             "Id": 230,
             "Code": "orphaned",
-            "Description": "Origin declaration disappeared from the catalog; set by reconciliation alongside OrphanedAtUtc. Cannot fire or be paused/resumed.",
+            "Description": "Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed.",
             "Lifecycle": "Active"
           }
         ]

@@ -66,6 +66,7 @@ internal sealed class ColumnModel(DbColumnSpec spec, Type entityType, XmlDocSour
     public bool IsManualPrimaryKey => _spec.IsManualPrimaryKey;
     public bool IsConcurrencyToken => _spec.IsConcurrencyToken;
     public bool IsCoded => _spec.IsCoded;
+    public bool IsExtensible => _spec.IsExtensible;
     public string? EnumTypeName => _spec.EnumTypeName;
     public string? CodeKind => _spec.CodeKind;
     public string? Generated => _spec.Generated;

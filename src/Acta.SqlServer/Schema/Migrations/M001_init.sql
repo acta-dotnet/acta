@@ -19,7 +19,7 @@ CREATE TABLE {{schema}}.alerts (
     title nvarchar(512) NOT NULL,
     message nvarchar(512) NOT NULL,
     channel_name varchar(128) NOT NULL,
-    deduplication_key varchar(512) NULL,
+    dedupe_key varchar(512) NULL,
     dedupe_window_start_utc datetime2(3) NULL,
     occurrence_count int NOT NULL,
     resolved_at_utc datetime2(3) NULL,
@@ -32,17 +32,16 @@ CREATE TABLE {{schema}}.alerts (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_alerts PRIMARY KEY (id)
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
-    , CONSTRAINT ck_alerts_dedupe_pair CHECK ((deduplication_key IS NULL AND dedupe_window_start_utc IS NULL) OR (deduplication_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL))
+    , CONSTRAINT ck_alerts_dedupe_pair CHECK ((dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
     , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
     , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
-    , CONSTRAINT ck_alerts_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
     , CONSTRAINT ck_alerts_delivery_status_code CHECK (delivery_status_code IN (10, 20, 30, 100, 200))
 );
 CREATE INDEX ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX ix_alerts_namespace_created ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX ix_alerts_namespace_unresolved ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
-CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, deduplication_key, dedupe_window_start_utc) WHERE deduplication_key IS NOT NULL;
+CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL;
 END
 GO
 
@@ -118,16 +117,12 @@ CREATE TABLE {{schema}}.definitions (
     , CONSTRAINT ck_definitions_tenant_requirement_code CHECK (tenant_requirement_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_priority_code_override_code CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
-    , CONSTRAINT ck_definitions_priority_code_effective_code CHECK (priority_code_effective IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_deadline_behavior_code CHECK (deadline_behavior_code IN (10, 20))
     , CONSTRAINT ck_definitions_deadline_behavior_code_override_code CHECK (deadline_behavior_code_override IS NULL OR deadline_behavior_code_override IN (10, 20))
-    , CONSTRAINT ck_definitions_deadline_behavior_code_effective_code CHECK (deadline_behavior_code_effective IN (10, 20))
     , CONSTRAINT ck_definitions_audit_level_code CHECK (audit_level_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_audit_level_code_override_code CHECK (audit_level_code_override IS NULL OR audit_level_code_override IN (0, 10, 20))
-    , CONSTRAINT ck_definitions_audit_level_code_effective_code CHECK (audit_level_code_effective IN (0, 10, 20))
     , CONSTRAINT ck_definitions_alert_profile_code CHECK (alert_profile_code IN (0, 10, 20, 30, 40))
     , CONSTRAINT ck_definitions_alert_profile_code_override_code CHECK (alert_profile_code_override IS NULL OR alert_profile_code_override IN (0, 10, 20, 30, 40))
-    , CONSTRAINT ck_definitions_alert_profile_code_effective_code CHECK (alert_profile_code_effective IN (0, 10, 20, 30, 40))
 );
 CREATE UNIQUE INDEX ux_definitions_namespace_name ON {{schema}}.definitions (namespace_id, name);
 END
@@ -160,12 +155,10 @@ CREATE TABLE {{schema}}.events (
     detail varbinary(max) NULL
     , CONSTRAINT pk_events PRIMARY KEY (id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
-    , CONSTRAINT ck_events_event_code CHECK (event_code IN (10, 11, 12, 20, 21, 22, 30, 40, 41, 50, 60, 61, 70, 71, 72, 73, 74, 75, 76, 80, 81, 100, 101, 102, 103, 104, 120, 121, 122, 140, 141))
     , CONSTRAINT ck_events_actor_code CHECK (actor_code IN (10, 20, 50, 70))
     , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_execution_status_code CHECK (execution_status_code IS NULL OR execution_status_code IN (50, 100, 150, 151, 152, 200, 220, 230))
-    , CONSTRAINT ck_events_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 25, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
 ) WITH (DATA_COMPRESSION = PAGE);
 CREATE INDEX ix_events_lineage_timeline ON {{schema}}.events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
 CREATE INDEX ix_events_namespace_timeline ON {{schema}}.events (namespace_id, event_code, created_at_utc, id);
@@ -314,7 +307,7 @@ CREATE TABLE {{schema}}.schedules (
     expression_kind_code tinyint NOT NULL,
     misfire_strategy_code tinyint NOT NULL,
     next_run_at_utc datetime2(3) NULL,
-    orphaned_at_utc datetime2(3) NULL,
+    last_occurrence_at_utc datetime2(3) NULL,
     status_code tinyint NOT NULL,
     paused_until_utc datetime2(3) NULL,
     description nvarchar(512) NULL,
@@ -323,6 +316,8 @@ CREATE TABLE {{schema}}.schedules (
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_schedules PRIMARY KEY (id)
+    , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
+    , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
     , CONSTRAINT ck_schedules_origin_code CHECK (origin_code IN (20, 40))
     , CONSTRAINT ck_schedules_expression_kind_code CHECK (expression_kind_code IN (10, 20))
     , CONSTRAINT ck_schedules_misfire_strategy_code CHECK (misfire_strategy_code IN (10, 20))
@@ -330,7 +325,7 @@ CREATE TABLE {{schema}}.schedules (
     , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES {{schema}}.definitions (id)
 );
-CREATE INDEX ix_schedules_namespace_next ON {{schema}}.schedules (namespace_id, next_run_at_utc, id) WHERE orphaned_at_utc IS NULL;
+CREATE INDEX ix_schedules_namespace_next ON {{schema}}.schedules (namespace_id, next_run_at_utc, id) WHERE status_code <> 230;
 CREATE UNIQUE INDEX ux_schedules_job_name ON {{schema}}.schedules (job_id, name);
 END
 GO
@@ -379,7 +374,6 @@ CREATE TABLE {{schema}}.steps (
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
     , CONSTRAINT ck_steps_state_code CHECK (state_code IN (10, 100, 200, 230))
-    , CONSTRAINT ck_steps_reason_code CHECK (reason_code IS NULL OR reason_code IN (10, 20, 21, 22, 23, 24, 25, 30, 40, 41, 42, 50, 51, 52, 53, 54, 60, 61, 62, 63, 100, 101))
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX ux_steps_job_name ON {{schema}}.steps (job_id, name);
@@ -609,5 +603,5 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (1, 'init-ordinal-tvp-v1', '{{schema}}');
+VALUES (1, 'init-extensible-v1', '{{schema}}');
 GO

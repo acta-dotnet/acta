@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **31 families**, **160 values**.
+This release: **31 families**, **163 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -92,6 +92,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Alert kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `FirstFailure` | 10 | `first-failure` | First failure in a window; emitted by Automatic origin on non-terminal failure. | Active |
 | `ThresholdReached` | 20 | `threshold-reached` | Threshold-bound emission (e.g., LostClaimAlertThreshold reached). | Active |
 | `FinalFailure` | 30 | `final-failure` | Terminal failure; emitted by Automatic origin on Status to Failed. | Active |
@@ -149,6 +150,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Event id not recognized by this build; the row was written by a newer Acta. | Active |
 | `TenantSuspended` | 10 | `tenant.suspended` | An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason. | Active |
 | `TenantResumed` | 11 | `tenant.resumed` | An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason. | Active |
 | `TenantMetadataChanged` | 12 | `tenant.metadata-changed` | An operator changed a tenant display name / description. ReasonMessage carries the reason. | Active |
@@ -191,6 +193,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Reason id not recognized by this build; the row was written by a newer Acta. | Active |
 | `Other` | 10 | `job.other` | None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage. | Active |
 | `JobUnhandledException` | 20 | `job.unhandled-exception` | Handler threw an exception that was not raised via ctx.Fail. | Active |
 | `JobLeaseExpired` | 21 | `job.lease-expired` | Worker lease expired; the sys.recovery system job reclaimed the Job. | Active |
@@ -378,7 +381,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Active` | 10 | `active` | Schedule is eligible to fire. | Active |
 | `Paused` | 30 | `paused` | Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set. | Active |
-| `Orphaned` | 230 | `orphaned` | Origin declaration disappeared from the catalog; set by reconciliation alongside OrphanedAtUtc. Cannot fire or be paused/resumed. | Active |
+| `Orphaned` | 230 | `orphaned` | Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed. | Active |
 
 ### Tags
 

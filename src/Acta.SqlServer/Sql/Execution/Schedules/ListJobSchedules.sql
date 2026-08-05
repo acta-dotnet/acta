@@ -3,14 +3,14 @@ SELECT TOP (@p_take)
        s.origin_code, s.expression_kind_code,
        s.expression_effective,
        s.time_zone_id_effective,
-       s.misfire_strategy_code, s.next_run_at_utc, s.orphaned_at_utc,
+       s.misfire_strategy_code, s.next_run_at_utc, s.last_occurrence_at_utc,
        s.status_code, s.paused_until_utc,
        s.created_at_utc, s.modified_at_utc, s.version
   FROM {{schema}}.schedules s
   JOIN {{schema}}.namespaces ns ON ns.id = s.namespace_id
   JOIN {{schema}}.definitions jd ON jd.id = s.definition_id
  WHERE s.next_run_at_utc IS NOT NULL
-   AND (@p_live_only IS NULL OR s.orphaned_at_utc IS NULL)
+   AND (@p_live_only IS NULL OR s.status_code <> 230 /* ScheduleStatusCode.Orphaned */)
    AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
    AND (@p_job_name IS NULL OR jd.name = @p_job_name)
    AND (@p_origin_code IS NULL OR s.origin_code = @p_origin_code)
@@ -37,7 +37,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
            JOIN {{schema}}.namespaces ns ON ns.id = s.namespace_id
            JOIN {{schema}}.definitions jd ON jd.id = s.definition_id
           WHERE s.next_run_at_utc IS NOT NULL
-            AND (@p_live_only IS NULL OR s.orphaned_at_utc IS NULL)
+            AND (@p_live_only IS NULL OR s.status_code <> 230 /* ScheduleStatusCode.Orphaned */)
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
             AND (@p_job_name IS NULL OR jd.name = @p_job_name)
             AND (@p_origin_code IS NULL OR s.origin_code = @p_origin_code)
