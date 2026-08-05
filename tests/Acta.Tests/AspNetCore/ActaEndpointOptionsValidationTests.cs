@@ -42,14 +42,6 @@ public sealed class ActaEndpointOptionsValidationTests
     }
 
     [Fact]
-    public async Task MapActa_rejects_non_positive_MaxRequestBodyBytes()
-    {
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            TestDashboardHost.StartAsync(configureDashboard: o => o.MaxRequestBodyBytes = 0)
-        );
-    }
-
-    [Fact]
     public async Task LocalOnly_false_without_authorization_or_acknowledgement_throws()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
@@ -13,11 +14,8 @@ public sealed class RequestBodyLimitTests
 {
     private static Task<(Microsoft.AspNetCore.Builder.WebApplication App, HttpClient Client)> StartAsync(TestDashboardHost.FakeJobs jobs) =>
         TestDashboardHost.StartAsync(
-            configureDashboard: o =>
-            {
-                o.EnableControls = true;
-                o.MaxRequestBodyBytes = 64;
-            },
+            configureDashboard: o => o.EnableControls = true,
+            configureBuilder: b => b.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 64),
             jobs: jobs
         );
 

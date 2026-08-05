@@ -113,7 +113,7 @@ blocked handlers.
 ## Payload size guidance
 
 Inline payloads are for durable instructions and small results, not file storage. The default
-`MaxInlinePayloadBytes` is 256 KB. It is the hard cap for caller-controlled inline writes such as
+`MaxInlinePayloadBytes` is 1 MiB. It is the hard cap for caller-controlled inline writes such as
 enqueue inputs, variables, progress, step results, and signal values. Handler results are measured
 against the same cap but warn-and-persist rather than throwing, because the handler has already run.
 

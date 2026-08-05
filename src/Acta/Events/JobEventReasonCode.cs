@@ -116,6 +116,12 @@ public enum JobEventReasonCode : byte
     )]
     JobStepInterrupted = 63,
 
+    [Code(
+        "job.result-oversized",
+        "The handler returned successfully but its serialized result exceeded MaxInlinePayloadBytes, so the body was dropped rather than persisted. The job still succeeded; a typed read of the missing result throws."
+    )]
+    JobResultOversized = 64,
+
     // ---------- Worker / system ----------
     // worker.* events carry job_id = null; the reason lives on events, never on a job row.
 

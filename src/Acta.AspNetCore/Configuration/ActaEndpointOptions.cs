@@ -25,14 +25,6 @@ public class ActaEndpointOptions
     public bool UnsafeAllowAnonymousRemoteAccess { get; set; }
 
     /// <summary>
-    /// Aggregate byte ceiling for any request body on the mapped endpoints, enforced while the body
-    /// is read so chunked requests cannot bypass it; larger requests are rejected with 413. The
-    /// default leaves generous room for the JSON/base64 envelope around a payload at the runtime's
-    /// default inline-payload cap.
-    /// </summary>
-    public int MaxRequestBodyBytes { get; set; } = 1024 * 1024;
-
-    /// <summary>
     /// Whether the POST job-control endpoints (pause, resume, restart, cancel) are mapped.
     /// Off by default: controls mutate jobs, so the host opts in alongside its authorization.
     /// </summary>

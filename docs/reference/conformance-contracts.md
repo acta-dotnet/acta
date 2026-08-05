@@ -1236,16 +1236,16 @@
 
 ## Payloads
 
-### Caller writes hard-throw past the cap but a result warns and persists
-- **Contract:** Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is warned-and-persisted so the job still completes.
+### Caller writes hard-throw past the cap but an oversize result is dropped
+- **Contract:** Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is dropped so the job still completes.
 - **Arrange:** MaxInlinePayloadBytes is configured to a small 1 KB cap.
 - **Act:** Oversize enqueue input, signal value, and handler variable writes are attempted, and a handler returns an oversize result.
-- **Assert:** Each caller write throws PayloadTooLargeException while the oversize result is warned-and-persisted and the job lands Done.
+- **Assert:** Each caller write throws PayloadTooLargeException while the oversize result body is dropped and the job lands Succeeded.
 - **Guarantees:**
   - Oversize enqueue input throws PayloadTooLargeException
   - Oversize signal value throws PayloadTooLargeException
   - Oversize handler variable write throws PayloadTooLargeException
-  - Oversize handler result persists and the job completes Done
+  - An oversize handler result is dropped and the job still succeeds
 
 ## Provider
 

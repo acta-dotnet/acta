@@ -302,11 +302,16 @@ internal sealed class JobsApi(
         switch (snapshot!.Status)
         {
             case JobStatusCode.Succeeded:
+                // No stored result on a succeeded job means one of two things, and this throws for
+                // both rather than handing back a default TResult: the job genuinely returns nothing,
+                // or its result was dropped for exceeding MaxInlinePayloadBytes (the events timeline
+                // carries job.result-oversized when that is what happened).
                 var payload =
                     await GetResultAsync(lookup, ct)
                     ?? throw new InvalidOperationException(
-                        $"Job {jobId} ('{snapshot.JobName}') succeeded but stored no result; "
-                            + "use the non-result ExecuteAndWaitAsync overload for result-less jobs."
+                        $"Job {jobId} ('{snapshot.JobName}') succeeded but stored no result. Either it is "
+                            + "result-less, in which case use the non-result ExecuteAndWaitAsync overload, or its "
+                            + "result exceeded MaxInlinePayloadBytes and was dropped; the job's events say which."
                     );
                 var value = serializers.Resolve(payload.Format.Id).Deserialize<TResult>(payload);
                 return JobOutcome<TResult>.Done(jobId, value!);

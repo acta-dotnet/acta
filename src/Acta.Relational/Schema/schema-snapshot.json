@@ -524,7 +524,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,64,100,101"
           },
           {
             "Name": "reason_message",
@@ -1084,7 +1084,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,64,100,101"
           },
           {
             "Name": "reason_message",
@@ -2022,6 +2022,12 @@
             "Id": 63,
             "Code": "job.step-interrupted",
             "Description": "An at-most-once step was re-entered on replay before its outcome was recorded (worker died mid-flight); the body is not re-run and the parent lands terminal Failed. Non-retryable; the outcome is unknown and must be reconciled externally.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 64,
+            "Code": "job.result-oversized",
+            "Description": "The handler returned successfully but its serialized result exceeded MaxInlinePayloadBytes, so the body was dropped rather than persisted. The job still succeeded; a typed read of the missing result throws.",
             "Lifecycle": "Active"
           },
           {
