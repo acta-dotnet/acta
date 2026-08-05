@@ -182,7 +182,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
 
         // Parent: Done, failure_count still untouched.
         var job3 = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Done, job3.Status);
+        Assert.Equal(JobStatusCode.Succeeded, job3.Status);
         Assert.Equal((short)0, job3.FailureCount);
     }
 

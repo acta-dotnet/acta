@@ -17,6 +17,6 @@ BEGIN
      WHERE js.kind_code = 50 /* JobCheckpointKindCode.ChildLatch */
        AND js.name ~ '^sys\.child\.[0-9]+$'
        AND js.state_code = 10 /* JobCheckpointStateCode.Pending */
-       AND (c.id IS NULL OR cr.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */));
+       AND (c.id IS NULL OR cr.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */));
 END;
 $$;

@@ -61,7 +61,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(8);
-        while (DateTime.UtcNow < deadline && (await ReadJobAsync(enqueued.JobId, ct)).Status != JobStatusCode.Done)
+        while (DateTime.UtcNow < deadline && (await ReadJobAsync(enqueued.JobId, ct)).Status != JobStatusCode.Succeeded)
         {
             await Task.Delay(50, ct);
         }
@@ -70,7 +70,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         await loopCts.CancelAsync();
         await loop;
 
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Far inside the 20s safety sleep the loop was committed to - only the raise's wakeup
         // publish can have interrupted it.
         Assert.True(elapsed < TimeSpan.FromSeconds(8), $"Released job ran after {elapsed}: the raise did not wake the idle loop.");
@@ -134,7 +134,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobResumed, ct));
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
 
@@ -150,7 +150,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobSuspended, ct));
     }

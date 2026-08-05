@@ -64,7 +64,7 @@ BEGIN
             WHEN @rearm = 1 THEN 10 /* JobStatusCode.Ready */
             WHEN @handler = 1 THEN @p_handler_status_code
             WHEN @recurring = 1 THEN @p_final_status
-            WHEN @p_execution_succeeded = 1 THEN 100 /* JobStatusCode.Done */
+            WHEN @p_execution_succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
             ELSE 200 /* JobStatusCode.Failed */
         END;
 
@@ -100,7 +100,7 @@ BEGIN
                 ELSE @c_next_existing END;
 
             SET @c_retention = CASE
-                WHEN @to_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                WHEN @to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                      AND @p_retention_seconds IS NOT NULL
                 THEN DATEADD(SECOND, @p_retention_seconds, @now)
                 ELSE @c_retention_existing END;
@@ -283,7 +283,7 @@ BEGIN
                     @p_reason_code, @p_reason_message);
             END
 
-            IF @to_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND @parent_id IS NOT NULL
+            IF @to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND @parent_id IS NOT NULL
             BEGIN
                 DECLARE @sig VARCHAR(128) = 'sys.child.' + CAST(@p_id AS VARCHAR(20));
                 DECLARE @psig TINYINT, @pstatus TINYINT, @pns SMALLINT, @plineage BIGINT, @pdef INT, @ptenant INT, @pexec INT, @paudit TINYINT;
@@ -305,7 +305,7 @@ BEGIN
                   INNER JOIN {{schema}}.jobs j ON j.id = pr.job_id
                  WHERE pr.job_id = @parent_id;
 
-                IF @pstatus IS NOT NULL AND @pstatus NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                IF @pstatus IS NOT NULL AND @pstatus NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                 BEGIN
                     DECLARE @envelope NVARCHAR(MAX) =
                           N'{"childJobId":' + CAST(@p_id AS NVARCHAR(20))
@@ -404,7 +404,7 @@ BEGIN
             SET @action = CASE
                 WHEN @curStatus IS NULL
                   OR @curStatus IN (
-                        100 /* JobStatusCode.Done */,
+                        100 /* JobStatusCode.Succeeded */,
                         200 /* JobStatusCode.Failed */,
                         220 /* JobStatusCode.Cancelled */
                     )

@@ -46,7 +46,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
 
         // --- 2. One tick consumes the pre-set signal and completes without suspending.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(
@@ -144,13 +144,13 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         // worker loop this waits on. Under full-suite load on SQLite (single writer, one shared file)
         // that spin could exhaust the budget below and fail a passing product path.
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (DateTime.UtcNow < deadline && await Jobs.GetStatusAsync(enqueued, ct) != JobStatusCode.Done)
+        while (DateTime.UtcNow < deadline && await Jobs.GetStatusAsync(enqueued, ct) != JobStatusCode.Succeeded)
         {
             await Task.Delay(20, ct);
         }
 
         await loopCts.CancelAsync();
         await loop;
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
     }
 }

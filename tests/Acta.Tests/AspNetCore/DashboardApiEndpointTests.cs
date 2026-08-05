@@ -123,13 +123,13 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(3, jobs.LastEventsQuery.TenantId);
         Assert.Equal(9, jobs.LastEventsQuery.WorkerId);
 
-        // A divergent wire code (member JobDefinitionPolicyChanged) binds via its [Code] string, not the member name.
+        // A divergent wire code (member JobDefinitionOverridesUpdated) binds via its [Code] string, not the member name.
         var divergent = await client.GetAsync(
-            "/acta/api/events?eventCode=definition.policy-changed",
+            "/acta/api/events?eventCode=definition.overrides-updated",
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.OK, divergent.StatusCode);
-        Assert.Equal(Acta.JobEventCode.JobDefinitionPolicyChanged, jobs.LastEventsQuery!.EventCode);
+        Assert.Equal(Acta.JobEventCode.JobDefinitionOverridesUpdated, jobs.LastEventsQuery!.EventCode);
 
         var badCode = await client.GetAsync("/acta/api/events?eventCode=nope", TestContext.Current.CancellationToken);
         var badJobId = await client.GetAsync("/acta/api/events?jobId=abc", TestContext.Current.CancellationToken);

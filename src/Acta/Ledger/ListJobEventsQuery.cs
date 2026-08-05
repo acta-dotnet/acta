@@ -5,7 +5,7 @@ namespace Acta;
 /// <param name="LineageRootId">Restrict to one lineage tree.</param>
 /// <param name="JobNamespace">Restrict to one namespace.</param>
 /// <param name="EventCode">Restrict to one event code.</param>
-/// <param name="JobDefinitionId">Restrict to one definition's events (e.g. the definition.policy-changed audit trail).</param>
+/// <param name="JobDefinitionId">Restrict to one definition's events (e.g. the definition.overrides-updated audit trail).</param>
 /// <param name="TenantId">Restrict to one tenant's job-scoped events (the resolved <c>tenants</c> id).</param>
 /// <param name="WorkerId">Restrict to one worker's events (e.g. the worker.started/stopped/dead lifecycle trail).</param>
 /// <param name="ActorCode">Restrict to events stamped with one actor (sys / operator / job / worker).</param>

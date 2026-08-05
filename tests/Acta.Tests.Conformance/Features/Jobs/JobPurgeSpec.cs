@@ -36,7 +36,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var completed = await EnqueueAndRunAsync("add-numbers", new AddNumbers(2, 3), ct);
         var before = await ReadJobAsync(completed.JobId, ct);
 
-        // The completed run already left job.execution.started/finished events for this job_id; seed
+        // The completed run already left job.execution-started/finished events for this job_id; seed
         // an alert too, so purge's own-row cleanup of both tables is provable, not just the row delete.
         await AlertTestOps.RaiseAsync(
             Services,
@@ -111,7 +111,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var result = await Jobs.PurgeAsync(JobLookup.ById(parentId), ct: ct);
 
         Assert.Equal(JobControlAction.Rejected, result.Action);
-        Assert.Equal(JobStatusCode.Done, result.Status);
+        Assert.Equal(JobStatusCode.Succeeded, result.Status);
 
         Assert.NotNull(await Jobs.GetAsync(JobLookup.ById(parentId), ct));
     }

@@ -41,7 +41,7 @@ internal static class DefinitionControlEndpoints
                 var actorKey = http.User?.Identity?.Name;
                 try
                 {
-                    var result = await operations.Definitions.SetOverridesAsync(
+                    var result = await operations.Definitions.UpdateOverridesAsync(
                         defId,
                         body!.Version,
                         body.Overrides ?? new JobDefinitionPolicyOverrides(),

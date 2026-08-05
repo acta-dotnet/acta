@@ -145,7 +145,7 @@ internal static class TestDashboardHost
         /// reports not found; "sys" or "bad key" throws.</summary>
         public List<(string Verb, string Name, string? ReasonMessage, string? ActorKey)> NamespaceAdminCalls { get; } = [];
 
-        /// <summary>Recorded SetOverridesAsync calls. A schedule name of "missing" reports not found, "rejected"
+        /// <summary>Recorded UpdateOverridesAsync calls. A schedule name of "missing" reports not found, "rejected"
         /// reports a stale-version rejection, and an expression of "bad-expr" throws ArgumentException.</summary>
         public List<(
             string ScheduleName,
@@ -257,7 +257,7 @@ internal static class TestDashboardHost
 
         private static JobControlResult ResultFor(JobLookup lookup) =>
             lookup.JobRef == MissingJobRef ? new JobControlResult(0, JobControlAction.NotFound, null)
-            : lookup.JobRef == RejectedJobRef ? new JobControlResult(43, JobControlAction.Rejected, JobStatusCode.Done)
+            : lookup.JobRef == RejectedJobRef ? new JobControlResult(43, JobControlAction.Rejected, JobStatusCode.Succeeded)
             : new JobControlResult(42, JobControlAction.Applied, JobStatusCode.Paused);
 
         private ValueTask<JobControlResult> Control(string verb, JobLookup lookup, string? reason, string? actorKey)
@@ -664,7 +664,7 @@ internal static class TestDashboardHost
                 CancellationToken ct = default
             ) => ValueTask.FromResult(new ScheduleControlResult(JobControlAction.Applied, null, null, null, null));
 
-            public ValueTask<ScheduleControlResult> SetOverridesAsync(
+            public ValueTask<ScheduleControlResult> UpdateOverridesAsync(
                 JobScheduleLookup schedule,
                 int expectedVersion,
                 string? expression,
@@ -778,7 +778,7 @@ internal static class TestDashboardHost
 
         private sealed class FakeDefinitions : IDefinitions
         {
-            public ValueTask<DefinitionOverrideResult> SetOverridesAsync(
+            public ValueTask<DefinitionOverrideResult> UpdateOverridesAsync(
                 int definitionId,
                 int expectedVersion,
                 JobDefinitionPolicyOverrides overrides,

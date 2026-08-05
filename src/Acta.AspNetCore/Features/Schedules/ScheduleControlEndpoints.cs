@@ -145,7 +145,7 @@ internal static class ScheduleControlEndpoints
                 var actorKey = http.User?.Identity?.Name;
                 try
                 {
-                    var result = await operations.Schedules.SetOverridesAsync(
+                    var result = await operations.Schedules.UpdateOverridesAsync(
                         lookup,
                         version,
                         body.Expression,

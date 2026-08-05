@@ -66,7 +66,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         await sink.RunFlusherAsync();
 
         // Primary assertions: DB state is the source of truth.
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(child.Id, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parentEnq.JobId, ct)).Status);
 
         // Secondary: AllWorkerNamespaces/WorkAvailable wake fired (ParentReleased).
@@ -110,7 +110,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         await sink.RunFlusherAsync();
 
         // Exact terminal status: same as scalar CompleteExecution.Run would produce.
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(child.Id, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
 
         // Exact lifecycle event: one JobExecutionFinished with ExecutionStatus Succeeded.
         var evt = await ReadSingleEventAsync(child.Id, JobEventCode.JobExecutionFinished, ct);
@@ -147,7 +147,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         await sink.RunFlusherAsync();
 
         // Primary: job reaches Done via batch.
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enq.JobId, ct)).Status);
 
         // Secondary: JobCompletion/JobFinished wake fired (batch path), NOT the parent/key wakes.
         Assert.Contains(
@@ -208,10 +208,10 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(JobId, ct)).Status);
 
         // The fallback after it still ran: iteration does not stop at the first failure.
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(secondChild.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(secondChild.JobId, ct)).Status);
 
         // The set call committed the plain row before the failure, so it is terminal, not rolled back.
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plain.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plain.JobId, ct)).Status);
 
         // And it still got its deferred wake, which the old single-catch flush skipped.
         Assert.Contains(

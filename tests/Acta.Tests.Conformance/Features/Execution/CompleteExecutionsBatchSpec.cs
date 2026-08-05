@@ -97,10 +97,10 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal([true, false, true, true, false], results);
 
         // Pin post-state: true → Done (100); false → still Executing (50).
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(childEnq.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(exclEnq.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainBEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(exclEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plainBEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(staleEnq.JobId, ct)).Status);
     }
 
@@ -158,9 +158,9 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal([false, true, false, true], results);
 
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(childEnq.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(staleEnq.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(plainBEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plainBEnq.JobId, ct)).Status);
     }
 
     [Fact(DisplayName = "All-plain batch finalizes all rows and returns all-true")]
@@ -193,9 +193,9 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         Assert.Equal([true, true, true], results);
 
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqA.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqB.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(enqC.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqA.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqB.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqC.JobId, ct)).Status);
     }
 
     [Fact(DisplayName = "Batch with a terminal failure row finalizes it as Failed and the event keeps the reason code")]
@@ -236,7 +236,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
         Assert.Equal([true, true], results);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(okEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(okEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(failEnq.JobId, ct)).Status);
 
         var events = await GetEventsByJobId.Run(Services, failEnq.JobId, ct);
@@ -275,8 +275,8 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
         Assert.Equal([false, true, true], results);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(aEnq.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Done, (await ReadJobAsync(bEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(aEnq.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(bEnq.JobId, ct)).Status);
 
         // Exactly one finished event for job A: the stale request must not fan out through the
         // ordinal correlation.

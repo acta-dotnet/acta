@@ -37,7 +37,7 @@ SELECT
         WHEN @p_reschedule_status_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
         WHEN @p_handler_status_code IS NOT NULL THEN @p_handler_status_code
         WHEN @p_final_status IS NOT NULL THEN @p_final_status
-        WHEN @p_execution_succeeded = 1 THEN 100 /* JobStatusCode.Done */
+        WHEN @p_execution_succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
         ELSE 200 /* JobStatusCode.Failed */
     END AS to_status,
     p.id, p.namespace_id, p.lineage_root_id, p.definition_id, p.tenant_id, p.execution_number,
@@ -60,7 +60,7 @@ UPDATE {{schema}}.runtimes
        leased_by_worker_id  = NULL,
        lease_expires_at_utc = NULL,
        retention_until_utc  = CASE
-           WHEN (SELECT to_status FROM _ce_done) IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+           WHEN (SELECT to_status FROM _ce_done) IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                 AND @p_retention_seconds IS NOT NULL
            THEN {{now}} + (@p_retention_seconds) * 1000
            ELSE retention_until_utc END,
@@ -239,10 +239,10 @@ SELECT
 FROM _ce_done d
 JOIN {{schema}}.jobs pj ON pj.id = d.parent_id
 JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
-WHERE d.to_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+WHERE d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
   AND d.parent_id IS NOT NULL
   AND pr.status_code IS NOT NULL
-  AND pr.status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+  AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, state_code, value_format_id, value, modified_at_utc, version)
 SELECT
@@ -290,7 +290,7 @@ SELECT
     CASE
         WHEN NOT EXISTS (SELECT 1 FROM _ce_pre) THEN 3 /* CompleteExecutionAction.AlreadyTerminal */
         WHEN EXISTS (SELECT 1 FROM _ce_done) THEN 1 /* CompleteExecutionAction.Completed */
-        WHEN (SELECT cur_status FROM _ce_pre) IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* CompleteExecutionAction.AlreadyTerminal */
+        WHEN (SELECT cur_status FROM _ce_pre) IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* CompleteExecutionAction.AlreadyTerminal */
         WHEN (SELECT cur_worker FROM _ce_pre) IS NULL OR (SELECT cur_worker FROM _ce_pre) <> @p_leased_by_worker_id THEN 2 /* CompleteExecutionAction.NotOwner */
         ELSE 3 /* CompleteExecutionAction.AlreadyTerminal */
     END AS action,

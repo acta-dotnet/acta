@@ -75,7 +75,7 @@ BEGIN
             execution_status_code, duration_ms,
             reason_code, reason_message)
         VALUES (
-            30 /* JobEventCode.JobDefinitionPolicyChanged */, @now, @ns,
+            30 /* JobEventCode.JobDefinitionOverridesUpdated */, @now, @ns,
             @p_actor_code, @p_actor_key,
             NULL, NULL, NULL,
             NULL, @p_id,

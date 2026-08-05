@@ -74,7 +74,7 @@ public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         const string displayName = "Renamed By Operator";
         const string description = "Operator description.";
-        await DefinitionTestOps.SetOverridesAsync(
+        await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             definitionId,
             before!.Version,

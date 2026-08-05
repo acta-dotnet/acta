@@ -120,7 +120,7 @@ static async Task<JobSnapshot> WaitForAsync(IJobs jobs, long jobId, Func<JobSnap
 
 static void EnsureDone(JobSnapshot snapshot)
 {
-    if (snapshot.Status != JobStatusCode.Done)
+    if (snapshot.Status != JobStatusCode.Succeeded)
     {
         throw new InvalidOperationException($"Job {snapshot.JobRef} ended {snapshot.Status}; inspect its events for the reason.");
     }

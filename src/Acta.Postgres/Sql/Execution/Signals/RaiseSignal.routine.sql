@@ -44,7 +44,7 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_from_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
         RETURN QUERY SELECT 3 /* JobControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;

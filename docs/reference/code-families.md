@@ -157,10 +157,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `NamespaceSuspended` | 20 | `namespace.suspended` | An operator suspended a namespace; enqueue into it is rejected. ReasonMessage carries the reason. | Active |
 | `NamespaceResumed` | 21 | `namespace.resumed` | An operator resumed a suspended namespace; enqueue into it is allowed again. ReasonMessage carries the reason. | Active |
 | `NamespaceUpdated` | 22 | `namespace.updated` | An operator changed a namespace owner team / description. ReasonMessage carries the reason. | Active |
-| `JobDefinitionPolicyChanged` | 30 | `definition.policy-changed` | An operator changed a job definition's policy overrides; ReasonMessage summarizes the change. | Active |
-| `JobExecutionStarted` | 40 | `job.execution.started` | Handler invocation began; paired with job.execution.finished on (JobId, ExecutionNumber). | Active |
-| `JobExecutionFinished` | 41 | `job.execution.finished` | Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated. | Active |
-| `JobRecurringRolledOver` | 50 | `job.recurring.rolled-over` | Recurring Job's NextRunAtUtc advanced to the next firing instant. | Active |
+| `JobDefinitionOverridesUpdated` | 30 | `definition.overrides-updated` | An operator changed a job definition's policy overrides; ReasonMessage summarizes the change. | Active |
+| `JobExecutionStarted` | 40 | `job.execution-started` | Handler invocation began; paired with job.execution-finished on (JobId, ExecutionNumber). | Active |
+| `JobExecutionFinished` | 41 | `job.execution-finished` | Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated. | Active |
+| `JobRecurringRolledOver` | 50 | `job.recurring-rolled-over` | Recurring Job's NextRunAtUtc advanced to the next firing instant. | Active |
 | `JobSuspended` | 60 | `job.suspended` | Handler called ctx.SleepAsync; the Job re-armed to Ready with the sleep timer's due instant; budget-neutral. | Active |
 | `JobRescheduled` | 61 | `job.rescheduled` | The job re-armed Ready with a new NextRunAtUtc: a handler reschedule or an operator RescheduleAsync; actor and reason distinguish. | Active |
 | `JobCancelled` | 70 | `job.cancelled` | Job was cancelled (Status to Cancelled, terminal). | Active |
@@ -170,12 +170,12 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobReprioritized` | 74 | `job.reprioritized` | Operator changed the job's claim priority; ReasonMessage carries the operator's reason, if any. | Active |
 | `JobPurged` | 75 | `job.purged` | Operator hard-deleted a terminal job. job_id/job_ref are null (the row is gone); ReasonMessage carries the purged job's ref and name. Always emitted regardless of audit level. | Active |
 | `JobInputAmended` | 76 | `job.input-amended` | Operator amended a job's stored input payload; Detail carries bounded JSON metadata (format name and byte count) about the previous payload and ReasonMessage carries the why. | Active |
-| `JobSignalRaised` | 80 | `job.signal.raised` | Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed. | Active |
+| `JobSignalRaised` | 80 | `job.signal-raised` | Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed. | Active |
 | `JobStateReset` | 81 | `job.state-reset` | Handler called ctx.ResetStateAsync; the Job's JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new. | Active |
 | `SchedulePaused` | 100 | `schedule.paused` | A recurring schedule was paused; ReasonMessage carries the schedule name. | Active |
 | `ScheduleResumed` | 101 | `schedule.resumed` | A recurring schedule was resumed; ReasonMessage carries the schedule name. | Active |
 | `SchedulePauseExpired` | 102 | `schedule.pause-expired` | A timed pause elapsed; the scheduler auto-resumed the schedule. ReasonMessage carries the schedule name. | Active |
-| `ScheduleOverridesChanged` | 103 | `schedule.overrides-changed` | Operator changed a schedule's expression/timezone overrides; ReasonMessage summarizes the change and carries the schedule name. | Active |
+| `ScheduleOverridesUpdated` | 103 | `schedule.overrides-updated` | Operator changed a schedule's expression/timezone overrides; ReasonMessage summarizes the change and carries the schedule name. | Active |
 | `ScheduleTriggered` | 104 | `schedule.triggered` | Operator fired a schedule manually; the slot's cursor was pulled to now. ReasonMessage carries the schedule name. | Active |
 | `WorkerStarted` | 120 | `worker.started` | Worker process registered; a workers row was appended (Status: Active). | Active |
 | `WorkerStopped` | 121 | `worker.stopped` | Worker process shut down cleanly (Status: Active/Draining to Stopped). | Active |
@@ -194,7 +194,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Reason id not recognized by this build; the row was written by a newer Acta. | Active |
-| `Other` | 10 | `job.other` | None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage. | Active |
+| `Unclassified` | 10 | `job.unclassified` | None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage. | Active |
 | `JobUnhandledException` | 20 | `job.unhandled-exception` | Handler threw an exception that was not raised via ctx.Fail. | Active |
 | `JobLeaseExpired` | 21 | `job.lease-expired` | Worker lease expired; the sys.recovery system job reclaimed the Job. | Active |
 | `JobExecutionTimeout` | 22 | `job.execution-timeout` | Execution exceeded JobDefinition.ExecutionTimeout for this attempt. | Active |
@@ -223,10 +223,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Running` | 50 | `running` | Handler in flight. | Active |
+| `Executing` | 50 | `executing` | Handler in flight. | Active |
 | `Succeeded` | 100 | `succeeded` | Handler returned successfully. Resets the runtime failure count. | Active |
 | `Rescheduled` | 150 | `rescheduled` | Handler threw RescheduleJobException; does not charge budget. | Active |
-| `Suspended` | 151 | `suspended` | Handler called ctx.SleepAsync; suspended until the sleep timer's due instant; does not charge budget. | Active |
+| `Suspended` | 151 | `suspended` | The attempt ended because the job parked: a ctx.SleepAsync timer, an awaited signal, or awaited children. Does not charge budget. | Active |
 | `Paused` | 152 | `paused` | Handler threw PauseJobException. | Active |
 | `Failed` | 200 | `failed` | Handler threw or ctx.Fail called. Charges failure budget. | Active |
 | `Cancelled` | 220 | `cancelled` | Handler ended via cancel; does not charge budget. | Active |
@@ -288,7 +288,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Off` | 0 | `off` | No audit-filtered per-job events; always-on system/catalog events still emit. | Active |
-| `Failures` | 10 | `failures` | Emit failed job.execution.finished only; suppress other audit-filtered per-job events. | Active |
+| `Failures` | 10 | `failures` | Emit failed job.execution-finished only; suppress other audit-filtered per-job events. | Active |
 | `Audit` | 20 | `audit` | Emit all audit-filtered per-job events. User Jobs default. | Active |
 
 #### `JobPriorityCode` · `priority` <a id="code-family-jobprioritycode"></a>
@@ -306,11 +306,11 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Ready` | 10 | `ready` | Eligible for claim; the claim path selects rows in this Status. | Active |
-| `Suspended` | 20 | `suspended` | Awaiting an external signal via ctx.WaitSignalAsync. | Active |
+| `Suspended` | 20 | `suspended` | Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync. | Active |
 | `Paused` | 30 | `paused` | Not running, awaiting an external trigger to resume. | Active |
 | `Dispatched` | 40 | `dispatched` | Claimed by a worker; lease active, handler invocation pending. | Active |
-| `Executing` | 50 | `executing` | Handler is running. JobEvent(job.execution.started) has been appended; matching job.execution.finished pending. | Active |
-| `Done` | 100 | `done` | Terminal success. | Active |
+| `Executing` | 50 | `executing` | Handler is running. JobEvent(job.execution-started) has been appended; matching job.execution-finished pending. | Active |
+| `Succeeded` | 100 | `succeeded` | Terminal success. | Active |
 | `Failed` | 200 | `failed` | Terminal failure: MaxAttempts exhausted, expiration fired, or ctx.Fail called. | Active |
 | `Cancelled` | 220 | `cancelled` | Terminal cancellation by IJobs.CancelAsync or ctx.Cancel. | Active |
 

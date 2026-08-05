@@ -584,7 +584,7 @@ public abstract class JobContext
         var outcome = await WaitChildAsync(child.JobId, ct);
         return outcome.Status switch
         {
-            JobStatusCode.Done => JobOutcome.Done(child.JobId),
+            JobStatusCode.Succeeded => JobOutcome.Done(child.JobId),
             JobStatusCode.Cancelled => JobOutcome.Cancelled(child.JobId),
             _ => JobOutcome.Failed(child.JobId),
         };
@@ -607,7 +607,7 @@ public abstract class JobContext
     {
         var child = await StartChildAsync(name, input, configure, ct);
         var outcome = await WaitChildAsync(child.JobId, ct);
-        if (outcome.Status != JobStatusCode.Done)
+        if (outcome.Status != JobStatusCode.Succeeded)
         {
             return outcome.Status == JobStatusCode.Cancelled
                 ? JobOutcome<TResult>.Cancelled(child.JobId)

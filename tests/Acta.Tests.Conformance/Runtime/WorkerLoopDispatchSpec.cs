@@ -74,7 +74,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         foreach (var id in ids)
         {
             var status = await Services.GetRequiredService<IJobStore>().GetJobStatusAsync(id, ct);
-            Assert.Equal(JobStatusCode.Done, status);
+            Assert.Equal(JobStatusCode.Succeeded, status);
         }
     }
 
@@ -244,7 +244,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
             foreach (var id in ids)
             {
                 var status = await store.GetJobStatusAsync(id, ct);
-                if (status == JobStatusCode.Done)
+                if (status == JobStatusCode.Succeeded)
                 {
                     done++;
                 }

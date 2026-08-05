@@ -65,7 +65,7 @@ await lab.ShowAsync(
 );
 
 var terminal = await WaitForAsync(jobs, outcome.JobId, static snapshot => snapshot.Status.IsTerminal, "parent to reach a terminal state");
-if (terminal.Status == JobStatusCode.Done)
+if (terminal.Status == JobStatusCode.Succeeded)
 {
     var result = await jobs.GetResultAsync<FinishedSnowman>(outcome);
     Console.WriteLine($"snowman finished: {result}");

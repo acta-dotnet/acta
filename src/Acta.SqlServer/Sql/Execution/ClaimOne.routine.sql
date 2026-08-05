@@ -80,7 +80,7 @@ BEGIN
                 40 /* JobEventCode.JobExecutionStarted */, @now, c.namespace_id, 70 /* JobActorCode.Worker */, NULL,
                 c.id, c.job_ref, c.execution_number,
                 COALESCE(c.lineage_root_id, c.id), c.definition_id, c.tenant_id, @p_leased_by_worker_id,
-                10 /* JobStatusCode.Ready */, 50 /* JobStatusCode.Executing */, 50 /* ExecutionStatusCode.Running */, NULL,
+                10 /* JobStatusCode.Ready */, 50 /* JobStatusCode.Executing */, 50 /* ExecutionStatusCode.Executing */, NULL,
                 NULL, NULL
               FROM @claimed c
              WHERE c.audit_level_code = 20 /* JobAuditLevelCode.Audit */;

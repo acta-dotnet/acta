@@ -16,6 +16,6 @@ BEGIN
        AND js.name LIKE 'sys.child.%'
        AND TRY_CAST(SUBSTRING(js.name, 11, 20) AS BIGINT) IS NOT NULL
        AND js.state_code = 10 /* JobCheckpointStateCode.Pending */
-       AND (c.id IS NULL OR cr.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */));
+       AND (c.id IS NULL OR cr.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */));
 END;
 GO

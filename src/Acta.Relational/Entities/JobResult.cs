@@ -12,7 +12,7 @@ namespace Acta.Relational.Entities;
 /// <remarks>
 /// Retention cascades from <c>Job</c>: <c>fk_results_jobs ON DELETE CASCADE</c> sweeps every result row
 /// when its parent Job is retention-deleted, so there is no per-row retention column. <c>JobEvent</c>
-/// records the <c>job.execution.finished</c> event whose <c>JobId + ExecutionNumber</c> pair points at
+/// records the <c>job.execution-finished</c> event whose <c>JobId + ExecutionNumber</c> pair points at
 /// this row; the event ledger has its own retention.
 /// </remarks>
 [DbTable("results", PageCompression = true)]
@@ -38,7 +38,7 @@ internal sealed class JobResult : IEntity
     /// <summary>
     /// Which attempt produced this result. Part of the composite clustered PK; together with
     /// <see cref="JobId"/> uniquely identifies the result row across the Job's history of attempts. The
-    /// value matches the <c>JobEvent.ExecutionNumber</c> on the corresponding <c>job.execution.finished</c>
+    /// value matches the <c>JobEvent.ExecutionNumber</c> on the corresponding <c>job.execution-finished</c>
     /// event.
     /// int.
     /// </summary>
@@ -60,7 +60,7 @@ internal sealed class JobResult : IEntity
 
     /// <summary>
     /// When the row was inserted; rendered server-side via <see cref="DbDefault.UtcNow"/> in the same
-    /// transaction as the <c>job.execution.finished</c> event. The operation does not supply this value
+    /// transaction as the <c>job.execution-finished</c> event. The operation does not supply this value
     /// from C#.
     /// </summary>
     [DbColumn("created_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]

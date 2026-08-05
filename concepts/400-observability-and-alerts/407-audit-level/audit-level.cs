@@ -19,7 +19,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var queries = host.Services.GetRequiredService<IActaOperations>();
 
-// Audit: emits job.execution.started and job.execution.finished for every run.
+// Audit: emits job.execution-started and job.execution-finished for every run.
 var auditOutcome = await jobs.EnqueueAsync(new AuditWork("report-a"));
 await Task.Delay(500);
 var auditEvents = await queries.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: auditOutcome.JobId));

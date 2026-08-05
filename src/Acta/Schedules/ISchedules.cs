@@ -24,7 +24,7 @@ public interface ISchedules
     );
 
     /// <summary>Sets a full-set operator override on <paramref name="schedule"/>'s expression and/or time zone, CAS-guarded on <paramref name="expectedVersion"/>. A null <paramref name="expression"/>/<paramref name="timeZoneId"/> clears that override (falls back to the definition default); a non-null value replaces it after validating that it parses (Cron or ISO 8601, per the schedule's existing kind) and, for a time zone, that the id resolves via <see cref="TimeZoneInfo.FindSystemTimeZoneById(string)"/>; an invalid value throws <see cref="ArgumentException"/> before any write. <paramref name="actorKey"/> is recorded on the audit event as the operator identity; null when unknown. Missing/orphaned schedule is NotFound; a stale <paramref name="expectedVersion"/> is Rejected carrying the schedule's current state so the caller can re-read.</summary>
-    ValueTask<ScheduleControlResult> SetOverridesAsync(
+    ValueTask<ScheduleControlResult> UpdateOverridesAsync(
         JobScheduleLookup schedule,
         int expectedVersion,
         string? expression,

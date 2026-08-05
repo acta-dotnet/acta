@@ -143,13 +143,13 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
 
         var slotId = await SlotIdAsync(jobName, ct);
-        await SetRuntimeStatusAsync(db, slotId, (byte)JobStatusCode.Done, ct);
+        await SetRuntimeStatusAsync(db, slotId, (byte)JobStatusCode.Succeeded, ct);
 
         var result = await Schedules.TriggerNowAsync(Lookup(jobName, "only"), ct: ct);
         Assert.Equal(JobControlAction.Rejected, result.Action);
 
         var slot = await SlotAsync(jobName, ct);
-        Assert.Equal(JobStatusCode.Done, slot.Status); // untouched
+        Assert.Equal(JobStatusCode.Succeeded, slot.Status); // untouched
         Assert.Equal(farFuture, slot.NextRunAtUtc); // no phantom cursor move
         var events = await Db.From<Acta.Relational.Entities.JobEvent>()
             .Where(e => e.JobId == slotId && e.EventCode == JobEventCode.ScheduleTriggered)

@@ -110,8 +110,8 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Done, ct);
-        await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Done, ct);
+        await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Succeeded, ct);
+        await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Succeeded, ct);
         await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
         await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
 

@@ -52,7 +52,7 @@ public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<T
 
         LockHolder.Release(TestNamespace);
         await run.WaitAsync(Timeout, ct);
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
     }
 
     [Fact(DisplayName = "A lost held lock cancels the attempt")]

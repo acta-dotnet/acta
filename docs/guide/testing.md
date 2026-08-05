@@ -100,7 +100,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
         var outcome = await _host.RunOnceAsync(enqueued);
 
         Assert.Equal(ActaRunOutcome.Completed, outcome);
-        Assert.Equal(JobStatusCode.Done, await _host.Jobs.GetStatusAsync(enqueued));
+        Assert.Equal(JobStatusCode.Succeeded, await _host.Jobs.GetStatusAsync(enqueued));
         var sent = Assert.Single(_email.Sent);
         Assert.Equal(userId, sent.UserId);
     }
@@ -207,7 +207,7 @@ public async Task Waits_for_the_approval_signal_then_completes()
 
     // Tick 2: the handler resumes past the wait and completes.
     Assert.Equal(ActaRunOutcome.Completed, await _host.RunOnceAsync(enqueued));
-    Assert.Equal(JobStatusCode.Done, await _host.Jobs.GetStatusAsync(enqueued));
+    Assert.Equal(JobStatusCode.Succeeded, await _host.Jobs.GetStatusAsync(enqueued));
 }
 ```
 

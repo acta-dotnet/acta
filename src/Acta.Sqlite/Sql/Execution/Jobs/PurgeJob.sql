@@ -17,20 +17,20 @@ CREATE TEMP TABLE _purge_alerts AS SELECT id FROM {{schema}}.alerts WHERE job_id
 CREATE TEMP TABLE _purge_events AS SELECT id FROM {{schema}}.events WHERE job_id = @p_id;
 
 DELETE FROM {{schema}}.tags
- WHERE EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.from_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0)
+ WHERE EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0)
    AND ((scope_code = 50 /* TagScopeCode.Job */ AND scope_id = @p_id)
      OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM temp._purge_schedules))
      OR (scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_alerts))
      OR (scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM temp._purge_events)));
 
 DELETE FROM {{schema}}.events WHERE job_id = @p_id
-  AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
+  AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
 
 DELETE FROM {{schema}}.alerts WHERE job_id = @p_id
-  AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
+  AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
 
 DELETE FROM {{schema}}.jobs WHERE id = @p_id
-  AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
+  AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
@@ -50,19 +50,19 @@ SELECT
     @p_reason_code, 'purged ' || s.job_ref || ' (' || s.job_name || ')'
 FROM temp._purge_job s
 WHERE s.id = @p_id
-  AND s.from_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+  AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
   AND s.has_child = 0;
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* JobControlAction.NotFound */
-        WHEN s.from_status NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* JobControlAction.Rejected */
+        WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* JobControlAction.Rejected */
         WHEN s.has_child = 1 THEN 3 /* JobControlAction.Rejected */
         ELSE 1 /* JobControlAction.Applied */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL
-        WHEN s.from_status NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN s.from_status
+        WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN s.from_status
         WHEN s.has_child = 1 THEN s.from_status
         ELSE NULL
     END AS status_code

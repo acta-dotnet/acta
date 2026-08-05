@@ -76,10 +76,10 @@ public abstract class GoldenPathSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Assert.NotNull(snapshot);
         Assert.Equal("add-numbers", snapshot!.JobName);
         Assert.Equal(TestNamespace, snapshot.JobNamespace);
-        Assert.Equal(JobStatusCode.Done, snapshot.Status);
+        Assert.Equal(JobStatusCode.Succeeded, snapshot.Status);
 
         var status = await Jobs.GetStatusAsync(enqueued, ct);
-        Assert.Equal(JobStatusCode.Done, status);
+        Assert.Equal(JobStatusCode.Succeeded, status);
 
         var jobId = enqueued.JobId;
 
@@ -90,7 +90,7 @@ public abstract class GoldenPathSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var finishedEvent = events.Single(e => e.JobEventCode == JobEventCode.JobExecutionFinished);
         Assert.Equal(ExecutionStatusCode.Succeeded, finishedEvent.ExecutionStatus);
         Assert.Equal(JobStatusCode.Executing, finishedEvent.FromStatus);
-        Assert.Equal(JobStatusCode.Done, finishedEvent.ToStatus);
+        Assert.Equal(JobStatusCode.Succeeded, finishedEvent.ToStatus);
 
         var result = await Services.GetRequiredService<IJobStore>().GetJobResultAsync(jobId, null, ct);
         Assert.NotNull(result);

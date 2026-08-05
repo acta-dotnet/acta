@@ -45,8 +45,8 @@ public enum JobEventCode : byte
     // edits a definition's policy overrides (who via actor_*, when via created_at_utc, what via
     // reason_message). Always emitted regardless of audit level: config governance is low-volume.
 
-    [Code("definition.policy-changed", "An operator changed a job definition's policy overrides; ReasonMessage summarizes the change.")]
-    JobDefinitionPolicyChanged = 30,
+    [Code("definition.overrides-updated", "An operator changed a job definition's policy overrides; ReasonMessage summarizes the change.")]
+    JobDefinitionOverridesUpdated = 30,
 
     // ---------- Job lifecycle ----------
     // No job.enqueued event: the Job row's own (created_at_utc, namespace_id, definition_id)
@@ -54,13 +54,13 @@ public enum JobEventCode : byte
     // the narrow append-heavy events table. Dedup outcomes surface to the caller via
     // JobEnqueueOutcome.Action; cross-job rate analytics query acta.jobs directly.
 
-    [Code("job.execution.started", "Handler invocation began; paired with job.execution.finished on (JobId, ExecutionNumber).")]
+    [Code("job.execution-started", "Handler invocation began; paired with job.execution-finished on (JobId, ExecutionNumber).")]
     JobExecutionStarted = 40,
 
-    [Code("job.execution.finished", "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated.")]
+    [Code("job.execution-finished", "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated.")]
     JobExecutionFinished = 41,
 
-    [Code("job.recurring.rolled-over", "Recurring Job's NextRunAtUtc advanced to the next firing instant.")]
+    [Code("job.recurring-rolled-over", "Recurring Job's NextRunAtUtc advanced to the next firing instant.")]
     JobRecurringRolledOver = 50,
 
     [Code("job.suspended", "Handler called ctx.SleepAsync; the Job re-armed to Ready with the sleep timer's due instant; budget-neutral.")]
@@ -101,7 +101,7 @@ public enum JobEventCode : byte
 
     // ---------- Substrate ----------
 
-    [Code("job.signal.raised", "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.")]
+    [Code("job.signal-raised", "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.")]
     JobSignalRaised = 80,
 
     [Code(
@@ -126,10 +126,10 @@ public enum JobEventCode : byte
     SchedulePauseExpired = 102,
 
     [Code(
-        "schedule.overrides-changed",
+        "schedule.overrides-updated",
         "Operator changed a schedule's expression/timezone overrides; ReasonMessage summarizes the change and carries the schedule name."
     )]
-    ScheduleOverridesChanged = 103,
+    ScheduleOverridesUpdated = 103,
 
     [Code(
         "schedule.triggered",

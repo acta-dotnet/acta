@@ -171,7 +171,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             ct
         );
 
-        await WaitForAsync(checkout.JobId, snapshot => snapshot.Status == JobStatusCode.Done, "terminal completion", ct);
+        await WaitForAsync(checkout.JobId, snapshot => snapshot.Status == JobStatusCode.Succeeded, "terminal completion", ct);
         await lab.ShowAsync(
             "4. Done - one identity completed through three handler entries",
             """

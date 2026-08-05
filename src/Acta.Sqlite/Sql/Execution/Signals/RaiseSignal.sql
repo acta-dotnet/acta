@@ -4,7 +4,7 @@ SELECT @p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStateCode.Set */, @p
 WHERE EXISTS (
     SELECT 1 FROM {{schema}}.jobs j
     JOIN {{schema}}.runtimes r ON r.job_id = j.id
-    WHERE j.id = @p_job_id AND r.status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    WHERE j.id = @p_job_id AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
 )
 ON CONFLICT (job_id, kind_code, name) DO UPDATE
     SET state_code      = 20 /* JobCheckpointStateCode.Set */,
@@ -25,7 +25,7 @@ SELECT
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_job_id
-  AND r.status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+  AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
   AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
 
 INSERT INTO {{schema}}.events (
@@ -53,7 +53,7 @@ UPDATE {{schema}}.runtimes
 SELECT
     CASE
         WHEN r.job_id IS NULL THEN 2 /* JobControlAction.NotFound */
-        WHEN r.status_code IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* JobControlAction.Rejected */
+        WHEN r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* JobControlAction.Rejected */
         ELSE 1 /* JobControlAction.Applied */
     END AS action,
     r.status_code AS status_code

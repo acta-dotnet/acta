@@ -80,7 +80,7 @@ BEGIN
         WHEN p_reschedule_status_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
         WHEN v_handler THEN p_handler_status_code
         WHEN p_final_status IS NOT NULL THEN p_final_status
-        WHEN p_execution_succeeded THEN 100 /* JobStatusCode.Done */
+        WHEN p_execution_succeeded THEN 100 /* JobStatusCode.Succeeded */
         ELSE 200 /* JobStatusCode.Failed */
     END;
 
@@ -97,7 +97,7 @@ BEGIN
            leased_by_worker_id  = NULL,
            lease_expires_at_utc = NULL,
            retention_until_utc  = CASE
-                                      WHEN v_to_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                                      WHEN v_to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                                            AND p_retention_seconds IS NOT NULL
                                       THEN now() + make_interval(secs => p_retention_seconds)
                                       ELSE r.retention_until_utc END,
@@ -116,7 +116,7 @@ BEGIN
         SELECT r.status_code, r.leased_by_worker_id, r.next_run_at_utc INTO v_cur_status, v_cur_worker, v_cur_next_run
           FROM {{schema}}.runtimes r
          WHERE r.job_id = p_id;
-        IF v_cur_status IS NULL OR v_cur_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        IF v_cur_status IS NULL OR v_cur_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
             RETURN QUERY SELECT CAST(3 /* CompleteExecutionAction.AlreadyTerminal */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT);
         ELSIF v_cur_worker IS DISTINCT FROM p_leased_by_worker_id OR v_cur_worker IS NULL THEN
             RETURN QUERY SELECT CAST(2 /* CompleteExecutionAction.NotOwner */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT);
@@ -274,7 +274,7 @@ BEGIN
             p_reason_code, p_reason_message);
     END IF;
 
-    IF v_to_status IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND v_parent_id IS NOT NULL THEN
+    IF v_to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND v_parent_id IS NOT NULL THEN
         v_sig := 'sys.child.' || p_id::text;
 
         SELECT js.state_code INTO v_psig
@@ -289,7 +289,7 @@ BEGIN
          WHERE j.id = v_parent_id
            FOR UPDATE OF pr;
 
-        IF v_pstatus IS NOT NULL AND v_pstatus NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        IF v_pstatus IS NOT NULL AND v_pstatus NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
             INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, state_code, value_format_id, value, created_at_utc, modified_at_utc, version)
             VALUES (v_parent_id, 50 /* JobCheckpointKindCode.ChildLatch */, v_sig, 20 /* JobCheckpointStateCode.Set */, 1 /* JobPayloadFormat.Json */,
                     convert_to(json_build_object(

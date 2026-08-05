@@ -27,7 +27,7 @@ await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejec
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantKey("acme").CorrelationKey(runId));
 var parentTerminal = await WaitForAsync(jobs, parent.JobId, static snapshot => snapshot.Status.IsTerminal, "tenant parent to finish");
-if (parentTerminal.Status != JobStatusCode.Done)
+if (parentTerminal.Status != JobStatusCode.Succeeded)
 {
     throw new InvalidOperationException($"Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.");
 }
@@ -74,7 +74,7 @@ if (suspendActive)
             static snapshot => snapshot.Status.IsTerminal,
             "work accepted before tenant suspension to finish"
         );
-        if (preExistingTerminal.Status != JobStatusCode.Done)
+        if (preExistingTerminal.Status != JobStatusCode.Succeeded)
         {
             throw new InvalidOperationException($"Pre-existing tenant work ended {preExistingTerminal.Status}.");
         }

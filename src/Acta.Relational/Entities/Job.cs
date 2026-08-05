@@ -148,7 +148,7 @@ internal sealed class Job : IEntity<long>
     /// Per-job snapshot of the definition's audit level, copied from <c>definitions</c> at
     /// enqueue. Gates audit-filtered per-job <c>JobEvent</c> emission on the hot path
     /// (claim / start / complete / control) without a join: <c>Off</c> suppresses them,
-    /// <c>Failures</c> emits only failed <c>job.execution.finished</c>, <c>Audit</c> emits all.
+    /// <c>Failures</c> emits only failed <c>job.execution-finished</c>, <c>Audit</c> emits all.
     /// Always-on system / catalog events ignore this column.
     /// </summary>
     [DbColumn("audit_level_code")]

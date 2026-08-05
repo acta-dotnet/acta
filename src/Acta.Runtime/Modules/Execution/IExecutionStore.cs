@@ -28,7 +28,7 @@ internal interface IExecutionStore
     Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct);
 
     /// <summary>
-    /// Transitions <c>Dispatched</c> to <c>Executing</c> and inlines <c>job.execution.started</c>,
+    /// Transitions <c>Dispatched</c> to <c>Executing</c> and inlines <c>job.execution-started</c>,
     /// CAS-guarded on <c>(jobId, workerId, expectedExecutionNumber, expectedVersion, Status=Dispatched)</c>
     /// plus a live lease. Non-owner, lost-claim, lease-expired, and already-terminal cases return a
     /// discriminated action instead of throwing.
@@ -44,7 +44,7 @@ internal interface IExecutionStore
 
     /// <summary>
     /// Finalizes the attempt: flips <c>Status</c> to a terminal (or re-arm) value, writes
-    /// <c>results</c> when the outcome carries bytes, inlines <c>job.execution.finished</c>, and raises
+    /// <c>results</c> when the outcome carries bytes, inlines <c>job.execution-finished</c>, and raises
     /// the job's child-done latch on its parent. CAS-guarded on (job id, worker, execution number).
     /// Every exit path returns one row.
     /// </summary>

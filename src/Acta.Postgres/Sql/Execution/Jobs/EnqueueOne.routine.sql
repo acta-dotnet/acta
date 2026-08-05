@@ -86,7 +86,7 @@ BEGIN
           FROM {{schema}}.jobs pj
           INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
          WHERE pj.id = p_parent_id
-           AND pr.status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+           AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
            FOR UPDATE OF pj;
 
         IF v_lineage IS NULL THEN

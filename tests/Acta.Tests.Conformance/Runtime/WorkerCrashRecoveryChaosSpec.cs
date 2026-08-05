@@ -59,7 +59,7 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
 
         // --- 3. A later tick completes the job exactly once.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
@@ -96,7 +96,7 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
             .Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded)
             .ToList();
         Assert.Single(finished);
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
     }
 
     [Fact(DisplayName = "Crash before CompleteExecution does not replay the durable step on recovery")]
@@ -121,7 +121,7 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         // --- 3. One orphaned recovery event and one Succeeded finish.
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Done);
+        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
     }
 
     [Fact(DisplayName = "Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once")]
@@ -157,10 +157,10 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         ChaosProbes.Release(enqueued.JobId);
         await ChaosSpecHelpers.SetReadyAsync(Db, enqueued.JobId, ct);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Done);
+        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
     }
 }

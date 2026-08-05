@@ -26,7 +26,7 @@ do
 {
     await Task.Delay(500);
     snapshot = await jobs.GetAsync(outcome);
-} while (snapshot is null or { Status: not (JobStatusCode.Done or JobStatusCode.Failed or JobStatusCode.Cancelled) });
+} while (snapshot is null or { Status: not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled) });
 
 // Done: the handler ran past the deadline and chose the reduced path itself.
 Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] status={snapshot.Status}");

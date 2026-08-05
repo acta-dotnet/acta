@@ -39,7 +39,7 @@ SELECT
     COALESCE(j.lineage_root_id, j.id), j.definition_id, j.tenant_id,
     @p_leased_by_worker_id,
     10 /* JobStatusCode.Ready */, 50 /* JobStatusCode.Executing */,
-    50 /* ExecutionStatusCode.Running */, NULL,
+    50 /* ExecutionStatusCode.Executing */, NULL,
     NULL, NULL
   FROM {{schema}}.jobs j
   JOIN {{schema}}.runtimes r ON r.job_id = j.id

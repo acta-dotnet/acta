@@ -46,7 +46,7 @@ while (true)
         lastFailureCount = snapshot.FailureCount;
     }
 
-    if (snapshot.Status is JobStatusCode.Failed or JobStatusCode.Done or JobStatusCode.Cancelled)
+    if (snapshot.Status is JobStatusCode.Failed or JobStatusCode.Succeeded or JobStatusCode.Cancelled)
     {
         Console.WriteLine($"job ended: status={snapshot.Status} failureCount={snapshot.FailureCount}");
         break;

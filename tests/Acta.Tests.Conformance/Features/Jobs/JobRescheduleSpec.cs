@@ -73,7 +73,7 @@ public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(JobControlAction.Rejected, resultExecuting.Action);
         Assert.Equal(JobStatusCode.Executing, resultExecuting.Status);
         Assert.Equal(JobControlAction.Rejected, resultCompleted.Action);
-        Assert.Equal(JobStatusCode.Done, resultCompleted.Status);
+        Assert.Equal(JobStatusCode.Succeeded, resultCompleted.Status);
 
         var afterExecuting = await ReadJobAsync(executingJob, ct);
         Assert.Equal(beforeExecuting.Version, afterExecuting.Version);

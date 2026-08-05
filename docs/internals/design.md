@@ -86,7 +86,7 @@ Examples:
 - The `DeduplicationKey` column doubles as the operator-facing secondary key: no separate name-resolution table.
 - Domain metadata lives as fields on the input record, cross-cutting searchable metadata as `Tag` rows: no `JobMeta` table.
 - System jobs (`sys.alerts`, `sys.recovery`, `sys.retention`) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
-- Per-attempt history is paired `JobEvent(job.execution.started)` + `JobEvent(job.execution.finished)` joined on `(JobId, ExecutionNumber)`: no separate execution table.
+- Per-attempt history is paired `JobEvent(job.execution-started)` + `JobEvent(job.execution-finished)` joined on `(JobId, ExecutionNumber)`: no separate execution table.
 
 A worked example (see [the settled-decisions ledger below](#settled-decisions-ledger) § Substrate): the simple substrate is one merged `checkpoints` table discriminated by `Kind`, spending one table on five slot features; only `steps` earned its own table by carrying a genuinely different shape (attempt counters, retry budget, stored results).
 
@@ -95,7 +95,7 @@ The principle extends to APIs: adding a method requires showing no existing surf
 ## Vocabulary discipline
 
 **`Execution`** is what gets recorded: every run of the handler, success or failure, as a paired
-`job.execution.started` / `finished` event. **`Attempt`** is what counts against the retry budget
+`job.execution-started` / `finished` event. **`Attempt`** is what counts against the retry budget
 (`MaxAttempts`) when it fails. Names that drift this are rejected: `MaxFailedExecutions` (a
 successful execution is also an execution), `MaxRetries` (off-by-one trap, `MaxAttempts = 3` means
 three tries), a `JobAttempt` table (the event pair is the per-attempt record).

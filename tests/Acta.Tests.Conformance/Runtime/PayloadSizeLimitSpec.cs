@@ -60,7 +60,7 @@ public abstract class PayloadSizeLimitSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         await Runtime.RunOnceAsync(enqueued, ct);
 
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
         Assert.Equal("caught", await Jobs.GetResultAsync<string>(enqueued, ct));
     }
 
@@ -72,7 +72,7 @@ public abstract class PayloadSizeLimitSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         await Runtime.RunOnceAsync(enqueued, ct);
 
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
         var result = await Jobs.GetResultAsync<string>(enqueued, ct);
         Assert.NotNull(result);
         Assert.True(result!.Length > Cap, "oversize result was not persisted intact.");

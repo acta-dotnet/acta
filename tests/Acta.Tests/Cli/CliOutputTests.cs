@@ -187,8 +187,8 @@ public class CliOutputTests
         var text = w.ToString();
 
         Assert.Contains("Events for job 7", text);
-        Assert.Contains("job.execution.started  ready -> executing", text);
-        Assert.Contains("job.execution.finished  executing -> failed", text);
+        Assert.Contains("job.execution-started  ready -> executing", text);
+        Assert.Contains("job.execution-finished  executing -> failed", text);
         Assert.Contains("reason: job.unhandled-exception", text);
         Assert.Contains("message: boom in handler", text);
     }
@@ -226,7 +226,7 @@ public class CliOutputTests
         var text = w.ToString();
 
         Assert.Contains("\"jobId\":7", text);
-        Assert.Contains("\"event\":\"job.execution.finished\"", text);
+        Assert.Contains("\"event\":\"job.execution-finished\"", text);
         Assert.Contains("\"reasonCode\":\"job.unhandled-exception\"", text);
         Assert.Contains("\"reasonMessage\":\"boom\"", text);
         Assert.Contains("\"nextCursor\":\"next-cur\"", text);
@@ -424,9 +424,9 @@ public class CliOutputTests
     public void DebugRun_prints_outcome_and_handles_null_status()
     {
         var plain = new StringWriter();
-        CliOutput.WriteDebugRun(plain, 5, "Completed", JobStatusCode.Done, json: false);
+        CliOutput.WriteDebugRun(plain, 5, "Completed", JobStatusCode.Succeeded, json: false);
         Assert.Contains("run: Completed", plain.ToString());
-        Assert.Contains("status: Done", plain.ToString());
+        Assert.Contains("status: Succeeded", plain.ToString());
 
         var json = new StringWriter();
         CliOutput.WriteDebugRun(json, 5, "Rearmed", null, json: true);

@@ -46,7 +46,7 @@ public static class IdentifierSyntax
     public static bool IsDatabaseName(string value) => IsDatabaseNameSegment(value);
 
     /// <summary>True if <paramref name="value"/> is one or more kebab segments separated by <c>.</c>
-    /// (e.g., <c>"json"</c>, <c>"job.execution.finished"</c>, <c>"com.acme.priority"</c>).</summary>
+    /// (e.g., <c>"json"</c>, <c>"job.execution-finished"</c>, <c>"com.acme.priority"</c>).</summary>
     public static bool IsDottedKebab(string value)
     {
         if (string.IsNullOrEmpty(value))

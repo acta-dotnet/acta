@@ -79,7 +79,7 @@
   // Schedule lifecycle events (schedule.*) are recorded against the slot job, whose timeline is
   // dominated by execution/rollover rows. Query each lifecycle code directly (server-side eventCode
   // filter) so a busy schedule's executions can't crowd them out, then merge newest-first.
-  const HISTORY_CODES = ['schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-changed', 'schedule.triggered'];
+  const HISTORY_CODES = ['schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered'];
   const history = createQuery(() => ({
     queryKey: keys.detail('schedule-history', `${schedule?.jobId ?? 0}`),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {

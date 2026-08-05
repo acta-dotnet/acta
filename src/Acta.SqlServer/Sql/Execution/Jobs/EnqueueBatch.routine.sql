@@ -123,7 +123,7 @@ BEGIN
           INNER JOIN {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK) ON pj.id = b.parent_id
           INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
          WHERE b.parent_id IS NOT NULL
-           AND pr.status_code NOT IN (100 /* JobStatusCode.Done */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+           AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
          ORDER BY pj.id DESC;
 
         IF (SELECT COUNT(*) FROM @parents) < (SELECT COUNT(*) FROM @p_batch WHERE parent_id IS NOT NULL)

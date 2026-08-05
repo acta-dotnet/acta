@@ -37,7 +37,7 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
         await session.AssertResultAsync(new AddNumbersResult(5), ct: ct);
 
         var job = await session.JobAsync(ct);
-        Assert.Equal(JobStatusCode.Done, job.Status);
+        Assert.Equal(JobStatusCode.Succeeded, job.Status);
         var events = await session.EventsAsync(ct);
         Assert.Contains(
             events,

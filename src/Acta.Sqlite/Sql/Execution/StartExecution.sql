@@ -19,7 +19,7 @@ SELECT
                         AND r.version = @p_version + 1) THEN 1 /* StartExecutionAction.Started */
         WHEN NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes WHERE job_id = @p_id) THEN 4 /* StartExecutionAction.AlreadyTerminal */
         WHEN (SELECT status_code FROM {{schema}}.runtimes WHERE job_id = @p_id) IN (
-            100 /* JobStatusCode.Done */,
+            100 /* JobStatusCode.Succeeded */,
             200 /* JobStatusCode.Failed */,
             220 /* JobStatusCode.Cancelled */
         ) THEN 4 /* StartExecutionAction.AlreadyTerminal */
@@ -48,7 +48,7 @@ SELECT
     COALESCE(j.lineage_root_id, j.id), j.definition_id, j.tenant_id,
     @p_leased_by_worker_id,
     40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
-    50 /* ExecutionStatusCode.Running */, NULL,
+    50 /* ExecutionStatusCode.Executing */, NULL,
     NULL, NULL
   FROM {{schema}}.jobs j
   JOIN {{schema}}.runtimes r ON r.job_id = j.id

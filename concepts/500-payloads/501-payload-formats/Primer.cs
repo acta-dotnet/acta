@@ -41,7 +41,7 @@ internal sealed class Primer(
             var done = await operations.Ledger.ListJobsAsync(
                 new ListJobsQuery(
                     JobNamespace: Namespace,
-                    Status: JobStatusCode.Done,
+                    Status: JobStatusCode.Succeeded,
                     CorrelationKey: runId,
                     PageSize: 1,
                     IncludeTotal: true

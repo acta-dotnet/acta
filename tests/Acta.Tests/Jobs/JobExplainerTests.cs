@@ -265,7 +265,7 @@ public class JobExplainerTests
     public void Done_reports_success_and_keeps_durable_step_facts()
     {
         var data = Data(
-            Header(JobStatusCode.Done),
+            Header(JobStatusCode.Succeeded),
             steps: [new ExplainStepRow("reserve-stock", JobStepStateCode.Succeeded, 1, null, null)]
         );
 

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { failedTimelineAttempts, matchesTimelineCategory, timelineAttemptNumbers } from './jobTimelineState.ts';
 
 const events = [
-  { executionNumber: 3, eventCode: 'job.execution.finished', executionStatus: 'failed' },
-  { executionNumber: 2, eventCode: 'job.signal.raised', executionStatus: 'succeeded' },
+  { executionNumber: 3, eventCode: 'job.execution-finished', executionStatus: 'failed' },
+  { executionNumber: 2, eventCode: 'job.signal-raised', executionStatus: 'succeeded' },
   { executionNumber: 1, eventCode: 'schedule.triggered', executionStatus: 'succeeded' },
   { executionNumber: null, eventCode: 'job.paused', executionStatus: null }
 ];

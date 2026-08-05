@@ -38,7 +38,7 @@ BEGIN
         END;
 
         IF @from_status IN (
-            100 /* JobStatusCode.Done */,
+            100 /* JobStatusCode.Succeeded */,
             200 /* JobStatusCode.Failed */,
             220 /* JobStatusCode.Cancelled */
         )

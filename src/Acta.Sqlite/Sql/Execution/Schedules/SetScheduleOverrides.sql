@@ -20,7 +20,7 @@ INSERT INTO {{schema}}.events (
     execution_status_code, duration_ms,
     reason_code, reason_message)
 SELECT
-    103 /* JobEventCode.ScheduleOverridesChanged */, {{now}}, j.namespace_id,
+    103 /* JobEventCode.ScheduleOverridesUpdated */, {{now}}, j.namespace_id,
     @p_actor_code, @p_actor_key,
     j.id, j.job_ref, r.execution_number,
     COALESCE(j.lineage_root_id, j.id), j.definition_id,

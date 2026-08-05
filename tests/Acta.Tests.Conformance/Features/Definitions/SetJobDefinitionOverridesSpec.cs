@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
 /// Conformance for the operator policy-override write: <c>set_job_definition_overrides</c> writes only
 /// the <c>*_override</c> columns (the DB recomputes the <c>*_effective</c> generated columns), leaves the
 /// code defaults and <c>definition_hash</c> untouched, is version-guarded, and emits a definition-scoped
-/// <c>definition.policy-changed</c> event.
+/// <c>definition.overrides-updated</c> event.
 /// </summary>
 [ConformanceSpec(
     "set-definition-overrides.write",
@@ -76,7 +76,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var id = await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
-        var outcome = await DefinitionTestOps.SetOverridesAsync(
+        var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             id,
             before.Version,
@@ -104,11 +104,11 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var id = await RegisterAsync(name, 4, ct);
 
         var v0 = (await ReadAsync(name, ct)).Version;
-        await DefinitionTestOps.SetOverridesAsync(Services, id, v0, new JobDefinitionPolicyOverrides(MaxAttempts: 12), Actor, "set", ct);
+        await DefinitionTestOps.UpdateOverridesAsync(Services, id, v0, new JobDefinitionPolicyOverrides(MaxAttempts: 12), Actor, "set", ct);
         var set = await ReadAsync(name, ct);
         Assert.Equal((short)12, set.MaxAttemptsEffective);
 
-        await DefinitionTestOps.SetOverridesAsync(Services, id, set.Version, new JobDefinitionPolicyOverrides(), Actor, "clear", ct);
+        await DefinitionTestOps.UpdateOverridesAsync(Services, id, set.Version, new JobDefinitionPolicyOverrides(), Actor, "clear", ct);
         var cleared = await ReadAsync(name, ct);
         Assert.Null(cleared.MaxAttemptsOverride);
         Assert.Equal((short)4, cleared.MaxAttemptsEffective); // reverts to default
@@ -123,7 +123,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var id = await RegisterAsync(name, 5, ct);
         var before = await ReadAsync(name, ct);
 
-        var outcome = await DefinitionTestOps.SetOverridesAsync(
+        var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             id,
             before.Version + 1,
@@ -151,7 +151,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var before = await ReadAsync(name, ct);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            DefinitionTestOps.SetOverridesAsync(
+            DefinitionTestOps.UpdateOverridesAsync(
                 Services,
                 id,
                 before.Version,
@@ -188,7 +188,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             new DefinitionsApi(Services.GetRequiredService<DefinitionsService>())
-                .SetOverridesAsync(
+                .UpdateOverridesAsync(
                     id,
                     before.Version,
                     new JobDefinitionPolicyOverrides(
@@ -216,7 +216,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var id = await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
-        var result = await new DefinitionsApi(Services.GetRequiredService<DefinitionsService>()).SetOverridesAsync(
+        var result = await new DefinitionsApi(Services.GetRequiredService<DefinitionsService>()).UpdateOverridesAsync(
             id,
             before.Version,
             new JobDefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
@@ -234,7 +234,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
 
-        var outcome = await DefinitionTestOps.SetOverridesAsync(
+        var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             int.MaxValue,
             0,
@@ -256,7 +256,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var id = await RegisterAsync(name, 6, ct);
         var v0 = (await ReadAsync(name, ct)).Version;
 
-        await DefinitionTestOps.SetOverridesAsync(
+        await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             id,
             v0,
@@ -267,7 +267,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         );
 
         var evt = await Db.From<JobEvent>()
-            .Where(e => e.DefinitionId == id && e.EventCode == JobEventCode.JobDefinitionPolicyChanged)
+            .Where(e => e.DefinitionId == id && e.EventCode == JobEventCode.JobDefinitionOverridesUpdated)
             .SingleOrDefaultAsync(ct);
 
         Assert.NotNull(evt);

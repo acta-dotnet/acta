@@ -46,10 +46,10 @@ public sealed class PersistedCodeContractTests
         JobEventCode.NamespaceSuspended=20|namespace.suspended
         JobEventCode.NamespaceResumed=21|namespace.resumed
         JobEventCode.NamespaceUpdated=22|namespace.updated
-        JobEventCode.JobDefinitionPolicyChanged=30|definition.policy-changed
-        JobEventCode.JobExecutionStarted=40|job.execution.started
-        JobEventCode.JobExecutionFinished=41|job.execution.finished
-        JobEventCode.JobRecurringRolledOver=50|job.recurring.rolled-over
+        JobEventCode.JobDefinitionOverridesUpdated=30|definition.overrides-updated
+        JobEventCode.JobExecutionStarted=40|job.execution-started
+        JobEventCode.JobExecutionFinished=41|job.execution-finished
+        JobEventCode.JobRecurringRolledOver=50|job.recurring-rolled-over
         JobEventCode.JobSuspended=60|job.suspended
         JobEventCode.JobRescheduled=61|job.rescheduled
         JobEventCode.JobCancelled=70|job.cancelled
@@ -59,12 +59,12 @@ public sealed class PersistedCodeContractTests
         JobEventCode.JobReprioritized=74|job.reprioritized
         JobEventCode.JobPurged=75|job.purged
         JobEventCode.JobInputAmended=76|job.input-amended
-        JobEventCode.JobSignalRaised=80|job.signal.raised
+        JobEventCode.JobSignalRaised=80|job.signal-raised
         JobEventCode.JobStateReset=81|job.state-reset
         JobEventCode.SchedulePaused=100|schedule.paused
         JobEventCode.ScheduleResumed=101|schedule.resumed
         JobEventCode.SchedulePauseExpired=102|schedule.pause-expired
-        JobEventCode.ScheduleOverridesChanged=103|schedule.overrides-changed
+        JobEventCode.ScheduleOverridesUpdated=103|schedule.overrides-updated
         JobEventCode.ScheduleTriggered=104|schedule.triggered
         JobEventCode.WorkerStarted=120|worker.started
         JobEventCode.WorkerStopped=121|worker.stopped
@@ -72,7 +72,7 @@ public sealed class PersistedCodeContractTests
         JobEventCode.AlertAcknowledged=140|alert.acknowledged
         JobEventCode.AlertResolved=141|alert.resolved
         JobEventReasonCode.Unspecified=0|unspecified
-        JobEventReasonCode.Other=10|job.other
+        JobEventReasonCode.Unclassified=10|job.unclassified
         JobEventReasonCode.JobUnhandledException=20|job.unhandled-exception
         JobEventReasonCode.JobLeaseExpired=21|job.lease-expired
         JobEventReasonCode.JobExecutionTimeout=22|job.execution-timeout
@@ -94,7 +94,7 @@ public sealed class PersistedCodeContractTests
         JobEventReasonCode.JobStepInterrupted=63|job.step-interrupted
         JobEventReasonCode.WorkerCleanShutdown=100|worker.clean-shutdown
         JobEventReasonCode.WorkerHeartbeatStale=101|worker.heartbeat-stale
-        ExecutionStatusCode.Running=50|running
+        ExecutionStatusCode.Executing=50|executing
         ExecutionStatusCode.Succeeded=100|succeeded
         ExecutionStatusCode.Rescheduled=150|rescheduled
         ExecutionStatusCode.Suspended=151|suspended
@@ -137,7 +137,7 @@ public sealed class PersistedCodeContractTests
         JobStatusCode.Paused=30|paused
         JobStatusCode.Dispatched=40|dispatched
         JobStatusCode.Executing=50|executing
-        JobStatusCode.Done=100|done
+        JobStatusCode.Succeeded=100|succeeded
         JobStatusCode.Failed=200|failed
         JobStatusCode.Cancelled=220|cancelled
         OutboxStatusCode.Pending=10|pending
@@ -170,7 +170,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "394D74CDAA4090BE3885A18033EFA373BAC899F45FFC1390CFB506C46712393D";
+    private const string ExpectedDescriptionHash = "90B4D8C27E0E958C3D625289B9D527CFFA435AD5BA4723FC1075E6967262E26F";
 
     [Fact]
     public void Frozen_contract_covers_all_30_families_and_159_values()
@@ -287,11 +287,11 @@ public sealed class PersistedCodeContractTests
     public void Lifecycle_classification_is_explicit_and_exhaustive()
     {
         Assert.False(JobStatusCode.Ready.IsTerminal);
-        Assert.All([JobStatusCode.Done, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsTerminal));
+        Assert.All([JobStatusCode.Succeeded, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsTerminal));
 
         var expected = new Dictionary<ExecutionStatusCode, ExecutionBehavior>
         {
-            [ExecutionStatusCode.Running] = ExecutionBehavior.Live,
+            [ExecutionStatusCode.Executing] = ExecutionBehavior.Live,
             [ExecutionStatusCode.Succeeded] = ExecutionBehavior.Success,
             [ExecutionStatusCode.Rescheduled] = ExecutionBehavior.Controlled,
             [ExecutionStatusCode.Suspended] = ExecutionBehavior.Controlled,

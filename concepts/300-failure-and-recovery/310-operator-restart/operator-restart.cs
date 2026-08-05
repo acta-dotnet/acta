@@ -52,7 +52,7 @@ snapshot = await jobs.GetAsync(outcome);
 Console.WriteLine($"immediately observed after restart: status={snapshot!.Status} failureCount={snapshot.FailureCount}");
 
 using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-while ((snapshot = await jobs.GetAsync(outcome, completionTimeout.Token))?.Status != JobStatusCode.Done)
+while ((snapshot = await jobs.GetAsync(outcome, completionTimeout.Token))?.Status != JobStatusCode.Succeeded)
 {
     if (snapshot?.Status.IsTerminal == true)
     {

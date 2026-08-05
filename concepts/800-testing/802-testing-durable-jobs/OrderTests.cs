@@ -26,7 +26,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         // Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.
         Assert.Equal(ActaRunOutcome.Completed, await Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Done, await Jobs.GetStatusAsync(enqueued, Ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, Ct));
 
         var result = await Jobs.GetResultAsync<OrderResult>(enqueued, Ct);
         Assert.True(result!.Charged);
