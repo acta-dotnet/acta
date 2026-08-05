@@ -52,4 +52,11 @@
   <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)README.md')">
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
+
+  <!-- The durability contract as do-this-not-that pairs, for a coding agent that has Acta in front
+       of it but only Hangfire/Quartz idioms in its weights. Those idioms compile here and are wrong
+       here, and the compiler cannot say so; shipping the text where the package is read can. -->
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)llms.txt')">
+    <None Include="$(MSBuildThisFileDirectory)llms.txt" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
 </Project>
