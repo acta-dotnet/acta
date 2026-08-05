@@ -35,33 +35,33 @@
   - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.ResumeTenantAsync`
   - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.SuspendTenantAsync`
 
-### Namespace metadata update writes owner_team/description under a version CAS
-- **Contract:** Metadata update writes owner_team/description under a version CAS, clears fields on null, emits namespace.metadata-changed, and guards sys.
+### Namespace update writes owner_team/description under a version CAS
+- **Contract:** Update writes owner_team/description under a version CAS, clears fields on null, emits namespace.updated, and guards sys.
 - **Arrange:** The worker registers the test namespace with a known version.
-- **Act:** Metadata is updated with the current version, with null fields, with a stale version, and sys is attempted through the facade.
-- **Assert:** A match updates, bumps, and emits namespace.metadata-changed, null clears, stale conflicts without an event, and sys is rejected.
+- **Act:** Fields are updated with the current version, with null fields, with a stale version, and sys is attempted through the facade.
+- **Assert:** A match updates, bumps, and emits namespace.updated, null clears, stale conflicts without an event, and sys is rejected.
 - **Guarantees:**
-  - A matching version writes owner_team + description, bumps version, and emits namespace.metadata-changed
+  - A matching version writes owner_team + description, bumps version, and emits namespace.updated
   - A null field clears the column
   - A stale expected version is VersionConflict with the current version and no event
-  - Rejected sys metadata edits leave the seeded row untouched and still listed
-  - Overlong namespace metadata is rejected before the store write
+  - Rejected sys updates leave the seeded row untouched and still listed
+  - Overlong namespace fields is rejected before the store write
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Namespaces.INamespaceStore.UpdateNamespaceMetadataAsync`
+  - `Acta.Runtime.Modules.Execution.Namespaces.INamespaceStore.UpdateNamespaceAsync`
 
-### Tenant metadata update is a version-CAS write that clears fields on null
-- **Contract:** Metadata update writes display_name/description under a version CAS, clears null fields, and emits tenant.metadata-changed to sys namespace 1.
+### Tenant update is a version-CAS write that clears fields on null
+- **Contract:** Update writes display_name/description under a version CAS, clears null fields, and emits tenant.updated to sys namespace 1.
 - **Arrange:** An active tenant with a known version is registered.
-- **Act:** Metadata is updated with the current version, with null fields, with a stale version, and against an unknown key.
-- **Assert:** A match updates, bumps, and emits tenant.metadata-changed, null clears, stale conflicts, and unknown keys report NotFound.
+- **Act:** Fields are updated with the current version, with null fields, with a stale version, and against an unknown key.
+- **Assert:** A match updates, bumps, and emits tenant.updated, null clears, stale conflicts, and unknown keys report NotFound.
 - **Guarantees:**
-  - A matching version writes both fields, bumps version, and emits tenant.metadata-changed
+  - A matching version writes both fields, bumps version, and emits tenant.updated
   - A null field clears the column
   - A stale expected version is VersionConflict with the current version and no event
   - An unknown key is NotFound
-  - Overlong tenant metadata is rejected before the store write
+  - Overlong tenant fields is rejected before the store write
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.UpdateTenantMetadataAsync`
+  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.UpdateTenantAsync`
 
 ## Alerts
 
@@ -1501,7 +1501,7 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ListJobsAsync`
 
-### ListNamespaceItems pages namespaces with status, metadata, and version
+### ListNamespaceItems pages namespaces with status, fields, and version
 - **Contract:** ListNamespaceItems pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row.
 - **Arrange:** The worker registers the test namespace and its owner team, description, and version are set to distinct non-null values.
 - **Act:** Namespaces are paged by cursor to reach the test row and the sys prefix is read.
@@ -2185,11 +2185,11 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.RestartJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
 | `IJobStore.ResumeJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
 | `IJobStore.UpdateJobInputAsync` | Operator update-input amends stored input and audits bounded payload metadata. |
-| `INamespaceStore.ListNamespaceItemsAsync` | ListNamespaceItems pages namespaces with status, metadata, and version |
+| `INamespaceStore.ListNamespaceItemsAsync` | ListNamespaceItems pages namespaces with status, fields, and version |
 | `INamespaceStore.ListNamespacesAsync` | ListNamespaces pages namespaces name-ascending with an opt-in total |
 | `INamespaceStore.ResumeNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
 | `INamespaceStore.SuspendNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
-| `INamespaceStore.UpdateNamespaceMetadataAsync` | Namespace metadata update writes owner_team/description under a version CAS |
+| `INamespaceStore.UpdateNamespaceAsync` | Namespace update writes owner_team/description under a version CAS |
 | `IScheduleStore.GetLiveSchedulesAsync` | A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator manually fires a schedule now without disturbing its cadence<br>Operator pause and resume control a schedule and recompute the owning slot<br>Operator sets a CAS-guarded full-set schedule expression/time-zone override |
 | `IScheduleStore.GetScheduleStateAsync` | GetScheduleState returns live cursors for the namespace, empty when none exist<br>Schedule insert reconciles the cursor per misfire policy and upserts one row |
 | `IScheduleStore.ListJobSchedulesAsync` | ListJobSchedules filter-matrix selects exactly matching rows per dimension<br>ListJobSchedules pages live schedules next-run first without duplicates |
@@ -2205,7 +2205,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration inserts a new Active tenant or returns the existing row |
 | `ITenantStore.ResumeTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.SuspendTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
-| `ITenantStore.UpdateTenantMetadataAsync` | Tenant metadata update is a version-CAS write that clears fields on null |
+| `ITenantStore.UpdateTenantAsync` | Tenant update is a version-CAS write that clears fields on null |
 | `IWorkerStore.ExtendWorkerLeasesAsync` | Heartbeat extends a live lease and stamps last_seen |
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
@@ -2280,7 +2280,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Namespaces/ListNamespaces` | yes | yes | yes |
 | `Execution/Namespaces/ResumeNamespace` | yes | yes | yes |
 | `Execution/Namespaces/SuspendNamespace` | yes | yes | yes |
-| `Execution/Namespaces/UpdateNamespaceMetadata` | yes | yes | yes |
+| `Execution/Namespaces/UpdateNamespace` | yes | yes | yes |
 | `Execution/ReclaimStuckJobs` | yes | yes | yes |
 | `Execution/Schedules/GetLiveSchedules` | yes | yes | yes |
 | `Execution/Schedules/GetScheduleState` | yes | yes | yes |
@@ -2301,7 +2301,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Tenants/RegisterTenant` | yes | yes | yes |
 | `Execution/Tenants/ResumeTenant` | yes | yes | yes |
 | `Execution/Tenants/SuspendTenant` | yes | yes | yes |
-| `Execution/Tenants/UpdateTenantMetadata` | yes | yes | yes |
+| `Execution/Tenants/UpdateTenant` | yes | yes | yes |
 | `Execution/Timers/ArmOrConsumeSleepTimer` | yes | yes | yes |
 | `Execution/Workers/ExtendWorkerLeases` | yes | yes | yes |
 | `Execution/Workers/GetWorker` | yes | yes | yes |

@@ -6,7 +6,7 @@ namespace Acta.AspNetCore.Features.Tenants;
 
 /// <summary>
 /// Tenant-control endpoints: registration (insert-or-return-existing), suspend/resume, and the
-/// version-guarded metadata patch. Guarded by the shared confirmation header; an invalid tenant key
+/// version-guarded update patch. Guarded by the shared confirmation header; an invalid tenant key
 /// maps to 400.
 /// </summary>
 internal static class TenantControlEndpoints
@@ -43,22 +43,14 @@ internal static class TenantControlEndpoints
                 }
 
                 if (
-                    ControlEndpointValidation.ValidateMetadataLength(
-                        request!.DisplayName,
-                        "displayName",
-                        CatalogMetadataLimits.TenantDisplayName
-                    ) is
+                    ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
                     { } displayNameError
                 )
                 {
                     return displayNameError;
                 }
                 if (
-                    ControlEndpointValidation.ValidateMetadataLength(
-                        request.Description,
-                        "description",
-                        CatalogMetadataLimits.TenantDescription
-                    ) is
+                    ControlEndpointValidation.ValidateLength(request.Description, "description", CatalogLimits.TenantDescription) is
                     { } descriptionError
                 )
                 {
@@ -137,7 +129,7 @@ internal static class TenantControlEndpoints
 
                 var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
                     http,
-                    DashboardJsonContext.Default.TenantMetadataPatchRequest,
+                    DashboardJsonContext.Default.TenantPatchRequest,
                     ct
                 );
                 if (bodyError is not null)
@@ -149,27 +141,19 @@ internal static class TenantControlEndpoints
                 {
                     return ControlEndpointValidation.Problem(
                         StatusCodes.Status400BadRequest,
-                        "Invalid tenant metadata.",
+                        "Invalid tenant update.",
                         "expectedVersion is required."
                     );
                 }
                 if (
-                    ControlEndpointValidation.ValidateMetadataLength(
-                        body.DisplayName,
-                        "displayName",
-                        CatalogMetadataLimits.TenantDisplayName
-                    ) is
+                    ControlEndpointValidation.ValidateLength(body.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
                     { } displayNameError
                 )
                 {
                     return displayNameError;
                 }
                 if (
-                    ControlEndpointValidation.ValidateMetadataLength(
-                        body.Description,
-                        "description",
-                        CatalogMetadataLimits.TenantDescription
-                    ) is
+                    ControlEndpointValidation.ValidateLength(body.Description, "description", CatalogLimits.TenantDescription) is
                     { } descriptionError
                 )
                 {
@@ -184,7 +168,7 @@ internal static class TenantControlEndpoints
 
                 try
                 {
-                    var result = await operations.Tenants.UpdateMetadataAsync(
+                    var result = await operations.Tenants.UpdateAsync(
                         key,
                         body.DisplayName,
                         body.Description,
@@ -197,7 +181,7 @@ internal static class TenantControlEndpoints
                 }
                 catch (ArgumentException ex)
                 {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant metadata.", ex.Message);
+                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant update.", ex.Message);
                 }
             }
         );

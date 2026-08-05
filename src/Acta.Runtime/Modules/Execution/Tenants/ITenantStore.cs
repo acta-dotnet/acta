@@ -27,7 +27,7 @@ internal interface ITenantStore
     Task<AdminControlOutcome> ResumeTenantAsync(TenantControlCommand command, CancellationToken ct);
 
     /// <summary>Writes display name and description behind a version CAS.</summary>
-    Task<AdminControlOutcome> UpdateTenantMetadataAsync(UpdateTenantMetadataCommand command, CancellationToken ct);
+    Task<AdminControlOutcome> UpdateTenantAsync(UpdateTenantCommand command, CancellationToken ct);
 }
 
 /// <summary>Canonicalized registration request for one tenant; applies only when the key is new.</summary>
@@ -53,8 +53,8 @@ internal sealed record TenantPage(IReadOnlyList<TenantListItem> Rows, long? Tota
 /// <summary>An operator control verb aimed at one tenant.</summary>
 internal sealed record TenantControlCommand(string Key, JobControlActor Actor, string? ReasonMessage);
 
-/// <summary>Version-guarded metadata write for one tenant.</summary>
-internal sealed record UpdateTenantMetadataCommand(
+/// <summary>Version-guarded update for one tenant.</summary>
+internal sealed record UpdateTenantCommand(
     string TenantKey,
     string? DisplayName,
     string? Description,

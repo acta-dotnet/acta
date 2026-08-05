@@ -51,7 +51,7 @@
   let tenant = $state<TenantListItem | null>(null);
 
   // Admin audit trail: one small query per tenant admin event code, merged newest-first.
-  const HISTORY_CODES = ['tenant.suspended', 'tenant.resumed', 'tenant.metadata-changed'];
+  const HISTORY_CODES = ['tenant.suspended', 'tenant.resumed', 'tenant.updated'];
   const history = createQuery(() => ({
     queryKey: keys.detail('tenant-history', `${tenant?.tenantId ?? 0}`),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {

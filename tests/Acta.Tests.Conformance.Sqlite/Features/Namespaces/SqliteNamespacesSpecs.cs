@@ -11,6 +11,6 @@ public sealed class SqliteListNamespaceItemsSpec : ListNamespaceItemsSpec<Sqlite
 
 public sealed class SqliteSuspendResumeNamespaceSpec : SuspendResumeNamespaceSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteUpdateNamespaceMetadataSpec : UpdateNamespaceMetadataSpec<SqliteConformanceFixture>;
+public sealed class SqliteUpdateNamespaceSpec : UpdateNamespaceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRegisterNamespaceSpec : RegisterNamespaceSpec<SqliteConformanceFixture>;

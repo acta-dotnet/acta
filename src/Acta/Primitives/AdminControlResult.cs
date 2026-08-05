@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>Coarse outcome of an admin control verb (tenant/namespace suspend/resume/metadata).</summary>
+/// <summary>Coarse outcome of an admin control verb (tenant/namespace suspend/resume/update).</summary>
 public enum AdminControlAction : byte
 {
     /// <summary>The transition was applied; Version is the new row version.</summary>
@@ -12,7 +12,7 @@ public enum AdminControlAction : byte
     /// <summary>The row was already in the requested state; idempotent no-op, Version is the current version.</summary>
     AlreadyInState = 3,
 
-    /// <summary>A metadata CAS saw a stale expected version; Version is the row's current version.</summary>
+    /// <summary>An update CAS saw a stale expected version; Version is the row's current version.</summary>
     VersionConflict = 4,
 }
 

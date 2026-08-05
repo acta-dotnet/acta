@@ -8,10 +8,10 @@ public interface ITenants
 {
     /// <summary>
     /// Register a tenant by opaque <paramref name="tenantKey"/> and return its stable numeric id.
-    /// Insert-or-return-existing: a new tenant is created Active with the supplied metadata; when the
+    /// Insert-or-return-existing: a new tenant is created Active with the supplied fields; when the
     /// key already exists the existing id is returned and the row is left untouched (no status,
-    /// metadata, or version change). Status changes go through <see cref="SuspendAsync"/> /
-    /// <see cref="ResumeAsync"/>; metadata through <see cref="UpdateMetadataAsync"/>.
+    /// field, or version change). Status changes go through <see cref="SuspendAsync"/> /
+    /// <see cref="ResumeAsync"/>; field edits through <see cref="UpdateAsync"/>.
     /// <paramref name="displayName"/> is the human display label for dashboards; null keeps the
     /// column empty (dashboards fall back to the key).
     /// </summary>
@@ -39,8 +39,8 @@ public interface ITenants
         CancellationToken ct = default
     );
 
-    /// <summary>Update a tenant display name / description with a version CAS. Null clears the field. Emits tenant.metadata-changed.</summary>
-    ValueTask<AdminControlResult> UpdateMetadataAsync(
+    /// <summary>Update a tenant display name / description with a version CAS. Null clears the field. Emits tenant.updated.</summary>
+    ValueTask<AdminControlResult> UpdateAsync(
         string tenantKey,
         string? displayName,
         string? description,

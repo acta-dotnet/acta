@@ -153,10 +153,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Event id not recognized by this build; the row was written by a newer Acta. | Active |
 | `TenantSuspended` | 10 | `tenant.suspended` | An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason. | Active |
 | `TenantResumed` | 11 | `tenant.resumed` | An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason. | Active |
-| `TenantMetadataChanged` | 12 | `tenant.metadata-changed` | An operator changed a tenant display name / description. ReasonMessage carries the reason. | Active |
+| `TenantUpdated` | 12 | `tenant.updated` | An operator changed a tenant display name / description. ReasonMessage carries the reason. | Active |
 | `NamespaceSuspended` | 20 | `namespace.suspended` | An operator suspended a namespace; enqueue into it is rejected. ReasonMessage carries the reason. | Active |
 | `NamespaceResumed` | 21 | `namespace.resumed` | An operator resumed a suspended namespace; enqueue into it is allowed again. ReasonMessage carries the reason. | Active |
-| `NamespaceMetadataChanged` | 22 | `namespace.metadata-changed` | An operator changed a namespace owner team / description. ReasonMessage carries the reason. | Active |
+| `NamespaceUpdated` | 22 | `namespace.updated` | An operator changed a namespace owner team / description. ReasonMessage carries the reason. | Active |
 | `JobDefinitionPolicyChanged` | 30 | `definition.policy-changed` | An operator changed a job definition's policy overrides; ReasonMessage summarizes the change. | Active |
 | `JobExecutionStarted` | 40 | `job.execution.started` | Handler invocation began; paired with job.execution.finished on (JobId, ExecutionNumber). | Active |
 | `JobExecutionFinished` | 41 | `job.execution.finished` | Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated. | Active |

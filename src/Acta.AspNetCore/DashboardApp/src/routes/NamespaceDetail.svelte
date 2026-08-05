@@ -47,7 +47,7 @@
   const capabilities = createQuery(() => capabilitiesQuery());
 
   // Admin audit trail: one small query per namespace admin event code, merged newest-first.
-  const HISTORY_CODES = ['namespace.suspended', 'namespace.resumed', 'namespace.metadata-changed'];
+  const HISTORY_CODES = ['namespace.suspended', 'namespace.resumed', 'namespace.updated'];
   const history = createQuery(() => ({
     queryKey: keys.detail('namespace-history', namespaceName),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {

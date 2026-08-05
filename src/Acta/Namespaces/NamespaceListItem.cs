@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// One namespace row in an <see cref="INamespaces.ListItemsAsync"/> page, projected from the
-/// <c>namespaces</c> table. This is the admin-list read (name, status, metadata, version); the plain
+/// <c>namespaces</c> table. This is the admin-list read (name, status, version); the plain
 /// name list used by the dashboard scope selector stays on <see cref="INamespaces.ListAsync"/>.
 /// </summary>
 /// <param name="Id">DB-assigned namespace id, referenced by <c>job.namespace_id</c>. The seeded sys namespace is id 1.</param>

@@ -8,18 +8,18 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Namespaces;
 
-/// <summary>Conformance for namespace metadata CAS: writes owner_team/description under a version CAS, clears on null, emits namespace.metadata-changed, rejects stale version, guards sys.</summary>
+/// <summary>Conformance for namespace update CAS: writes owner_team/description under a version CAS, clears on null, emits namespace.updated, rejects stale version, guards sys.</summary>
 [ConformanceSpec(
-    "update-namespace-metadata.cas",
-    "Namespace metadata update writes owner_team/description under a version CAS",
+    "update-namespace.cas",
+    "Namespace update writes owner_team/description under a version CAS",
     Area = "Admin",
-    Contract = "Metadata update writes owner_team/description under a version CAS, clears fields on null, emits namespace.metadata-changed, and guards sys.",
+    Contract = "Update writes owner_team/description under a version CAS, clears fields on null, emits namespace.updated, and guards sys.",
     Arrange = "The worker registers the test namespace with a known version.",
-    Act = "Metadata is updated with the current version, with null fields, with a stale version, and sys is attempted through the facade.",
-    Assert = "A match updates, bumps, and emits namespace.metadata-changed, null clears, stale conflicts without an event, and sys is rejected."
+    Act = "Fields are updated with the current version, with null fields, with a stale version, and sys is attempted through the facade.",
+    Assert = "A match updates, bumps, and emits namespace.updated, null clears, stale conflicts without an event, and sys is rejected."
 )]
-[CoversStoreMethod(typeof(INamespaceStore), nameof(INamespaceStore.UpdateNamespaceMetadataAsync))]
-public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
+[CoversStoreMethod(typeof(INamespaceStore), nameof(INamespaceStore.UpdateNamespaceAsync))]
+public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
     protected override bool RunAsWorker => true;
@@ -30,9 +30,9 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
         await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(short nsId, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.NamespaceId == nsId && e.EventCode == JobEventCode.NamespaceMetadataChanged).CountAsync(ct);
+        await Db.From<JobEvent>().Where(e => e.NamespaceId == nsId && e.EventCode == JobEventCode.NamespaceUpdated).CountAsync(ct);
 
-    [Fact(DisplayName = "A matching version writes owner_team + description, bumps version, and emits namespace.metadata-changed")]
+    [Fact(DisplayName = "A matching version writes owner_team + description, bumps version, and emits namespace.updated")]
     public async Task Applies_and_emits()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -41,7 +41,7 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
 
         var outcome = await Services
             .GetRequiredService<INamespaceStore>()
-            .UpdateNamespaceMetadataAsync(new UpdateNamespaceMetadataCommand(TestNamespace, "team-a", "new-desc", v, Actor(), "edit"), ct);
+            .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, "team-a", "new-desc", v, Actor(), "edit"), ct);
 
         Assert.Equal(AdminControlAction.Applied, outcome.Action);
         var row = await ReadNsAsync(ct);
@@ -58,7 +58,7 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
         var v = (await ReadNsAsync(ct))!.Version;
         await Services
             .GetRequiredService<INamespaceStore>()
-            .UpdateNamespaceMetadataAsync(new UpdateNamespaceMetadataCommand(TestNamespace, null, null, v, Actor(), null), ct);
+            .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, null, null, v, Actor(), null), ct);
         var row = await ReadNsAsync(ct);
         Assert.Null(row!.OwnerTeam);
         Assert.Null(row.Description);
@@ -72,20 +72,20 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
         var v = (await ReadNsAsync(ct))!.Version;
         var outcome = await Services
             .GetRequiredService<INamespaceStore>()
-            .UpdateNamespaceMetadataAsync(new UpdateNamespaceMetadataCommand(TestNamespace, "x", null, v + 5, Actor(), null), ct);
+            .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, "x", null, v + 5, Actor(), null), ct);
         Assert.Equal(AdminControlAction.VersionConflict, outcome.Action);
         Assert.Equal(v, outcome.Version);
         Assert.Equal(0, await EventCountAsync(nsId, ct));
     }
 
-    [Fact(DisplayName = "Rejected sys metadata edits leave the seeded row untouched and still listed")]
+    [Fact(DisplayName = "Rejected sys updates leave the seeded row untouched and still listed")]
     public async Task Sys_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Operations.Namespaces.UpdateMetadataAsync("sys", "x", null, 0, null, null, ct)
+            await Operations.Namespaces.UpdateAsync("sys", "x", null, 0, null, null, ct)
         );
 
         var after = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
@@ -96,15 +96,15 @@ public abstract class UpdateNamespaceMetadataSpec<TFixture> : ActaRuntimeTestBas
         Assert.Contains("sys", page.Items);
     }
 
-    [Fact(DisplayName = "Overlong namespace metadata is rejected before the store write")]
+    [Fact(DisplayName = "Overlong namespace fields is rejected before the store write")]
     public async Task Overlong_metadata_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Operations.Namespaces.UpdateMetadataAsync(
+            await Operations.Namespaces.UpdateAsync(
                 TestNamespace,
-                new string('x', CatalogMetadataLimits.NamespaceOwnerTeam + 1),
+                new string('x', CatalogLimits.NamespaceOwnerTeam + 1),
                 null,
                 0,
                 null,

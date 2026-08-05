@@ -82,9 +82,9 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
     public Task<AdminControlOutcome> ResumeNamespaceAsync(NamespaceControlCommand command, CancellationToken ct) =>
         ControlAsync("Namespaces/ResumeNamespace", command, ct);
 
-    public async Task<AdminControlOutcome> UpdateNamespaceMetadataAsync(UpdateNamespaceMetadataCommand command, CancellationToken ct) =>
+    public async Task<AdminControlOutcome> UpdateNamespaceAsync(UpdateNamespaceCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", "Namespaces/UpdateNamespaceMetadata"),
+            new StoreCommand("Execution", "Namespaces/UpdateNamespace"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.Name));
@@ -99,7 +99,7 @@ internal sealed class RelationalNamespaceStore(IDbSession session, ISqlDialect d
             ct
         )
         ?? throw new InvalidOperationException(
-            "Control command 'UpdateNamespaceMetadata' returned no rows; it must return exactly one (action, version) row."
+            "Control command 'UpdateNamespace' returned no rows; it must return exactly one (action, version) row."
         );
 
     private async Task<AdminControlOutcome> ControlAsync(string operation, NamespaceControlCommand command, CancellationToken ct) =>

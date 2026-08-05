@@ -1,6 +1,6 @@
-CREATE OR ALTER PROCEDURE {{schema}}.update_namespace_metadata
-    @p_namespace_name   VARCHAR(128),
-    @p_owner_team       NVARCHAR(512),
+CREATE OR ALTER PROCEDURE {{schema}}.update_tenant
+    @p_tenant_key       VARCHAR(128),
+    @p_display_name     NVARCHAR(128),
     @p_description      NVARCHAR(512),
     @p_expected_version INT,
     @p_actor_code       TINYINT,
@@ -11,12 +11,12 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @id SMALLINT, @version INT;
+    DECLARE @id INT, @version INT;
     BEGIN TRY
         BEGIN TRANSACTION;
-        SELECT @id = n.id, @version = n.version
-          FROM {{schema}}.namespaces n WITH (UPDLOCK, ROWLOCK)
-         WHERE n.name = @p_namespace_name;
+        SELECT @id = t.id, @version = t.version
+          FROM {{schema}}.tenants t WITH (UPDLOCK, ROWLOCK)
+         WHERE t.tenant_key = @p_tenant_key;
 
         IF @id IS NULL
         BEGIN
@@ -32,18 +32,19 @@ BEGIN
             RETURN;
         END;
 
-        UPDATE {{schema}}.namespaces
-           SET owner_team = @p_owner_team, description = @p_description, modified_at_utc = @now, version = version + 1
+        UPDATE {{schema}}.tenants
+           SET display_name = @p_display_name, description = @p_description, modified_at_utc = @now, version = version + 1
          WHERE id = @id;
         SET @version = @version + 1;
 
+        -- namespace_id 1 is the seeded sys namespace (M001).
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id, actor_code, actor_key,
             job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message)
         VALUES (
-            22 /* JobEventCode.NamespaceMetadataChanged */, @now, @id, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+            12 /* JobEventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key,
+            NULL, NULL, NULL, NULL, NULL, @id, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message);
 
         COMMIT TRANSACTION;

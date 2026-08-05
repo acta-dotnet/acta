@@ -112,13 +112,13 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
 
         var ok = await client.GetAsync(
-            "/acta/api/events?eventCode=namespace.metadata-changed&jobId=7&tenantId=3&workerId=9",
+            "/acta/api/events?eventCode=namespace.updated&jobId=7&tenantId=3&workerId=9",
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.NotNull(jobs.LastEventsQuery);
-        Assert.Equal(Acta.JobEventCode.NamespaceMetadataChanged, jobs.LastEventsQuery!.EventCode);
+        Assert.Equal(Acta.JobEventCode.NamespaceUpdated, jobs.LastEventsQuery!.EventCode);
         Assert.Equal(7L, jobs.LastEventsQuery.JobId);
         Assert.Equal(3, jobs.LastEventsQuery.TenantId);
         Assert.Equal(9, jobs.LastEventsQuery.WorkerId);

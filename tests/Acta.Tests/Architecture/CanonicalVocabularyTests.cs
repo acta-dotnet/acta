@@ -34,6 +34,22 @@ public sealed class CanonicalVocabularyTests
             "job-alert-" + "source",
             "schedule-" + "source",
             "job-alert-" + "origin",
+            // 0.4.0 retired the "metadata" notion: the verb names the entity, and the catalog
+            // descriptive fields are just fields. Nothing in the model is called metadata any more.
+            "CatalogMetadata" + "Limits",
+            "CatalogMetadata" + "Validation",
+            "UpdateNamespace" + "Metadata",
+            "UpdateTenant" + "Metadata",
+            "UpdateMetadata" + "Async",
+            "update_namespace" + "_metadata",
+            "update_tenant" + "_metadata",
+            "NamespaceMetadata" + "PatchRequest",
+            "TenantMetadata" + "PatchRequest",
+            "NamespaceMetadata" + "Changed",
+            "TenantMetadata" + "Changed",
+            "namespace." + "metadata-changed",
+            "tenant." + "metadata-changed",
+            "ValidateMetadata" + "Length",
         };
 
         var root = IntegrationConfig.FindRepoRoot();
@@ -62,8 +78,12 @@ public sealed class CanonicalVocabularyTests
         Assert.Empty(failures.OrderBy(static x => x, StringComparer.Ordinal));
     }
 
+    // Skips content that is not part of the repository. Build output is the obvious case; docs/superpowers
+    // is the other one: it is git-excluded working material, so a design note there that quotes a retired
+    // name as an example is not the codebase using it. The gate guards committed sources.
     private static bool IsBuildArtifact(string path) =>
-        path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        path.Contains($"{Path.DirectorySeparatorChar}superpowers{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        || path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
         || path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
         || path.Contains($"{Path.DirectorySeparatorChar}dist{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
         || path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase);

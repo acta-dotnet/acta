@@ -25,8 +25,8 @@ public enum JobEventCode : byte
     [Code("tenant.resumed", "An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason.")]
     TenantResumed = 11,
 
-    [Code("tenant.metadata-changed", "An operator changed a tenant display name / description. ReasonMessage carries the reason.")]
-    TenantMetadataChanged = 12,
+    [Code("tenant.updated", "An operator changed a tenant display name / description. ReasonMessage carries the reason.")]
+    TenantUpdated = 12,
 
     [Code("namespace.suspended", "An operator suspended a namespace; enqueue into it is rejected. ReasonMessage carries the reason.")]
     NamespaceSuspended = 20,
@@ -37,8 +37,8 @@ public enum JobEventCode : byte
     )]
     NamespaceResumed = 21,
 
-    [Code("namespace.metadata-changed", "An operator changed a namespace owner team / description. ReasonMessage carries the reason.")]
-    NamespaceMetadataChanged = 22,
+    [Code("namespace.updated", "An operator changed a namespace owner team / description. ReasonMessage carries the reason.")]
+    NamespaceUpdated = 22,
 
     // ---------- Definition lifecycle ----------
     // job_id / job_ref are null; definition_id carries the identity. Emitted when an operator

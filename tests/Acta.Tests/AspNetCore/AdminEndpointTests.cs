@@ -123,10 +123,10 @@ public sealed class AdminEndpointTests
     }
 
     [Theory]
-    [InlineData("/acta/api/tenants/cust-1", "displayName", CatalogMetadataLimits.TenantDisplayName)]
-    [InlineData("/acta/api/tenants/cust-1", "description", CatalogMetadataLimits.TenantDescription)]
-    [InlineData("/acta/api/namespaces/billing", "ownerTeam", CatalogMetadataLimits.NamespaceOwnerTeam)]
-    [InlineData("/acta/api/namespaces/billing", "description", CatalogMetadataLimits.NamespaceDescription)]
+    [InlineData("/acta/api/tenants/cust-1", "displayName", CatalogLimits.TenantDisplayName)]
+    [InlineData("/acta/api/tenants/cust-1", "description", CatalogLimits.TenantDescription)]
+    [InlineData("/acta/api/namespaces/billing", "ownerTeam", CatalogLimits.NamespaceOwnerTeam)]
+    [InlineData("/acta/api/namespaces/billing", "description", CatalogLimits.NamespaceDescription)]
     public async Task Metadata_patch_rejects_overlong_fields(string path, string fieldName, int maxLength)
     {
         var (app, client) = await StartAsync();

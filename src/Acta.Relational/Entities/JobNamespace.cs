@@ -31,13 +31,13 @@ internal sealed class JobNamespace : IEntity<short>
     /// <summary>
     /// Owning team identifier surfaced on operator dashboards. Unicode-capable.
     /// </summary>
-    [DbColumn("owner_team", DbKind.UnicodeString, Size = CatalogMetadataLimits.NamespaceOwnerTeam)]
+    [DbColumn("owner_team", DbKind.UnicodeString, Size = CatalogLimits.NamespaceOwnerTeam)]
     public string? OwnerTeam { get; internal set; }
 
     /// <summary>
     /// Operator-readable description of what this namespace owns. Unicode-capable.
     /// </summary>
-    [DbColumn("description", DbKind.UnicodeString, Size = CatalogMetadataLimits.NamespaceDescription)]
+    [DbColumn("description", DbKind.UnicodeString, Size = CatalogLimits.NamespaceDescription)]
     public string? Description { get; internal set; }
 
     /// <summary>

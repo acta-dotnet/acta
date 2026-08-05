@@ -11,7 +11,7 @@ export interface TenantMetadataInput {
 }
 
 // Full-set PATCH semantics: a blank field clears that column, matching the backend's
-// TenantMetadataPatchRequest contract (null DisplayName/Description clears).
+// TenantPatchRequest contract (null DisplayName/Description clears).
 export function buildTenantMetadataPayload(input: TenantMetadataInput): { displayName: string | null; description: string | null } {
   return {
     displayName: input.displayName.trim() || null,

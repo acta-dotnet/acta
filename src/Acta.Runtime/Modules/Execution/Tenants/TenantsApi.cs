@@ -32,7 +32,7 @@ internal sealed class TenantsApi(TenantsService tenants) : ITenants
         CancellationToken ct = default
     ) => tenants.ResumeAsync(tenantKey, reasonMessage, actorKey, ct);
 
-    public ValueTask<AdminControlResult> UpdateMetadataAsync(
+    public ValueTask<AdminControlResult> UpdateAsync(
         string tenantKey,
         string? displayName,
         string? description,
@@ -40,5 +40,5 @@ internal sealed class TenantsApi(TenantsService tenants) : ITenants
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => tenants.UpdateMetadataAsync(tenantKey, displayName, description, expectedVersion, reasonMessage, actorKey, ct);
+    ) => tenants.UpdateAsync(tenantKey, displayName, description, expectedVersion, reasonMessage, actorKey, ct);
 }

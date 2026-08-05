@@ -23,7 +23,7 @@ public interface IActaOperations
     /// <summary>Tenants domain (register/list). See <see cref="ITenants"/>.</summary>
     ITenants Tenants { get; }
 
-    /// <summary>Namespaces domain (list/suspend/resume/metadata). See <see cref="INamespaces"/>.</summary>
+    /// <summary>Namespaces domain (list/suspend/resume/update). See <see cref="INamespaces"/>.</summary>
     INamespaces Namespaces { get; }
 
     /// <summary>Exact searchable metadata attachments. See <see cref="ITags"/>.</summary>

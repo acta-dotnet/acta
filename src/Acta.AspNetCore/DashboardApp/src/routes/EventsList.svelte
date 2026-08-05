@@ -18,8 +18,8 @@
   // Kebab codes the backend's events filter accepts (JobEventCode / JobActorCode / JobEventReasonCode).
   // Hardcoded rather than fetched: the code families are compile-time enums with no list endpoint.
   const EVENT_CODES = [
-    'tenant.suspended', 'tenant.resumed', 'tenant.metadata-changed',
-    'namespace.suspended', 'namespace.resumed', 'namespace.metadata-changed',
+    'tenant.suspended', 'tenant.resumed', 'tenant.updated',
+    'namespace.suspended', 'namespace.resumed', 'namespace.updated',
     'definition.policy-changed',
     'job.execution.started', 'job.execution.finished', 'job.recurring.rolled-over',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',

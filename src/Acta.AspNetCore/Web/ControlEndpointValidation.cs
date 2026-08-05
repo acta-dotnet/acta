@@ -90,12 +90,12 @@ internal static class ControlEndpointValidation
             )
             : null;
 
-    /// <summary>Returns a field-specific 400 response when optional metadata exceeds its product limit.</summary>
-    internal static IResult? ValidateMetadataLength(string? value, string fieldName, int maxLength) =>
+    /// <summary>Returns a field-specific 400 response when an optional field exceeds its product limit.</summary>
+    internal static IResult? ValidateLength(string? value, string fieldName, int maxLength) =>
         value is { Length: var length } && length > maxLength
             ? Problem(
                 StatusCodes.Status400BadRequest,
-                "Invalid metadata.",
+                "Invalid field.",
                 $"{fieldName} must not exceed {maxLength} characters ({length} given)."
             )
             : null;
