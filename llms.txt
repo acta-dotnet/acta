@@ -1,0 +1,91 @@
+# Acta for coding agents
+
+Acta is a durable work ledger for .NET. A job is a database row, not an in-memory task.
+
+Read this before writing an Acta handler. Everything below compiles either way; the wrong
+column is wrong at runtime, usually only after a crash or a retry, which is exactly when
+nobody is watching.
+
+## The one rule everything follows from
+
+**A handler can run more than once, and the second run can be in a different process.**
+
+Acta is at-least-once. A worker can die mid-handler, a lease can expire, an operator can
+restart a job, and the retry budget exists to run the body again. Any state that must
+survive that lives in the ledger, reached through `JobContext` (`ctx`). Anything held in a
+field, a static, or a local across an `await` that parks the job is gone.
+
+This is the single way Acta differs from Hangfire, Quartz and BackgroundService, where a
+handler is an ordinary method and none of this applies. Idioms carried over from those
+libraries compile here and are wrong here.
+
+## Do this, not that
+
+| Instead of | Write | Because |
+|---|---|---|
+| a `static` or field counter | `await ctx.SetVariableAsync("n", n)` / `GetOrSetVariableAsync` | another process may resume the job; in-process state does not survive |
+| `await Task.Delay(d)` / `Thread.Sleep` | `await ctx.SleepAsync("name", d)` | `Delay` holds a worker for the duration and is lost on restart; `SleepAsync` parks the job and re-arms it at the due instant |
+| calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry of the job does not repeat work that already succeeded |
+| `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success; `FailAsync` is a deliberate terminal failure that does not consume the budget |
+| polling a flag in a loop | `await ctx.WaitSignalAsync("approved")` | polling burns a worker; a signal parks the job until raised |
+| starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` | the parent parks instead of occupying a worker |
+| `DateTime.Now` | `DateTime.UtcNow`, or the value passed in the input | the ledger is UTC throughout, and a value that differs per attempt makes replay non-deterministic |
+
+## Steps
+
+`RunStepAsync(name, body)` is the unit of "do not do this twice". The name is the identity:
+on re-entry a completed step returns its recorded result instead of running the body.
+
+- Name steps by what they do (`"charge-card"`), never with a loop index alone, and never
+  with anything that varies per attempt.
+- A step body should be one side effect. Two effects in one step means a crash between them
+  re-runs both.
+- `configure: o => o.AtMostOnce()` is for a body where running twice is worse than not
+  knowing whether it ran. On replay after an interrupted attempt it does **not** re-run and
+  throws `StepInterruptedException`; the handler must reconcile externally. Use it only when
+  you have a reconciliation path.
+
+## Payloads
+
+Job input and results are capped by `JobsOptions.MaxInlinePayloadBytes` (256 KiB by default).
+Caller-controlled writes past the cap throw `PayloadTooLargeException`. A handler result past
+the cap is dropped, not persisted: the job still succeeds and the events carry
+`job.result-oversized`.
+
+Large or sensitive bodies belong in blob storage with a reference in the job input.
+
+## Things that are not what they sound like
+
+- `suspended` means the job is parked and not progressing (awaiting a signal or children), or
+  for a tenant or namespace, that an operator blocked it. It is not a failure.
+- A `deduplication key` is caller-supplied idempotency, on the job. It is unrelated to the
+  alert `dedupe_key`, which Acta composes.
+- Tags are for searching. The job input is for data the handler reads. They are not
+  interchangeable.
+
+## Shape of a handler
+
+```csharp
+[Job("orders.fulfil", MaxAttempts = 5)]
+public static async Task Handle(FulfilOrder input, JobContext ctx, CancellationToken ct)
+{
+    var reserved = await ctx.RunStepAsync("reserve-stock", c => Inventory.ReserveAsync(input.OrderId, c), ct: ct);
+
+    await ctx.RunStepAsync("charge", c => Payments.ChargeAsync(input.OrderId, reserved.Total, c), ct: ct);
+
+    await ctx.SleepAsync("settle-window", TimeSpan.FromHours(1), ct: ct);
+
+    await ctx.RunStepAsync("ship", c => Shipping.DispatchAsync(input.OrderId, c), ct: ct);
+}
+```
+
+Every line that touches the outside world is a named step. The hour-long wait costs no worker.
+Killing the process anywhere in here and restarting resumes at the first step that had not
+recorded an outcome.
+
+## When you are unsure
+
+The `concepts/` directory in the repository is ~88 runnable, compiled examples, one concept
+each, grouped by area (scheduling, durable execution, failure and recovery, payloads,
+composition, testing). It is the authoritative answer to "how do I do X in Acta" and every
+example in it is verified by the build.

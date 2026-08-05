@@ -112,6 +112,10 @@ public abstract class JobContext
 
     /// <summary>
     /// Set a durable per-job variable to a non-null JSON value. Last write wins.
+    /// <para>
+    /// Use this rather than a field or a static: a job can be resumed by a different process, so
+    /// state that must survive a retry or a crash belongs in the ledger, not in memory.
+    /// </para>
     /// </summary>
     public async Task SetVariableAsync<T>(string name, T value, CancellationToken ct = default)
         where T : notnull
@@ -373,6 +377,11 @@ public abstract class JobContext
     /// timer and returns so the handler proceeds. A zero <paramref name="delay"/> returns immediately
     /// without arming a timer. Suspending is budget-neutral.
     /// </summary>
+    /// <remarks>
+    /// Use this rather than <c>Task.Delay</c> or <c>Thread.Sleep</c>: those hold a worker for the whole
+    /// duration and are lost if the process restarts, while a durable sleep parks the job and re-arms
+    /// it at the due instant, costing no worker in between.
+    /// </remarks>
     /// <param name="name">Dotted-kebab wait name, unique per Job; identifies the timer across replays.</param>
     /// <param name="delay">Wait length from DB now; whole-second precision (sub-second rounds up).</param>
     /// <param name="reason">Operator-readable suspend reason.</param>
@@ -880,6 +889,11 @@ public abstract class JobContext
     /// On replay of a succeeded step the stored result is deserialized into
     /// <typeparamref name="TResult"/> and returned without re-running the body;
     /// <see cref="StepResultContractMismatchException"/> is thrown if the stored result no longer fits.
+    /// <para>
+    /// Wrap each outside-world effect in its own named step rather than calling it directly in the
+    /// handler: jobs are at-least-once, so an unwrapped call repeats on every retry. One effect per
+    /// step, because a crash between two effects in one step re-runs both.
+    /// </para>
     /// </summary>
     public async Task<TResult> RunStepAsync<TResult>(
         string name,
