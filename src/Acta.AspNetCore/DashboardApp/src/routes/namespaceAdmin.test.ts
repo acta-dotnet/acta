@@ -1,17 +1,17 @@
 // Run with Node's built-in test runner (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildNamespaceMetadataPayload, isSysNamespace, namespaceAdminNeedsReload } from './namespaceAdmin.ts';
+import { buildNamespaceDetailsPayload, isSysNamespace, namespaceAdminNeedsReload } from './namespaceAdmin.ts';
 
-test('buildNamespaceMetadataPayload trims input and keeps a real value', () => {
-  assert.deepEqual(buildNamespaceMetadataPayload({ ownerTeam: '  Platform  ', description: ' core namespace ' }), {
+test('buildNamespaceDetailsPayload trims input and keeps a real value', () => {
+  assert.deepEqual(buildNamespaceDetailsPayload({ ownerTeam: '  Platform  ', description: ' core namespace ' }), {
     ownerTeam: 'Platform',
     description: 'core namespace'
   });
 });
 
-test('buildNamespaceMetadataPayload sends null for a blank field, clearing that column', () => {
-  assert.deepEqual(buildNamespaceMetadataPayload({ ownerTeam: '', description: '   ' }), { ownerTeam: null, description: null });
+test('buildNamespaceDetailsPayload sends null for a blank field, clearing that column', () => {
+  assert.deepEqual(buildNamespaceDetailsPayload({ ownerTeam: '', description: '   ' }), { ownerTeam: null, description: null });
 });
 
 test('isSysNamespace is true only for the seeded id 1', () => {

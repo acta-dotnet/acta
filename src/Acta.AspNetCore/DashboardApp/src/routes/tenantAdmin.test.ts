@@ -1,17 +1,17 @@
 // Run with Node's built-in test runner (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTenantMetadataPayload, tenantAdminNeedsReload } from './tenantAdmin.ts';
+import { buildTenantDetailsPayload, tenantAdminNeedsReload } from './tenantAdmin.ts';
 
-test('buildTenantMetadataPayload trims input and keeps a real value', () => {
-  assert.deepEqual(buildTenantMetadataPayload({ displayName: '  Acme Corp  ', description: ' primary tenant ' }), {
+test('buildTenantDetailsPayload trims input and keeps a real value', () => {
+  assert.deepEqual(buildTenantDetailsPayload({ displayName: '  Acme Corp  ', description: ' primary tenant ' }), {
     displayName: 'Acme Corp',
     description: 'primary tenant'
   });
 });
 
-test('buildTenantMetadataPayload sends null for a blank field, clearing that column', () => {
-  assert.deepEqual(buildTenantMetadataPayload({ displayName: '', description: '   ' }), { displayName: null, description: null });
+test('buildTenantDetailsPayload sends null for a blank field, clearing that column', () => {
+  assert.deepEqual(buildTenantDetailsPayload({ displayName: '', description: '   ' }), { displayName: null, description: null });
 });
 
 test('tenantAdminNeedsReload is false for applied and alreadyInState - both are successes', () => {

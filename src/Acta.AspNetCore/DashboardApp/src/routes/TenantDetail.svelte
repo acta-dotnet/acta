@@ -14,7 +14,7 @@
   import PageFreshness from '../components/PageFreshness.svelte';
   import { mergeHistory, type HistoryEvent } from '../components/changeHistory.ts';
   import { scope } from '../scope.ts';
-  import { buildTenantMetadataPayload, tenantAdminNeedsReload } from './tenantAdmin.ts';
+  import { buildTenantDetailsPayload, tenantAdminNeedsReload } from './tenantAdmin.ts';
   import { routes } from '../routes.ts';
 
   let { tenantKey = null }: { tenantKey?: string | null } = $props();
@@ -36,7 +36,7 @@
   }
 
   // The editor owns its input state: no polling and no focus/reconnect refreshes. It deliberately
-  // refetches only after a successful metadata save or an explicit conflict reload.
+  // refetches only after a successful details save or an explicit conflict reload.
   const detail = createQuery(() => ({
     queryKey: keys.detail('tenant-detail', tenantKey ?? 'new'),
     queryFn: ({ signal }) => loadTenant(signal),
@@ -69,7 +69,7 @@
 
   let displayNameInput = $state('');
   let descriptionInput = $state('');
-  let metadataNote = $state('');
+  let detailsNote = $state('');
 
   $effect(() => {
     const fresh = detail.data;
@@ -77,7 +77,7 @@
     tenant = fresh;
     displayNameInput = fresh.displayName ?? '';
     descriptionInput = fresh.description ?? '';
-    metadataNote = '';
+    detailsNote = '';
   });
 
   let loading = $derived(!creating && detail.isPending);
@@ -112,56 +112,56 @@
     }
   }
 
-  const metadataMutation = useControlMutation<
+  const detailsMutation = useControlMutation<
     { tenantKey: string; displayName: string; description: string; expectedVersion: number; reason?: string },
     AdminControlResult
   >({
     path: (vars) => `tenants/${encodeURIComponent(vars.tenantKey)}`,
     method: 'PATCH',
-    body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildTenantMetadataPayload(vars) }),
+    body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildTenantDetailsPayload(vars) }),
     notFound: () => ({ action: 'notFound', version: null }),
     versionConflict: () => ({ action: 'versionConflict', version: null }),
     invalidateKeys: () => [['tenants']] as const
   });
-  let metadataMessage = $state('');
-  let metadataMessageKind = $state('');
-  let metadataNeedsReload = $state(false);
+  let detailsMessage = $state('');
+  let detailsMessageKind = $state('');
+  let detailsNeedsReload = $state(false);
 
-  async function saveMetadata() {
+  async function saveDetails() {
     if (!tenant) return;
-    metadataMessage = '';
-    metadataNeedsReload = false;
+    detailsMessage = '';
+    detailsNeedsReload = false;
     try {
-      const result = await metadataMutation.mutateAsync({
+      const result = await detailsMutation.mutateAsync({
         tenantKey: tenant.tenantKey,
         displayName: displayNameInput,
         description: descriptionInput,
         expectedVersion: tenant.version,
-        reason: metadataNote
+        reason: detailsNote
       });
       if (tenantAdminNeedsReload(result.action)) {
-        metadataMessage =
+        detailsMessage =
           result.action === 'notFound'
             ? 'Tenant not found. Reload the current record before trying again.'
             : 'Changed since you loaded it. Reload the current values before trying again.';
-        metadataMessageKind = 'warn';
-        metadataNeedsReload = true;
+        detailsMessageKind = 'warn';
+        detailsNeedsReload = true;
         return;
       }
-      metadataMessage = 'Metadata saved.';
-      metadataMessageKind = 'ok';
+      detailsMessage = 'Details saved.';
+      detailsMessageKind = 'ok';
       await detail.refetch();
       void history.refetch();
     } catch (e) {
-      metadataMessage = e instanceof Error ? e.message : String(e);
-      metadataMessageKind = 'bad';
+      detailsMessage = e instanceof Error ? e.message : String(e);
+      detailsMessageKind = 'bad';
     }
   }
 
-  async function reloadMetadata() {
+  async function reloadDetails() {
     await detail.refetch();
-    metadataNeedsReload = false;
-    metadataMessage = '';
+    detailsNeedsReload = false;
+    detailsMessage = '';
   }
 
   const statusMutation = useControlMutation<
@@ -230,7 +230,7 @@
       <div class="detail-main">
         <section class="detail-panel">
           <h2>Registration</h2>
-          <p class="detail-help">Create the stable tenant identity used by enqueue requests. Display metadata can be added afterward.</p>
+          <p class="detail-help">Create the stable tenant identity used by enqueue requests. Display details can be added afterward.</p>
           <form onsubmit={(event) => { event.preventDefault(); submitRegister(); }}>
             <label class="detail-field">
               <span>Tenant key</span>
@@ -261,7 +261,7 @@
       <aside class="detail-rail">
         <section class="detail-panel">
           <h2>What happens next</h2>
-          <p class="detail-help">The tenant is registered as active. Open its detail view to edit metadata or suspend enqueue access.</p>
+          <p class="detail-help">The tenant is registered as active. Open its detail view to edit details or suspend enqueue access.</p>
         </section>
       </aside>
     </div>
@@ -278,29 +278,29 @@
     <div class="detail-workspace">
       <div class="detail-main">
         <section class="detail-panel">
-          <h2>Metadata</h2>
+          <h2>Details</h2>
           <p class="detail-help">Operator-owned context for this tenant. The tenant key is stable and cannot be edited.</p>
-          <form onsubmit={(event) => { event.preventDefault(); saveMetadata(); }}>
+          <form onsubmit={(event) => { event.preventDefault(); saveDetails(); }}>
             <label class="detail-field">
               <span>Display name</span>
-              <input bind:value={displayNameInput} maxlength="128" placeholder="Human display label" disabled={!canControlNow || metadataMutation.isPending} />
+              <input bind:value={displayNameInput} maxlength="128" placeholder="Human display label" disabled={!canControlNow || detailsMutation.isPending} />
             </label>
             <label class="detail-field">
               <span>Description</span>
-              <textarea bind:value={descriptionInput} rows="4" maxlength="512" placeholder="Operator-readable description" disabled={!canControlNow || metadataMutation.isPending}></textarea>
+              <textarea bind:value={descriptionInput} rows="4" maxlength="512" placeholder="Operator-readable description" disabled={!canControlNow || detailsMutation.isPending}></textarea>
             </label>
             <label class="detail-field">
               <span>Audit note</span>
-              <input bind:value={metadataNote} maxlength="512" placeholder="Why are you changing this?" disabled={!canControlNow || metadataMutation.isPending} />
+              <input bind:value={detailsNote} maxlength="512" placeholder="Why are you changing this?" disabled={!canControlNow || detailsMutation.isPending} />
             </label>
             <div class="detail-form-actions">
-              {#if metadataNeedsReload}<button type="button" onclick={reloadMetadata}>Reload current values</button>{/if}
-              <button class="primary" type="submit" disabled={!canControlNow || metadataMutation.isPending}>
-                {metadataMutation.isPending ? 'Saving...' : 'Save metadata'}
+              {#if detailsNeedsReload}<button type="button" onclick={reloadDetails}>Reload current values</button>{/if}
+              <button class="primary" type="submit" disabled={!canControlNow || detailsMutation.isPending}>
+                {detailsMutation.isPending ? 'Saving...' : 'Save details'}
               </button>
             </div>
           </form>
-          {#if metadataMessage}<div class="control-message {metadataMessageKind}" role="status">{metadataMessage}</div>{/if}
+          {#if detailsMessage}<div class="control-message {detailsMessageKind}" role="status">{detailsMessage}</div>{/if}
         </section>
 
         <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded tenant changes." />

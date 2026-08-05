@@ -85,7 +85,7 @@ test('controlRequest sends a truly empty body (no bytes) when body is undefined 
 });
 
 test('controlRequest maps a 409 with no typed body to the caller-supplied versionConflict fallback', async () => {
-  // Admin control (tenant/namespace suspend/resume/metadata) returns a bare Problem body on
+  // Admin control (tenant/namespace suspend/resume/details) returns a bare Problem body on
   // VersionConflict - no 'action' field - unlike job/schedule/alert control, which always includes
   // a typed action even at 409.
   globalThis.fetch = (async () =>

@@ -1,9 +1,9 @@
-// Pure helpers for the namespace admin controls (suspend/resume/metadata edit): CAS payload
+// Pure helpers for the namespace admin controls (suspend/resume/details edit): CAS payload
 // building, the sys-namespace guardrail, and the reload-on-conflict decision - mirroring
 // tenantAdmin.ts. Split out so node --test can exercise them without the Svelte compiler.
 import type { AdminControlAction } from '../api.ts';
 
-export interface NamespaceMetadataInput {
+export interface NamespaceDetailsInput {
   ownerTeam: string; // '' clears owner_team. Both fields prefill from the namespace list row, so a
   // blank field is a deliberate clear by the operator, not an always-clobber of an unseen value.
   description: string; // '' clears description
@@ -11,7 +11,7 @@ export interface NamespaceMetadataInput {
 
 // Full-set PATCH semantics: a blank field clears that column, matching the backend's
 // NamespacePatchRequest contract (null OwnerTeam/Description clears).
-export function buildNamespaceMetadataPayload(input: NamespaceMetadataInput): { ownerTeam: string | null; description: string | null } {
+export function buildNamespaceDetailsPayload(input: NamespaceDetailsInput): { ownerTeam: string | null; description: string | null } {
   return {
     ownerTeam: input.ownerTeam.trim() || null,
     description: input.description.trim() || null
