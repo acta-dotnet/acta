@@ -170,15 +170,20 @@ internal sealed class JobRunner(
 
                     if (resultBytes.Length > _maxInlinePayloadBytes)
                     {
-                        // Documented contract: results WARN-AND-PERSIST (they don't throw); the job already
-                        // ran, so we keep the bytes rather than stranding it. Caller writes hard-throw instead.
+                        // The job succeeded, so it is not failed over the size of what it returned. But the
+                        // cap is a cap: the body is dropped rather than persisted, leaving the row in the
+                        // existing "no result" shape (format 0, NULL) with job.result-oversized recording
+                        // why. A typed read of the missing result throws rather than handing back a default.
                         _log.LogWarning(
-                            "Handler result for job '{JobName}' ({JobId}) is {Bytes} bytes, exceeding the {Cap}-byte MaxInlinePayloadBytes cap; persisting anyway.",
+                            "Handler result for job '{JobName}' ({JobId}) is {Bytes} bytes, exceeding the {Cap}-byte MaxInlinePayloadBytes cap; the result body was dropped.",
                             descriptor.JobName,
                             job.JobId,
                             resultBytes.Length,
                             _maxInlinePayloadBytes
                         );
+                        resultFormatId = 0;
+                        resultBytes = ReadOnlyMemory<byte>.Empty;
+                        failureReason = JobEventReasonCode.JobResultOversized;
                     }
                 }
             }

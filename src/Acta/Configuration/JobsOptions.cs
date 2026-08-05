@@ -141,13 +141,22 @@ public sealed class JobsOptions
     public bool RegisterFrameworkJobs { get; set; } = true;
 
     /// <summary>
-    /// Size threshold for per-row inline payloads (<c>Job.Input</c>, <c>JobResult.Result</c>,
-    /// <c>JobCheckpoint.Value</c>, and <c>JobStep.Result</c>). Caller-controlled writes (enqueue,
-    /// variables, progress, signals, step results) throw <c>PayloadTooLargeException</c> past this cap;
-    /// handler results warn-and-persist (the row keeps the bytes). Default 256 KB, which makes the
-    /// blob-reference pattern the norm for larger payloads.
+    /// The one payload ceiling, 1 MiB by default. It governs both what may be stored inline
+    /// (<c>Job.Input</c>, <c>JobResult.Result</c>, <c>JobCheckpoint.Value</c>, <c>JobStep.Result</c>)
+    /// and the largest request body the HTTP endpoints accept, so a body that would be refused by the
+    /// ledger is refused at the edge with the same number rather than a second one.
+    /// <para>
+    /// Caller-controlled writes (enqueue, variables, progress, signals, step results) throw
+    /// <c>PayloadTooLargeException</c> past it. A handler result past it is dropped rather than
+    /// persisted: the job still succeeds and the events carry <c>job.result-oversized</c>.
+    /// </para>
+    /// <para>
+    /// An HTTP body is a JSON envelope around the payload it carries, so a payload of exactly this
+    /// size will not fit in a request of this size. That is deliberate: one number, applied to the
+    /// thing the caller can actually measure.
+    /// </para>
     /// </summary>
-    public int MaxInlinePayloadBytes { get; set; } = 256 * 1024;
+    public int MaxInlinePayloadBytes { get; set; } = 1024 * 1024;
 
     /// <summary>
     /// Width of the dedupe bucket for alerts raised with a non-null deduplication key (<c>ctx.AlertAsync</c> and
@@ -245,8 +254,8 @@ public sealed class JobsOptions
     /// <summary>
     /// <see cref="ExecutionProfile.Bulk"/> only. Maximum accumulated <c>results</c> bytes buffered
     /// before a flush is forced, bounding the batch transaction regardless of individual result sizes
-    /// (100 results at the 256 KB cap would otherwise be ~25 MB in one commit). A single result larger
-    /// than this still flushes alone. Default 4 MB.
+    /// (100 results at the 1 MiB cap would otherwise be ~100 MiB in one commit). A single result larger
+    /// than this still flushes alone. Default 4 MiB.
     /// </summary>
     public int BatchCompletionMaxBytes { get; set; } = 4 * 1024 * 1024;
 }

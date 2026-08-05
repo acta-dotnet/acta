@@ -97,11 +97,6 @@ public static class ActaEndpointRouteBuilderExtensions
             throw new ArgumentOutOfRangeException(nameof(options), "ActaEndpointOptions.MaxReasonMessageLength must be >= 1.");
         }
 
-        if (options.MaxRequestBodyBytes < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), "ActaEndpointOptions.MaxRequestBodyBytes must be >= 1.");
-        }
-
         // Fail closed: dropping the loopback guard without any authorization in place must be an
         // explicit, unmistakable decision rather than the silent result of one flipped flag.
         if (!options.LocalOnly && options.ConfigureEndpoints is null && !options.UnsafeAllowAnonymousRemoteAccess)

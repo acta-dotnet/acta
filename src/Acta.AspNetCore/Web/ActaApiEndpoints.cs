@@ -44,10 +44,19 @@ internal static class ActaApiEndpoints
                         extensions: new Dictionary<string, object?> { ["reasonCode"] = ex.Reason.ToString() }
                     );
                 }
+                catch (PayloadTooLargeException ex)
+                {
+                    // The BoundedReadStream ceiling tripped mid-read (a chunked body that outran its
+                    // declared length). Same type the ledger throws for an oversized payload.
+                    return Results.Problem(
+                        statusCode: StatusCodes.Status413PayloadTooLarge,
+                        title: "Request body too large.",
+                        detail: ex.Message
+                    );
+                }
                 catch (BadHttpRequestException ex)
                 {
-                    // The server (or the BoundedReadStream body ceiling) rejected the request itself,
-                    // e.g. an over-limit chunked body surfacing mid-read as 413.
+                    // The server itself rejected the request (malformed framing, bad chunked encoding).
                     return Results.Problem(statusCode: ex.StatusCode, title: "Invalid request.", detail: ex.Message);
                 }
                 catch (Exception ex)
@@ -108,16 +117,21 @@ internal static class ActaApiEndpoints
             async (context, next) =>
             {
                 var request = context.HttpContext.Request;
-                if (request.ContentLength is { } declared && declared > options.MaxRequestBodyBytes)
+
+                // The one payload ceiling, read from the runtime options. A body the ledger would
+                // refuse is refused here, with the same number rather than a second one.
+                var cap = context.HttpContext.RequestServices.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
+
+                if (request.ContentLength is { } declared && declared > cap)
                 {
                     return Results.Problem(
                         statusCode: StatusCodes.Status413PayloadTooLarge,
                         title: "Request body too large.",
-                        detail: $"Request bodies on this endpoint are capped at {options.MaxRequestBodyBytes} bytes."
+                        detail: $"Request bodies on this endpoint are capped at {cap} bytes."
                     );
                 }
 
-                request.Body = new BoundedReadStream(request.Body, options.MaxRequestBodyBytes);
+                request.Body = new BoundedReadStream(request.Body, cap);
                 return await next(context);
             }
         );

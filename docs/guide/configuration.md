@@ -72,7 +72,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `JobEventsRetentionDays` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetentionDays` | 90 | cluster data | Retention for settled alert rows. In-flight alert delivery rows are not purged by age. |
 | `RegisterFrameworkJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |
-| `MaxInlinePayloadBytes` | 256 KB | cluster data | Hard cap for caller-controlled inline writes: enqueue inputs, variables, progress, step results, and signal values. Handler results warn-and-persist when larger. |
+| `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling: caller-controlled inline writes (enqueue inputs, variables, progress, step results, signal values) throw past it, an oversize handler result is dropped, and it also caps the HTTP request body. |
 | `AlertDedupeWindow` | 1 hour | cluster data | Bucket width for deduped manual and automatic alerts. Must be positive. |
 | `AlertDeliveryMaxRetries` | 5 | cluster data | Delivery retries before an alert lands terminal Failed. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |

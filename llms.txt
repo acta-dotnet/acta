@@ -47,7 +47,7 @@ on re-entry a completed step returns its recorded result instead of running the 
 
 ## Payloads
 
-Job input and results are capped by `JobsOptions.MaxInlinePayloadBytes` (256 KiB by default).
+Job input and results are capped by `JobsOptions.MaxInlinePayloadBytes`, one number at 1 MiB by default, which also caps the HTTP request body.
 Caller-controlled writes past the cap throw `PayloadTooLargeException`. A handler result past
 the cap is dropped, not persisted: the job still succeeds and the events carry
 `job.result-oversized`.

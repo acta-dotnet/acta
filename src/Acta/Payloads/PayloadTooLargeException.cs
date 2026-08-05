@@ -1,13 +1,15 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown by a caller-controlled inline payload write (enqueue input, a job variable or progress
-/// payload, or a raised signal value) when the serialized bytes exceed
-/// <see cref="JobsOptions.MaxInlinePayloadBytes"/>. The write never reached storage.
+/// Thrown when a payload exceeds <see cref="JobsOptions.MaxInlinePayloadBytes"/>: a caller-controlled
+/// inline write (enqueue input, a job variable or progress payload, a raised signal value, a step
+/// result), where the write never reached storage. One cap, one exception.
 /// </summary>
 /// <remarks>
-/// Handler results are deliberately exempt: they warn-and-persist rather than throwing, so a large
-/// result never strands a job that already ran.
+/// Also raised by an oversized HTTP request body, and by a typed read of a result whose body was
+/// dropped for exceeding the cap. Handler results themselves never throw on the write path: the job
+/// already ran, so its body is dropped and recorded as <c>job.result-oversized</c> instead of
+/// stranding it.
 /// </remarks>
 /// <remarks>
 /// Creates the exception for the named <paramref name="entryPoint"/> whose payload of
