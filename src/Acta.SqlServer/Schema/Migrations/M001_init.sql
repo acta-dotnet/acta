@@ -603,5 +603,5 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (1, 'init-extensible-v1', '{{schema}}');
+VALUES (1, 'init-extensible-status-v1', '{{schema}}');
 GO
