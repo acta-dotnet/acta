@@ -294,22 +294,37 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
 
-        // Call 1 deletes the leaf everywhere; the parent becomes a leaf and drains on a later tick.
-        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-        Assert.Null(await Db.From<Job>().Where(j => j.Id == child.JobId).SingleOrDefaultAsync(ct));
-
-        // Under suite parallelism a concurrent spec's purge can hold rows this call's SKIP LOCKED
-        // sweep skipped, so drain the parent with bounded retries rather than one call.
-        for (var attempt = 0; ; attempt++)
+        // What this asserts is the lineage guarantee, not a per-call one: the sweep deletes leaves
+        // only, so a parent is never removed while a child still references it, and a fully expired
+        // subtree drains bottom-up. It deliberately does NOT assert that any single call deletes a
+        // given row. PurgeExpiredData is a best-effort sweep: it selects WITH (UPDLOCK, READPAST),
+        // so a contended row is skipped rather than waited for, and its iteration budget is bounded.
+        // Progress and ordering are the contract; call count is not.
+        var childGoneAfter = -1;
+        var parentGoneAfter = -1;
+        for (var pass = 1; pass <= 20 && (childGoneAfter < 0 || parentGoneAfter < 0); pass++)
         {
             await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-            if (await Db.From<Job>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct) is null)
+
+            var childAlive = await Db.From<Job>().Where(j => j.Id == child.JobId).SingleOrDefaultAsync(ct) is not null;
+            var parentAlive = await Db.From<Job>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct) is not null;
+
+            // The guarantee under test: the parent never outlives its child in the other direction.
+            Assert.True(!(!parentAlive && childAlive), $"parent {parent.JobId} was purged while child {child.JobId} still existed");
+
+            if (!childAlive && childGoneAfter < 0)
             {
-                break;
+                childGoneAfter = pass;
             }
-            Assert.True(attempt < 10, $"expired parent {parent.JobId} never drained after its child was purged");
-            await Task.Delay(100, ct);
+            if (!parentAlive && parentGoneAfter < 0)
+            {
+                parentGoneAfter = pass;
+            }
         }
+
+        Assert.True(childGoneAfter > 0, $"child {child.JobId} never drained");
+        Assert.True(parentGoneAfter > 0, $"expired parent {parent.JobId} never drained after its child was purged");
+        Assert.True(childGoneAfter <= parentGoneAfter, "the subtree drained parent-first, which would orphan the child's lineage");
     }
 
     // A real parent/child pair through the enqueue path: the child is enqueued under the parent's id
