@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Http;
 
 namespace Acta.AspNetCore.Web;
 
-/// <summary>PATCH body for a tenant metadata edit. Null field clears it. ExpectedVersion drives the CAS.</summary>
-internal sealed record TenantMetadataPatchRequest(
+/// <summary>PATCH body for a tenant update. Null field clears it. ExpectedVersion drives the CAS.</summary>
+internal sealed record TenantPatchRequest(
     string? DisplayName = null,
     string? Description = null,
     int? ExpectedVersion = null,
@@ -11,9 +11,9 @@ internal sealed record TenantMetadataPatchRequest(
 );
 
 /// <summary>
-/// PATCH body for a namespace metadata edit. Null field clears it. ExpectedVersion drives the CAS.
+/// PATCH body for a namespace update. Null field clears it. ExpectedVersion drives the CAS.
 /// </summary>
-internal sealed record NamespaceMetadataPatchRequest(
+internal sealed record NamespacePatchRequest(
     string? OwnerTeam = null,
     string? Description = null,
     int? ExpectedVersion = null,

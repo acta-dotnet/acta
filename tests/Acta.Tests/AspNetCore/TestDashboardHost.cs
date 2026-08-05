@@ -954,7 +954,7 @@ internal static class TestDashboardHost
                 CancellationToken ct = default
             ) => Apply(tenantKey, reasonMessage, actorKey);
 
-            public ValueTask<AdminControlResult> UpdateMetadataAsync(
+            public ValueTask<AdminControlResult> UpdateAsync(
                 string tenantKey,
                 string? displayName,
                 string? description,
@@ -1034,7 +1034,7 @@ internal static class TestDashboardHost
                 CancellationToken ct = default
             ) => Apply("resume", name, reasonMessage, actorKey);
 
-            public ValueTask<AdminControlResult> UpdateMetadataAsync(
+            public ValueTask<AdminControlResult> UpdateAsync(
                 string name,
                 string? ownerTeam,
                 string? description,

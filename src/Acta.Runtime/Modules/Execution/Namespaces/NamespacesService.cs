@@ -7,7 +7,7 @@ namespace Acta.Runtime.Modules.Execution.Namespaces;
 
 /// <summary>
 /// Namespaces feature behavior: the name-list validation and cursor math plus operator
-/// suspend/resume/metadata rules. The seeded sys namespace (id 1 / name sys) is rejected here before
+/// suspend/resume/update rules. The seeded sys namespace (id 1 / name sys) is rejected here before
 /// any store call runs.
 /// </summary>
 internal sealed class NamespacesService(INamespaceStore store)
@@ -117,7 +117,7 @@ internal sealed class NamespacesService(INamespaceStore store)
         return new AdminControlResult(outcome.Action, outcome.Version);
     }
 
-    public async ValueTask<AdminControlResult> UpdateMetadataAsync(
+    public async ValueTask<AdminControlResult> UpdateAsync(
         string name,
         string? ownerTeam,
         string? description,
@@ -128,16 +128,9 @@ internal sealed class NamespacesService(INamespaceStore store)
     )
     {
         var canonical = ResolveWritableName(name);
-        CatalogMetadataValidation.ValidateNamespace(ownerTeam, description);
-        var outcome = await store.UpdateNamespaceMetadataAsync(
-            new UpdateNamespaceMetadataCommand(
-                canonical,
-                ownerTeam,
-                description,
-                expectedVersion,
-                Operator(actorKey),
-                Reason(reasonMessage)
-            ),
+        CatalogValidation.ValidateNamespace(ownerTeam, description);
+        var outcome = await store.UpdateNamespaceAsync(
+            new UpdateNamespaceCommand(canonical, ownerTeam, description, expectedVersion, Operator(actorKey), Reason(reasonMessage)),
             ct
         );
         return new AdminControlResult(outcome.Action, outcome.Version);

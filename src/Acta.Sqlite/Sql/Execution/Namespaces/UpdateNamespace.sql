@@ -1,25 +1,24 @@
-DROP TABLE IF EXISTS temp._update_tenant_metadata;
+DROP TABLE IF EXISTS temp._update_namespace;
 
-CREATE TEMP TABLE _update_tenant_metadata AS
-SELECT t.id, t.version AS from_version
-FROM {{schema}}.tenants t
-WHERE t.tenant_key = @p_tenant_key;
+CREATE TEMP TABLE _update_namespace AS
+SELECT n.id, n.version AS from_version
+FROM {{schema}}.namespaces n
+WHERE n.name = @p_namespace_name;
 
--- namespace_id 1 is the seeded sys namespace (M001).
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor_key,
     job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
     from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message)
 SELECT
-    12 /* JobEventCode.TenantMetadataChanged */, {{now}}, 1, @p_actor_code, @p_actor_key,
-    NULL, NULL, NULL, NULL, NULL, s.id, NULL,
+    22 /* JobEventCode.NamespaceUpdated */, {{now}}, s.id, @p_actor_code, @p_actor_key,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, @p_reason_message
-FROM temp._update_tenant_metadata s
+FROM temp._update_namespace s
 WHERE s.from_version = @p_expected_version;
 
-UPDATE {{schema}}.tenants
-   SET display_name = @p_display_name, description = @p_description, modified_at_utc = {{now}}, version = version + 1
- WHERE tenant_key = @p_tenant_key
+UPDATE {{schema}}.namespaces
+   SET owner_team = @p_owner_team, description = @p_description, modified_at_utc = {{now}}, version = version + 1
+ WHERE name = @p_namespace_name
    AND version = @p_expected_version;
 
 SELECT
@@ -30,4 +29,4 @@ SELECT
          WHEN s.from_version <> @p_expected_version THEN s.from_version
          ELSE s.from_version + 1 END AS version
 FROM (SELECT 1) one
-LEFT JOIN temp._update_tenant_metadata s ON 1 = 1;
+LEFT JOIN temp._update_namespace s ON 1 = 1;

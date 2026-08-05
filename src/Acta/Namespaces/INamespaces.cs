@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Namespaces domain: list registered namespaces plus operator admin (suspend/resume/metadata). Reached
+/// Namespaces domain: list registered namespaces plus operator admin (suspend/resume/update). Reached
 /// through <see cref="IActaOperations.Namespaces"/>. The seeded sys namespace (id 1) cannot be suspended or edited.
 /// </summary>
 public interface INamespaces
@@ -30,9 +30,9 @@ public interface INamespaces
 
     /// <summary>
     /// Update a namespace owner team / description with a version CAS. Null clears the field.
-    /// Emits namespace.metadata-changed. Rejects the sys namespace.
+    /// Emits namespace.updated. Rejects the sys namespace.
     /// </summary>
-    ValueTask<AdminControlResult> UpdateMetadataAsync(
+    ValueTask<AdminControlResult> UpdateAsync(
         string name,
         string? ownerTeam,
         string? description,

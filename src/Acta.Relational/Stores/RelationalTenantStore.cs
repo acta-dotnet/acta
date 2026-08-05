@@ -86,9 +86,9 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
     public Task<AdminControlOutcome> ResumeTenantAsync(TenantControlCommand command, CancellationToken ct) =>
         ControlAsync("Tenants/ResumeTenant", command, ct);
 
-    public async Task<AdminControlOutcome> UpdateTenantMetadataAsync(UpdateTenantMetadataCommand command, CancellationToken ct) =>
+    public async Task<AdminControlOutcome> UpdateTenantAsync(UpdateTenantCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", "Tenants/UpdateTenantMetadata"),
+            new StoreCommand("Execution", "Tenants/UpdateTenant"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, command.TenantKey));
@@ -103,7 +103,7 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
             ct
         )
         ?? throw new InvalidOperationException(
-            "Control command 'UpdateTenantMetadata' returned no rows; it must return exactly one (action, version) row."
+            "Control command 'UpdateTenant' returned no rows; it must return exactly one (action, version) row."
         );
 
     private async Task<AdminControlOutcome> ControlAsync(string operation, TenantControlCommand command, CancellationToken ct) =>

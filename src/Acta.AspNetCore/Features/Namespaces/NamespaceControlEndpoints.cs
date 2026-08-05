@@ -67,7 +67,7 @@ internal static class NamespaceControlEndpoints
 
                 var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
                     http,
-                    DashboardJsonContext.Default.NamespaceMetadataPatchRequest,
+                    DashboardJsonContext.Default.NamespacePatchRequest,
                     ct
                 );
                 if (bodyError is not null)
@@ -79,27 +79,19 @@ internal static class NamespaceControlEndpoints
                 {
                     return ControlEndpointValidation.Problem(
                         StatusCodes.Status400BadRequest,
-                        "Invalid namespace metadata.",
+                        "Invalid namespace update.",
                         "expectedVersion is required."
                     );
                 }
                 if (
-                    ControlEndpointValidation.ValidateMetadataLength(
-                        body.OwnerTeam,
-                        "ownerTeam",
-                        CatalogMetadataLimits.NamespaceOwnerTeam
-                    ) is
+                    ControlEndpointValidation.ValidateLength(body.OwnerTeam, "ownerTeam", CatalogLimits.NamespaceOwnerTeam) is
                     { } ownerTeamError
                 )
                 {
                     return ownerTeamError;
                 }
                 if (
-                    ControlEndpointValidation.ValidateMetadataLength(
-                        body.Description,
-                        "description",
-                        CatalogMetadataLimits.NamespaceDescription
-                    ) is
+                    ControlEndpointValidation.ValidateLength(body.Description, "description", CatalogLimits.NamespaceDescription) is
                     { } descriptionError
                 )
                 {
@@ -114,7 +106,7 @@ internal static class NamespaceControlEndpoints
 
                 try
                 {
-                    var result = await operations.Namespaces.UpdateMetadataAsync(
+                    var result = await operations.Namespaces.UpdateAsync(
                         name,
                         body.OwnerTeam,
                         body.Description,
@@ -127,7 +119,7 @@ internal static class NamespaceControlEndpoints
                 }
                 catch (ArgumentException ex)
                 {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid namespace metadata.", ex.Message);
+                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid namespace update.", ex.Message);
                 }
             }
         );

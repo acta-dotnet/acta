@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
 /// </summary>
 [ConformanceSpec(
     "list-namespace-items.admin-page",
-    "ListNamespaceItems pages namespaces with status, metadata, and version",
+    "ListNamespaceItems pages namespaces with status, fields, and version",
     Area = "Reads",
     Contract = "ListNamespaceItems pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row.",
     Arrange = "The worker registers the test namespace and its owner team, description, and version are set to distinct non-null values.",
@@ -46,7 +46,7 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
     }
 
     [Fact(DisplayName = "The admin row carries the namespace id, status, owner team, description, and version")]
-    public async Task Row_carries_status_metadata_and_version()
+    public async Task Row_carries_status_fields_and_version()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -54,7 +54,7 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
         // Write distinct non-null owner_team/description and bump the version off its default so a broken
         // positional projection cannot pass by reading a stray null or a stray 0.
         var current = (await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct))!;
-        var updated = await Operations.Namespaces.UpdateMetadataAsync(
+        var updated = await Operations.Namespaces.UpdateAsync(
             TestNamespace,
             "platform-team",
             "namespace admin description",

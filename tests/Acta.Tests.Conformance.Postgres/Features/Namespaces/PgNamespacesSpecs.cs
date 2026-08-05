@@ -11,6 +11,6 @@ public sealed class PgListNamespaceItemsSpec : ListNamespaceItemsSpec<PgConforma
 
 public sealed class PgSuspendResumeNamespaceSpec : SuspendResumeNamespaceSpec<PgConformanceFixture>;
 
-public sealed class PgUpdateNamespaceMetadataSpec : UpdateNamespaceMetadataSpec<PgConformanceFixture>;
+public sealed class PgUpdateNamespaceSpec : UpdateNamespaceSpec<PgConformanceFixture>;
 
 public sealed class PgRegisterNamespaceSpec : RegisterNamespaceSpec<PgConformanceFixture>;

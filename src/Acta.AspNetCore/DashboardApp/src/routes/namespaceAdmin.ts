@@ -10,7 +10,7 @@ export interface NamespaceMetadataInput {
 }
 
 // Full-set PATCH semantics: a blank field clears that column, matching the backend's
-// NamespaceMetadataPatchRequest contract (null OwnerTeam/Description clears).
+// NamespacePatchRequest contract (null OwnerTeam/Description clears).
 export function buildNamespaceMetadataPayload(input: NamespaceMetadataInput): { ownerTeam: string | null; description: string | null } {
   return {
     ownerTeam: input.ownerTeam.trim() || null,

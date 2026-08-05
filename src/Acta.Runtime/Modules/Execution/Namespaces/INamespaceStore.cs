@@ -24,7 +24,7 @@ internal interface INamespaceStore
     Task<AdminControlOutcome> ResumeNamespaceAsync(NamespaceControlCommand command, CancellationToken ct);
 
     /// <summary>Writes owner team and description behind a version CAS.</summary>
-    Task<AdminControlOutcome> UpdateNamespaceMetadataAsync(UpdateNamespaceMetadataCommand command, CancellationToken ct);
+    Task<AdminControlOutcome> UpdateNamespaceAsync(UpdateNamespaceCommand command, CancellationToken ct);
 }
 
 /// <summary>Validated, cursor-decoded request for one page of namespace names; Take carries the peek-ahead row.
@@ -47,8 +47,8 @@ internal sealed record NamespaceItemPage(IReadOnlyList<NamespaceListItem> Rows, 
 /// <summary>An operator control verb aimed at one namespace.</summary>
 internal sealed record NamespaceControlCommand(string Key, JobControlActor Actor, string? ReasonMessage);
 
-/// <summary>Version-guarded metadata write for one namespace.</summary>
-internal sealed record UpdateNamespaceMetadataCommand(
+/// <summary>Version-guarded update for one namespace.</summary>
+internal sealed record UpdateNamespaceCommand(
     string Name,
     string? OwnerTeam,
     string? Description,

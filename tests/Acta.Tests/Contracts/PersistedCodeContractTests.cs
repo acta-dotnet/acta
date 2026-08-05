@@ -42,10 +42,10 @@ public sealed class PersistedCodeContractTests
         JobEventCode.Unspecified=0|unspecified
         JobEventCode.TenantSuspended=10|tenant.suspended
         JobEventCode.TenantResumed=11|tenant.resumed
-        JobEventCode.TenantMetadataChanged=12|tenant.metadata-changed
+        JobEventCode.TenantUpdated=12|tenant.updated
         JobEventCode.NamespaceSuspended=20|namespace.suspended
         JobEventCode.NamespaceResumed=21|namespace.resumed
-        JobEventCode.NamespaceMetadataChanged=22|namespace.metadata-changed
+        JobEventCode.NamespaceUpdated=22|namespace.updated
         JobEventCode.JobDefinitionPolicyChanged=30|definition.policy-changed
         JobEventCode.JobExecutionStarted=40|job.execution.started
         JobEventCode.JobExecutionFinished=41|job.execution.finished
@@ -170,7 +170,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "A020F5D55B0A6EFF376D87E970FBBFEA24C869FCBBFAFC8C054687F3DE0DBBD0";
+    private const string ExpectedDescriptionHash = "394D74CDAA4090BE3885A18033EFA373BAC899F45FFC1390CFB506C46712393D";
 
     [Fact]
     public void Frozen_contract_covers_all_30_families_and_159_values()

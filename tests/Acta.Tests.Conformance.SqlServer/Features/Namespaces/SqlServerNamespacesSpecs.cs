@@ -11,6 +11,6 @@ public sealed class SqlServerListNamespaceItemsSpec : ListNamespaceItemsSpec<Sql
 
 public sealed class SqlServerSuspendResumeNamespaceSpec : SuspendResumeNamespaceSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerUpdateNamespaceMetadataSpec : UpdateNamespaceMetadataSpec<SqlServerConformanceFixture>;
+public sealed class SqlServerUpdateNamespaceSpec : UpdateNamespaceSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRegisterNamespaceSpec : RegisterNamespaceSpec<SqlServerConformanceFixture>;

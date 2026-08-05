@@ -13,4 +13,4 @@ public sealed class PgRegisterTenantSpec : RegisterTenantSpec<PgConformanceFixtu
 
 public sealed class PgSuspendResumeTenantSpec : SuspendResumeTenantSpec<PgConformanceFixture>;
 
-public sealed class PgUpdateTenantMetadataSpec : UpdateTenantMetadataSpec<PgConformanceFixture>;
+public sealed class PgUpdateTenantSpec : UpdateTenantSpec<PgConformanceFixture>;

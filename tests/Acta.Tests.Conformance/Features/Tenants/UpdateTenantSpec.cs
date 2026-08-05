@@ -8,18 +8,18 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Tenants;
 
-/// <summary>Conformance for tenant metadata CAS: applies both fields with a version bump and a tenant.metadata-changed event, clears on null, rejects a stale version, NotFound for unknown keys.</summary>
+/// <summary>Conformance for tenant update CAS: applies both fields with a version bump and a tenant.updated event, clears on null, rejects a stale version, NotFound for unknown keys.</summary>
 [ConformanceSpec(
-    "update-tenant-metadata.cas",
-    "Tenant metadata update is a version-CAS write that clears fields on null",
+    "update-tenant.cas",
+    "Tenant update is a version-CAS write that clears fields on null",
     Area = "Admin",
-    Contract = "Metadata update writes display_name/description under a version CAS, clears null fields, and emits tenant.metadata-changed to sys namespace 1.",
+    Contract = "Update writes display_name/description under a version CAS, clears null fields, and emits tenant.updated to sys namespace 1.",
     Arrange = "An active tenant with a known version is registered.",
-    Act = "Metadata is updated with the current version, with null fields, with a stale version, and against an unknown key.",
-    Assert = "A match updates, bumps, and emits tenant.metadata-changed, null clears, stale conflicts, and unknown keys report NotFound."
+    Act = "Fields are updated with the current version, with null fields, with a stale version, and against an unknown key.",
+    Assert = "A match updates, bumps, and emits tenant.updated, null clears, stale conflicts, and unknown keys report NotFound."
 )]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.UpdateTenantMetadataAsync))]
-public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<TFixture>
+[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.UpdateTenantAsync))]
+public abstract class UpdateTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
     private static JobControlActor Actor() => new(JobActorCode.Operator, "op-1");
@@ -28,9 +28,9 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
         await Db.From<Tenant>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int id, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.TenantId == id && e.EventCode == JobEventCode.TenantMetadataChanged).CountAsync(ct);
+        await Db.From<JobEvent>().Where(e => e.TenantId == id && e.EventCode == JobEventCode.TenantUpdated).CountAsync(ct);
 
-    [Fact(DisplayName = "A matching version writes both fields, bumps version, and emits tenant.metadata-changed")]
+    [Fact(DisplayName = "A matching version writes both fields, bumps version, and emits tenant.updated")]
     public async Task Applies_and_emits()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -40,7 +40,7 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
 
         var outcome = await Services
             .GetRequiredService<ITenantStore>()
-            .UpdateTenantMetadataAsync(new UpdateTenantMetadataCommand(key, "New", "new-desc", v, Actor(), "edit"), ct);
+            .UpdateTenantAsync(new UpdateTenantCommand(key, "New", "new-desc", v, Actor(), "edit"), ct);
 
         Assert.Equal(AdminControlAction.Applied, outcome.Action);
         var row = await ReadAsync(key, ct);
@@ -59,9 +59,7 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
         await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", "old-desc", ct);
         var v = (await ReadAsync(key, ct))!.Version;
 
-        await Services
-            .GetRequiredService<ITenantStore>()
-            .UpdateTenantMetadataAsync(new UpdateTenantMetadataCommand(key, null, null, v, Actor(), null), ct);
+        await Services.GetRequiredService<ITenantStore>().UpdateTenantAsync(new UpdateTenantCommand(key, null, null, v, Actor(), null), ct);
 
         var row = await ReadAsync(key, ct);
         Assert.Null(row!.DisplayName);
@@ -78,7 +76,7 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
 
         var outcome = await Services
             .GetRequiredService<ITenantStore>()
-            .UpdateTenantMetadataAsync(new UpdateTenantMetadataCommand(key, "New", null, v + 5, Actor(), null), ct);
+            .UpdateTenantAsync(new UpdateTenantCommand(key, "New", null, v + 5, Actor(), null), ct);
 
         Assert.Equal(AdminControlAction.VersionConflict, outcome.Action);
         Assert.Equal(v, outcome.Version);
@@ -92,11 +90,11 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
         var ct = TestContext.Current.CancellationToken;
         var outcome = await Services
             .GetRequiredService<ITenantStore>()
-            .UpdateTenantMetadataAsync(new UpdateTenantMetadataCommand(TestKey("adm-meta-ghost"), "x", null, 0, Actor(), null), ct);
+            .UpdateTenantAsync(new UpdateTenantCommand(TestKey("adm-meta-ghost"), "x", null, 0, Actor(), null), ct);
         Assert.Equal(AdminControlAction.NotFound, outcome.Action);
     }
 
-    [Fact(DisplayName = "Overlong tenant metadata is rejected before the store write")]
+    [Fact(DisplayName = "Overlong tenant fields is rejected before the store write")]
     public async Task Overlong_metadata_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -104,7 +102,7 @@ public abstract class UpdateTenantMetadataSpec<TFixture> : ActaStorageTestBase<T
         var key = TestKey("adm-meta-long");
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await service.UpdateMetadataAsync(key, new string('x', CatalogMetadataLimits.TenantDisplayName + 1), null, 0, null, null, ct)
+            await service.UpdateAsync(key, new string('x', CatalogLimits.TenantDisplayName + 1), null, 0, null, null, ct)
         );
     }
 }

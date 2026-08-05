@@ -163,10 +163,10 @@ carries no key to re-check). Suspension is reversible and status-only.
 ```csharp
 await operations.Tenants.SuspendAsync("cust-4711", "billing hold");
 await operations.Tenants.ResumeAsync("cust-4711");
-await operations.Tenants.UpdateMetadataAsync("cust-4711", displayName: "ACME Corp", description: null, expectedVersion: version);
+await operations.Tenants.UpdateAsync("cust-4711", displayName: "ACME Corp", description: null, expectedVersion: version);
 await operations.Namespaces.SuspendAsync("billing", "incident 1042");
 await operations.Namespaces.ResumeAsync("billing");
-await operations.Namespaces.UpdateMetadataAsync("billing", ownerTeam: "payments", description: null, expectedVersion: version);
+await operations.Namespaces.UpdateAsync("billing", ownerTeam: "payments", description: null, expectedVersion: version);
 ```
 
 Suspend/resume are idempotent (already-in-state succeeds as a no-op, reported as alreadyInState, with no event); metadata updates are
@@ -174,7 +174,7 @@ version-CAS guarded, a stale `version` returns a conflict with the current row s
 Tenant metadata is `displayName` + `description`; namespace metadata is `ownerTeam` + `description`
 (namespaces have no display name). Null clears a field. The seeded `sys` namespace cannot be suspended or
 edited. Every applied transition is audited on the events timeline in the 15xx admin band
-(`tenant.suspended` 10 through `namespace.metadata-changed` 22); tenant events land on the seeded
+(`tenant.suspended` 10 through `namespace.updated` 22); tenant events land on the seeded
 `sys` namespace, namespace events on the namespace itself.
 
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):

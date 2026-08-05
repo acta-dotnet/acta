@@ -24,7 +24,7 @@ internal sealed class TenantsService(ITenantStore store)
     {
         ArgumentNullException.ThrowIfNull(tenantKey);
         var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-        CatalogMetadataValidation.ValidateTenant(displayName, description);
+        CatalogValidation.ValidateTenant(displayName, description);
         return await store.RegisterTenantAsync(new RegisterTenantCommand(key, displayName, description), ct);
     }
 
@@ -86,7 +86,7 @@ internal sealed class TenantsService(ITenantStore store)
         return new AdminControlResult(outcome.Action, outcome.Version);
     }
 
-    public async ValueTask<AdminControlResult> UpdateMetadataAsync(
+    public async ValueTask<AdminControlResult> UpdateAsync(
         string tenantKey,
         string? displayName,
         string? description,
@@ -98,9 +98,9 @@ internal sealed class TenantsService(ITenantStore store)
     {
         ArgumentNullException.ThrowIfNull(tenantKey);
         var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-        CatalogMetadataValidation.ValidateTenant(displayName, description);
-        var outcome = await store.UpdateTenantMetadataAsync(
-            new UpdateTenantMetadataCommand(key, displayName, description, expectedVersion, Operator(actorKey), Reason(reasonMessage)),
+        CatalogValidation.ValidateTenant(displayName, description);
+        var outcome = await store.UpdateTenantAsync(
+            new UpdateTenantCommand(key, displayName, description, expectedVersion, Operator(actorKey), Reason(reasonMessage)),
             ct
         );
         return new AdminControlResult(outcome.Action, outcome.Version);

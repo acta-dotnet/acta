@@ -26,7 +26,7 @@ internal sealed class NamespacesApi(NamespacesService namespaces) : INamespaces
         CancellationToken ct = default
     ) => namespaces.ResumeAsync(name, reasonMessage, actorKey, ct);
 
-    public ValueTask<AdminControlResult> UpdateMetadataAsync(
+    public ValueTask<AdminControlResult> UpdateAsync(
         string name,
         string? ownerTeam,
         string? description,
@@ -34,5 +34,5 @@ internal sealed class NamespacesApi(NamespacesService namespaces) : INamespaces
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => namespaces.UpdateMetadataAsync(name, ownerTeam, description, expectedVersion, reasonMessage, actorKey, ct);
+    ) => namespaces.UpdateAsync(name, ownerTeam, description, expectedVersion, reasonMessage, actorKey, ct);
 }

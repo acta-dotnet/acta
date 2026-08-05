@@ -1518,7 +1518,7 @@
           },
           {
             "Id": 12,
-            "Code": "tenant.metadata-changed",
+            "Code": "tenant.updated",
             "Description": "An operator changed a tenant display name / description. ReasonMessage carries the reason.",
             "Lifecycle": "Active"
           },
@@ -1536,7 +1536,7 @@
           },
           {
             "Id": 22,
-            "Code": "namespace.metadata-changed",
+            "Code": "namespace.updated",
             "Description": "An operator changed a namespace owner team / description. ReasonMessage carries the reason.",
             "Lifecycle": "Active"
           },
