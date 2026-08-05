@@ -91,7 +91,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal("go", sig.Name);
-        Assert.Equal(JobCheckpointStateCode.Pending, sig.State);
+        Assert.Equal(JobCheckpointStatusCode.Pending, sig.Status);
 
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
@@ -111,7 +111,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStateCode.Pending, sig.State);
+        Assert.Equal(JobCheckpointStatusCode.Pending, sig.Status);
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
 
@@ -129,7 +129,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
         Assert.NotNull(job.NextRunAtUtc);
-        Assert.Equal(JobCheckpointStateCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().State);
+        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobSignalRaised, ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobResumed, ct));
 
@@ -180,7 +180,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(JobControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct)).Action);
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStateCode.Set, sig.State);
+        Assert.Equal(JobCheckpointStatusCode.Set, sig.Status);
         Assert.Equal(0, sig.ValueFormatId);
         Assert.Null(sig.Value);
     }
@@ -195,7 +195,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "second"), ct: ct);
 
-        Assert.Equal(JobCheckpointStateCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().State);
+        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(new ReviewDecision(true, "second"), await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
@@ -216,7 +216,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(JobStatusCode.Paused, raise.Status);
 
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        Assert.Equal(JobCheckpointStateCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().State);
+        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
     [Fact(DisplayName = "Raise is rejected against a terminal job and writes no slot")]

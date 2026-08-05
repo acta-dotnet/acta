@@ -279,7 +279,7 @@ public class CliOutputTests
             ActiveWait: new JobExplainWait(JobExplainWaitKind.Signal, "fraud-review", null),
             Lease: null,
             LastExecutedBy: "payments-v42 (17)",
-            Steps: [new JobExplainStep("reserve-stock", JobStepStateCode.Succeeded, "succeeded and will not rerun")],
+            Steps: [new JobExplainStep("reserve-stock", JobStepStatusCode.Succeeded, "succeeded and will not rerun")],
             Reason: null,
             NextActions:
             [

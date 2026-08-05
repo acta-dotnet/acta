@@ -57,7 +57,7 @@ public sealed record ScenarioStepSnapshot(
     long StepId,
     long JobId,
     string Name,
-    JobStepStateCode State,
+    JobStepStatusCode Status,
     short AttemptNumber,
     DateTime? NextRetryAtUtc,
     JobEventReasonCode? ReasonCode,
@@ -73,7 +73,7 @@ public sealed record ScenarioCheckpointSnapshot(
     long JobId,
     JobCheckpointKindCode Kind,
     string Name,
-    JobCheckpointStateCode? State,
+    JobCheckpointStatusCode? Status,
     DateTime? DueAtUtc,
     JobPayload? Value,
     DateTime CreatedAtUtc,
@@ -157,7 +157,7 @@ internal static class ScenarioDiagnostics
             sb.AppendLine("Steps:");
             foreach (var s in steps.OrderBy(s => s.Name, StringComparer.Ordinal))
             {
-                sb.Append("  ").Append(s.Name).Append(" state=").Append(s.State).Append(" attempt=").Append(s.AttemptNumber);
+                sb.Append("  ").Append(s.Name).Append(" state=").Append(s.Status).Append(" attempt=").Append(s.AttemptNumber);
                 if (s.NextRetryAtUtc is { } retry)
                 {
                     sb.Append(" nextRetry=").Append(retry.ToString("O"));
@@ -176,7 +176,7 @@ internal static class ScenarioDiagnostics
             sb.AppendLine("Checkpoints:");
             foreach (var c in checkpoints.OrderBy(c => c.Kind).ThenBy(c => c.Name, StringComparer.Ordinal))
             {
-                sb.Append("  ").Append(c.Kind).Append('/').Append(c.Name).Append(" state=").Append(c.State?.ToString() ?? "-");
+                sb.Append("  ").Append(c.Kind).Append('/').Append(c.Name).Append(" state=").Append(c.Status?.ToString() ?? "-");
                 if (c.DueAtUtc is { } due)
                 {
                     sb.Append(" due=").Append(due.ToString("O"));
@@ -234,7 +234,7 @@ internal static class ScenarioDiagnostics
             step.Id,
             step.JobId,
             step.Name,
-            step.State,
+            step.Status,
             step.AttemptNumber,
             step.NextRetryAtUtc,
             step.ReasonCode,
@@ -250,7 +250,7 @@ internal static class ScenarioDiagnostics
             checkpoint.JobId,
             checkpoint.Kind,
             checkpoint.Name,
-            checkpoint.State,
+            checkpoint.Status,
             checkpoint.DueAtUtc,
             ToPayload(checkpoint.ValueFormatId, checkpoint.Value),
             checkpoint.CreatedAtUtc,

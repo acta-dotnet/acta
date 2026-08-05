@@ -207,7 +207,7 @@ public class ScenarioSession<TInput>
         }
 
         var signal = await SignalAsync(name, ct);
-        return signal?.State == JobCheckpointStateCode.Pending;
+        return signal?.Status == JobCheckpointStatusCode.Pending;
     }
 
     private async Task<ScenarioCheckpointSnapshot?> CheckpointAsync(JobCheckpointKindCode kind, string name, CancellationToken ct)

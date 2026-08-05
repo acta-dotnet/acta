@@ -19,7 +19,7 @@ SELECT
     j.job_ref,
     CASE
         WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL THEN
-            (SELECT s.state_code FROM {{schema}}.checkpoints s
+            (SELECT s.status_code FROM {{schema}}.checkpoints s
               WHERE s.job_id = j.id
                 AND s.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
                 AND s.name = @p_wait_signal_name)
@@ -32,7 +32,7 @@ WHERE j.id = @p_id;
 CREATE TEMP TABLE _ce_done AS
 SELECT
     CASE
-        WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL AND p.sig_state = 20 /* JobCheckpointStateCode.Set */ THEN 10 /* JobStatusCode.Ready */
+        WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL AND p.sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
         WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
         WHEN @p_reschedule_status_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
         WHEN @p_handler_status_code IS NOT NULL THEN @p_handler_status_code
@@ -244,15 +244,15 @@ WHERE d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Fa
   AND pr.status_code IS NOT NULL
   AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
-INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, state_code, value_format_id, value, modified_at_utc, version)
+INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
 SELECT
-    p.parent_id, 50 /* JobCheckpointKindCode.ChildLatch */, 'sys.child.' || @p_id, 20 /* JobCheckpointStateCode.Set */, 1 /* JobPayloadFormat.Json */,
+    p.parent_id, 50 /* JobCheckpointKindCode.ChildLatch */, 'sys.child.' || @p_id, 20 /* JobCheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */,
     CAST(json_object('childJobId', @p_id, 'status', p.to_status) AS BLOB),
     {{now}}, 0
   FROM _ce_parent p
  WHERE true
 ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-    state_code      = 20 /* JobCheckpointStateCode.Set */,
+    status_code      = 20 /* JobCheckpointStatusCode.Set */,
     value_format_id = excluded.value_format_id,
     value           = excluded.value,
     modified_at_utc = {{now}},

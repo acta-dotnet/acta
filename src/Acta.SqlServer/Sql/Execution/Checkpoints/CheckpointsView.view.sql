@@ -6,8 +6,8 @@ SELECT
     c.name AS checkpoint_name,
     {{decode:job-checkpoint-kind:c.kind_code}} AS kind,
     c.kind_code,
-    {{decode:job-checkpoint-state:c.state_code}} AS state,
-    c.state_code,
+    {{decode:job-checkpoint-status:c.status_code}} AS state,
+    c.status_code,
     c.due_at_utc,
     CASE c.value_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'

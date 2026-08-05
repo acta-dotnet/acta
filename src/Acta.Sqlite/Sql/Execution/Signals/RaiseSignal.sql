@@ -1,5 +1,5 @@
-INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, state_code, value_format_id, value, modified_at_utc, version)
-SELECT @p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStateCode.Set */, @p_value_format_id, @p_value,
+INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
+SELECT @p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStatusCode.Set */, @p_value_format_id, @p_value,
        {{now}}, 0
 WHERE EXISTS (
     SELECT 1 FROM {{schema}}.jobs j
@@ -7,7 +7,7 @@ WHERE EXISTS (
     WHERE j.id = @p_job_id AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
 )
 ON CONFLICT (job_id, kind_code, name) DO UPDATE
-    SET state_code      = 20 /* JobCheckpointStateCode.Set */,
+    SET status_code      = 20 /* JobCheckpointStatusCode.Set */,
         value_format_id = @p_value_format_id,
         value           = @p_value,
         modified_at_utc = {{now}},

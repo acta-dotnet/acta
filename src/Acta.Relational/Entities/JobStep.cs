@@ -12,7 +12,7 @@ namespace Acta.Relational.Entities;
 /// <remarks>
 /// The single row tracks the current retry state and the terminal result; per-attempt history is not
 /// retained here. Void steps (<c>Task</c>, not <c>Task&lt;TOut&gt;</c>) carry
-/// <c>ResultFormatId = 0</c> even on <c>Succeeded</c>, so <see cref="State"/> is the success indicator,
+/// <c>ResultFormatId = 0</c> even on <c>Succeeded</c>, so <see cref="Status"/> is the success indicator,
 /// not a Result-NULL inference. The step's effective retry policy is resolved live each attempt from
 /// the parent <c>[Job]</c> policy plus the per-step <c>configure</c> overrides, so this row carries
 /// no policy snapshot.
@@ -50,8 +50,8 @@ internal sealed class JobStep : IEntity<long>
     /// <summary>
     /// <c>Pending</c> while retrying; <c>Succeeded</c> / <c>Exhausted</c> on terminal. CHECK rejects 0.
     /// </summary>
-    [DbColumn("state_code")]
-    public JobStepStateCode State { get; set; }
+    [DbColumn("status_code")]
+    public JobStepStatusCode Status { get; set; }
 
     /// <summary>
     /// Step attempt ordinal across retries (1-based; incremented on each failure within budget).
@@ -103,7 +103,7 @@ internal sealed class JobStep : IEntity<long>
     public DateTime CreatedAtUtc { get; init; }
 
     /// <summary>
-    /// Last-write instant. Advances on every <see cref="State"/> transition or attempt update.
+    /// Last-write instant. Advances on every <see cref="Status"/> transition or attempt update.
     /// </summary>
     [DbColumn("modified_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
     public DateTime ModifiedAtUtc { get; set; }

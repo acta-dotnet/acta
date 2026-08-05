@@ -26,13 +26,13 @@ SELECT j.id, j.job_ref,
  WHERE j.id = @p_id;
 
 -- 2) Steps: every step slot for the Job, in creation order.
-SELECT s.name, s.state_code, s.attempt_number, s.next_retry_at_utc, s.reason_message
+SELECT s.name, s.status_code, s.attempt_number, s.next_retry_at_utc, s.reason_message
   FROM {{schema}}.steps s
  WHERE s.job_id = @p_id
  ORDER BY s.id;
 
 -- 3) Checkpoints: signal / timer / variable / progress / child-latch slots, ordered by kind then name.
-SELECT c.kind_code, c.name, c.state_code, c.due_at_utc
+SELECT c.kind_code, c.name, c.status_code, c.due_at_utc
   FROM {{schema}}.checkpoints c
  WHERE c.job_id = @p_id
  ORDER BY c.kind_code, c.name;

@@ -51,7 +51,7 @@ BEGIN
 
         IF @signal_suspend = 1
         BEGIN
-            SELECT @sig_state = state_code
+            SELECT @sig_state = status_code
               FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
              WHERE job_id = @p_id
                AND kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
@@ -59,7 +59,7 @@ BEGIN
         END
 
         SET @to_status = CASE
-            WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStateCode.Set */ THEN 10 /* JobStatusCode.Ready */
+            WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
             WHEN @signal_suspend = 1 THEN 20 /* JobStatusCode.Suspended */
             WHEN @rearm = 1 THEN 10 /* JobStatusCode.Ready */
             WHEN @handler = 1 THEN @p_handler_status_code
@@ -92,7 +92,7 @@ BEGIN
             SET @action = 1 /* CompleteExecutionAction.Completed */;
 
             SET @c_next = CASE
-                WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStateCode.Set */ THEN @now
+                WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN @now
                 WHEN @signal_suspend = 1 THEN NULL
                 WHEN @rearm = 1 THEN COALESCE(@p_reschedule_resume_at_utc, DATEADD(SECOND, @p_reschedule_delay_seconds, @now))
                 WHEN @handler = 1 THEN NULL
@@ -289,7 +289,7 @@ BEGIN
                 DECLARE @psig TINYINT, @pstatus TINYINT, @pns SMALLINT, @plineage BIGINT, @pdef INT, @ptenant INT, @pexec INT, @paudit TINYINT;
                 DECLARE @parent_ref UNIQUEIDENTIFIER;
 
-                SELECT @psig = state_code
+                SELECT @psig = status_code
                   FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
                  WHERE job_id = @parent_id AND kind_code = 50 /* JobCheckpointKindCode.ChildLatch */ AND name = @sig;
 
@@ -317,14 +317,14 @@ BEGIN
                     IF @psig IS NULL
                     BEGIN
                         INSERT INTO {{schema}}.checkpoints (
-                            job_id, kind_code, name, state_code, value_format_id, value,
+                            job_id, kind_code, name, status_code, value_format_id, value,
                             created_at_utc, modified_at_utc, version)
-                        VALUES (@parent_id, 50 /* JobCheckpointKindCode.ChildLatch */, @sig, 20 /* JobCheckpointStateCode.Set */, 1 /* JobPayloadFormat.Json */, @envelope_bytes, @now, @now, 0);
+                        VALUES (@parent_id, 50 /* JobCheckpointKindCode.ChildLatch */, @sig, 20 /* JobCheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, @envelope_bytes, @now, @now, 0);
                     END
                     ELSE
                     BEGIN
                         UPDATE {{schema}}.checkpoints
-                           SET state_code      = 20 /* JobCheckpointStateCode.Set */,
+                           SET status_code      = 20 /* JobCheckpointStatusCode.Set */,
                                value_format_id = 1 /* JobPayloadFormat.Json */,
                                value           = @envelope_bytes,
                                modified_at_utc = @now,

@@ -45,7 +45,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`JobAlertProfileCode`](#code-family-jobalertprofilecode) | `job-alert-profile` | `byte` | `Alerts` |
 | [`JobAuditLevelCode`](#code-family-jobauditlevelcode) | `job-audit-level` | `byte` | `Jobs` |
 | [`JobCheckpointKindCode`](#code-family-jobcheckpointkindcode) | `job-checkpoint-kind` | `byte` | `Execution` |
-| [`JobCheckpointStateCode`](#code-family-jobcheckpointstatecode) | `job-checkpoint-state` | `byte` | `Execution` |
+| [`JobCheckpointStatusCode`](#code-family-jobcheckpointstatuscode) | `job-checkpoint-status` | `byte` | `Execution` |
 | [`JobDefinitionStatusCode`](#code-family-jobdefinitionstatuscode) | `job-definition-status` | `byte` | `Definitions` |
 | [`JobEventCode`](#code-family-jobeventcode) | `event` | `byte` | `Events` |
 | [`JobEventReasonCode`](#code-family-jobeventreasoncode) | `job-event-reason` | `byte` | `Events` |
@@ -53,7 +53,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` | `Payloads` |
 | [`JobPriorityCode`](#code-family-jobprioritycode) | `priority` | `byte` | `Jobs` |
 | [`JobStatusCode`](#code-family-jobstatuscode) | `job-status` | `byte` | `Jobs` |
-| [`JobStepStateCode`](#code-family-jobstepstatecode) | `job-step-state` | `byte` | `Execution` |
+| [`JobStepStatusCode`](#code-family-jobstepstatuscode) | `job-step-status` | `byte` | `Execution` |
 | [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) | `job-tenant-requirement` | `byte` | `Jobs` |
 | [`LeaseKindCode`](#code-family-leasekindcode) | `lease-kind` | `byte` | `Execution` |
 | [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` | `Schedules` |
@@ -242,7 +242,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Progress` | 40 | `progress` | Progress slot; UPSERT, last-writer-wins, one per job. | Active |
 | `ChildLatch` | 50 | `child-latch` | Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal. | Active |
 
-#### `JobCheckpointStateCode` · `job-checkpoint-state` <a id="code-family-jobcheckpointstatecode"></a>
+#### `JobCheckpointStatusCode` · `job-checkpoint-status` <a id="code-family-jobcheckpointstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -250,7 +250,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
 | `Consumed` | 100 | `consumed` | Due instant reached; the replayed handler consumed the timer and proceeded. | Active |
 
-#### `JobStepStateCode` · `job-step-state` <a id="code-family-jobstepstatecode"></a>
+#### `JobStepStatusCode` · `job-step-status` <a id="code-family-jobstepstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|

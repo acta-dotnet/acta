@@ -145,7 +145,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, state_code, value_format_id, value) "
+                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value) "
                     + "VALUES (@p_job_id, @p_kind, @p_name, NULL, @p_format, @p_value)",
                 ct,
                 ("@p_job_id", enq.JobId),
@@ -172,7 +172,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         // issue ActaTestSeeder.SeedJobAsync sidesteps for jobs.input).
         Task<int> InsertStepAsync(string name, short attemptNumber) =>
             Db.ExecuteRawAsync(
-                "INSERT INTO {schema}.steps (job_id, name, state_code, attempt_number, result_format_id) VALUES (@p_job_id, @p_name, 10, @p_attempt, 0)",
+                "INSERT INTO {schema}.steps (job_id, name, status_code, attempt_number, result_format_id) VALUES (@p_job_id, @p_name, 10, @p_attempt, 0)",
                 ct,
                 ("@p_job_id", enq.JobId),
                 ("@p_name", name),

@@ -32,7 +32,7 @@ BEGIN
         IF @p_succeeded = 1
         BEGIN
             UPDATE {{schema}}.steps
-               SET state_code        = 100 /* JobStepStateCode.Succeeded */,
+               SET status_code        = 100 /* JobStepStatusCode.Succeeded */,
                    result_format_id  = @p_result_format_id,
                    result            = @p_result,
                    next_retry_at_utc = NULL,
@@ -55,7 +55,7 @@ BEGIN
                    AND @next > DATEADD(SECOND, @p_retry_window_seconds, @created))
             BEGIN
                 UPDATE {{schema}}.steps
-                   SET state_code        = 200 /* JobStepStateCode.Exhausted */,
+                   SET status_code        = 200 /* JobStepStatusCode.Exhausted */,
                        next_retry_at_utc = NULL,
                        reason_code       = @p_reason_code,
                        reason_message    = @p_reason_message,

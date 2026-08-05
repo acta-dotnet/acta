@@ -1,12 +1,12 @@
 UPDATE {{schema}}.steps
-   SET state_code = CASE
-           WHEN @p_succeeded THEN 100 /* JobStepStateCode.Succeeded */
+   SET status_code = CASE
+           WHEN @p_succeeded THEN 100 /* JobStepStatusCode.Succeeded */
            WHEN (attempt_number >= @p_max_attempts)
                 OR (@p_retry_window_seconds IS NOT NULL
                     AND {{now}} + (@p_delay_seconds) * 1000
                         > created_at_utc + (@p_retry_window_seconds) * 1000)
-                THEN 200 /* JobStepStateCode.Exhausted */
-           ELSE state_code
+                THEN 200 /* JobStepStatusCode.Exhausted */
+           ELSE status_code
        END,
        result_format_id = CASE WHEN @p_succeeded THEN @p_result_format_id ELSE result_format_id END,
        result = CASE WHEN @p_succeeded THEN @p_result ELSE result END,
@@ -28,12 +28,12 @@ UPDATE {{schema}}.steps
 SELECT
     CASE
         WHEN changes() = 0 THEN 4 /* CompleteStepOutcomeCode.StaleVersion */
-        WHEN a.state_code = 100 /* JobStepStateCode.Succeeded */ THEN 1 /* CompleteStepOutcomeCode.Succeeded */
-        WHEN a.state_code = 200 /* JobStepStateCode.Exhausted */ THEN 3 /* CompleteStepOutcomeCode.Exhausted */
+        WHEN a.status_code = 100 /* JobStepStatusCode.Succeeded */ THEN 1 /* CompleteStepOutcomeCode.Succeeded */
+        WHEN a.status_code = 200 /* JobStepStatusCode.Exhausted */ THEN 3 /* CompleteStepOutcomeCode.Exhausted */
         ELSE 2 /* CompleteStepOutcomeCode.RetryScheduled */
     END AS outcome_code,
     CASE
-        WHEN changes() > 0 AND a.state_code = 10 /* JobStepStateCode.Pending */
+        WHEN changes() > 0 AND a.status_code = 10 /* JobStepStatusCode.Pending */
         THEN a.next_retry_at_utc ELSE NULL
     END AS next_retry_at_utc
 FROM (SELECT 1) one

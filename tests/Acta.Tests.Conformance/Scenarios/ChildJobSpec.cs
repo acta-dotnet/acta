@@ -60,7 +60,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         Assert.Equal(JobStatusCode.Ready, released.Status);
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal($"sys.child.{child.Id}", latch.Name);
-        Assert.Equal(JobCheckpointStateCode.Set, latch.State);
+        Assert.Equal(JobCheckpointStatusCode.Set, latch.Status);
         Assert.Equal(1, await CountEventsAsync(parent.JobId, JobEventCode.JobSignalRaised, ct));
         Assert.Equal(1, await CountEventsAsync(parent.JobId, JobEventCode.JobResumed, ct));
 
@@ -282,7 +282,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(child.Id, ct)).Status);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.Equal(JobCheckpointStateCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).State);
+        Assert.Equal(JobCheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);
     }
 
     [Fact(DisplayName = "The maintenance sweep re-raises a stale latch lost to a crash and releases the parent")]

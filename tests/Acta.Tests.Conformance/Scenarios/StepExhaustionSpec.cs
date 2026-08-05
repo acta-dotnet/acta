@@ -144,7 +144,7 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStateCode.Exhausted, step.State);
+        Assert.Equal(JobStepStatusCode.Exhausted, step.Status);
         // attempt_number=1: far below MaxAttempts=100, proving window fired, not attempt-count.
         Assert.Equal((short)1, step.AttemptNumber);
         Assert.Null(step.NextRetryAtUtc);
@@ -164,7 +164,7 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
         // Tick 1: step attempt 1 → body fails (invocations=1) → step Pending → parent re-arms (budget neutral).
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStepStateCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().State);
+        Assert.Equal(JobStepStatusCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(1, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
         // Tick 2: step attempt 2 → body fails (invocations=2) → step Exhausted →
@@ -172,7 +172,7 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var stepAfterExhaust = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStateCode.Exhausted, stepAfterExhaust.State);
+        Assert.Equal(JobStepStatusCode.Exhausted, stepAfterExhaust.Status);
         Assert.Equal((short)2, stepAfterExhaust.AttemptNumber);
         Assert.Null(stepAfterExhaust.NextRetryAtUtc);
         // Body ran exactly twice: once per in-budget attempt.
@@ -191,7 +191,7 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
         // Step row is still Exhausted, unchanged by the re-entry (StartStep is read-only on Exhausted slots).
         var stepAfterReentry = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStateCode.Exhausted, stepAfterReentry.State);
+        Assert.Equal(JobStepStatusCode.Exhausted, stepAfterReentry.Status);
         Assert.Equal((short)2, stepAfterReentry.AttemptNumber);
         Assert.Null(stepAfterReentry.NextRetryAtUtc);
 

@@ -74,7 +74,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(JobStatusCode.Succeeded, x!.Status);
         var step = Assert.Single(x.Steps);
         Assert.Equal("compute", step.Name);
-        Assert.Equal(JobStepStateCode.Succeeded, step.State);
+        Assert.Equal(JobStepStatusCode.Succeeded, step.Status);
         Assert.Contains("will not rerun", step.Explanation);
     }
 }

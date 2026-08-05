@@ -93,14 +93,14 @@ internal sealed record ExplainHeaderRow(
 /// <summary>One <c>steps</c> row for the explain read, in SELECT order.</summary>
 internal sealed record ExplainStepRow(
     string Name,
-    JobStepStateCode State,
+    JobStepStatusCode Status,
     short AttemptNumber,
     DateTime? NextRetryAtUtc,
     string? ReasonMessage
 );
 
 /// <summary>One <c>checkpoints</c> row for the explain read (signal / timer / variable / progress / child-latch), in SELECT order.</summary>
-internal sealed record ExplainCheckpointRow(JobCheckpointKindCode Kind, string Name, JobCheckpointStateCode? State, DateTime? DueAtUtc);
+internal sealed record ExplainCheckpointRow(JobCheckpointKindCode Kind, string Name, JobCheckpointStatusCode? Status, DateTime? DueAtUtc);
 
 /// <summary>The three consistent result sets the explain read returns for one Job.</summary>
 internal sealed record JobExplainData(
@@ -125,7 +125,7 @@ internal sealed record LineageJobRow(
 );
 
 /// <summary>One <c>steps</c> row of the focused Job for the lineage read, in SELECT order.</summary>
-internal sealed record LineageStepRow(string Name, JobStepStateCode State);
+internal sealed record LineageStepRow(string Name, JobStepStatusCode Status);
 
 /// <summary>One direct child of the focused Job for the lineage read, in SELECT order.</summary>
 internal sealed record LineageChildRow(
@@ -167,7 +167,7 @@ internal sealed record JobInputRow(byte FormatId, byte[]? Input)
 internal sealed record JobCheckpointReadRow(
     JobCheckpointKindCode Kind,
     string Name,
-    JobCheckpointStateCode? State,
+    JobCheckpointStatusCode? Status,
     DateTime? DueAtUtc,
     byte ValueFormatId,
     byte[]? Value,
@@ -179,7 +179,7 @@ internal sealed record JobCheckpointReadRow(
         new(
             Kind,
             Name,
-            State,
+            Status,
             DueAtUtc,
             ValueFormatId == 0 ? null : JobPayload.FromBytes(JobPayloadFormat.ForId(ValueFormatId), Value ?? []),
             CreatedAtUtc,

@@ -125,7 +125,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         // Step row: Pending at attempt 1, next_retry_at_utc set to a future instant.
         var step1 = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepName, step1.Name);
-        Assert.Equal(JobStepStateCode.Pending, step1.State);
+        Assert.Equal(JobStepStatusCode.Pending, step1.Status);
         Assert.Equal((short)1, step1.AttemptNumber);
         Assert.NotNull(step1.NextRetryAtUtc);
         var retryInstant = step1.NextRetryAtUtc!.Value;
@@ -176,7 +176,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
 
         // Step: Succeeded at attempt 2, no pending retry.
         var step3 = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStateCode.Succeeded, step3.State);
+        Assert.Equal(JobStepStatusCode.Succeeded, step3.Status);
         Assert.Equal((short)2, step3.AttemptNumber);
         Assert.Null(step3.NextRetryAtUtc);
 

@@ -16,24 +16,24 @@ DECLARE
     v_fmt   SMALLINT;
     v_val   BYTEA;
 BEGIN
-    SELECT js.state_code, js.value_format_id, js.value
+    SELECT js.status_code, js.value_format_id, js.value
       INTO v_state, v_fmt, v_val
       FROM {{schema}}.checkpoints js
      WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
        FOR UPDATE;
 
-    IF v_state = 20 /* JobCheckpointStateCode.Set */ THEN
+    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
             2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
     ELSE
         INSERT INTO {{schema}}.checkpoints (
-            job_id, kind_code, name, state_code, value_format_id,
+            job_id, kind_code, name, status_code, value_format_id,
             value, created_at_utc, modified_at_utc, version)
         VALUES (
             p_job_id, p_kind_code, p_name,
-            10 /* JobCheckpointStateCode.Pending */,
+            10 /* JobCheckpointStatusCode.Pending */,
             0 /* JobPayloadFormat.None */,
             NULL, v_now, v_now, 0)
         ON CONFLICT (job_id, kind_code, name) DO NOTHING;

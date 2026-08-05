@@ -242,7 +242,7 @@ public static class ActaTestHost
 
         public async Task ForceTimerDueAsync(long jobId, string? name = null, CancellationToken ct = default)
         {
-            var timer = await FindCheckpointAsync(jobId, JobCheckpointKindCode.Timer, JobCheckpointStateCode.Pending, name, ct);
+            var timer = await FindCheckpointAsync(jobId, JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Pending, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<JobCheckpoint>()
                 .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer && c.Name == timer.Name)
@@ -259,7 +259,7 @@ public static class ActaTestHost
 
         public async Task ForceStepRetryDueAsync(long jobId, string? name = null, CancellationToken ct = default)
         {
-            var steps = await Db.From<JobStep>().Where(s => s.JobId == jobId && s.State == JobStepStateCode.Pending).ToListAsync(ct);
+            var steps = await Db.From<JobStep>().Where(s => s.JobId == jobId && s.Status == JobStepStatusCode.Pending).ToListAsync(ct);
             var candidates = steps.Where(s => s.NextRetryAtUtc is not null);
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -321,7 +321,7 @@ public static class ActaTestHost
         private async Task<JobCheckpoint> FindCheckpointAsync(
             long jobId,
             JobCheckpointKindCode kind,
-            JobCheckpointStateCode state,
+            JobCheckpointStatusCode state,
             string? name,
             CancellationToken ct
         )
@@ -332,7 +332,7 @@ public static class ActaTestHost
             }
 
             var checkpoints = await Db.From<JobCheckpoint>()
-                .Where(c => c.JobId == jobId && c.Kind == kind && c.State == state)
+                .Where(c => c.JobId == jobId && c.Kind == kind && c.Status == state)
                 .ToListAsync(ct);
             var candidates = checkpoints.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(name))

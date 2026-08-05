@@ -9,9 +9,9 @@ namespace Acta;
 /// <c>AtMostOnce</c> step re-entered before completion; parent receives <c>StepInterruptedException</c>). One row per
 /// <c>(JobId, Name)</c>; the framework never INSERTs a second step row for the same slot.
 /// </summary>
-[JsonConverter(typeof(JobStepStateCodeJsonConverter))]
-[CodeKind("job-step-state")]
-public enum JobStepStateCode : byte
+[JsonConverter(typeof(JobStepStatusCodeJsonConverter))]
+[CodeKind("job-step-status")]
+public enum JobStepStatusCode : byte
 {
     /// <summary>First invocation INSERTed or retrying. <c>AttemptNumber</c> is 1 or more; <c>Result</c>
     /// is NULL. On failure within budget the row stays here with <c>AttemptNumber++</c>,
@@ -43,8 +43,8 @@ public enum JobStepStateCode : byte
 
 public static partial class JobStepStateExtensions
 {
-    extension(JobStepStateCode value)
+    extension(JobStepStatusCode value)
     {
-        public bool IsTerminal => value is JobStepStateCode.Succeeded or JobStepStateCode.Exhausted or JobStepStateCode.Interrupted;
+        public bool IsTerminal => value is JobStepStatusCode.Succeeded or JobStepStatusCode.Exhausted or JobStepStatusCode.Interrupted;
     }
 }
