@@ -5,6 +5,20 @@
 
 ## Admin
 
+### A setting is set and read back by name at its inferred scope
+- **Contract:** Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting.
+- **Arrange:** A unique setting name, the test namespace, and one registered definition.
+- **Act:** The setting is set and read at global, namespace, and definition scope, twice at one scope, and against an unknown namespace.
+- **Assert:** Scopes address distinct rows, rewrites bump the version, unknown targets are NotFound, and each set emits its event.
+- **Guarantees:**
+  - Set creates then overwrites with a version bump; get returns the latest value
+  - One name addresses distinct rows at global, namespace, and definition scope
+  - An unregistered namespace or definition target is NotFound and writes nothing
+  - Every set emits setting.updated whose detail carries the setting name
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Settings.ISettingStore.GetSettingAsync`
+  - `Acta.Runtime.Modules.Execution.Settings.ISettingStore.SetSettingAsync`
+
 ### Namespace suspend/resume flip status, emit one 15xx event, and reject sys
 - **Contract:** Suspend and resume flip namespace status with a version bump, emit namespace.suspended/resumed to the namespace, and reject sys at the facade.
 - **Arrange:** The worker registers the test namespace.
@@ -2198,6 +2212,8 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IScheduleStore.ResumeScheduleAsync` | Operator pause and resume control a schedule and recompute the owning slot |
 | `IScheduleStore.SetScheduleOverridesAsync` | Operator sets a CAS-guarded full-set schedule expression/time-zone override |
 | `IScheduleStore.TriggerScheduleNowAsync` | Operator manually fires a schedule now without disturbing its cadence |
+| `ISettingStore.GetSettingAsync` | A setting is set and read back by name at its inferred scope |
+| `ISettingStore.SetSettingAsync` | A setting is set and read back by name at its inferred scope |
 | `ISignalStore.RaiseSignalAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
 | `ISignalStore.WaitSignalAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
 | `ITenantStore.GetTenantAsync` | GetTenant returns the tenant for a known key or id and null for an unknown one |
@@ -2291,6 +2307,8 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Schedules/SchedulesView` | yes | yes | yes |
 | `Execution/Schedules/SetScheduleOverrides` | yes | yes | yes |
 | `Execution/Schedules/TriggerScheduleNow` | yes | yes | yes |
+| `Execution/Settings/GetSetting` | yes | yes | yes |
+| `Execution/Settings/SetSetting` | yes | yes | yes |
 | `Execution/Signals/RaiseSignal` | yes | yes | yes |
 | `Execution/Signals/WaitSignal` | yes | yes | yes |
 | `Execution/StartExecution` | yes | yes | yes |

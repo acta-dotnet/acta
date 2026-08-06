@@ -189,6 +189,7 @@ internal static class TestDashboardHost
         public FakeTags TagsFake { get; } = new();
 
         public ITags Tags => TagsFake;
+        public ISettings Settings => throw new NotSupportedException();
 
         public ILedger Ledger => this;
 

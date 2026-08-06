@@ -29,6 +29,9 @@ public interface IActaOperations
     /// <summary>Exact searchable metadata attachments. See <see cref="ITags"/>.</summary>
     ITags Tags { get; }
 
+    /// <summary>Durable settings domain (get/set). See <see cref="ISettings"/>.</summary>
+    ISettings Settings { get; }
+
     /// <summary>Cross-resource ledger reads (job list, audit trail, overview). See <see cref="ILedger"/>.</summary>
     ILedger Ledger { get; }
 

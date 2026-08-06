@@ -15,6 +15,9 @@ internal static class CatalogValidation
         ValidateLength(description, CatalogLimits.NamespaceDescription, nameof(description));
     }
 
+    public static void ValidateSetting(string? description) =>
+        ValidateLength(description, CatalogLimits.SettingDescription, nameof(description));
+
     private static void ValidateLength(string? value, int maxLength, string paramName)
     {
         if (value is { Length: var length } && length > maxLength)

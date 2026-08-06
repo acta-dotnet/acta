@@ -478,7 +478,7 @@ One named recurring schedule attached to a definition's slot Job. The `Origin` r
 
 ### `acta.settings` <a id="entity-acta-settings"></a>
 
-One durable configuration value in the central `settings` table, addressed by `(scope_code, scope_id, name)`. Holds slow-changing operator/deployment configuration only, never fast-changing runtime state (that lives on substrate tables). Not read on any hot path yet; consumers resolve a setting by scope and fall back (definition, then namespace, then global) at point of use.
+One durable configuration value in the central `settings` table, addressed by `(scope_code, scope_id, name)`. Holds slow-changing operator/deployment configuration only, never fast-changing runtime state (that lives on substrate tables). Not read on any hot path yet; consumers resolve a setting by scope and fall back (definition, then namespace, then global) at point of use. Boundary rules: a value an operator filters by is a tag; a value the engine reads per-claim or per-execution, or that must appear on the definition views, is a policy column (settings are forbidden on the hot path); a behavior knob read cold by name at a scope is a setting.
 
 **CLR type** `Acta.Relational.Entities.Setting` · **Primary key** `pk_settings` (`id`)
 

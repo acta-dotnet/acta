@@ -6,6 +6,7 @@ using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Runtime.Modules.Execution.Namespaces;
 using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Settings;
 using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Runtime.Modules.Execution.Tenants;
 using Acta.Runtime.Modules.Execution.Workers;
@@ -33,6 +34,7 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IDefinitionStore, RelationalDefinitionStore>();
         services.AddSingleton<INamespaceStore, RelationalNamespaceStore>();
         services.AddSingleton<ITenantStore, RelationalTenantStore>();
+        services.AddSingleton<ISettingStore, RelationalSettingStore>();
         services.AddSingleton<IJobStore, RelationalJobStore>();
         services.AddSingleton<ITagStore, RelationalTagStore>();
         services.AddSingleton<ISignalStore, RelationalSignalStore>();
