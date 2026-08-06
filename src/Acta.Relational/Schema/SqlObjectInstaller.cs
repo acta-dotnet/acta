@@ -68,22 +68,31 @@ internal static class SqlObjectInstaller
     {
         foreach (var (name, body) in sql.Views())
         {
-            var select = body.Trim();
-            var qualifiedName = $"{schemaName}.{name}";
-
-            switch (dialectToken)
+            foreach (var statement in WrapView(dialectToken, $"{schemaName}.{name}", body.Trim()))
             {
-                case "mssql":
-                    yield return (qualifiedName, $"CREATE OR ALTER VIEW {qualifiedName} AS\n{select}");
-                    break;
-                case "pg":
-                case "sqlite":
-                    yield return (null, $"DROP VIEW IF EXISTS {qualifiedName};");
-                    yield return (qualifiedName, $"CREATE VIEW {qualifiedName} AS\n{select};");
-                    break;
-                default:
-                    throw new InvalidOperationException($"Operator views are not mapped for dialect '{dialectToken}'.");
+                yield return statement;
             }
+        }
+    }
+
+    /// <summary>
+    /// The per-dialect install statements for one operator view. Also used by the provision-script
+    /// emitter, so the published scripts install views exactly as the bootstrap does.
+    /// </summary>
+    internal static IEnumerable<(string? QualifiedName, string Body)> WrapView(string dialectToken, string qualifiedName, string select)
+    {
+        switch (dialectToken)
+        {
+            case "mssql":
+                yield return (qualifiedName, $"CREATE OR ALTER VIEW {qualifiedName} AS\n{select}");
+                break;
+            case "pg":
+            case "sqlite":
+                yield return (null, $"DROP VIEW IF EXISTS {qualifiedName};");
+                yield return (qualifiedName, $"CREATE VIEW {qualifiedName} AS\n{select};");
+                break;
+            default:
+                throw new InvalidOperationException($"Operator views are not mapped for dialect '{dialectToken}'.");
         }
     }
 
