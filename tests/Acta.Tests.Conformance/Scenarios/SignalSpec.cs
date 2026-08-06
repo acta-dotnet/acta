@@ -28,16 +28,19 @@ namespace Acta.Tests.Conformance.Scenarios;
 public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    // The wake-on-raise fact runs the real loop: a long safety poll + no system recurring slots
-    // make a fast pickup attributable to the raise's wakeup publish alone. The RunOnce-driven facts
-    // are unaffected by either setting.
+    private WakeupParkProbe _wakeup = null!;
+
+    // The wake-on-raise fact runs the real loop: a minute-long safety poll + no system recurring slots
+    // make a pickup attributable to the raise's wakeup publish alone, and the probe reports when the
+    // loop has parked in that sleep. The RunOnce-driven facts are unaffected by any of it.
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         base.ConfigureServices(services, testNamespace);
+        _wakeup = services.AddWakeupParkProbe();
         services.Configure<JobsOptions>(o =>
         {
             o.RegisterFrameworkJobs = false;
-            o.SafetyPollInterval = TimeSpan.FromSeconds(20);
+            o.SafetyPollInterval = TimeSpan.FromMinutes(1);
         });
     }
 
@@ -49,31 +52,35 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
-        // Start the loop on a namespace with no Ready rows: its first empty claim sees a null
-        // horizon and commits to the full 20s safety sleep.
+        // Start the loop on a namespace with no Ready rows: its first empty claim sees a null horizon
+        // and commits to the full 1m safety sleep. Waiting for the park rather than sleeping a fixed
+        // warm-up is what makes the raise the only possible cause: a first claim still in flight would
+        // have claimed the released row itself.
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);
-        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        await _wakeup.Parked.WaitAsync(TimeSpan.FromSeconds(30), ct);
 
-        var raisedAt = System.Diagnostics.Stopwatch.GetTimestamp();
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
         Assert.Equal(JobControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(8);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
         while (DateTime.UtcNow < deadline && (await ReadJobAsync(enqueued.JobId, ct)).Status != JobStatusCode.Succeeded)
         {
             await Task.Delay(50, ct);
         }
-        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(raisedAt);
 
         await loopCts.CancelAsync();
         await loop;
 
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        // Far inside the 20s safety sleep the loop was committed to - only the raise's wakeup
-        // publish can have interrupted it.
-        Assert.True(elapsed < TimeSpan.FromSeconds(8), $"Released job ran after {elapsed}: the raise did not wake the idle loop.");
+        // The loop is stopped ~50s inside the safety sleep it committed to, so the poll cadence cannot
+        // have reached this job: only the raise's wakeup publish can have interrupted the sleep. The
+        // status is the whole fact, so a slow claim or read costs latency here, never a false failure.
+        var final = (await ReadJobAsync(enqueued.JobId, ct)).Status;
+        Assert.True(
+            final == JobStatusCode.Succeeded,
+            $"The released job was {final} when the loop stopped well inside its safety sleep: the raise did not wake the idle loop."
+        );
     }
 
     [Fact(DisplayName = "Wait lands Suspended with a Pending slot and no NextRunAtUtc")]
