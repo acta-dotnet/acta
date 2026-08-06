@@ -12,13 +12,15 @@ SELECT TOP (@p_take)
        r.status_code, r.priority_code, j.created_at_utc, r.modified_at_utc,
        r.next_run_at_utc, r.execution_number, r.failure_count,
        j.job_ref, pjob.job_ref AS parent_job_ref, rjob.job_ref AS lineage_root_job_ref,
-       j.tenant_id
+       j.tenant_id,
+       t.tenant_key
   FROM {{schema}}.jobs j
   JOIN {{schema}}.runtimes r ON r.job_id = j.id
   JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
   JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
   LEFT JOIN {{schema}}.jobs pjob ON pjob.id = j.parent_id
   LEFT JOIN {{schema}}.jobs rjob ON rjob.id = j.lineage_root_id
+  LEFT JOIN {{schema}}.tenants t ON t.id = j.tenant_id
  WHERE (@p_namespace_name IS NULL OR j.namespace_id = @ns_id)
    AND (@p_status_code IS NULL OR r.status_code = @p_status_code)
    AND (@p_job_name IS NULL OR jd.name = @p_job_name)

@@ -75,6 +75,7 @@ internal static class TestDashboardHost
             JobNamespace: "billing",
             JobName: "send-invoice",
             TenantId: null,
+            TenantKey: null,
             ParentJobId: null,
             ParentJobRef: null,
             LineageRootId: null,
