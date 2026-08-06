@@ -158,4 +158,11 @@ public enum JobEventCode : byte
 
     [Code("alert.resolved", "Operator manually resolved an alert; ReasonMessage carries the alert id and note.")]
     AlertResolved = 141,
+
+    // ---------- Settings ----------
+    // No job columns; Detail carries {"name": ...} identifying the setting, since events has no
+    // setting column. Always emitted: settings writes are low-volume operator/deployment activity.
+
+    [Code("setting.updated", "A durable setting was written (created or overwritten); Detail carries the setting name.")]
+    SettingUpdated = 160,
 }

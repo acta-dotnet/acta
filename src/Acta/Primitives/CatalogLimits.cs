@@ -7,4 +7,6 @@ public static class CatalogLimits
     public const int TenantDescription = 512;
     public const int NamespaceOwnerTeam = 512;
     public const int NamespaceDescription = 512;
+    public const int SettingName = 128;
+    public const int SettingDescription = 512;
 }

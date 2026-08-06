@@ -20,6 +20,7 @@ internal sealed class OperationsApi(
     ITenants tenants,
     INamespaces namespaces,
     ITags tags,
+    ISettings settings,
     OverviewService overview,
     IExecutionQueries executionQueries,
     EventsService events
@@ -32,6 +33,7 @@ internal sealed class OperationsApi(
     public ITenants Tenants => tenants;
     public INamespaces Namespaces => namespaces;
     public ITags Tags => tags;
+    public ISettings Settings => settings;
 
     public ILedger Ledger { get; } = new LedgerApi(overview, executionQueries, events);
 

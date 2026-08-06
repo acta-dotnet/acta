@@ -8,6 +8,9 @@ namespace Acta.Relational.Entities;
 /// never fast-changing runtime state (that lives on substrate tables).
 /// Not read on any hot path yet; consumers resolve a setting by scope and fall back
 /// (definition, then namespace, then global) at point of use.
+/// Boundary rules: a value an operator filters by is a tag; a value the engine reads per-claim or
+/// per-execution, or that must appear on the definition views, is a policy column (settings are
+/// forbidden on the hot path); a behavior knob read cold by name at a scope is a setting.
 /// </summary>
 [DbTable("settings")]
 [DbPrimaryKey(Name = "pk_settings", Columns = ["id"])]

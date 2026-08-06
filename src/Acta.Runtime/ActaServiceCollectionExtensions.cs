@@ -10,6 +10,7 @@ using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Runtime.Modules.Execution.Namespaces;
 using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime.Modules.Execution.Settings;
 using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Runtime.Modules.Execution.Tenants;
 using Acta.Runtime.Modules.Execution.Workers;
@@ -112,6 +113,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ITenants, TenantsApi>();
         services.TryAddSingleton<INamespaces, NamespacesApi>();
         services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
+        services.TryAddSingleton<SettingsService>();
+        services.TryAddSingleton<ISettings, SettingsApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
 
         // Process-wide Acta meter. One singleton owns the instruments; every worker runtime emits

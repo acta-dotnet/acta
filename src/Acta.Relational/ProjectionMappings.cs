@@ -44,6 +44,7 @@
     typeof(global::Acta.Runtime.Kernel.AdminControlOutcome),
     typeof(global::Acta.Runtime.Modules.Execution.Signals.SignalWaitDecision),
     typeof(global::Acta.Runtime.Modules.Execution.Tenants.TenantListRow),
+    typeof(global::Acta.Runtime.Modules.Execution.Settings.SettingRow),
     typeof(global::Acta.Runtime.Modules.Execution.Workers.JobWorkerListRow),
     typeof(global::Acta.Runtime.Modules.Execution.Workers.StartWorkerRow)
 )]

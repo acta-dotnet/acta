@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **31 families**, **164 values**.
+This release: **31 families**, **165 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -182,6 +182,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `WorkerDead` | 122 | `worker.dead` | Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead. | Active |
 | `AlertAcknowledged` | 140 | `alert.acknowledged` | Operator acknowledged an alert; ReasonMessage carries the alert id and note. | Active |
 | `AlertResolved` | 141 | `alert.resolved` | Operator manually resolved an alert; ReasonMessage carries the alert id and note. | Active |
+| `SettingUpdated` | 160 | `setting.updated` | A durable setting was written (created or overwritten); Detail carries the setting name. | Active |
 
 **Reserved ranges**
 
