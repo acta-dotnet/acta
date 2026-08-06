@@ -38,6 +38,30 @@ else {
     }
 }
 
+# Metadata gate: every packed nupkg must carry the shared NuGet metadata and a MinVer tag-derived
+# version. This is the durable form of the releasing.md "NuGet metadata checked" line.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+foreach ($package in Get-ChildItem $feed -Filter '*.nupkg') {
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+    try {
+        $entries = $zip.Entries | ForEach-Object { $_.FullName }
+        $nuspecEntry = $zip.Entries | Where-Object { $_.FullName -match '^[^/]+\.nuspec$' }
+        $reader = New-Object System.IO.StreamReader($nuspecEntry.Open())
+        try { [xml]$nuspec = $reader.ReadToEnd() } finally { $reader.Dispose() }
+        $meta = $nuspec.package.metadata
+
+        $failures = @()
+        if (-not $meta.description) { $failures += 'missing description' }
+        if ($meta.license.'#text' -ne 'Apache-2.0') { $failures += "license '$($meta.license.'#text')' is not Apache-2.0" }
+        if ($meta.repository.url -ne 'https://github.com/acta-dotnet/acta') { $failures += "repository url '$($meta.repository.url)'" }
+        if (-not $meta.readme -or $entries -notcontains $meta.readme) { $failures += 'readme not declared or not packed' }
+        if ($meta.version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { $failures += "version '$($meta.version)' is not a MinVer semver" }
+        if ($failures) { throw "package metadata failed for $($package.Name): $($failures -join '; ')" }
+    }
+    finally { $zip.Dispose() }
+}
+Write-Host "PackageSmoke: metadata verified for $((Get-ChildItem $feed -Filter '*.nupkg').Count) packages"
+
 # A private packages folder for the consumer only: the freshly packed version must never be shadowed
 # by an immutable copy in the user/machine global cache (NUGET_PACKAGES outranks nuget.config).
 $savedPackagesFolder = $env:NUGET_PACKAGES

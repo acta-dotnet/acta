@@ -25,10 +25,19 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 
 ## Packaging
 
-- Package smoke.
-- Native AOT guardrail when enabled.
-- Version/tag checked.
-- NuGet metadata checked.
+Each line names the evidence that asserts it; none is checked by hand.
+
+- Package smoke: the `pack-smoke` CI job packs the shippable libraries and runs
+  `tests/PackageSmoke/run.ps1` against those artifacts on every push, so each provider package is
+  consume-proven self-contained (runtime, `[Job]` generator, analyzers) with no project references.
+- Native AOT guardrail: the `aot-publish` CI job runs `NativeAotPublishTests`
+  (`dotnet publish -p:PublishAot=true` on anvil/Anvil, asserting a clean native compile).
+- Version/tag: MinVer derives the packed version from the `v*` tag itself, and `publish-nuget`
+  pushes the `packages` artifact produced by that same tag run, so the published version cannot
+  disagree with the tag. `run.ps1` additionally rejects a non-semver version string.
+- NuGet metadata: the metadata gate in `tests/PackageSmoke/run.ps1` opens every packed nupkg and
+  asserts description, Apache-2.0 license expression, repository URL, a packed readme, and a
+  MinVer-shaped version.
 
 ## Docs and release notes
 
