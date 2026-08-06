@@ -1,8 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// One global setting row as read through <see cref="ISettings.GetAsync"/>: the name-addressed
-/// value with its operator description and concurrency version.
+/// One setting row as read through <see cref="ISettings.GetAsync"/> at its exact scope (global,
+/// namespace, or definition): the name-addressed value with its operator description and
+/// concurrency version.
 /// </summary>
 /// <param name="Name">The lowercase dotted-kebab setting name (for example <c>billing.retry-budget</c>).</param>
 /// <param name="Value">The stored value decoded as text; null when the row carries no body.</param>

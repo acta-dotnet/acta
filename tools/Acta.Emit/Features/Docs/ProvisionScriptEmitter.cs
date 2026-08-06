@@ -56,6 +56,10 @@ internal static class ProvisionScriptEmitter
             {
                 throw new InvalidOperationException("Provision scripts never include outbox source-catalog templates.");
             }
+            if (!string.Equals(token, "sqlite", StringComparison.Ordinal) && sql.Contains("{{now}}", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("The {{now}} token is the SQLite instant encoding; other dialects use native now().");
+            }
             return CodeDecodeSql.RenderDecodeTokens(
                 sql.Replace("{{schema}}", schema).Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)")
             );
@@ -82,13 +86,8 @@ internal static class ProvisionScriptEmitter
             {
                 throw new InvalidOperationException($"Provider view '{name}' must install as a plural '_view' name.");
             }
-            var qualified = $"{schema}.{name}";
-            var select = Render(body).Trim();
-            Append(
-                mssql
-                    ? $"CREATE OR ALTER VIEW {qualified} AS\n{select}"
-                    : $"DROP VIEW IF EXISTS {qualified};\nCREATE VIEW {qualified} AS\n{select};"
-            );
+            var statements = SqlObjectInstaller.WrapView(token, $"{schema}.{name}", Render(body).Trim());
+            Append(string.Join("\n", statements.Select(s => s.Body)));
         }
         foreach (var (_, body) in SqlObjects(providerDir, ".routine.sql"))
         {

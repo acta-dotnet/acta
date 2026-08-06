@@ -12,7 +12,8 @@ namespace Acta;
 /// </summary>
 public interface ISettings
 {
-    /// <summary>Point-read one setting by name at the inferred scope; null when it has never been written.</summary>
+    /// <summary>Point-read one setting by name at the inferred scope; null when it has never been
+    /// written. An unregistered scope target also reads as null: reads never report NotFound.</summary>
     ValueTask<SettingSnapshot?> GetAsync(string name, string? namespaceName = null, string? jobName = null, CancellationToken ct = default);
 
     /// <summary>

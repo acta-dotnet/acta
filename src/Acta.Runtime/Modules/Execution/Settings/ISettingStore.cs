@@ -6,7 +6,8 @@ namespace Acta.Runtime.Modules.Execution.Settings;
 /// <summary>Persistence port for the settings feature: one exact-scope point read, one upsert write.</summary>
 internal interface ISettingStore
 {
-    /// <summary>Point-reads one setting by name at the lookup's exact scope; null when it does not exist.</summary>
+    /// <summary>Point-reads one setting by name at the lookup's exact scope; null when it does not
+    /// exist, including when the scope target itself is unregistered.</summary>
     Task<SettingRow?> GetSettingAsync(SettingPointLookup lookup, CancellationToken ct);
 
     /// <summary>Writes one setting at the command's scope (insert when absent, overwrite when present;
