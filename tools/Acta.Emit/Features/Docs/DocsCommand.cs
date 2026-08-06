@@ -23,6 +23,15 @@ internal static class DocsCommand
         File.WriteAllText(codesPath, CodeFamilyEmitter.EmitCodes(model, repoRoot));
         Console.WriteLine($"  wrote {codesPath}");
 
+        var provisionDir = Path.Combine(referenceDir, "provision");
+        Directory.CreateDirectory(provisionDir);
+        foreach (var (token, _, _) in ProvisionScriptEmitter.Providers)
+        {
+            var provisionPath = Path.Combine(provisionDir, token + ".sql");
+            File.WriteAllText(provisionPath, ProvisionScriptEmitter.Emit(repoRoot, token));
+            Console.WriteLine($"  wrote {provisionPath}");
+        }
+
         return 0;
     }
 }
