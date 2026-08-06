@@ -20,14 +20,25 @@ dotnet run --project tools/Acta.Emit -- <command>
 
 | Command | What it does |
 | --- | --- |
-| `docs` | Regenerate `docs/reference/data-model.md` + `docs/reference/code-families.md`. |
+| `docs` | Regenerate `docs/reference/data-model.md`, `docs/reference/code-families.md`, and the `docs/reference/provision/*.sql` scripts. |
 | `check` | Verify docs are current **and** the snapshot equals the live model. Drift gate for CI. |
-| `schema reset [--force]` | Delete every migration + the snapshot. Deletes only; `--force` required. |
+| `schema reset [--force]` | Delete every migration + the snapshot + the provision scripts. Deletes only; `--force` required. |
 | `schema add [--name <n>]` | Emit the next migration `M{N}` for every provider; advance the snapshot. |
 | `schema amend [--name <n>]` | Rewrite the tip migration `M{N}` in place. |
 
 Production hosts should keep `ApplyMigrationsOnStartup = false` and apply migration SQL from the
 release process before workers start. See [`production.md`](../guide/production.md#migration-ownership).
+
+## Published provision scripts
+
+`docs/reference/provision/{pg,mssql,sqlite}.sql` are generated, drift-checked, complete provisioning
+scripts: the migration-history table, every migration in order (each records its own history row and
+the baseline stamp), then the operator views and routines, fully rendered for the default schema and
+wrapped in one transaction. They exist for deployments where the application principal is not
+allowed DDL: a DBA reviews and runs the file under an elevated principal, and because the history
+rows are recorded by the script itself, a bootstrap sees the database as its own work. A conformance
+spec per provider executes the committed file verbatim against a fresh schema, so the published
+bytes are proven, not assumed.
 
 Persisted code columns share an unsigned-byte logical contract but use provider-native physical
 types: SQL Server `tinyint`, PostgreSQL `smallint`, and SQLite `INTEGER`. Generated assigned-value

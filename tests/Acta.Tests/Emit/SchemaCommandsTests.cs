@@ -34,6 +34,19 @@ public sealed class SchemaCommandsTests : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Create(target).Dispose();
         }
+
+        // Provision-script emission (part of docs emission, so of add/amend/check too) composes the
+        // published scripts from each provider's Sql tree, reading real content - mirror it verbatim.
+        foreach (var provider in new[] { "Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite" })
+        {
+            var sqlRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", provider, "Sql");
+            foreach (var file in Directory.EnumerateFiles(sqlRoot, "*.sql", SearchOption.AllDirectories))
+            {
+                var target = Path.Combine(_root, "src", provider, "Sql", Path.GetRelativePath(sqlRoot, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(file, target);
+            }
+        }
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

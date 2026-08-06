@@ -58,8 +58,15 @@ j.UsePostgres(pg =>
 Run migration SQL from your release pipeline or database migration process, then start workers.
 `ApplyMigrationsOnStartup = true` is a development/sample convenience.
 
-Review and restrict permissions for your deployment. Acta currently requires runtime DML over its
-schema; stricter role separation should be validated against your chosen operations.
+For pipelines and DBAs that run reviewed SQL rather than application code, the repository publishes
+complete provisioning scripts at
+[`docs/reference/provision/`](../reference/provision/): one file per provider carrying the migration
+history, every migration, and all operator views and routines, ready to review and run under a
+DDL-capable principal (replace the default schema name throughout to relocate). With the database
+provisioned that way, the application principal needs only DML and EXECUTE on the Acta schema and
+never issues DDL. The scripts record the migration history themselves, so a bootstrap accepts the
+result and applies nothing; advanced deployments can even add site-specific physical tuning
+(partitioning, tablespaces) as long as the logical shape stays intact.
 
 See [`migrations.md`](../internals/migrations.md) for the migration model and `tools/Acta.Emit`
 commands.
