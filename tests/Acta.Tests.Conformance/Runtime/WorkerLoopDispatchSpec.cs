@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Time;
@@ -33,13 +32,16 @@ namespace Acta.Tests.Conformance.Runtime;
 public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    // Long enough that a wakeup-driven pickup is unmistakably not a safety-poll pickup, short enough
-    // that the fallback fact (which must wait it out) stays test-sized.
+    // Sized for the fallback fact, the only one that waits a safety poll out. The wake facts read how
+    // the idle sleep ENDED rather than racing its length, so its exact value cannot decide them.
     private static readonly TimeSpan SafetyPoll = TimeSpan.FromSeconds(8);
+
+    private WakeupParkProbe _wakeup = null!;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         base.ConfigureServices(services, testNamespace);
+        _wakeup = services.AddWakeupParkProbe();
         services.Configure<JobsOptions>(o =>
         {
             o.RegisterFrameworkJobs = false;
@@ -84,26 +86,21 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         var ct = TestContext.Current.CancellationToken;
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var loop = Runtime.RunLoopAsync(loopCts.Token);
-        // Let the loop take its first empty claim and enter the long idle sleep (no Ready rows, so
-        // it would otherwise wake only at the safety poll).
-        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
-        var enqueuedAt = Stopwatch.GetTimestamp();
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
 
         await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [enqueued.JobId], ct);
-        var elapsed = Stopwatch.GetElapsedTime(enqueuedAt);
 
         await loopCts.CancelAsync();
         await loop;
 
-        // Pickup must be wakeup-driven: far inside the 8s safety interval the sleeping loop was
-        // otherwise committed to.
-        Assert.True(elapsed < TimeSpan.FromSeconds(4), $"Pickup took {elapsed}: the enqueue publish did not interrupt the idle sleep.");
+        // The sleep the loop was parked in ended in a wake, so the enqueue publish interrupted it;
+        // the safety poll is the only other way out and it reports itself as a timeout.
+        Assert.Equal(WorkerWakeupWaitResult.Signaled, ParkedSleepOutcome());
     }
 
     [Fact(DisplayName = "A delayed enqueue refreshes the sleeping loop's horizon")]
@@ -111,14 +108,12 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
     {
         var ct = TestContext.Current.CancellationToken;
 
-        using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var loop = Runtime.RunLoopAsync(loopCts.Token);
         // The loop's first empty claim sees NO Ready rows at all (null horizon) and sleeps the full
         // safety interval - the one state a sentinel alone cannot get it out of early.
-        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
-        var enqueuedAt = Stopwatch.GetTimestamp();
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(
                 TestNamespace,
@@ -130,17 +125,14 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         );
 
         await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [enqueued.JobId], ct);
-        var elapsed = Stopwatch.GetElapsedTime(enqueuedAt);
 
         await loopCts.CancelAsync();
         await loop;
 
-        // The HorizonChanged publish wakes the loop; its next empty claim reads the ~1.5s horizon
-        // and sleeps to the due instant instead of finishing the original 8s safety sleep.
-        Assert.True(
-            elapsed < TimeSpan.FromSeconds(6),
-            $"Pickup took {elapsed}: the delayed enqueue did not refresh the sleeping loop's horizon."
-        );
+        // The HorizonChanged publish ended the full safety sleep in a wake; the loop's next empty
+        // claim then read the ~1.5s horizon and slept to the due instant. That second sleep is meant
+        // to time out, which is why only the parked sleep's outcome is the fact here.
+        Assert.Equal(WorkerWakeupWaitResult.Signaled, ParkedSleepOutcome());
     }
 
     [Fact(DisplayName = "An unpublished Ready row is discovered by the safety poll")]
@@ -150,13 +142,11 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         _ = Services.GetRequiredService<ISqlDialect>();
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var loop = Runtime.RunLoopAsync(loopCts.Token);
-        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
         // Insert straight through the enqueue operation, bypassing JobsApi - the wakeup publish
         // never reaches this process's transport, simulating a writer in another process with no
         // shared transport. The safety poll is the only discovery path.
-        var enqueuedAt = Stopwatch.GetTimestamp();
         var rows = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
             [new JobEnqueueRow(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)))],
@@ -165,17 +155,13 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         var jobId = rows[0].JobId;
 
         await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [jobId], ct);
-        var elapsed = Stopwatch.GetElapsedTime(enqueuedAt);
 
         await loopCts.CancelAsync();
         await loop;
 
-        // No publish reached the loop, so pickup waited out (most of) the in-flight safety sleep -
-        // the lower bound proves the poll, not a signal, found the row.
-        Assert.True(
-            elapsed >= TimeSpan.FromMilliseconds(500),
-            $"Pickup took only {elapsed}: expected safety-poll discovery, not a wakeup."
-        );
+        // No publish reached the loop, so the sleep it was parked in ran out instead of being woken:
+        // the timeout IS safety-poll discovery, where an elapsed-time lower bound could only infer it.
+        Assert.Equal(WorkerWakeupWaitResult.TimedOut, ParkedSleepOutcome());
     }
 
     [Fact(DisplayName = "ExecuteAndWaitAsync observes a colocated completion at wake speed")]
@@ -184,30 +170,23 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         var ct = TestContext.Current.CancellationToken;
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var loop = Runtime.RunLoopAsync(loopCts.Token);
-        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
-        // PollInterval is deliberately huge: without the JobCompletion wake the waiter's next
-        // status read cannot land before ~15s, so any return under the 10s ceiling proves the wake,
-        // not polling. The 5s dead zone between them absorbs slow CI runners (a loaded runner has
-        // been observed taking 4.2s on the wake path); the wake path never waits on PollInterval,
-        // so the passing case stays wake-fast regardless of the interval.
-        var startedAt = Stopwatch.GetTimestamp();
+        // PollInterval is deliberately huge so a poll-driven return is impossible inside the wait
+        // timeout: the waiter either returns on its JobCompletion wake or times out.
         var outcome = await Jobs.ExecuteAndWaitAsync(
             new AddNumbers(2, 3),
             new JobExecutionOptions { PollInterval = TimeSpan.FromSeconds(15), WaitTimeout = TimeSpan.FromSeconds(20) },
             ct
         );
-        var elapsed = Stopwatch.GetElapsedTime(startedAt);
 
         await loopCts.CancelAsync();
         await loop;
 
         Assert.True(outcome.IsSuccess, $"Execute outcome: timedOut={outcome.IsTimedOut}, status={outcome.TerminalStatus}.");
-        Assert.True(
-            elapsed < TimeSpan.FromSeconds(10),
-            $"Execute returned after {elapsed}: the completion wake did not interrupt the poll wait."
-        );
+        // Not one completion wait fell through to its poll interval, so the colocated completion's
+        // wake is what returned this call.
+        Assert.DoesNotContain(WorkerWakeupWaitResult.TimedOut, _wakeup.WaitsOn(WorkerWakeupChannelKind.JobCompletion));
     }
 
     [Fact(DisplayName = "A re-arming completion wakes the loop for its own retry")]
@@ -216,23 +195,40 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         var ct = TestContext.Current.CancellationToken;
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var loop = Runtime.RunLoopAsync(loopCts.Token);
-        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
         // flaky-recover fails its first attempts with a zero backoff: each failing completion lands
         // the row Ready due-now, and complete_execution's final-Ready report is the ONLY publish
         // site that can see that transition. Without it every retry would wait out the safety poll.
         FlakyRecoverProbe.Reset(TestNamespace);
-        var enqueuedAt = Stopwatch.GetTimestamp();
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
 
         await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [enqueued.JobId], ct);
-        var elapsed = Stopwatch.GetElapsedTime(enqueuedAt);
 
         await loopCts.CancelAsync();
         await loop;
 
-        Assert.True(elapsed < TimeSpan.FromSeconds(6), $"Recovery took {elapsed}: the re-arming completion did not wake the loop.");
+        // Every idle sleep across the whole retry chain ended in a wake, so no attempt was found by
+        // the safety poll. One elapsed-time budget for the chain could not say which link was slow.
+        Assert.DoesNotContain(WorkerWakeupWaitResult.TimedOut, _wakeup.WaitsOn(WorkerWakeupChannelKind.WorkerNamespace));
+    }
+
+    // Starts the real loop and returns once its first empty claim has parked in the idle sleep. Every
+    // fact below acts on a loop that is IN that sleep, and a fixed warm-up cannot promise it: a first
+    // claim still in flight would claim the new row itself, answering the question with a plain claim.
+    private async Task<Task> StartParkedLoopAsync(CancellationToken loopCt, CancellationToken ct)
+    {
+        var loop = Runtime.RunLoopAsync(loopCt);
+        await _wakeup.Parked.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        return loop;
+    }
+
+    // How the idle sleep the loop was parked in when the fact acted ended: a wake or the safety poll.
+    private WorkerWakeupWaitResult ParkedSleepOutcome()
+    {
+        var sleeps = _wakeup.WaitsOn(WorkerWakeupChannelKind.WorkerNamespace);
+        Assert.NotEmpty(sleeps);
+        return sleeps[0];
     }
 
     private static async Task WaitUntilAllDoneAsync(IJobStore store, IReadOnlyList<long> ids, CancellationToken ct)
