@@ -40,6 +40,7 @@ internal static class GetEventsByJobId
                     EventCode: null,
                     JobDefinitionId: null,
                     TenantId: null,
+                    TenantKey: null,
                     WorkerId: null,
                     ActorCode: null,
                     ReasonCode: null,

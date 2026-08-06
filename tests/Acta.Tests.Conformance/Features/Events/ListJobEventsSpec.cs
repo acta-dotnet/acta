@@ -94,6 +94,7 @@ public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture
                     EventCode: null,
                     JobDefinitionId: null,
                     TenantId: null,
+                    TenantKey: null,
                     WorkerId: null,
                     ActorCode: null,
                     ReasonCode: null,

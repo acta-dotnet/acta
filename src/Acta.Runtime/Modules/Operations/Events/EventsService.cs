@@ -30,6 +30,9 @@ internal sealed class EventsService(IEventStore store)
         }
 
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
+        var tenantKey = string.IsNullOrWhiteSpace(query.TenantKey)
+            ? null
+            : IdentifierSyntax.NormalizeKeyLookup(query.TenantKey, nameof(query.TenantKey));
         QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListJobEventsQuery));
 
@@ -40,6 +43,7 @@ internal sealed class EventsService(IEventStore store)
             ("event", Num(query.EventCode)),
             ("def", Num(query.JobDefinitionId)),
             ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
+            ("tenantKey", tenantKey),
             ("worker", query.WorkerId?.ToString(CultureInfo.InvariantCulture)),
             ("actor", Num(query.ActorCode)),
             ("reason", Num(query.ReasonCode)),
@@ -71,6 +75,7 @@ internal sealed class EventsService(IEventStore store)
                 query.EventCode,
                 query.JobDefinitionId,
                 query.TenantId,
+                tenantKey,
                 query.WorkerId,
                 query.ActorCode,
                 query.ReasonCode,

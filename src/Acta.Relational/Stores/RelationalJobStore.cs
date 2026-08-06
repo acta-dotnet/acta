@@ -181,6 +181,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, request.JobName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentIdFilter, request.ParentJobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, request.TenantId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantKeyFilter, request.TenantKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, request.CorrelationKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TerminalOnlyFlag, request.TerminalOnly));

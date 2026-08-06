@@ -26,6 +26,7 @@ SELECT TOP (@p_take)
    AND (@p_job_name IS NULL OR jd.name = @p_job_name)
    AND (@p_parent_id IS NULL OR j.parent_id = @p_parent_id)
    AND (@p_tenant_id IS NULL OR j.tenant_id = @p_tenant_id)
+   AND (@p_tenant_key IS NULL OR t.tenant_key = @p_tenant_key)
    AND (@p_correlation_key IS NULL OR j.correlation_key = @p_correlation_key)
    AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1

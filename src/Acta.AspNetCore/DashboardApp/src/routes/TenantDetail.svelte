@@ -208,7 +208,8 @@
       ? routes.tenant(createdKey, { namespace: $scope })
       : routes.tenants({ namespace: $scope })
   );
-  let jobsHref = $derived(routes.jobs({ tenantId: tenant?.tenantId, namespace: $scope }));
+  let jobsHref = $derived(routes.jobs({ tenantKey: tenant?.tenantKey, namespace: $scope }));
+  let eventsHref = $derived(routes.events({ tenantKey: tenant?.tenantKey, namespace: $scope }));
 </script>
 
 <Page title={creating ? 'Register tenant' : tenant?.displayName ?? tenant?.tenantKey ?? 'Tenant'}>
@@ -325,6 +326,7 @@
           <p class="detail-kicker">Go to</p>
           <nav>
             <a href={jobsHref}>Jobs</a>
+            <a href={eventsHref}>Events</a>
           </nav>
         </section>
 

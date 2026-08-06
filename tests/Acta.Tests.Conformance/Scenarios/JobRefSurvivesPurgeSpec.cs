@@ -81,7 +81,7 @@ public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TF
             await Services
                 .GetRequiredService<IEventStore>()
                 .ListEventsAsync(
-                    new EventPageRequest(jobId, null, null, null, null, null, null, null, null, null, null, null, null, 100, false),
+                    new EventPageRequest(jobId, null, null, null, null, null, null, null, null, null, null, null, null, null, 100, false),
                     ct
                 )
         ).Rows;

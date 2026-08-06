@@ -114,6 +114,7 @@ internal sealed record JobPageRequest(
     string? JobName,
     long? ParentJobId,
     int? TenantId,
+    string? TenantKey,
     string? CorrelationKey,
     string? TagFiltersJson,
     bool? TerminalOnly,

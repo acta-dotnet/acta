@@ -62,7 +62,7 @@ export interface JobsSqlFilters {
   status?: string;
   jobName?: string;
   correlationKey?: string;
-  tenantId?: string | number;
+  tenantKey?: string;
 }
 
 export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): string {
@@ -73,8 +73,7 @@ export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): 
   if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: text(filters.jobName) });
   if (text(filters.correlationKey))
     predicates.push({ column: 'correlation_key', op: '=', value: text(filters.correlationKey) });
-  const tenant = integer(filters.tenantId);
-  if (tenant !== null) predicates.push({ column: 'tenant_id', op: '=', value: tenant });
+  if (text(filters.tenantKey)) predicates.push({ column: 'tenant_key', op: '=', value: text(filters.tenantKey) });
   return select(dialect, 'jobs_view', predicates, 'created_at_utc DESC');
 }
 

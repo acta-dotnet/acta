@@ -14,12 +14,12 @@ test('jobsListSql composes filters with AND and lowercases the display status', 
   );
 });
 
-test('jobsListSql emits tenant_id as a bare numeric literal and drops a non-numeric tenant', () => {
+test('jobsListSql emits tenant_key as a quoted literal', () => {
   assert.equal(
-    jobsListSql({ tenantId: 42 }),
-    'SELECT * FROM acta.jobs_view WHERE tenant_id = 42 ORDER BY created_at_utc DESC LIMIT 100;'
+    jobsListSql({ tenantKey: 'acme-corp' }),
+    "SELECT * FROM acta.jobs_view WHERE tenant_key = 'acme-corp' ORDER BY created_at_utc DESC LIMIT 100;"
   );
-  assert.equal(jobsListSql({ tenantId: 'abc' }), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');
+  assert.equal(jobsListSql({ tenantKey: '' }), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');
 });
 
 test('jobsListSql escapes single quotes in interpolated values', () => {
