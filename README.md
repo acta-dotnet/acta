@@ -138,7 +138,7 @@ The inner core is the author's. The data model, the execution semantics, the cla
 machinery, and every public API signature are deliberate human decisions, defensible column by
 column and method by method. AI was used heavily, and deliberately, on the outer core: test
 scaffolding, documentation, consistency sweeps, benchmark tooling. Every line passed the same gates
-either way: ~2,800 tests on three databases, a conformance contract, drift-checked generated docs,
+either way: ~3,200 tests on three databases, a conformance contract, drift-checked generated docs,
 recorded benchmark baselines. AI made the work faster. It did not make the decisions.
 
 ## License
