@@ -1,5 +1,54 @@
 # Release notes
 
+## 0.4.0 (preview)
+
+The data model is finished and verified: one status vocabulary, one payload ceiling, scoped durable
+settings, DBA-runnable provisioning scripts, and a tenant-aware dashboard.
+
+> **Schema note:** the `M001` baseline was re-cut in this release (extensible code catalogs,
+> schedules cleanup, the status vocabulary below; baseline stamp `init-extensible-status-v1`).
+> Preview compatibility policy applies: drop and reprovision the Acta database; the bootstrap
+> refuses a mismatched baseline.
+
+### One vocabulary
+
+- Terminal success is `succeeded` everywhere (`done` is gone); in-flight execution is `executing`;
+  substrate lifecycle columns are `status_code` like every other entity; event names are uniformly
+  two-segment kebab.
+- The "metadata" notion is retired: you update the entity (`UpdateAsync`, `tenant.updated`,
+  `namespace.updated`), and `updated` is the one modification verb.
+
+### One payload ceiling
+
+- `MaxInlinePayloadBytes` (1 MiB) is the single knob for ledger payloads and HTTP request bodies,
+  with `PayloadTooLargeException` as the single error. An oversized handler result no longer
+  persists silently: the job succeeds, the body is dropped, `job.result-oversized` records why, and
+  a typed wait throws instead of returning a default result.
+
+### Durable settings
+
+- `IActaOperations.Settings`: get/set named settings at global, namespace, or definition scope,
+  with `setting.updated` evidence events. New setting names in newer Acta versions cost no
+  migration.
+
+### DBA-runnable provisioning
+
+- `docs/reference/provision/{pg,mssql,sqlite}.sql`: generated, drift-checked, execution-proven
+  scripts carrying the full schema, views, and routines - for deployments where the application
+  principal is never allowed DDL.
+
+### Dashboard
+
+- Job rows show and link the tenant key; jobs and events filter by tenant key; the tenant page
+  links into both pre-filtered.
+
+### Compatibility
+
+- Open code catalogs (`event`, `job-event-reason`, `alert-kind`): an older build renders codes from
+  a newer build as `unspecified` instead of refusing to start.
+- Persisted event code renames (destructive-class, final before 1.0): the `*.metadata-changed`
+  names became `tenant.updated` / `namespace.updated`; ids unchanged.
+
 ## 0.3.0-alpha.1 (preview)
 
 The runtime is reorganized into explicit modules, the release pipeline hardens, and the Bulk
