@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Acta.Tests.Conformance.SqlServer.Testing;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
 using Xunit;
@@ -28,6 +29,12 @@ public sealed partial class MsSqlProvisionScriptSpec
         var published = File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "provision", "mssql.sql"));
         var script = SchemaWord().Replace(published, schema);
 
+        // On a fresh database the shared bootstrap flips READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK
+        // IMMEDIATE, which kills every other session in the database. Await that bootstrap (the
+        // serialization point every fixture-based spec already passes through) before opening the
+        // raw connection, so this spec never races the bounce.
+        await ActaSharedDatabase.EnsureReadyAsync(new SqlServerConformanceFixture());
+
         await using var conn = new SqlConnection(connString);
         await conn.OpenAsync(ct);
         try
@@ -53,12 +60,16 @@ public sealed partial class MsSqlProvisionScriptSpec
         finally
         {
             // SQL Server has no DROP SCHEMA CASCADE; the provider's own teardown script drops the
-            // schema's routines, types, views, and tables in dependency order.
+            // schema's routines, types, views, and tables in dependency order. It runs on its own
+            // connection: a provisioning failure can kill the test connection, and a teardown throw
+            // on the dead connection would mask the real error.
             var teardown = File.ReadAllText(Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Schema", "DropSchema.sql"))
                 .Replace("{{schema}}", schema);
+            await using var cleanupConn = new SqlConnection(connString);
+            await cleanupConn.OpenAsync(CancellationToken.None);
             foreach (var batch in SplitOnGo(teardown))
             {
-                await using var cmd = conn.CreateCommand();
+                await using var cmd = cleanupConn.CreateCommand();
                 cmd.CommandText = batch;
                 await cmd.ExecuteNonQueryAsync(CancellationToken.None);
             }
