@@ -29,7 +29,7 @@ state, retries, audit, recovery, and operator control in your own SQL database. 
 
 ## Quickstart
 
-Run it first (the preview is source-first; the only prerequisite is the .NET 10 SDK):
+Run it first (clone and run; the only prerequisite is the .NET 10 SDK):
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
@@ -106,7 +106,7 @@ The execution model is **checkpoints, not replay**: a handler may re-enter from 
 Prerequisite: the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (pinned in `global.json`). Nothing else: no Docker, no database server, no connection string; everything below runs on embedded SQLite.
 
 ```bash
-git clone https://github.com/acta-dotnet/acta && cd Acta
+git clone https://github.com/acta-dotnet/acta && cd acta
 dotnet run --project tools/Acta.Doctor        # optional preflight: SDK, SQLite, Docker, ports, env vars
 dotnet run --project concepts/000-fundamentals/001-hello-acta  # first concept, enqueue a job, watch a worker run it (Ctrl+C to stop)
 dotnet run --project anvil/Anvil              # local lab + the Acta dashboard at http://127.0.0.1:5059/acta
@@ -122,7 +122,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Packages
 
-**Planned NuGet package IDs** (the preview is source-only; packages are not published yet): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API + SDK), `Acta.Runtime` (runtime implementation), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
+**NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API + SDK), `Acta.Runtime` (runtime implementation), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
 
 **Repository tooling** (not published to NuGet): `Acta.Emit` (doc/migration emitter) and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
 

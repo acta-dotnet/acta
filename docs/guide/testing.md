@@ -33,14 +33,12 @@ Enqueue, drive, assert, in that order, deterministically. Assertions go through 
 
 ## Dependency
 
-The test project references the testing library plus the same provider the application uses. While
-the preview is source-only, use project references from this repository; when packages are
-published, the same IDs become `PackageReference`s.
+The test project references the testing package plus the same provider the application uses.
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="src/Acta.Testing/Acta.Testing.csproj" />
-  <ProjectReference Include="src/Acta.Postgres/Acta.Postgres.csproj" />
+  <PackageReference Include="Acta.Testing" />
+  <PackageReference Include="Acta.Postgres" />
 </ItemGroup>
 ```
 

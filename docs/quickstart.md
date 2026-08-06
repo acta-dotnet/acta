@@ -5,7 +5,7 @@ SQLite: no Docker, no database server.
 
 ## Run it from the repository
 
-The preview is source-first: clone and run.
+The fastest first run is straight from the repository: clone and run.
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
@@ -102,9 +102,10 @@ What to know about these lines:
   `5m` execution timeout, 90-day retention, alerts on failure.
 
 To point the same code at a server, swap the provider registration: `j.UseSqlServer(...)` or
-`j.UsePostgres(...)`. While the preview is source-only, reference the provider with a
-`<ProjectReference>` to `src/Acta.Sqlite` (or the provider you need); when packages are published, a
-single `<PackageReference Include="Acta.Sqlite" />` replaces it.
+`j.UsePostgres(...)`. In your own project, a single `<PackageReference Include="Acta.Sqlite" />`
+(or the provider you need) delivers everything: the runtime, the `[Job]` source generator, and the
+analyzers. The demos under `demos/` are complete apps built exactly this way, from the published
+packages alone.
 
 ## Inspect the row
 
