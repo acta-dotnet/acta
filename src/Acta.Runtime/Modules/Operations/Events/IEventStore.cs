@@ -25,6 +25,7 @@ internal sealed record EventPageRequest(
     JobEventCode? EventCode,
     int? JobDefinitionId,
     int? TenantId,
+    string? TenantKey,
     int? WorkerId,
     JobActorCode? ActorCode,
     JobEventReasonCode? ReasonCode,

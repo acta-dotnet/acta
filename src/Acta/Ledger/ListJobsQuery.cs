@@ -8,7 +8,7 @@ namespace Acta;
 /// <param name="Status">Restrict to one job status.</param>
 /// <param name="JobName">Restrict to one job definition name within <paramref name="JobNamespace"/>.</param>
 /// <param name="ParentJobId">Restrict to the direct children of one job.</param>
-/// <param name="TenantId">Restrict to one tenant (the resolved <c>tenants</c> id).</param>
+/// <param name="TenantId">Restrict to one tenant (the resolved <c>tenants</c> id).</param> <param name="TenantKey">Restrict by the caller-supplied tenant key (folds lowercase).</param>
 /// <param name="CorrelationKey">Restrict to jobs stamped with this exact correlation id (a trace / request / order id). Case-sensitive: the value is matched verbatim against the stored id, which Acta never canonicalizes.</param>
 /// <param name="PageSize">Rows per page; null defaults to 50, values above 100 clamp to 100.</param>
 /// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
@@ -22,6 +22,7 @@ public sealed record ListJobsQuery(
     string? JobName = null,
     long? ParentJobId = null,
     int? TenantId = null,
+    string? TenantKey = null,
     string? CorrelationKey = null,
     int? PageSize = null,
     string? Cursor = null,

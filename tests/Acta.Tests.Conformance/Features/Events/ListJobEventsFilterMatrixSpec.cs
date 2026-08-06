@@ -297,6 +297,13 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             ct
         );
         Assert.Equal(tcEvents, [.. t2Page.Items.Select(e => e.JobEventId)]);
+
+        // The key filter selects the same rows as the id filter.
+        var keyPage = await queries.Ledger.ListEventsAsync(
+            new ListJobEventsQuery(TenantKey: t1Key, JobNamespace: TestNamespace, PageSize: 100),
+            ct
+        );
+        Assert.Equal(taEvents.Union(tbEvents).ToHashSet(), [.. keyPage.Items.Select(e => e.JobEventId)]);
     }
 
     [Fact(DisplayName = "ActorCode filter partitions the timeline by each actor present on it")]

@@ -32,6 +32,15 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
+        public static readonly DbValueSpec<string?> TenantKeyFilter = new(
+            ParameterName: "p_tenant_key",
+            Kind: DbKind.AsciiString,
+            Size: 128,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         // Nullable scope targets for the settings operations: null means the scope narrows no further.
         public static readonly DbValueSpec<string?> ScopeNamespaceName = new(
             ParameterName: "p_namespace_name",

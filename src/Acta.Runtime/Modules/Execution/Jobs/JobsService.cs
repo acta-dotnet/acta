@@ -146,6 +146,9 @@ internal sealed class JobsService(
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
         QueryValidation.ValidatePositiveId(query.ParentJobId, nameof(query.ParentJobId));
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
+        var tenantKey = string.IsNullOrWhiteSpace(query.TenantKey)
+            ? null
+            : IdentifierSyntax.NormalizeKeyLookup(query.TenantKey, nameof(query.TenantKey));
         var tagFiltersJson = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
         // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
         var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
@@ -157,6 +160,7 @@ internal sealed class JobsService(
             ("name", query.JobName),
             ("parent", Num(query.ParentJobId)),
             ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
+            ("tenantKey", tenantKey),
             ("correlation", query.CorrelationKey),
             ("tags", tagFiltersJson),
             ("terminal", terminalOnly is null ? null : "1"),
@@ -187,6 +191,7 @@ internal sealed class JobsService(
                 query.JobName,
                 query.ParentJobId,
                 query.TenantId,
+                tenantKey,
                 query.CorrelationKey,
                 tagFiltersJson,
                 terminalOnly,

@@ -234,6 +234,11 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
 
         var t2Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantId: t2Id), ct);
         Assert.Equal([tc], t2Page.Items.Select(static i => i.JobId).ToHashSet());
+
+        // The key filter selects the same rows as the id filter, and list rows carry the resolved key.
+        var keyPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantKey: t1Key), ct);
+        Assert.Equal([ta, tb], keyPage.Items.Select(static i => i.JobId).ToHashSet());
+        Assert.All(keyPage.Items, i => Assert.Equal(t1Key, i.TenantKey));
     }
 
     [Fact(DisplayName = "Namespace filter returns only jobs in the requested namespace and the total matches the filtered count")]

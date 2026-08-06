@@ -40,8 +40,8 @@
   ];
 
   const filters = createUrlFilters(
-    { eventCode: 'eventCode', actorCode: 'actorCode', reasonCode: 'reasonCode', createdFrom: 'from', createdTo: 'to' },
-    { eventCode: '', actorCode: '', reasonCode: '', createdFrom: '', createdTo: '' }
+    { eventCode: 'eventCode', actorCode: 'actorCode', reasonCode: 'reasonCode', tenantKey: 'tenantKey', createdFrom: 'from', createdTo: 'to' },
+    { eventCode: '', actorCode: '', reasonCode: '', tenantKey: '', createdFrom: '', createdTo: '' }
   );
 
   // The datetime-local inputs are read as UTC wall-clock (the dashboard's convention: operators enter
@@ -61,12 +61,14 @@
     eventCode: $filters.eventCode,
     actorCode: $filters.actorCode,
     reasonCode: $filters.reasonCode,
+    tenantKey: $filters.tenantKey,
     createdFromUtc: toUtcIso($filters.createdFrom),
     createdToUtc: toUtcIso($filters.createdTo)
   });
 
   const capabilities = createQuery(() => capabilitiesQuery());
 
+  // tenantKey is omitted from the copy SQL: events_view carries tenant_id only.
   let copySql = $derived(
     eventsListSql(
       {
@@ -88,6 +90,7 @@
       $filters.eventCode ? { label: 'Event', value: $filters.eventCode, onRemove: () => filters.patch({ eventCode: '' }) } : null,
       $filters.actorCode ? { label: 'Actor', value: $filters.actorCode, onRemove: () => filters.patch({ actorCode: '' }) } : null,
       $filters.reasonCode ? { label: 'Reason', value: $filters.reasonCode, onRemove: () => filters.patch({ reasonCode: '' }) } : null,
+      $filters.tenantKey ? { label: 'Tenant', value: $filters.tenantKey, onRemove: () => filters.patch({ tenantKey: '' }) } : null,
       $filters.createdFrom ? { label: 'From (UTC)', value: $filters.createdFrom.replace('T', ' '), onRemove: () => filters.patch({ createdFrom: '' }) } : null,
       $filters.createdTo ? { label: 'To (UTC)', value: $filters.createdTo.replace('T', ' '), onRemove: () => filters.patch({ createdTo: '' }) } : null
     ].filter((chip) => chip !== null)

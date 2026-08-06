@@ -219,7 +219,7 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var page_matched = await Services
             .GetRequiredService<IJobStore>()
             .ListJobsAsync(
-                new JobPageRequest(TestNamespace, null, null, null, tenantId, null, null, null, null, null, null, 100, false),
+                new JobPageRequest(TestNamespace, null, null, null, tenantId, null, null, null, null, null, null, null, 100, false),
                 ct
             );
         var (matched, _) = (page_matched.Rows, page_matched.Total);
@@ -229,7 +229,22 @@ public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var page_other = await Services
             .GetRequiredService<IJobStore>()
             .ListJobsAsync(
-                new JobPageRequest(TestNamespace, null, null, null, tenantId + 100_000, null, null, null, null, null, null, 100, false),
+                new JobPageRequest(
+                    TestNamespace,
+                    null,
+                    null,
+                    null,
+                    tenantId + 100_000,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    100,
+                    false
+                ),
                 ct
             );
         var (other, _) = (page_other.Rows, page_other.Total);
