@@ -1,5 +1,4 @@
 using System.Reflection;
-using Acta.Relational.Schema;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 

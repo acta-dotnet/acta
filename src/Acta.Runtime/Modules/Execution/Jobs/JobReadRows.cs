@@ -204,6 +204,7 @@ internal sealed record JobListRow(
     string JobNamespace,
     string JobName,
     int? TenantId,
+    string? TenantKey,
     long? ParentJobId,
     Guid? ParentJobRef,
     long? LineageRootId,
@@ -240,7 +241,8 @@ internal sealed record JobListProjectionRow(
     Guid JobRef,
     Guid? ParentJobRef,
     Guid? LineageRootJobRef,
-    int? TenantId
+    int? TenantId,
+    string? TenantKey
 )
 {
     public JobListRow ToListRow() =>
@@ -250,6 +252,7 @@ internal sealed record JobListProjectionRow(
             JobNamespace,
             JobName,
             TenantId,
+            TenantKey,
             ParentJobId,
             ParentJobRef,
             LineageRootId,
@@ -282,6 +285,7 @@ internal static class JobListRowMapping
             row.JobNamespace,
             row.JobName,
             row.TenantId,
+            row.TenantKey,
             row.ParentJobId,
             row.ParentJobRef is { } parentRef ? new JobRef(parentRef) : null,
             row.LineageRootId,

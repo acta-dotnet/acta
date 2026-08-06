@@ -27,6 +27,7 @@
     jobNamespace: string;
     status: string;
     tenantId: number | null;
+    tenantKey: string | null;
     createdAtUtc: string;
     nextRunAtUtc: string | null;
     executionNumber: number;
@@ -59,7 +60,7 @@
     { key: 'job', header: 'Job' },
     { key: 'status', header: 'Status' },
     { key: 'jobNamespace', header: 'Namespace', class: 'mobile-hide', dimRepeats: true },
-    { key: 'tenantId', header: 'Tenant', class: 'mobile-hide', align: 'right' },
+    { key: 'tenant', header: 'Tenant', class: 'mobile-hide' },
     { key: 'createdAtUtc', header: 'Age' },
     { key: 'nextRunAtUtc', header: 'Next run', class: 'mobile-hide' },
     { key: 'attempts', header: 'Attempts', align: 'right' }
@@ -203,6 +204,9 @@
       </a>
     {/snippet}
     {#snippet statusCell(job: JobRow)}<StatusBadge status={job.status} />{/snippet}
+    {#snippet tenantCell(job: JobRow)}
+      {#if job.tenantKey}<a href={routes.tenant(job.tenantKey, { namespace: $scope })} class="mono">{job.tenantKey}</a>{:else if job.tenantId != null}{job.tenantId}{:else}-{/if}
+    {/snippet}
     {#snippet ageCell(job: JobRow)}<RelativeTime value={job.createdAtUtc} />{/snippet}
     {#snippet nextRunCell(job: JobRow)}<RelativeTime value={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} />{/snippet}
     {#snippet attemptsCell(job: JobRow)}{displayFormatter.number(job.executionNumber)}{job.failureCount > 0 ? ' (' + displayFormatter.number(job.failureCount) + ' failed)' : ''}{/snippet}
@@ -229,7 +233,7 @@
       emptyText={activeChips.length > 0
         ? 'No jobs match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
         : 'No jobs yet in this view.'}
-      cells={{ jobRef: refCell, job: jobCell, status: statusCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }} />
+      cells={{ jobRef: refCell, job: jobCell, status: statusCell, tenant: tenantCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }} />
   </div>
 </Page>
 

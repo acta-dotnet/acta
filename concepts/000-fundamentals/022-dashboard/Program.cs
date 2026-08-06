@@ -1,9 +1,7 @@
 using Acta;
 using Acta.AspNetCore;
-using Acta.AspNetCore;
 using Acta.Concepts.DashboardSample;
 using Acta.Labs;
-using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 var lab = new ConceptLab(builder.Configuration, args);
