@@ -4,10 +4,10 @@
        dependency centrally managed. Bump these after each publish (docs/internals/releasing.md). -->
   <Import Project="../Directory.Packages.props" />
   <ItemGroup>
-    <PackageVersion Include="Acta" Version="0.3.0-alpha.1" />
-    <PackageVersion Include="Acta.AspNetCore" Version="0.3.0-alpha.1" />
-    <PackageVersion Include="Acta.Postgres" Version="0.3.0-alpha.1" />
-    <PackageVersion Include="Acta.SqlServer" Version="0.3.0-alpha.1" />
-    <PackageVersion Include="Acta.Sqlite" Version="0.3.0-alpha.1" />
+    <PackageVersion Include="Acta" Version="0.4.0-alpha.2" />
+    <PackageVersion Include="Acta.AspNetCore" Version="0.4.0-alpha.2" />
+    <PackageVersion Include="Acta.Postgres" Version="0.4.0-alpha.2" />
+    <PackageVersion Include="Acta.SqlServer" Version="0.4.0-alpha.2" />
+    <PackageVersion Include="Acta.Sqlite" Version="0.4.0-alpha.2" />
   </ItemGroup>
 </Project>
