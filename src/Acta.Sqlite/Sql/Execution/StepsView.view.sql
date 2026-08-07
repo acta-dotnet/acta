@@ -19,7 +19,8 @@ SELECT
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || CAST(s.result_format_id AS TEXT)
     END AS result_format,
-    CASE WHEN s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(s.result AS TEXT) END AS result_text,
+    CASE WHEN s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(s.result AS TEXT) END
+        AS result_text,
     s.created_at_utc,
     s.modified_at_utc,
     s.version

@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.SqlServer.Features.Schema;
 
 /// <summary>
-/// The published provisioning script (docs/reference/provision/mssql.sql) must provision a working
+/// The published provisioning script (docs/reference/schema-mssql.sql) must provision a working
 /// schema when run verbatim (batch by GO batch, as sqlcmd/SSMS would), because DBA-run provisioning
 /// under an elevated principal is exactly how locked-down deployments consume it. Runs the committed
 /// file against a fresh schema name (using the header's own "replace the schema name throughout"
@@ -26,7 +26,7 @@ public sealed partial class MsSqlProvisionScriptSpec
         var ct = TestContext.Current.CancellationToken;
         var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
         var repoRoot = IntegrationConfig.FindRepoRoot();
-        var published = File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "provision", "mssql.sql"));
+        var published = File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "schema-mssql.sql"));
         var script = SchemaWord().Replace(published, schema);
 
         // On a fresh database the shared bootstrap flips READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK
@@ -52,14 +52,20 @@ public sealed partial class MsSqlProvisionScriptSpec
                 }
             }
 
+            // One history row per migration section in the file plus the version-0 baseline-stamp
+            // row, no more (the double run must not stamp anything twice), counted from the
+            // script's own BEGIN banners.
+            var migrations = BeginBanner().Matches(published).Count + 1;
+            Assert.True(migrations > 1, "the published script contains no migration banners");
+
             await using var probe = conn.CreateCommand();
             probe.CommandText =
-                $"SELECT (SELECT COUNT(*) FROM {schema}.migrations WHERE version = 1), "
+                $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
                 + $"(SELECT COUNT(*) FROM {schema}.jobs_view), "
                 + $"(SELECT COUNT(*) FROM sys.procedures WHERE schema_id = SCHEMA_ID('{schema}'))";
             await using var reader = await probe.ExecuteReaderAsync(ct);
             Assert.True(await reader.ReadAsync(ct));
-            Assert.Equal(1, reader.GetInt32(0));
+            Assert.Equal(migrations, reader.GetInt32(0));
             Assert.Equal(0, reader.GetInt32(1));
             Assert.True(reader.GetInt32(2) > 0, "no routines were installed");
         }
@@ -91,4 +97,8 @@ public sealed partial class MsSqlProvisionScriptSpec
     // The whole-word lowercase schema name, exactly what the script header tells a DBA to replace.
     [GeneratedRegex(@"\bacta\b")]
     private static partial Regex SchemaWord();
+
+    // The per-migration section banner the emitter writes above every migration.
+    [GeneratedRegex(@"^-- ===== BEGIN M[0-9]{3}_", RegexOptions.Multiline)]
+    private static partial Regex BeginBanner();
 }

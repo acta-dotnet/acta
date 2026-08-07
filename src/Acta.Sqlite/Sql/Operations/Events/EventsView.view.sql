@@ -29,7 +29,8 @@ SELECT
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || CAST(e.detail_format_id AS TEXT)
     END AS detail_format,
-    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(e.detail AS TEXT) END AS detail_text,
+    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(e.detail AS TEXT) END
+        AS detail_text,
     e.worker_id,
     e.execution_number,
     e.duration_ms,

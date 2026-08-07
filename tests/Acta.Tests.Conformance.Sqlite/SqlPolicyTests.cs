@@ -33,3 +33,9 @@ public sealed class SqlRoutineBodyParameterTests
     [Fact]
     public void Declared_routine_params_are_used_in_the_body() => RoutineBodyParameterAssert.AssertDeclaredParamsUsed("sqlite");
 }
+
+public sealed class SqlStyleTests
+{
+    [Fact]
+    public void Sql_files_meet_the_style_floor() => SqlStyleAssert.AssertStyle("sqlite");
+}

@@ -20,9 +20,9 @@ dotnet run --project tools/Acta.Emit -- <command>
 
 | Command | What it does |
 | --- | --- |
-| `docs` | Regenerate `docs/reference/data-model.md`, `docs/reference/code-families.md`, and the `docs/reference/provision/*.sql` scripts. |
+| `docs` | Regenerate `docs/reference/data-model.md`, `docs/reference/code-families.md`, and the `docs/reference/schema-*.sql` scripts. |
 | `check` | Verify docs are current **and** the snapshot equals the live model. Drift gate for CI. |
-| `schema reset [--force]` | Delete every migration + the snapshot + the provision scripts. Deletes only; `--force` required. |
+| `schema reset [--force]` | Delete every migration + the snapshot + the schema scripts. Deletes only; `--force` required. |
 | `schema add [--name <n>]` | Emit the next migration `M{N}` for every provider; advance the snapshot. |
 | `schema amend [--name <n>]` | Rewrite the tip migration `M{N}` in place. |
 
@@ -36,7 +36,7 @@ three dialects: `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` (Pos
 `IF OBJECT_ID(N'...') IS NULL` before each `CREATE TABLE` (SQL Server), and the closing history
 insert guarded by `WHERE version = N` / `ON CONFLICT (version) DO NOTHING`.
 
-This is not decoration. The published provision script concatenates every migration and runs them
+This is not decoration. The published schema script concatenates every migration and runs them
 all unconditionally, so per-statement guards are the only thing that lets one file serve both a
 fresh install and an upgrade from any earlier `Mnnn`: each statement skips itself when its object is
 already there, and the union of those skips is the version gate. A whole-migration
@@ -57,11 +57,12 @@ schema and assert the second pass changes nothing, so a migration that breaks th
 Routine and operator-view bodies are exempt by construction: they carry no version, sit after every
 migration, and are rewritten on each run (`CREATE OR ALTER`, `CREATE OR REPLACE`, or drop-create).
 
-## Published provision scripts
+## Published schema scripts
 
-`docs/reference/provision/{pg,mssql,sqlite}.sql` are generated, drift-checked, complete provisioning
-scripts: the migration-history table, every migration in order (each records its own history row and
-the baseline stamp), then the operator views and routines, fully rendered for the default schema and
+`docs/reference/schema-{pg,mssql,sqlite}.sql` are generated, drift-checked, complete provisioning
+scripts: the migration-history table, every migration in order (each records its own history row;
+the baseline migration also records the version-0 stamp row), then the operator views and any
+routines, fully rendered for the default schema and
 wrapped in one transaction. They exist for deployments where the application principal is not
 allowed DDL: a DBA reviews and runs the file under an elevated principal, and because the history
 rows are recorded by the script itself, a bootstrap sees the database as its own work. A conformance
@@ -157,9 +158,13 @@ dropped and recreated.
 - `SqlDdlDialect.BaselineStamp` (`tools/Acta.Emit`), written into the generated `M001` bodies.
 - `SchemaMigrationRunner.RequiredBaselineStamp` (`src/Acta.Relational`), required at bootstrap.
 
-Bootstrap compares the stamp recorded in the database against the one the build ships and throws on a
-mismatch, so a stale database fails loudly with a reprovision instruction instead of silently taking a
-schema it was not built for. Skipping the bump defeats that check.
+The stamp is recorded as a version-0 sentinel row in `migrations`, written by `M001` alongside its
+own history row; every migration's `name` is its plain snake name (`init`, not the stamp). Bootstrap
+compares the stamp recorded in the database against the one the build ships and throws on a
+mismatch, so a stale database fails loudly with a reprovision instruction instead of silently taking
+a schema it was not built for. Skipping the bump defeats that check. Bootstrap also rejects an
+applied version whose recorded name differs from the shipped one, so a migration amended after a
+database already applied it fails loudly instead of being silently skipped.
 
 The 2026-07-15 byte-sized persisted-code change used this workflow. Enum member names, textual codes,
 descriptions, and JSON strings did not change; only family-local numeric ids and physical

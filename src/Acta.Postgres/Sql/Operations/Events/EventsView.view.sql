@@ -27,9 +27,10 @@ SELECT
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE 'custom-' || e.detail_format_id::text
+        ELSE 'custom-' || e.detail_format_id::TEXT
     END AS detail_format,
-    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN convert_from(e.detail, 'UTF8') END AS detail_text,
+    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(e.detail, 'UTF8') END
+        AS detail_text,
     e.worker_id,
     e.execution_number,
     e.duration_ms,

@@ -25,7 +25,7 @@ internal static class CheckCommand
             (Path.Combine(repoRoot, "docs", "reference", "data-model.md"), DataModelEmitter.EmitDataModelReference(model)),
             (Path.Combine(repoRoot, "docs", "reference", "code-families.md"), CodeFamilyEmitter.EmitCodes(model, repoRoot)),
             .. ProvisionScriptEmitter.Providers.Select(p =>
-                (Path.Combine(repoRoot, "docs", "reference", "provision", p.Token + ".sql"), ProvisionScriptEmitter.Emit(repoRoot, p.Token))
+                (ProvisionScriptEmitter.PathFor(repoRoot, p.Token), ProvisionScriptEmitter.Emit(repoRoot, p.Token))
             ),
         ];
         foreach (var (path, expected) in artifacts)

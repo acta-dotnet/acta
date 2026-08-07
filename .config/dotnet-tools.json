@@ -8,13 +8,6 @@
         "csharpier"
       ],
       "rollForward": false
-    },
-    "erikej.dacfx.tsqlanalyzer.cli": {
-      "version": "1.0.57",
-      "commands": [
-        "tsqlanalyze"
-      ],
-      "rollForward": false
     }
   }
 }

@@ -122,7 +122,13 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
     }
 
     public override string MigrationStamp(int version, string name) =>
-        $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
-        + $"VALUES ({version}, '{PersistedMigrationName(version, name)}', '{SchemaPlaceholder}')\n"
-        + "ON CONFLICT (version) DO NOTHING;";
+        string.Join(
+            "\n",
+            StampRows(version, name)
+                .Select(r =>
+                    $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
+                    + $"VALUES ({r.Version}, '{r.Name}', '{SchemaPlaceholder}')\n"
+                    + "ON CONFLICT (version) DO NOTHING;"
+                )
+        );
 }

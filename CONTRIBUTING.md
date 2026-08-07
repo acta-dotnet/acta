@@ -171,6 +171,39 @@ dotnet run --project tools/Acta.Emit -- check
 
 Commit messages use imperative mood with no prefixes.
 
+## SQL style
+
+Hand-written provider SQL (everything under `src/*/Sql/`; the generated `Schema/Migrations` and
+`docs/reference` files are emitter-owned) is maintained in one block style across all three
+dialects. No formatter owns it; `SqlStyleTests` enforces the machine-checkable floor (uppercase
+line-leading keywords, no tabs, no trailing whitespace) and the rest is convention. By example:
+
+```sql
+SELECT
+    j.id,
+    ns.name AS namespace_name,
+    r.status_code
+FROM {{schema}}.jobs j
+INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
+WHERE
+    j.id = @p_id
+    AND r.status_code = 10 /* JobStatusCode.Ready */
+ORDER BY j.id
+LIMIT 1;
+```
+
+- Clause keywords sit at the statement's indent; nested statements (subqueries, CTE and `IF` bodies,
+  plpgsql blocks) indent by 4.
+- `WHERE`/`SET` with a single item stay inline; with two or more, the keyword stands alone and each
+  item gets its own line at +4 (leading `AND`/`OR`).
+- Wide `INSERT` column lists and their `VALUES`/`SELECT` projections put one item per line, so the
+  column and value lines pair up one-to-one; a short insert that fits in one line stays inline.
+- Multi-line `SELECT` projections put one item per line, except deliberate semantic groupings (the
+  `x, x_override, x_effective` policy triples stay on one line per family); the same latitude
+  covers recurring paired predicates in `WHERE` (the tag-scope `scope_code = N AND scope_id = x`
+  idiom).
+- Target line length 140, matching `.csharpierrc.json`.
+
 ## Proof harness
 
 Anvil (`anvil/Anvil`) is the local proof harness for crash recovery, retries, worker reclaim,

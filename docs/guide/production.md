@@ -60,7 +60,8 @@ Run migration SQL from your release pipeline or database migration process, then
 
 For pipelines and DBAs that run reviewed SQL rather than application code, the repository publishes
 complete provisioning scripts at
-[`docs/reference/provision/`](../reference/provision/): one file per provider carrying the migration
+[`schema-pg.sql`](../reference/schema-pg.sql), [`schema-mssql.sql`](../reference/schema-mssql.sql),
+[`schema-sqlite.sql`](../reference/schema-sqlite.sql): one file per provider carrying the migration
 history, every migration, and all operator views and routines, ready to review and run under a
 DDL-capable principal (replace the default schema name throughout to relocate). With the database
 provisioned that way, the application principal needs only DML and EXECUTE on the Acta schema and

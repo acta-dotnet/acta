@@ -90,9 +90,15 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
     }
 
     public override string MigrationStamp(int version, string name) =>
-        $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.migrations WHERE version = {version})\n"
-        + $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
-        + $"VALUES ({version}, '{PersistedMigrationName(version, name)}', '{SchemaPlaceholder}');";
+        string.Join(
+            "\n",
+            StampRows(version, name)
+                .Select(r =>
+                    $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.migrations WHERE version = {r.Version})\n"
+                    + $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
+                    + $"VALUES ({r.Version}, '{r.Name}', '{SchemaPlaceholder}');"
+                )
+        );
 
     // TVP table types consumed by hot-path routines (enqueue / claim / schedule batches). Request-
     // shape table types, not domain entities, so they are a dialect literal here rather than part of

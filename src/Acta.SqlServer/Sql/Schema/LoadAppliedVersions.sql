@@ -1,1 +1,4 @@
-SELECT version, name FROM {{schema}}.migrations;
+SELECT
+    version,
+    name
+FROM {{schema}}.migrations;

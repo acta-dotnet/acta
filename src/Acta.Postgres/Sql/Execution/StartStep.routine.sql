@@ -1,48 +1,69 @@
 CREATE OR REPLACE FUNCTION {{schema}}.start_step(
-    p_job_id       BIGINT,
-    p_name         VARCHAR,
+    p_job_id BIGINT,
+    p_name VARCHAR,
     p_at_most_once BOOLEAN
 )
 RETURNS TABLE (
-    outcome_code      SMALLINT,
-    attempt_number    SMALLINT,
-    version           INT,
+    outcome_code SMALLINT,
+    attempt_number SMALLINT,
+    version INT,
     next_retry_at_utc TIMESTAMPTZ,
-    result_format_id  SMALLINT,
-    result            BYTEA,
-    reason_code       SMALLINT,
-    reason_message    VARCHAR
+    result_format_id SMALLINT,
+    result BYTEA,
+    reason_code SMALLINT,
+    reason_message VARCHAR
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_now     TIMESTAMPTZ := now();
-    v_state   SMALLINT;
+    v_now TIMESTAMPTZ := now();
+    v_state SMALLINT;
     v_attempt SMALLINT;
     v_version INT;
-    v_next    TIMESTAMPTZ;
-    v_rfid    SMALLINT;
-    v_result  BYTEA;
-    v_rcode   SMALLINT;
-    v_rmsg    VARCHAR;
+    v_next TIMESTAMPTZ;
+    v_rfid SMALLINT;
+    v_result BYTEA;
+    v_rcode SMALLINT;
+    v_rmsg VARCHAR;
 BEGIN
 
-    SELECT a.status_code, a.attempt_number, a.version, a.next_retry_at_utc,
-           a.result_format_id, a.result, a.reason_code, a.reason_message
-      INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
-      FROM {{schema}}.steps a
-     WHERE a.job_id = p_job_id AND a.name = p_name
-     FOR UPDATE;
+    SELECT
+        a.status_code,
+        a.attempt_number,
+        a.version,
+        a.next_retry_at_utc,
+        a.result_format_id,
+        a.result,
+        a.reason_code,
+        a.reason_message
+    INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
+    FROM {{schema}}.steps a
+    WHERE
+        a.job_id = p_job_id
+        AND a.name = p_name
+    FOR UPDATE;
 
     IF NOT FOUND THEN
         INSERT INTO {{schema}}.steps (
-            job_id, name, status_code, attempt_number,
-            result_format_id, created_at_utc, modified_at_utc, version)
+            job_id,
+            name,
+            status_code,
+            attempt_number,
+            result_format_id,
+            created_at_utc,
+            modified_at_utc,
+            version)
         VALUES (
-            p_job_id, p_name, 10 /* JobStepStatusCode.Pending */, 1,
-            0 /* JobPayloadFormat.None */, v_now, v_now, 0)
+            p_job_id,
+            p_name,
+            10 /* JobStepStatusCode.Pending */,
+            1,
+            0 /* JobPayloadFormat.None */,
+            v_now,
+            v_now,
+            0)
         RETURNING steps.attempt_number, steps.version
-             INTO v_attempt, v_version;
+        INTO v_attempt, v_version;
 
         RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
@@ -67,22 +88,28 @@ BEGIN
         -- the pending row but before complete_step. Do not re-invoke; terminalize the row Interrupted
         -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
         UPDATE {{schema}}.steps a
-           SET status_code      = 230 /* JobStepStatusCode.Interrupted */,
-               reason_code     = 63 /* JobEventReasonCode.JobStepInterrupted */,
-               reason_message  = 'At-most-once step re-entered before completion; outcome unknown.',
-               modified_at_utc = v_now,
-               version         = a.version + 1
-         WHERE a.job_id = p_job_id AND a.name = p_name
+        SET
+            status_code = 230 /* JobStepStatusCode.Interrupted */,
+            reason_code = 63 /* JobEventReasonCode.JobStepInterrupted */,
+            reason_message = 'At-most-once step re-entered before completion; outcome unknown.',
+            modified_at_utc = v_now,
+            version = a.version + 1
+        WHERE
+            a.job_id = p_job_id
+            AND a.name = p_name
         RETURNING a.version INTO v_version;
 
         RETURN QUERY SELECT 5 /* StartStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSE
         UPDATE {{schema}}.steps a
-           SET attempt_number  = a.attempt_number + 1,
-               modified_at_utc = v_now,
-               version         = a.version + 1
-         WHERE a.job_id = p_job_id AND a.name = p_name
+        SET
+            attempt_number = a.attempt_number + 1,
+            modified_at_utc = v_now,
+            version = a.version + 1
+        WHERE
+            a.job_id = p_job_id
+            AND a.name = p_name
         RETURNING a.attempt_number, a.version INTO v_attempt, v_version;
 
         RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,

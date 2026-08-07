@@ -16,7 +16,8 @@ SELECT
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || CAST(c.value_format_id AS TEXT)
     END AS value_format,
-    CASE WHEN c.value_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(c.value AS TEXT) END AS value_text,
+    CASE WHEN c.value_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(c.value AS TEXT) END
+        AS value_text,
     c.created_at_utc,
     c.modified_at_utc,
     c.version

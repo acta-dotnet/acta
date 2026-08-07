@@ -1,9 +1,9 @@
 CREATE OR REPLACE FUNCTION {{schema}}.register_tenant(
-    p_tenant_key   VARCHAR,
+    p_tenant_key VARCHAR,
     p_display_name VARCHAR,
-    p_description  VARCHAR
+    p_description VARCHAR
 )
-RETURNS TABLE(tenant_id INT)
+RETURNS TABLE (tenant_id INT)
 LANGUAGE plpgsql
 AS $$
 BEGIN

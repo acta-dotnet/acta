@@ -167,6 +167,8 @@ internal static class ChaosServiceCollectionExtensions
 internal sealed class ControlledWakeup : IWorkerWakeup
 {
     private readonly Lock _gate = new();
+    private readonly List<(WorkerWakeupChannelKind Kind, int Threshold, TaskCompletionSource Tcs)> _wakeWaiters = [];
+    private readonly Dictionary<WorkerWakeupChannelKind, int> _wakesByKind = [];
     private TaskCompletionSource? _waiting;
     private WorkerWakeupWaitResult _nextResult = WorkerWakeupWaitResult.TimedOut;
 
@@ -178,12 +180,47 @@ internal sealed class ControlledWakeup : IWorkerWakeup
 
     public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default)
     {
+        List<TaskCompletionSource>? matured = null;
         lock (_gate)
         {
             WakeCount++;
+            var kindCount = _wakesByKind.GetValueOrDefault(channel.Kind) + 1;
+            _wakesByKind[channel.Kind] = kindCount;
+            for (var i = _wakeWaiters.Count - 1; i >= 0; i--)
+            {
+                if (_wakeWaiters[i].Kind == channel.Kind && kindCount >= _wakeWaiters[i].Threshold)
+                {
+                    (matured ??= []).Add(_wakeWaiters[i].Tcs);
+                    _wakeWaiters.RemoveAt(i);
+                }
+            }
         }
 
+        matured?.ForEach(tcs => tcs.TrySetResult());
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Completes when at least <paramref name="threshold"/> wakes have been published on channels of
+    /// <paramref name="kind"/>. This is the outcome-not-clock instrument: a JobCompletion wake is
+    /// published only after the terminal completion write returns, so awaiting it proves the job ran
+    /// to completion without any wall-clock budget.
+    /// </summary>
+    public Task WaitForWakeAsync(WorkerWakeupChannelKind kind, int threshold, CancellationToken ct)
+    {
+        TaskCompletionSource tcs;
+        lock (_gate)
+        {
+            if (_wakesByKind.GetValueOrDefault(kind) >= threshold)
+            {
+                return Task.CompletedTask;
+            }
+
+            tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _wakeWaiters.Add((kind, threshold, tcs));
+        }
+
+        return tcs.Task.WaitAsync(ct);
     }
 
     public async ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)

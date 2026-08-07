@@ -1,8 +1,9 @@
+using Acta.Emit.Features.Docs;
 using Acta.Emit.Shared;
 
 namespace Acta.Emit.Features.Migrations;
 
-/// <summary>Deletes every committed migration, the snapshot, and the generated provision scripts
+/// <summary>Deletes every committed migration, the snapshot, and the generated schema scripts
 /// (composed from the migrations, so stale the moment they go), and nothing else. The next
 /// `schema add` recreates the baseline. The one destructive command, so it is `--force`-gated.</summary>
 internal static class SchemaResetCommand
@@ -11,11 +12,7 @@ internal static class SchemaResetCommand
     {
         repoRoot ??= RepoRoot.Find();
         var files = MigrationFiles.AllMigrationSql(repoRoot).ToList();
-        var provisionDir = Path.Combine(repoRoot, "docs", "reference", "provision");
-        if (Directory.Exists(provisionDir))
-        {
-            files.AddRange(Directory.GetFiles(provisionDir, "*.sql"));
-        }
+        files.AddRange(ProvisionScriptEmitter.Providers.Select(p => ProvisionScriptEmitter.PathFor(repoRoot, p.Token)).Where(File.Exists));
         var snapshotPath = SnapshotFile.Path(repoRoot);
 
         if (!force)

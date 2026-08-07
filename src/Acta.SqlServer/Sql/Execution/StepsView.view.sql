@@ -19,7 +19,11 @@ SELECT
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', s.result_format_id)
     END AS result_format,
-    CASE WHEN s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(s.result AS varchar(max)) COLLATE Latin1_General_100_BIN2_UTF8 END AS result_text,
+    CASE
+        WHEN
+            s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            THEN CAST(s.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS result_text,
     s.created_at_utc,
     s.modified_at_utc,
     s.version

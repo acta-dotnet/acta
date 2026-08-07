@@ -6,9 +6,12 @@ The data model is finished and verified: one status vocabulary, one payload ceil
 settings, DBA-runnable provisioning scripts, and a tenant-aware dashboard.
 
 > **Schema note:** the `M001` baseline was re-cut in this release (extensible code catalogs,
-> schedules cleanup, the status vocabulary below; baseline stamp `init-extensible-status-v1`).
-> Preview compatibility policy applies: drop and reprovision the Acta database; the bootstrap
-> refuses a mismatched baseline.
+> schedules cleanup, the status vocabulary below; baseline stamp `init-extensible-status-v1`),
+> and migration history bookkeeping changed: `migrations` records each migration under its plain
+> name (`1 = init`) with the baseline stamp in a dedicated version-0 row. Preview compatibility
+> policy applies, including for databases built from an earlier 0.4.0 preview (their history
+> lacks the version-0 row): drop and reprovision the Acta database; the bootstrap refuses any
+> history that does not carry this build's stamp row.
 
 ### One vocabulary
 
@@ -33,9 +36,14 @@ settings, DBA-runnable provisioning scripts, and a tenant-aware dashboard.
 
 ### DBA-runnable provisioning
 
-- `docs/reference/provision/{pg,mssql,sqlite}.sql`: generated, drift-checked, execution-proven
+- `docs/reference/schema-{pg,mssql,sqlite}.sql`: generated, drift-checked, execution-proven
   scripts carrying the full schema, views, and routines - for deployments where the application
   principal is never allowed DDL.
+- Install and upgrade are the same file: every statement is individually guarded, and `BEGIN`/`END`
+  banners mark where each migration starts and ends, with section banners for the views and
+  routines that are always rewritten.
+- The bootstrap rejects an applied migration whose recorded name differs from the shipped one, so
+  a migration amended after a database applied it fails loudly instead of being silently skipped.
 
 ### Dashboard
 

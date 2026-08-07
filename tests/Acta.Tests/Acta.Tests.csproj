@@ -38,4 +38,21 @@
     <!-- Abstract conformance specs + test infrastructure shared with per-provider projects. -->
     <ProjectReference Include="..\Acta.Tests.Conformance\Acta.Tests.Conformance.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Fabricated two-migration chain: logical names mimic a provider assembly's layout so
+         SchemaMigrationDiscovery and SqlResourceCatalog resolve this test assembly as a provider
+         (only M001 exists in the real providers, so the multi-migration path is untestable there). -->
+    <EmbeddedResource Include="Fixtures\MigrationChain\AcquireSchemaLock.sql" LogicalName="Acta.Tests.Sql.Schema.AcquireSchemaLock.sql" />
+    <EmbeddedResource Include="Fixtures\MigrationChain\EnsureMigrations.sql" LogicalName="Acta.Tests.Sql.Schema.EnsureMigrations.sql" />
+    <EmbeddedResource
+      Include="Fixtures\MigrationChain\LoadAppliedVersions.sql"
+      LogicalName="Acta.Tests.Sql.Schema.LoadAppliedVersions.sql"
+    />
+    <EmbeddedResource Include="Fixtures\MigrationChain\M001_init.sql" LogicalName="Acta.Tests.Schema.Migrations.M001_init.sql" />
+    <EmbeddedResource
+      Include="Fixtures\MigrationChain\M002_add_widgets.sql"
+      LogicalName="Acta.Tests.Schema.Migrations.M002_add_widgets.sql"
+    />
+  </ItemGroup>
 </Project>

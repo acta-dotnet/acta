@@ -26,6 +26,30 @@ public sealed class DialectLeakageAssertTests
     public void Clean_snippet_passes() => Assert.Empty(DialectLeakageAssert.ScanContent("pg", "Fake/Fake.sql", "SELECT 1;"));
 }
 
+public sealed class SqlStyleAssertTests
+{
+    [Fact]
+    public void Tab_character_fails() => Assert.NotEmpty(SqlStyleAssert.ScanContent("Fake/Fake.sql", "SELECT\t1;"));
+
+    [Fact]
+    public void Trailing_whitespace_fails() => Assert.NotEmpty(SqlStyleAssert.ScanContent("Fake/Fake.sql", "SELECT 1; \nFROM x;"));
+
+    [Fact]
+    public void Lowercase_clause_keyword_fails() => Assert.NotEmpty(SqlStyleAssert.ScanContent("Fake/Fake.sql", "select 1;"));
+
+    [Fact]
+    public void Lowercase_keyword_inside_a_string_passes() =>
+        Assert.Empty(SqlStyleAssert.ScanContent("Fake/Fake.sql", "SELECT 'select one from x';"));
+
+    [Fact]
+    public void Lowercase_keyword_inside_a_comment_passes() =>
+        Assert.Empty(SqlStyleAssert.ScanContent("Fake/Fake.sql", "-- select the winner\nSELECT 1;"));
+
+    [Fact]
+    public void Clean_uppercase_snippet_passes() =>
+        Assert.Empty(SqlStyleAssert.ScanContent("Fake/Fake.sql", "SELECT 1\nFROM x\nWHERE a = 1;"));
+}
+
 public sealed class UnsafeDmlAssertTests
 {
     [Fact]

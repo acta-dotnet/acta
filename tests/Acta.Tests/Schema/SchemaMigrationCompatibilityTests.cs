@@ -1,3 +1,4 @@
+using Acta.Relational.Schema;
 using Acta.Sqlite.Schema;
 using Microsoft.Data.Sqlite;
 using Xunit;
@@ -36,6 +37,32 @@ public sealed class SchemaMigrationCompatibilityTests
         // build ships is deliberately not asserted: it is bumped on every `schema reset`, and this
         // test should survive that rather than have to be edited alongside it.
         Assert.Contains("'init'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Applied_migration_renamed_on_disk_is_rejected_instead_of_skipped()
+    {
+        var shipped = new[] { new SchemaMigration(1, "M001_init", ""), new SchemaMigration(2, "M002_add_flags", "") };
+
+        // Matching bare names pass; the version-0 stamp row is not a migration and is never compared.
+        SchemaMigrationRunner.VerifyAppliedNames(
+            shipped,
+            new Dictionary<int, string>
+            {
+                [0] = "some-stamp",
+                [1] = "init",
+                [2] = "add_flags",
+            }
+        );
+        // A version the database has not applied yet is free to differ.
+        SchemaMigrationRunner.VerifyAppliedNames(shipped, new Dictionary<int, string> { [1] = "init" });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            SchemaMigrationRunner.VerifyAppliedNames(shipped, new Dictionary<int, string> { [1] = "init", [2] = "add_columns" })
+        );
+        Assert.Contains("'add_columns'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'add_flags'", exception.Message, StringComparison.Ordinal);
         Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
     }
 }

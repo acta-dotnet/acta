@@ -419,5 +419,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (1, 'init-extensible-status-v1', '{{schema}}')
+VALUES (0, 'init-extensible-status-v1', '{{schema}}')
+ON CONFLICT (version) DO NOTHING;
+INSERT INTO {{schema}}.migrations (version, name, installed_schema)
+VALUES (1, 'init', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;

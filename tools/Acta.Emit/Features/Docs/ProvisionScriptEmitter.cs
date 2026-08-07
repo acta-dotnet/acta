@@ -6,7 +6,7 @@ using Acta.Relational.Schema;
 namespace Acta.Emit.Features.Docs;
 
 /// <summary>
-/// Emits <c>docs/reference/provision/{dialect}.sql</c>: one provider's complete provisioning script,
+/// Emits <c>docs/reference/schema-{dialect}.sql</c>: one provider's complete schema script,
 /// composed from the same on-disk SQL the provider embeds (migration history table, every migration
 /// in order, operator views, routines) and fully rendered for the default schema, so a DBA can
 /// review and run it verbatim. Exists because locked-down deployments forbid DDL from the
@@ -16,6 +16,9 @@ namespace Acta.Emit.Features.Docs;
 /// </summary>
 internal static class ProvisionScriptEmitter
 {
+    /// <summary>The published file for one dialect: flat beside the other reference artifacts.</summary>
+    internal static string PathFor(string repoRoot, string token) => Path.Combine(repoRoot, "docs", "reference", $"schema-{token}.sql");
+
     internal static readonly (string Token, string Project, string Schema)[] Providers =
     [
         ("pg", "Acta.Postgres", "acta"),
@@ -35,7 +38,8 @@ internal static class ProvisionScriptEmitter
         script.AppendLine($"-- schema name '{schema}' throughout. Baseline stamp: {SchemaMigrationRunner.RequiredBaselineStamp}.");
         script.AppendLine("--");
         script.AppendLine("-- The same SQL the bootstrap migration runner applies: the migration history table, every");
-        script.AppendLine("-- migration in order (each records its own history row), then operator views and routines.");
+        script.AppendLine("-- migration in order (each records its own history row), then the operator objects the");
+        script.AppendLine("-- provider installs.");
         script.AppendLine("--");
         script.AppendLine("-- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already");
         script.AppendLine("-- running an earlier Acta version: every statement is individually guarded, so it applies");
@@ -76,9 +80,18 @@ internal static class ProvisionScriptEmitter
             {
                 throw new InvalidOperationException("The {{now}} token is the SQLite instant encoding; other dialects use native now().");
             }
-            return CodeDecodeSql.RenderDecodeTokens(
-                sql.Replace("{{schema}}", schema).Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)")
-            );
+            // Full-line comments keep their tokens verbatim: substituting prose like "`{{schema}}` is
+            // substituted at apply time" would turn a true statement about a token into nonsense
+            // about a literal schema name in the DBA-facing file. Decode tokens render on the joined
+            // text (never inside comments) so an expression wrapping a line still expands.
+            var lines = sql.ReplaceLineEndings("\n")
+                .Split('\n')
+                .Select(line =>
+                    line.TrimStart().StartsWith("--", StringComparison.Ordinal)
+                        ? line
+                        : line.Replace("{{schema}}", schema).Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)")
+                );
+            return CodeDecodeSql.RenderDecodeTokens(string.Join("\n", lines));
         }
 
         if (mssql)
@@ -87,15 +100,28 @@ internal static class ProvisionScriptEmitter
             Append("SET QUOTED_IDENTIFIER ON;\nSET ANSI_NULLS ON;");
         }
         Append(mssql ? "SET XACT_ABORT ON;\nBEGIN TRANSACTION;" : "BEGIN;");
-        Append(Render(File.ReadAllText(Path.Combine(providerDir, "Sql", "Schema", "EnsureMigrations.sql"))));
+        Append(
+            "-- ===== migration history table =====\n"
+                + Render(File.ReadAllText(Path.Combine(providerDir, "Sql", "Schema", "EnsureMigrations.sql")))
+        );
 
         var migrationsDir = Path.Combine(providerDir, "Schema", "Migrations");
         foreach (var migration in Directory.GetFiles(migrationsDir, "M*.sql").OrderBy(f => f, StringComparer.Ordinal))
         {
-            Append(Render(File.ReadAllText(migration)));
+            var name = Path.GetFileNameWithoutExtension(migration);
+            // Drop the migration file's own leading comment banner: it addresses migration editors
+            // ("hand-edit only as a delta", "`{{schema}}` is substituted at apply time") and reads
+            // false or confusing inside the fully rendered script; the BEGIN banner names the file.
+            var body = File.ReadAllText(migration)
+                .ReplaceLineEndings("\n")
+                .Split('\n')
+                .SkipWhile(line => line.StartsWith("--", StringComparison.Ordinal) || line.Length == 0);
+            Append($"-- ===== BEGIN {name} =====\n" + Render(string.Join("\n", body)));
+            Append($"-- ===== END {name} =====");
         }
 
         // Views before routines, each set in resource-name order, mirroring SqlObjectInstaller.
+        Append("-- ===== operator views (versionless; always rewritten to this file's definitions) =====");
         foreach (var (name, body) in SqlObjects(providerDir, ".view.sql"))
         {
             if (!name.EndsWith("_view", StringComparison.Ordinal))
@@ -105,7 +131,12 @@ internal static class ProvisionScriptEmitter
             var statements = SqlObjectInstaller.WrapView(token, $"{schema}.{name}", Render(body).Trim());
             Append(string.Join("\n", statements.Select(s => s.Body)));
         }
-        foreach (var (_, body) in SqlObjects(providerDir, ".routine.sql"))
+        var routines = SqlObjects(providerDir, ".routine.sql").ToArray();
+        if (routines.Length > 0)
+        {
+            Append("-- ===== routines (versionless; always rewritten to this file's definitions) =====");
+        }
+        foreach (var (_, body) in routines)
         {
             Append(Render(body));
         }

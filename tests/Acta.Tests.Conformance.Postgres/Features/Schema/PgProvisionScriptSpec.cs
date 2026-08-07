@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Postgres.Features.Schema;
 
 /// <summary>
-/// The published provisioning script (docs/reference/provision/pg.sql) must provision a working
+/// The published provisioning script (docs/reference/schema-pg.sql) must provision a working
 /// schema when run verbatim, because DBA-run provisioning under an elevated principal is exactly how
 /// locked-down deployments consume it. Runs the committed file against a fresh schema name (using
 /// the header's own "replace the schema name throughout" instruction) and inspects the result.
@@ -24,7 +24,7 @@ public sealed partial class PgProvisionScriptSpec
         }
         var ct = TestContext.Current.CancellationToken;
         var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
-        var published = File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "provision", "pg.sql"));
+        var published = File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "schema-pg.sql"));
         var script = SchemaWord().Replace(published, schema);
 
         // The shared bootstrap owns creating the test database; a clean CI runner has none until it
@@ -46,14 +46,20 @@ public sealed partial class PgProvisionScriptSpec
                 await provision.ExecuteNonQueryAsync(ct);
             }
 
+            // One history row per migration section in the file plus the version-0 baseline-stamp
+            // row, no more (the double run must not stamp anything twice), counted from the
+            // script's own BEGIN banners.
+            var migrations = BeginBanner().Matches(published).Count + 1;
+            Assert.True(migrations > 1, "the published script contains no migration banners");
+
             await using var probe = conn.CreateCommand();
             probe.CommandText =
-                $"SELECT (SELECT COUNT(*) FROM {schema}.migrations WHERE version = 1), "
+                $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
                 + $"(SELECT COUNT(*) FROM {schema}.jobs_view), "
                 + $"(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = '{schema}')";
             await using var reader = await probe.ExecuteReaderAsync(ct);
             Assert.True(await reader.ReadAsync(ct));
-            Assert.Equal(1, reader.GetInt64(0));
+            Assert.Equal(migrations, reader.GetInt64(0));
             Assert.Equal(0, reader.GetInt64(1));
             Assert.True(reader.GetInt64(2) > 0, "no routines were installed");
         }
@@ -68,4 +74,8 @@ public sealed partial class PgProvisionScriptSpec
     // The whole-word lowercase schema name, exactly what the script header tells a DBA to replace.
     [GeneratedRegex(@"\bacta\b")]
     private static partial Regex SchemaWord();
+
+    // The per-migration section banner the emitter writes above every migration.
+    [GeneratedRegex(@"^-- ===== BEGIN M[0-9]{3}_", RegexOptions.Multiline)]
+    private static partial Regex BeginBanner();
 }

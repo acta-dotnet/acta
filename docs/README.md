@@ -41,7 +41,9 @@ database you already run.
 ## Reference
 
 Generated from source and drift-checked in CI: [Data model](./reference/data-model.md),
-[Code families](./reference/code-families.md), and the [provision scripts](./reference/provision/):
+[Code families](./reference/code-families.md), and the schema scripts
+([pg](./reference/schema-pg.sql), [mssql](./reference/schema-mssql.sql),
+[sqlite](./reference/schema-sqlite.sql)):
 complete per-provider SQL (migrations, views, routines) for DBA-run provisioning where the
 application principal is not allowed DDL.
 

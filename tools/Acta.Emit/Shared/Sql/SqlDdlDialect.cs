@@ -18,8 +18,12 @@ internal abstract class SqlDdlDialect
     // a database built from the previous baseline fails loudly rather than taking a mismatched schema.
     protected const string BaselineStamp = "init-extensible-status-v1";
 
-    protected static string PersistedMigrationName(int version, string name) =>
-        version == 1 && string.Equals(name, "init", StringComparison.Ordinal) ? BaselineStamp : name;
+    // Every migration records its plain snake name; the baseline generation identity lives in a
+    // dedicated version-0 sentinel row that every full baseline ('init' at any version - a provider
+    // joining mid-stream baselines above 1) writes alongside its own, so the bootstrap's stamp check
+    // holds for every provider database.
+    protected static (int Version, string Name)[] StampRows(int version, string name) =>
+        string.Equals(name, "init", StringComparison.Ordinal) ? [(0, BaselineStamp), (version, name)] : [(version, name)];
 
     public abstract string ProviderToolName { get; }
 

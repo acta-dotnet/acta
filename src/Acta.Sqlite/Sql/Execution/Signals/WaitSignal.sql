@@ -1,17 +1,19 @@
 INSERT INTO {{schema}}.checkpoints (
     job_id, kind_code, name, status_code,
-    value_format_id, value, modified_at_utc, version)
+    value_format_id, value, modified_at_utc, version
+)
 VALUES (
     @p_job_id, @p_kind_code, @p_name,
     10 /* JobCheckpointStatusCode.Pending */,
     0 /* JobPayloadFormat.None */,
-    NULL, {{now}}, 0)
+    NULL, {{now}}, 0
+)
 ON CONFLICT (job_id, kind_code, name) DO NOTHING;
 
 SELECT
     CASE
         WHEN js.status_code = 20 /* JobCheckpointStatusCode.Set */
-        THEN 2 /* SignalWaitOutcomeCode.ContinueSet */
+            THEN 2 /* SignalWaitOutcomeCode.ContinueSet */
         ELSE 1 /* SignalWaitOutcomeCode.SuspendPending */
     END AS outcome_code,
     CASE
