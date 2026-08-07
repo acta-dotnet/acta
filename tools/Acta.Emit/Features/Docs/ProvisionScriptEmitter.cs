@@ -36,8 +36,14 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("--");
         script.AppendLine("-- The same SQL the bootstrap migration runner applies: the migration history table, every");
         script.AppendLine("-- migration in order (each records its own history row), then operator views and routines.");
-        script.AppendLine("-- Idempotent. Run it under a DDL-capable principal; the application principal then needs only");
-        script.AppendLine("-- DML and EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the");
+        script.AppendLine("--");
+        script.AppendLine("-- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already");
+        script.AppendLine("-- running an earlier Acta version: every statement is individually guarded, so it applies");
+        script.AppendLine("-- exactly what is missing and skips what is present. Re-running it is a no-op. Views and");
+        script.AppendLine("-- routines carry no version and are always rewritten to the definitions shipped here.");
+        script.AppendLine("--");
+        script.AppendLine("-- Run it under a DDL-capable principal; the application principal then needs only DML and");
+        script.AppendLine("-- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the");
         script.AppendLine("-- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also");
         script.AppendLine("-- accepts the result and applies nothing. Site-specific physical tuning (partitioning,");
         script.AppendLine("-- tablespaces, compression) is yours to add; keep the logical shape - tables, columns,");
@@ -46,8 +52,18 @@ internal static class ProvisionScriptEmitter
 
         void Append(string text)
         {
-            script.AppendLine(text.TrimEnd());
-            script.AppendLine(mssql ? "GO" : "");
+            var body = text.TrimEnd();
+            script.AppendLine(body);
+            // Migration files already end with their own batch separator; a second one would emit an
+            // empty batch into a file whose whole purpose is being read by a DBA.
+            if (!mssql)
+            {
+                script.AppendLine();
+            }
+            else if (!body.EndsWith("\nGO", StringComparison.Ordinal))
+            {
+                script.AppendLine("GO");
+            }
         }
 
         string Render(string sql)

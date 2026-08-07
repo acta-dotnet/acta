@@ -4,8 +4,14 @@
 --
 -- The same SQL the bootstrap migration runner applies: the migration history table, every
 -- migration in order (each records its own history row), then operator views and routines.
--- Idempotent. Run it under a DDL-capable principal; the application principal then needs only
--- DML and EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
+--
+-- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already
+-- running an earlier Acta version: every statement is individually guarded, so it applies
+-- exactly what is missing and skips what is present. Re-running it is a no-op. Views and
+-- routines carry no version and are always rewritten to the definitions shipped here.
+--
+-- Run it under a DDL-capable principal; the application principal then needs only DML and
+-- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
 -- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also
 -- accepts the result and applies nothing. Site-specific physical tuning (partitioning,
 -- tablespaces, compression) is yours to add; keep the logical shape - tables, columns,
@@ -634,7 +640,6 @@ IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE version = 1)
 INSERT INTO acta.migrations (version, name, installed_schema)
 VALUES (1, 'init-extensible-status-v1', 'acta');
 GO
-GO
 CREATE OR ALTER VIEW acta.alerts_view AS
 SELECT
     a.id AS alert_id,
@@ -1032,7 +1037,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.raise_job_alert
     @p_namespace_name     VARCHAR(128),
     @p_job_id                 BIGINT,
@@ -1134,7 +1138,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.resolve_job_alert_manual
     @p_id             BIGINT,
     @p_actor_code     TINYINT,
@@ -1217,7 +1220,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.checkpoint_slot
     @p_action           SMALLINT,
@@ -1364,7 +1366,6 @@ BEGIN
     SELECT found, value_format_id, value, version FROM @row;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.get_child_job_ids
     @p_parent_id BIGINT
 AS
@@ -1375,7 +1376,6 @@ BEGIN
       FROM acta.jobs j
      WHERE j.parent_id = @p_parent_id;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.get_stale_child_latches
     @p_namespace_id SMALLINT
@@ -1397,7 +1397,6 @@ BEGIN
        AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
        AND (c.id IS NULL OR cr.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */));
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.claim_batch
     @p_namespace_id    SMALLINT,
@@ -1573,7 +1572,6 @@ BEGIN
     END
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.claim_one
     @p_namespace_id    SMALLINT,
     @p_leased_by_worker_id INT,
@@ -1683,7 +1681,6 @@ BEGIN
         CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc
       FROM @claimed;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.complete_execution
     @p_id                   BIGINT,
@@ -2116,7 +2113,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.complete_executions_batch
     @p_batch acta.complete_executions_batch READONLY
 AS
@@ -2308,7 +2304,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.register_job_definitions
     @p_namespace_id    SMALLINT,
     @p_manifest_generation DATETIME2(7),
@@ -2471,7 +2466,6 @@ BEGIN
               ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.set_job_definition_overrides
     @p_id                                     INT,
     @p_version                                INT,
@@ -2570,7 +2564,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.cancel_job
     @p_id             BIGINT,
@@ -2694,7 +2687,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.enqueue_batch
     @p_batch     acta.job_enqueue_batch     READONLY,
@@ -2940,7 +2932,6 @@ BEGIN
      ORDER BY b.ordinal;
 END;
 GO
-GO
 -- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
 -- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
 -- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
@@ -3132,7 +3123,6 @@ BEGIN
                  ELSE 2 /* JobEnqueueAction.Deduplicated */ END AS action;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.pause_job
     @p_id             BIGINT,
     @p_actor_code     TINYINT,
@@ -3222,7 +3212,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.purge_job
     @p_id              BIGINT,
@@ -3332,7 +3321,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.reprioritize_job
     @p_id              BIGINT,
     @p_priority_code   TINYINT,
@@ -3423,7 +3411,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.reschedule_job
     @p_id              BIGINT,
@@ -3517,7 +3504,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.reset_job_state
     @p_id BIGINT
 AS
@@ -3588,7 +3574,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.restart_job
     @p_id              BIGINT,
@@ -3682,7 +3667,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.resume_job
     @p_id              BIGINT,
     @p_actor_code      TINYINT,
@@ -3770,7 +3754,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.update_job_input
     @p_id              BIGINT,
@@ -3884,7 +3867,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.resume_namespace
     @p_namespace_name VARCHAR(128),
     @p_actor_code     TINYINT,
@@ -3939,7 +3921,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.suspend_namespace
     @p_namespace_name VARCHAR(128),
     @p_actor_code     TINYINT,
@@ -3993,7 +3974,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.update_namespace
     @p_namespace_name   VARCHAR(128),
@@ -4051,7 +4031,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.reclaim_stuck_jobs
     @p_namespace_id SMALLINT
@@ -4151,7 +4130,6 @@ BEGIN
 
     SELECT id AS job_id, to_status_code AS to_status, parent_id FROM @reclaimed;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.pause_schedule
     @p_job_id               BIGINT,
@@ -4256,7 +4234,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.register_scheduled_jobs
     @p_namespace_id SMALLINT,
@@ -4427,7 +4404,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.resume_schedule
     @p_job_id               BIGINT,
     @p_name                 VARCHAR(128),
@@ -4532,7 +4508,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.set_schedule_overrides
     @p_job_id                    BIGINT,
@@ -4652,7 +4627,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.trigger_schedule_now
     @p_job_id          BIGINT,
     @p_name            VARCHAR(128),
@@ -4768,7 +4742,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 -- Scoped upsert, last write wins: targets resolve the scope (none = Global, namespace alone =
 -- Namespace, namespace + job name = Definition); unregistered targets are NotFound. UPDLOCK+HOLDLOCK
 -- serializes same-key writers, so the guarded INSERT cannot lose a race. Name validated upstream.
@@ -4862,7 +4835,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.raise_signal
     @p_job_id          BIGINT,
@@ -4999,7 +4971,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id    BIGINT,
     @p_kind_code TINYINT,
@@ -5052,7 +5023,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.start_execution
     @p_id                   BIGINT,
@@ -5172,7 +5142,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.start_step
     @p_job_id       BIGINT,
@@ -5315,7 +5284,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.register_tenant
     @p_tenant_key   VARCHAR(128),
     @p_display_name NVARCHAR(128),
@@ -5343,7 +5311,6 @@ BEGIN
 
     SELECT id AS tenant_id FROM acta.tenants WHERE tenant_key = @p_tenant_key;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.resume_tenant
     @p_tenant_key     VARCHAR(128),
@@ -5400,7 +5367,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.suspend_tenant
     @p_tenant_key     VARCHAR(128),
     @p_actor_code     TINYINT,
@@ -5455,7 +5421,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.update_tenant
     @p_tenant_key       VARCHAR(128),
@@ -5514,7 +5479,6 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.arm_or_consume_sleep_timer
     @p_job_id        BIGINT,
@@ -5614,7 +5578,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.extend_worker_leases
     @p_leased_by_worker_id INT,
     @p_lease_ttl_seconds   INT,
@@ -5643,7 +5606,6 @@ BEGIN
        AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.mark_dead_workers
     @p_dead_after_seconds INT
 AS
@@ -5671,7 +5633,6 @@ BEGIN
 
     SELECT COUNT(*) FROM @marked;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.start_worker
     @p_name               VARCHAR(128),
@@ -5741,7 +5702,6 @@ BEGIN
     SELECT @ns_id AS namespace_id, @worker_id AS worker_id;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.stop_worker
     @p_namespace_id SMALLINT,
     @p_worker_id        INT
@@ -5769,7 +5729,6 @@ BEGIN
            NULL, NULL, NULL, NULL, s.id, NULL, NULL, NULL, NULL, 100 /* JobEventReasonCode.WorkerCleanShutdown */, NULL
       FROM @stopped s;
 END;
-GO
 GO
 CREATE OR ALTER PROCEDURE acta.purge_expired_data
     @p_namespace_id         SMALLINT,
@@ -5917,7 +5876,6 @@ BEGIN
     SELECT @jobs_deleted AS jobs_deleted, @events_deleted AS events_deleted, @alerts_deleted AS alerts_deleted, @workers_deleted AS workers_deleted, @locks_deleted AS locks_deleted;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.apply_tags
     @p_scope_code TINYINT,
     @p_lookup_id BIGINT,
@@ -6041,7 +5999,6 @@ BEGIN
     END CATCH;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.acquire_lock
     @p_lease_key         VARCHAR(256),
     @p_job_id            BIGINT,
@@ -6083,7 +6040,6 @@ BEGIN
     SELECT version FROM @out;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.extend_lock
     @p_lease_key         VARCHAR(256),
     @p_version           INT,
@@ -6098,7 +6054,6 @@ BEGIN
      WHERE lease_key = @p_lease_key AND version = @p_version;
 END;
 GO
-GO
 CREATE OR ALTER PROCEDURE acta.release_lock
     @p_lease_key VARCHAR(256),
     @p_version   INT
@@ -6110,7 +6065,6 @@ BEGIN
      OUTPUT deleted.version
      WHERE lease_key = @p_lease_key AND version = @p_version;
 END;
-GO
 GO
 COMMIT TRANSACTION;
 GO

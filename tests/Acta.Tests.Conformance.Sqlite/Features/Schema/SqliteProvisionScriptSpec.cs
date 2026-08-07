@@ -20,8 +20,12 @@ public sealed class SqliteProvisionScriptSpec
 
         await using var conn = new SqliteConnection("Data Source=:memory:");
         await conn.OpenAsync(ct);
-        await using (var provision = conn.CreateCommand())
+        // Twice on purpose: install and upgrade are the same file, so re-running it must apply only
+        // what is missing. The second pass is what proves the header's promise, and the
+        // migration-row count below is what proves it applied nothing the second time.
+        for (var pass = 0; pass < 2; pass++)
         {
+            await using var provision = conn.CreateCommand();
             provision.CommandText = script;
             await provision.ExecuteNonQueryAsync(ct);
         }

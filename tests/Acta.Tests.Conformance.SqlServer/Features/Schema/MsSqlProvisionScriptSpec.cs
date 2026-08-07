@@ -39,11 +39,17 @@ public sealed partial class MsSqlProvisionScriptSpec
         await conn.OpenAsync(ct);
         try
         {
-            foreach (var batch in SplitOnGo(script))
+            // Twice on purpose: install and upgrade are the same file, so re-running it must apply
+            // only what is missing. The second pass is what proves the header's promise, and the
+            // migration-row count below is what proves it applied nothing the second time.
+            for (var pass = 0; pass < 2; pass++)
             {
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandText = batch;
-                await cmd.ExecuteNonQueryAsync(ct);
+                foreach (var batch in SplitOnGo(script))
+                {
+                    await using var cmd = conn.CreateCommand();
+                    cmd.CommandText = batch;
+                    await cmd.ExecuteNonQueryAsync(ct);
+                }
             }
 
             await using var probe = conn.CreateCommand();

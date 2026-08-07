@@ -29,6 +29,34 @@ dotnet run --project tools/Acta.Emit -- <command>
 Production hosts should keep `ApplyMigrationsOnStartup = false` and apply migration SQL from the
 release process before workers start. See [`production.md`](../guide/production.md#migration-ownership).
 
+## Migration bodies must be idempotent
+
+**Every statement in a migration carries its own existence guard.** `M001` already does this on all
+three dialects: `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` (Postgres, SQLite),
+`IF OBJECT_ID(N'...') IS NULL` before each `CREATE TABLE` (SQL Server), and the closing history
+insert guarded by `WHERE version = N` / `ON CONFLICT (version) DO NOTHING`.
+
+This is not decoration. The published provision script concatenates every migration and runs them
+all unconditionally, so per-statement guards are the only thing that lets one file serve both a
+fresh install and an upgrade from any earlier `Mnnn`: each statement skips itself when its object is
+already there, and the union of those skips is the version gate. A whole-migration
+`IF ... BEGIN ... END` is not an option: a SQL Server migration is many `GO`-separated batches and a
+block cannot span batches, and SQLite has no procedural `IF` at all.
+
+So when you hand-edit a generated `Mnnn`, guard what you add:
+
+| Change | Postgres | SQL Server | SQLite |
+| --- | --- | --- | --- |
+| Add table / index | `IF NOT EXISTS` | `IF OBJECT_ID(...) IS NULL` / `IF NOT EXISTS (SELECT 1 FROM sys.indexes ...)` | `IF NOT EXISTS` |
+| Add column | `ADD COLUMN IF NOT EXISTS` | `IF COL_LENGTH('schema.table','col') IS NULL` | **no `IF NOT EXISTS` exists**: use the table-rebuild idiom guarded on the new table |
+| History row | emitted guarded | emitted guarded | emitted guarded |
+
+The three `*ProvisionScriptSpec` conformance specs run the published file **twice** against one
+schema and assert the second pass changes nothing, so a migration that breaks this fails the build.
+
+Routine and operator-view bodies are exempt by construction: they carry no version, sit after every
+migration, and are rewritten on each run (`CREATE OR ALTER`, `CREATE OR REPLACE`, or drop-create).
+
 ## Published provision scripts
 
 `docs/reference/provision/{pg,mssql,sqlite}.sql` are generated, drift-checked, complete provisioning

@@ -4,8 +4,14 @@
 --
 -- The same SQL the bootstrap migration runner applies: the migration history table, every
 -- migration in order (each records its own history row), then operator views and routines.
--- Idempotent. Run it under a DDL-capable principal; the application principal then needs only
--- DML and EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
+--
+-- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already
+-- running an earlier Acta version: every statement is individually guarded, so it applies
+-- exactly what is missing and skips what is present. Re-running it is a no-op. Views and
+-- routines carry no version and are always rewritten to the definitions shipped here.
+--
+-- Run it under a DDL-capable principal; the application principal then needs only DML and
+-- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
 -- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also
 -- accepts the result and applies nothing. Site-specific physical tuning (partitioning,
 -- tablespaces, compression) is yours to add; keep the logical shape - tables, columns,
