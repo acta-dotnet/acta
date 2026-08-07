@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Acta.Tests.Conformance.Postgres.Testing;
 using Acta.Tests.Conformance.Testing;
 using Npgsql;
 using Xunit;
@@ -25,6 +26,11 @@ public sealed partial class PgProvisionScriptSpec
         var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
         var published = File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "provision", "pg.sql"));
         var script = SchemaWord().Replace(published, schema);
+
+        // The shared bootstrap owns creating the test database; a clean CI runner has none until it
+        // runs. Await it (the serialization point every fixture-based spec already passes through)
+        // before opening the raw connection, so this spec never races or precedes that creation.
+        await ActaSharedDatabase.EnsureReadyAsync(new PgConformanceFixture());
 
         await using var conn = new NpgsqlConnection(connString);
         await conn.OpenAsync(ct);
