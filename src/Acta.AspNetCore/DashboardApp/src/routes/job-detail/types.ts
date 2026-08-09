@@ -30,6 +30,7 @@ export interface JobEvent {
   createdAtUtc: string;
   jobNamespace: string;
   jobRef: string | null;
+  workerId: number | null;
   executionNumber: number | null;
   fromStatus: string | null;
   toStatus: string | null;

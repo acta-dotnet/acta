@@ -14,15 +14,26 @@
     nextRunAtUtc = null,
     hasMore = false,
     loadingMore = false,
-    onLoadMore = () => {}
+    onLoadMore = () => {},
+    initialAttempt = null
   } = $props();
 
-  let attemptFilter = $state('all');
+  // Deliberate initial capture: the panel remounts per tab switch, re-reading the handoff.
+  // svelte-ignore state_referenced_locally
+  let attemptFilter = $state(initialAttempt != null ? String(initialAttempt) : 'all');
   let categoryFilter = $state('all');
   let eventFilter = $state('');
 
   let attemptNumbers = $derived(timelineAttemptNumbers(events));
   let failedAttempts = $derived(failedTimelineAttempts(events));
+
+  // A preset attempt (deep link) may not exist in the loaded events: fall back to 'all' rather
+  // than leaving the select blank over an empty rail.
+  $effect(() => {
+    if (attemptFilter !== 'all' && events.length > 0 && !attemptNumbers.includes(Number(attemptFilter))) {
+      attemptFilter = 'all';
+    }
+  });
   let filteredEvents = $derived(
     events.filter(
       (evt) =>

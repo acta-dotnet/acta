@@ -11,6 +11,7 @@ const event = (jobEventId: number, createdAtUtc: string, reasonMessage: string |
   eventCode: `event-${jobEventId}`,
   jobNamespace: 'billing',
   jobRef: 'job_1',
+  workerId: null,
   executionNumber: 1,
   fromStatus: null,
   toStatus: null,

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { createQuery, keepPreviousData, type QueryClient } from '@tanstack/svelte-query';
+  import { createQuery, type QueryClient } from '@tanstack/svelte-query';
   import { api, type Paged } from '../api.ts';
   import { keys, capabilitiesQuery } from '../query.ts';
   import { scope, setScope } from '../scope.ts';
@@ -84,24 +84,21 @@
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       api<Paged<DefinitionHit>>('definitions', { nameContains: textQ?.folded, pageSize: 5 }, { signal }),
     enabled: probeEnabled,
-    staleTime: 15_000,
-    placeholderData: keepPreviousData
+    staleTime: 15_000
   }), clientArg);
   const namespaces = createQuery(() => ({
     queryKey: keys.list('palette-namespaces', { nameContains: textQ?.folded }),
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       api<Paged<NamespaceHit>>('namespaces/admin', { nameContains: textQ?.folded, pageSize: 5 }, { signal }),
     enabled: probeEnabled,
-    staleTime: 15_000,
-    placeholderData: keepPreviousData
+    staleTime: 15_000
   }), clientArg);
   const tenants = createQuery(() => ({
     queryKey: keys.list('palette-tenants', { search: textQ?.raw }),
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       api<Paged<TenantHit>>('tenants', { search: textQ?.raw, pageSize: 5 }, { signal }),
     enabled: probeEnabled,
-    staleTime: 15_000,
-    placeholderData: keepPreviousData
+    staleTime: 15_000
   }), clientArg);
 
   // Hash link with palette-only params (tags / name filters that routes.* helpers don't cover).
@@ -338,21 +335,39 @@
       select(rows[active]);
       return;
     }
+  }
+
+  function focusableItems(): HTMLElement[] {
+    if (!boxEl) return [];
+    return [...boxEl.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])')]
+      .filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+  }
+
+  // Overlay-level: Escape closes from anywhere inside, Tab wraps within the palette so the scope
+  // chip, prefix chips, and Copy SQL stay keyboard-reachable without focus escaping the overlay.
+  function onOverlayKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       close();
       return;
     }
-    // The palette is one input; Tab has nowhere useful to go and would drop focus behind the overlay.
-    if (event.key === 'Tab') event.preventDefault();
+    if (event.key !== 'Tab') return;
+    const items = focusableItems();
+    if (items.length === 0) return;
+    event.preventDefault();
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    const next = event.shiftKey
+      ? (index <= 0 ? items.length - 1 : index - 1)
+      : (index === items.length - 1 ? 0 : index + 1);
+    items[next]?.focus();
   }
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} />
 
 {#if open}
-  <div class="palette-overlay" role="presentation" onpointerdown={(event) => { if (event.target === event.currentTarget) close(); }}>
+  <div class="palette-overlay" role="presentation" onkeydown={onOverlayKeydown} onpointerdown={(event) => { if (event.target === event.currentTarget) close(); }}>
     <div class="palette" role="dialog" aria-modal="true" aria-label="Quick search" bind:this={boxEl}>
       <div class="palette-head">
         <Icon name="magnifying-glass" />
@@ -387,7 +402,7 @@
             <button
               type="button"
               title={prefix.hint}
-              onpointerdown={(event) => { event.preventDefault(); raw = prefix.chip; active = 0; inputEl?.focus(); }}>
+              onpointerdown={(event) => { if (event.button !== 0) return; event.preventDefault(); raw = prefix.chip; active = 0; inputEl?.focus(); }}>
               {prefix.chip}
             </button>
           {/each}
@@ -407,7 +422,7 @@
             class="palette-row"
             class:active={active === index}
             class:inert={!row.href && !row.run}
-            onpointerdown={(event) => { event.preventDefault(); active = index; select(row); }}>
+            onpointerdown={(event) => { if (event.button !== 0) return; event.preventDefault(); active = index; select(row); }}>
             {#if row.icon}<Icon name={row.icon} />{/if}
             <span class="palette-label">{row.label}</span>
             {#if row.hint}<span class="palette-hint">{row.hint}</span>{/if}

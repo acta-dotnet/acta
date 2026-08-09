@@ -17,12 +17,14 @@
     enabled = true,
     polling = true,
     nextRunAtUtc = null,
+    initialAttempt = null,
     onEventsChange = () => {}
   }: {
     jobRef: string;
     enabled?: boolean;
     polling?: boolean;
     nextRunAtUtc?: string | null;
+    initialAttempt?: number | null;
     onEventsChange?: (events: JobEvent[]) => void;
   } = $props();
 
@@ -67,6 +69,7 @@
     <JobTimeline
       {events}
       {nextRunAtUtc}
+      {initialAttempt}
       hasMore={history.hasNextPage}
       loadingMore={history.isFetchingNextPage}
       onLoadMore={() => history.fetchNextPage()} />
