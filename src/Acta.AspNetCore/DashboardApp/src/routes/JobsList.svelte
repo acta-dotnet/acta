@@ -234,7 +234,7 @@
         ? 'No jobs match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
         : 'No jobs yet. Mark a handler method with [Job("name")] and call jobs.EnqueueAsync(input); the row appears here the moment the enqueue commits.'}
       cells={{ jobRef: refCell, job: jobCell, status: statusCell, tenant: tenantCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }}
-      rowClass={(job: JobRow) => (job.status === 'Failed' ? 'trouble' : job.status === 'Paused' ? 'held' : '')} />
+      rowClass={(job: JobRow) => (job.status === 'failed' ? 'trouble' : job.status === 'paused' ? 'held' : '')} />
   </div>
 </Page>
 

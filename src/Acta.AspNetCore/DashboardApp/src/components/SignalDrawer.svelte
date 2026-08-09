@@ -8,8 +8,9 @@
   let {
     jobRef,
     embedded = false,
+    suggestedName = '',
     onSent = () => {}
-  }: { jobRef: string; embedded?: boolean; onSent?: () => void } = $props();
+  }: { jobRef: string; embedded?: boolean; suggestedName?: string; onSent?: () => void } = $props();
 
   let open = $state(false);
   let name = $state('');
@@ -36,9 +37,9 @@
   });
   let busy = $derived(mutation.isPending);
 
-  export function openForm(suggestedName = '') {
+  export function openForm(prefill = suggestedName) {
     if (!canControlNow) return;
-    name = suggestedName;
+    name = prefill;
     payloadText = '';
     message = '';
     open = true;

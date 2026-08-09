@@ -90,7 +90,8 @@ export const routes = {
   overview: (options: { namespace?: string | null } = {}) => href('', { ns: ns(options.namespace) }),
   jobs: (options: { namespace?: string | null; status?: string | null; jobName?: string | null; correlationKey?: string | null; tenantKey?: string | null; pageSize?: number | string | null } = {}) =>
     href('jobs', { ns: ns(options.namespace), status: options.status, jobName: options.jobName, correlationKey: options.correlationKey, tenantKey: options.tenantKey, pageSize: options.pageSize }),
-  job: (jobRef: string, options: { namespace?: string | null } = {}) => href(`jobs/${encodeURIComponent(jobRef)}`, { ns: ns(options.namespace) }),
+  job: (jobRef: string, options: { namespace?: string | null; tab?: string | null; execution?: number | string | null } = {}) =>
+    href(`jobs/${encodeURIComponent(jobRef)}`, { ns: ns(options.namespace), tab: options.tab, execution: options.execution }),
   enqueue: (options: { namespace?: string | null; jobName?: string | null; from?: string | null } = {}) =>
     href('enqueue', { ns: ns(options.namespace), jobName: options.jobName, from: options.from }),
   events: (options: { namespace?: string | null; tenantKey?: string | null } = {}) => href('events', { ns: ns(options.namespace), tenantKey: options.tenantKey }),

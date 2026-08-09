@@ -27,7 +27,7 @@ state, retries, audit, recovery, and operator control in your own SQL database. 
 
 ## Quickstart
 
-Run it first. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (pinned in `global.json`): no Docker, no database server, no connection string; everything below runs on embedded SQLite.
+Run it first. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (pinned in `global.json`): no Docker, no database server, no connection string; everything below runs on embedded SQLite. The Anvil step also builds the dashboard UI, which needs Node.js 20+ on PATH once; without Node the first two commands still run.
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta

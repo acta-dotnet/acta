@@ -34,6 +34,7 @@ const event = {
   createdAtUtc: timestamp,
   jobNamespace: 'billing',
   jobRef,
+  workerId: 7,
   executionNumber: 1,
   fromStatus: 'executing',
   toStatus: 'failed',
@@ -42,6 +43,28 @@ const event = {
   reasonCode: 'handler-error',
   reasonMessage: 'Invoice provider timed out.'
 };
+
+// Newest-first, as the feed returns them: the paired execution events under the transition event.
+const executionEvents = [
+  event,
+  {
+    ...event,
+    jobEventId: 90,
+    eventCode: 'job.execution-finished'
+  },
+  {
+    ...event,
+    jobEventId: 89,
+    eventCode: 'job.execution-started',
+    createdAtUtc: '2026-07-14T07:59:00Z',
+    fromStatus: 'dispatched',
+    toStatus: 'executing',
+    executionStatus: 'executing',
+    durationMs: null,
+    reasonCode: null,
+    reasonMessage: null
+  }
+];
 
 async function mockDashboard(page: Page, options: { controls: boolean; onRestart?: () => void }): Promise<void> {
   await page.route('**/api/**', async (route: Route) => {
@@ -110,7 +133,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === `jobs/${jobRef}/lineage`) {
       return json({ ancestors: [], job, steps: [], activeWait: null, children: [], childrenHasMore: false });
     }
-    if (path === `jobs/${jobRef}/events`) return json(paged([event]));
+    if (path === `jobs/${jobRef}/events`) return json(paged(executionEvents));
     // The aggregate the detail page actually reads (JobDetailView, api.ts:392). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion
     // rather than on what they were written to check.
@@ -156,6 +179,23 @@ test('job investigation: overview to failed job explanation and events', async (
   await expect(page.getByText('The latest attempt failed in the invoice provider.').first()).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByText('Invoice provider timed out.').first()).toBeVisible();
+});
+
+test('executions tab summarizes the attempt and deep-links expanded', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await page.getByRole('button', { name: 'Executions' }).click();
+  await expect(page.getByText('Showing 1 of 1 executions')).toBeVisible();
+  await expect(page.getByText('125 ms')).toBeVisible();
+  await expect(page.getByRole('link', { name: '7' })).toBeVisible();
+
+  await page.goto(`/#/jobs/${jobRef}?ns=billing&tab=executions&execution=1`);
+  const walk = page.getByRole('button', { name: 'Walk execution 1 in the timeline' });
+  await expect(walk).toBeVisible();
+  await walk.click();
+  await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
+  await expect(page.getByLabel('Attempt')).toHaveValue('1');
 });
 
 test('quick search finds definitions by fragment and jumps to a pasted job ref', async ({ page }) => {

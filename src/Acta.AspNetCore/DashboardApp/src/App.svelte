@@ -26,7 +26,7 @@
   import TenantsList from './routes/TenantsList.svelte';
   import TenantDetail from './routes/TenantDetail.svelte';
   import NotFound from './routes/NotFound.svelte';
-  import { navigationGroups, navigationHref, routeMetadata } from './routes.ts';
+  import { navigationGroups, navigationHref, routeMetadata, routes } from './routes.ts';
   import { QueryClientProvider, createQuery } from '@tanstack/svelte-query';
   import { createAppQueryClient, capabilitiesQuery, canControl } from './query';
 
@@ -113,9 +113,9 @@
     {#if mobileNavOpen}<button class="nav-scrim" aria-label="Close navigation" onclick={() => (mobileNavOpen = false)}></button>{/if}
     <nav id="dashboard-navigation" class="side" class:rail={$sidebarRail} class:mobile-open={mobileNavOpen} aria-label="Dashboard sections">
       <div class="brand-q">
-        <div class="brand" aria-label="Acta">
+        <a class="brand" href={routes.overview({ namespace: $scope })} aria-label="Acta: go to Overview" onclick={() => (mobileNavOpen = false)}>
           <span class="brand-mark"><LogoMark size={30} /></span><span class="nav-label">Acta<span class="brand-dot">.</span></span>
-        </div>
+        </a>
         <div class="brand-sub">operator dashboard</div>
       </div>
       <div class="side-scope"><ScopeSelector /></div>

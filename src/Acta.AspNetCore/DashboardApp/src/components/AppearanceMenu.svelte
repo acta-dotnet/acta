@@ -95,7 +95,7 @@
         <legend>Theme</legend>
         <div class="theme-grid">
           {#each THEME_CHOICES as theme, index}
-            <label class="theme-card" class:selected={$appearance.theme === theme.id}>
+            <label class="theme-card" class:wide={theme.id === 'system'} class:selected={$appearance.theme === theme.id}>
               <input
                 bind:this={themeInputs[index]}
                 type="radio"
@@ -232,7 +232,18 @@
     pointer-events: none;
   }
 
-  .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  /* System is a policy over the three looks, not a fourth look: a slim full-width row on top,
+     with the three theme cards back on one line below it. */
+  .theme-card.wide {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+  }
+  .theme-card.wide .theme-preview { width: 72px; height: 26px; flex: none; }
+  .theme-card.wide .theme-description { margin-left: auto; text-align: right; }
   .theme-card {
     min-width: 0;
     padding: 7px;
