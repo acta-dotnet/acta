@@ -65,21 +65,27 @@
     const stalled = o.readyCount > 0 && o.executingCount === 0 && o.oldestReadyAgeSeconds > 60;
 
     const urgent = [];
-    if (o.unresolvedCriticalAlertCount > 0) urgent.push(plural(o.unresolvedCriticalAlertCount, 'critical alert'));
-    if (stalled) urgent.push(plural(o.readyCount, 'ready job') + ' not draining (no live workers?)');
+    if (o.unresolvedCriticalAlertCount > 0) {
+      urgent.push({ text: plural(o.unresolvedCriticalAlertCount, 'critical alert'), href: routes.alerts({ namespace: ns }) });
+    }
+    if (stalled) {
+      urgent.push({ text: plural(o.readyCount, 'ready job') + ' not draining (no live workers?)', href: routes.jobs({ namespace: ns, status: 'Ready' }) });
+    }
 
     // A dead worker is a tombstone, not an incident - it left or crashed and won't return. Real lost
     // capacity surfaces as the stalled backlog above, so dead workers do not feed the verdict at all.
     const soft = [];
-    if (o.oldestReadyAgeSeconds > 300 && !stalled) soft.push('oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds));
-    if (o.failedCount > 0) soft.push(plural(o.failedCount, 'failed job'));
-    if (o.staleWorkerCount > 0) soft.push(plural(o.staleWorkerCount, 'stale worker'));
+    if (o.oldestReadyAgeSeconds > 300 && !stalled) {
+      soft.push({ text: 'oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds), href: routes.jobs({ namespace: ns, status: 'Ready' }) });
+    }
+    if (o.failedCount > 0) soft.push({ text: plural(o.failedCount, 'failed job'), href: routes.jobs({ namespace: ns, status: 'Failed' }) });
+    if (o.staleWorkerCount > 0) soft.push({ text: plural(o.staleWorkerCount, 'stale worker'), href: routes.workers({ namespace: ns }) });
     if (o.unresolvedAlertCount > 0 && o.unresolvedCriticalAlertCount === 0) {
-      soft.push(plural(o.unresolvedAlertCount, 'unresolved alert'));
+      soft.push({ text: plural(o.unresolvedAlertCount, 'unresolved alert'), href: routes.alerts({ namespace: ns }) });
     }
     for (const line of outboxLines ?? []) {
       if (line.backlog > OUTBOX_TICK_ENVELOPE) {
-        soft.push('outbox lagging ' + displayFormatter.number(line.backlog) + ' rows' + (ns ? '' : ' in ' + line.jobNamespace));
+        soft.push({ text: 'outbox lagging ' + displayFormatter.number(line.backlog) + ' rows' + (ns ? '' : ' in ' + line.jobNamespace) });
       }
     }
 
@@ -105,7 +111,7 @@
   {/snippet}
 
   {#if loading}
-    <div class="state">Loading overview...</div>
+    <StateView loading={true} loadingText="Loading overview..." />
   {:else if error}
     <div class="panel"><StateView {error} onRetry={() => snapshot.refetch()} /></div>
   {:else}
@@ -113,7 +119,12 @@
       <div class="verdict {verdict.tone}">
         <span class="verdict-label"><Icon name={verdict.tone === 'ok' ? 'check-circle' : verdict.tone === 'bad' ? 'x-circle' : 'warn'} />{verdict.label}</span>
         <span class="verdict-reason">
-          {verdict.reasons.length > 0 ? verdict.reasons.join(' · ') : 'No critical alerts, no stuck backlog, workers healthy.'}
+          {#each verdict.reasons as reason, i}
+            {#if i > 0}{' · '}{/if}
+            {#if reason.href}<a href={reason.href}>{reason.text}</a>{:else}{reason.text}{/if}
+          {:else}
+            No critical alerts, no stuck backlog, workers healthy.
+          {/each}
         </span>
       </div>
     {/if}

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { type JobCheckpoint } from '../../api.ts';
-  import { displayFormatter } from '../../format.ts';
   import DataTable from '../../components/DataTable.svelte';
   import PayloadView from '../../components/PayloadView.svelte';
+  import RelativeTime from '../../components/RelativeTime.svelte';
+  import StateView from '../../components/StateView.svelte';
 
   // Presentational: checkpoints (variables, signals, timers, progress, child-latches) come from the
   // aggregate detail read; a value payload expands inline.
@@ -12,7 +13,7 @@
 <section class="detail-panel" aria-label="Job checkpoints">
   <h2>Checkpoints</h2>
   {#if checkpoints.length === 0}
-    <p class="dim">No checkpoints</p>
+    <StateView emptyText="No checkpoints." />
   {:else}
     <DataTable>
       <caption class="sr-only">Job checkpoints</caption>
@@ -22,8 +23,8 @@
           <tr>
             <td>{checkpoint.kind}</td>
             <td class="mono">{checkpoint.name}</td>
-            <td>{checkpoint.state ?? '-'}</td>
-            <td>{checkpoint.dueAtUtc ? displayFormatter.rowTimestamp(checkpoint.dueAtUtc) : '-'}</td>
+            <td>{checkpoint.state ?? '·'}</td>
+            <td><RelativeTime value={checkpoint.dueAtUtc} /></td>
             <td>
               {#if checkpoint.value}
                 <details>
@@ -31,7 +32,7 @@
                   <div class="checkpoint-value"><PayloadView payload={checkpoint.value} /></div>
                 </details>
               {:else}
-                <span class="dim">-</span>
+                <span class="dim">·</span>
               {/if}
             </td>
           </tr>

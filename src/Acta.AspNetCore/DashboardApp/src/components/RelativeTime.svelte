@@ -1,7 +1,7 @@
 <script>
   import { now, secondNow } from '../time';
   import { displayFormatter } from '../format';
-  let { value, emptyText = '-', title = null } = $props();
+  let { value, emptyText = '·', title = null } = $props();
 
   // Sub-minute values are the ones worth animating: the next run of a 5-second cron, a job that
   // just failed. Those follow the second clock; anything further out only changes on the minute

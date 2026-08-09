@@ -47,11 +47,11 @@
     { key: 'jobName', header: 'Name' },
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
     { key: 'status', header: 'Status' },
-    { key: 'inputTypeName', header: 'Input', class: 'mono' },
-    { key: 'outputTypeName', header: 'Output', class: 'mono' },
-    { key: 'priority', header: 'Priority' },
-    { key: 'maxAttempts', header: 'Max attempts' },
-    { key: 'modifiedAtUtc', header: 'Modified' }
+    { key: 'inputTypeName', header: 'Input', class: 'mono mobile-hide' },
+    { key: 'outputTypeName', header: 'Output', class: 'mono mobile-hide' },
+    { key: 'priority', header: 'Priority', align: 'right' },
+    { key: 'maxAttempts', header: 'Max attempts', align: 'right' },
+    { key: 'modifiedAtUtc', header: 'Modified', class: 'mobile-hide' }
   ];
 
   // Drill into this definition's jobs: the Jobs list filters by name within its namespace scope, so
@@ -88,6 +88,7 @@
     <ActaGrid
       rowKey={(definition: DefinitionRow) => definition.jobDefinitionId}
       endpoint="definitions"
+      mobileCards={true}
       {columns}
       filters={() => ({ jobNamespace: $scope, nameContains: $filters.name.trim().toLowerCase(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}

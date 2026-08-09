@@ -18,7 +18,7 @@ describe('AppearanceMenu', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Appearance' });
     expect(dialog.getAttribute('aria-modal')).toBe('false');
-    expect(document.activeElement).toBe(screen.getByRole('radio', { name: /^Acta/ }));
+    expect(document.activeElement).toBe(screen.getByRole('radio', { name: /^System/ }));
   });
 
   it('changes every setting and restores all defaults atomically', async () => {
