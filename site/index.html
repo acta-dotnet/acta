@@ -267,7 +267,10 @@
     /* inventory */
     .fgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.2rem 2.4rem; margin-top: 2.4rem; }
     .fcol h3 { margin: 0 0 1rem; font-family: var(--serif); font-weight: 500; font-size: 1.32rem; }
-    .fcol h3::after { content: ""; display: block; width: 2.4rem; border-top: 2px solid var(--verdi); margin-top: 0.55rem; }
+    .fcol h3::after { content: ""; display: block; width: 2.4rem; border-top: 2px solid var(--verdi); margin-top: 0.55rem; transition: width 0.45s ease; }
+    .fcol, .ref-row { scroll-margin-top: 4.5rem; }
+    .fcol:target h3::after { width: 100%; }
+    .ref-row:target dt { color: var(--verdi); }
     .fcol ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7rem; }
     .fcol li { color: var(--muted); font-size: 0.95rem; line-height: 1.5; padding-left: 1.1em; position: relative; }
     .fcol li::before { content: "·"; position: absolute; left: 0; color: var(--verdi); }
@@ -305,7 +308,7 @@
     @media (max-width: 860px) { .ref-row { grid-template-columns: 1fr; gap: 0.25rem; } }
 
     /* closer */
-    .term { margin: 2.2rem auto 0; border: 1px solid var(--hair); border-radius: 12px; background: var(--panel); overflow: hidden; max-width: 58rem; text-align: left; }
+    .term { margin: 2.2rem 0 0; border: 1px solid var(--hair); border-radius: 12px; background: var(--panel); overflow: hidden; max-width: 58rem; text-align: left; }
     .term-bar { display: flex; gap: 0.45rem; align-items: center; padding: 0.55rem 1.1rem; border-bottom: 1px solid var(--hair); font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
     .term-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--hair); }
     .term pre { font-size: 0.85rem; }
@@ -349,7 +352,7 @@
 
   <main id="content">
     <header class="wrap hero">
-      <p class="record"><b>--</b> early preview · open source · postgres · sql server · sqlite</p>
+      <p class="record">open source · postgres · sql server · sqlite</p>
       <div class="mast-row">
         <h1 class="masthead">Acta<span class="dot">.</span><span class="sr-only">: the durable work ledger for .NET</span></h1>
         <p class="dict"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
@@ -370,16 +373,16 @@
           </div>
           <div class="actions">
             <a class="button primary" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
-            <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">5-minute quickstart</a>
+            <a class="button" href="#run">5-minute quickstart</a>
             <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering Labs</a>
           </div>
         </div>
         <nav class="toc" aria-label="What you get">
           <p class="toc-head">What you get</p>
           <a href="#code"><span><span class="t">Durable jobs</span><span class="s">Fire-and-forget, delayed, recurring: they survive crashes, deploys, and restarts.</span></span></a>
-          <a href="#inventory"><span><span class="t">Retries &amp; recovery, built in</span><span class="s">Typed backoff; a dead worker's lease lapses and its jobs are reclaimed, leaderless.</span></span></a>
-          <a href="#inventory"><span><span class="t">Steps, sleeps &amp; signals</span><span class="s">Recorded step outcomes; wait hours or days without holding a worker thread.</span></span></a>
-          <a href="#inventory"><span><span class="t">Fan-out &amp; lineage</span><span class="s">Child jobs with traceable parents; results you can fetch.</span></span></a>
+          <a href="#recovery"><span><span class="t">Retries &amp; recovery, built in</span><span class="s">Typed backoff; a dead worker's lease lapses and its jobs are reclaimed, leaderless.</span></span></a>
+          <a href="#primitives"><span><span class="t">Steps, sleeps &amp; signals</span><span class="s">Recorded step outcomes; wait hours or days without holding a worker thread.</span></span></a>
+          <a href="#lineage"><span><span class="t">Fan-out &amp; lineage</span><span class="s">Child jobs with traceable parents; results you can fetch.</span></span></a>
           <a href="#dashboard"><span><span class="t">State you can SELECT</span><span class="s">Every job, attempt, and lease is a row, with a dashboard and CLI included.</span></span></a>
           <a href="#model"><span><span class="t">A data model built to be read</span><span class="s">Hot runtime state split from job identity, an append-only event ledger, every column documented.</span></span></a>
         </nav>
@@ -436,6 +439,22 @@
       <p class="hiw-note">A dead worker's lease expires; any peer reclaims the job and continues from recorded state. Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
     </section>
 
+    <section class="wrap" id="run">
+      <p class="record">Run it</p>
+      <h2>Acta est. Now run it yourself.</h2>
+      <p class="lede">Fresh clone to a running durable job on embedded SQLite: then point the same code at Postgres or SQL Server when it matters. Apache-2.0: the runtime, dashboard, CLI, and all SQL providers are free.</p>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i>&nbsp;fresh clone → running durable job</div>
+        <pre><code><span class="p">$</span> git clone https://github.com/acta-dotnet/acta &amp;&amp; cd acta
+<span class="p">$</span> dotnet run --project concepts/000-fundamentals/001-hello-acta
+<span class="out">Enqueued. The worker is running - press Ctrl+C to stop.
+Hello, World!</span>
+<span class="c"># press Ctrl+C, then:</span>
+<span class="p">$</span> dotnet run --project anvil/Anvil
+<span class="out">Anvil         : http://127.0.0.1:5059/</span></code></pre>
+      </div>
+    </section>
+
     <section class="wrap" id="inventory">
       <p class="record">Capabilities · quick reference</p>
       <h2>The core inventory, in five columns.</h2>
@@ -451,7 +470,7 @@
             <li><b>Atomic enqueue with your data</b>: one transaction, or the external outbox</li>
           </ul>
         </div>
-        <div class="fcol">
+        <div class="fcol" id="primitives">
           <h3>Execution primitives</h3>
           <ul>
             <li><b>Named durable steps</b>: recorded outcomes return on re-entry</li>
@@ -462,7 +481,7 @@
             <li><b>Exclusive keys &amp; locks</b></li>
           </ul>
         </div>
-        <div class="fcol">
+        <div class="fcol" id="recovery">
           <h3>Failure &amp; recovery</h3>
           <ul>
             <li><b>Leases with automatic lapse</b>: leaderless reclaim &amp; retry</li>
@@ -585,7 +604,7 @@
           <div class="ref-row"><dt>Checkpoint slots</dt><dd>Save intermediate values mid-handler and read them back after a crash or restart: resume long work where it left off, with the evidence in a row.</dd></div>
           <div class="ref-row"><dt>Durable sleep</dt><dd>Sleep for minutes or days without occupying a worker thread. The job leaves the worker, the timer is durable state, and the job is re-dispatched when it fires: surviving deploys in between.</dd></div>
           <div class="ref-row"><dt>Signals</dt><dd>A job can suspend until a named signal arrives: a webhook, an approval, another job finishing. Deliver the signal from anywhere: code, CLI, or dashboard. No worker is held while waiting.</dd></div>
-          <div class="ref-row"><dt>Child jobs, fan-out / fan-in</dt><dd>Spawn jobs from a handler; parent lineage is recorded, so a batch that fans out into a thousand items stays traceable, and the parent can wait on the children's results.</dd></div>
+          <div class="ref-row" id="lineage"><dt>Child jobs, fan-out / fan-in</dt><dd>Spawn jobs from a handler; parent lineage is recorded, so a batch that fans out into a thousand items stays traceable, and the parent can wait on the children's results.</dd></div>
           <div class="ref-row"><dt>Exclusive keys &amp; locks</dt><dd>Serialize work that shares a key (one settlement run per account at a time) without blocking workers on unrelated jobs.</dd></div>
           <div class="ref-row"><dt>Job results</dt><dd>Return a value from a handler and fetch it later by job reference: the result is durable state like everything else.</dd></div>
         </dl>
@@ -678,20 +697,8 @@
       </div>
     </section>
 
-    <section class="wrap center" id="run">
-      <p class="record centered">Run it</p>
-      <h2>Acta est. Now run it yourself.</h2>
-      <p class="lede">Fresh clone to a running durable job on embedded SQLite: then point the same code at Postgres or SQL Server when it matters. Apache-2.0: the runtime, dashboard, CLI, and all SQL providers are free.</p>
-      <div class="term">
-        <div class="term-bar"><i></i><i></i><i></i>&nbsp;fresh clone → running durable job</div>
-        <pre><code><span class="p">$</span> git clone https://github.com/acta-dotnet/acta &amp;&amp; cd Acta
-<span class="p">$</span> dotnet run --project concepts/000-fundamentals/001-hello-acta
-<span class="out">Enqueued. The worker is running - press Ctrl+C to stop.
-Hello, World!</span>
-<span class="c"># press Ctrl+C, then:</span>
-<span class="p">$</span> dotnet run --project anvil/Anvil
-<span class="out">Anvil         : http://127.0.0.1:5059/</span></code></pre>
-      </div>
+    <section class="wrap center" id="outro">
+      <p class="record centered">Acta est.</p>
       <div class="actions" style="justify-content:center">
         <a class="button primary" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/docs">Read the docs</a>
