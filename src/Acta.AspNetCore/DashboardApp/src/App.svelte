@@ -5,6 +5,7 @@
   import { api, online } from './api';
   import ScopeSelector from './components/ScopeSelector.svelte';
   import AppearanceMenu from './components/AppearanceMenu.svelte';
+  import QuickSearch from './components/QuickSearch.svelte';
   import Icon from './components/Icon.svelte';
   import LogoMark from './components/LogoMark.svelte';
   import { sidebarRail, toggleSidebarRail } from './theme/sidebar.ts';
@@ -54,6 +55,7 @@
   let showReadonlyBanner = $derived(capabilities.isSuccess && !canControlNow);
   let bannerDismissed = $state(false);
   let mobileNavOpen = $state(false);
+  let quickSearch = $state();
 
   // While the backend is unreachable, probe a cheap endpoint so the banner clears on its own when the
   // process returns - even on a page that is not actively polling. Backs off 2s -> 4s -> ... -> 30s
@@ -117,6 +119,12 @@
         <div class="brand-sub">operator dashboard</div>
       </div>
       <div class="side-scope"><ScopeSelector /></div>
+      <button
+        class="side-search"
+        onclick={() => { mobileNavOpen = false; quickSearch?.openPalette(); }}
+        title={$sidebarRail ? 'Search (Ctrl+K)' : undefined}>
+        <Icon name="magnifying-glass" /><span class="nav-label">Search</span><kbd class="nav-kbd">Ctrl K</kbd>
+      </button>
       <!-- One each over every group; the first group takes the slack in CSS, so Configure and
            Admin settle at the bottom by the appearance trigger without duplicating markup. -->
       <div class="side-scroll">
@@ -201,4 +209,5 @@
     </main>
   </div>
 </div>
+<QuickSearch bind:this={quickSearch} />
 </QueryClientProvider>

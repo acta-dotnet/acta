@@ -78,6 +78,23 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === 'alerts') return json(paged([]));
     if (path === 'workers') return json(paged([]));
     if (path === 'schedules') return json(paged([]));
+    if (path === 'definitions') {
+      return json(paged([{
+        jobDefinitionId: 7,
+        jobNamespace: 'billing',
+        jobName: 'send-invoice',
+        status: 'active',
+        inputTypeName: 'SendInvoice',
+        outputTypeName: null,
+        priorityEffective: 'normal',
+        priorityOverride: null,
+        maxAttemptsEffective: 3,
+        maxAttemptsOverride: null,
+        modifiedAtUtc: timestamp
+      }]));
+    }
+    if (path === 'tenants') return json(paged([]));
+    if (path === 'jobs/by-key') return json(job);
     if (path === `jobs/${jobRef}`) return json(job);
     if (path === `jobs/${jobRef}/explain`) {
       return json({
@@ -141,6 +158,22 @@ test('job investigation: overview to failed job explanation and events', async (
   await expect(page.getByText('Invoice provider timed out.').first()).toBeVisible();
 });
 
+test('quick search finds definitions by fragment and jumps to a pasted job ref', async ({ page }) => {
+  await mockDashboard(page, { controls: true });
+  await page.goto('/');
+
+  await page.keyboard.press('Control+k');
+  const input = page.getByRole('combobox', { name: 'Quick search' });
+  await expect(input).toBeFocused();
+
+  await input.fill('send');
+  await expect(page.getByRole('option', { name: /send-invoice/ })).toBeVisible();
+
+  await input.fill(jobRef);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Evidence' })).toBeVisible();
+});
+
 test('safe single-job control sends exactly one restart request', async ({ page }) => {
   let restartRequests = 0;
   await mockDashboard(page, { controls: true, onRestart: () => restartRequests++ });
@@ -183,7 +216,8 @@ test('Jobs and Job Detail fit a mobile viewport without page overflow', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole('link', { name: /send-invoice/ }).click();
-  await expect(page.getByRole('heading', { name: 'send-invoice' })).toBeVisible();
+  // The detail crumb titles the page with the durable ref; the name lives in the hero meta.
+  await expect(page.getByRole('heading', { name: jobRef })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -195,6 +229,8 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     localStorage.removeItem('acta-palette');
     localStorage.removeItem('acta-density');
   });
+  // A fresh install follows the OS preference; pin it dark so the golden tokens are deterministic.
+  await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
 
   const golden = await page.evaluate(() => {
@@ -247,8 +283,8 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
 
   const trigger = page.getByRole('button', { name: /^Appearance$/ });
   await trigger.click();
-  const actaRadio = page.getByRole('radio', { name: /^Acta/ });
-  await expect(actaRadio).toBeFocused();
+  const systemRadio = page.getByRole('radio', { name: /^System/ });
+  await expect(systemRadio).toBeFocused();
 
   const popoverGeometry = await page.evaluate(() => {
     const nav = document.querySelector<HTMLElement>('nav.side');
@@ -298,7 +334,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     background: '#f3f6fa',
     panel: '#ffffff',
     accentToken: '#6550b9',
-    rowHeight: '44px',
+    rowHeight: '48px',
     stored: { version: 1, theme: 'light', accent: 'violet', textSize: 'large' },
   });
 
@@ -332,7 +368,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     background: '#f4ecd9',
     panel: '#ebe0c8',
     radius: '0px',
-    rowHeight: '34px',
+    rowHeight: '38px',
     // Paper is the only theme with its own display face (a system serif stack, no bundled font).
     headingFont: expect.stringContaining('serif'),
     // The ruled-paper overlay is gone: it was invisible in practice and it fought the row rules.
@@ -340,7 +376,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
   });
 
   await page.getByRole('button', { name: 'Restore defaults' }).click();
-  await expect(page.getByRole('radio', { name: /^Acta/ })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /^System/ })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Teal', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Default', exact: true })).toBeChecked();
 

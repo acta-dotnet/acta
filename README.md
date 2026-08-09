@@ -85,6 +85,8 @@ SQLite state is one file, `acta-local.db`, in your temp directory (`%TEMP%` on W
 
 There is no proprietary console and no hidden state to decode. Jobs, leases, attempts, events, schedules, checkpoints, alerts, and workers are rows; common reads start from curated operator views:
 
+![Acta operator dashboard: Overview with health verdict, job counts, worker heartbeats, and next schedules, captured mid-run with 10,000 jobs draining through two workers](site/assets/dash-dark-overview.webp)
+
 ```sql
 -- In-flight work and who holds it.
 select job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
