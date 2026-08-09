@@ -170,7 +170,7 @@
     {/snippet}
     {#snippet jobCell(evt)}
       {#if evt.jobRef}
-        <JobRef value={evt.jobRef} href={routes.job(evt.jobRef, { namespace: evt.jobNamespace })} />
+        <JobRef value={evt.jobRef} href={routes.job(evt.jobRef, { namespace: evt.jobNamespace })} copy />
       {:else}
         <span class="dim">·</span>
       {/if}

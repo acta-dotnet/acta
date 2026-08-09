@@ -301,13 +301,17 @@ body {
     linear-gradient(0deg,  var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 46px 46px;
-  -webkit-mask-image: radial-gradient(120% 90% at 50% 40%, #000 24%, transparent 78%);
-          mask-image: radial-gradient(120% 90% at 50% 40%, #000 24%, transparent 78%);
+  /* The fade must complete off-viewport: a boundary that lands mid-page reads as an artifact on
+     sparse screens (empty states, short details) where no panels cover it. */
+  -webkit-mask-image: radial-gradient(170% 140% at 50% 40%, #000 40%, transparent 110%);
+          mask-image: radial-gradient(170% 140% at 50% 40%, #000 40%, transparent 110%);
 }
 :root:not([data-theme]) body::after,
 :root[data-theme='acta'] body::after {
   content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
   background: radial-gradient(38% 40% at 50% 42%, var(--glow), transparent 70%);
+  /* Half strength: at full opacity the glow reads as backlight bleed wherever panels don't cover it. */
+  opacity: 0.45;
 }
 
 :root[data-theme='light'] body {
@@ -481,6 +485,17 @@ nav.side a.active .ic { color: var(--accent); }
   font-weight: 400;
 }
 
+/* Search trigger: a nav row above the groups, opening the quick-search palette. Doubled selector
+   for the same reason as side-collapse below. */
+button.side-search {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: 0; border-radius: 0;
+  padding: 8px 20px; color: var(--muted); font-size: var(--text-sm); cursor: pointer;
+}
+button.side-search:hover:not(:disabled) { color: var(--ink); background: var(--panel-subtle); border-color: transparent; }
+.side-search .ic { flex: none; width: 16px; height: 16px; top: 0; }
+.side-search .nav-kbd { margin-left: auto; }
+
 /* Collapse toggle: visually a nav row, not a button - flat, square, same hover as the links.
    The doubled selectors outweigh the generic button:hover accent-border rule. */
 button.side-collapse {
@@ -502,10 +517,13 @@ button.side-collapse:hover:not(:disabled) { color: var(--ink); background: var(-
   nav.side.rail .brand-q { padding: 10px 0 14px; }
   nav.side.rail .brand { justify-content: center; }
   nav.side.rail a,
+  nav.side.rail .side-search,
   nav.side.rail .side-collapse { justify-content: center; padding: 10px 0; }
   /* One glyph size for every rail icon: nav, collapse chevron, logo aside. */
   nav.side.rail a .ic,
+  nav.side.rail .side-search .ic,
   nav.side.rail .side-collapse .ic { width: 18px; height: 18px; }
+  nav.side.rail .side-search .nav-kbd { display: none; }
   nav.side.rail .nav-group { padding: 4px 0; }
   nav.side.rail .side-collapse { margin-top: auto; }
   /* Appearance survives the collapse as its accent dot alone: centered and grown to a target. */
@@ -748,7 +766,7 @@ a.icon-action:hover { border-color: var(--accent); color: var(--accent); text-de
 
 /* ---- The table system. Everything table.data lives here: wrap, header, rows, states. ---- */
 /* One label voice for headers, dt labels, kickers, and metric labels across the app. */
-table.data th, .kv dt, .detail-readonly dt, .detail-kicker, .metric-label {
+table.data th, .kv dt, .detail-readonly dt, .detail-kicker, .metric-label, .palette-group {
   color: var(--muted);
   font-size: var(--text-xs);
   font-family: var(--mono);
@@ -1015,6 +1033,67 @@ main.fill-page { display: flex; flex-direction: column; }
 .confirm-box p { margin: 0 0 16px; color: var(--muted); }
 .confirm-box .control-reason { margin-bottom: 16px; }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ---- Quick search palette ---- */
+.palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--overlay);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(24px, 12vh, 120px) 16px 16px;
+}
+.palette {
+  width: min(640px, 100%);
+  max-height: min(480px, 80dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: 0 8px 30px var(--shadow);
+}
+.palette-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.palette-head .ic { flex: none; color: var(--muted); }
+.palette-head input { flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--text-md); }
+/* The head's border carries the focus story; a ring on the borderless input would draw a box inside the panel. */
+.palette-head input:focus-visible { outline: none; }
+.palette-scope {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--badge-bg); color: var(--muted); font-size: var(--text-xs);
+}
+.palette-error { padding: 8px 14px; color: var(--bad); border-bottom: 1px solid var(--line); }
+.palette-try {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 8px 14px; border-bottom: 1px solid var(--line);
+}
+.palette-try-label { color: var(--muted); font-size: var(--text-xs); }
+.palette-try button {
+  padding: 1px 7px; border: 1px solid var(--line); border-radius: 4px; background: none;
+  color: var(--muted); font-family: var(--mono); font-size: var(--text-2xs); cursor: pointer;
+}
+.palette-try button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.palette-list { flex: 1; margin: 0; padding: 6px; list-style: none; overflow-y: auto; }
+.palette-group { padding: 8px 10px 3px; }
+.palette-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-control); color: var(--ink); cursor: pointer; }
+.palette-row .ic { flex: none; color: var(--muted); }
+.palette-row:hover,
+.palette-row.active { background: var(--nav-active-bg); }
+.palette-row.inert { color: var(--muted); cursor: default; }
+.palette-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-hint { margin-left: auto; color: var(--muted); font-size: var(--text-xs); white-space: nowrap; }
+.palette-empty { padding: 14px 10px; color: var(--muted); }
+.palette-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 14px; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: var(--text-xs);
+}
+.palette-foot kbd,
+.nav-kbd { padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; font-family: var(--mono); font-size: var(--text-2xs); color: var(--muted); }
 
 .verdict {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;

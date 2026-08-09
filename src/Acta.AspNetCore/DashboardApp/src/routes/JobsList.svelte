@@ -196,7 +196,7 @@
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />
 
     {#snippet refCell(job: JobRow)}
-      <JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: $scope })} />
+      <JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: $scope })} copy />
     {/snippet}
     {#snippet jobCell(job: JobRow)}
       <a href={routes.job(job.jobRef, { namespace: $scope })}>
