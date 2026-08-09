@@ -1,5 +1,55 @@
 # Release notes
 
+## 0.5.0-beta.1 (preview)
+
+The first beta: the data model held, and the operator surface catches up. Find anything with the
+dashboard's quick-search palette; understand exactly what happened with per-execution history on
+job detail.
+
+> **Schema note:** no schema change. The `M001` baseline is unchanged from 0.4.0
+> (`init-extensible-status-v1`), the server is untouched, and upgrading from a 0.4.0 preview needs
+> no reprovisioning - which is what earns this release the beta label. Preview policy otherwise
+> still applies until 1.0: a future release may still re-cut the baseline.
+
+### Quick search
+
+- `Ctrl`/`Cmd+K` (or `/`) opens a palette anywhere in the dashboard. Paste a `job_` ref or `id:123`
+  to jump to the job; `corr:<key>` lists every job carrying that correlation key; `key:<dedup>`
+  resolves a deduplication key in the scoped namespace; a `name:value` token (or `tag:<name>` for
+  bare tags) fans out to all six tag-bearing lists.
+- Typing a fragment searches definitions, namespaces, tenants, and pages; `ns:<name>` (or picking a
+  namespace hit) switches the working scope in place, with the scope shown as a removable chip.
+- The empty palette teaches its own grammar with clickable prefix chips and lists recent
+  selections; a correlation query offers its `jobs_view` SQL via Copy SQL.
+
+### Executions
+
+- Job detail gains an Executions tab: one row per handler invocation, derived from the event
+  ledger with the outcome, start time, true retry gap (previous finish to next start), duration,
+  worker, and failure reason; repeated reasons dim.
+- The header counts against the runtime's claim counter and states gaps honestly: audit level or
+  event retention are only blamed once the full history is loaded.
+- Rows drill into the timeline pre-filtered to that attempt; the tab and a specific execution
+  deep-link via the URL hash (`?tab=executions&execution=N`), auto-loading older history when the
+  target sits past the first page.
+
+### Dashboard polish
+
+- Tables share one skin: hairline row separators replace zebra, uppercase micro-headers, one
+  placeholder glyph, state rails on failed/paused rows, and mobile card layouts on four more pages.
+- A `System` theme choice follows the OS light/dark preference and is the default for fresh
+  installs; existing stored choices are untouched.
+- Overview verdict reasons link to their filtered views; job refs in lists carry a hover-revealed
+  copy button; the wordmark links home preserving scope; the background grid and glow no longer
+  read as artifacts on sparse pages.
+
+### Site and docs
+
+- useacta.net: the quickstart moved above the fold, the hero cards deep-link to their own anchors,
+  and the dashboard capture is refreshed from a live run.
+- README: one quickstart, deduplicated preamble, NuGet and website badges, the dashboard capture,
+  and the Node.js 20+ note for the Anvil dashboard step.
+
 ## 0.4.0 (preview)
 
 The data model is finished and verified: one status vocabulary, one payload ceiling, scoped durable
