@@ -3,7 +3,9 @@
 **Durable background work for .NET apps: named checkpoints, SQL-visible state, and operator control.**
 
 [![CI](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/vpre/Acta.svg?label=nuget)](https://www.nuget.org/packages/Acta)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+[![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
 > **Serious early preview.** Acta is an early preview of a SQL-native durable work ledger for .NET. It is published for evaluation and design feedback, not recommended for production workloads yet, and APIs, schema, and behavior may change without deprecation.
 
@@ -13,13 +15,9 @@ Acta records jobs, retries, schedules, checkpoints, events, workers, and operato
 > run crash recovery, durable steps, signals, schedule cursors, Explain, and operator controls, then
 > inspect the exact rows and source behind each behavior.
 
-The core model is implemented: durable jobs, retries, schedules, steps, signals, sleeps, child jobs, operator queries, dashboard/API, CLI, testing support, and SQL providers. Acta is shared now for feedback from .NET teams that want durable background work without adding a broker, sidecar, hosted control plane, or deterministic replay engine.
+The core model is implemented: durable jobs, retries, schedules, steps, signals, sleeps, child jobs, operator queries, dashboard/API, CLI, testing support, and SQL providers. Execution is **at-least-once**: Acta makes durable state repeat-safe, and handlers own idempotency for external side effects.
 
 No broker required. No sidecar. No hosted control plane. No deterministic replay engine. No hidden work state.
-
-Acta is for teams that want durable background work and operational visibility without adopting a message bus, workflow SaaS, or separate orchestration service. Execution is **at-least-once**: Acta makes durable state repeat-safe, and handlers own idempotency for external side effects.
-
-> **Checkpoints, not replay.** Acta does not rebuild workflow state from a deterministic event history. A handler may re-enter from the top after a crash, retry, signal, or sleep, but completed durable slots return stored results instead of repeating their work.
 
 Most teams do not need another scheduler choice. They need one clear way for app-owned work to
 happen later or repeatedly without becoming hidden state. Use `BackgroundService`, cron, Task
@@ -29,11 +27,12 @@ state, retries, audit, recovery, and operator control in your own SQL database. 
 
 ## Quickstart
 
-Run it first (clone and run; the only prerequisite is the .NET 10 SDK):
+Run it first. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (pinned in `global.json`): no Docker, no database server, no connection string; everything below runs on embedded SQLite.
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
-dotnet run --project concepts/000-fundamentals/001-hello-acta   # zero setup: embedded SQLite
+dotnet run --project tools/Acta.Doctor        # optional preflight: SDK, SQLite, Docker, ports, env vars
+dotnet run --project concepts/000-fundamentals/001-hello-acta   # first concept: enqueue a job, watch a worker run it
 dotnet run --project anvil/Anvil    # lab UI + Acta dashboard at http://127.0.0.1:5059/acta
 ```
 
@@ -60,7 +59,9 @@ builder.Services.UseActa(j =>
 await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), ct: ct);
 ```
 
-The `[Job]` name is the durable, operator-facing contract. Enqueue is typed; dispatch is generated from your project manifest. The host that enqueues can also execute work, so there is no separate worker process to deploy unless you want one. Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md); deeper docs start at [`docs/README.md`](./docs/README.md).
+The `[Job]` name is the durable, operator-facing contract. Enqueue is typed; dispatch is generated from your project manifest (`UsersJobs` is that source-generated manifest: register it once, and one worker runtime owns one namespace). The host that enqueues can also execute work, so there is no separate worker process to deploy unless you want one. Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md); deeper docs start at [`docs/README.md`](./docs/README.md).
+
+SQLite state is one file, `acta-local.db`, in your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` on macOS/Linux); delete `acta-local*.db` there to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`. Docker is optional, only needed to run against real Postgres / SQL Server / Redis: setup, tests, and benchmarks in [`CONTRIBUTING.md`](./CONTRIBUTING.md); environment problems in [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md).
 
 ## Use Acta when
 
@@ -95,26 +96,18 @@ More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [`docs/gu
 
 ## Capabilities and boundaries
 
-**You get:** fire-and-forget, delayed, and recurring jobs; durable retries with typed backoff; named run-once steps; durable sleeps; signals into suspended jobs; child jobs with fan-out / fan-in; result retrieval; job lineage; an append-only SQL event ledger; transactional enqueue that joins a caller-owned `DbTransaction` and an external EF Core outbox for atomic handoff from a different database; a test host that drives the real runtime one deterministic tick at a time (no sleeps, no polling, real-database tests in tens of milliseconds); a control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint; and an optional operator dashboard/query API whose mutating controls are explicitly enabled.
+**You get:**
+
+- Fire-and-forget, delayed, and recurring jobs; durable retries with typed backoff.
+- Named run-once steps, durable sleeps, signals into suspended jobs, child jobs with fan-out / fan-in, result retrieval, and job lineage.
+- An append-only SQL event ledger, and transactional enqueue that joins a caller-owned `DbTransaction` (plus an external EF Core outbox for atomic handoff from a different database).
+- A test host that drives the real runtime one deterministic tick at a time: no sleeps, no polling, real-database tests in tens of milliseconds.
+- A control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint.
+- An optional operator dashboard/query API whose mutating controls are explicitly enabled.
 
 **You do not get:** deterministic event-history replay, BPMN or a visual workflow designer, a message bus, a sidecar, a hosted control plane, or workflow SaaS orchestration.
 
 The execution model is **checkpoints, not replay**: a handler may re-enter from the top after a crash or suspend, but completed durable slots do not repeat their work. This keeps Acta-owned state repeat-safe; external side effects still need idempotency. The hot path stays close to the metal: source-generated dispatch with no reflection, one SQL round-trip per state change.
-
-## Fresh clone: 5 minutes
-
-Prerequisite: the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (pinned in `global.json`). Nothing else: no Docker, no database server, no connection string; everything below runs on embedded SQLite.
-
-```bash
-git clone https://github.com/acta-dotnet/acta && cd acta
-dotnet run --project tools/Acta.Doctor        # optional preflight: SDK, SQLite, Docker, ports, env vars
-dotnet run --project concepts/000-fundamentals/001-hello-acta  # first concept, enqueue a job, watch a worker run it (Ctrl+C to stop)
-dotnet run --project anvil/Anvil              # local lab + the Acta dashboard at http://127.0.0.1:5059/acta
-```
-
-SQLite state is one file, `acta-local.db`, in your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` on macOS/Linux); delete `acta-local*.db` there to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`.
-
-Docker is optional: only needed to run against real Postgres / SQL Server / Redis. Setup, tests, and benchmarks: [`CONTRIBUTING.md`](./CONTRIBUTING.md); environment problems: [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md).
 
 ## Documentation
 
@@ -128,9 +121,9 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-* The migration history freezes at 1.0.0, and only then: before it, the schema baseline (`M001`) may be re-cut in any release. From 1.0.0 schema changes ship only as additive `Mnnn` migrations. During the preview, upgrade compatibility between preview builds is not promised: a schema-incompatible preview update means dropping and reprovisioning the Acta database, and the bootstrap refuses to run rather than applying a mismatched baseline.
-* Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
-* Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
+- The migration history freezes at 1.0.0, and only then: before it, the schema baseline (`M001`) may be re-cut in any release. From 1.0.0 schema changes ship only as additive `Mnnn` migrations. During the preview, upgrade compatibility between preview builds is not promised: a schema-incompatible preview update means dropping and reprovisioning the Acta database, and the bootstrap refuses to run rather than applying a mismatched baseline.
+- Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
+- Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
 
 ## How this was built
 
