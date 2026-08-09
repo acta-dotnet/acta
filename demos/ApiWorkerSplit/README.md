@@ -44,7 +44,7 @@ and shared multi-project launch-profile support.
 5. Copy the returned `jobRef` into the file's `@jobRef` variable and send the status request.
 
 The POST response is `202 Accepted`: it confirms durable admission, not handler completion. The status
-eventually becomes `Done`, and only the worker console prints `Sent welcome email ...`.
+eventually becomes `Succeeded`, and only the worker console prints `Sent welcome email ...`.
 
 Sending the same body again returns `action: "Deduplicated"` with the same `jobRef` because the API
 derives the deduplication key from `userId`. Change `userId` when you want a new job.
@@ -77,7 +77,7 @@ First let both processes start so the worker registers the durable definition.
 1. Enqueue a new request and immediately stop the API. The worker can still finish the accepted job.
 2. Restart the API, stop the worker, change `userId`, and enqueue again. The accepted job remains durable
    as `Ready` until worker capacity returns.
-3. Restart the worker. It claims and completes the waiting identity as `Done` without the API
+3. Restart the worker. It claims and completes the waiting identity as `Succeeded` without the API
    resubmitting it.
 
 This demonstrates process independence, not exactly-once side effects. A worker can be lost after sending
