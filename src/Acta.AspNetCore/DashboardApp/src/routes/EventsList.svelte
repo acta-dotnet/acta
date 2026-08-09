@@ -172,17 +172,17 @@
       {#if evt.jobRef}
         <JobRef value={evt.jobRef} href={routes.job(evt.jobRef, { namespace: evt.jobNamespace })} />
       {:else}
-        <span class="dim">-</span>
+        <span class="dim">·</span>
       {/if}
     {/snippet}
     {#snippet nameCell(evt)}
-      {#if evt.jobName}<a href={routes.jobs({ jobName: evt.jobName, namespace: evt.jobNamespace })}>{evt.jobName}</a>{:else}<span class="dim">-</span>{/if}
+      {#if evt.jobName}<a href={routes.jobs({ jobName: evt.jobName, namespace: evt.jobNamespace })}>{evt.jobName}</a>{:else}<span class="dim">·</span>{/if}
     {/snippet}
     {#snippet actorCell(evt)}
       {evt.actorCode}{#if evt.actorKey}<span class="dim"> · {evt.actorKey}</span>{/if}
     {/snippet}
-    {#snippet attemptCell(evt)}{evt.executionNumber == null ? '-' : displayFormatter.number(evt.executionNumber)}{/snippet}
-    {#snippet reasonCell(evt)}{evt.reasonMessage ?? evt.reasonCode ?? evt.detailText ?? '-'}{/snippet}
+    {#snippet attemptCell(evt)}{evt.executionNumber == null ? '·' : displayFormatter.number(evt.executionNumber)}{/snippet}
+    {#snippet reasonCell(evt)}{evt.reasonMessage ?? evt.reasonCode ?? evt.detailText ?? '·'}{/snippet}
 
     <ActaGrid
       rowKey={(event) => event.jobEventId}

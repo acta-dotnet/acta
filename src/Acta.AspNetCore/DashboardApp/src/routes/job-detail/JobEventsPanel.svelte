@@ -7,6 +7,7 @@
   import DataTable from '../../components/DataTable.svelte';
   import JobTimeline from '../../components/JobTimeline.svelte';
   import StateView from '../../components/StateView.svelte';
+  import TimeCell from '../../components/TimeCell.svelte';
   import type { JobEvent } from './types.ts';
   import { mergeJobEvents } from './jobDetailState.ts';
   import { livePaused, listRefetchInterval } from '../../polling.ts';
@@ -78,13 +79,13 @@
       <summary>Raw events ({displayFormatter.number(events.length)} loaded) <span class="dim">· {displayFormatter.zoneNote($now)}</span></summary>
       <DataTable>
         <caption class="sr-only">Loaded raw job events</caption>
-        <thead><tr><th>Time</th><th>Event</th><th>Attempt</th><th>From</th><th>To</th><th>Outcome</th><th>Duration</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Time</th><th>Event</th><th class="col-num">Attempt</th><th>From</th><th>To</th><th>Outcome</th><th class="col-num">Duration</th><th>Reason</th></tr></thead>
         <tbody>
           {#each events as event (event.jobEventId)}
             <tr>
-              <td>{displayFormatter.rowTimestamp(event.createdAtUtc)}</td><td>{event.eventCode}</td><td>{event.executionNumber == null ? '·' : displayFormatter.number(event.executionNumber)}</td>
+              <td><TimeCell value={event.createdAtUtc} /></td><td>{event.eventCode}</td><td class="col-num">{event.executionNumber == null ? '·' : displayFormatter.number(event.executionNumber)}</td>
               <td>{event.fromStatus ?? '·'}</td><td>{event.toStatus ?? '·'}</td><td>{event.executionStatus ?? '·'}</td>
-              <td>{event.durationMs != null ? displayFormatter.milliseconds(event.durationMs) : '·'}</td><td>{event.reasonMessage ?? event.reasonCode ?? '·'}</td>
+              <td class="col-num">{event.durationMs != null ? displayFormatter.milliseconds(event.durationMs) : '·'}</td><td>{event.reasonMessage ?? event.reasonCode ?? '·'}</td>
             </tr>
           {/each}
         </tbody>

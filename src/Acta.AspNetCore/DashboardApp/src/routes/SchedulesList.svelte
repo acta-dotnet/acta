@@ -63,8 +63,8 @@
     { key: 'status', header: 'Status' },
     { key: 'job', header: 'Job' },
     { key: 'expression', header: 'Expression', class: 'mono' },
-    { key: 'timeZone', header: 'Time zone' },
-    { key: 'misfireStrategy', header: 'Misfire' },
+    { key: 'timeZone', header: 'Time zone', class: 'mobile-hide' },
+    { key: 'misfireStrategy', header: 'Misfire', class: 'mobile-hide' },
     { key: 'nextRunAtUtc', header: 'Next run' },
     { key: 'actions', header: '', class: 'col-open' }
   ];
@@ -120,7 +120,7 @@
     {#snippet scheduleCell(schedule: ScheduleRow)}<a href={detailHref(schedule)}>{schedule.scheduleName}</a>{/snippet}
     {#snippet statusCell(schedule: ScheduleRow)}<ScheduleStatus status={schedule.status} pausedUntilUtc={schedule.pausedUntilUtc} />{/snippet}
     {#snippet jobCell(schedule: ScheduleRow)}
-      <a href={jobsHref(schedule)} onclick={(event) => event.stopPropagation()}>{schedule.jobNamespace} / {schedule.jobName}</a>
+      <a href={jobsHref(schedule)}>{schedule.jobNamespace} / {schedule.jobName}</a>
     {/snippet}
     {#snippet nextRunCell(schedule: ScheduleRow)}
       {#if schedule.status === 'paused'}
@@ -135,13 +135,13 @@
         class="icon-action"
         href={detailHref(schedule)}
         title={'Open schedule ' + schedule.scheduleName}
-        aria-label={'Open schedule ' + schedule.scheduleName}
-        onclick={(event) => event.stopPropagation()}><Icon name="chevron-right" /></a>
+        aria-label={'Open schedule ' + schedule.scheduleName}><Icon name="chevron-right" /></a>
     {/snippet}
 
     <ActaGrid
       rowKey={(schedule: ScheduleRow) => `${schedule.jobNamespace}/${schedule.jobName}/${schedule.scheduleName}`}
       endpoint="schedules"
+      mobileCards={true}
       {columns}
       filters={() => ({ jobName: $scope ? $filters.jobName.trim() : '', liveOnly: $filters.live !== '0', jobNamespace: $scope, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}

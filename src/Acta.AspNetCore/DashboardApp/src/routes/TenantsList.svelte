@@ -32,8 +32,8 @@
     { key: 'tenantKey', header: 'Tenant key', class: 'mono' },
     { key: 'displayName', header: 'Display name' },
     { key: 'status', header: 'Status' },
-    { key: 'description', header: 'Description' },
-    { key: 'createdAtUtc', header: 'Created' },
+    { key: 'description', header: 'Description', class: 'mobile-hide' },
+    { key: 'createdAtUtc', header: 'Created', class: 'mobile-hide' },
     { key: 'modifiedAtUtc', header: 'Modified' },
     { key: 'actions', header: '', class: 'col-open' }
   ];
@@ -76,13 +76,13 @@
         class="icon-action"
         href={detailHref(tenant)}
         title={'Open tenant ' + tenant.tenantKey}
-        aria-label={'Open tenant ' + tenant.tenantKey}
-        onclick={(event) => event.stopPropagation()}><Icon name="chevron-right" /></a>
+        aria-label={'Open tenant ' + tenant.tenantKey}><Icon name="chevron-right" /></a>
     {/snippet}
 
     <ActaGrid
       rowKey={(tenant: TenantListItem) => tenant.tenantId}
       endpoint="tenants"
+      mobileCards={true}
       {columns}
       filters={() => ({ search: $filters.search.trim(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}

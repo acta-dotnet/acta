@@ -10,18 +10,37 @@ export type { AccentId } from './accents.ts';
 export type { ThemeId } from './themes.ts';
 export { THEMES } from './themes.ts';
 
+/** The theme picker's entries: the OS-following choice first, then the concrete themes. */
+export const THEME_CHOICES: ReadonlyArray<{
+  id: ThemeChoice;
+  label: string;
+  description: string;
+  preview: (typeof THEMES)[number]['preview'];
+}> = [
+  {
+    id: 'system',
+    label: 'System',
+    description: 'Follow the OS light/dark setting',
+    preview: { background: '#0b0f17', border: '#232c40', sidebar: '#11161f', content: '#f3f6fa' },
+  },
+  ...THEMES,
+];
+
 export type TextSize = 'small' | 'default' | 'large';
+
+/** A concrete theme, or 'system' which follows the OS light/dark preference. */
+export type ThemeChoice = ThemeId | 'system';
 
 export interface AppearanceSettings {
   version: 1;
-  theme: ThemeId;
+  theme: ThemeChoice;
   accent: AccentId;
   textSize: TextSize;
 }
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   version: 1,
-  theme: 'acta',
+  theme: 'system',
   accent: 'teal',
   textSize: 'default',
 };
@@ -73,6 +92,16 @@ export function isThemeId(value: unknown): value is ThemeId {
   return value === 'acta' || value === 'light' || value === 'paper';
 }
 
+export function isThemeChoice(value: unknown): value is ThemeChoice {
+  return value === 'system' || isThemeId(value);
+}
+
+const prefersDark = typeof matchMedia === 'undefined' ? null : matchMedia('(prefers-color-scheme: dark)');
+
+export function resolveTheme(choice: ThemeChoice): ThemeId {
+  return choice === 'system' ? (prefersDark?.matches !== false ? 'acta' : 'light') : choice;
+}
+
 export function isAccentId(value: unknown): value is AccentId {
   return ACCENTS.some((accent) => accent.id === value);
 }
@@ -93,7 +122,7 @@ export function loadAppearance(): AppearanceSettings {
         && 'version' in parsed
         && parsed.version === 1
         && 'theme' in parsed
-        && isThemeId(parsed.theme)
+        && isThemeChoice(parsed.theme)
         && 'accent' in parsed
         && isAccentId(parsed.accent)
         && 'textSize' in parsed
@@ -116,7 +145,7 @@ export function loadAppearance(): AppearanceSettings {
 
   return {
     version: 1,
-    theme: legacyMode === 'light' ? 'light' : 'acta',
+    theme: legacyMode === 'light' ? 'light' : legacyMode ? 'acta' : 'system',
     accent: legacyPalette === 'acta'
       ? 'teal'
       : isAccentId(legacyPalette)
@@ -135,13 +164,14 @@ function applyAppearance(settings: AppearanceSettings): void {
     return;
   }
 
+  const theme = resolveTheme(settings.theme);
   const root = document.documentElement;
-  root.dataset.theme = settings.theme;
+  root.dataset.theme = theme;
   root.dataset.accent = settings.accent;
   root.dataset.textSize = settings.textSize;
-  root.style.colorScheme = settings.theme === 'acta' ? 'dark' : 'light';
+  root.style.colorScheme = theme === 'acta' ? 'dark' : 'light';
 
-  const accentTokens = buildAccentTokens(settings.accent, settings.theme);
+  const accentTokens = buildAccentTokens(settings.accent, theme);
   for (const token of MANAGED_ACCENT_TOKENS) {
     const value = accentTokens[token];
     if (value) {
@@ -157,7 +187,12 @@ appearance.subscribe((settings) => {
   safeSet(STORAGE_KEY, JSON.stringify(settings));
 });
 
-export function setTheme(theme: ThemeId): void {
+// Re-emit on OS preference change so a 'system' choice re-resolves (and dependents re-render).
+prefersDark?.addEventListener('change', () => {
+  appearance.update((current) => ({ ...current }));
+});
+
+export function setTheme(theme: ThemeChoice): void {
   appearance.update((current) => ({ ...current, theme }));
 }
 
@@ -176,10 +211,10 @@ export function resetAppearance(): void {
 export function textSizeRowHeight(textSize: TextSize): number {
   switch (textSize) {
     case 'small':
-      return 34;
-    case 'large':
-      return 44;
-    default:
       return 38;
+    case 'large':
+      return 48;
+    default:
+      return 42;
   }
 }

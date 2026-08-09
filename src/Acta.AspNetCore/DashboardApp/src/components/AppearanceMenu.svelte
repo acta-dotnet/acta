@@ -3,9 +3,10 @@
   import {
     ACCENTS,
     TEXT_SIZES,
-    THEMES,
+    THEME_CHOICES,
     appearance,
     resetAppearance,
+    resolveTheme,
     setAccent,
     setTextSize,
     setTheme,
@@ -17,14 +18,14 @@
   let triggerElement: HTMLButtonElement | null = $state(null);
   let themeInputs: HTMLInputElement[] = $state([]);
 
-  let selectedTheme = $derived(THEMES.find((theme) => theme.id === $appearance.theme));
   let selectedAccent = $derived(ACCENTS.find((accent) => accent.id === $appearance.accent));
+  let activeTheme = $derived(resolveTheme($appearance.theme));
 
   async function toggle(): Promise<void> {
     open = !open;
     if (open) {
       await tick();
-      themeInputs[THEMES.findIndex((theme) => theme.id === $appearance.theme)]?.focus();
+      themeInputs[THEME_CHOICES.findIndex((theme) => theme.id === $appearance.theme)]?.focus();
     }
   }
 
@@ -75,7 +76,7 @@
          left margin: "Appearance" starts exactly where the nav items do. -->
     <span
       class="trigger-dot"
-      style:background={selectedAccent ? accentSwatch(selectedAccent.id, $appearance.theme) : undefined}
+      style:background={selectedAccent ? accentSwatch(selectedAccent.id, activeTheme) : undefined}
       aria-hidden="true"
     ></span>
   </button>
@@ -93,7 +94,7 @@
       <fieldset class="theme-options">
         <legend>Theme</legend>
         <div class="theme-grid">
-          {#each THEMES as theme, index}
+          {#each THEME_CHOICES as theme, index}
             <label class="theme-card" class:selected={$appearance.theme === theme.id}>
               <input
                 bind:this={themeInputs[index]}
@@ -136,7 +137,7 @@
                 checked={$appearance.accent === accent.id}
                 onchange={() => setAccent(accent.id)}
               />
-              <span class="accent-swatch" style:background={accentSwatch(accent.id, $appearance.theme)} aria-hidden="true">
+              <span class="accent-swatch" style:background={accentSwatch(accent.id, activeTheme)} aria-hidden="true">
                 {#if $appearance.accent === accent.id}<span class="check">✓</span>{/if}
               </span>
               <span>{accent.label}</span>
@@ -231,7 +232,7 @@
     pointer-events: none;
   }
 
-  .theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .theme-card {
     min-width: 0;
     padding: 7px;

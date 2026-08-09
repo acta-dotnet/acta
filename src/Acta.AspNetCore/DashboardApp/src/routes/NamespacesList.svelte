@@ -74,13 +74,13 @@
         class="icon-action"
         href={detailHref(namespace)}
         title={'Open namespace ' + namespace.name}
-        aria-label={'Open namespace ' + namespace.name}
-        onclick={(event) => event.stopPropagation()}><Icon name="chevron-right" /></a>
+        aria-label={'Open namespace ' + namespace.name}><Icon name="chevron-right" /></a>
     {/snippet}
 
     <ActaGrid
       rowKey={(namespace: NamespaceListItem) => namespace.id}
       endpoint="namespaces/admin"
+      mobileCards={true}
       {columns}
       filters={() => ({ nameContains: $filters.name.trim().toLowerCase(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}

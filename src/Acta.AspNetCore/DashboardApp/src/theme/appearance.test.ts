@@ -103,7 +103,13 @@ test('legacy Compact is ignored', () => {
   assert.equal(loadAppearance().textSize, 'default');
 });
 
-test('reset restores Acta, Teal, and Default atomically', () => {
+test('persisted system theme is honored', () => {
+  installStorage();
+  records.set('acta-appearance-v1', JSON.stringify({ version: 1, theme: 'system', accent: 'teal', textSize: 'default' }));
+  assert.equal(loadAppearance().theme, 'system');
+});
+
+test('reset restores System, Teal, and Default atomically', () => {
   installStorage();
   appearance.set({ version: 1, theme: 'paper', accent: 'pink', textSize: 'large' });
   resetAppearance();
@@ -111,7 +117,7 @@ test('reset restores Acta, Teal, and Default atomically', () => {
 });
 
 test('text-size row heights match the CSS contract', () => {
-  assert.equal(textSizeRowHeight('small'), 34);
-  assert.equal(textSizeRowHeight('default'), 38);
-  assert.equal(textSizeRowHeight('large'), 44);
+  assert.equal(textSizeRowHeight('small'), 38);
+  assert.equal(textSizeRowHeight('default'), 42);
+  assert.equal(textSizeRowHeight('large'), 48);
 });

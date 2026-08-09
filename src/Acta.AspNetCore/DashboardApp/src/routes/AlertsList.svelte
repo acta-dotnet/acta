@@ -152,7 +152,7 @@
       </span>
     {/snippet}
     {#snippet jobCell(alert: AlertRow)}
-      {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace })} />{:else}<span class="dim">-</span>{/if}
+      {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace })} />{:else}<span class="dim">·</span>{/if}
     {/snippet}
     {#snippet deliveryCell(alert: AlertRow)}<StatusBadge status={alert.deliveryStatus} />{/snippet}
     {#snippet latestCell(alert: AlertRow)}
@@ -210,7 +210,3 @@
     onConfirm={(note) => act(target.alertId, target.action, note)}
     onCancel={() => (confirming = null)} />
 {/if}
-
-<style>
-  :global(td.col-actions) { min-width: 180px; }
-</style>

@@ -4,6 +4,7 @@
   import { keys } from '../query';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
+  import DataTable from '../components/DataTable.svelte';
   import StateView from '../components/StateView.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
   import ChangeHistory from '../components/ChangeHistory.svelte';
@@ -162,24 +163,22 @@
             identity, contract, and formats remain code-owned.
           </p>
 
-          <div class="policy-wrap">
-            <table class="data">
-              <caption class="sr-only">Definition policy defaults, overrides, and effective values</caption>
-              <thead>
-                <tr><th>Policy field</th><th>Default</th><th>Override</th><th>Effective</th></tr>
-              </thead>
-              <tbody>
-                {#each FIELDS as f}
-                  <tr>
-                    <td>{f.label}</td>
-                    <td class="mono dim">{displayPolicyValue(f, def[f.key])}</td>
-                    <td><input class="ovr-in" bind:value={inputs[f.key]} placeholder="inherit" /></td>
-                    <td class="mono">{displayPolicyValue(f, def[f.key + 'Effective'])}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+          <DataTable>
+            <caption class="sr-only">Definition policy defaults, overrides, and effective values</caption>
+            <thead>
+              <tr><th>Policy field</th><th>Default</th><th>Override</th><th>Effective</th></tr>
+            </thead>
+            <tbody>
+              {#each FIELDS as f}
+                <tr>
+                  <td>{f.label}</td>
+                  <td class="mono dim">{displayPolicyValue(f, def[f.key])}</td>
+                  <td><input class="ovr-in" bind:value={inputs[f.key]} placeholder="inherit" /></td>
+                  <td class="mono">{displayPolicyValue(f, def[f.key + 'Effective'])}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </DataTable>
 
           <label class="detail-field">
             <span>Audit note</span>
@@ -224,10 +223,6 @@
 </Page>
 
 <style>
-  .policy-wrap { overflow-x: auto; }
-
-  .dim { color: var(--muted); }
-
   /* Inline override inputs sit in the policy table cells, so they keep a compact local style rather
      than the labeled .detail-field grid the rest of the form uses. */
   .ovr-in {

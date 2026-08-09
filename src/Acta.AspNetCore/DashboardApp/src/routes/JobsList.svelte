@@ -200,12 +200,12 @@
     {/snippet}
     {#snippet jobCell(job: JobRow)}
       <a href={routes.job(job.jobRef, { namespace: $scope })}>
-        {job.jobName} {#if job.jobName?.startsWith('sys.')}<span class="badge system">system</span>{/if}
+        {job.jobName} {#if job.jobName?.startsWith('sys.')}<span class="badge held" title="Framework (sys.-prefixed) job">system</span>{/if}
       </a>
     {/snippet}
     {#snippet statusCell(job: JobRow)}<StatusBadge status={job.status} />{/snippet}
     {#snippet tenantCell(job: JobRow)}
-      {#if job.tenantKey}<a href={routes.tenant(job.tenantKey, { namespace: $scope })} class="mono">{job.tenantKey}</a>{:else if job.tenantId != null}{job.tenantId}{:else}-{/if}
+      {#if job.tenantKey}<a href={routes.tenant(job.tenantKey, { namespace: $scope })} class="mono">{job.tenantKey}</a>{:else if job.tenantId != null}{job.tenantId}{:else}<span class="dim">·</span>{/if}
     {/snippet}
     {#snippet ageCell(job: JobRow)}<RelativeTime value={job.createdAtUtc} />{/snippet}
     {#snippet nextRunCell(job: JobRow)}<RelativeTime value={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} />{/snippet}
@@ -232,8 +232,9 @@
       loadingText="Loading jobs..."
       emptyText={activeChips.length > 0
         ? 'No jobs match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
-        : 'No jobs yet in this view.'}
-      cells={{ jobRef: refCell, job: jobCell, status: statusCell, tenant: tenantCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }} />
+        : 'No jobs yet. Mark a handler method with [Job("name")] and call jobs.EnqueueAsync(input); the row appears here the moment the enqueue commits.'}
+      cells={{ jobRef: refCell, job: jobCell, status: statusCell, tenant: tenantCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }}
+      rowClass={(job: JobRow) => (job.status === 'Failed' ? 'trouble' : job.status === 'Paused' ? 'held' : '')} />
   </div>
 </Page>
 
