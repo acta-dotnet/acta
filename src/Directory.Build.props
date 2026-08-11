@@ -1,0 +1,12 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+
+  <!-- Every shipped library declares AOT compatibility, which turns the trim/AOT analyzers on for
+       its own code. The Anvil publish gate proves the whole stack links AOT-clean as an app; this
+       makes the same promise visible to a consumer's AOT analysis at the package level. The
+       generators project is excluded by the TFM condition: analyzers ship as netstandard2.0 and
+       run in the compiler, never in the consumer's AOT image. -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+</Project>
