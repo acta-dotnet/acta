@@ -27,7 +27,7 @@ state, retries, audit, recovery, and operator control in your own SQL database. 
 
 ## Quickstart
 
-In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0): no Docker, no database server, no connection string. Everything below runs on embedded SQLite.
+In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0): no Docker, no database server, nothing to provision. Everything below runs on embedded SQLite.
 
 ```bash
 dotnet new console -n Shipping && cd Shipping

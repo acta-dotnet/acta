@@ -394,7 +394,7 @@
         <div><b><em>3</em></b><span>SQL providers: pg · mssql · sqlite</span></div>
         <div><b><em>1</em></b><span>SQL round-trip per state change</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" style="text-decoration:none">88</a></b><span>runnable concepts &amp; labs</span></div>
-        <div><b>5 min</b><span>fresh clone → dashboard, zero Docker</span></div>
+        <div><b>5 min</b><span>fresh clone → dashboard, zero Docker (Node 20+ builds the UI)</span></div>
       </div>
     </header>
 
@@ -513,7 +513,7 @@ Hello, World!</span>
             <li><b>1 SQL round-trip</b> per state change</li>
             <li><b>Deterministic test host</b>: real-DB tests in tens of ms</li>
             <li><b>Typed contracts</b>: <code>[Job]</code> is the durable name</li>
-            <li><b>Redis as a bell only</b>; JSON / MessagePack / gzip codecs</li>
+            <li><b>Redis as a bell only</b>; pluggable payload serializers</li>
             <li><b>Anvil lab</b>: a million jobs, kill workers, watch recovery</li>
           </ul>
         </div>
@@ -539,7 +539,7 @@ Hello, World!</span>
         </div>
         <div class="vs-row">
           <div class="who"><b>Temporal / Dapr Workflow / Durable Task</b><span>replay engines</span></div>
-          <div class="why"><b>Keep a replay engine when deterministic event-history replay and orchestration semantics are requirements.</b> Consider Acta when you want ordinary re-entrant .NET handlers, checkpoints instead of replay, application-owned SQL state, and no separate orchestration service. <a href="/vs-temporal">The longer answer →</a></div>
+          <div class="why"><b>Keep a replay engine when deterministic event-history replay and orchestration semantics are requirements.</b> Consider Acta when you want ordinary re-entrant .NET handlers with no determinism contract, checkpoints instead of replayed history, and application-owned SQL state. <a href="/vs-temporal">The longer answer →</a></div>
         </div>
         <div class="vs-row">
           <div class="who"><b>A message bus</b><span>MassTransit, NServiceBus, …</span></div>
@@ -555,7 +555,7 @@ Hello, World!</span>
     <section class="wrap center" id="dashboard">
       <p class="record centered">The dashboard</p>
       <h2>See exactly what your jobs are doing.</h2>
-      <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default, with mutating verbs off until you enable them.</p>
+      <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default, with mutating verbs off until you enable them; removing the local-only guard without configuring authorization does not degrade, it refuses to start.</p>
       <figure class="shot">
         <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
           <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with health verdict, job counts, workers with heartbeats, and next schedules" loading="lazy" width="3200" height="2000" />
@@ -574,6 +574,7 @@ Hello, World!</span>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">38,079</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">145,806</a></b><span>jobs/s batch enqueue · Postgres</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">6.1 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">10,000 / 10,000</a></b><span>jobs succeeded while a worker was killed every 5 s · certification seal</span></div>
         <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>
       <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 0.2.0-alpha.1, for regression tracking and rough sizing, not capacity claims.</p>
@@ -635,9 +636,9 @@ Hello, World!</span>
         <h3 class="ref-group">Engineering</h3>
         <dl>
           <div class="ref-row"><dt>Three SQL providers</dt><dd><code>Acta.Postgres</code>, <code>Acta.SqlServer</code>, <code>Acta.Sqlite</code>: one reference is enough, and all three share the same schema shape and operational model. Develop against an embedded SQLite file; ship the same code against your server.</dd></div>
-          <div class="ref-row"><dt>Source-generated dispatch, NativeAOT</dt><dd>Handlers are dispatched through generated code (no reflection on the hot path) and the runtime supports NativeAOT. One SQL round-trip per state change.</dd></div>
+          <div class="ref-row"><dt>Source-generated dispatch, NativeAOT</dt><dd>Handlers are dispatched through generated code (no reflection on the hot path). NativeAOT is exercised, not asserted: every shipped package declares AOT compatibility and the bundled lab app publishes under NativeAOT as a gated test. One SQL round-trip per state change.</dd></div>
           <div class="ref-row"><dt>Deterministic test host</dt><dd><code>Acta.Testing</code> drives the real runtime one tick at a time: no sleeps, no polling, no flaky waits. Real-database job tests run in tens of milliseconds.</dd></div>
-          <div class="ref-row"><dt>Payload codecs</dt><dd>JSON by default; MessagePack, gzip, or scalar payloads per job when size or speed matters.</dd></div>
+          <div class="ref-row"><dt>Payload codecs</dt><dd>JSON, text, and bytes ship built in; the serializer registry is pluggable per job, with worked MessagePack and gzip examples in the concepts.</dd></div>
           <div class="ref-row"><dt>Redis as a bell, only</dt><dd>Optional <code>Acta.Redis</code> wakes idle workers faster. It is never a source of truth: lose Redis and you degrade to polling, not to data loss.</dd></div>
           <div class="ref-row"><dt>Anvil · the failure lab</dt><dd>The bundled load-and-failure laboratory: enqueue a million jobs, kill real worker processes mid-flight, and watch leases lapse and recovery reclaim the work, on your machine.</dd></div>
         </dl>
@@ -646,7 +647,7 @@ Hello, World!</span>
         <dl>
           <div class="ref-row"><dt>Priorities &amp; reprioritization</dt><dd>Claim priority is per-definition policy, and operators can change it in place on a live job with <code>ReprioritizeAsync</code>, no cancel-and-re-enqueue dance.</dd></div>
           <div class="ref-row"><dt>Execution timeouts &amp; deadlines</dt><dd>Per-definition execution timeout, plus whole-job deadlines in two strengths: a Strict deadline terminates the job; an Advisory one sets <code>ctx.IsOverdue</code> so the handler can degrade gracefully.</dd></div>
-          <div class="ref-row"><dt>Batch enqueue</dt><dd><code>EnqueueBatch</code> alongside single enqueue for high-volume producers, one round-trip for many jobs.</dd></div>
+          <div class="ref-row"><dt>Batch enqueue</dt><dd><code>EnqueueBatchAsync</code> alongside single enqueue for high-volume producers, one round-trip for many jobs.</dd></div>
           <div class="ref-row"><dt>Tags &amp; correlation keys</dt><dd>Attach searchable tags and a caller-supplied correlation key to any job, so operators can find work by what it means to the business, not just by id.</dd></div>
           <div class="ref-row"><dt>Time-zone schedules</dt><dd>Recurring schedules run in a named time zone. Operators preview upcoming instants and override expression or zone with expected-version checks.</dd></div>
           <div class="ref-row"><dt>Alert routing</dt><dd>Definitions route alerts to named channels; startup validation of that routing is a policy you choose. Off, Warn, or Fail.</dd></div>

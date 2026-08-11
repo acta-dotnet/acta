@@ -204,6 +204,7 @@
         <div class="ref-row"><dt>Retry policy</dt><dd><code>[Job(MaxAttempts = ...)]</code> and typed backoff settings: policy on the job, not folklore in a catch block.</dd></div>
         <div class="ref-row"><dt>Queue</dt><dd>A job namespace plus worker registration: one owning service per namespace, and its replicas are the peer workers that drain it.</dd></div>
         <div class="ref-row"><dt>Job id</dt><dd><code>JobRef</code> for public references, <code>JobId</code> internally.</dd></div>
+        <div class="ref-row"><dt>Job filters</dt><dd><code>AddPipelineBehavior&lt;T&gt;</code>: one interface wraps every attempt, for cross-cutting logging, metrics, or guards.</dd></div>
         <div class="ref-row"><dt>Continuations / batches</dt><dd>Child jobs with fan-out / fan-in: parent lineage is recorded, and the parent can wait on the children's results.</dd></div>
         <div class="ref-row"><dt>Job parameters</dt><dd>Typed input contracts: a record you declare, not a serialized method-call expression.</dd></div>
         <div class="ref-row"><dt>Job history</dt><dd>Durable <code>events</code> plus curated <code>jobs_view</code> and <code>events_view</code> SQL. The event timeline is the job log: no private storage schema to decode.</dd></div>
@@ -261,11 +262,12 @@ builder.Services.UseActa(j =&gt;
       <p class="record">What changes</p>
       <h2>The differences you will feel in week one.</h2>
       <ul class="changes">
-        <li><b>Retries run for days, not hours.</b> Hangfire retries 10 times over roughly 4.5 hours, because the work lives in a process. Acta's work is durable rows, so its default is 15 attempts on <code>min(1m x 2^(n-1), 1d)</code> with about 10% jitter: a horizon of about 4.4 days, at most one retry per day at the tail. A job that used to be dead by Sunday evening still has attempts left on Monday morning. Tune <code>MaxAttempts</code> and backoff if you want the old horizon.</li>
+        <li><b>Retries run for days, not hours.</b> Hangfire's default policy retries 10 times over roughly 4.5 hours; Acta's default is 15 attempts on <code>min(1m x 2^(n-1), 1d)</code> with about 10% jitter, a horizon of about 4.4 days with at most one retry per day at the tail. Both are tunable; the defaults state what each expects a retry to outlive. A job that used to be dead by Sunday evening still has attempts left on Monday morning. Tune <code>MaxAttempts</code> and backoff if you want the old horizon.</li>
         <li><b>Typed inputs replace serialized expressions.</b> The input is a record you declare and version, not a captured lambda. What was enqueued is readable on the job row, and a failed job restarts with its original input.</li>
         <li><b>Curated SQL views replace a private storage schema.</b> <code>jobs_view</code>, <code>events_view</code>, and friends are the supported operator surface: backlog, stuck jobs, worker liveness, and history are queries, not dashboard-only knowledge.</li>
         <li><b>Durable steps, sleeps, signals, and lineage are first-class.</b> The patterns that continuations and batches approximate become recorded state: a step's outcome survives a crash, a wait holds no worker, and children stay traceable to their parent.</li>
-        <li><b>The dashboard ships inside your app.</b> No separate dashboard site to host: it is a library, local-only by default, with mutating verbs off until you explicitly enable them.</li>
+        <li><b>Operators get verbs, not just views.</b> Pause, resume, cancel, restart, signal, reprioritize a live job in place, amend a payload before a restart, override a schedule's expression or time zone with version checks. And the CLI ships in every host: <code>jobs explain</code> says why a job is where it is, <code>jobs debug</code> re-runs a persisted job under your debugger.</li>
+        <li><b>Dashboard verbs are off until you turn them on.</b> Both dashboards ship embedded in your app and default to local requests only. The difference is the mutating surface: Acta's dashboard is read-only until you explicitly enable controls, so exposing it never silently exposes retry, delete, or trigger buttons.</li>
       </ul>
     </section>
 

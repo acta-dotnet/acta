@@ -145,7 +145,7 @@ Use `JobsOptions` for deployment behavior and worker/runtime tuning. Use attribu
 contract behavior that must travel with the job definition.
 
 The framework retry defaults (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) mean a persistently
-failing job keeps retrying for roughly four and a half days before it lands terminal Failed: the
+failing job keeps retrying for roughly 4.4 days before it lands terminal Failed: the
 delay doubles from one minute up to a one-a-day ceiling, so a dependency that breaks on a Friday
 evening still has attempts left when someone reads the alert on Monday. Safe and deliberate, but
 worth knowing before you go looking for why a broken job hasn't dead-lettered yet.

@@ -132,7 +132,10 @@ Acta sits underneath agent frameworks (Semantic Kernel, the OpenAI SDK, a custom
 `Agent`, `Prompt`, or `LLM` types, ever. It does not care whether a step calls a model, Stripe, or
 FFmpeg. The primitives are general: `RunStepAsync` persists a completed step's output so it is not
 paid for twice, `SleepAsync` and `WaitSignalAsync` hold a human-approval gate for days without
-holding a worker, and `MapAsync` fans a batch out with lineage.
+holding a worker, and `MapAsync` fans a batch out with lineage. Durable variables
+(`GetOrSetVariableAsync`) and `SetProgressAsync` give the agent working memory that survives the
+process: another worker can resume the job and find the plan, the partial results, and how far it
+got.
 
 ## Physical Processes And Layered Systems
 

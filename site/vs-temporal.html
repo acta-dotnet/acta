@@ -204,7 +204,7 @@
         </div>
         <div class="ref-row">
           <dt>Cost two · a second system</dt>
-          <dd>Temporal runs as a server cluster or a cloud service. Dapr Workflow requires the Dapr runtime and its sidecar. Durable Functions assumes Azure hosting and a storage provider. Each is real infrastructure next to your application: deployed, secured, versioned, and paid for on its own schedule.</dd>
+          <dd>Temporal runs as a server cluster or a cloud service. Dapr Workflow requires the Dapr runtime and its sidecar. Durable Functions is the exception on this axis: with a bring-your-own backend the engine runs inside your process, and what remains is the storage provider and the replay contract itself. Where the second system exists, it is real infrastructure next to your application: deployed, secured, versioned, and paid for on its own schedule.</dd>
         </div>
       </dl>
       <p class="pair-note">Neither cost is a flaw. Both follow directly from making replayed history the source of truth, and for some problems that trade is right. The question is whether it is right for yours.</p>
@@ -219,7 +219,7 @@
         <li><b>Durable waits.</b> <code>SleepAsync</code> and <code>WaitSignalAsync</code> park a job as durable state: no worker thread waits, and the job resumes on any peer when the timer fires or the signal arrives.</li>
         <li><b>Fan-out with lineage.</b> <code>MapAsync</code> spawns child jobs with recorded parentage, so a thousand-item batch stays traceable and the parent can wait on results.</li>
         <li><b>No determinism contract.</b> Wall clock, random, and IO are fine anywhere in handler code, because nothing is ever replayed against a history. There is no orchestrator/activity boundary to police.</li>
-        <li><b>No second system.</b> Infrastructure is a NuGet package plus the Postgres, SQL Server, or SQLite you already run. No server, no sidecar, no control plane. This is structural, not a maturity gap: an orchestration server can add features forever, but it cannot become a library inside your process using the database you already back up. Embedded is the architecture Acta chose, the way replay is the architecture they chose.</li>
+        <li><b>No second system.</b> Infrastructure is a NuGet package plus the Postgres, SQL Server, or SQLite you already run. No server, no sidecar, no control plane. For Temporal and Dapr this is structural, not a maturity gap: an orchestration server can add features forever, but it cannot become a library inside your process using the database you already back up. Embedded and replay-free is the architecture Acta chose, the way replay is the architecture all three chose.</li>
         <li><b>State is rows.</b> Jobs, attempts, leases, steps, signals, and events are SQL rows with curated views. When something is stuck, you <code>SELECT</code> the evidence.</li>
       </ul>
     </section>
@@ -302,7 +302,7 @@
         <li><b>Exactly-once side effects: which nobody has.</b> Acta steps are at-least-once, and so are the replay engines' activities: a crash between an external call and its recording re-runs the call on every one of these systems, because no engine can make the outside world transactional. Replay makes the orchestrator's decisions exactly-once, not your HTTP request. So external calls need idempotency or reconciliation there and here alike; Acta adds <code>AtMostOnce()</code> for the steps where duplication is worse than an explicit ambiguity. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md#at-most-once-steps">At-most-once steps →</a></li>
         <li><b>.NET only.</b> Handlers, workers, and the tooling are .NET. There are no SDKs for other languages and none planned.</li>
         <li><b>One database is the durability boundary.</b> Acta is exactly as durable and as available as the Postgres, SQL Server, or SQLite you point it at. That is the point of the design, and also its limit.</li>
-        <li><b>Production miles.</b> The replay engines have a decade of them; Acta is young. Its evidence is accumulated in the open instead: a conformance suite across all three providers, and certification runs that kill real worker processes and prove the ledger held with SQL checks anyone can re-run.</li>
+        <li><b>Production miles.</b> The replay engines have a decade of them; Acta is young. Its evidence is accumulated in the open instead: ~620 conformance tests run identically against real Postgres, SQL Server, and SQLite, and committed certification seals. The latest: a worker process killed every five seconds for the whole run, 984 orphaned attempts, 107 workers marked dead, and 10,000 of 10,000 jobs still succeeded with every SQL check green, on unmodified production defaults. <a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">The seals →</a></li>
       </ul>
     </section>
 
