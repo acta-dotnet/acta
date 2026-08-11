@@ -32,9 +32,11 @@ public readonly record struct Backoff
     public double Jitter { get; }
 
     /// <summary>
-    /// Framework default: 1 minute growing to 8 hours, doubling each attempt, with 10% jitter.
+    /// Framework default: 1 minute growing to 1 day, doubling each attempt, with 10% jitter. Over the
+    /// default 15 attempts that is a retry horizon of roughly four and a half days, so a dependency
+    /// that fails on a Friday evening still has attempts left when someone reads the alert on Monday.
     /// </summary>
-    public static Backoff Default => Range(TimeSpan.FromMinutes(1), TimeSpan.FromHours(8));
+    public static Backoff Default => Range(TimeSpan.FromMinutes(1), TimeSpan.FromDays(1));
 
     /// <summary>Exponential growth from <paramref name="initial"/> to <paramref name="max"/>, doubling, with 10% jitter.</summary>
     public static Backoff Range(TimeSpan initial, TimeSpan max) => Exponential(initial, max).WithJitter(0.1);

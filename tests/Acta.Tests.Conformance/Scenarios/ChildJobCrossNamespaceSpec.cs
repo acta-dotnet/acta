@@ -45,7 +45,7 @@ public abstract class ChildJobCrossNamespaceSpec<TFixture> : ActaTestBase<TFixtu
             j.Run<TestJobs.TestJobsManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
             j.Run<TestJobs.TestJobsManifest>(DeriveChildNamespace(testNamespace), ownerTeam: "test", description: GetType().FullName);
         });
-        services.Configure<JobsOptions>(o => o.RegisterFrameworkJobs = false);
+        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
     }
 
     protected override async ValueTask AfterInitializeAsync()

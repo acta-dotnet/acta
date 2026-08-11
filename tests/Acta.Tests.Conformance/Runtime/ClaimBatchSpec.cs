@@ -42,7 +42,7 @@ public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         services.Configure<JobsOptions>(o =>
         {
             o.ClaimBatchSize = Batch;
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
         });
     }
 

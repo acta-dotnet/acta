@@ -25,7 +25,8 @@ public sealed partial class SqlOwnershipTests
         ["checkpoints"] = ["Checkpoints", "Signals", "Timers", "Execution"],
         ["definitions"] = ["Definitions"],
         // The ledger: write ownership is Execution's; the Operations Events capability is read-only.
-        ["events"] = ["Execution"],
+        // Notes is the one application-authored writer, and the only event code an app can emit.
+        ["events"] = ["Execution", "Notes"],
         ["jobs"] = ["Jobs"],
         ["leases"] = ["Locks"],
         ["namespaces"] = ["Namespaces"],
@@ -50,6 +51,7 @@ public sealed partial class SqlOwnershipTests
         ["Timers"] = "Execution",
         ["Jobs"] = "Execution",
         ["Signals"] = "Execution",
+        ["Notes"] = "Execution",
         ["Workers"] = "Execution",
         ["Schedules"] = "Execution",
         ["Definitions"] = "Execution",

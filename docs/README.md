@@ -45,11 +45,15 @@ Generated from source and drift-checked in CI: [Data model](./reference/data-mod
 ([pg](./reference/schema-pg.sql), [mssql](./reference/schema-mssql.sql),
 [sqlite](./reference/schema-sqlite.sql)):
 complete per-provider SQL (migrations, views, routines) for DBA-run provisioning where the
-application principal is not allowed DDL.
+application principal is not allowed DDL. The
+[conformance contracts](./reference/conformance-contracts.md) list every specified behavior with the
+arrange/act/assert that proves it.
 
 ## Internals
 
 Contributor-facing; not needed to use Acta: [design principles and settled decisions](./internals/design.md),
 [architecture diagrams](./technical/architecture-diagrams.md), [migration tooling](./internals/migrations.md),
-[releasing](./internals/releasing.md), [benchmarks](./benchmarks/stress-tests.md), and
+[releasing](./internals/releasing.md), [benchmarks](./benchmarks/stress-tests.md),
+[modular architecture](./internals/modular-architecture.md),
+[operator surface](./internals/operator-surface.md), and
 design decisions: [incident response](./designs/incident-response.md).

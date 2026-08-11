@@ -567,12 +567,12 @@ Hello, World!</span>
       <p class="record">Numbers &amp; boundaries</p>
       <h2>Measured, not promised.</h2>
       <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260718T202454Z.md" style="text-decoration:none">38,664</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260718T202454Z.md" style="text-decoration:none">180,657</a></b><span>jobs/s batch enqueue · Postgres</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260718T202454Z.md" style="text-decoration:none">6.8 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
-        <div><b>0 Docker</b><span>fresh clone → running dashboard on embedded SQLite</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">38,079</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">145,806</a></b><span>jobs/s batch enqueue · Postgres</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">6.1 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
+        <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>
-      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 0.1.1-preview, for regression tracking and rough sizing, not capacity claims.</p>
+      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 0.2.0-alpha.1, for regression tracking and rough sizing, not capacity claims.</p>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
         <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
@@ -621,7 +621,7 @@ Hello, World!</span>
         <h3 class="ref-group">Visibility &amp; operations</h3>
         <dl>
           <div class="ref-row"><dt>SQL-visible state</dt><dd>Jobs, attempts, leases, events, schedules, checkpoints, workers, and alerts are ordinary rows, with curated operator views (<code>acta.jobs_view</code> and friends) for the common questions: backlog, stuck jobs, worker liveness, pending alerts.</dd></div>
-          <div class="ref-row"><dt>Append-only event ledger</dt><dd>Every job carries a complete, append-only timeline of what happened to it (enqueued, claimed, retried, signaled, completed) as queryable rows.</dd></div>
+          <div class="ref-row"><dt>Append-only event ledger</dt><dd>Every job carries an append-only timeline of what happened to it - executions started and finished, retries, suspensions, signals, operator actions, completion - as queryable rows.</dd></div>
           <div class="ref-row"><dt>Embedded dashboard &amp; JSON API</dt><dd><code>Acta.AspNetCore</code> serves an operational dashboard and query API from inside your app. Local-only by default, no login system to configure, and every mutating verb is disabled until you explicitly enable it.</dd></div>
           <div class="ref-row"><dt>Embedded CLI · including <code>jobs debug</code></dt><dd>Every host binary is also the admin tool. <code>jobs debug</code> claims any persisted job and steps through its real handler under your debugger: reproduce a production failure with a breakpoint, not printf.</dd></div>
           <div class="ref-row"><dt>Operator verbs, opt-in</dt><dd>Pause, resume, cancel, restart, signal: explicit controls for humans running the system, off by default so exposure is a decision, not an accident.</dd></div>
@@ -647,7 +647,7 @@ Hello, World!</span>
           <div class="ref-row"><dt>Time-zone schedules</dt><dd>Recurring schedules run in a named time zone. Operators preview upcoming instants and override expression or zone with expected-version checks.</dd></div>
           <div class="ref-row"><dt>Alert routing</dt><dd>Definitions route alerts to named channels; startup validation of that routing is a policy you choose. Off, Warn, or Fail.</dd></div>
           <div class="ref-row"><dt>Audit levels &amp; retention</dt><dd>Audit level and retention are per-definition contract values; terminal job rows purge on schedule while events remain the audit ledger.</dd></div>
-          <div class="ref-row"><dt>Large payloads, by reference</dt><dd>Inline payloads are capped (256&nbsp;KB default; oversized writes are refused, not truncated). Big artifacts live in blob storage; the job carries a verified reference. URI, checksum, size, content type.</dd></div>
+          <div class="ref-row"><dt>Large payloads, by reference</dt><dd>Inline payloads are capped (1&nbsp;MiB default; oversized writes are refused, not truncated). Big artifacts live in blob storage; the job carries a verified reference. URI, checksum, size, content type.</dd></div>
         </dl>
       </div>
     </section>

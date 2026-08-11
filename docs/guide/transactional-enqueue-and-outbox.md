@@ -238,7 +238,7 @@ services.UseActa(j =>
 ```
 
 Registration adds the `sys.outbox` job plus its `sys.recovery` and `sys.alerts` dependencies to that
-namespace, even when `JobsOptions.RegisterFrameworkJobs` is `false`: that switch suppresses automatically
+namespace, even when `JobsOptions.RegisterSystemJobs` is `false`: that switch suppresses automatically
 added framework jobs, not the dependencies of a relay you asked for. It does not force `sys.retention`. A
 namespace registers zero or one source; a process with several `Run` namespaces can attach one source to
 each, and each namespace drains its own source independently.

@@ -110,6 +110,12 @@ public enum JobEventCode : byte
     )]
     JobStateReset = 81,
 
+    [Code(
+        "job.note",
+        "Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload."
+    )]
+    JobNoteRecorded = 90,
+
     // ---------- Schedule lifecycle ----------
     // Emitted against the slot job_id (JobEvent has no schedule_id); the schedule name rides reason_message.
 

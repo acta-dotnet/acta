@@ -65,6 +65,9 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
     public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
         inner.CheckpointSlotAsync(command, ct);
 
+    public Task RecordJobNoteAsync(long jobId, string message, JobPayload? detail, CancellationToken ct) =>
+        inner.RecordJobNoteAsync(jobId, message, detail, ct);
+
     public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         inner.GetChildJobIdsAsync(parentJobId, ct);
 

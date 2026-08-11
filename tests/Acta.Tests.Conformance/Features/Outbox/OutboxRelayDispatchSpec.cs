@@ -48,7 +48,7 @@ public abstract class OutboxRelayDispatchSpec<TFixture> : ActaRuntimeTestBase<TF
                 }
             );
         });
-        services.Configure<JobsOptions>(o => o.RegisterFrameworkJobs = false);
+        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
     }
 
     [Fact(DisplayName = "The relay registers sys.outbox (and sys.recovery) but not the automatic-only sys.retention")]

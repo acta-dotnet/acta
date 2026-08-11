@@ -18,7 +18,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Job input is stored inline, capped by JobsOptions.MaxInlinePayloadBytes (256 KB default). Large
+// Job input is stored inline, capped by JobsOptions.MaxInlinePayloadBytes (1 MiB default). Large
 // content goes to blob storage; enqueue a reference the handler verifies and opens (a temp file here).
 var exportPath = Path.Combine(Path.GetTempPath(), $"acta-export-{Guid.NewGuid():N}.csv");
 await File.WriteAllTextAsync(exportPath, "id,name\n1,Sam\n2,Alex\n");

@@ -26,7 +26,7 @@ public abstract class ListJobSchedulesSpec<TFixture> : ActaRuntimeTestBase<TFixt
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
-    protected override bool RegisterFrameworkJobs => true;
+    protected override bool RegisterSystemJobs => true;
 
     [Fact(
         DisplayName = "Walking NextCursor visits every live schedule once in ascending next-run order, excluding rows without a next run, with a matching total"

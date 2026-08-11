@@ -44,7 +44,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         _wakeup = services.AddWakeupParkProbe();
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
             o.SafetyPollInterval = SafetyPoll;
         });
     }

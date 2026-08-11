@@ -105,17 +105,17 @@ internal sealed class WorkerRuntimeInitializer(
 
         // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
         // of the user manifests (the runtime assembly's own generated RuntimeJobs), so each namespace carries
-        // its maintenance catalog (unless JobsOptions.RegisterFrameworkJobs is off, e.g. external
+        // its maintenance catalog (unless JobsOptions.RegisterSystemJobs is off, e.g. external
         // maintenance). System jobs are identified by their reserved sys. names; every manifest's
         // descriptors land under this one worker's namespace.
         var perNamespaceDefIds = new Dictionary<string, int>(StringComparer.Ordinal);
         var manifests = new List<JobDescriptorManifest>();
 
-        // The automatic framework set registers when RegisterFrameworkJobs is on; an explicit relay adds
+        // The automatic framework set registers when RegisterSystemJobs is on; an explicit relay adds
         // its sys.outbox/sys.recovery/sys.alerts subset even when that flag is off, without forcing
         // sys.retention. Both are subsets of the one generated RuntimeJobs manifest, filtered by name.
         var frameworkNames = new HashSet<string>(StringComparer.Ordinal);
-        if (_options.Value.RegisterFrameworkJobs)
+        if (_options.Value.RegisterSystemJobs)
         {
             frameworkNames.UnionWith(FrameworkJobs.AutomaticNames);
         }
@@ -123,6 +123,21 @@ internal sealed class WorkerRuntimeInitializer(
         {
             frameworkNames.UnionWith(FrameworkJobs.RelayNames);
         }
+        // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
+        // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
+        // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
+        // at startup instead, because someone switching these off to trim overhead is not expecting
+        // to have switched off crash recovery.
+        if (!frameworkNames.Contains("sys.recovery"))
+        {
+            _log.LogWarning(
+                "Namespace '{Namespace}': sys.recovery is not registered, so crashed workers are never marked dead and their "
+                    + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
+                    + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
+                ns
+            );
+        }
+
         if (frameworkNames.Count > 0)
         {
             manifests.Add(
@@ -211,7 +226,7 @@ internal sealed class WorkerRuntimeInitializer(
             throw new InvalidOperationException(
                 $"Worker namespace '{namespaceName}' registers no job descriptors, so it would claim jobs it can never "
                     + "dispatch. Register at least one manifest on the worker builder, enable "
-                    + "JobsOptions.RegisterFrameworkJobs, or use the enqueue-only registration instead of Run()."
+                    + "JobsOptions.RegisterSystemJobs, or use the enqueue-only registration instead of Run()."
             );
         }
     }

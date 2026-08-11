@@ -102,7 +102,7 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     }
 
     /// <summary>
-    /// Drives deterministic, isolated state in this test's fresh namespace (RegisterFrameworkJobs = false,
+    /// Drives deterministic, isolated state in this test's fresh namespace (RegisterSystemJobs = false,
     /// so no system jobs and no schedules) and pins all overview counters to exact values.
     /// <para>
     /// <list type="bullet">
@@ -141,7 +141,7 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(0, before.SystemJobCount);
 
         // ── Job counters ───────────────────────────────────────────────────────────────────────────
-        // Enqueue 4 jobs. RegisterFrameworkJobs = false → no system job definitions → SystemJobCount = 0.
+        // Enqueue 4 jobs. RegisterSystemJobs = false → no system job definitions → SystemJobCount = 0.
         var j1 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
         var j2 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
         var j3 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
@@ -252,7 +252,7 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(1, ovNarrow.StaleWorkerCount); // W2 Active, 3 h > 1 h threshold
         Assert.Equal(0, ovNarrow.DueSoonScheduleCount); // dueSoonSeconds=0: harness parks slot cursors a day out
         Assert.Equal(before.JobCount + 4, ovNarrow.JobCount); // 4 enqueued on top of slot jobs
-        Assert.Equal(0, ovNarrow.SystemJobCount); // RegisterFrameworkJobs = false, recurring-ping is not a __ job
+        Assert.Equal(0, ovNarrow.SystemJobCount); // RegisterSystemJobs = false, recurring-ping is not a __ job
         Assert.NotNull(ovNarrow.OldestReadyAgeSeconds);
         Assert.True(ovNarrow.OldestReadyAgeSeconds >= 0);
 

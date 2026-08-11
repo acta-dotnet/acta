@@ -1123,4 +1123,51 @@ public abstract class JobContext
         string? deduplicationKey,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Writes an application-authored note onto this job's timeline: what the handler decided and
+    /// why, recorded beside the framework's own events instead of in a log sink that is not joined to
+    /// the job row.
+    /// </summary>
+    /// <remarks>
+    /// Annotation, not logging: <c>events</c> is indexed for timeline queries, so use <c>ILogger</c>
+    /// for volume. Notes ignore <c>AuditLevel</c>, which is a volume control over events Acta chooses
+    /// to record; dropping an explicit call would be data loss, not filtering.
+    /// </remarks>
+    // Notes are the only event code an application can write, and the runtime never emits it. That is
+    // what keeps every other event provably system-written: an application can annotate the ledger,
+    // but it can never forge job.execution-finished. Do not widen this to a second code.
+    //
+    // Accepted consequence of ignoring AuditLevel: it no longer bounds a job's total event volume.
+    // That is the caller's decision to make, and a silent drop would be the worse failure.
+    public async Task NoteAsync(string message, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        await WriteNoteCoreAsync<object>(message, null, linked.Token);
+    }
+
+    /// <inheritdoc cref="NoteAsync(string, CancellationToken)"/>
+    /// <param name="message">The note line; truncated to the event message column width.</param>
+    /// <param name="detail">
+    /// Structured context, stored as JSON. Bounded by <c>JobsOptions.MaxInlinePayloadBytes</c>, the
+    /// same ceiling as every other caller-controlled write, and a payload past it throws
+    /// <see cref="PayloadTooLargeException"/> rather than truncating or surfacing a driver error.
+    /// </param>
+    /// <param name="ct">Cancellation token, linked to the job's own.</param>
+    public async Task NoteAsync<T>(string message, T detail, CancellationToken ct = default)
+        where T : notnull
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        ArgumentNullException.ThrowIfNull(detail);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        await WriteNoteCoreAsync(message, detail, linked.Token);
+    }
+
+    /// <summary>
+    /// Subclass sink: append the note as a <c>job.note</c> event. Generic so the subclass serializes
+    /// through its payload serializer and source-generated JSON is honored under Native AOT. The
+    /// message is truncated to the column width in the concrete implementation.
+    /// </summary>
+    protected abstract Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct);
 }

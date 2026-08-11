@@ -87,6 +87,17 @@ internal interface IExecutionStore
     Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct);
 
     /// <summary>
+    /// Appends one application-authored <c>job.note</c> event for a job.
+    /// </summary>
+    /// <remarks>
+    /// The only event write that does not ride inside the operation causing a state transition, and
+    /// deliberately so: the invariant exists so an event never claims a transition that did not
+    /// commit, and a note claims nothing but itself. It lives here rather than on the read-only event
+    /// port because it is a handler-originated per-job write, like checkpoints and steps.
+    /// </remarks>
+    Task RecordJobNoteAsync(long jobId, string message, JobPayload? detail, CancellationToken ct);
+
+    /// <summary>
     /// Reads the ids of a job's direct children, terminal ones included: the per-level feed for the
     /// recursive cancel cascade, which must walk through a terminal child to reach live descendants.
     /// </summary>

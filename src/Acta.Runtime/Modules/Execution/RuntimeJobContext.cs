@@ -466,6 +466,23 @@ internal sealed class RuntimeJobContext(
         _metrics?.RecordLockReleaseFailure(JobNamespace, JobName, lockKind, exception.GetType().Name);
     }
 
+    protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
+        where T : default
+    {
+        JobPayload? payload = null;
+        if (detail is not null)
+        {
+            var serialized = JsonSerializer().Serialize(detail);
+            EnsureInlineSize("note detail", serialized);
+            payload = serialized;
+        }
+
+        // Truncated rather than rejected: the message is prose for a human reading the timeline, and
+        // failing a handler's note because its sentence ran long would be a poor trade. The detail
+        // payload is the part that hard-throws.
+        return _executionStore.RecordJobNoteAsync(JobId, message.Truncate(ActaTextLimits.ReasonMessage)!, payload, ct);
+    }
+
     protected override async Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,

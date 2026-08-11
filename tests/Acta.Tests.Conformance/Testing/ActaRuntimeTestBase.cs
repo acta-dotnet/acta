@@ -38,7 +38,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     /// <see cref="WorkerRuntime.RunOnceAsync(string, System.Threading.CancellationToken)"/> for the
     /// claim. Specs that assert system-job behavior override to <c>true</c>.
     /// </summary>
-    protected virtual bool RegisterFrameworkJobs => false;
+    protected virtual bool RegisterSystemJobs => false;
 
     /// <summary>
     /// When <c>true</c> (default), the manifest's seeded schedule slots are parked a day out after
@@ -59,7 +59,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
                 j.Run<TManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
             }
         });
-        services.Configure<JobsOptions>(o => o.RegisterFrameworkJobs = RegisterFrameworkJobs);
+        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = RegisterSystemJobs);
     }
 
     protected override async ValueTask AfterInitializeAsync()

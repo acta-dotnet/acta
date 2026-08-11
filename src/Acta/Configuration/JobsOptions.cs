@@ -138,7 +138,17 @@ public sealed class JobsOptions
     /// <c>false</c> to opt out, for example when maintenance is driven externally or for tests that need
     /// a namespace free of the competing recurring slots.
     /// </summary>
-    public bool RegisterFrameworkJobs { get; set; } = true;
+    /// <remarks>
+    /// <strong>Turning this off disables crash recovery:</strong> <c>sys.recovery</c> is the only thing
+    /// that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay
+    /// <c>Executing</c> behind a lapsed lease permanently. The runtime warns at startup when it is off.
+    /// </remarks>
+    // Named for what it governs - all three are sys. jobs - rather than "framework", which also implied
+    // sys.outbox. It does not govern that one: sys.outbox registers only with an explicit
+    // AddOutboxRelay, and that relay re-registers sys.recovery and sys.alerts as its dependencies even
+    // when this is false. "Driven externally" means you have written the reclaim sweep yourself;
+    // nothing in the box does it.
+    public bool RegisterSystemJobs { get; set; } = true;
 
     /// <summary>
     /// The one payload ceiling, 1 MiB by default. It governs both what may be stored inline

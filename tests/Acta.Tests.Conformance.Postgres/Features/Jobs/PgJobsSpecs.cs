@@ -13,6 +13,8 @@ public sealed class PgEnqueueRejectionSpec : EnqueueRejectionSpec<PgConformanceF
 
 public sealed class PgEnqueueRejectionTaxonomySpec : EnqueueRejectionTaxonomySpec<PgConformanceFixture>;
 
+public sealed class PgJobNoteSpec : JobNoteSpec<PgConformanceFixture>;
+
 public sealed class PgEnqueueSpec : EnqueueSpec<PgConformanceFixture>;
 
 public sealed class PgGetJobExplanationSpec : GetJobExplanationSpec<PgConformanceFixture>;

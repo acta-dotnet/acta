@@ -22,7 +22,7 @@ public abstract class ScheduleSysPreviewSpec<TFixture> : ActaRuntimeTestBase<TFi
 
     protected override bool RunAsWorker => true;
 
-    protected override bool RegisterFrameworkJobs => true;
+    protected override bool RegisterSystemJobs => true;
 
     [Fact(DisplayName = "Preview on a sys. system schedule returns occurrences instead of a reserved-name error")]
     public async Task Preview_on_sys_schedule_resolves()

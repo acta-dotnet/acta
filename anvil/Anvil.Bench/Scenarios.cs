@@ -597,7 +597,7 @@ public sealed class RecoveryScenario : IScenario
             Executors = Math.Max(1, p.Executors),
             ClaimBatch = p.ClaimBatch,
             LeaseTtlSeconds = cfg.LeaseTtlSeconds,
-            RegisterFrameworkJobs = true,
+            RegisterSystemJobs = true,
         };
         await using var cluster = await BenchCluster.StartAsync(template, workers: 2, ct);
         cluster.Sink.Expect(1);
@@ -863,7 +863,7 @@ public sealed class PurgeScenario : IScenario
             Schema = schema,
             Executors = p.Executors,
             ClaimBatch = p.ClaimBatch,
-            RegisterFrameworkJobs = true,
+            RegisterSystemJobs = true,
             // Retention must be >= 1 day; we age the events past it below rather than zeroing the window.
             JobEventsRetentionDays = 1,
         };

@@ -31,7 +31,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
 
     // Def() registers with well-known base values so the clear fact can assert exact effective fallbacks.
     // Base policy: Priority=Bulk(0), MaxAttempts=3, AuditLevel=Off(0), AlertProfile=None(0).
-    // Framework defaults fill Backoff="1m..8h", ExecutionTimeout=300, JobRetention=7776000;
+    // Framework defaults fill Backoff="1m..1d x2 ~10%", ExecutionTimeout=300, JobRetention=7776000;
     // DeadlineSeconds=0, DeadlineBehavior=Strict.
     private static JobDescriptor Def(string name) =>
         new(
@@ -205,7 +205,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         // --- Effective falls back to base values ---
         Assert.Equal(JobPriorityCode.Bulk, cleared.PriorityEffective);
         Assert.Equal((short)3, cleared.MaxAttemptsEffective);
-        Assert.Equal("1m..8h", cleared.BackoffEffective); // framework default
+        Assert.Equal("1m..1d x2 ~10%", cleared.BackoffEffective); // framework default
         Assert.Equal(300, cleared.ExecutionTimeoutSecondsEffective); // framework default
         Assert.Equal(0, cleared.DeadlineSecondsEffective); // no deadline
         Assert.Equal(DeadlineBehaviorCode.Strict, cleared.DeadlineBehaviorEffective);

@@ -96,7 +96,7 @@ public abstract class OutboxRelayIntegrationBase<TFixture> : ActaRuntimeTestBase
             Fixture.ApplyProvider(j, Schema.SchemaName);
             j.Run<TestJobs.TestJobsManifest>(namespaceName, ownerTeam: "test", description: GetType().FullName + ":" + namespaceName);
         });
-        services.Configure<JobsOptions>(o => o.RegisterFrameworkJobs = false);
+        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
         return services.BuildServiceProvider(validateScopes: true);
     }
 }

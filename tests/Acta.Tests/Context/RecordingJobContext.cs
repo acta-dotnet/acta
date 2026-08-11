@@ -145,6 +145,9 @@ internal sealed class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOu
 
     protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) => LockReleaseFailures.Add(exception);
 
+    protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
+        where T : default => Unsupported<Task>();
+
     protected override Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,

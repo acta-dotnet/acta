@@ -31,12 +31,12 @@ public sealed class BackoffTests
     }
 
     [Fact]
-    public void Default_is_one_minute_to_eight_hours_doubling_with_jitter()
+    public void Default_is_one_minute_to_one_day_doubling_with_jitter()
     {
         var backoff = Backoff.Default;
 
         Assert.Equal(TimeSpan.FromMinutes(1), backoff.InitialDelay);
-        Assert.Equal(TimeSpan.FromHours(8), backoff.MaxDelay);
+        Assert.Equal(TimeSpan.FromDays(1), backoff.MaxDelay);
         Assert.Equal(2.0, backoff.Multiplier);
         Assert.Equal(0.1, backoff.Jitter);
     }
@@ -44,9 +44,11 @@ public sealed class BackoffTests
     [Fact]
     public void DefaultExpression_parses_to_the_same_default_backoff()
     {
-        // The registration/entity canonical default string ("1m..8h") must parse to exactly Backoff.Default:
+        // The registration/entity canonical default string must parse to exactly Backoff.Default, in both
+        // the bare ranged form and the spelled-out form the framework now registers:
         // ranged expressions default multiplier 2.0 / jitter 0.1, matching Default's own construction.
-        Assert.Equal(Backoff.Default, Backoff.Parse("1m..8h"));
+        Assert.Equal(Backoff.Default, Backoff.Parse("1m..1d"));
+        Assert.Equal(Backoff.Default, Backoff.Parse("1m..1d x2 ~10%"));
     }
 
     [Theory]
@@ -302,6 +304,9 @@ internal sealed class StepOptionsCapturingContext : JobContext
     protected override Task<int?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) => Unsupported<Task<int?>>();
 
     protected override Task ReleaseLockCoreAsync(string key, LockScope scope, int version, CancellationToken ct) => Unsupported<Task>();
+
+    protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
+        where T : default => Unsupported<Task>();
 
     protected override Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,

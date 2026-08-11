@@ -75,6 +75,16 @@ jobs:
       - name: npm test
         working-directory: src/Acta.AspNetCore/DashboardApp
         run: npm test
+      # `npm test` is helpers + components only. The Playwright smoke drives the real routes end to
+      # end (job investigation, controls, quick search, read-only deployment, mobile and appearance),
+      # with every API call mocked in the spec, so it needs no .NET host and no database - just Vite,
+      # which its own playwright.config webServer starts. 8 tests, a few seconds.
+      - name: Install Playwright browser
+        working-directory: src/Acta.AspNetCore/DashboardApp
+        run: npx playwright install --with-deps chromium
+      - name: Dashboard smoke (Playwright)
+        working-directory: src/Acta.AspNetCore/DashboardApp
+        run: npm run test:smoke
       - name: npm run build
         working-directory: src/Acta.AspNetCore/DashboardApp
         run: npm run build
@@ -141,6 +151,34 @@ jobs:
       - name: Stop databases
         if: always()
         run: docker compose down -v
+
+  demos:
+    name: Demos build (published packages)
+    runs-on: ubuntu-latest
+    needs: [quality]
+    # demos/ are deliberately outside Acta.slnx: they consume the published NuGet packages, so what a
+    # reader sees is what they would write. That also meant nothing ever compiled them, and a demo
+    # could rot against a shipped package without CI noticing. This restores from nuget.org against
+    # the versions pinned in demos/Directory.Packages.props, so it fails when a pinned package and
+    # the demo source disagree - which is exactly the signal wanted.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-demos-${{ runner.os }}-${{ hashFiles('demos/Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            nuget-demos-${{ runner.os }}-
+      - name: Build AcmeShop
+        run: dotnet build demos/AcmeShop -c Release
+      - name: Build ApiWorkerSplit
+        run: dotnet build demos/ApiWorkerSplit -c Release
 
   pack-smoke:
     name: Pack + package smoke
@@ -213,6 +251,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality]
     # Off the PR path (native compile is slow): runs only on push to main / tags, not per pull request.
+    # Accepted risk, stated so nobody has to rediscover it: a pull request that breaks native compile
+    # goes green, and the break surfaces on the merge to main instead. Trim-warning analysis still
+    # runs on every build (IsAotCompatible), so a PR is not entirely blind to it - only the native
+    # link step is deferred.
     # Drives NativeAotPublishTests, which runs `dotnet publish -p:PublishAot=true` on anvil/Anvil and asserts
     # a clean native compile (ACTA_AOT_PUBLISH_TEST=1 enables the otherwise-skipped test).
     if: github.event_name != 'pull_request'

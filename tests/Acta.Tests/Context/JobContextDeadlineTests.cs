@@ -76,6 +76,9 @@ public class JobContextDeadlineTests
         protected override Task ReleaseLockCoreAsync(string key, LockScope scope, int version, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
+            where T : default => throw new NotSupportedException();
+
         protected override Task RaiseAlertCoreAsync(
             AlertSeverityCode severityCode,
             string title,

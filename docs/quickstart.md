@@ -3,19 +3,79 @@
 One `[Job]`, one handler, one enqueue, one row you can `SELECT`. Everything here runs on embedded
 SQLite: no Docker, no database server.
 
-## Run it from the repository
+## Start in your own app
 
-The fastest first run is straight from the repository: clone and run.
+Three commands from an empty folder. The only prerequisite is the .NET 10 SDK.
+
+```bash
+dotnet new console -n Shipping && cd Shipping
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Microsoft.Extensions.Hosting
+```
+
+A single provider package reference delivers everything: the runtime, the `[Job]` source generator,
+and the analyzers. `Microsoft.Extensions.Hosting` is the second reference because Acta itself depends
+only on `Hosting.Abstractions`; a Worker Service or ASP.NET Core project already has it.
+
+Replace `Program.cs` with this, all of it:
+
+```csharp
+using Shipping;                 // the generated manifest lands in your project's root namespace
+using Acta;
+using Acta.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseSqlite(sqlite =>
+    {
+        sqlite.ConnectionString = "Data Source=acta-local.db";
+        sqlite.ApplyMigrationsOnStartup = true;   // dev convenience; run from a deploy step in production
+    });
+    j.Run<ShippingJobs>("shipping");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
+await jobs.EnqueueAsync(new ShipOrder(1042));
+
+Console.WriteLine("Enqueued. Ctrl+C to stop.");
+await host.WaitForShutdownAsync();
+
+public sealed record ShipOrder(int OrderId);
+
+public static class ShippingHandlers
+{
+    [Job("ship-order")]
+    public static void Handle(ShipOrder input) => Console.WriteLine($"Shipping order {input.OrderId}");
+}
+```
+
+```bash
+dotnet run
+# Enqueued. Ctrl+C to stop.
+# Shipping order 1042
+```
+
+The program enqueues a job, a worker in the same process claims and runs it, and `acta-local.db`
+now holds the row. `Ctrl+C` stops it.
+
+> **The `using Shipping;` line is not decoration.** The manifest is generated into your project's
+> root namespace, while top-level statements live in the global namespace, so without it
+> `ShippingJobs` will not resolve.
+
+## Or explore the repository
+
+88 runnable concept projects and the load-and-failure lab, if you would rather read the model first:
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
 dotnet run --project concepts/000-fundamentals/001-hello-acta
-```
-
-The program enqueues a job, a worker in the same process claims and runs it, and the console shows
-the result. `Ctrl+C` stops it. The dashboard comes from the bundled lab host:
-
-```bash
 dotnet run --project anvil/Anvil
 # Acta dashboard at http://127.0.0.1:5059/acta (the root URL is Anvil's own lab UI)
 ```
@@ -92,13 +152,16 @@ What to know about these lines:
   operator-facing contract used in SQL, the dashboard, the CLI, and alerts.
 - **The class is not a framework concept.** Any class can host `[Job]` methods; handlers resolve
   through DI, so `EmailService` must be registered.
-- **`UsersJobs` is the source-generated manifest** for the project's root namespace (`Users`).
-  Register it once with `Run<UsersJobs>(...)`; one worker runtime owns one namespace.
+- **`UsersJobs` is the source-generated manifest** for the project's root namespace (`Users`): the
+  last segment of `RootNamespace` plus `Jobs`. Register it once with `Run<UsersJobs>(...)`; one
+  worker runtime owns one namespace. It is generated *into* that root namespace, so a file in a
+  different namespace needs `using Users;` to see it.
 - **Enqueue is type-driven.** The input record's type alone routes the call; one `EnqueueAsync` for
   every job you have.
 - **The same binary is the worker.** The host's `IHostedService` wiring runs the claim loop; there
   is no separate worker process to deploy unless you want one.
-- Everything else is framework default policy: `MaxAttempts = 15`, exponential backoff `"1m..8h"`,
+- Everything else is framework default policy: `MaxAttempts = 15`, exponential backoff
+  `"1m..1d x2 ~10%"` (double each attempt from one minute, capped at one day, with 10% jitter),
   `5m` execution timeout, 90-day retention, alerts on failure.
 
 To point the same code at a server, swap the provider registration: `j.UseSqlServer(...)` or

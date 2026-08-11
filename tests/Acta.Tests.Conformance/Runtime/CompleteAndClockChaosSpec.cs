@@ -102,7 +102,7 @@ public abstract class ClockSkewInitializationChaosSpec<TFixture> : ActaTestBase<
         });
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
             o.AllowClockSkew = false;
         });
         _faults = services.AddStoreFaultInjection();
@@ -149,7 +149,7 @@ public abstract class ClockSkewInitializationChaosSpec<TFixture> : ActaTestBase<
         });
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
             o.AllowClockSkew = allowClockSkew;
         });
         var faults = services.AddStoreFaultInjection();

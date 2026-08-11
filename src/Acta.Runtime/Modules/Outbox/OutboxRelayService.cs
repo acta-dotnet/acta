@@ -26,7 +26,10 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
     // remainder once the envelope is spent instead of running unbounded retries past the 180s source lease.
     private const int MaxTargetEnqueues = MaxBatches * BatchSize;
 
-    private static readonly Backoff RowBackoff = Backoff.Default;
+    // Deliberately shorter than Backoff.Default. A job's retry horizon is sized for a human to read
+    // the alert; a stuck outbox row is undelivered product, so once the target recovers the relay
+    // should not sit on a day-long delay before noticing.
+    private static readonly Backoff RowBackoff = Backoff.Range(TimeSpan.FromMinutes(1), TimeSpan.FromHours(8));
 
     private readonly ILogger _log = log ?? NullLogger<OutboxRelayService>.Instance;
 

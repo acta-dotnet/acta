@@ -52,7 +52,7 @@ public abstract class AlertChannelRegistrySpec<TFixture> : ActaTestBase<TFixture
             );
             j.Run(OtherNamespace, w => w.AddManifest<TestJobs.TestJobsManifest>());
         });
-        services.Configure<JobsOptions>(o => o.RegisterFrameworkJobs = false);
+        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
     }
 
     [Fact(DisplayName = "Default exists per namespace and declarations override in memory")]

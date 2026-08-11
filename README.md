@@ -27,7 +27,66 @@ state, retries, audit, recovery, and operator control in your own SQL database. 
 
 ## Quickstart
 
-Run it first. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (pinned in `global.json`): no Docker, no database server, no connection string; everything below runs on embedded SQLite. The Anvil step also builds the dashboard UI, which needs Node.js 20+ on PATH once; without Node the first two commands still run.
+In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0): no Docker, no database server, no connection string. Everything below runs on embedded SQLite.
+
+```bash
+dotnet new console -n Shipping && cd Shipping
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Microsoft.Extensions.Hosting
+```
+
+Replace `Program.cs` with this, all of it:
+
+```csharp
+using Shipping;                 // the generated manifest lands in your project's root namespace
+using Acta;
+using Acta.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseSqlite(sqlite =>
+    {
+        sqlite.ConnectionString = "Data Source=acta-local.db";
+        sqlite.ApplyMigrationsOnStartup = true;   // dev convenience; run from a deploy step in production
+    });
+    j.Run<ShippingJobs>("shipping");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
+await jobs.EnqueueAsync(new ShipOrder(1042));
+
+Console.WriteLine("Enqueued. Ctrl+C to stop.");
+await host.WaitForShutdownAsync();
+
+public sealed record ShipOrder(int OrderId);
+
+public static class ShippingHandlers
+{
+    [Job("ship-order")]
+    public static void Handle(ShipOrder input) => Console.WriteLine($"Shipping order {input.OrderId}");
+}
+```
+
+```bash
+dotnet run
+# Enqueued. Ctrl+C to stop.
+# Shipping order 1042
+```
+
+The job is a row in `acta-local.db` before it is a method call. `ShippingJobs` is source-generated from your `[Job]` handlers: one manifest per project, named after your root namespace, registered once. One worker runtime owns one namespace, and the host that enqueues can also execute, so there is no separate worker process to deploy unless you want one. Swap `UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes.
+
+Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md). Deeper docs start at [`docs/README.md`](./docs/README.md).
+
+### Or explore the repository
+
+88 runnable concept projects and the load-and-failure lab, if you would rather read the model than wire it up:
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
@@ -36,32 +95,11 @@ dotnet run --project concepts/000-fundamentals/001-hello-acta   # first concept:
 dotnet run --project anvil/Anvil    # lab UI + Acta dashboard at http://127.0.0.1:5059/acta
 ```
 
-What the wiring looks like in your own app:
+The Anvil step builds the dashboard UI, which needs Node.js 20+ on PATH once; without Node the first two commands still run.
 
-```csharp
-public sealed record SendWelcomeEmail(string Email, string Name);
+The `[Job]` name is the durable, operator-facing contract: it is what the row carries, what the dashboard shows, and what you must not rename casually. Enqueue is typed; dispatch is generated.
 
-public sealed class WelcomeJob(IEmailSender sender)
-{
-    [Job("send-welcome-email")]
-    public Task Handle(SendWelcomeEmail input, CancellationToken ct) =>
-        sender.SendAsync(input.Email, $"Welcome, {input.Name}!", ct);
-}
-```
-
-```csharp
-builder.Services.UseActa(j =>
-{
-    j.UseSqlServer(sql => sql.ConnectionString = config.GetConnectionString("acta")!);
-    j.Run<UsersJobs>(namespaceName: "users", ownerTeam: "growth");
-});
-
-await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), ct: ct);
-```
-
-The `[Job]` name is the durable, operator-facing contract. Enqueue is typed; dispatch is generated from your project manifest (`UsersJobs` is that source-generated manifest: register it once, and one worker runtime owns one namespace). The host that enqueues can also execute work, so there is no separate worker process to deploy unless you want one. Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md); deeper docs start at [`docs/README.md`](./docs/README.md).
-
-SQLite state is one file, `acta-local.db`, in your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` on macOS/Linux); delete `acta-local*.db` there to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`. Docker is optional, only needed to run against real Postgres / SQL Server / Redis: setup, tests, and benchmarks in [`CONTRIBUTING.md`](./CONTRIBUTING.md); environment problems in [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md).
+SQLite state is one file. The quickstart writes `acta-local.db` beside your project; the bundled concepts write `acta-local*.db` to your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` elsewhere) - delete it to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`. Docker is optional, only needed to run against real Postgres / SQL Server / Redis: setup, tests, and benchmarks in [`CONTRIBUTING.md`](./CONTRIBUTING.md); environment problems in [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md).
 
 ## Use Acta when
 

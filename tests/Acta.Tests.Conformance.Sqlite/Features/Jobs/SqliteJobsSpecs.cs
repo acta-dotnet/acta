@@ -13,6 +13,8 @@ public sealed class SqliteEnqueueRejectionSpec : EnqueueRejectionSpec<SqliteConf
 
 public sealed class SqliteEnqueueRejectionTaxonomySpec : EnqueueRejectionTaxonomySpec<SqliteConformanceFixture>;
 
+public sealed class SqliteJobNoteSpec : JobNoteSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteEnqueueSpec : EnqueueSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteGetJobExplanationSpec : GetJobExplanationSpec<SqliteConformanceFixture>;

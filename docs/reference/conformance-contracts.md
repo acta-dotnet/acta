@@ -979,6 +979,16 @@
 - **Guarantees:**
   - Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution
 
+### A handler writes application-authored notes onto the job's own timeline
+- **Contract:** ctx.NoteAsync appends a job.note event carrying the message, the job's denormalized identity, and the optional JSON detail.
+- **Arrange:** A probe job calls NoteAsync once without detail and once with a typed detail payload.
+- **Act:** The job runs to completion on a real worker runtime.
+- **Assert:** Two job.note events exist for the job, actor Job, one with a JSON detail body and one with none.
+- **Guarantees:**
+  - NoteAsync appends job.note events carrying the message and the optional detail payload
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.RecordJobNoteAsync`
+
 ### A failed one-shot retries to Ready until MaxAttempts then Fails
 - **Contract:** A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached.
 - **Arrange:** A retry-probe that always throws is registered with MaxAttempts 3 and zero backoff.
@@ -2174,6 +2184,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.GetChildJobIdsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts |
+| `IExecutionStore.RecordJobNoteAsync` | A handler writes application-authored notes onto the job's own timeline |
 | `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IJobStore.CancelJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
@@ -2297,6 +2308,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Namespaces/ResumeNamespace` | yes | yes | yes |
 | `Execution/Namespaces/SuspendNamespace` | yes | yes | yes |
 | `Execution/Namespaces/UpdateNamespace` | yes | yes | yes |
+| `Execution/Notes/RecordJobNote` | yes | yes | yes |
 | `Execution/ReclaimStuckJobs` | yes | yes | yes |
 | `Execution/Schedules/GetLiveSchedules` | yes | yes | yes |
 | `Execution/Schedules/GetScheduleState` | yes | yes | yes |

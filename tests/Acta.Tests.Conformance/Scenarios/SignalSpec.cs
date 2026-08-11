@@ -39,7 +39,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         _wakeup = services.AddWakeupParkProbe();
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
             o.SafetyPollInterval = TimeSpan.FromMinutes(1);
         });
     }

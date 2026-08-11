@@ -71,7 +71,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `WorkerRetention` | 90 days | cluster data | Dead worker row retention. Must be at least one day. |
 | `JobEventsRetentionDays` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetentionDays` | 90 | cluster data | Retention for settled alert rows. In-flight alert delivery rows are not purged by age. |
-| `RegisterFrameworkJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |
+| `RegisterSystemJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. **Setting this `false` disables crash recovery**: `sys.recovery` is the only thing that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay `Executing` behind a lapsed lease permanently. The runtime warns at startup when it is off. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling: caller-controlled inline writes (enqueue inputs, variables, progress, step results, signal values) throw past it, an oversize handler result is dropped, and it also caps the HTTP request body. |
 | `AlertDedupeWindow` | 1 hour | cluster data | Bucket width for deduped manual and automatic alerts. Must be positive. |
 | `AlertDeliveryMaxRetries` | 5 | cluster data | Delivery retries before an alert lands terminal Failed. |
@@ -130,7 +130,7 @@ outbox-specific window, so a worker crash can leave claimed source rows invisibl
 (default 5); malformed and oversize rows quarantine immediately regardless.
 
 Registering a relay adds `sys.outbox` plus its `sys.recovery` and `sys.alerts` dependencies even when
-`RegisterFrameworkJobs` is `false`, because those are dependencies of a relay you asked for, not
+`RegisterSystemJobs` is `false`, because those are dependencies of a relay you asked for, not
 automatically added framework jobs. It never forces `sys.retention`. The source provider is selected on
 the builder and is independent of the ledger provider. Full guide:
 [Transactional enqueue and the external outbox](./transactional-enqueue-and-outbox.md).
@@ -144,9 +144,11 @@ registered manifest. They are catalog state, not `JobsOptions`.
 Use `JobsOptions` for deployment behavior and worker/runtime tuning. Use attributes for job
 contract behavior that must travel with the job definition.
 
-The framework retry defaults (`MaxAttempts = 15`, backoff `"1m..8h"`) mean a persistently failing
-job keeps retrying for roughly days before it lands terminal Failed: safe and deliberate, but worth
-knowing before you go looking for why a broken job hasn't dead-lettered yet.
+The framework retry defaults (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) mean a persistently
+failing job keeps retrying for roughly four and a half days before it lands terminal Failed: the
+delay doubles from one minute up to a one-a-day ceiling, so a dependency that breaks on a Friday
+evening still has attempts left when someone reads the alert on Monday. Safe and deliberate, but
+worth knowing before you go looking for why a broken job hasn't dead-lettered yet.
 
 For production-oriented defaults and tradeoffs, including provider choice, migration ownership,
 worker sizing, leases, dashboard exposure, alerts, and retention, see

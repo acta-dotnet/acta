@@ -37,7 +37,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         base.ConfigureServices(services, testNamespace);
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
             o.ExclusiveKeyBounceDelaySeconds = 1;
         });
     }

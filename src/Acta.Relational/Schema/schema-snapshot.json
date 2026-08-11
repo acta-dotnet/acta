@@ -460,7 +460,7 @@
           },
           {
             "Name": "event_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=0,10,11,12,20,21,22,30,40,41,50,60,61,70,71,72,73,74,75,76,80,81,100,101,102,103,104,120,121,122,140,141,160"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=0,10,11,12,20,21,22,30,40,41,50,60,61,70,71,72,73,74,75,76,80,81,90,100,101,102,103,104,120,121,122,140,141,160"
           },
           {
             "Name": "created_at_utc",
@@ -1628,6 +1628,12 @@
             "Id": 81,
             "Code": "job.state-reset",
             "Description": "Handler called ctx.ResetStateAsync; the Job\u0027s JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 90,
+            "Code": "job.note",
+            "Description": "Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload.",
             "Lifecycle": "Active"
           },
           {

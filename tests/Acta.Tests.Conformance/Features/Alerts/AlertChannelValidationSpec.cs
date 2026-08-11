@@ -77,7 +77,7 @@ public abstract class AlertChannelValidationSpec<TFixture> : ActaTestBase<TFixtu
         });
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
             o.AlertChannelValidationMode = mode;
         });
 

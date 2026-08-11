@@ -119,7 +119,7 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
             new ActaTestHostOptions
             {
                 Schema = Schema.SchemaName,
-                ConfigureServices = services => services.Configure<JobsOptions>(o => o.RegisterFrameworkJobs = false),
+                ConfigureServices = services => services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false),
             },
             ct
         );

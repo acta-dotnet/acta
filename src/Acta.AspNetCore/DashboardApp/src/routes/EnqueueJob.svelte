@@ -10,6 +10,7 @@
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
   import PayloadView from '../components/PayloadView.svelte';
+  import Dropdown from '../components/Dropdown.svelte';
 
   const initial = hashParams();
   const fromRef = initial.get('from');
@@ -72,6 +73,20 @@
     };
   });
   let definitionNames = $derived(definitionsQuery.data?.items.map((item) => item.jobName) ?? []);
+
+  // Both catalogs are long and data-driven, so they get the filtering Dropdown rather than a native
+  // select. A value carried in from the URL stays selectable while its catalog loads, which is why
+  // each list re-adds the current value when the catalog has not caught up yet.
+  let namespaceOptions = $derived([
+    { value: '', label: 'Select a namespace' },
+    ...(namespace && !namespaceNames.includes(namespace) ? [{ value: namespace, label: namespace }] : []),
+    ...namespaceNames.map((name) => ({ value: name, label: name })),
+  ]);
+  let jobNameOptions = $derived([
+    { value: '', label: namespace.trim().length === 0 ? 'Select a namespace first' : 'Select a job' },
+    ...(jobName && !definitionNames.includes(jobName) ? [{ value: jobName, label: jobName }] : []),
+    ...definitionNames.map((name) => ({ value: name, label: name })),
+  ]);
 
   // Changing the namespace invalidates a job name from the previous one. Done on the event rather than
   // in an effect so a name prefilled from the URL (clone) survives the first load.
@@ -198,24 +213,26 @@
           <h2>Job</h2>
           <p class="detail-help">Enqueue a new job. The namespace and job name identify a registered definition; the input is stored as raw JSON and handed to the job on its first attempt.</p>
           <form onsubmit={(event) => { event.preventDefault(); submit(); }}>
-            <label class="detail-field">
+            <div class="detail-field">
               <span>Namespace</span>
-              <select value={namespace} onchange={(e) => onNamespaceChange(e.currentTarget.value)} disabled={busy}>
-                <option value="">Select a namespace</option>
-                <!-- A namespace carried in from the URL stays selectable while the catalog loads. -->
-                {#if namespace && !namespaceNames.includes(namespace)}<option value={namespace}>{namespace}</option>{/if}
-                {#each namespaceNames as name}<option value={name}>{name}</option>{/each}
-              </select>
-            </label>
-            <label class="detail-field">
+              <Dropdown
+                label="Namespace"
+                placeholder="Select a namespace"
+                options={namespaceOptions}
+                value={namespace}
+                disabled={busy}
+                onchange={onNamespaceChange} />
+            </div>
+            <div class="detail-field">
               <span>Job name</span>
-              <select bind:value={jobName} disabled={busy || namespace.trim().length === 0}>
-                <option value="">{namespace.trim().length === 0 ? 'Select a namespace first' : 'Select a job'}</option>
-                {#if jobName && !definitionNames.includes(jobName)}<option value={jobName}>{jobName}</option>{/if}
-                {#each definitionNames as name}<option value={name}>{name}</option>{/each}
-              </select>
+              <Dropdown
+                label="Job name"
+                placeholder={namespace.trim().length === 0 ? 'Select a namespace first' : 'Select a job'}
+                options={jobNameOptions}
+                bind:value={jobName}
+                disabled={busy || namespace.trim().length === 0} />
               {#if inputContract}<span class="field-hint">{inputContract}</span>{/if}
-            </label>
+            </div>
 
             <label class="detail-field checkbox">
               <input type="checkbox" bind:checked={includeInput} disabled={busy} />

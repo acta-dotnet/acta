@@ -64,7 +64,7 @@ public sealed record JobDescriptor(
 
     /// <summary>
     /// Retry backoff policy as an Acta backoff expression, e.g. <c>"1m..8h x2 ~10%"</c>. Null =
-    /// framework default (<c>"1m..8h"</c>) at registration.
+    /// framework default (<c>"1m..1d x2 ~10%"</c>) at registration.
     /// </summary>
     public string? Backoff { get; init; }
 

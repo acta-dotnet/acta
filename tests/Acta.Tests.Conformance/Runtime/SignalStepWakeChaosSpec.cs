@@ -28,7 +28,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         _wakeup = services.AddControlledWakeup();
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterFrameworkJobs = false;
+            o.RegisterSystemJobs = false;
             o.SafetyPollInterval = TimeSpan.FromMinutes(5);
         });
     }

@@ -111,7 +111,7 @@ public abstract class WorkerRuntimeRegistrationSpec<TFixture> : ActaRuntimeTestB
         var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == assignedId && d.Name == "echo").SingleOrDefaultAsync(ct);
 
         Assert.NotNull(def);
-        Assert.Equal("1m..8h", def!.Backoff);
+        Assert.Equal("1m..1d x2 ~10%", def!.Backoff);
         Assert.Equal(5 * 60, def.ExecutionTimeoutSeconds);
         Assert.Equal(90 * 24 * 60 * 60, def.JobRetentionSeconds);
         Assert.Null(def.AlertChannelName);

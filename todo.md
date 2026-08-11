@@ -1,10 +1,5 @@
-# Todo
-
-- Purge/remove all obsolete-code guards, e.g. `obsoleteCoreFolders` in ArchitectureBoundaryTests:
-  we are not even launched yet, so tests defending against re-creating dead pre-reorg layouts
-  (SystemJobs/Runtime/Storage/Entities/Schema/Builders/Errors/Features/Operations) should go away
-  entirely rather than accumulate. Decide whether any of that gate earns its keep pre-1.0.
-
-- Extract the ScopeSelector popover into a shared Dropdown (add typeahead + close-on-focusout) and
-  use it for the long lists only: EnqueueJob namespace/job name, ScheduleControls time zone. Short
-  enum filters stay native selects.
+- Migrate `ScopeSelector` onto the shared `Dropdown` (`components/Dropdown.svelte`). Blocked on a
+  visual check, not on design: the scope trigger is styled by GLOBAL selectors keyed to its wrapper
+  (`.side-scope .scope .trigger` in `styles.css`), and the listbox insets `left/right: 12px` where
+  Dropdown uses `0`, so the extraction is a CSS change that needs a browser to confirm. `ZonePicker`
+  stays its own component on purpose: it lazy-loads the tzdb and does zone-specific matching.
