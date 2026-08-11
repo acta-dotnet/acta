@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Production-facing checklist for running Acta safely. Acta is still an early preview, so treat
+Production-facing checklist for running Acta safely. Acta is at the release-candidate line, so treat
 this as production-like evaluation guidance until migration compatibility and public API stability
 are declared.
 

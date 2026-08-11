@@ -302,7 +302,7 @@
         <li><b>Exactly-once side effects: which nobody has.</b> Acta steps are at-least-once, and so are the replay engines' activities: a crash between an external call and its recording re-runs the call on every one of these systems, because no engine can make the outside world transactional. Replay makes the orchestrator's decisions exactly-once, not your HTTP request. So external calls need idempotency or reconciliation there and here alike; Acta adds <code>AtMostOnce()</code> for the steps where duplication is worse than an explicit ambiguity. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md#at-most-once-steps">At-most-once steps →</a></li>
         <li><b>.NET only.</b> Handlers, workers, and the tooling are .NET. There are no SDKs for other languages and none planned.</li>
         <li><b>One database is the durability boundary.</b> Acta is exactly as durable and as available as the Postgres, SQL Server, or SQLite you point it at. That is the point of the design, and also its limit.</li>
-        <li><b>Early preview.</b> Per the README, Acta is an early preview: the contract surface is still settling, and it has not accumulated a decade of production miles. The replay engines have.</li>
+        <li><b>Production miles.</b> The replay engines have a decade of them; Acta is young. Its evidence is accumulated in the open instead: a conformance suite across all three providers, and certification runs that kill real worker processes and prove the ledger held with SQL checks anyone can re-run.</li>
       </ul>
     </section>
 

@@ -204,7 +204,7 @@ explicit exhaustive switch. `JobPayloadFormat` is the sole extensible exception 
 `128..255` for consumers.
 
 The committed schema snapshot and generated reference detect drift in id/text/description/lifecycle
-pairs. After the preview freeze, widening a family beyond one byte requires an explicit expansion
+pairs. After the 1.0.0 freeze, widening a family beyond one byte requires an explicit expansion
 strategy; it must never happen silently.
 
 ## Deployment checklist

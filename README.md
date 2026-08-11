@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
-> **Serious early preview.** Acta is an early preview of a SQL-native durable work ledger for .NET. It is published for evaluation and design feedback, not recommended for production workloads yet, and APIs, schema, and behavior may change without deprecation.
+> **Release candidate.** Acta is heading into `1.0.0-rc.1`: the public API, schema, and persisted codes are closing, and release candidates change only for correctness, security, and documentation. Bring a real workload; the remaining distance to `1.0.0` is evidence, not features.
 
 Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your database. It gives .NET teams one standard substrate for app-owned background work: simple enough for scheduled jobs, durable enough for retries and recovery, and visible because every state transition is ordinary SQL state you can inspect with `SELECT`.
 
@@ -161,7 +161,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-- The migration history freezes at 1.0.0, and only then: before it, the schema baseline (`M001`) may be re-cut in any release. From 1.0.0 schema changes ship only as additive `Mnnn` migrations. During the preview, upgrade compatibility between preview builds is not promised: a schema-incompatible preview update means dropping and reprovisioning the Acta database, and the bootstrap refuses to run rather than applying a mismatched baseline.
+- The migration history freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Before the release-candidate line, the schema baseline (`M001`) could be re-cut per release; a pre-rc database may therefore need one reprovision on the way in, and the bootstrap refuses to run rather than applying a mismatched baseline.
 - Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
 - Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
 - The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).

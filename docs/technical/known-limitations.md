@@ -4,17 +4,16 @@
 
 Known boundaries to review before using Acta in production-like environments.
 
-## Preview status
+## Stability status
 
-Acta is an early preview. APIs and behavior may change without deprecation until stability is
-declared. The migration history freezes at 1.0.0 and not before: until then the schema baseline
-(`M001`) may be re-cut in any release, and from 1.0.0 schema changes ship only as additive `Mnnn`
-migrations. During the preview, upgrade compatibility between preview builds is not promised; a
-schema-incompatible preview update means reprovisioning the Acta database. Bootstrap compares the
+Acta is at the release-candidate line: the public API, schema, and persisted codes are closing, and
+release candidates change only for correctness, security, and documentation. The migration history
+freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Before the
+release-candidate line the schema baseline (`M001`) could be re-cut per release, so a database
+provisioned by a pre-rc build may need one reprovision on the way in. Bootstrap compares the
 baseline stamp recorded in the database against the one this build ships and refuses to start on a
-mismatch, so a stale database fails loudly instead of taking a schema it was not built for.
-preview event/reason ids and other renumbered code values are intentionally incompatible; there is no
-translation migration.
+mismatch, so a stale database fails loudly instead of taking a schema it was not built for; old
+renumbered code values are intentionally incompatible, and there is no translation migration.
 
 ## Execution model
 

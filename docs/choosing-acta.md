@@ -26,8 +26,7 @@ Use Acta when scheduling is not the whole problem anymore. Use it when backgroun
 to be durable, visible, inspectable, and recoverable through the SQL database the application already
 uses.
 
-> Acta is an early preview. This page is a fit guide for evaluation, not a claim that every existing
-> scheduler should be replaced.
+> This page is a fit guide, not a claim that every existing scheduler should be replaced.
 
 For concrete migration patterns from `BackgroundService`, cron, Hangfire, Quartz, TickerQ, platform
 schedulers, and custom task tables, see [Scheduler migration](./guide/scheduler-migration.md).

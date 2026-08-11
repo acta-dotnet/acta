@@ -2,14 +2,13 @@
 
 ## Supported versions
 
-Acta is in preview and has not reached 1.0. Only the **latest published version** receives fixes;
-there are no backports to earlier previews, and a preview may be superseded without a migration path
-while the schema baseline is still re-cuttable.
+Acta has not reached 1.0. Only the **latest published version** receives fixes; there are no
+backports to earlier pre-1.0 versions.
 
 | Version | Supported |
 |---|---|
-| Latest preview | Yes |
-| Earlier previews | No |
+| Latest published version | Yes |
+| Earlier versions | No |
 
 This tightens at 1.0, when the schema, persisted codes, and public API freeze together and a
 supported-versions window is stated properly. The support matrix, supported .NET target, and the
