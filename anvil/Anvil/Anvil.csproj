@@ -44,5 +44,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="wwwroot\**" />
+    <EmbeddedResource Include="certify.sql" />
   </ItemGroup>
 </Project>

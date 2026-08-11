@@ -314,7 +314,7 @@ public sealed record BenchHostOptions
     public int? JobEventsRetentionDays { get; init; }
 
     /// <summary>Recovery and purge need the system <c>sys.recovery</c> / <c>sys.retention</c> jobs.</summary>
-    public bool RegisterFrameworkJobs { get; init; }
+    public bool RegisterSystemJobs { get; init; }
 
     public BenchWakeupMode Wakeup { get; init; } = BenchWakeupMode.InProcess;
     public string? RedisConfig { get; init; }
@@ -476,7 +476,7 @@ public sealed class BenchHost : IAsyncDisposable
                 o.MaxConcurrentExecutors = opt.Executors;
                 o.ClaimBatchSize = opt.ClaimBatch;
                 o.ExecutionProfile = opt.Profile;
-                o.RegisterFrameworkJobs = opt.RegisterFrameworkJobs;
+                o.RegisterSystemJobs = opt.RegisterSystemJobs;
                 if (opt.LeaseTtlSeconds is { } lease)
                 {
                     o.LeaseTtlSeconds = lease;

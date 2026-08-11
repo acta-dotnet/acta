@@ -6,7 +6,11 @@ namespace Anvil;
 
 internal static class AnvilWorkerPreset
 {
-    public const int Executors = 4;
+    // Eight rather than four: at the API's 8-worker ceiling this gives 64 concurrent slots, which is
+    // what makes a certification run of real size finish in a sane window. The work is Task.Delay,
+    // not CPU, so the cost is database round trips - and more of them at once is the point, since
+    // claim contention is exactly what the ownership check is looking at.
+    public const int Executors = 8;
     public const int ClaimBatch = 8;
     public const string Profile = "direct";
 }

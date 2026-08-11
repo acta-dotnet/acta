@@ -10,6 +10,17 @@ switch (role.ToLowerInvariant())
     case "worker":
         await RunWorkerAsync(args);
         return;
+    case "certify":
+        // Verdict only: run certify.sql against a finished run so nobody has to remember which checks
+        // are inverted, which need a quiesced run, or that nothing happens before the lease floor.
+        Environment.Exit(
+            await CertifyVerdict.RunAsync(
+                GetArg(args, "--provider") ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite",
+                GetArg(args, "--schema") ?? "acta",
+                CancellationToken.None
+            )
+        );
+        return;
     default:
         // Empty counts as unset (a shell's VAR='' must not bypass the SQLite default).
         var provider = GetArg(args, "--provider") ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER");
@@ -126,6 +137,24 @@ static async Task RunDashboardAsync(string[] args, string provider)
     if (!args.Contains("--no-open"))
     {
         Browser.TryOpen(AnvilServer.Url);
+    }
+
+    // --certify-jobs turns this into a one-shot certification: same host, same services, but the
+    // orchestration runs in-process instead of a shell driving it over HTTP. See CertifyRun.
+    if (GetArg(args, "--certify-jobs") is { } certifyJobs)
+    {
+        var exit = await CertifyRun.ExecuteAsync(
+            app.Services,
+            id,
+            provider,
+            int.Parse(certifyJobs),
+            int.Parse(GetArg(args, "--certify-workers") ?? "8"),
+            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-chaos-min") ?? "10")),
+            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-quiesce-min") ?? "45")),
+            CancellationToken.None
+        );
+        await app.StopAsync();
+        Environment.Exit(exit);
     }
 
     await app.WaitForShutdownAsync();

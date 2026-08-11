@@ -50,12 +50,30 @@ public static class SlowSuccessJob
 {
     // Default MaxAttempts (15) so a crash-reclaim-rerun never exhausts the budget: a stolen lease
     // re-arms the job, and we want it to keep trying until a surviving worker carries it home.
+    // Durable steps, not a plain loop: these are the crash victims, and the whole point of killing
+    // their worker is to show that recorded steps do not run twice. A loop would re-run everything
+    // from the top and prove nothing.
+    //
+    // Each body writes one note before doing its work. That note is the witness certification reads:
+    // `steps` keeps only current state (one row per (job, name), UPDATE-in-place), so without it a
+    // body that ran again leaves no trace at all. A second note is legal on its own - at-least-once
+    // means an interrupted body re-runs - but a note timestamped AFTER the step's own success is not,
+    // and that is the violation the seal looks for.
     [Job("slow-success")]
     public static async Task<string> Handle(SlowSuccess input, JobContext ctx, CancellationToken ct)
     {
         for (var step = 1; step <= input.StepCount; step++)
         {
-            await Task.Delay(input.StepDelayMs, ct);
+            var name = $"step-{step}";
+            await ctx.RunStepAsync(
+                name,
+                async token =>
+                {
+                    await ctx.NoteAsync($"step-body {name}", token);
+                    await Task.Delay(input.StepDelayMs, token);
+                },
+                ct: ct
+            );
             await ctx.SetProgressAsync(step * 100 / input.StepCount, ct);
         }
 
