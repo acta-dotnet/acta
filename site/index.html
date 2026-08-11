@@ -345,6 +345,7 @@
     <a class="brand" href="#">Acta<span class="dot">.</span></a>
     <span class="meta">early preview · apache-2.0 · .net 10</span>
     <nav aria-label="Primary links">
+      <a href="#compare">Compare</a>
       <a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
       <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
@@ -526,15 +527,15 @@ Hello, World!</span>
       <div class="vs">
         <div class="vs-row">
           <div class="who"><b>Hangfire</b><span>background jobs</span></div>
-          <div class="why"><b>Keep Hangfire when its familiar persistent job runner is enough.</b> Consider Acta when job state should become first-class application data, with durable steps, signals, lineage, and curated SQL inspection.</div>
+          <div class="why"><b>Keep Hangfire when its familiar persistent job runner is enough.</b> Consider Acta when job state should become first-class application data, with durable steps, signals, lineage, and curated SQL inspection. <a href="/from-hangfire">Migration notes →</a></div>
         </div>
         <div class="vs-row">
           <div class="who"><b>TickerQ</b><span>source-generated scheduler</span></div>
-          <div class="why"><b>Keep TickerQ when you want a source-generated scheduler with persistence, dashboard tooling, chaining, priorities, and concurrency controls.</b> Consider Acta when SQL must serve as the durable operational ledger for resumable work: checkpoints, signals, recovery evidence, and operator intervention.</div>
+          <div class="why"><b>Keep TickerQ when you want a source-generated scheduler with persistence, dashboard tooling, chaining, priorities, and concurrency controls.</b> Consider Acta when SQL must serve as the durable operational ledger for resumable work: checkpoints, signals, recovery evidence, and operator intervention. <a href="/from-tickerq">Migration notes →</a></div>
         </div>
         <div class="vs-row">
           <div class="who"><b>Quartz</b><span>scheduling</span></div>
-          <div class="why"><b>Keep Quartz when calendar sophistication, cron behavior, and misfire handling are the main problem.</b> Consider Acta when the execution lifecycle matters more than the calendar: durable steps, leases, waits, recovery, lineage, and operator controls.</div>
+          <div class="why"><b>Keep Quartz when calendar sophistication, cron behavior, and misfire handling are the main problem.</b> Consider Acta when the execution lifecycle matters more than the calendar: durable steps, leases, waits, recovery, lineage, and operator controls. <a href="/from-quartz">Migration notes →</a></div>
         </div>
         <div class="vs-row">
           <div class="who"><b>Temporal / Durable Task</b><span>replay engines</span></div>

@@ -3,4 +3,13 @@
   <url>
     <loc>https://useacta.net/</loc>
   </url>
+  <url>
+    <loc>https://useacta.net/from-hangfire</loc>
+  </url>
+  <url>
+    <loc>https://useacta.net/from-quartz</loc>
+  </url>
+  <url>
+    <loc>https://useacta.net/from-tickerq</loc>
+  </url>
 </urlset>

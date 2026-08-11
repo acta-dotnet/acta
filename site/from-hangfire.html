@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>From Hangfire to Acta · the durable work ledger for .NET</title>
+  <meta name="description" content="A Hangfire alternative for .NET teams whose background jobs have become application state: typed contracts, durable steps, signals, lineage, and SQL you can read. Migrate one job at a time; keep Hangfire where it is enough." />
+  <link rel="canonical" href="https://useacta.net/from-hangfire" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="From Hangfire to Acta · the durable work ledger for .NET" />
+  <meta property="og:description" content="A Hangfire alternative for .NET teams whose background jobs have become application state: typed contracts, durable steps, signals, lineage, and SQL you can read. Migrate one job at a time; keep Hangfire where it is enough." />
+  <meta property="og:url" content="https://useacta.net/from-hangfire" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0B0E15;
+      --panel: #10151F;
+      --panel-2: #151B28;
+      --text: #E8EDF5;
+      --muted: #9BA7BA;
+      --faint: #7A899F;
+      --verdi: #2FD6A8;
+      --oxide: #D08A45;
+      --bad: #E8837B;
+      --hair: rgba(232, 237, 245, 0.10);
+      --hair-soft: rgba(232, 237, 245, 0.06);
+      --serif: "Fraunces", Georgia, serif;
+      --sans: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); font-size: 16px; line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: rgba(47, 214, 168, 0.3); color: #fff; }
+    :focus-visible { outline: 2px solid var(--verdi); outline-offset: 3px; border-radius: 2px; }
+    a { color: inherit; }
+    code { font-family: var(--mono); font-size: 0.92em; color: #CBD6E5; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .skip-link {
+      position: fixed; top: 0.7rem; left: 0.7rem; z-index: 100;
+      padding: 0.55rem 0.9rem; border-radius: 6px; background: var(--verdi); color: #06231A;
+      font-family: var(--mono); font-size: 0.78rem; font-weight: 600; text-decoration: none;
+      transform: translateY(-180%); transition: transform 0.15s ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .wrap { max-width: 1560px; margin: 0 auto; padding-inline: clamp(20px, 4vw, 64px); }
+
+    /* ---- chrome ---- */
+    .chrome {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: baseline; gap: 1.4rem;
+      padding: 0.6rem clamp(20px, 2.5vw, 40px);
+      background: rgba(11, 14, 21, 0.9); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+    }
+    .chrome .brand { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; color: var(--text); text-decoration: none; letter-spacing: 0; text-transform: none; }
+    .chrome .brand .dot { color: var(--verdi); }
+    .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
+    .chrome nav a { text-decoration: none; }
+    .chrome nav a:hover { color: var(--verdi); }
+    @media (max-width: 700px) { .chrome .meta { display: none; } }
+
+    /* ---- record line: the section device ---- */
+    .record {
+      display: flex; align-items: center; gap: 1.1rem;
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+      margin: 0 0 1.6rem;
+    }
+    .record::after { content: ""; flex: 1; border-top: 1px solid var(--hair); }
+    .record b { color: var(--verdi); font-weight: 400; }
+
+    /* ---- sections ---- */
+    section { padding: clamp(3.4rem, 8vh, 5.6rem) 0; scroll-margin-top: 4rem; }
+    .page-head { padding-top: clamp(2.4rem, 6vh, 4rem); }
+    h1 {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2.4rem, 4.2vw, 3.6rem); line-height: 1.06;
+      margin: 0 0 1rem; text-wrap: balance; max-width: 26ch;
+    }
+    h2 {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2.1rem, 3.6vw, 3.2rem); line-height: 1.06;
+      margin: 0 0 1rem; text-wrap: balance; max-width: 24ch;
+    }
+    .lede { color: var(--muted); max-width: 66ch; font-size: 1.04rem; margin: 0; }
+
+    /* code pair */
+    .pair { display: grid; grid-template-columns: 1fr 1.15fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
+    @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
+    .panel.solo { margin-top: 2.4rem; }
+    .panel-tab {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 1.2rem; border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint);
+    }
+    .panel-tab::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--verdi); opacity: 0.8; }
+    pre { margin: 0; padding: 1.3rem 1.4rem; overflow-x: auto; font-family: var(--mono); font-size: 0.88rem; line-height: 1.7; color: #D3DCEA; }
+    .k { color: #7CB8F2; } .s { color: #93D9AE; } .a { color: var(--verdi); } .c { color: var(--faint); }
+    .pair-note { color: var(--muted); font-size: 0.95rem; margin: 1.1rem 0.2rem 0; }
+
+    /* buttons */
+    .actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.6rem; }
+    .button {
+      display: inline-flex; align-items: center; min-height: 2.7rem; padding: 0.6rem 1.3rem;
+      border: 1px solid var(--hair); border-radius: 999px; background: transparent; color: var(--text);
+      text-decoration: none; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+    .button.primary { background: var(--verdi); border-color: var(--verdi); color: #06231A; font-weight: 500; }
+    .button.primary:hover { background: #43E4BA; }
+    .button:not(.primary):hover { border-color: var(--verdi); color: var(--verdi); }
+
+    /* comparison: ruled rows, serif names */
+    .vs { margin-top: 2.4rem; border-top: 1px solid var(--hair); }
+    .vs-row { display: grid; grid-template-columns: minmax(15rem, 24rem) 1fr; gap: 1rem 3rem; padding: 1.6rem 0; border-bottom: 1px solid var(--hair); }
+    .vs-row .who b { font-family: var(--serif); font-weight: 500; font-size: clamp(1.35rem, 2vw, 1.7rem); display: block; line-height: 1.15; }
+    .vs-row .who span { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+    .vs-row .why { color: var(--muted); font-size: 1.02rem; align-self: center; max-width: 78ch; }
+    .vs-row .why b { color: var(--text); font-weight: 600; }
+    @media (max-width: 860px) { .vs-row { grid-template-columns: 1fr; gap: 0.4rem; } }
+
+    /* concept map rows */
+    .ref { margin-top: 2.4rem; }
+    .ref-row {
+      display: grid; grid-template-columns: minmax(14rem, 20rem) 1fr; gap: 0.6rem 3rem;
+      padding: 1rem 0; border-bottom: 1px solid var(--hair-soft);
+    }
+    .ref-row dt { margin: 0; font-weight: 600; color: var(--text); font-size: 1rem; }
+    .ref-row dt code { color: var(--verdi); font-size: 0.9em; }
+    .ref-row dd { margin: 0; color: var(--muted); font-size: 0.97rem; max-width: 88ch; }
+    .ref-row dd code { color: #CBD6E5; }
+    @media (max-width: 860px) { .ref-row { grid-template-columns: 1fr; gap: 0.25rem; } }
+
+    /* what changes */
+    .changes { margin: 2.2rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.9rem; }
+    .changes li { color: var(--muted); font-size: 0.98rem; line-height: 1.55; max-width: 88ch; padding-left: 1.1em; position: relative; }
+    .changes li::before { content: "·"; position: absolute; left: 0; color: var(--verdi); }
+    .changes li b { color: var(--text); font-weight: 600; }
+
+    /* cross-links */
+    .also { margin: 2.4rem 0 0; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+    .also a { text-decoration: none; }
+    .also a:hover { color: var(--verdi); }
+    .also .sep { margin: 0 0.9em; opacity: 0.5; }
+
+    footer {
+      padding: 2.4rem 0 3rem; color: var(--faint); text-align: center;
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--verdi); }
+    footer .sep { margin: 0 0.9em; opacity: 0.5; }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skip-link { transition: none; } }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="/#compare">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">from hangfire · migration notes</p>
+      <h1>From Hangfire to Acta.</h1>
+      <p class="lede">If Hangfire makes your background work boring and visible, keep it. Use Acta when a background job stops being a task and becomes application state: durable steps, signals, child jobs, long waits, and operators who need to ask a job what happened. Acta records all of that as SQL rows in the Postgres, SQL Server, or SQLite you already run, so you can kill the worker, keep the work.</p>
+    </header>
+
+    <section class="wrap">
+      <p class="record">The concept map</p>
+      <h2>Every Hangfire concept has a place to land.</h2>
+      <p class="lede">The model translates cleanly. What changes is where the state lives, and how much of it you can read afterwards.</p>
+      <dl class="ref">
+        <div class="ref-row"><dt>Background job</dt><dd><code>[Job("name")]</code> on a handler method, plus typed <code>EnqueueAsync</code>. The name is the durable, operator-facing contract used in SQL, the dashboard, the CLI, and alerts.</dd></div>
+        <div class="ref-row"><dt>Recurring job</dt><dd><code>[JobSchedule]</code> on the same <code>[Job]</code> method: an interval such as <code>5m</code> or a cron expression, backed by persistent schedule cursors with explicit misfire policy.</dd></div>
+        <div class="ref-row"><dt>Dashboard</dt><dd><code>MapActa()</code> serves the embedded dashboard under <code>/acta</code>: local-only by default, every mutating verb off until you enable it.</dd></div>
+        <div class="ref-row"><dt>Retry policy</dt><dd><code>[Job(MaxAttempts = ...)]</code> and typed backoff settings: policy on the job, not folklore in a catch block.</dd></div>
+        <div class="ref-row"><dt>Queue</dt><dd>A job namespace plus worker registration: one owning service per namespace, and its replicas are the peer workers that drain it.</dd></div>
+        <div class="ref-row"><dt>Job id</dt><dd><code>JobRef</code> for public references, <code>JobId</code> internally.</dd></div>
+        <div class="ref-row"><dt>Continuations / batches</dt><dd>Child jobs with fan-out / fan-in: parent lineage is recorded, and the parent can wait on the children's results.</dd></div>
+        <div class="ref-row"><dt>Job parameters</dt><dd>Typed input contracts: a record you declare, not a serialized method-call expression.</dd></div>
+        <div class="ref-row"><dt>Job history</dt><dd>Durable <code>events</code> plus curated <code>jobs_view</code> and <code>events_view</code> SQL. The event timeline is the job log: no private storage schema to decode.</dd></div>
+      </dl>
+    </section>
+
+    <section class="wrap">
+      <p class="record">The code, side by side</p>
+      <h2>A serialized expression becomes a typed contract.</h2>
+      <div class="pair">
+        <div class="panel">
+          <div class="panel-tab">Hangfire · enqueue by expression</div>
+          <pre><code><span class="c">// fire-and-forget: a serialized method-call expression</span>
+BackgroundJob.Enqueue&lt;IWebhookSender&gt;(x =&gt;
+    x.Send(deliveryId, endpoint, payload));
+
+<span class="c">// recurring, by cron string</span>
+RecurringJob.AddOrUpdate&lt;ICleanupService&gt;(
+    <span class="s">"cleanup-expired-sessions"</span>,
+    x =&gt; x.Cleanup(),
+    <span class="s">"*/5 * * * *"</span>);</code></pre>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-tab">Acta · the whole contract</div>
+            <pre><code><span class="k">public sealed record</span> DeliverWebhook(Guid DeliveryId, Uri Endpoint, <span class="k">string</span> Payload);
+
+<span class="k">public sealed class</span> WebhookJob(IWebhookSender sender)
+{
+    <span class="a">[Job(<span class="s">"deliver-webhook"</span>)]</span>
+    <span class="k">public</span> Task Handle(DeliverWebhook input, CancellationToken ct) =&gt;
+        sender.SendAsync(input.Endpoint, input.Payload,
+            idempotencyKey: input.DeliveryId.ToString(), ct);
+}
+
+<span class="c">// enqueue from anywhere in the host</span>
+<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> DeliverWebhook(
+    Guid.CreateVersion7(),
+    <span class="k">new</span> Uri(<span class="s">"https://partner.example.com/hooks/orders"</span>),
+    <span class="s">"""{"orderId":"ORD-1042","status":"shipped"}"""</span>), ct: ct);
+
+<span class="c">// wiring, once at startup</span>
+builder.Services.UseActa(j =&gt;
+{
+    j.UsePostgres(...);   <span class="c">// or UseSqlServer / UseSqlite</span>
+    j.Run&lt;AppJobs&gt;(<span class="s">"webhooks"</span>);
+});</code></pre>
+          </div>
+          <p class="pair-note">Enqueue takes a typed record, not an expression tree, and dispatch is source-generated: no reflection on the hot path. The <code>[Job]</code> name is what operators see everywhere, and the state it creates is rows you <code>SELECT</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <p class="record">What changes</p>
+      <h2>The differences you will feel in week one.</h2>
+      <ul class="changes">
+        <li><b>Retries run for days, not hours.</b> Hangfire retries 10 times over roughly 4.5 hours, because the work lives in a process. Acta's work is durable rows, so its default is 15 attempts on <code>min(1m x 2^(n-1), 1d)</code> with about 10% jitter: a horizon of about 4.4 days, at most one retry per day at the tail. A job that used to be dead by Sunday evening still has attempts left on Monday morning. Tune <code>MaxAttempts</code> and backoff if you want the old horizon.</li>
+        <li><b>Typed inputs replace serialized expressions.</b> The input is a record you declare and version, not a captured lambda. What was enqueued is readable on the job row, and a failed job restarts with its original input.</li>
+        <li><b>Curated SQL views replace a private storage schema.</b> <code>jobs_view</code>, <code>events_view</code>, and friends are the supported operator surface: backlog, stuck jobs, worker liveness, and history are queries, not dashboard-only knowledge.</li>
+        <li><b>Durable steps, sleeps, signals, and lineage are first-class.</b> The patterns that continuations and batches approximate become recorded state: a step's outcome survives a crash, a wait holds no worker, and children stay traceable to their parent.</li>
+        <li><b>The dashboard ships inside your app.</b> No separate dashboard site to host: it is a library, local-only by default, with mutating verbs off until you explicitly enable them.</li>
+      </ul>
+    </section>
+
+    <section class="wrap">
+      <p class="record">A fair split</p>
+      <h2>Keep Hangfire if it is enough.</h2>
+      <div class="vs">
+        <div class="vs-row">
+          <div class="who"><b>Keep Hangfire</b><span>when</span></div>
+          <div class="why"><b>You want a familiar persistent job runner</b> with recurring jobs, retries, and a dashboard, and nobody asks your jobs harder questions than whether they ran. That is a solved problem, and Hangfire solves it well.</div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>Consider Acta</b><span>when</span></div>
+          <div class="why"><b>Job state should be first-class application data in SQL</b>: typed contracts, durable steps, signals, child jobs, and SQL-first inspection. The trigger is not cron; it is the day your continuations and batches need diagnosing.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <p class="record">The migration</p>
+      <h2>Migrate one job, coexist with the rest.</h2>
+      <p class="lede">There is no importer for Hangfire's tables and no <code>IBackgroundJobClient</code>-compatible shim, by design. Move one job that has outgrown being a task, run both systems side by side, and let the next migration argue for itself.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/scheduler-migration.md">Migration guide</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
+      </div>
+      <p class="also">Also: <a href="/from-quartz">from Quartz</a><span class="sep">·</span><a href="/from-tickerq">from TickerQ</a><span class="sep">·</span><a href="/#compare">how Acta compares</a></p>
+    </section>
+
+    <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
+    </footer>
+  </main>
+</body>
+</html>
