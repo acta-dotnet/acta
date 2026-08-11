@@ -25,7 +25,7 @@ public sealed class CodeKindAttribute(string codeKind) : Attribute
     /// <remarks>
     /// Reserve this for descriptive vocabularies (reasons, event kinds). Families that drive a routine,
     /// an index predicate, or an ORDER BY stay closed: an unrecognized status is a stuck row, and those
-    /// vocabularies change rarely enough that a migration is the honest cost.
+    /// vocabularies change rarely enough that a migration is the right cost.
     /// </remarks>
     public bool Extensible { get; init; }
 }

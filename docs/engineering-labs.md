@@ -5,7 +5,7 @@ A curated index of runnable proof. An Engineering Lab is a small project in
 what the design costs, the exact rows that prove the behavior, what happens when a worker dies at
 the worst moment, and the source files behind it. A few tour stops (`001-hello-acta`,
 `802-testing-durable-jobs`, `901-native-aot-json`, `903-redis-wakeup`) are focused runnable proofs
-rather than full labs. The explanations live beside the runnable code, where they stay honest.
+rather than full labs. The explanations live beside the runnable code, where they cannot drift from it.
 
 Everything below runs on embedded SQLite with no server unless a lab says otherwise. From a fresh
 clone: `dotnet run --project concepts/<category>/<lab>`.

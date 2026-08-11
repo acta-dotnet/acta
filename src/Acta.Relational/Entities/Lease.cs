@@ -33,7 +33,7 @@ internal sealed class Lease : IEntity
     /// <summary>
     /// Which lock primitive owns this row; <c>Lock</c> is the only kind. The family is deliberately
     /// closed: <c>ck_leases_kind_code</c> pins the value list, so adding a kind is a migration. That is
-    /// the honest cost, because the retention reap filters on this column
+    /// the deliberate cost, because the retention reap filters on this column
     /// (<c>PurgeExpiredData</c>, <c>WHERE kind_code = 10</c>) - an unrecognized kind would not be a
     /// display gap, it would be lease rows that never get reaped.
     /// </summary>

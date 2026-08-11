@@ -164,7 +164,7 @@ internal static class Workload
     /// small batch each ~50ms tick and sleeping to stay on schedule. Unlike <see cref="EnqueueAsync"/>
     /// (which dumps the whole backlog up front), this models arrival-over-time for the soak/spike/overload
     /// shapes. Each request is stamped with the current Stopwatch timestamp at submit so the sink reads
-    /// honest queue-residence latency. Returns the total number of jobs emitted.
+    /// true queue-residence latency. Returns the total number of jobs emitted.
     /// </summary>
     public static async Task<int> ProduceConstantAsync(
         IJobs jobs,
@@ -224,7 +224,7 @@ public sealed class ThroughputScenario : IScenario
 {
     public string Name => "throughput";
 
-    public string Description => "Enqueue + drain overlapped (honest end-to-end jobs/sec).";
+    public string Description => "Enqueue + drain overlapped (measured end-to-end jobs/sec).";
 
     public async Task<CellMetrics> RunAsync(CellParams p, string schema, BenchConfig cfg, CancellationToken ct)
     {

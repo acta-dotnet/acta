@@ -111,7 +111,7 @@ internal static class ActaApiEndpoints
         );
 
         // Aggregate request-body ceiling for every mapped endpoint. Declared lengths reject up front;
-        // the bounded stream keeps the ceiling honest for chunked bodies, surfacing an overrun as the
+        // the bounded stream keeps the ceiling enforced for chunked bodies, surfacing an overrun as the
         // 413 BadHttpRequestException the error backstop above translates.
         group.AddEndpointFilter(
             async (context, next) =>

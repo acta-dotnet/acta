@@ -27,7 +27,7 @@ job detail.
 - Job detail gains an Executions tab: one row per handler invocation, derived from the event
   ledger with the outcome, start time, true retry gap (previous finish to next start), duration,
   worker, and failure reason; repeated reasons dim.
-- The header counts against the runtime's claim counter and states gaps honestly: audit level or
+- The header counts against the runtime's claim counter and states gaps explicitly: audit level or
   event retention are only blamed once the full history is loaded.
 - Rows drill into the timeline pre-filtered to that attempt; the tab and a specific execution
   deep-link via the URL hash (`?tab=executions&execution=N`), auto-loading older history when the
