@@ -123,6 +123,7 @@
       text-wrap: balance;
     }
     .tagline em { font-style: normal; color: var(--verdi); }
+    .subhead { font-family: var(--serif); font-style: italic; font-size: clamp(1.05rem, 1.6vw, 1.35rem); color: var(--muted); margin: 0.7rem 0 0; }
     .actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.6rem; }
     .button {
       display: inline-flex; align-items: center; min-height: 2.7rem; padding: 0.6rem 1.3rem;
@@ -360,7 +361,8 @@
       <hr class="hero-rule" />
       <div class="hero-grid">
         <div>
-          <p class="tagline">The durable work ledger for <em>.NET</em>.</p>
+          <p class="tagline">Kill the worker. Keep the <em>work</em>.</p>
+          <p class="subhead">The durable work ledger for .NET.</p>
           <div class="qa">
             <div>
               <b>What</b>
@@ -520,6 +522,7 @@ Hello, World!</span>
     <section class="wrap" id="compare">
       <p class="record">How it compares</p>
       <h2>You know these tools. Here is the difference.</h2>
+      <p class="lede">This table is the short version. The full fit guide, including when to keep what you have, is <a href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta →</a></p>
       <div class="vs">
         <div class="vs-row">
           <div class="who"><b>Hangfire</b><span>background jobs</span></div>
@@ -576,7 +579,7 @@ Hello, World!</span>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
         <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
-        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome.</li>
+        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md#at-most-once-steps">At-most-once steps →</a></li>
         <li><b>Not for every job</b>: disposable local loops belong in <code>BackgroundService</code> or cron.</li>
       </ul>
     </section>
@@ -641,7 +644,7 @@ Hello, World!</span>
         <h3 class="ref-group">Policy &amp; operations</h3>
         <dl>
           <div class="ref-row"><dt>Priorities &amp; reprioritization</dt><dd>Claim priority is per-definition policy, and operators can change it in place on a live job with <code>ReprioritizeAsync</code>, no cancel-and-re-enqueue dance.</dd></div>
-          <div class="ref-row"><dt>Execution timeouts &amp; deadlines</dt><dd>Per-definition execution timeout, plus whole-job deadlines in two honesties: a Strict deadline terminates the job; an Advisory one sets <code>ctx.IsOverdue</code> so the handler can degrade gracefully.</dd></div>
+          <div class="ref-row"><dt>Execution timeouts &amp; deadlines</dt><dd>Per-definition execution timeout, plus whole-job deadlines in two strengths: a Strict deadline terminates the job; an Advisory one sets <code>ctx.IsOverdue</code> so the handler can degrade gracefully.</dd></div>
           <div class="ref-row"><dt>Batch enqueue</dt><dd><code>EnqueueBatch</code> alongside single enqueue for high-volume producers, one round-trip for many jobs.</dd></div>
           <div class="ref-row"><dt>Tags &amp; correlation keys</dt><dd>Attach searchable tags and a caller-supplied correlation key to any job, so operators can find work by what it means to the business, not just by id.</dd></div>
           <div class="ref-row"><dt>Time-zone schedules</dt><dd>Recurring schedules run in a named time zone. Operators preview upcoming instants and override expression or zone with expected-version checks.</dd></div>
@@ -709,6 +712,7 @@ Hello, World!</span>
       Early preview · built for evaluation and feedback
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
       <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
     </footer>
   </main>

@@ -12,7 +12,8 @@ while the schema baseline is still re-cuttable.
 | Earlier previews | No |
 
 This tightens at 1.0, when the schema, persisted codes, and public API freeze together and a
-supported-versions window is stated properly.
+supported-versions window is stated properly. The support matrix, supported .NET target, and the
+patch policy that takes effect at 1.0 are stated in [docs/support.md](./docs/support.md).
 
 ## Reporting a vulnerability
 

@@ -45,6 +45,12 @@ scheduling.
 | Distributed messaging, pub/sub, event streaming, or fan-out transport | a message bus or streaming platform |
 | Deterministic event-history replay, BPMN, or visual workflow orchestration | a workflow engine, not Acta |
 
+## Who Reaches For Acta
+
+- App developers whose retries stopped being enough: the job's state became application state.
+- Platform teams who need evidence and intervention: what ran, what is stuck, pause, restart, signal.
+- AI and agent developers whose steps are expensive, long-running, tool-using, human-gated, or unsafe to restart from the top.
+
 ## Use Acta When
 
 - The work belongs to the application, not only to the host or platform.
@@ -115,6 +121,34 @@ The migration trigger is not **we need cron**. The migration trigger is one of t
 - We need durable steps, child jobs, signals, long waits, or operator controls.
 - We do not want a broker, sidecar, hosted scheduler, or separate control plane.
 - We want the application database to be the source of truth.
+
+## AI And Agent Steps
+
+A retried agent step repeats latency, tokens, tool calls, and a human approval, and a
+nondeterministic model does not repeat the same output. Your AI can reason again; it should not have
+to do the work again. "Persist the output of this step" is also easier to explain than deterministic
+replay.
+
+Acta sits underneath agent frameworks (Semantic Kernel, the OpenAI SDK, a custom loop) and gets no
+`Agent`, `Prompt`, or `LLM` types, ever. It does not care whether a step calls a model, Stripe, or
+FFmpeg. The primitives are general: `RunStepAsync` persists a completed step's output so it is not
+paid for twice, `SleepAsync` and `WaitSignalAsync` hold a human-approval gate for days without
+holding a worker, and `MapAsync` fans a batch out with lineage.
+
+## Physical Processes And Layered Systems
+
+The same shape holds where the work is physical. The layering is ERP -> Acta (durable
+business/process coordination) -> MES / SCADA / APIs / operators -> machines. Acta is not an MES,
+SCADA, or PLC system and never touches real-time or safety control. The shape generalizes: ERP ->
+Acta -> payment rails, or agent framework -> Acta -> model and tool APIs.
+
+The durable wait here is one the reader already knows is real: a six-hour cure, a cooldown, a
+maintenance window. Nobody argues it should hold a thread, and `SleepAsync` and `WaitSignalAsync`
+are the same primitive either way.
+
+When a step is physically consequential, a repeated step is a physical event: a second machine
+command, a second label. For those steps, see
+[At-most-once steps](./guide/handler-contract.md#at-most-once-steps).
 
 ## The Smallest Scheduled Job
 

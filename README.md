@@ -1,6 +1,6 @@
 # Acta
 
-**Durable background work for .NET apps: named checkpoints, SQL-visible state, and operator control.**
+**Kill the worker. Keep the work.** Acta is the durable work ledger for .NET: background jobs with named checkpoints, SQL-visible state, and operator control.
 
 [![CI](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/vpre/Acta.svg?label=nuget)](https://www.nuget.org/packages/Acta)
@@ -155,7 +155,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Packages
 
-**NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API + SDK), `Acta.Runtime` (runtime implementation), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
+**NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API + SDK), `Acta.Runtime` (runtime implementation), `Acta.Relational` (shared relational mechanics, a transitive dependency of the providers), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
 
 **Repository tooling** (not published to NuGet): `Acta.Emit` (doc/migration emitter) and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
 
@@ -164,6 +164,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 - The migration history freezes at 1.0.0, and only then: before it, the schema baseline (`M001`) may be re-cut in any release. From 1.0.0 schema changes ship only as additive `Mnnn` migrations. During the preview, upgrade compatibility between preview builds is not promised: a schema-incompatible preview update means dropping and reprovisioning the Acta database, and the bootstrap refuses to run rather than applying a mismatched baseline.
 - Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
 - Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
+- The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).
 
 ## How this was built
 

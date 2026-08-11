@@ -13,6 +13,7 @@ database you already run.
 | [Engineering Labs](./engineering-labs.md) | Runnable proof: crash recovery, durable steps, signals, the dashboard, deterministic tests. |
 | [Tutorials](./guide/tutorials.md) | The full concept ladder: 88 runnable projects in sequence. |
 | [Known limitations](./technical/known-limitations.md) | What the preview does not do yet. |
+| [Support](./support.md) | Supported .NET target, provider tiers, packages, and the patch policy. |
 | [Release notes](./release-notes.md) | What is in the current preview. |
 
 ## Guide
