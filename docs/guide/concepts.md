@@ -44,6 +44,35 @@ A job carries three keys, each for a different audience:
   output, and callers. Numeric ids never appear in dashboard JSON or HTTP routes.
 - `DeduplicationKey`: caller-defined dedupe and lookup key for root jobs.
 
+### Anatomy of a job ref
+
+```
+job_01kzs6j4g0f8ztrqgzka5krza2
+^    ^          ^
+type  creation   entropy
+tag   millisecond
+```
+
+A ref is `job_` plus 26 characters of lowercase Crockford Base32 encoding a UUIDv7: a type tag,
+then the creation timestamp, then random entropy. The pieces each earn their place:
+
+- **The `job_` prefix** makes the value self-identifying in a log line, a support ticket, or a URL:
+  you know what you are holding without a column header.
+- **UUIDv7 ordering.** The first 10 encoded characters carry the creation millisecond, so refs sort
+  by creation time and rows minted together share a visible head. The dashboard renders that
+  structure as two tones: the head (tag + timestamp) muted, the entropy tail bright, so a column of
+  refs from one batch reads as one family with sixteen distinguishing characters each.
+- **Crockford Base32** exists for humans reading aloud and retyping: the alphabet omits `i`, `l`,
+  `o`, and `u`, parsing is case-insensitive, and the common misreadings are accepted as aliases
+  (`o` decodes as `0`, `i` and `l` as `1`). Emission is always canonical lowercase. At 26
+  characters it is also shorter than a hyphenated GUID and double-click-selects as one token.
+- **In the database it is a plain 16-byte `Guid`** (`jobs.job_ref`, unique-indexed), allocated in
+  C# by `JobRef.New()` and passed into the inserting routine, never defaulted by the database. The
+  encoding is presentation; the bytes are the identity.
+
+The ref is denormalized onto the audit tables (events, alerts) at write time, so the public
+identity an operator holds keeps resolving after the job row itself is purged by retention.
+
 `JobRequestBuilder.Deduplicate(businessKey)` is the primary definition-aware API: because the raw
 builder already knows the job name, it composes `<job-name>:<business-key>`. Typed
 `JobEnqueueOptionsBuilder` is configured before routing resolves the definition, so it accepts only
