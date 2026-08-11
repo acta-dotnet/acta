@@ -9,6 +9,15 @@ public sealed record AnvilSession(string RunId, string NamespaceName, string Sch
     private int _batch;
     private long _expectedFailures;
 
+    /// <summary>
+    /// Non-null while this process is running a certification. It is the single answer to "is a
+    /// certification in progress?" for the whole process: the endpoints refuse mutations while it is
+    /// set, and the cockpit renders it as a banner. Without it the lab looked idle - the setup panel
+    /// showed its own defaults (no-op, 2 workers) rather than the certification's shape, and every
+    /// button was live, so one click could seed into or crash a run being sealed.
+    /// </summary>
+    public CertificationStatus? Certification { get; set; }
+
     /// <summary>Next monotonic batch number; each seed click gets its own so deduplication keys stay unique.</summary>
     public int NextBatch() => Interlocked.Increment(ref _batch);
 
@@ -65,3 +74,6 @@ public static class AnvilTenants
         ("initech", "Initech"),
     ];
 }
+
+/// <summary>One certification's shape and current phase, as the cockpit shows it.</summary>
+public sealed record CertificationStatus(string Phase, string Detail, int Jobs, int Workers, int ChaosMinutes);

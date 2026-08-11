@@ -66,6 +66,23 @@ h1, h2, p { margin-top: 0; }
   font-weight: 650;
 }
 
+.certbanner {
+  flex: none;
+  padding: 9px 22px;
+  background: var(--accent);
+  color: var(--panel);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.certbanner.pass {
+  background: var(--ok);
+}
+
+.certbanner.fail {
+  background: var(--bad);
+}
+
 .appbar {
   flex: none;
   display: grid;

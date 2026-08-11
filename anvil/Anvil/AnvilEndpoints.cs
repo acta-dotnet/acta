@@ -14,6 +14,7 @@ public static class AnvilEndpoints
         var group = endpoints.MapGroup("/anvil/api");
         GuardLoopback(group);
         CatchErrors(group);
+        GuardCertification(group);
 
         group.MapGet("/state", async (AnvilStateReader reader, CancellationToken ct) => Results.Ok(await reader.ReadAsync(ct)));
 
@@ -174,6 +175,29 @@ public static class AnvilEndpoints
                 }
             }
         );
+
+    /// <summary>
+    /// Refuses every mutation while this process is certifying. Hiding the buttons in the cockpit is
+    /// not enough: a second browser tab, a stale page, or curl would still seed into a run being
+    /// sealed, and the seal would then describe a workload nobody can reconstruct. Reads stay open so
+    /// the run can be watched.
+    /// </summary>
+    private static void GuardCertification(RouteGroupBuilder group)
+    {
+        group.AddEndpointFilter(
+            async (context, next) =>
+            {
+                var session = context.HttpContext.RequestServices.GetRequiredService<AnvilSession>();
+                return !HttpMethods.IsGet(context.HttpContext.Request.Method) && session.Certification is { } status
+                    ? Results.Json(
+                        new ActionResponse($"Certification in progress ({status.Phase}); controls are locked until it seals."),
+                        AnvilJsonContext.Default.ActionResponse,
+                        statusCode: (int)HttpStatusCode.Conflict
+                    )
+                    : await next(context);
+            }
+        );
+    }
 
     private static void GuardLoopback(RouteGroupBuilder group) =>
         group.AddEndpointFilter(

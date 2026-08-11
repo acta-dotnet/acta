@@ -84,6 +84,13 @@ internal static class CertifyRun
         var session = services.GetRequiredService<AnvilSession>();
         var progress = services.GetRequiredService<SeedProgress>();
 
+        void Phase(string phase, string detail)
+        {
+            session.Certification = new CertificationStatus(phase, detail, jobs, workers, (int)chaos.TotalMinutes);
+            Console.WriteLine($"  {DateTime.Now:HH:mm:ss}  {phase, -9} {detail}");
+        }
+
+        Phase("START", "starting");
         Console.WriteLine();
         Console.WriteLine($"  Acta certification | {provider} | schema {id.Schema}");
         Console.WriteLine($"  {jobs} jobs, {workers} workers, chaos for {chaos.TotalMinutes:0} min");
@@ -172,7 +179,9 @@ internal static class CertifyRun
 
         Phase("SEALING", "running certify.sql");
         Console.WriteLine();
-        return await CertifyVerdict.RunAsync(provider, id.Schema, ct);
+        var exit = await CertifyVerdict.RunAsync(provider, id.Schema, ct);
+        Phase(exit == 0 ? "PASS" : "FAIL", exit == 0 ? "every asserted property held" : "see the verdict on the console");
+        return exit;
     }
 
     // AnvilStateReader is scoped (it holds a store connection), so every read opens its own scope.
@@ -233,6 +242,4 @@ internal static class CertifyRun
         }
         return false;
     }
-
-    private static void Phase(string phase, string detail) => Console.WriteLine($"  {DateTime.Now:HH:mm:ss}  {phase, -9} {detail}");
 }

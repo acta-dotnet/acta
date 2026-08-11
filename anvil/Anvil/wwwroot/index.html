@@ -13,6 +13,9 @@
         Anvil backend offline. Retaining the last successful view and reconnecting automatically.
       </div>
       <div id="dbnotice" class="offline" role="status" hidden></div>
+      <!-- Certification banner: while this process is sealing a run, the cockpit must say so and its
+           controls must be dead, or a click seeds into the run being certified. -->
+      <div id="certbanner" class="certbanner" role="status" hidden></div>
 
       <!-- Run context lives in the top strip: namespace, live readouts, provider and the link out
            to the dashboard. The console below is left for the controls alone. -->

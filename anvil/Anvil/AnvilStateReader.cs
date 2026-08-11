@@ -83,6 +83,7 @@ public sealed class AnvilStateReader(
             Seeding: seedProgress.Snapshot(),
             Faults: faults.Snapshot(),
             Outbox: await ReadOutboxAsync(ct),
+            Certification: session.Certification,
             DbError: null
         );
     }
@@ -118,6 +119,7 @@ public sealed class AnvilStateReader(
             Seeding: seedProgress.Snapshot(),
             Faults: faults.Snapshot(),
             Outbox: null,
+            Certification: session.Certification,
             DbError: reason
         );
     }
@@ -337,6 +339,7 @@ public sealed record AnvilState(
     SeedProgressSnapshot Seeding,
     FaultSnapshot Faults,
     AnvilOutboxSnapshot? Outbox,
+    CertificationStatus? Certification,
     string? DbError
 );
 

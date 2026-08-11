@@ -141,19 +141,44 @@ async function call(key, method, path, label, body) {
   }
 }
 
+function certifying() {
+  return !!(currentState && currentState.certification && currentState.certification.phase !== "PASS" && currentState.certification.phase !== "FAIL");
+}
+
 function updatePendingControls() {
   const seeding = currentState && currentState.seeding && currentState.seeding.active;
   const ready = currentState && currentState.ready && !currentState.dbError;
-  el("btn-run").disabled = pending.has("run") || seeding || !ready;
-  el("btn-spawn").disabled = pending.has("spawn");
-  el("btn-fault-crashes").disabled = pending.has("fault:crashes");
-  el("btn-fault-pressure").disabled = pending.has("fault:pressure");
+  // A certification owns the process: the setup panel would otherwise show its own defaults next to
+  // a run it did not start, and every control would still fire into it.
+  const locked = certifying();
+  el("btn-run").disabled = locked || pending.has("run") || seeding || !ready;
+  el("btn-spawn").disabled = locked || pending.has("spawn");
+  el("btn-fault-crashes").disabled = locked || pending.has("fault:crashes");
+  el("btn-fault-pressure").disabled = locked || pending.has("fault:pressure");
   const pressureActive = !!(currentState && currentState.faults && currentState.faults.queuePressureActive);
-  el("sel-pressure-rate").disabled = pressureActive || pending.has("fault:pressure");
-  el("btn-fault-outbox").disabled = pending.has("fault:outbox");
+  el("sel-pressure-rate").disabled = locked || pressureActive || pending.has("fault:pressure");
+  el("btn-fault-outbox").disabled = locked || pending.has("fault:outbox");
   const outboxActive = !!(currentState && currentState.faults && currentState.faults.outboxPressureActive);
-  el("sel-outbox-rate").disabled = outboxActive || pending.has("fault:outbox");
+  el("sel-outbox-rate").disabled = locked || outboxActive || pending.has("fault:outbox");
+  document.querySelectorAll("#workload-seg .mode-btn").forEach((button) => {
+    button.disabled = locked;
+  });
+  el("sel-load").disabled = locked;
+  el("sel-workers").disabled = locked;
   workerCards.forEach((card) => updateWorkerActions(card));
+}
+
+function renderCertification(cert) {
+  const banner = el("certbanner");
+  banner.hidden = !cert;
+  banner.classList.toggle("pass", !!cert && cert.phase === "PASS");
+  banner.classList.toggle("fail", !!cert && cert.phase === "FAIL");
+  if (!cert) return;
+  const shape = `${cert.jobs.toLocaleString()} jobs · ${cert.workers} workers · ${cert.chaosMinutes} min of chaos`;
+  banner.textContent =
+    cert.phase === "PASS" || cert.phase === "FAIL"
+      ? `CERTIFICATION ${cert.phase}: ${cert.detail} (${shape})`
+      : `CERTIFICATION RUNNING · ${cert.phase}: ${cert.detail} · ${shape} · controls are locked`;
 }
 
 function drawScope(canvas, values, color) {
@@ -381,8 +406,8 @@ function updateWorkerActions(card) {
   const drainKey = `drain:${worker.id}`;
   card.crash.hidden = !worker.canCrash;
   card.drain.hidden = !worker.canDrain;
-  card.crash.disabled = pending.has(crashKey);
-  card.drain.disabled = pending.has(drainKey);
+  card.crash.disabled = certifying() || pending.has(crashKey);
+  card.drain.disabled = certifying() || pending.has(drainKey);
   card.crash.dataset.actionKey = crashKey;
   card.drain.dataset.actionKey = drainKey;
 }
@@ -556,6 +581,7 @@ function render(state) {
   notice.hidden = !state.dbError;
   notice.textContent = state.dbError ? `DATABASE UNAVAILABLE: ${state.dbError}. Last successful metrics remain visible.` : "";
 
+  renderCertification(state.certification);
   renderLeds(state);
   renderSeeding(state.seeding);
   renderFaults(state.faults);
