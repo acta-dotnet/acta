@@ -82,9 +82,7 @@ Server. The full provider/connection/docker-compose setup is documented once in
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md); the short form is:
 
 ```bash
-# Tutorials
 set ACTA_LOCAL_PROVIDER=sqlserver          # or: postgres, sqlite
-# Tutorials
 set ConnectionStrings__acta=Host=...;Database=acta-dev;Username=...
 ```
 
