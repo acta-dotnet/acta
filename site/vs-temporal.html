@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>From TickerQ to Acta · the durable work ledger for .NET</title>
-  <meta name="description" content="TickerQ vs Acta: source generation, NativeAOT, persistence, dashboard, and retries are shared. Acta adds the ledger: steps that survive a worker kill, durable waits, lineage, and evidence you can SELECT." />
-  <link rel="canonical" href="https://useacta.net/from-tickerq" />
+  <title>Durable execution without a replay engine · the durable work ledger for .NET</title>
+  <meta name="description" content="A Temporal alternative for .NET when a replay engine is more machinery than the problem needs. Acta records step outcomes in the Postgres, SQL Server, or SQLite you already run: durable execution as a NuGet package, with no server, no sidecar, and no determinism contract on your code." />
+  <link rel="canonical" href="https://useacta.net/vs-temporal" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="From TickerQ to Acta · the durable work ledger for .NET" />
-  <meta property="og:description" content="TickerQ vs Acta: source generation, NativeAOT, persistence, dashboard, and retries are shared. Acta adds the ledger: steps that survive a worker kill, durable waits, lineage, and evidence you can SELECT." />
-  <meta property="og:url" content="https://useacta.net/from-tickerq" />
+  <meta property="og:title" content="Durable execution without a replay engine · the durable work ledger for .NET" />
+  <meta property="og:description" content="A Temporal alternative for .NET when a replay engine is more machinery than the problem needs. Acta records step outcomes in the Postgres, SQL Server, or SQLite you already run: durable execution as a NuGet package, with no server, no sidecar, and no determinism contract on your code." />
+  <meta property="og:url" content="https://useacta.net/vs-temporal" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -188,64 +188,73 @@
 
   <main id="content">
     <header class="wrap page-head">
-      <p class="record">from tickerq · migration notes</p>
-      <h1>From TickerQ to Acta.</h1>
-      <p class="lede">TickerQ and Acta agree on more than they differ, so this page starts with what does not change. Use Acta when a background job stops being a task and becomes application state: work that must survive the process that started it, and answer questions afterwards.</p>
+      <p class="record">durable execution · a fit guide</p>
+      <h1>Considering Temporal? Read this first.</h1>
+      <p class="lede">Temporal, Dapr Workflow, and Azure Durable Functions are serious systems, built by people who understand failure. If you need what only they do, use them; this page will tell you when that is. It answers the other question: you have outgrown a job runner, you looked at durable execution, and the machinery feels out of proportion to the problem in front of you. That instinct deserves a straight answer, not a sales page.</p>
     </header>
 
     <section class="wrap">
-      <p class="record">Shared ground</p>
-      <h2>The checkboxes both have.</h2>
-      <p class="lede">Source generation. NativeAOT. Persistence. A dashboard. Cron schedules. Retries. Priorities. Concurrency controls. If your comparison stops at this list, either tool serves, and TickerQ is the one you already run. None of these are why Acta exists.</p>
+      <p class="record">The shared model</p>
+      <h2>One model, and its two costs.</h2>
+      <p class="lede">All three are replay engines. Recovery does not resume your code where it stopped: it re-executes your orchestrator from the beginning, deterministically, against the event history recorded so far. The model is powerful, and it bills you twice.</p>
+      <dl class="ref">
+        <div class="ref-row">
+          <dt>Cost one · a contract on your code</dt>
+          <dd>The orchestrator must be deterministic, because replay must reproduce the exact decisions the first execution made. No wall clock, no random, no ordinary IO inside it; every nondeterministic thing is routed through the framework as an activity, a durable timer, or a framework-supplied value. And because recovery replays old histories through current code, deploying while work is in flight is a versioning problem with framework rules of its own.</dd>
+        </div>
+        <div class="ref-row">
+          <dt>Cost two · a second system</dt>
+          <dd>Temporal runs as a server cluster or a cloud service. Dapr Workflow requires the Dapr runtime and its sidecar. Durable Functions assumes Azure hosting and a storage provider. Each is real infrastructure next to your application: deployed, secured, versioned, and paid for on its own schedule.</dd>
+        </div>
+      </dl>
+      <p class="pair-note">Neither cost is a flaw. Both follow directly from making replayed history the source of truth, and for some problems that trade is right. The question is whether it is right for yours.</p>
     </section>
 
     <section class="wrap">
-      <p class="record">The difference</p>
-      <h2>What only a ledger does.</h2>
-      <p class="lede">Acta's unit of durability is not the schedule entry: it is the work itself. Every job, attempt, lease, step, signal, and event is a SQL row, which is what "kill the worker, keep the work" means in practice.</p>
+      <p class="record">The other way</p>
+      <h2>Record outcomes. Never replay.</h2>
+      <p class="lede">Acta persists recorded outcomes at explicit boundaries instead of re-executing history. A handler is an ordinary re-entrant .NET method: when a worker dies mid-job, another worker re-enters it, and everything already recorded is returned instead of re-run.</p>
       <ul class="changes">
-        <li><b>Kill the worker mid-job</b> and completed steps do not re-run: re-entry returns their recorded outcomes.</li>
-        <li><b>Wait three days for an approval</b> without occupying a worker: the job suspends as durable state and resumes on any peer.</li>
-        <li><b>Fan out children and keep lineage</b>: a batch of a thousand items stays traceable to its parent, with results you can fetch.</li>
-        <li><b>Ask a job why it is stuck</b>: explain answers from its recorded rows, not from log archaeology.</li>
-        <li><b>SELECT the evidence</b>: <code>jobs_view</code> and <code>events_view</code> are curated operator surfaces, not storage internals.</li>
+        <li><b>Durable steps.</b> <code>RunStepAsync</code> records a step's outcome as a SQL row; re-entry returns the stored result and the body does not run again.</li>
+        <li><b>Durable waits.</b> <code>SleepAsync</code> and <code>WaitSignalAsync</code> park a job as durable state: no worker thread waits, and the job resumes on any peer when the timer fires or the signal arrives.</li>
+        <li><b>Fan-out with lineage.</b> <code>MapAsync</code> spawns child jobs with recorded parentage, so a thousand-item batch stays traceable and the parent can wait on results.</li>
+        <li><b>No determinism contract.</b> Wall clock, random, and IO are fine anywhere in handler code, because nothing is ever replayed against a history. There is no orchestrator/activity boundary to police.</li>
+        <li><b>No second system.</b> Infrastructure is a NuGet package plus the Postgres, SQL Server, or SQLite you already run. No server, no sidecar, no control plane. This is structural, not a maturity gap: an orchestration server can add features forever, but it cannot become a library inside your process using the database you already back up. Embedded is the architecture Acta chose, the way replay is the architecture they chose.</li>
+        <li><b>State is rows.</b> Jobs, attempts, leases, steps, signals, and events are SQL rows with curated views. When something is stuck, you <code>SELECT</code> the evidence.</li>
       </ul>
     </section>
 
     <section class="wrap">
       <p class="record">The code, side by side</p>
-      <h2>The scheduled job barely changes. The ceiling does.</h2>
+      <h2>A determinism contract, next to a re-entrant handler.</h2>
       <div class="pair">
         <div class="panel">
-          <div class="panel-tab">TickerQ · a scheduled function</div>
-          <pre><code><span class="k">public sealed class</span> CleanupJobs
+          <div class="panel-tab">Replay model · orchestrator + activities</div>
+          <pre><code><span class="c">// The shape every replay engine shares; names vary by engine.</span>
+<span class="c">// Recovery re-executes this method from the top against recorded</span>
+<span class="c">// history, so it must be deterministic: no wall clock, no random,</span>
+<span class="c">// no ordinary IO on this side of the boundary.</span>
+<span class="k">public async</span> Task RunOrchestration(IOrchestrationContext ctx)
 {
-    <span class="a">[TickerFunction(<span class="s">"cleanup-expired-sessions"</span>, <span class="s">"*/5 * * * *"</span>)]</span>
-    <span class="k">public</span> Task CleanupExpiredSessions(CancellationToken ct)
+    <span class="k">var</span> artifact = <span class="k">await</span> ctx.RunActivity&lt;Artifact&gt;(
+        <span class="s">"build-artifacts"</span>, input.ReleaseId);
+
+    <span class="k">var</span> approved = <span class="k">await</span> ctx.WaitExternalEvent&lt;<span class="k">bool</span>&gt;(
+        <span class="s">"release-approval"</span>);
+
+    <span class="k">if</span> (approved)
     {
-        <span class="k">return</span> Task.CompletedTask;
+        <span class="k">await</span> ctx.RunActivity(<span class="s">"publish"</span>, artifact);
     }
-}</code></pre>
+}
+
+<span class="c">// BuildArtifacts and Publish live elsewhere, registered as</span>
+<span class="c">// activities: ordinary code is legal only on that side.</span></code></pre>
         </div>
         <div>
           <div class="panel">
-            <div class="panel-tab">Acta · the same schedule</div>
-            <pre><code><span class="k">public sealed class</span> CleanupJobs
-{
-    <span class="a">[Job(<span class="s">"cleanup-expired-sessions"</span>)]</span>
-    <span class="a">[JobSchedule(<span class="s">"every-5-minutes"</span>, <span class="s">"5m"</span>)]</span>
-    <span class="k">public</span> Task CleanupExpiredSessions(CancellationToken ct)
-    {
-        <span class="k">return</span> Task.CompletedTask;
-    }
-}</code></pre>
-          </div>
-          <p class="pair-note">The scheduled-job shape migrates almost one to one: an attribute on a method, discovered by source generation. The difference starts when a job needs more than a schedule.</p>
-        </div>
-      </div>
-      <div class="panel solo">
-        <div class="panel-tab">Acta · what survives a worker kill</div>
-        <pre><code><span class="k">public sealed record</span> PublishRelease(<span class="k">string</span> ReleaseId);
+            <div class="panel-tab">Acta · a re-entrant handler</div>
+            <pre><code><span class="k">public sealed record</span> PublishRelease(<span class="k">string</span> ReleaseId);
 
 <span class="k">public sealed class</span> ReleaseJobs
 {
@@ -267,46 +276,46 @@
         }
     }
 }</code></pre>
+          </div>
+          <p class="pair-note">The left panel is deliberately generic; the boundary is what every engine shares, whatever it names the methods. On the right there is no boundary: <code>BuildArtifactsAsync</code> is ordinary code called in place, and durability comes from the recorded step outcome, not from re-executing the method. A worker kill between any two lines loses no completed work.</p>
+        </div>
       </div>
-      <p class="pair-note">Everything the handler has done so far, the completed build step, the pending approval, the signal once it arrives, is a row. A worker kill between any two lines loses no completed work, and the job's state is visible in SQL the whole time.</p>
-    </section>
-
-    <section class="wrap">
-      <p class="record">What changes</p>
-      <h2>The differences you will feel in week one.</h2>
-      <ul class="changes">
-        <li><b>An EF Core store becomes provider SQL with curated views.</b> Acta's providers write a documented schema directly, and <code>jobs_view</code> and <code>events_view</code> are the supported operator surface: no entity model between you and the rows.</li>
-        <li><b>Chaining becomes child jobs with lineage.</b> A handler spawns children, parent lineage is recorded, the parent can wait on results, and a fan-out of a thousand items stays traceable.</li>
-        <li><b>Throttling becomes namespaces, priorities, and exclusive keys.</b> Route work by owning service, reprioritize a live job in place, and serialize work that shares a key without blocking unrelated jobs.</li>
-        <li><b>The dashboard gains a CLI.</b> Every host binary is also the admin tool, including <code>jobs debug</code>: claim a persisted job and step through its real handler under your debugger.</li>
-      </ul>
     </section>
 
     <section class="wrap">
       <p class="record">A fair split</p>
-      <h2>Keep TickerQ if a scheduler is what you need.</h2>
-      <div class="vs">
-        <div class="vs-row">
-          <div class="who"><b>Keep TickerQ</b><span>when</span></div>
-          <div class="why"><b>You want a source-generated scheduler</b> with persistence, dashboard tooling, chaining, priorities, and concurrency controls, and your jobs finish or fail whole: no mid-job state worth preserving.</div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>Consider Acta</b><span>when</span></div>
-          <div class="why"><b>SQL must serve as the durable operational ledger for resumable work</b>: checkpoints, signals, recovery evidence, and operator intervention. The scheduler features come along; the ledger is the point.</div>
-        </div>
-      </div>
+      <h2>When you genuinely need a replay engine.</h2>
+      <p class="lede">Some requirements are exactly what these systems were built for. If one of these is yours, choose them: Acta does not compete there, and says so on its own homepage (no deterministic replay, no BPMN, no hosted control plane).</p>
+      <dl class="ref">
+        <div class="ref-row"><dt>Polyglot workers</dt><dd>Orchestrations coordinating workers written in Go, Java, Python, or TypeScript alongside .NET. Acta is .NET only.</dd></div>
+        <div class="ref-row"><dt>Replay as a guarantee</dt><dd>Deterministic re-execution itself is the requirement: an auditable guarantee that recovery reproduces the exact decision path, not just the recorded outcomes.</dd></div>
+        <div class="ref-row"><dt>Very long histories at scale</dt><dd>Orchestrations spanning months and many deploys, with framework-managed versioning of in-flight work as the code underneath it changes.</dd></div>
+        <div class="ref-row"><dt>One orchestrator, many teams</dt><dd>An organization standardizing on a single orchestration platform across teams and languages, with the operating investment that decision assumes.</dd></div>
+        <div class="ref-row"><dt>Multi-region failover</dt><dd>Orchestration state that must fail over across regions under the platform's own replication, beyond what your database's HA story provides.</dd></div>
+      </dl>
     </section>
 
     <section class="wrap">
-      <p class="record">The migration</p>
-      <h2>Migrate one job, coexist with the rest.</h2>
-      <p class="lede">There is no importer for TickerQ's tables and no attribute-compatible shim, by design. Move the one job that needs a ledger, keep TickerQ running the rest, and let the next migration argue for itself.</p>
+      <p class="record">Stated plainly</p>
+      <h2>What Acta gives up.</h2>
+      <ul class="changes">
+        <li><b>Exactly-once side effects: which nobody has.</b> Acta steps are at-least-once, and so are the replay engines' activities: a crash between an external call and its recording re-runs the call on every one of these systems, because no engine can make the outside world transactional. Replay makes the orchestrator's decisions exactly-once, not your HTTP request. So external calls need idempotency or reconciliation there and here alike; Acta adds <code>AtMostOnce()</code> for the steps where duplication is worse than an explicit ambiguity. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md#at-most-once-steps">At-most-once steps →</a></li>
+        <li><b>.NET only.</b> Handlers, workers, and the tooling are .NET. There are no SDKs for other languages and none planned.</li>
+        <li><b>One database is the durability boundary.</b> Acta is exactly as durable and as available as the Postgres, SQL Server, or SQLite you point it at. That is the point of the design, and also its limit.</li>
+        <li><b>Early preview.</b> Per the README, Acta is an early preview: the contract surface is still settling, and it has not accumulated a decade of production miles. The replay engines have.</li>
+      </ul>
+    </section>
+
+    <section class="wrap">
+      <p class="record">The fit</p>
+      <h2>Most jobs do not need an orchestration platform.</h2>
+      <p class="lede">Use Acta when a background job stops being a task and starts being application state: durable steps, long waits, signals, children with lineage, and operators who need to ask what happened. If that is your problem, it does not require a replay engine, a determinism contract, or a second system. It requires the work recorded where you can see it, in the database you already run, so you can kill the worker, keep the work. And that recovery path is exercised, not promised: certification runs kill real worker processes mid-job and assert the recovery with SQL checks anyone can re-run.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/scheduler-migration.md">Migration guide</a>
-        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta</a>
+        <a class="button primary" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
         <a class="button" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
       </div>
-      <p class="also">Also: <a href="/from-hangfire">from Hangfire</a><span class="sep">·</span><a href="/from-quartz">from Quartz</a><span class="sep">·</span><a href="/#compare">how Acta compares</a></p>
+      <p class="also">Also: <a href="/#compare">how Acta compares</a><span class="sep">·</span><a href="/from-hangfire">from Hangfire</a><span class="sep">·</span><a href="/from-quartz">from Quartz</a><span class="sep">·</span><a href="/from-tickerq">from TickerQ</a></p>
     </section>
 
     <footer>
