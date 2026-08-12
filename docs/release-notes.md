@@ -1,5 +1,149 @@
 # Release notes
 
+## 0.8.0-beta.1 (unreleased)
+
+Hardening. An operator can see saturation before it becomes an incident, a pause survives a fire that
+was already planned, and the settings surface loses everything nobody could set correctly.
+
+> **Schema note:** no schema change. The `M001` baseline is unchanged.
+
+### Configuration is smaller on purpose
+
+- **The coordination triple is one setting.** `HeartbeatInterval` is settable; `LeaseTtlSeconds`
+  (x4) and `WorkerDeadAfter` (x7) now derive from it and are read-only. All three must agree across
+  every worker or the reclaim math desyncs, and nothing can verify that agreement at runtime, so the
+  ratio is held by construction instead of checked afterwards. A shorter beat shortens the whole
+  triple in proportion, which is what makes a crash demo watchable in seconds.
+- `WorkerDeadAfter`'s default moves from 300s to 315s. Both are round numbers satisfying "comfortably
+  past the lease"; nothing was encoded in the old one.
+- **Eight settings are gone**: `MinPollFloor`, `ClaimIdleJitterMax`, `ExclusiveKeyBounceDelaySeconds`,
+  `AlertDedupeWindow`, `AlertDeliveryMaxRetries`, and the three `BatchCompletion*` thresholds. They
+  were engine tuning with no operator-legible meaning, so they were ways to break a deployment rather
+  than ways to shape one. Their values are unchanged; they are simply no longer yours to set.
+- Setting any of the removed values is a compile error, not a silent change: Acta binds `JobsOptions`
+  from code, never from a configuration section.
+
+### Operator-visible pressure
+
+- **Executor saturation.** The overview's Executing card now carries its denominator, read from
+  `workers.max_concurrency` across live workers: `16 / 64` instead of `16`. Without it a full
+  executor pool and a broken claim loop looked identical, and they call for opposite actions.
+- **Schedule lag.** How far past due the most overdue live schedule is. A timetable that stops firing
+  moves no other number on the overview (nothing is enqueued, so ready and failed stay flat and the
+  verdict reads clean), which made it the one failure with no signal at all.
+- Both are bounded-cost reads with no schema change, and worker liveness now keys on the lease window
+  rather than the dead-worker window everywhere: past the lease a worker's jobs are already
+  reclaimable, so its slots are not capacity.
+
+### Chaos and the lab
+
+- **An operator pause survives a fire that was already planned.** A slot plans its advances from a
+  snapshot taken at claim and applies them at completion; the advance write had no status guard, so a
+  pause landing inside that window was cleared and the timeline recorded `schedule.pause-expired`
+  when nothing had expired. Guarded on all three providers, with the audit insert sharing the
+  predicate.
+- Anvil's throughput readout is measured over a trailing ten seconds rather than averaged across the
+  whole two-minute sample window, where a burst was smeared flat and a change took two minutes to
+  appear.
+
+## 0.7.0-beta.1
+
+Every breaking change in this line is here and only here: the .NET API settlement and the HTTP
+surface freeze. It also carries both million-job certification seals.
+
+> **Schema note:** no schema change. The `M001` baseline is unchanged from 0.5.0.
+
+### Breaking: the HTTP API is versioned and frozen
+
+- **Every operator route moves under `/v1`.** The segment is Acta's, not the caller's, so a host
+  mounted at `/internal/acta` serves `/internal/acta/api/v1/jobs`. The unversioned path now 404s, and
+  a test pins that.
+- `docs/reference/openapi.json` is generated from the real endpoint graph and drift-checked in CI,
+  the same shape as the persisted-code and schema gates. The OpenAPI package is test-only, so
+  `Acta.AspNetCore` carries no new dependency.
+- **`POST /jobs` answers 201 for an insert and 200 for a deduplicated match**, and carries `Location`
+  either way, built from the request's own path. It previously answered 201 with no `Location`, even
+  when the enqueue created nothing.
+- **`/namespaces/admin` is removed.** `/namespaces` returns the row and takes the status filter;
+  `INamespaces.ListAsync` still serves callers that want only names.
+- Tenant routes said `{key}` in controls and `{tenantKey}` in tags. One name now.
+- `JobEnqueueAction` serialized PascalCase while its two siblings were camelCase.
+
+### Breaking: the .NET surface
+
+- **`Done` becomes `Succeeded` everywhere.** `JobStatusCode` never had a `Done` member, yet 79 places
+  said it, including `jobs explain`, which printed "Done." for a succeeded job while printing
+  "Failed." and "Cancelled." for the others.
+- **The public `StepOptions` constructor is removed.** It could build exactly the `AtMostOnce`
+  plus retry-override combination `StepOptionsBuilder.Build()` rejects, so the invariant had a public
+  bypass. The record keeps its `init` properties, so `Inherit with { ... }` still works.
+- **`JobContext` gains `ExecutionNumber` and `WorkerId`.** A handler could not name its own attempt or
+  the worker running it, which is what a note, a log correlation, and an external idempotency key all
+  want.
+
+### Certification and dependencies
+
+- **1,000,000 jobs, PASS on PostgreSQL and on SQL Server**, both with real kills and non-zero
+  reclaims.
+- Off the preview SQLite pin: SQLitePCLRaw 2.1.12 carries the fix for GHSA-2m69-gcr7-jv3q, so stable
+  `Microsoft.Data.Sqlite` resolves clean.
+- The dashboard's scope selector moved onto the shared `Dropdown`, gaining typeahead and
+  close-on-focusout; the homepage reordered around getting started; an external audit's eight
+  incorrect claims corrected.
+
+## 0.6.0-beta.1
+
+The accurate public face, plus the evidence behind it. A consumer on 0.5.0 upgrades by fixing one
+renamed setting.
+
+> **Schema note:** no schema change. The `M001` baseline is unchanged from 0.5.0. Event code 90
+> (`job.note`) is additive and needs no migration: routines are idempotent objects reinstalled by
+> `SqlObjectInstaller`, and the DBA-runnable `docs/reference/schema-*.sql` carries the new routine.
+
+### Breaking and behavioural
+
+- **`JobsOptions.RegisterFrameworkJobs` becomes `RegisterSystemJobs`.** All three jobs it governs are
+  `sys.` jobs, and the old name said nothing about the fact that turning it off silently disables
+  crash recovery. The runtime now warns at startup when it is off.
+- **The retry default's cap stretches from eight hours to one day** (`1m..1d x2 ~10%`, about 4.4 days
+  over 15 attempts). The old ~48.5-hour horizon meant a dependency that broke Friday evening was
+  terminally `Failed` before anyone read the alert on Monday. The outbox keeps its own `1m..8h`: a
+  stuck outbox row is undelivered product, sized for the sink rather than for a human.
+
+### Handlers can write to the ledger
+
+- **`ctx.NoteAsync` puts an application-authored line on the job's own timeline**, event code 90. It
+  is the only event an application can author and one the runtime never emits, so every other event
+  stays provably system-written. No new table and no new store: the line lands in `acta.events`
+  beside the transitions it explains, visible in the dashboard and reaped by the same retention. It
+  is annotation, not logging, and the inline payload ceiling applies.
+
+### Cold start and accuracy
+
+- **`README.md` and the quickstart now open with `dotnet add package`** and a twenty-line
+  `Program.cs` in the reader's own app; `git clone` is demoted to "explore the 88 concepts".
+- The site's stale 256 KB payload cap becomes the real 1 MiB, benchmark links point at the newest
+  committed baseline, and three orphaned docs are linked from the index.
+- New pages: `/from-hangfire`, `/from-quartz`, `/from-tickerq`, a Temporal comparison, and
+  `docs/support.md` with the support matrix and a patch policy a solo maintainer can keep.
+
+### Gates
+
+- **`PublicApiContractTests` pins the whole public surface to an approved baseline file**, mirroring
+  the persisted-code gate, so an API change has to move a visible diff.
+- Every shipped library sets `IsAotCompatible` for `net10.0`; the solution builds with zero trim
+  warnings.
+- CI now builds `demos/` and runs the Playwright dashboard smoke.
+
+### Anvil becomes the certification point
+
+- `certify.sql` holds assert-zero property checks over `acta.events` and the job rows: execution-event
+  ownership, attempt pairing, namespace isolation, no stranded work, expected outcome per shape,
+  terminal integrity, step replay, and an inverted check that the chaos was real, because a run with
+  no reclaims proves nothing. Being SQL, they double as the evidence a skeptic re-runs.
+- A certification run locks the cockpit and says which phase it is in, so one click cannot seed
+  100,000 jobs into a run about to be sealed.
+
 ## 0.5.0-beta.1 (preview)
 
 The first beta: the data model held, and the operator surface catches up. Find anything with the
