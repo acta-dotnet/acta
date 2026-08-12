@@ -74,6 +74,7 @@ internal static class CertifyRun
         int workers,
         TimeSpan chaos,
         TimeSpan quiesceTimeout,
+        int stepDelayMs,
         CancellationToken ct
     )
     {
@@ -93,7 +94,7 @@ internal static class CertifyRun
         Phase("START", "starting");
         Console.WriteLine();
         Console.WriteLine($"  Acta certification | {provider} | schema {id.Schema}");
-        Console.WriteLine($"  {jobs} jobs, {workers} workers, chaos for {chaos.TotalMinutes:0} min");
+        Console.WriteLine($"  {jobs} jobs, {workers} workers, 5 steps x {stepDelayMs}ms, chaos for {chaos.TotalMinutes:0} min");
         Console.WriteLine();
 
         Phase("START", "waiting for the first worker to register");
@@ -128,7 +129,7 @@ internal static class CertifyRun
         }
 
         launcher.SetTargetCount(workers);
-        var spec = new AnvilRunSpec(AnvilWorkloadCode.CrashRecovery, jobs, workers);
+        var spec = new AnvilRunSpec(AnvilWorkloadCode.CrashRecovery, jobs, workers, stepDelayMs);
         var batch = session.NextBatch();
         _ = SeedAsync(scopes, batch, spec, progress);
         faults.StartContinuousCrashes();

@@ -11,4 +11,4 @@ public enum AnvilWorkloadCode
 }
 
 /// <summary>The complete, intentionally small request accepted by the run endpoint.</summary>
-public sealed record AnvilRunSpec(AnvilWorkloadCode Workload, int Load, int WorkerCount);
+public sealed record AnvilRunSpec(AnvilWorkloadCode Workload, int Load, int WorkerCount, int StepDelayMs = 1_000);

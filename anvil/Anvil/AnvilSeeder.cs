@@ -27,7 +27,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             ],
             AnvilWorkloadCode.CrashRecovery =>
             [
-                new("slow-success", spec.Load, false, i => AnvilPayloads.Json(new SlowSuccess($"slow-{i}", 5, 1_000))),
+                new("slow-success", spec.Load, false, i => AnvilPayloads.Json(new SlowSuccess($"slow-{i}", 5, spec.StepDelayMs))),
             ],
             AnvilWorkloadCode.RetryAndFailure => RetryAndFailurePlan(spec.Load),
             AnvilWorkloadCode.FanOut =>

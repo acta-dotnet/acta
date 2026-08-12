@@ -159,6 +159,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
             int.Parse(GetArg(args, "--certify-workers") ?? "8"),
             TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-chaos-min") ?? "10")),
             TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-quiesce-min") ?? "45")),
+            int.Parse(GetArg(args, "--certify-step-delay-ms") ?? "1000"),
             CancellationToken.None
         );
         await app.StopAsync();
