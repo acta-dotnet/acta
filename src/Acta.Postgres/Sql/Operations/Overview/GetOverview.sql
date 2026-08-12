@@ -91,4 +91,23 @@ SELECT
         WHERE
             jd.name LIKE 'sys.%'
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
-    ) END AS system_job_count;
+    ) END AS system_job_count,
+    (
+        SELECT COALESCE(SUM(w.max_concurrency), 0)
+        FROM {{schema}}.workers w
+        JOIN {{schema}}.namespaces ns ON ns.id = w.namespace_id
+        WHERE
+            w.status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            AND w.last_seen_at_utc >= now() - make_interval(secs => @p_stale_after_seconds)
+            AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+    ) AS executor_capacity,
+    (
+        SELECT FLOOR(EXTRACT(EPOCH FROM now() - MIN(s.next_run_at_utc)))::bigint
+        FROM {{schema}}.schedules s
+        JOIN {{schema}}.namespaces ns ON ns.id = s.namespace_id
+        WHERE
+            s.next_run_at_utc IS NOT NULL
+            AND s.status_code = 10 /* ScheduleStatusCode.Active */
+            AND s.next_run_at_utc <= now()
+            AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+    ) AS schedule_lag_seconds;

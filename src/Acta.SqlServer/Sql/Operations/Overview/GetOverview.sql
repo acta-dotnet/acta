@@ -100,5 +100,22 @@ SELECT
                     jd.name LIKE 'sys.%'
                     AND (@p_namespace_name IS NULL OR j.namespace_id = @ns_id)
             )
-    END AS system_job_count
+    END AS system_job_count,
+    (
+        SELECT COALESCE(SUM(CAST(w.max_concurrency AS BIGINT)), 0)
+        FROM {{schema}}.workers w
+        WHERE
+            w.status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            AND w.last_seen_at_utc >= DATEADD(SECOND, -@p_stale_after_seconds, @now)
+            AND (@p_namespace_name IS NULL OR w.namespace_id = @ns_id)
+    ) AS executor_capacity,
+    (
+        SELECT CAST(DATEDIFF(SECOND, MIN(s.next_run_at_utc), @now) AS BIGINT)
+        FROM {{schema}}.schedules s
+        WHERE
+            s.next_run_at_utc IS NOT NULL
+            AND s.status_code = 10 /* ScheduleStatusCode.Active */
+            AND s.next_run_at_utc <= @due_now
+            AND (@p_namespace_name IS NULL OR s.namespace_id = @ns_id)
+    ) AS schedule_lag_seconds
 OPTION (RECOMPILE);

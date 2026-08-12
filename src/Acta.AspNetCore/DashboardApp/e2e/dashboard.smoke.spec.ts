@@ -91,7 +91,9 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
         unresolvedCriticalAlertCount: 0,
         deadWorkerCount: 0,
         staleWorkerCount: 0,
-        dueSoonScheduleCount: 0
+        dueSoonScheduleCount: 0,
+        executorCapacity: 8,
+        scheduleLagSeconds: null
       });
     }
     if (path === 'jobs' && request.method() === 'GET') return json(paged([job]));

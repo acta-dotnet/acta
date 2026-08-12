@@ -52,24 +52,37 @@
 
   // Triage verdict from the overview snapshot. Workers are ephemeral, so a dead/stale worker is only a
   // soft signal; the real "act now" worker problem is no capacity - due jobs sitting with nothing
-  // executing while the head ages (the overview carries no live-worker count, so this is the proxy).
+  // executing while the head ages.
   // One relay tick moves at most this many source rows; a backlog beyond it cannot clear in the
   // next tick, which is what "lagging outbox" means here. Below it, backlog is between-tick drift.
   const OUTBOX_TICK_ENVELOPE = 5120;
+
+  // A live schedule sits briefly past due between its due instant and the slot firing, so overdue is
+  // only worth reporting once it is longer than any normal fire delay. Same envelope as the oldest
+  // ready job rather than a second invented number.
+  const SCHEDULE_LAG_ENVELOPE = 300;
 
   function buildVerdict(o, outboxLines, ns) {
     if (!o) {
       return null;
     }
     const plural = (n, word) => displayFormatter.number(n) + ' ' + word + (n === 1 ? '' : 's');
+    // executorCapacity separates the two diagnoses the old proxy had to guess between: no capacity at
+    // all is a deployment problem, while slots sitting idle beside a due backlog is the worse one -
+    // workers are up and not claiming.
     const stalled = o.readyCount > 0 && o.executingCount === 0 && o.oldestReadyAgeSeconds > 60;
 
     const urgent = [];
     if (o.unresolvedCriticalAlertCount > 0) {
       urgent.push({ text: plural(o.unresolvedCriticalAlertCount, 'critical alert'), href: routes.alerts({ namespace: ns }) });
     }
-    if (stalled) {
-      urgent.push({ text: plural(o.readyCount, 'ready job') + ' not draining (no live workers?)', href: routes.jobs({ namespace: ns, status: 'Ready' }) });
+    if (o.readyCount > 0 && o.executorCapacity === 0) {
+      urgent.push({ text: plural(o.readyCount, 'ready job') + ' with no live workers', href: routes.workers({ namespace: ns }) });
+    } else if (stalled) {
+      urgent.push({
+        text: plural(o.readyCount, 'ready job') + ' not draining while ' + plural(o.executorCapacity, 'executor slot') + ' sit idle',
+        href: routes.jobs({ namespace: ns, status: 'Ready' })
+      });
     }
 
     // A dead worker is a tombstone, not an incident - it left or crashed and won't return. Real lost
@@ -77,6 +90,11 @@
     const soft = [];
     if (o.oldestReadyAgeSeconds > 300 && !stalled) {
       soft.push({ text: 'oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds), href: routes.jobs({ namespace: ns, status: 'Ready' }) });
+    }
+    // A schedule that stops firing moves nothing else on this snapshot: no job is enqueued, so ready,
+    // failed and the workers all stay quiet while the verdict would otherwise read clean.
+    if (o.scheduleLagSeconds > SCHEDULE_LAG_ENVELOPE) {
+      soft.push({ text: 'schedule overdue by ' + displayFormatter.duration(o.scheduleLagSeconds), href: routes.schedules({ namespace: ns }) });
     }
     if (o.failedCount > 0) soft.push({ text: plural(o.failedCount, 'failed job'), href: routes.jobs({ namespace: ns, status: 'Failed' }) });
     if (o.staleWorkerCount > 0) soft.push({ text: plural(o.staleWorkerCount, 'stale worker'), href: routes.workers({ namespace: ns }) });
@@ -142,7 +160,15 @@
         value={displayFormatter.duration(overview.oldestReadyAgeSeconds)}
         tone={overview.oldestReadyAgeSeconds > 300 ? 'warn' : ''}
         hint="How long the oldest due job has been waiting for a worker" />
-      <MetricCard label="Executing" icon="lightning-bolt" value={overview.executingCount} href={routes.jobs({ namespace: $scope, status: 'Executing' })} />
+      <MetricCard
+        label="Executing" icon="lightning-bolt"
+        value={overview.executingCount}
+        note={overview.executorCapacity > 0 ? ' / ' + displayFormatter.number(overview.executorCapacity) : ''}
+        tone={overview.executorCapacity > 0 && overview.executingCount >= overview.executorCapacity ? 'warn' : ''}
+        hint={overview.executorCapacity > 0
+          ? displayFormatter.number(overview.executorCapacity) + ' executor slots across live workers - at the ceiling, only more workers go faster'
+          : 'No live workers, so nothing can be claimed'}
+        href={routes.jobs({ namespace: $scope, status: 'Executing' })} />
       <MetricCard
         label="Failed" icon="x-circle"
         value={overview.failedCount}
@@ -164,6 +190,12 @@
         label="Due soon" icon="calendar"
         value={overview.dueSoonScheduleCount}
         hint="Live schedules due within the next hour"
+        href={routes.schedules({ namespace: $scope })} />
+      <MetricCard
+        label="Schedule lag" icon="calendar"
+        value={displayFormatter.duration(overview.scheduleLagSeconds)}
+        tone={overview.scheduleLagSeconds > SCHEDULE_LAG_ENVELOPE ? 'warn' : ''}
+        hint="How far past due the most overdue live schedule is; a schedule that stops firing moves no other number here"
         href={routes.schedules({ namespace: $scope })} />
     </div>
 

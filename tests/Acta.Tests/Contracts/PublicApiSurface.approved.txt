@@ -2139,10 +2139,11 @@ sealed class Acta.OverviewQuery
     System.Int32 StaleWorkerAfterSeconds { get;init; }
     System.String JobNamespace { get;init; }
 sealed class Acta.OverviewSnapshot
-    .ctor(System.Int64 ReadyCount, System.Nullable<System.Int64> OldestReadyAgeSeconds, System.Int64 ExecutingCount, System.Int64 FailedCount, System.Int64 UnresolvedAlertCount, System.Int64 UnresolvedCriticalAlertCount, System.Int64 DeadWorkerCount, System.Int64 StaleWorkerCount, System.Int64 DueSoonScheduleCount, System.Int64 JobCount, System.Int64 SystemJobCount)
+    .ctor(System.Int64 ReadyCount, System.Nullable<System.Int64> OldestReadyAgeSeconds, System.Int64 ExecutingCount, System.Int64 FailedCount, System.Int64 UnresolvedAlertCount, System.Int64 UnresolvedCriticalAlertCount, System.Int64 DeadWorkerCount, System.Int64 StaleWorkerCount, System.Int64 DueSoonScheduleCount, System.Int64 JobCount, System.Int64 SystemJobCount, System.Int64 ExecutorCapacity, System.Nullable<System.Int64> ScheduleLagSeconds)
     System.Int64 DeadWorkerCount { get;init; }
     System.Int64 DueSoonScheduleCount { get;init; }
     System.Int64 ExecutingCount { get;init; }
+    System.Int64 ExecutorCapacity { get;init; }
     System.Int64 FailedCount { get;init; }
     System.Int64 JobCount { get;init; }
     System.Int64 ReadyCount { get;init; }
@@ -2151,6 +2152,7 @@ sealed class Acta.OverviewSnapshot
     System.Int64 UnresolvedAlertCount { get;init; }
     System.Int64 UnresolvedCriticalAlertCount { get;init; }
     System.Nullable<System.Int64> OldestReadyAgeSeconds { get;init; }
+    System.Nullable<System.Int64> ScheduleLagSeconds { get;init; }
 sealed class Acta.PagedResult<T>
     .ctor(System.Collections.Generic.IReadOnlyList<T> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
     System.Boolean HasMore { get;init; }

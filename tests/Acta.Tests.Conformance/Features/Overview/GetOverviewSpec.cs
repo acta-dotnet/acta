@@ -65,6 +65,7 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.True(ns.DeadWorkerCount >= 0);
         Assert.True(ns.StaleWorkerCount >= 0);
         Assert.True(ns.DueSoonScheduleCount >= 0);
+        Assert.True(ns.ExecutorCapacity >= 0);
         Assert.True(ns.JobCount >= 1, $"Expected JobCount >= 1 in namespace {TestNamespace}, got {ns.JobCount}.");
         Assert.True(ns.SystemJobCount >= 0);
         Assert.True(ns.JobCount >= ns.SystemJobCount, "JobCount includes system jobs, so it must be >= SystemJobCount.");
@@ -99,6 +100,8 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(0, result.DueSoonScheduleCount);
         Assert.Equal(0, result.JobCount);
         Assert.Equal(0, result.SystemJobCount);
+        Assert.Equal(0, result.ExecutorCapacity);
+        Assert.Null(result.ScheduleLagSeconds);
     }
 
     /// <summary>
@@ -112,6 +115,8 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
     ///   <item>StaleWorkerCount · threshold flip: W2 aged 3 h; staleAfterSeconds=3600 → 1, staleAfterSeconds=14400 → 0.</item>
     ///   <item>DueSoonScheduleCount · 0: dueSoonSeconds=0 and the slot cursors are parked a day out, so the zero window can never include them.</item>
+    ///   <item>ExecutorCapacity · threshold flip, inverted from StaleWorkerCount: staleAfterSeconds=3600 → 0, staleAfterSeconds=14400 → 1 (W2's single slot).</item>
+    ///   <item>ScheduleLagSeconds · null: the parked cursors are a day ahead, so no live schedule is past due.</item>
     /// </list>
     /// </para>
     /// </summary>
@@ -255,11 +260,17 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(0, ovNarrow.SystemJobCount); // RegisterSystemJobs = false, recurring-ping is not a __ job
         Assert.NotNull(ovNarrow.OldestReadyAgeSeconds);
         Assert.True(ovNarrow.OldestReadyAgeSeconds >= 0);
+        // Capacity is StaleWorkerCount's exact inverse here: W1 is Dead and W2 is past the 1 h threshold,
+        // so neither contributes a slot. A capacity that ignored freshness would read 1.
+        Assert.Equal(0, ovNarrow.ExecutorCapacity);
+        Assert.Null(ovNarrow.ScheduleLagSeconds); // the harness parks slot cursors a day out, so none is past due
 
         // ── Wide-threshold assertion (staleAfterSeconds = 4 h): count flips to 0 ────────────────
         var ovWide = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 14400, 0), ct);
 
         Assert.Equal(0, ovWide.StaleWorkerCount); // threshold crossed: W2's 3 h < 4 h
+        Assert.Equal(1, ovWide.ExecutorCapacity); // same crossing, other direction: W2's single slot is live again
+        Assert.Null(ovWide.ScheduleLagSeconds);
         // Cross-check that other counters are unchanged across the threshold call.
         Assert.Equal(before.ReadyCount + 2, ovWide.ReadyCount);
         Assert.Equal(1, ovWide.ExecutingCount);

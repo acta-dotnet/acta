@@ -7738,7 +7738,9 @@
           "staleWorkerCount",
           "dueSoonScheduleCount",
           "jobCount",
-          "systemJobCount"
+          "systemJobCount",
+          "executorCapacity",
+          "scheduleLagSeconds"
         ],
         "type": "object",
         "properties": {
@@ -7840,6 +7842,25 @@
               "string"
             ],
             "description": "System jobs in scope (reserved `sys.`-prefixed names); JobCount minus this is the user total.",
+            "format": "int64"
+          },
+          "executorCapacity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Executor slots across live workers (Active or Draining, seen inside the stale threshold); what ExecutingCount saturates against.",
+            "format": "int64"
+          },
+          "scheduleLagSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Seconds the most overdue live schedule is past its next run; null when none are overdue.",
             "format": "int64"
           }
         },

@@ -35,10 +35,14 @@ public sealed class AnvilStateReader(
 
     private async ValueTask<AnvilState> ReadFromDbAsync(CancellationToken ct)
     {
-        var staleAfterSeconds = (int)_workerDeadAfter.TotalSeconds;
+        // Staleness and executor capacity key on the lease window, not the tombstone window. Past the
+        // lease a worker's jobs are already reclaimable by recovery, so counting its slots as live
+        // capacity contradicts what the engine has decided. WorkerDeadAfter stays deliberately more
+        // generous - retiring a worker that might still recover is the expensive mistake - so it is
+        // reported to the cockpit but never used to decide who is live.
         var overviewTask = operations
             .Ledger.GetOverviewAsync(
-                new OverviewQuery(_namespaceName, StaleWorkerAfterSeconds: staleAfterSeconds, IncludeSlowCounts: true),
+                new OverviewQuery(_namespaceName, StaleWorkerAfterSeconds: _leaseTtlSeconds, IncludeSlowCounts: true),
                 ct
             )
             .AsTask();
@@ -75,7 +79,7 @@ public sealed class AnvilStateReader(
             Provider: session.Provider,
             Ready: workerRows.Items.Count > 0,
             Counts: counts,
-            Beats: new AnvilBeats(_heartbeatSeconds, _leaseTtlSeconds, staleAfterSeconds),
+            Beats: new AnvilBeats(_heartbeatSeconds, _leaseTtlSeconds, (int)_workerDeadAfter.TotalSeconds),
             WorkerSummary: SummarizeWorkers(workers),
             Workers: workers,
             RecentEvents: MapEvents(events.Items, workerNames),

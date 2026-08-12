@@ -246,7 +246,7 @@ internal static class TestDashboardHost
                 query.JobNamespace is not null
                 && query.JobNamespace.Any(ch => !char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')
                 ? throw new InvalidQueryException("JobNamespace must be a kebab-case identifier.")
-                : new OverviewSnapshot(3, 120, 1, 2, 4, 1, 1, 2, 5, 10, 3);
+                : new OverviewSnapshot(3, 120, 1, 2, 4, 1, 1, 2, 5, 10, 3, 8, 90);
         }
 
         /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>

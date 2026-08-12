@@ -14,6 +14,8 @@ namespace Acta;
 /// <param name="DueSoonScheduleCount">Live schedules due inside the due-soon window.</param>
 /// <param name="JobCount">All jobs in scope, including system jobs.</param>
 /// <param name="SystemJobCount">System jobs in scope (reserved <c>sys.</c>-prefixed names); JobCount minus this is the user total.</param>
+/// <param name="ExecutorCapacity">Executor slots across live workers (Active or Draining, seen inside the stale threshold); what ExecutingCount saturates against.</param>
+/// <param name="ScheduleLagSeconds">Seconds the most overdue live schedule is past its next run; null when none are overdue.</param>
 public sealed record OverviewSnapshot(
     long ReadyCount,
     long? OldestReadyAgeSeconds,
@@ -25,5 +27,7 @@ public sealed record OverviewSnapshot(
     long StaleWorkerCount,
     long DueSoonScheduleCount,
     long JobCount,
-    long SystemJobCount
+    long SystemJobCount,
+    long ExecutorCapacity,
+    long? ScheduleLagSeconds
 );
