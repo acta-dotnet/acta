@@ -133,7 +133,9 @@ JOIN {{schema}}.schedules js
 WHERE
     @p_final_status IS NOT NULL
     AND d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-    AND js.status_code = 30 /* ScheduleStatusCode.Paused */;
+    AND js.status_code = 30 /* ScheduleStatusCode.Paused */
+    AND js.paused_until_utc IS NOT NULL
+    AND js.paused_until_utc <= {{now}};
 
 UPDATE {{schema}}.schedules
 SET
@@ -146,7 +148,13 @@ SET
 WHERE
     @p_final_status IS NOT NULL
     AND EXISTS (SELECT 1 FROM _ce_done)
-    AND id IN (SELECT json_extract(a.value, '$.schedule_id') FROM json_each(@p_schedule_advances) a);
+    AND id IN (SELECT json_extract(a.value, '$.schedule_id') FROM json_each(@p_schedule_advances) a)
+    -- An operator pause inside the fire window wins; only an elapsed TIMED pause auto-resumes here.
+    -- Same predicate as the audit insert above, so the two cannot disagree.
+    AND (
+        status_code <> 30 /* ScheduleStatusCode.Paused */
+        OR (paused_until_utc IS NOT NULL AND paused_until_utc <= {{now}})
+    );
 
 DELETE FROM {{schema}}.results
 WHERE

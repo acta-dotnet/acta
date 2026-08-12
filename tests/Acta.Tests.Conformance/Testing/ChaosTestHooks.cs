@@ -11,6 +11,7 @@ namespace Acta.Tests.Conformance.Testing;
 internal sealed class StoreFaultPlan
 {
     private int _throwBeforeComplete;
+    private Func<Task>? _beforeComplete;
     private int _throwAfterComplete;
     private TimeSpan? _getUtcNowSkew;
 
@@ -20,9 +21,31 @@ internal sealed class StoreFaultPlan
 
     public void SkewGetUtcNowBy(TimeSpan skew) => _getUtcNowSkew = skew;
 
+    /// <summary>
+    /// Runs <paramref name="action"/> once, inside the window between an attempt deciding its outcome
+    /// and that outcome reaching the ledger.
+    /// </summary>
+    /// <remarks>
+    /// This is how a race against an in-flight attempt is tested without racing anything: the window
+    /// is normally microseconds wide, so a test that tried to hit it with a second thread would prove
+    /// only which thread happened to win on that run. Suspending the completion instead makes the
+    /// interleaving the test's choice, and the result reproducible on every provider.
+    /// </remarks>
+    public void RunBeforeCompleteOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeComplete, action);
+
     public void MaybeThrowBefore(string operation)
     {
-        if (operation == "CompleteExecution" && Interlocked.Exchange(ref _throwBeforeComplete, 0) == 1)
+        if (operation != "CompleteExecution")
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _beforeComplete, null) is { } action)
+        {
+            action().GetAwaiter().GetResult();
+        }
+
+        if (Interlocked.Exchange(ref _throwBeforeComplete, 0) == 1)
         {
             throw new TimeoutException("Injected transient failure before CompleteExecution.");
         }

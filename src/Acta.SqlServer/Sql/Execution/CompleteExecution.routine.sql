@@ -174,7 +174,9 @@ BEGIN
                         INNER JOIN @p_schedule_advances adv ON adv.schedule_id = js.id
                         WHERE
                             @c_audit = 20 /* JobAuditLevelCode.Audit */
-                            AND js.status_code = 30 /* ScheduleStatusCode.Paused */;
+                            AND js.status_code = 30 /* ScheduleStatusCode.Paused */
+                            AND js.paused_until_utc IS NOT NULL
+                            AND js.paused_until_utc <= @now;
 
                         UPDATE js
                         SET
@@ -184,8 +186,14 @@ BEGIN
                             js.paused_until_utc = NULL,
                             js.modified_at_utc = @now,
                             js.version = js.version + 1
+                        -- An operator pause inside the fire window wins: the advance was planned before
+                        -- the pause existed. Only an elapsed TIMED pause auto-resumes here, and the audit
+                        -- insert above shares this predicate so the two cannot disagree.
                         FROM {{schema}}.schedules js
-                        INNER JOIN @p_schedule_advances adv ON adv.schedule_id = js.id;
+                        INNER JOIN @p_schedule_advances adv ON adv.schedule_id = js.id
+                        WHERE
+                            js.status_code <> 30 /* ScheduleStatusCode.Paused */
+                            OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= @now);
 
                         IF @p_recurring_result_cap > 0
                             BEGIN

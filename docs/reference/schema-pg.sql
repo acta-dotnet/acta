@@ -1743,7 +1743,9 @@ BEGIN
                     js.name
                 FROM acta.schedules js
                 JOIN unnest(p_advance_schedule_ids) AS a (schedule_id) ON a.schedule_id = js.id
-                WHERE js.status_code = 30 /* ScheduleStatusCode.Paused */;
+                WHERE js.status_code = 30 /* ScheduleStatusCode.Paused */
+                  AND js.paused_until_utc IS NOT NULL
+                  AND js.paused_until_utc <= now();
             END IF;
 
             UPDATE acta.schedules js
@@ -1754,8 +1756,15 @@ BEGIN
                 paused_until_utc = NULL,
                 modified_at_utc = now(),
                 version = version + 1
+            -- An operator pause inside the fire window wins: the advance was planned before the pause
+            -- existed. Only an elapsed TIMED pause auto-resumes here, and the audit insert above shares
+            -- this predicate so the event and the write cannot disagree.
             FROM unnest(p_advance_schedule_ids, p_advance_next_runs) AS adv (schedule_id, next_run)
-            WHERE js.id = adv.schedule_id;
+            WHERE js.id = adv.schedule_id
+              AND (
+                  js.status_code <> 30 /* ScheduleStatusCode.Paused */
+                  OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= now())
+              );
         END IF;
 
         IF p_recurring_result_cap > 0 THEN
