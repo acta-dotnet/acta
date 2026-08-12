@@ -52,7 +52,20 @@ public sealed class OpenApiContractTests
         var fake = new AspNetCore.TestDashboardHost.FakeJobs();
         builder.Services.AddSingleton<IJobs>(fake);
         builder.Services.AddSingleton<IActaOperations>(fake);
-        builder.Services.AddOpenApi();
+        builder.Services.AddOpenApi(o =>
+            // Two request records carry `JsonElement Input = default` for the free-form payload. The
+            // generator copies that default into the schema and then cannot serialize it, because an
+            // uninitialized JsonElement has no value to write. The defaults document nothing anyway -
+            // the field is "whatever JSON the caller sends" - so they are dropped rather than paid for
+            // by weakening the request types to keep a generator happy.
+            o.AddSchemaTransformer(
+                (schema, _, _) =>
+                {
+                    schema.Default = null;
+                    return Task.CompletedTask;
+                }
+            )
+        );
 
         var app = builder.Build();
         // The dashboard UI is off: its index, asset, and SPA-fallback routes are not part of the API

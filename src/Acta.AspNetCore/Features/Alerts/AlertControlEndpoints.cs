@@ -35,29 +35,33 @@ internal static class AlertControlEndpoints
         Func<IActaOperations, long, string?, string?, CancellationToken, ValueTask<AlertControlResult>> invoke
     )
     {
-        group.MapPost(
-            "/alerts/{alertId:long}/" + verb,
-            async Task<IResult> (long alertId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                var (note, error) = await ControlEndpointValidation.ReadOptionalTextAsync(
-                    http,
-                    options,
-                    DashboardJsonContext.Default.AlertControlRequest,
-                    static r => r.Note,
-                    ct
-                );
-                if (error is not null)
+        group
+            .MapPost(
+                "/alerts/{alertId:long}/" + verb,
+                async Task<IResult> (long alertId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return error;
-                }
+                    var (note, error) = await ControlEndpointValidation.ReadOptionalTextAsync(
+                        http,
+                        options,
+                        DashboardJsonContext.Default.AlertControlRequest,
+                        static r => r.Note,
+                        ct
+                    );
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                var result = await invoke(operations, alertId, note, actorKey, ct);
-                return ToResult(result);
-            }
-        );
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    var result = await invoke(operations, alertId, note, actorKey, ct);
+                    return ToResult(result);
+                }
+            )
+            // One declaration for acknowledge and resolve alike.
+            .Produces<AlertControlResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static IResult ToResult(AlertControlResult result)

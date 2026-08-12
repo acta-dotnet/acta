@@ -35,127 +35,131 @@ internal static class ActaControlEndpoints
     // in-flight job is rejected (409) by the verb.
     private static void MapInput(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        group.MapPost(
-            "/jobs/{jobRef}/input",
-            async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
-            {
-                if (!JobRef.TryParse(jobRef, out var parsed))
+        group
+            .MapPost(
+                "/jobs/{jobRef}/input",
+                async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
-                }
+                    if (!JobRef.TryParse(jobRef, out var parsed))
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                    }
 
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.JobInputRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                var hasInput =
-                    body!.Input.ValueKind is not (System.Text.Json.JsonValueKind.Undefined or System.Text.Json.JsonValueKind.Null);
-                if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) != 1)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid request.",
-                        "Exactly one of input, text, or base64 is required."
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.JobInputRequest,
+                        ct
                     );
-                }
-
-                var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
-                if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
-                {
-                    return reasonError;
-                }
-
-                // Resolve the job's current stored format before building the payload so every format
-                // round-trips as itself; a job with no stored input (none) has nothing to amend.
-                var jobId = await jobs.ResolveJobIdAsync(JobLookup.ByRef(parsed), ct);
-                if (jobId is null)
-                {
-                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
-                }
-
-                var current = await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct);
-                if (current is not { } stored)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status409Conflict,
-                        "No input to amend.",
-                        "The job has no input to amend."
-                    );
-                }
-
-                var storedFormat = stored.Format;
-                JobPayload payload;
-                if (body.Text is not null)
-                {
-                    if (storedFormat.Id != JobPayloadFormat.Text.Id)
+                    if (error is not null)
                     {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Format mismatch.",
-                            $"text can only amend a text-format job; this job's input format is {storedFormat.Name}."
-                        );
+                        return error;
                     }
 
-                    payload = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes(body.Text));
-                }
-                else if (body.Base64 is not null)
-                {
-                    if (storedFormat.Id != JobPayloadFormat.Bytes.Id && storedFormat.Id < 128)
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Format mismatch.",
-                            $"base64 can only amend a binary-format job; this job's input format is {storedFormat.Name}."
-                        );
-                    }
-
-                    byte[] decoded;
-                    try
-                    {
-                        decoded = Convert.FromBase64String(body.Base64);
-                    }
-                    catch (FormatException)
+                    var hasInput =
+                        body!.Input.ValueKind is not (System.Text.Json.JsonValueKind.Undefined or System.Text.Json.JsonValueKind.Null);
+                    if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) != 1)
                     {
                         return ControlEndpointValidation.Problem(
                             StatusCodes.Status400BadRequest,
                             "Invalid request.",
-                            "base64 is not valid base64."
+                            "Exactly one of input, text, or base64 is required."
                         );
                     }
 
-                    payload = JobPayload.FromBytes(storedFormat, decoded);
-                }
-                else
-                {
-                    // Json fallback: accepted for any non-none stored format; the runner decodes by the stored id.
-                    payload = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes(body.Input.GetRawText()));
-                }
+                    var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
+                    if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
+                    {
+                        return reasonError;
+                    }
 
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                try
-                {
-                    var result = await jobs.UpdateJobInputAsync(JobLookup.ByRef(parsed), payload, reason, actorKey, ct);
-                    return ToResult("input", parsed, result);
+                    // Resolve the job's current stored format before building the payload so every format
+                    // round-trips as itself; a job with no stored input (none) has nothing to amend.
+                    var jobId = await jobs.ResolveJobIdAsync(JobLookup.ByRef(parsed), ct);
+                    if (jobId is null)
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                    }
+
+                    var current = await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct);
+                    if (current is not { } stored)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status409Conflict,
+                            "No input to amend.",
+                            "The job has no input to amend."
+                        );
+                    }
+
+                    var storedFormat = stored.Format;
+                    JobPayload payload;
+                    if (body.Text is not null)
+                    {
+                        if (storedFormat.Id != JobPayloadFormat.Text.Id)
+                        {
+                            return ControlEndpointValidation.Problem(
+                                StatusCodes.Status400BadRequest,
+                                "Format mismatch.",
+                                $"text can only amend a text-format job; this job's input format is {storedFormat.Name}."
+                            );
+                        }
+
+                        payload = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes(body.Text));
+                    }
+                    else if (body.Base64 is not null)
+                    {
+                        if (storedFormat.Id != JobPayloadFormat.Bytes.Id && storedFormat.Id < 128)
+                        {
+                            return ControlEndpointValidation.Problem(
+                                StatusCodes.Status400BadRequest,
+                                "Format mismatch.",
+                                $"base64 can only amend a binary-format job; this job's input format is {storedFormat.Name}."
+                            );
+                        }
+
+                        byte[] decoded;
+                        try
+                        {
+                            decoded = Convert.FromBase64String(body.Base64);
+                        }
+                        catch (FormatException)
+                        {
+                            return ControlEndpointValidation.Problem(
+                                StatusCodes.Status400BadRequest,
+                                "Invalid request.",
+                                "base64 is not valid base64."
+                            );
+                        }
+
+                        payload = JobPayload.FromBytes(storedFormat, decoded);
+                    }
+                    else
+                    {
+                        // Json fallback: accepted for any non-none stored format; the runner decodes by the stored id.
+                        payload = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes(body.Input.GetRawText()));
+                    }
+
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    try
+                    {
+                        var result = await jobs.UpdateJobInputAsync(JobLookup.ByRef(parsed), payload, reason, actorKey, ct);
+                        return ToResult("input", parsed, result);
+                    }
+                    catch (PayloadTooLargeException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Input too large.", ex.Message);
+                    }
                 }
-                catch (PayloadTooLargeException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Input too large.", ex.Message);
-                }
-            }
-        );
+            )
+            .Produces<JobControlResponse>(StatusCodes.Status200OK)
+            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     // POST /jobs/{jobRef}/reschedule: unlike the other verbs, the target instant travels in the body
@@ -163,52 +167,56 @@ internal static class ActaControlEndpoints
     // MapVerb's optional-reason ReadAsync.
     private static void MapReschedule(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        group.MapPost(
-            "/jobs/{jobRef}/reschedule",
-            async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
-            {
-                if (!JobRef.TryParse(jobRef, out var parsed))
+        group
+            .MapPost(
+                "/jobs/{jobRef}/reschedule",
+                async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
-                }
+                    if (!JobRef.TryParse(jobRef, out var parsed))
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                    }
 
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.JobRescheduleRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                if (body!.NextRunAtUtc <= DateTime.MinValue)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid request.",
-                        "nextRunAtUtc is required."
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.JobRescheduleRequest,
+                        ct
                     );
-                }
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
-                if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
-                {
-                    return reasonError;
-                }
+                    if (body!.NextRunAtUtc <= DateTime.MinValue)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid request.",
+                            "nextRunAtUtc is required."
+                        );
+                    }
 
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                var result = await jobs.RescheduleAsync(JobLookup.ByRef(parsed), body.NextRunAtUtc, reason, actorKey, ct);
-                return ToResult("reschedule", parsed, result);
-            }
-        );
+                    var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
+                    if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
+                    {
+                        return reasonError;
+                    }
+
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    var result = await jobs.RescheduleAsync(JobLookup.ByRef(parsed), body.NextRunAtUtc, reason, actorKey, ct);
+                    return ToResult("reschedule", parsed, result);
+                }
+            )
+            .Produces<JobControlResponse>(StatusCodes.Status200OK)
+            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
     // POST /jobs/{jobRef}/reprioritize: like reschedule, the target priority travels in the body, so
@@ -216,43 +224,47 @@ internal static class ActaControlEndpoints
     // unrecognized priority name fails deserialization inside ReadJsonBodyAsync, which maps it to 400.
     private static void MapReprioritize(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        group.MapPost(
-            "/jobs/{jobRef}/reprioritize",
-            async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
-            {
-                if (!JobRef.TryParse(jobRef, out var parsed))
+        group
+            .MapPost(
+                "/jobs/{jobRef}/reprioritize",
+                async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
-                }
+                    if (!JobRef.TryParse(jobRef, out var parsed))
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                    }
 
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.JobReprioritizeRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.JobReprioritizeRequest,
+                        ct
+                    );
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                var reason = string.IsNullOrWhiteSpace(body!.ReasonMessage) ? null : body.ReasonMessage.Trim();
-                if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
-                {
-                    return reasonError;
-                }
+                    var reason = string.IsNullOrWhiteSpace(body!.ReasonMessage) ? null : body.ReasonMessage.Trim();
+                    if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
+                    {
+                        return reasonError;
+                    }
 
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                var result = await jobs.ReprioritizeAsync(JobLookup.ByRef(parsed), body.Priority, reason, actorKey, ct);
-                return ToResult("reprioritize", parsed, result);
-            }
-        );
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    var result = await jobs.ReprioritizeAsync(JobLookup.ByRef(parsed), body.Priority, reason, actorKey, ct);
+                    return ToResult("reprioritize", parsed, result);
+                }
+            )
+            .Produces<JobControlResponse>(StatusCodes.Status200OK)
+            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
     // POST /jobs/{jobRef}/signals/{name}: raise a named signal on a job. This is operator control, so it
@@ -264,57 +276,65 @@ internal static class ActaControlEndpoints
     // deserializes.
     private static void MapSignal(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        group.MapPost(
-            "/jobs/{jobRef}/signals/{name}",
-            async (string jobRef, string name, HttpContext http, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
-            {
-                if (!JobRef.TryParse(jobRef, out var parsed))
+        group
+            .MapPost(
+                "/jobs/{jobRef}/signals/{name}",
+                async (string jobRef, string name, HttpContext http, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
-                }
+                    if (!JobRef.TryParse(jobRef, out var parsed))
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                    }
 
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                try
-                {
-                    IdentifierSyntax.ValidateUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
-                }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid signal name.", ex.Message);
-                }
+                    try
+                    {
+                        IdentifierSyntax.ValidateUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid signal name.", ex.Message);
+                    }
 
-                var (bytes, error) = await ControlEndpointValidation.ReadOptionalJsonBytesAsync(
-                    http,
-                    jobsOptions.Value.MaxInlinePayloadBytes,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
+                    var (bytes, error) = await ControlEndpointValidation.ReadOptionalJsonBytesAsync(
+                        http,
+                        jobsOptions.Value.MaxInlinePayloadBytes,
+                        ct
+                    );
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                // An empty body raises a presence-only signal; a JSON body passes through verbatim.
-                var payload = bytes is null ? JobPayload.None : JobPayload.FromBytes(JobPayloadFormat.Json, bytes);
+                    // An empty body raises a presence-only signal; a JSON body passes through verbatim.
+                    var payload = bytes is null ? JobPayload.None : JobPayload.FromBytes(JobPayloadFormat.Json, bytes);
 
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
 
-                try
-                {
-                    var result = await jobs.RaiseSignalAsync(JobLookup.ByRef(parsed), name, payload, actorKey, ct);
-                    return ToResult("signal", parsed, result);
+                    try
+                    {
+                        var result = await jobs.RaiseSignalAsync(JobLookup.ByRef(parsed), name, payload, actorKey, ct);
+                        return ToResult("signal", parsed, result);
+                    }
+                    catch (PayloadTooLargeException ex)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status413PayloadTooLarge,
+                            "Signal value too large.",
+                            ex.Message
+                        );
+                    }
                 }
-                catch (PayloadTooLargeException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Signal value too large.", ex.Message);
-                }
-            }
-        );
+            )
+            .Produces<JobControlResponse>(StatusCodes.Status200OK)
+            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
     private static void MapVerb(
@@ -324,28 +344,36 @@ internal static class ActaControlEndpoints
         Func<IJobs, JobLookup, string?, string?, CancellationToken, ValueTask<JobControlResult>> invoke
     )
     {
-        group.MapPost(
-            "/jobs/{jobRef}/" + verb,
-            async (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
-            {
-                if (!JobRef.TryParse(jobRef, out var parsed))
+        group
+            .MapPost(
+                "/jobs/{jobRef}/" + verb,
+                async (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
-                }
+                    if (!JobRef.TryParse(jobRef, out var parsed))
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                    }
 
-                var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
-                if (error is not null)
-                {
-                    return error;
-                }
+                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                var result = await invoke(jobs, JobLookup.ByRef(parsed), reason, actorKey, ct);
-                return ToResult(verb, parsed, result);
-            }
-        );
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    var result = await invoke(jobs, JobLookup.ByRef(parsed), reason, actorKey, ct);
+                    return ToResult(verb, parsed, result);
+                }
+            )
+            // One declaration for all five verbs, and it states the transition contract rather than
+            // just the happy path: applied is 200, a state that forbids the transition is 409, an
+            // unknown ref is 404. All three carry the same body, so a client reads `action` and the
+            // resulting `status` without special-casing the status code.
+            .Produces<JobControlResponse>(StatusCodes.Status200OK)
+            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
     private static IResult ToResult(string verb, JobRef jobRef, JobControlResult result)

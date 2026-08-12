@@ -13,177 +13,197 @@ internal static class TenantControlEndpoints
 {
     public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        group.MapPost(
-            "/tenants",
-            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+        group
+            .MapPost(
+                "/tenants",
+                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.TenantRegistrationRequest,
-                    ct
-                );
-                if (bodyError is not null)
-                {
-                    return bodyError;
-                }
-
-                var tenantKey = request?.TenantKey?.Trim();
-                if (string.IsNullOrEmpty(tenantKey))
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid tenant request.",
-                        "tenantKey is required."
-                    );
-                }
-
-                if (
-                    ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
-                    { } displayNameError
-                )
-                {
-                    return displayNameError;
-                }
-                if (
-                    ControlEndpointValidation.ValidateLength(request.Description, "description", CatalogLimits.TenantDescription) is
-                    { } descriptionError
-                )
-                {
-                    return descriptionError;
-                }
-
-                try
-                {
-                    var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-                    var tenantId = await operations.Tenants.RegisterAsync(canonicalTenantKey, request.DisplayName, request.Description, ct);
-                    return Results.Json(
-                        new TenantRegistrationResponse(tenantId, canonicalTenantKey),
-                        DashboardJsonContext.Default.TenantRegistrationResponse,
-                        statusCode: StatusCodes.Status200OK
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant request.", ex.Message);
-                }
-            }
-        );
-
-        group.MapPost(
-            "/tenants/{tenantKey}/suspend",
-            async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                try
-                {
-                    var result = await operations.Tenants.SuspendAsync(tenantKey, reason, http.User?.Identity?.Name, ct);
-                    return AdminControlHttp.ToResult(result);
-                }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant key.", ex.Message);
-                }
-            }
-        );
-
-        group.MapPost(
-            "/tenants/{tenantKey}/resume",
-            async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                try
-                {
-                    var result = await operations.Tenants.ResumeAsync(tenantKey, reason, http.User?.Identity?.Name, ct);
-                    return AdminControlHttp.ToResult(result);
-                }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant key.", ex.Message);
-                }
-            }
-        );
-
-        group.MapPatch(
-            "/tenants/{tenantKey}",
-            async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
-
-                var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.TenantPatchRequest,
-                    ct
-                );
-                if (bodyError is not null)
-                {
-                    return bodyError;
-                }
-
-                if (body!.ExpectedVersion is not { } expectedVersion)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid tenant update.",
-                        "expectedVersion is required."
-                    );
-                }
-                if (
-                    ControlEndpointValidation.ValidateLength(body.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
-                    { } displayNameError
-                )
-                {
-                    return displayNameError;
-                }
-                if (
-                    ControlEndpointValidation.ValidateLength(body.Description, "description", CatalogLimits.TenantDescription) is
-                    { } descriptionError
-                )
-                {
-                    return descriptionError;
-                }
-
-                var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
-                if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
-                {
-                    return reasonError;
-                }
-
-                try
-                {
-                    var result = await operations.Tenants.UpdateAsync(
-                        tenantKey,
-                        body.DisplayName,
-                        body.Description,
-                        expectedVersion,
-                        reason,
-                        http.User?.Identity?.Name,
+                    var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.TenantRegistrationRequest,
                         ct
                     );
-                    return AdminControlHttp.ToResult(result);
+                    if (bodyError is not null)
+                    {
+                        return bodyError;
+                    }
+
+                    var tenantKey = request?.TenantKey?.Trim();
+                    if (string.IsNullOrEmpty(tenantKey))
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid tenant request.",
+                            "tenantKey is required."
+                        );
+                    }
+
+                    if (
+                        ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
+                        { } displayNameError
+                    )
+                    {
+                        return displayNameError;
+                    }
+                    if (
+                        ControlEndpointValidation.ValidateLength(request.Description, "description", CatalogLimits.TenantDescription) is
+                        { } descriptionError
+                    )
+                    {
+                        return descriptionError;
+                    }
+
+                    try
+                    {
+                        var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+                        var tenantId = await operations.Tenants.RegisterAsync(
+                            canonicalTenantKey,
+                            request.DisplayName,
+                            request.Description,
+                            ct
+                        );
+                        return Results.Json(
+                            new TenantRegistrationResponse(tenantId, canonicalTenantKey),
+                            DashboardJsonContext.Default.TenantRegistrationResponse,
+                            statusCode: StatusCodes.Status200OK
+                        );
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant request.", ex.Message);
+                    }
                 }
-                catch (ArgumentException ex)
+            )
+            // RegisterAsync is insert-or-get, and it returns the id either way without saying which,
+            // so this cannot honestly claim 201. An idempotent upsert answering 200 with the canonical
+            // key is the accurate shape.
+            .Produces<TenantRegistrationResponse>(StatusCodes.Status200OK);
+
+        group
+            .MapPost(
+                "/tenants/{tenantKey}/suspend",
+                async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant update.", ex.Message);
+                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
+                    if (error is not null)
+                    {
+                        return error;
+                    }
+
+                    try
+                    {
+                        var result = await operations.Tenants.SuspendAsync(tenantKey, reason, http.User?.Identity?.Name, ct);
+                        return AdminControlHttp.ToResult(result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant key.", ex.Message);
+                    }
                 }
-            }
-        );
+            )
+            .Produces<AdminControlResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group
+            .MapPost(
+                "/tenants/{tenantKey}/resume",
+                async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                {
+                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
+                    if (error is not null)
+                    {
+                        return error;
+                    }
+
+                    try
+                    {
+                        var result = await operations.Tenants.ResumeAsync(tenantKey, reason, http.User?.Identity?.Name, ct);
+                        return AdminControlHttp.ToResult(result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant key.", ex.Message);
+                    }
+                }
+            )
+            .Produces<AdminControlResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group
+            .MapPatch(
+                "/tenants/{tenantKey}",
+                async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                {
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
+
+                    var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.TenantPatchRequest,
+                        ct
+                    );
+                    if (bodyError is not null)
+                    {
+                        return bodyError;
+                    }
+
+                    if (body!.ExpectedVersion is not { } expectedVersion)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid tenant update.",
+                            "expectedVersion is required."
+                        );
+                    }
+                    if (
+                        ControlEndpointValidation.ValidateLength(body.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
+                        { } displayNameError
+                    )
+                    {
+                        return displayNameError;
+                    }
+                    if (
+                        ControlEndpointValidation.ValidateLength(body.Description, "description", CatalogLimits.TenantDescription) is
+                        { } descriptionError
+                    )
+                    {
+                        return descriptionError;
+                    }
+
+                    var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
+                    if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
+                    {
+                        return reasonError;
+                    }
+
+                    try
+                    {
+                        var result = await operations.Tenants.UpdateAsync(
+                            tenantKey,
+                            body.DisplayName,
+                            body.Description,
+                            expectedVersion,
+                            reason,
+                            http.User?.Identity?.Name,
+                            ct
+                        );
+                        return AdminControlHttp.ToResult(result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant update.", ex.Message);
+                    }
+                }
+            )
+            .Produces<AdminControlResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 }

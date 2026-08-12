@@ -13,8 +13,14 @@ namespace Acta.AspNetCore.Features.Schedules;
 /// </summary>
 internal static class ScheduleControlEndpoints
 {
-    public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
+        // The four schedule verbs share one response shape and one not-found case, so they declare it
+        // once here rather than four times below.
+        var group = outer.MapGroup("");
+        group.ProducesJson<ScheduleControlResponse>();
+        group.ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapPost(
             "/schedules/pause",
             async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>

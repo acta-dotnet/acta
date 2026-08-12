@@ -17,8 +17,14 @@ internal sealed record TagUpsertRequest(string? Name, string? Value);
 /// </summary>
 internal static class TagEndpoints
 {
-    public static void MapReads(RouteGroupBuilder group, ActaEndpointOptions options)
+    public static void MapReads(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
+        // A nested empty-prefix group so the six reads declare their one shared contract once. They
+        // all funnel through ReadTags, so they all answer the same two ways.
+        var group = outer.MapGroup("");
+        group.ProducesJson<IReadOnlyList<TagItem>>();
+        group.ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapGet(
             "/jobs/{jobRef}/tags",
             (string jobRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, JobTarget(jobRef, options), ct)
@@ -50,8 +56,14 @@ internal static class TagEndpoints
         );
     }
 
-    public static void MapControls(RouteGroupBuilder group, ActaEndpointOptions options)
+    public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
+        // Same shape for all twelve mutations: every one resolves a target then applies, so an
+        // unresolvable or unmatched target is the 404 and an applied change is the AdminControlResponse.
+        var group = outer.MapGroup("");
+        group.ProducesJson<AdminControlResponse>();
+        group.ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapPost(
             "/jobs/{jobRef}/tags",
             (string jobRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>

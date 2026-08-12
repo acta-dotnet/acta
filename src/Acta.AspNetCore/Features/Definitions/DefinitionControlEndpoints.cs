@@ -17,46 +17,53 @@ internal static class DefinitionControlEndpoints
 {
     public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        group.MapPatch(
-            "/definitions/{defId:int}",
-            async Task<IResult> (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+        group
+            .MapPatch(
+                "/definitions/{defId:int}",
+                async Task<IResult> (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.SetDefinitionOverridesRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                try
-                {
-                    var result = await operations.Definitions.UpdateOverridesAsync(
-                        defId,
-                        body!.Version,
-                        body.Overrides ?? new JobDefinitionPolicyOverrides(),
-                        actorKey,
-                        body.Note,
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.SetDefinitionOverridesRequest,
                         ct
                     );
-                    return ToResult(defId, result);
+                    if (error is not null)
+                    {
+                        return error;
+                    }
+
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    try
+                    {
+                        var result = await operations.Definitions.UpdateOverridesAsync(
+                            defId,
+                            body!.Version,
+                            body.Overrides ?? new JobDefinitionPolicyOverrides(),
+                            actorKey,
+                            body.Note,
+                            ct
+                        );
+                        return ToResult(defId, result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid definition overrides.",
+                            ex.Message
+                        );
+                    }
                 }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid definition overrides.", ex.Message);
-                }
-            }
-        );
+            )
+            .Produces<DefinitionOverrideResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static IResult ToResult(int defId, DefinitionOverrideResult result)

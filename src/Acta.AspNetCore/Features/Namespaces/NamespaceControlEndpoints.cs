@@ -10,8 +10,16 @@ namespace Acta.AspNetCore.Features.Namespaces;
 /// </summary>
 internal static class NamespaceControlEndpoints
 {
-    public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
+        // All three go through AdminControlHttp.ToResult, so all three answer the same three ways:
+        // applied or already-in-state is the response body, an unknown target is 404, and a stale
+        // ExpectedVersion is 409.
+        var group = outer.MapGroup("");
+        group.ProducesJson<AdminControlResponse>();
+        group.ProducesProblem(StatusCodes.Status404NotFound);
+        group.ProducesProblem(StatusCodes.Status409Conflict);
+
         group.MapPost(
             "/namespaces/{name}/suspend",
             async Task<IResult> (string name, HttpContext http, IActaOperations operations, CancellationToken ct) =>

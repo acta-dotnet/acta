@@ -30,170 +30,179 @@ internal static class JobDepthEndpoints
     // has no job assembly for), so it answers 200 with a null template and the form seeds `{}`.
     private static void MapInputTemplate(RouteGroupBuilder group)
     {
-        group.MapGet(
-            "/jobs/input-template",
-            IResult (string? jobNamespace, string? jobName, IJobs jobs) =>
-            {
-                if (string.IsNullOrWhiteSpace(jobNamespace) || string.IsNullOrWhiteSpace(jobName))
+        group
+            .MapGet(
+                "/jobs/input-template",
+                IResult (string? jobNamespace, string? jobName, IJobs jobs) =>
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
-                }
+                    if (string.IsNullOrWhiteSpace(jobNamespace) || string.IsNullOrWhiteSpace(jobName))
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                    }
 
-                var template = jobs.GetInputTemplate(jobNamespace, jobName);
-                JsonElement? shape = null;
-                if (template?.TemplateJson is { } json)
-                {
-                    // Cloned out of the document so the element outlives the using scope.
-                    using var document = JsonDocument.Parse(json);
-                    shape = document.RootElement.Clone();
-                }
+                    var template = jobs.GetInputTemplate(jobNamespace, jobName);
+                    JsonElement? shape = null;
+                    if (template?.TemplateJson is { } json)
+                    {
+                        // Cloned out of the document so the element outlives the using scope.
+                        using var document = JsonDocument.Parse(json);
+                        shape = document.RootElement.Clone();
+                    }
 
-                return Results.Json(
-                    new JobInputTemplateResponse(
-                        jobNamespace,
-                        jobName,
-                        template?.InputTypeName,
-                        template?.InputFormat.Name ?? JobPayloadFormat.None.Name,
-                        shape
-                    ),
-                    DashboardJsonContext.Default.JobInputTemplateResponse
-                );
-            }
-        );
+                    return Results.Json(
+                        new JobInputTemplateResponse(
+                            jobNamespace,
+                            jobName,
+                            template?.InputTypeName,
+                            template?.InputFormat.Name ?? JobPayloadFormat.None.Name,
+                            shape
+                        ),
+                        DashboardJsonContext.Default.JobInputTemplateResponse
+                    );
+                }
+            )
+            .Produces<JobInputTemplateResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     // POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
     // EnqueueRejectedException, mapped to 409 by the outer group's exception filter.
     private static void MapEnqueue(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        group.MapPost(
-            "/jobs",
-            async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+        group
+            .MapPost(
+                "/jobs",
+                async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
                 {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.JobEnqueueApiRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                if (string.IsNullOrWhiteSpace(body!.JobNamespace) || string.IsNullOrWhiteSpace(body.JobName))
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid request.",
-                        "jobNamespace and jobName are required."
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.JobEnqueueApiRequest,
+                        ct
                     );
-                }
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                var hasInput = body.Input.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null);
-                if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) > 1)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid request.",
-                        "At most one of input, text, or base64 may be supplied."
-                    );
-                }
-
-                if (body.FormatId is not null && body.Base64 is null)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid request.",
-                        "formatId is only valid with base64."
-                    );
-                }
-
-                JobPayload input;
-                if (body.Base64 is not null)
-                {
-                    if (body.FormatId is not { } formatId || (formatId != JobPayloadFormat.Bytes.Id && formatId < 128))
+                    if (string.IsNullOrWhiteSpace(body!.JobNamespace) || string.IsNullOrWhiteSpace(body.JobName))
                     {
                         return ControlEndpointValidation.Problem(
                             StatusCodes.Status400BadRequest,
                             "Invalid request.",
-                            "base64 requires a binary formatId (2 or 128..255)."
+                            "jobNamespace and jobName are required."
                         );
                     }
 
-                    byte[] decoded;
+                    var hasInput = body.Input.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null);
+                    if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) > 1)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid request.",
+                            "At most one of input, text, or base64 may be supplied."
+                        );
+                    }
+
+                    if (body.FormatId is not null && body.Base64 is null)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid request.",
+                            "formatId is only valid with base64."
+                        );
+                    }
+
+                    JobPayload input;
+                    if (body.Base64 is not null)
+                    {
+                        if (body.FormatId is not { } formatId || (formatId != JobPayloadFormat.Bytes.Id && formatId < 128))
+                        {
+                            return ControlEndpointValidation.Problem(
+                                StatusCodes.Status400BadRequest,
+                                "Invalid request.",
+                                "base64 requires a binary formatId (2 or 128..255)."
+                            );
+                        }
+
+                        byte[] decoded;
+                        try
+                        {
+                            decoded = Convert.FromBase64String(body.Base64);
+                        }
+                        catch (FormatException)
+                        {
+                            return ControlEndpointValidation.Problem(
+                                StatusCodes.Status400BadRequest,
+                                "Invalid request.",
+                                "base64 is not valid base64."
+                            );
+                        }
+
+                        input = JobPayload.FromBytes(JobPayloadFormat.ForId(formatId), decoded);
+                    }
+                    else if (body.Text is not null)
+                    {
+                        input = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
+                    }
+                    else
+                    {
+                        input = hasInput
+                            ? JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input.GetRawText()))
+                            : JobPayload.None;
+                    }
+
+                    var request = new JobEnqueueRequest(
+                        JobNamespace: body.JobNamespace,
+                        JobName: body.JobName,
+                        Input: input,
+                        DeduplicationKey: body.DeduplicationKey,
+                        CorrelationKey: body.CorrelationKey,
+                        Priority: body.Priority,
+                        NextRunAtUtc: body.NextRunAtUtc,
+                        DelaySeconds: body.DelaySeconds,
+                        TenantKey: body.TenantKey
+                    );
+
                     try
                     {
-                        decoded = Convert.FromBase64String(body.Base64);
-                    }
-                    catch (FormatException)
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid request.",
-                            "base64 is not valid base64."
+                        var outcome = await jobs.EnqueueAsync(request, ct);
+                        var created = outcome.Action == JobEnqueueAction.Inserted;
+
+                        // Built from this request's own path rather than a link generator: the read lives at
+                        // {this path}/{jobRef} under whatever pattern the host mounted, so appending the ref
+                        // is correct at any mount and cannot drift from the route.
+                        http.Response.Headers.Location = $"{http.Request.PathBase}{http.Request.Path}/{outcome.JobRef}";
+
+                        // 201 means "this request created it". A deduplicated enqueue matched a row that
+                        // already existed, so it is a 200 naming the row the caller now shares. Either way
+                        // the Location header points at the job, which is the one thing a client reads a
+                        // 201 for and which this endpoint previously omitted.
+                        return Results.Json(
+                            new JobEnqueueResponse(outcome.JobRef, outcome.Action),
+                            DashboardJsonContext.Default.JobEnqueueResponse,
+                            statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
                         );
                     }
-
-                    input = JobPayload.FromBytes(JobPayloadFormat.ForId(formatId), decoded);
+                    catch (PayloadTooLargeException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Input too large.", ex.Message);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", ex.Message);
+                    }
                 }
-                else if (body.Text is not null)
-                {
-                    input = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
-                }
-                else
-                {
-                    input = hasInput
-                        ? JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input.GetRawText()))
-                        : JobPayload.None;
-                }
-
-                var request = new JobEnqueueRequest(
-                    JobNamespace: body.JobNamespace,
-                    JobName: body.JobName,
-                    Input: input,
-                    DeduplicationKey: body.DeduplicationKey,
-                    CorrelationKey: body.CorrelationKey,
-                    Priority: body.Priority,
-                    NextRunAtUtc: body.NextRunAtUtc,
-                    DelaySeconds: body.DelaySeconds,
-                    TenantKey: body.TenantKey
-                );
-
-                try
-                {
-                    var outcome = await jobs.EnqueueAsync(request, ct);
-                    var created = outcome.Action == JobEnqueueAction.Inserted;
-
-                    // Built from this request's own path rather than a link generator: the read lives at
-                    // {this path}/{jobRef} under whatever pattern the host mounted, so appending the ref
-                    // is correct at any mount and cannot drift from the route.
-                    http.Response.Headers.Location = $"{http.Request.PathBase}{http.Request.Path}/{outcome.JobRef}";
-
-                    // 201 means "this request created it". A deduplicated enqueue matched a row that
-                    // already existed, so it is a 200 naming the row the caller now shares. Either way
-                    // the Location header points at the job, which is the one thing a client reads a
-                    // 201 for and which this endpoint previously omitted.
-                    return Results.Json(
-                        new JobEnqueueResponse(outcome.JobRef, outcome.Action),
-                        DashboardJsonContext.Default.JobEnqueueResponse,
-                        statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
-                    );
-                }
-                catch (PayloadTooLargeException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Input too large.", ex.Message);
-                }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", ex.Message);
-                }
-            }
-        );
+            )
+            // 201 when the enqueue inserted, 200 when a deduplication key matched an existing row.
+            // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
+            .Produces<JobEnqueueResponse>(StatusCodes.Status201Created)
+            .Produces<JobEnqueueResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
