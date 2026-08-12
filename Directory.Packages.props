@@ -4,48 +4,46 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Held at 5.3.0 on purpose, not stale. This is the Roslyn the source generator compiles
+         against, and that version is the floor on the SDK a consumer needs to load it. Newer buys
+         nothing here - no API in 5.4+ is used - and costs every consumer on an older 10.0.1xx SDK. -->
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
-    <PackageVersion Include="MessagePack" Version="3.1.7" />
+    <PackageVersion Include="MessagePack" Version="3.1.8" />
     <PackageVersion Include="Cronos" Version="0.13.0" />
   </ItemGroup>
   <!-- Build-time only: derives the package version from git tags (see Directory.Build.props). -->
   <ItemGroup>
     <PackageVersion Include="MinVer" Version="7.0.0" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
   </ItemGroup>
   <!-- Hosting + DI/Options surface. Acta depends on DI/Options abstractions to define
        UseActa(IServiceCollection); consumers bring the full Hosting. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
   </ItemGroup>
   <!-- DB clients used by the provider migration runners + parameter binders. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
-    <!-- Deliberate preview pin: the 11.x line references the patched SQLitePCLRaw 3.x. Every stable
-         Microsoft.Data.Sqlite (through 10.0.10, checked 2026-07-22) still pulls SQLitePCLRaw 2.1.11,
-         which carries high-severity advisory GHSA-2m69-gcr7-jv3q with NO patched 2.x release (the
-         fixed SQLite 3.50.2 only ships in SQLitePCLRaw 3.x). Do not downgrade to stable; re-check
-         when Microsoft.Data.Sqlite 11 ships stable or SQLitePCLRaw patches 2.x. -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0-preview.6.26359.118" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
   <!-- Redis client for the Acta.Redis wake transport. -->
   <ItemGroup>
-    <PackageVersion Include="StackExchange.Redis" Version="3.0.11" />
+    <PackageVersion Include="StackExchange.Redis" Version="3.1.13" />
   </ItemGroup>
   <!-- In-process host for Acta.AspNetCore endpoint tests. OpenApi is a test-only reference on
        purpose: the committed contract is generated and drift-checked by a test, so the shipped
        Acta.AspNetCore package carries no OpenAPI dependency for hosts that do not want one. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.11" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <!-- Pinned above the transitive 10.0.11 brings in: Microsoft.OpenApi 2.0.0 carries
          GHSA-v5pm-xwqc-g5wc and the repo audits transitives as errors. -->
@@ -53,7 +51,7 @@
   </ItemGroup>
   <!-- Testing: xunit v3 -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <!-- Attributes-only facade for shared spec libraries that aren't themselves test runners.
          Avoids the Microsoft.Testing.Platform.MSBuild transitive that emits
