@@ -305,4 +305,4 @@ Before publishing a release, verify these diagrams still match source:
 - `WorkerRuntime`, `WorkerLoop`, `JobExecutor`, `JobExecution`, and `WorkerHeartbeat` still own the responsibilities shown here.
 - The persistence diagram still matches [`data-model.md`](../reference/data-model.md) and the generated migrations.
 - Maintenance jobs are still ordinary jobs claimed through the normal path.
-- Provider parity is still tested through shared conformance specs for both SQL Server and Postgres.
+- Provider parity is still tested through shared conformance specs across Postgres, SQL Server, and SQLite.

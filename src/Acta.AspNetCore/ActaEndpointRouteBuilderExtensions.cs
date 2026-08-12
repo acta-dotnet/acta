@@ -164,7 +164,7 @@ public static class ActaEndpointRouteBuilderExtensions
             return Results.Problem(
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Dashboard assets are not embedded in this build.",
-                detail: "Rebuild with Node.js 20+ on PATH (the build runs npm automatically), or run npm ci && npm run build in src/Acta.AspNetCore/DashboardApp. API endpoints are unaffected."
+                detail: "Rebuild with Node.js 20.19+ or 22.12+ on PATH (the build runs npm automatically), or run npm ci && npm run build in src/Acta.AspNetCore/DashboardApp. API endpoints are unaffected."
             );
         }
 

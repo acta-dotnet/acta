@@ -1,7 +1,7 @@
 # Operator surface inventory
 
-The Layer-1 rule: `IJobs` (plus its sub-facades) is the one typed query/command API over the
-ledger. Every surface (dashboard HTTP endpoints, CLI, future Explain AI / AiStep) is a thin caller;
+The Layer-1 rule: `IJobs` (application verbs) and `IActaOperations` (operator reads and admin
+verbs, through its own sub-facades) are the one typed query/command API over the ledger. Every surface (dashboard HTTP endpoints, CLI, future Explain AI / AiStep) is a thin caller;
 nothing gets its own parallel data path. A new operation lands on `IJobs` first, then surfaces
 adopt it.
 
@@ -57,8 +57,8 @@ CLI verbs run as `<exe> jobs <verb>`.
 | --- | --- | --- |
 | Schedules | `Schedules.Pause/Resume/TriggerNow/SetOverrides` | `POST /schedules/...` |
 | Definitions | `Definitions.SetOverrides` | `PATCH /definitions/{id}` |
-| Tenants | `Tenants.Register/Suspend/Resume/UpdateMetadata` | `POST/PATCH /tenants...` |
-| Namespaces | `Namespaces.Suspend/Resume/UpdateMetadata` | `POST/PATCH /namespaces...` |
+| Tenants | `Tenants.Register/Suspend/Resume/UpdateAsync` | `POST/PATCH /tenants...` |
+| Namespaces | `Namespaces.Suspend/Resume/UpdateAsync` | `POST/PATCH /namespaces...` |
 | Alerts | `Alerts.Acknowledge/Resolve` | `POST /alerts/{id}/...` |
 | Tags | `Tags.Apply/Remove` | `POST/DELETE .../tags` |
 

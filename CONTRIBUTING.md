@@ -8,8 +8,8 @@ Two tiers, depending on what you are doing:
 
 | Goal | You need |
 |---|---|
-| Run concepts, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (The embedded dashboard UI additionally needs Node.js 20+ at build time; everything else runs without it.) |
-| Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js 20+ with npm (dashboard build and tests). |
+| Run concepts, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (The embedded dashboard UI additionally needs Node.js 20.19+ or 22.12+ at build time; everything else runs without it.) |
+| Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js 20.19+ or 22.12+ with npm (dashboard build and tests). |
 
 Environment sanity check at any point: `dotnet run --project tools/Acta.Doctor`. Setup failures are
 tabled in [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md#local-environment-setup-fails).
@@ -114,7 +114,7 @@ SQLite-only smoke (no Docker; provider tests skip when `ACTA_TEST_PG` / `ACTA_TE
 dotnet test tests/Acta.Tests/Acta.Tests.csproj
 ```
 
-Full suite, CI-equivalent (needs the containers healthy and both `ACTA_TEST_*` variables exported):
+Full suite, CI-equivalent (needs the containers healthy; `tests/Acta.runsettings` supplies the `ACTA_TEST_*` values, which is why CI exports none):
 
 ```bash
 docker compose up -d --wait --wait-timeout 300
@@ -234,7 +234,7 @@ tools/      Acta.Emit CLI (generated docs and initial SQL migrations), Acta.Doct
 
 The shortest paths to the design-review-worthy parts:
 
-* **Source-generated dispatch, AOT-clean by construction.** `Acta.Generators` emits a per-area manifest (`{Area}Jobs`), per-handler invokers, and type-to-descriptor routing; no reflection runs on the dispatch hot path. The one caveat is the default JSON payload path, which uses reflection unless you supply a source-generated `JsonSerializerContext` (`j.UseJsonPayloads(...)`) or the typed-enqueue path.
+* **Source-generated dispatch, AOT-clean by construction.** `Acta.Generators` emits a per-area manifest (`{Area}Jobs`), per-handler invokers, and type-to-descriptor routing; no reflection runs on the dispatch hot path. The one caveat is the default JSON payload path, which uses reflection unless you supply a source-generated `JsonSerializerContext` (`j.UseJsonPayloads(...)`). Typed enqueue is not an escape hatch: it serializes through the same configured serializer.
 * **Semantic store ports across three engines.** Core feature behavior depends on internal `I*Store` contracts; PostgreSQL, SQL Server, and SQLite each own complete store implementations, command binding, projections, and executable SQL, held to the same behavior by the conformance suite.
 * **Provider-owned hot paths.** Each provider keeps all executable SQL under one root, `Sql/<Capability>/<Operation>.sql` (schema commands at `Sql/Schema/`, ordered DDL at `Schema/Migrations/`); C# sits beside its dialect under `Services/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
 * **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.

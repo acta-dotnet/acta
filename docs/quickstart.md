@@ -80,7 +80,7 @@ dotnet run --project anvil/Anvil
 # Acta dashboard at http://127.0.0.1:5059/acta (the root URL is Anvil's own lab UI)
 ```
 
-The dashboard UI is built by npm during the .NET build, so it needs Node.js 20+ on PATH once;
+The dashboard UI is built by npm during the .NET build, so it needs Node.js 20.19+ or 22.12+ on PATH once;
 without Node the lab and every API still run, and the dashboard route explains what is missing.
 
 ## The whole program

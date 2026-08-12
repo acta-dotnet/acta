@@ -95,7 +95,7 @@ dotnet run --project concepts/000-fundamentals/001-hello-acta   # first concept:
 dotnet run --project anvil/Anvil    # lab UI + Acta dashboard at http://127.0.0.1:5059/acta
 ```
 
-The Anvil step builds the dashboard UI, which needs Node.js 20+ on PATH once; without Node the first two commands still run.
+The Anvil step builds the dashboard UI, which needs Node.js 20.19+ or 22.12+ on PATH once; without Node the first two commands still run.
 
 The `[Job]` name is the durable, operator-facing contract: it is what the row carries, what the dashboard shows, and what you must not rename casually. Enqueue is typed; dispatch is generated.
 

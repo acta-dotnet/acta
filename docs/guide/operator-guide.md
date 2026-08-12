@@ -527,4 +527,4 @@ Handlers:
 - Stable kebab-case `[Job("...")]` names; treat `TIn`, `TOut`, name, and format as durable contract. Make external side effects idempotent (Acta is at-least-once). Steps for run-once internal slots; child jobs for independently visible, retryable work.
 
 Validation and caveats:
-- Run the conformance suite for your provider, the `anvil/Anvil` crash/reclaim flows, and the `anvil/Anvil.Bench` baselines. Test a rolling deploy with mixed old/new workers and queued rows. APIs, schema, and behavior may change without deprecation while the package is in early development; hardening, authorization guidance, and capacity/retention/alerting playbooks still need real deployment feedback.
+- Run the conformance suite for your provider, the `anvil/Anvil` crash/reclaim flows, and the `anvil/Anvil.Bench` baselines. Test a rolling deploy with mixed old/new workers and queued rows. APIs, schema, and behavior may still change without deprecation before 1.0; hardening, authorization guidance, and capacity/retention/alerting playbooks still need real deployment feedback.

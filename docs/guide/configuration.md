@@ -65,6 +65,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `MinPollFloor` | 50 ms | per process | Anti-spin floor for due-but-locked horizons. Must be `> 0` and `<= SafetyPollInterval`. |
 | `ClaimIdleJitterMax` | 100 ms | per process | Idle poll jitter. Must be between 0 and 1 second. |
 | `ExecutionProfile` | `Buffered` | per process | Claim/dispatch strategy. See the execution profile table below. |
+| `ExclusiveKeyBounceDelaySeconds` | 2 | per process | Fixed re-arm delay for a claimed exclusive-key job that finds its key held at admission. The loser returns to Ready with `next_run_at_utc` pushed this far forward, budget-neutrally, so this is the contention throttle: no backoff, no counter. `0` re-arms immediately, which is useful in tests. |
 | `LeaseTtlSeconds` | 180 | coordination invariant | Lease window refreshed while handlers run. Keep this consistent across workers. |
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence. Keep the lease about four times this value. |
 | `WorkerDeadAfter` | 5 minutes | coordination invariant | No-heartbeat window before `sys.recovery` marks a worker Dead. Must be greater than `LeaseTtlSeconds`. |
@@ -80,6 +81,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when eligible registrations change input/output contract columns. |
 | `ManifestGenerationUtc` | entry assembly file time | deployment metadata | Optional. Set explicitly only when you need deterministic definition promotion, especially single-file or AOT publishes. |
 | `DeploymentVersion` | assembly informational version | per process | Written to `workers`; should identify the deployed build and differ across rolling deploys. |
+| `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | The value a `[JobSchedule]`'s `Environments` list is matched against, case-insensitively, to decide whether that schedule registers on this worker. A schedule with no declared environments is a wildcard and registers everywhere; a scoped one registers only where its list contains this name. Null or empty means no environment is known, so every scoped schedule is withheld and only wildcards register. |
 | `AllowClockSkew` | `false` | startup policy | Downgrades excessive host/database clock skew from failure to warning. |
 
 The coordination invariant options are the ones that can create double execution or stale-worker

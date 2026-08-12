@@ -450,7 +450,7 @@
         <div><b><em>3</em></b><span>SQL providers: pg · mssql · sqlite</span></div>
         <div><b><em>1</em></b><span>SQL round-trip per state change</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" style="text-decoration:none">88</a></b><span>runnable concepts &amp; labs</span></div>
-        <div><b>5 min</b><span>fresh clone → dashboard, zero Docker (Node 20+ builds the UI)</span></div>
+        <div><b>5 min</b><span>fresh clone → dashboard, zero Docker (Node 20.19+/22.12+ builds the UI)</span></div>
       </div>
     </header>
 
@@ -501,25 +501,25 @@
     <section class="wrap" id="install">
       <p class="record">Install</p>
       <h2>One package. Nothing new to run.</h2>
-      <p class="lede">The provider package carries everything: runtime, source generator, analyzers, dashboard, and CLI. No broker to stand up, no sidecar, no service to operate. Pick a provider and the rest follows.</p>
+      <p class="lede">The provider package carries the runtime, the source generator, the analyzers, and the operator CLI. No broker to stand up, no sidecar, no service to operate. The embedded dashboard is one more package, <code>Acta.AspNetCore</code>, when you want it.</p>
       <div class="install">
         <div class="install-row primary">
           <div class="install-meta"><b>Zero setup</b><span>embedded SQLite, single node</span></div>
-          <code>dotnet add package Acta.Sqlite</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.Sqlite" aria-label="Copy the SQLite install command">Copy</button>
+          <code>dotnet add package Acta.Sqlite --prerelease</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.Sqlite --prerelease" aria-label="Copy the SQLite install command">Copy</button>
         </div>
         <div class="install-row">
           <div class="install-meta"><b>Postgres</b><span>production</span></div>
-          <code>dotnet add package Acta.Postgres</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.Postgres" aria-label="Copy the Postgres install command">Copy</button>
+          <code>dotnet add package Acta.Postgres --prerelease</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.Postgres --prerelease" aria-label="Copy the Postgres install command">Copy</button>
         </div>
         <div class="install-row">
           <div class="install-meta"><b>SQL Server</b><span>production</span></div>
-          <code>dotnet add package Acta.SqlServer</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer" aria-label="Copy the SQL Server install command">Copy</button>
+          <code>dotnet add package Acta.SqlServer --prerelease</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
         </div>
       </div>
-      <p class="hiw-note">Requires .NET 10. One <code>UseActa()</code> call and a <code>[Job]</code> attribute later, the first enqueue creates its own schema.</p>
+      <p class="hiw-note">Requires .NET 10. <code>--prerelease</code> until 1.0: the current release is <code>0.5.0-beta.1</code>. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work.</p>
     </section>
 
     <section class="wrap" id="model">
