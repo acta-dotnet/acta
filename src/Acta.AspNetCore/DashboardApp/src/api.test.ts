@@ -17,7 +17,7 @@ test('api constructs a base-path URL and serializes nonblank query values', asyn
   await api('jobs', { status: 'failed', empty: '', missing: null, pageSize: 50, exact: true });
 
   const url = new URL(requested);
-  assert.equal(url.pathname, '/acta/api/jobs');
+  assert.equal(url.pathname, '/acta/api/v1/jobs');
   assert.equal(url.searchParams.get('status'), 'failed');
   assert.equal(url.searchParams.get('pageSize'), '50');
   assert.equal(url.searchParams.get('exact'), 'true');

@@ -75,8 +75,8 @@ internal static class TenantControlEndpoints
         );
 
         group.MapPost(
-            "/tenants/{key}/suspend",
-            async Task<IResult> (string key, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+            "/tenants/{tenantKey}/suspend",
+            async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                 if (error is not null)
@@ -86,7 +86,7 @@ internal static class TenantControlEndpoints
 
                 try
                 {
-                    var result = await operations.Tenants.SuspendAsync(key, reason, http.User?.Identity?.Name, ct);
+                    var result = await operations.Tenants.SuspendAsync(tenantKey, reason, http.User?.Identity?.Name, ct);
                     return AdminControlHttp.ToResult(result);
                 }
                 catch (ArgumentException ex)
@@ -97,8 +97,8 @@ internal static class TenantControlEndpoints
         );
 
         group.MapPost(
-            "/tenants/{key}/resume",
-            async Task<IResult> (string key, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+            "/tenants/{tenantKey}/resume",
+            async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                 if (error is not null)
@@ -108,7 +108,7 @@ internal static class TenantControlEndpoints
 
                 try
                 {
-                    var result = await operations.Tenants.ResumeAsync(key, reason, http.User?.Identity?.Name, ct);
+                    var result = await operations.Tenants.ResumeAsync(tenantKey, reason, http.User?.Identity?.Name, ct);
                     return AdminControlHttp.ToResult(result);
                 }
                 catch (ArgumentException ex)
@@ -119,8 +119,8 @@ internal static class TenantControlEndpoints
         );
 
         group.MapPatch(
-            "/tenants/{key}",
-            async Task<IResult> (string key, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+            "/tenants/{tenantKey}",
+            async Task<IResult> (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
             {
                 if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                 {
@@ -169,7 +169,7 @@ internal static class TenantControlEndpoints
                 try
                 {
                     var result = await operations.Tenants.UpdateAsync(
-                        key,
+                        tenantKey,
                         body.DisplayName,
                         body.Description,
                         expectedVersion,

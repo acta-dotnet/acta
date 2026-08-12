@@ -397,12 +397,26 @@ internal static class TestDashboardHost
         public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default)
         {
             EnqueueRequests.Add(request);
+
+            // Second enqueue of a deduplication key matches the first, as the real store does: the
+            // endpoint distinguishes created from matched, so the fake has to as well.
+            if (request.DeduplicationKey is { Length: > 0 } key && _deduplicated.TryGetValue(key, out var existing))
+            {
+                return ValueTask.FromResult(new JobEnqueueOutcome(existing.Id, existing.Ref, JobEnqueueAction.Deduplicated));
+            }
+
             var id = 100 + EnqueueRequests.Count;
             var jobRef = JobRef.New();
             _enqueuedRefs[jobRef.Value] = id;
             _enqueuedInputs[id] = request.Input.IsNone ? null : request.Input;
+            if (request.DeduplicationKey is { Length: > 0 } fresh)
+            {
+                _deduplicated[fresh] = (id, jobRef);
+            }
             return ValueTask.FromResult(new JobEnqueueOutcome(id, jobRef, JobEnqueueAction.Inserted));
         }
+
+        private readonly Dictionary<string, (long Id, JobRef Ref)> _deduplicated = new(StringComparer.Ordinal);
 
         public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
             TInput input,

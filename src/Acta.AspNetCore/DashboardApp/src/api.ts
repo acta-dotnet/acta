@@ -67,7 +67,8 @@ async function parseJson(response: Response): Promise<ParsedJson> {
 }
 
 async function request<T>(options: RequestOptions): Promise<{ response: Response; body: T | null }> {
-  const url = new URL('api/' + options.path.replace(/^\/+/, ''), document.baseURI);
+  // The version segment is Acta's, fixed against the mount: MapActa serves {mount}/api/v1/...
+  const url = new URL('api/v1/' + options.path.replace(/^\/+/, ''), document.baseURI);
   for (const [key, value] of Object.entries(options.query ?? {})) {
     if (Array.isArray(value)) {
       // Repeated query params (e.g. tag filters): one entry per non-blank member.

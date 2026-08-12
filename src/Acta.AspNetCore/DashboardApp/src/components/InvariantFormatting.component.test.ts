@@ -22,7 +22,7 @@ interface CapturedRequest {
 function mockControlFetch(requests: CapturedRequest[]) {
   return vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
     const url = String(input);
-    if (url.endsWith('/api/capabilities')) return capabilitiesResponse();
+    if (url.endsWith('/api/v1/capabilities')) return capabilitiesResponse();
 
     requests.push({ url, init });
     const body = url.includes('/schedules/')
@@ -102,7 +102,7 @@ describe('invariant dashboard formatting', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Change run time' }));
 
     await waitFor(() => expect(requests).toHaveLength(1));
-    expect(requests[0].url).toMatch(/\/api\/jobs\/job_test\/reschedule$/);
+    expect(requests[0].url).toMatch(/\/api\/v1\/jobs\/job_test\/reschedule$/);
     expect(requests[0].init?.method).toBe('POST');
     expect(requestBody(requests[0])).toEqual({
       nextRunAtUtc: '2026-07-15T08:26:00.000Z',
@@ -129,7 +129,7 @@ describe('invariant dashboard formatting', () => {
     await user.click(applyButton);
 
     await waitFor(() => expect(requests).toHaveLength(1));
-    expect(requests[0].url).toMatch(/\/api\/schedules\/pause$/);
+    expect(requests[0].url).toMatch(/\/api\/v1\/schedules\/pause$/);
     expect(requests[0].init?.method).toBe('POST');
     expect(requestBody(requests[0])).toEqual({
       jobNamespace: 'billing',

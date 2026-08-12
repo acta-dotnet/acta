@@ -6,6 +6,7 @@
 static class Acta.AspNetCore.ActaEndpointRouteBuilderExtensions
     Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActa(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = default, System.Action<Acta.AspNetCore.Configuration.ActaDashboardOptions> configure = default)
     Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActaApi(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = default, System.Action<Acta.AspNetCore.Configuration.ActaEndpointOptions> configure = default)
+    System.String ApiVersionSegment = /v1
 struct Acta.AspNetCore.Configuration.ActaControlDecision
     .ctor(System.Boolean IsAllowed, System.String Reason)
     Acta.AspNetCore.Configuration.ActaControlDecision Allowed { get; }

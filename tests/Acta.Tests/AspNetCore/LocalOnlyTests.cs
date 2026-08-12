@@ -35,7 +35,7 @@ public sealed class LocalOnlyTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        foreach (var path in new[] { "/acta", "/acta/assets/anything.js", "/acta/api/jobs" })
+        foreach (var path in new[] { "/acta", "/acta/assets/anything.js", "/acta/api/v1/jobs" })
         {
             var response = await client.GetAsync(path, ct);
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -48,7 +48,7 @@ public sealed class LocalOnlyTests
         var (app, client) = await TestDashboardHost.StartAsync(configureApp: RemoteAddress("127.0.0.1"));
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -59,7 +59,7 @@ public sealed class LocalOnlyTests
         var (app, client) = await TestDashboardHost.StartAsync(configureApp: RemoteAddress("::1"));
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -70,7 +70,7 @@ public sealed class LocalOnlyTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -81,7 +81,7 @@ public sealed class LocalOnlyTests
         var (app, client) = await TestDashboardHost.StartAsync(configureApp: RemoteAddress("192.0.2.5", local: "192.0.2.5"));
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -99,7 +99,7 @@ public sealed class LocalOnlyTests
         );
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -115,7 +115,7 @@ public sealed class LocalOnlyTests
         );
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{TestDashboardHost.FoundJobRef}/pause");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{TestDashboardHost.FoundJobRef}/pause");
         request.Headers.Add("X-Acta-Control", "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -140,7 +140,7 @@ public sealed class LocalOnlyTests
         await using var _ = app;
         var client = app.GetTestClient();
 
-        var response = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

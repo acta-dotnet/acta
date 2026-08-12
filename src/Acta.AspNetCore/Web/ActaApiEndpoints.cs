@@ -18,6 +18,10 @@ internal static class ActaApiEndpoints
 {
     public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
     {
+        // Names and tags for every endpoint below, derived from its own route. Applied at the group so
+        // it reaches the nested controls group too.
+        ActaEndpointIdentity.Apply(group);
+
         // Never surface a raw 500/stack from the dashboard API: any unhandled exception (e.g. the database
         // is unreachable) becomes a 503 ProblemDetails the frontend shows as a banner and retries. Known
         // input errors are still mapped to 400/404 by the per-endpoint Guard before they reach this backstop.
@@ -423,13 +427,13 @@ internal static class ActaApiEndpoints
         );
 
         group.MapGet(
-            "/tenants/{key}",
-            async (string key, IActaOperations operations, CancellationToken ct) =>
+            "/tenants/{tenantKey}",
+            async (string tenantKey, IActaOperations operations, CancellationToken ct) =>
             {
                 TenantListItem? tenant;
                 try
                 {
-                    tenant = await operations.Tenants.GetAsync(key, ct);
+                    tenant = await operations.Tenants.GetAsync(tenantKey, ct);
                 }
                 catch (ArgumentException)
                 {

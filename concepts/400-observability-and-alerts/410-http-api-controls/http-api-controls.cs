@@ -56,7 +56,7 @@ var outcome = await jobs.EnqueueAsync(new SampleTask("task-1"), o => o.Delayed(T
 var jobRef = outcome.JobRef;
 Console.WriteLine($"enqueued delayed job: {jobRef}");
 
-var pauseUrl = $"/acta/api/jobs/{jobRef}/pause";
+var pauseUrl = $"/acta/api/v1/jobs/{jobRef}/pause";
 
 // Without the X-Acta-Control header: the anti-accident guard rejects the request (400).
 // This stops casual scripts and form posts from accidentally tripping a control verb.

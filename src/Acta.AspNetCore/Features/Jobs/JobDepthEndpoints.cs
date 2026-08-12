@@ -167,10 +167,21 @@ internal static class JobDepthEndpoints
                 try
                 {
                     var outcome = await jobs.EnqueueAsync(request, ct);
+                    var created = outcome.Action == JobEnqueueAction.Inserted;
+
+                    // Built from this request's own path rather than a link generator: the read lives at
+                    // {this path}/{jobRef} under whatever pattern the host mounted, so appending the ref
+                    // is correct at any mount and cannot drift from the route.
+                    http.Response.Headers.Location = $"{http.Request.PathBase}{http.Request.Path}/{outcome.JobRef}";
+
+                    // 201 means "this request created it". A deduplicated enqueue matched a row that
+                    // already existed, so it is a 200 naming the row the caller now shares. Either way
+                    // the Location header points at the job, which is the one thing a client reads a
+                    // 201 for and which this endpoint previously omitted.
                     return Results.Json(
                         new JobEnqueueResponse(outcome.JobRef, outcome.Action),
                         DashboardJsonContext.Default.JobEnqueueResponse,
-                        statusCode: StatusCodes.Status201Created
+                        statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
                     );
                 }
                 catch (PayloadTooLargeException ex)

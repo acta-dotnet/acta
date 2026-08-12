@@ -22,7 +22,7 @@ public sealed class SignalEndpointTests
 
     private static HttpRequestMessage Post(string jobRef, string name, string? json = null)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{jobRef}/signals/{name}");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{jobRef}/signals/{name}");
         request.Headers.Add("X-Acta-Control", "true");
         if (json is not null)
         {
@@ -128,7 +128,7 @@ public sealed class SignalEndpointTests
         var (app, client) = await StartAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/signals/go")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/signals/go")
         {
             Content = new StringContent("approved=true", Encoding.UTF8, "application/x-www-form-urlencoded"),
         };

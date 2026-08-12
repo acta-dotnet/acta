@@ -35,7 +35,7 @@ public sealed class TagEndpointTests
             }
         )
         {
-            var response = await client.GetAsync($"/acta/api/{path}", TestContext.Current.CancellationToken);
+            var response = await client.GetAsync($"/acta/api/v1/{path}", TestContext.Current.CancellationToken);
             var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -53,9 +53,9 @@ public sealed class TagEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var unknown = await client.GetAsync($"/acta/api/jobs/{Found}/tags", TestContext.Current.CancellationToken);
-        var malformedRef = await client.GetAsync("/acta/api/jobs/42/tags", TestContext.Current.CancellationToken);
-        var invalidName = await client.GetAsync("/acta/api/namespaces/Bad_NS!/tags", TestContext.Current.CancellationToken);
+        var unknown = await client.GetAsync($"/acta/api/v1/jobs/{Found}/tags", TestContext.Current.CancellationToken);
+        var malformedRef = await client.GetAsync("/acta/api/v1/jobs/42/tags", TestContext.Current.CancellationToken);
+        var invalidName = await client.GetAsync("/acta/api/v1/namespaces/Bad_NS!/tags", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, malformedRef.StatusCode);
@@ -69,7 +69,7 @@ public sealed class TagEndpointTests
         var (app, client) = await StartControlsAsync(jobs);
         await using var _ = app;
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/tags")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
         {
             Content = JsonContent.Create(new { name = "env", value = "Prod" }),
         };
@@ -90,7 +90,7 @@ public sealed class TagEndpointTests
         var (app, client) = await StartControlsAsync(jobs);
         await using var _ = app;
 
-        using var request = new HttpRequestMessage(HttpMethod.Delete, $"/acta/api/jobs/{Found}/tags/env");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"/acta/api/v1/jobs/{Found}/tags/env");
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -106,11 +106,11 @@ public sealed class TagEndpointTests
         await using var _ = app;
 
         var post = await client.PostAsync(
-            $"/acta/api/jobs/{Found}/tags",
+            $"/acta/api/v1/jobs/{Found}/tags",
             JsonContent.Create(new { name = "env" }),
             TestContext.Current.CancellationToken
         );
-        var delete = await client.DeleteAsync($"/acta/api/jobs/{Found}/tags/env", TestContext.Current.CancellationToken);
+        var delete = await client.DeleteAsync($"/acta/api/v1/jobs/{Found}/tags/env", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, delete.StatusCode);
@@ -126,14 +126,14 @@ public sealed class TagEndpointTests
         var (app, client) = await StartControlsAsync(jobs);
         await using var _ = app;
 
-        using var missing = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/tags")
+        using var missing = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
         {
             Content = JsonContent.Create(new { name = "env" }),
         };
         missing.Headers.Add(Confirm, "true");
         var notFound = await client.SendAsync(missing, TestContext.Current.CancellationToken);
 
-        using var invalid = new HttpRequestMessage(HttpMethod.Post, "/acta/api/namespaces/Bad_NS!/tags")
+        using var invalid = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/namespaces/Bad_NS!/tags")
         {
             Content = JsonContent.Create(new { name = "env" }),
         };
@@ -151,7 +151,7 @@ public sealed class TagEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/jobs/{Found}/tags")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
         {
             Content = JsonContent.Create(new { name = "env" }),
         };
@@ -169,7 +169,7 @@ public sealed class TagEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/jobs?tag=env:prod&tag=team", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/jobs?tag=env:prod&tag=team", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(jobs.LastJobsQuery?.Tags);
@@ -183,7 +183,7 @@ public sealed class TagEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/events?tag=env:prod", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/acta/api/v1/events?tag=env:prod", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal([new TagFilter("env", "prod")], jobs.LastEventsQuery!.Tags);

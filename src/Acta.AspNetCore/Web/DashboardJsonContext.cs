@@ -11,7 +11,11 @@ namespace Acta.AspNetCore.Web;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
-    Converters = [typeof(CamelCaseJobControlActionConverter), typeof(CamelCaseAdminControlActionConverter)],
+    Converters = [
+        typeof(CamelCaseJobControlActionConverter),
+        typeof(CamelCaseAdminControlActionConverter),
+        typeof(CamelCaseJobEnqueueActionConverter),
+    ],
     DefaultIgnoreCondition = JsonIgnoreCondition.Never
 )]
 [JsonSerializable(typeof(PagedResult<JobListItem>))]
@@ -76,3 +80,11 @@ internal sealed class CamelCaseJobControlActionConverter()
 /// </summary>
 internal sealed class CamelCaseAdminControlActionConverter()
     : JsonStringEnumConverter<AdminControlAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
+
+/// <summary>
+/// Serializes <see cref="JobEnqueueAction"/> camelCase ("inserted", "deduplicated"), the same
+/// convention its two sibling action enums already follow. Without this it was the one action on the
+/// API answering in PascalCase.
+/// </summary>
+internal sealed class CamelCaseJobEnqueueActionConverter()
+    : JsonStringEnumConverter<JobEnqueueAction>(System.Text.Json.JsonNamingPolicy.CamelCase);

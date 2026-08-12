@@ -30,7 +30,10 @@ public sealed class AdminEndpointTests
     {
         var (app, client) = await StartAsync();
         await using var _ = app;
-        var res = await client.SendAsync(Post("/acta/api/tenants/cust-1/suspend", withHeader: true), TestContext.Current.CancellationToken);
+        var res = await client.SendAsync(
+            Post("/acta/api/v1/tenants/cust-1/suspend", withHeader: true),
+            TestContext.Current.CancellationToken
+        );
         var body = await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
@@ -42,7 +45,7 @@ public sealed class AdminEndpointTests
         var (app, client) = await StartAsync();
         await using var _ = app;
         var res = await client.SendAsync(
-            Post("/acta/api/tenants/cust-1/suspend", withHeader: false),
+            Post("/acta/api/v1/tenants/cust-1/suspend", withHeader: false),
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -54,7 +57,7 @@ public sealed class AdminEndpointTests
         var (app, client) = await StartAsync();
         await using var _ = app;
         var res = await client.SendAsync(
-            Post("/acta/api/tenants/bad key/suspend", withHeader: true),
+            Post("/acta/api/v1/tenants/bad key/suspend", withHeader: true),
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -65,7 +68,10 @@ public sealed class AdminEndpointTests
     {
         var (app, client) = await StartAsync();
         await using var _ = app;
-        var res = await client.SendAsync(Post("/acta/api/namespaces/sys/suspend", withHeader: true), TestContext.Current.CancellationToken);
+        var res = await client.SendAsync(
+            Post("/acta/api/v1/namespaces/sys/suspend", withHeader: true),
+            TestContext.Current.CancellationToken
+        );
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
@@ -75,7 +81,7 @@ public sealed class AdminEndpointTests
         var (app, client) = await StartAsync();
         await using var _ = app;
         var res = await client.SendAsync(
-            Post("/acta/api/namespaces/missing/suspend", withHeader: true),
+            Post("/acta/api/v1/namespaces/missing/suspend", withHeader: true),
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -86,7 +92,7 @@ public sealed class AdminEndpointTests
     {
         var (app, client) = await StartAsync();
         await using var _ = app;
-        var req = new HttpRequestMessage(HttpMethod.Patch, "/acta/api/namespaces/billing")
+        var req = new HttpRequestMessage(HttpMethod.Patch, "/acta/api/v1/namespaces/billing")
         {
             Content = JsonContent.Create(
                 new
@@ -103,8 +109,8 @@ public sealed class AdminEndpointTests
     }
 
     [Theory]
-    [InlineData("/acta/api/tenants/cust-1", "displayName")]
-    [InlineData("/acta/api/namespaces/billing", "ownerTeam")]
+    [InlineData("/acta/api/v1/tenants/cust-1", "displayName")]
+    [InlineData("/acta/api/v1/namespaces/billing", "ownerTeam")]
     public async Task Metadata_patch_requires_expected_version(string path, string fieldName)
     {
         var (app, client) = await StartAsync();
@@ -123,10 +129,10 @@ public sealed class AdminEndpointTests
     }
 
     [Theory]
-    [InlineData("/acta/api/tenants/cust-1", "displayName", CatalogLimits.TenantDisplayName)]
-    [InlineData("/acta/api/tenants/cust-1", "description", CatalogLimits.TenantDescription)]
-    [InlineData("/acta/api/namespaces/billing", "ownerTeam", CatalogLimits.NamespaceOwnerTeam)]
-    [InlineData("/acta/api/namespaces/billing", "description", CatalogLimits.NamespaceDescription)]
+    [InlineData("/acta/api/v1/tenants/cust-1", "displayName", CatalogLimits.TenantDisplayName)]
+    [InlineData("/acta/api/v1/tenants/cust-1", "description", CatalogLimits.TenantDescription)]
+    [InlineData("/acta/api/v1/namespaces/billing", "ownerTeam", CatalogLimits.NamespaceOwnerTeam)]
+    [InlineData("/acta/api/v1/namespaces/billing", "description", CatalogLimits.NamespaceDescription)]
     public async Task Metadata_patch_rejects_overlong_fields(string path, string fieldName, int maxLength)
     {
         var (app, client) = await StartAsync();
@@ -158,7 +164,7 @@ public sealed class AdminEndpointTests
             jobs
         );
         await using var _ = app;
-        var res = await client.GetAsync("/acta/api/jobs", TestContext.Current.CancellationToken);
+        var res = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
         var body = await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
         Assert.Contains("NamespaceSuspended", body);

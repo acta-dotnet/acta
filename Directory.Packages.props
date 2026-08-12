@@ -41,9 +41,15 @@
   <ItemGroup>
     <PackageVersion Include="StackExchange.Redis" Version="3.0.11" />
   </ItemGroup>
-  <!-- In-process host for Acta.AspNetCore endpoint tests. -->
+  <!-- In-process host for Acta.AspNetCore endpoint tests. OpenApi is a test-only reference on
+       purpose: the committed contract is generated and drift-checked by a test, so the shipped
+       Acta.AspNetCore package carries no OpenAPI dependency for hosts that do not want one. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <!-- Pinned above the transitive 10.0.11 brings in: Microsoft.OpenApi 2.0.0 carries
+         GHSA-v5pm-xwqc-g5wc and the repo audits transitives as errors. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
   </ItemGroup>
   <!-- Testing: xunit v3 -->
   <ItemGroup>

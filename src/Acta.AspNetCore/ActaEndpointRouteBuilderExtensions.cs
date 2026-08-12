@@ -16,10 +16,28 @@ namespace Acta.AspNetCore;
 public static class ActaEndpointRouteBuilderExtensions
 {
     /// <summary>
+    /// The API version segment Acta appends to whatever mount pattern the host chooses, so every
+    /// operator route reads <c>{mount}/v1/...</c>.
+    /// </summary>
+    /// <remarks>
+    /// The segment is Acta's, not the caller's: a host that mounts at <c>/internal/acta</c> still gets
+    /// <c>/internal/acta/api/v1/jobs</c>, so a client written against one deployment reads the same on
+    /// the next. Acta owning it is also what makes a future <c>v2</c> Acta's decision rather than a
+    /// breaking change every host has to absorb - the 1.0 freeze locks route shapes, and a frozen
+    /// surface with no version segment has no escape hatch at all.
+    /// </remarks>
+    public const string ApiVersionSegment = "/v1";
+
+    /// <summary>
     /// Maps the operator API endpoints (query reads always; the POST job controls only when opted in
     /// via <see cref="ActaEndpointOptions.EnableControls"/>, which is off by default) under
-    /// <paramref name="pattern"/> without the dashboard UI.
+    /// <paramref name="pattern"/> plus <see cref="ApiVersionSegment"/>, without the dashboard UI. The
+    /// default mount therefore serves <c>/acta/api/v1/jobs</c>.
     /// </summary>
+    /// <returns>
+    /// The group at <paramref name="pattern"/>, above the version segment: conventions applied to it
+    /// (<c>RequireAuthorization</c> and the like) flow to every versioned route beneath.
+    /// </returns>
     public static RouteGroupBuilder MapActaApi(
         this IEndpointRouteBuilder endpoints,
         string pattern = "/acta/api",
@@ -34,7 +52,7 @@ public static class ActaEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup(pattern);
         GuardLocalOnly(group, options);
-        ActaApiEndpoints.Map(group, options);
+        ActaApiEndpoints.Map(group.MapGroup(ApiVersionSegment), options);
         options.ConfigureEndpoints?.Invoke(group);
         return group;
     }
@@ -58,7 +76,7 @@ public static class ActaEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup(pattern);
         GuardLocalOnly(group, options);
-        ActaApiEndpoints.Map(group.MapGroup("/api"), options);
+        ActaApiEndpoints.Map(group.MapGroup("/api" + ApiVersionSegment), options);
 
         if (options.Enabled)
         {

@@ -48,7 +48,7 @@ public sealed class ControlAuthorizationTests
         );
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -76,7 +76,7 @@ public sealed class ControlAuthorizationTests
         );
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Single(jobs.ControlCalls);
@@ -92,7 +92,7 @@ public sealed class ControlAuthorizationTests
         var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/api/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Single(jobs.ControlCalls);
@@ -111,7 +111,7 @@ public sealed class ControlAuthorizationTests
         await using var _ = app;
 
         var response = await client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/acta/api/jobs"),
+            new HttpRequestMessage(HttpMethod.Get, "/acta/api/v1/jobs"),
             TestContext.Current.CancellationToken
         );
 
@@ -137,11 +137,11 @@ public sealed class ControlAuthorizationTests
         var missing = TestDashboardHost.MissingJobRef.ToString();
 
         // Found detail -> 200; a missing job -> 404; input-template -> 200. None hit the authorizer.
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct)).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/acta/api/jobs/{missing}/detail", ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/acta/api/v1/jobs/{missing}/detail", ct)).StatusCode);
         Assert.Equal(
             HttpStatusCode.OK,
-            (await client.GetAsync("/acta/api/jobs/input-template?jobNamespace=billing&jobName=send-invoice", ct)).StatusCode
+            (await client.GetAsync("/acta/api/v1/jobs/input-template?jobNamespace=billing&jobName=send-invoice", ct)).StatusCode
         );
         Assert.Empty(authorizer.Requests);
     }
@@ -160,12 +160,12 @@ public sealed class ControlAuthorizationTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var enqueue = new HttpRequestMessage(HttpMethod.Post, "/acta/api/jobs");
+        var enqueue = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/jobs");
         enqueue.Headers.Add(Confirm, "true");
         enqueue.Content = JsonContent.Create(new { jobNamespace = "billing", jobName = "send-invoice" });
 
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(enqueue, ct)).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Post($"/acta/api/jobs/{Found}/input"), ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/input"), ct)).StatusCode);
         Assert.Empty(jobs.EnqueueRequests);
         Assert.Empty(jobs.InputAmendCalls);
     }
@@ -180,7 +180,7 @@ public sealed class ControlAuthorizationTests
         );
         await using var _ = app;
 
-        var enqueue = new HttpRequestMessage(HttpMethod.Post, "/acta/api/jobs");
+        var enqueue = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/jobs");
         enqueue.Headers.Add(Confirm, "true");
         enqueue.Content = JsonContent.Create(new { jobNamespace = "billing", jobName = "send-invoice" });
         await client.SendAsync(enqueue, TestContext.Current.CancellationToken);
@@ -199,7 +199,7 @@ public sealed class ControlAuthorizationTests
         );
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/workers/42/tags");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/workers/42/tags");
         request.Headers.Add(Confirm, "true");
         request.Content = JsonContent.Create(new { name = "env", value = "prod" });
         await client.SendAsync(request, TestContext.Current.CancellationToken);

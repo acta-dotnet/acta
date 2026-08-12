@@ -374,8 +374,8 @@ app.MapActa("/acta", options =>
 ```
 
 The dashboard has a top-level Events page for the latest retained audit timeline, optionally scoped
-by namespace; the JSON endpoint is `GET /acta/api/events?jobNamespace=...`. Jobs are addressed
-in the URL by their public ref (`GET /acta/api/jobs/{jobRef}`, `/jobs/{jobRef}/events`,
+by namespace; the JSON endpoint is `GET /acta/api/v1/events?jobNamespace=...`. Jobs are addressed
+in the URL by their public ref (`GET /acta/api/v1/jobs/{jobRef}`, `/jobs/{jobRef}/events`,
 `POST /jobs/{jobRef}/{verb}`); the numeric id never appears in a route or in the JSON. A job can
 also be looked up by deduplication key (`GET /jobs/by-key?jobNamespace=&deduplicationKey=`).
 For the rare debug case where you have only an internal id (from a log line), set

@@ -42,11 +42,29 @@ public sealed partial class DashboardRouteTests
         var ct = TestContext.Current.CancellationToken;
 
         var spa = await client.GetAsync("/acta/some/client/route", ct);
-        var unknownApi = await client.GetAsync("/acta/api/nope", ct);
+        var unknownApi = await client.GetAsync("/acta/api/v1/nope", ct);
 
         Assert.Equal(HttpStatusCode.OK, spa.StatusCode);
         Assert.Equal("text/html; charset=utf-8", spa.Content.Headers.ContentType?.ToString());
         Assert.Equal(HttpStatusCode.NotFound, unknownApi.StatusCode);
+    }
+
+    /// <summary>
+    /// The version segment is the 1.0 freeze's escape hatch, so losing it must break a test rather
+    /// than quietly widen the frozen surface back to an unversioned one.
+    /// </summary>
+    [Fact]
+    public async Task Api_routes_live_under_the_version_segment_and_nowhere_else()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var versioned = await client.GetAsync("/acta/api/v1/jobs", ct);
+        var unversioned = await client.GetAsync("/acta/api/jobs", ct);
+
+        Assert.Equal(HttpStatusCode.OK, versioned.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unversioned.StatusCode);
     }
 
     [Fact]

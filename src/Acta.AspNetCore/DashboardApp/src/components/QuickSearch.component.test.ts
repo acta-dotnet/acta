@@ -11,7 +11,7 @@ function jsonResponse(payload: unknown): Response {
 function stubApi(): void {
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input));
-    const path = url.pathname.split('/api/')[1] ?? '';
+    const path = url.pathname.split('/api/v1/')[1] ?? '';
     if (path === 'capabilities') {
       return jsonResponse({ provider: 'sqlite', schema: 'acta', controls: { enabled: false } });
     }

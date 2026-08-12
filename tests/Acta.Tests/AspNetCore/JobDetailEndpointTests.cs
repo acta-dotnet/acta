@@ -45,7 +45,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -85,7 +85,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -99,7 +99,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -114,7 +114,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -131,7 +131,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -145,8 +145,8 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var missing = await client.GetAsync($"/acta/api/jobs/{Missing}/detail", ct);
-        var malformed = await client.GetAsync("/acta/api/jobs/42/detail", ct);
+        var missing = await client.GetAsync($"/acta/api/v1/jobs/{Missing}/detail", ct);
+        var malformed = await client.GetAsync("/acta/api/v1/jobs/42/detail", ct);
 
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
@@ -161,7 +161,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -186,7 +186,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -212,7 +212,7 @@ public sealed class JobDetailEndpointTests
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.GetAsync($"/acta/api/jobs/{Found}/detail", ct);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
