@@ -35,6 +35,8 @@ public sealed class PgJobContextDiResolutionSpec : JobContextDiResolutionSpec<Pg
 
 public sealed class PgJobAttemptIdentitySpec : JobAttemptIdentitySpec<PgConformanceFixture>;
 
+public sealed class PgSchedulePauseFireRaceChaosSpec : SchedulePauseFireRaceChaosSpec<PgConformanceFixture>;
+
 public sealed class PgDeadlineSpec : DeadlineSpec<PgConformanceFixture>;
 
 public sealed class PgJobRefContextSpec : JobRefContextSpec<PgConformanceFixture>;

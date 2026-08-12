@@ -1809,6 +1809,18 @@
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 
+### An operator pause landing inside a planned fire keeps the schedule paused
+- **Contract:** A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance.
+- **Arrange:** A due recurring-ping slot runs under a deterministic clock with the pause issued from inside the completion window.
+- **Act:** The slot fires while an operator pauses its only schedule before the advance is written.
+- **Assert:** The schedule stays Paused on its original cursor with no pause-expired event, and a separately elapsed timed pause still auto-resumes.
+- **Guarantees:**
+  - A pause applied while the fire is in flight is still in force after the completion
+  - A timed pause that has elapsed is still auto-resumed by the advance
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.PauseScheduleAsync`
+
 ### A paused slot does not fire and a timed pause auto-resumes at its expiry
 - **Contract:** A paused schedule's slot is not claimable, and a timed pause auto-resumes at its expiry firing once and clearing the pause.
 - **Arrange:** A recurring-ping slot with a single every-5-minutes schedule is registered under a deterministic fake clock.
@@ -2186,7 +2198,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.CheckpointSlotAsync` | Job variables round-trip through the context API with versioning and validation |
 | `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, drains the backlog, and reports the empty horizon<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
 | `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
-| `IExecutionStore.CompleteExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
+| `IExecutionStore.CompleteExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades |
@@ -2226,7 +2238,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IScheduleStore.GetLiveSchedulesAsync` | A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator manually fires a schedule now without disturbing its cadence<br>Operator pause and resume control a schedule and recompute the owning slot<br>Operator sets a CAS-guarded full-set schedule expression/time-zone override |
 | `IScheduleStore.GetScheduleStateAsync` | GetScheduleState returns live cursors for the namespace, empty when none exist<br>Schedule insert reconciles the cursor per misfire policy and upserts one row |
 | `IScheduleStore.ListJobSchedulesAsync` | ListJobSchedules filter-matrix selects exactly matching rows per dimension<br>ListJobSchedules pages live schedules next-run first without duplicates |
-| `IScheduleStore.PauseScheduleAsync` | A paused slot does not fire and a timed pause auto-resumes at its expiry<br>Operator pause and resume control a schedule and recompute the owning slot |
+| `IScheduleStore.PauseScheduleAsync` | A paused slot does not fire and a timed pause auto-resumes at its expiry<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Operator pause and resume control a schedule and recompute the owning slot |
 | `IScheduleStore.RegisterScheduledJobsAsync` | A recurring slot fires repeatedly on one stable id advancing cursors<br>Init auto-registers system definitions, slots and schedules<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator pause and resume control a schedule and recompute the owning slot<br>Recurring slot claims at its definition's priority<br>Schedule insert reconciles the cursor per misfire policy and upserts one row<br>Schedule registration is gated by the worker's environment |
 | `IScheduleStore.ResumeScheduleAsync` | Operator pause and resume control a schedule and recompute the owning slot |
 | `IScheduleStore.SetScheduleOverridesAsync` | Operator sets a CAS-guarded full-set schedule expression/time-zone override |

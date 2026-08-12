@@ -35,6 +35,8 @@ public sealed class SqlServerJobContextDiResolutionSpec : JobContextDiResolution
 
 public sealed class SqlServerJobAttemptIdentitySpec : JobAttemptIdentitySpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerSchedulePauseFireRaceChaosSpec : SchedulePauseFireRaceChaosSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerDeadlineSpec : DeadlineSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerJobRefContextSpec : JobRefContextSpec<SqlServerConformanceFixture>;
