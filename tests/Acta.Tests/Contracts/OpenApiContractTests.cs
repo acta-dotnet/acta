@@ -31,7 +31,7 @@ public sealed class OpenApiContractTests
 
         if (Environment.GetEnvironmentVariable("ACTA_EMIT_OPENAPI") == "1")
         {
-            await File.WriteAllTextAsync(path, generated, TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(path, Normalize(generated) + "\n", TestContext.Current.CancellationToken);
         }
 
         Assert.True(File.Exists(path), $"{DocumentFile} missing: run with ACTA_EMIT_OPENAPI=1.");
@@ -39,8 +39,9 @@ public sealed class OpenApiContractTests
 
         Assert.True(
             Normalize(committed) == Normalize(generated),
-            $"{DocumentFile} is stale. The HTTP surface changed. Regenerate: "
-                + "ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests"
+            $"{DocumentFile} is stale. The HTTP surface changed at "
+                + FirstDifference(Normalize(committed), Normalize(generated))
+                + " Regenerate: ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests"
         );
     }
 
@@ -85,7 +86,31 @@ public sealed class OpenApiContractTests
         return await app.GetTestClient().GetStringAsync("/openapi/v1.json", TestContext.Current.CancellationToken);
     }
 
-    private static string Normalize(string json) => json.Replace("\r\n", "\n").TrimEnd();
+    // Two kinds of line ending here, and both are platform-dependent. The file's own, and the ones
+    // inside description strings: those come from XML doc comments, so they carry whatever the source
+    // file had at checkout, escaped as a literal backslash-r backslash-n on Windows and backslash-n
+    // on Linux. Normalizing only the first kind made the committed document unmatchable on the other
+    // platform, which is how this gate passed locally and failed CI. Emission normalizes too, so the
+    // file is deterministic rather than a record of which machine last regenerated it.
+    private static string Normalize(string json) =>
+        json.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\\r\\n", "\\n", StringComparison.Ordinal).TrimEnd();
+
+    /// <summary>First differing line, so a failure names the drift instead of only announcing it.</summary>
+    private static string FirstDifference(string committed, string generated)
+    {
+        var left = committed.Split('\n');
+        var right = generated.Split('\n');
+        for (var i = 0; i < Math.Max(left.Length, right.Length); i++)
+        {
+            var a = i < left.Length ? left[i].Trim() : "(end of file)";
+            var b = i < right.Length ? right[i].Trim() : "(end of file)";
+            if (!string.Equals(a, b, StringComparison.Ordinal))
+            {
+                return $"line {i + 1}. committed: {a} | generated: {b}.";
+            }
+        }
+        return "no single line differs.";
+    }
 
     private static string RepoRoot()
     {

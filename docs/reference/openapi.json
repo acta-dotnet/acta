@@ -5656,12 +5656,12 @@
             "format": "date-time"
           }
         },
-        "description": "One alert row in a ValueTask&lt;PagedResult&lt;JobAlertListItem&gt;&gt; IAlerts.ListAsync(ListJobAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration,\r\nendpoints, and deduplication keys are delivery internals and are never exposed by list reads. JSON\r\nserialization carries the public job ref and hides the numeric job id; the ref goes null once\r\nthe subject job row is purged (alerts outlive their job)."
+        "description": "One alert row in a ValueTask&lt;PagedResult&lt;JobAlertListItem&gt;&gt; IAlerts.ListAsync(ListJobAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration,\nendpoints, and deduplication keys are delivery internals and are never exposed by list reads. JSON\nserialization carries the public job ref and hides the numeric job id; the ref goes null once\nthe subject job row is purged (alerts outlive their job)."
       },
       "JobAlertProfileCode": { },
       "JobAuditLevelCode": { },
       "JobCheckpointKindCode": {
-        "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\r\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\r\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\r\ncollide with a signal or a child latch of the same name)."
+        "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
       "JobCheckpointResponse": {
         "required": [
@@ -6136,7 +6136,7 @@
             "format": "int32"
           }
         },
-        "description": "The full job definition row returned by ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)): the whole\r\n`definitions` row in its authoritative column order - identity + control, contract + formats,\r\nevery policy triple (code `default`, operator `override` [null = inherit], DB-computed\r\n`effective`), and audit bookkeeping. Backs the dashboard's definition detail editor, where\r\noperators see and edit defaults vs overrides vs effective. The grid uses the slimmer\r\nJobDefinitionListItem."
+        "description": "The full job definition row returned by ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)): the whole\n`definitions` row in its authoritative column order - identity + control, contract + formats,\nevery policy triple (code `default`, operator `override` [null = inherit], DB-computed\n`effective`), and audit bookkeeping. Backs the dashboard's definition detail editor, where\noperators see and edit defaults vs overrides vs effective. The grid uses the slimmer\nJobDefinitionListItem."
       },
       "JobDefinitionListItem": {
         "required": [
@@ -6215,7 +6215,7 @@
             "format": "date-time"
           }
         },
-        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\r\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\r\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\r\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\r\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail)."
+        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail)."
       },
       "JobDefinitionStatusCode": { },
       "JobDetailResponse": {
@@ -6350,7 +6350,7 @@
         }
       },
       "JobEventCode": {
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\r\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
       },
       "JobEventListItem": {
         "required": [
@@ -6548,7 +6548,7 @@
             "description": "Free-form (text) or structured (json) detail decoded to text, or null when the event carries no detail or a non-text format."
           }
         },
-        "description": "One audit event row in a ValueTask&lt;PagedResult&lt;JobEventListItem&gt;&gt; ILedger.ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\r\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\r\nref parameter documents whether it survives the purge."
+        "description": "One audit event row in a ValueTask&lt;PagedResult&lt;JobEventListItem&gt;&gt; ILedger.ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\nref parameter documents whether it survives the purge."
       },
       "JobEventReasonCode": { },
       "JobExplainAction": {
@@ -6565,7 +6565,7 @@
             "type": "string"
           }
         },
-        "description": "A suggested operator move. string JobExplainAction.Kind is a stable slug\r\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\r\n`wait-recovery` | `view-result` | `none`); string JobExplainAction.Description is the prose shown to the operator."
+        "description": "A suggested operator move. string JobExplainAction.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `view-result` | `none`); string JobExplainAction.Description is the prose shown to the operator."
       },
       "JobExplainLease": {
         "required": [
@@ -6617,7 +6617,7 @@
             "type": "string"
           }
         },
-        "description": "The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.\r\nWhen bool JobExplainLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on\r\nits next maintenance tick; string JobExplainLease.RecoveryExpectation states that in prose.\r\nstring? JobExplainLease.WorkerName is the worker's deployment version; bool JobExplainLease.WorkerStale is true once\r\nthe worker has missed heartbeats past `JobsOptions.WorkerDeadAfter`."
+        "description": "The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.\nWhen bool JobExplainLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on\nits next maintenance tick; string JobExplainLease.RecoveryExpectation states that in prose.\nstring? JobExplainLease.WorkerName is the worker's deployment version; bool JobExplainLease.WorkerStale is true once\nthe worker has missed heartbeats past `JobsOptions.WorkerDeadAfter`."
       },
       "JobExplainStep": {
         "required": [
@@ -6750,7 +6750,7 @@
             }
           }
         },
-        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there,\r\nand what an operator can do next. Assembled from the same `runtimes` / `workers` /\r\n`steps` / `checkpoints` / `events` rows an operator could read with a `SELECT`:\r\nActa explains the work it runs rather than hiding it behind synthesized state. Returned by\r\nValueTask&lt;JobExplanation?&gt; IJobs.ExplainAsync(JobLookup lookup, CancellationToken ct = default(CancellationToken)); the CLI renders it as prose, the dashboard as a panel.\r\nStatusMeaning is the [Code] description of Status; Headline is a\r\none-sentence summary; ActiveWait / Lease are set only in the relevant states;\r\nLastExecutedBy names the worker that last ran the job (for states with no live lease);\r\nReason is the most recent reason on the timeline; NextActions are the operator's\r\nmoves, most relevant first."
+        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there,\nand what an operator can do next. Assembled from the same `runtimes` / `workers` /\n`steps` / `checkpoints` / `events` rows an operator could read with a `SELECT`:\nActa explains the work it runs rather than hiding it behind synthesized state. Returned by\nValueTask&lt;JobExplanation?&gt; IJobs.ExplainAsync(JobLookup lookup, CancellationToken ct = default(CancellationToken)); the CLI renders it as prose, the dashboard as a panel.\nStatusMeaning is the [Code] description of Status; Headline is a\none-sentence summary; ActiveWait / Lease are set only in the relevant states;\nLastExecutedBy names the worker that last ran the job (for states with no live lease);\nReason is the most recent reason on the timeline; NextActions are the operator's\nmoves, most relevant first."
       },
       "JobInputTemplateResponse": {
         "required": [
@@ -6873,7 +6873,7 @@
             "format": "date-time"
           }
         },
-        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\r\nJobRef JobLineageJob.JobRef forms alongside the JSON-hidden numeric ids, matching JobListItem."
+        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef JobLineageJob.JobRef forms alongside the JSON-hidden numeric ids, matching JobListItem."
       },
       "JobLineageMap": {
         "required": [
@@ -6921,7 +6921,7 @@
             "type": "boolean"
           }
         },
-        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the\r\nfocused Job itself with its steps and the durable wait it is blocked on, and its direct children.\r\nLike JobExplanation it is assembled from the same durable rows an operator could read\r\nwith a `SELECT` - Acta maps the work it runs rather than hiding it behind synthesized state.\r\nReturned by ValueTask&lt;JobLineageMap?&gt; IJobs.GetLineageMapAsync(JobLookup lookup, JobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel.\r\nV1 is shallow: Ancestors is context only (root first, immediate parent last, no steps\r\nof their own), Job is the focused subtree root, and Children are the direct children\r\ncapped at int JobLineageMapOptions.ChildLimit with ChildrenHasMore flagging a\r\ntruncated set. Recursive descent below direct children is deferred."
+        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the\nfocused Job itself with its steps and the durable wait it is blocked on, and its direct children.\nLike JobExplanation it is assembled from the same durable rows an operator could read\nwith a `SELECT` - Acta maps the work it runs rather than hiding it behind synthesized state.\nReturned by ValueTask&lt;JobLineageMap?&gt; IJobs.GetLineageMapAsync(JobLookup lookup, JobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel.\nV1 is shallow: Ancestors is context only (root first, immediate parent last, no steps\nof their own), Job is the focused subtree root, and Children are the direct children\ncapped at int JobLineageMapOptions.ChildLimit with ChildrenHasMore flagging a\ntruncated set. Recursive descent below direct children is deferred."
       },
       "JobLineageStep": {
         "required": [
@@ -7105,10 +7105,10 @@
             "format": "int16"
           }
         },
-        "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page. Carries identity, lifecycle, and\r\naudit-facing fields only; the input payload is never exposed by list reads. JSON serialization\r\ncarries the public refs and hides the numeric ids."
+        "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page. Carries identity, lifecycle, and\naudit-facing fields only; the input payload is never exposed by list reads. JSON serialization\ncarries the public refs and hides the numeric ids."
       },
       "JobNamespaceStatusCode": {
-        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\r\nTenantStatusCode. Id 90 is reserved for an Archived (hidden/historical)\r\nstatus, for symmetry with TenantStatusCode's reservation."
+        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode. Id 90 is reserved for an Archived (hidden/historical)\nstatus, for symmetry with TenantStatusCode's reservation."
       },
       "JobPayloadResponse": {
         "required": [
@@ -7159,10 +7159,10 @@
         }
       },
       "JobPriorityCode": {
-        "description": "Claim-priority value for `JobRuntime.Priority`. Discrete five-tier code-system enum\r\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\r\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\r\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\r\noverride, or per-enqueue priority override."
+        "description": "Claim-priority value for `JobRuntime.Priority`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
       },
       "JobRef": {
-        "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\r\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\r\nby this value; the numeric JobId stays the internal engine identity. Parsing is\r\ncase-insensitive; emission is always canonical lowercase."
+        "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
       },
       "JobScheduleListItem": {
         "required": [
@@ -7294,7 +7294,7 @@
             "format": "int32"
           }
         },
-        "description": "One schedule row in a ValueTask&lt;PagedResult&lt;JobScheduleListItem&gt;&gt; ISchedules.ListAsync(ListJobSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\r\ntime zone are the effective values: the operator override when present, else the original."
+        "description": "One schedule row in a ValueTask&lt;PagedResult&lt;JobScheduleListItem&gt;&gt; ISchedules.ListAsync(ListJobSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\ntime zone are the effective values: the operator override when present, else the original."
       },
       "JobSnapshot": {
         "required": [
@@ -7462,11 +7462,11 @@
             "format": "date-time"
           }
         },
-        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\r\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\r\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\r\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\r\nresolved to a public value follows the id it came from, and the created/modified pair closes the\r\nrecord together. JSON serialization carries the public refs and hides the numeric ids."
+        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids."
       },
       "JobStatusCode": { },
       "JobStepStatusCode": {
-        "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\r\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\r\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\r\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\r\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
+        "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
       },
       "JobWorkerDetail": {
         "required": [
@@ -7696,7 +7696,7 @@
             "format": "int32"
           }
         },
-        "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListItemsAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\r\n`namespaces` table, and the one representation `GET /namespaces` answers with.\r\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
+        "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListItemsAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\n`namespaces` table, and the one representation `GET /namespaces` answers with.\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
       },
       "OverviewOutboxLine": {
         "required": [
@@ -8359,7 +8359,7 @@
             }
           }
         },
-        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\r\nread or written). string SchedulePreview.Expression and string SchedulePreview.TimeZoneId are the effective values\r\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; SchedulePreview.NextRunsUtc is strictly\r\nincreasing and may be shorter than requested when the expression is exhausted."
+        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string SchedulePreview.Expression and string SchedulePreview.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; SchedulePreview.NextRunsUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
       },
       "ScheduleStatusCode": { },
       "TagItem": {
@@ -8444,7 +8444,7 @@
             "format": "int32"
           }
         },
-        "description": "One tenant row in a ValueTask&lt;PagedResult&lt;TenantListItem&gt;&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from\r\nthe `tenants` table. The string TenantListItem.TenantKey is the caller-supplied opaque external\r\nidentifier; the human label lives in string? TenantListItem.Description."
+        "description": "One tenant row in a ValueTask&lt;PagedResult&lt;TenantListItem&gt;&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from\nthe `tenants` table. The string TenantListItem.TenantKey is the caller-supplied opaque external\nidentifier; the human label lives in string? TenantListItem.Description."
       },
       "TenantRegistrationResponse": {
         "required": [
@@ -8467,7 +8467,7 @@
         }
       },
       "TenantStatusCode": {
-        "description": "Tenant state machine. 10-spaced ids; live states 10..80. Id 90 is reserved for an\r\nArchived (hidden/historical) status, to be added when the dashboard/API need historical tenant\r\ncleanup."
+        "description": "Tenant state machine. 10-spaced ids; live states 10..80. Id 90 is reserved for an\nArchived (hidden/historical) status, to be added when the dashboard/API need historical tenant\ncleanup."
       },
       "WorkerStatusCode": { }
     }
