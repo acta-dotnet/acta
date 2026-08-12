@@ -67,10 +67,10 @@ const executionEvents = [
 ];
 
 async function mockDashboard(page: Page, options: { controls: boolean; onRestart?: () => void }): Promise<void> {
-  await page.route('**/api/**', async (route: Route) => {
+  await page.route('**/api/v1/**', async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
-    const path = url.pathname.split('/api/')[1] ?? '';
+    const path = url.pathname.split('/api/v1/')[1] ?? '';
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (path === 'capabilities') {
@@ -236,7 +236,7 @@ test('read-only deployment hides controls and rejects a direct request', async (
   await expect(page.getByText('Read-only - controls disabled on this host.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
   const status = await page.evaluate(async (ref) => {
-    const response = await fetch(`api/jobs/${ref}/restart`, {
+    const response = await fetch(`api/v1/jobs/${ref}/restart`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Acta-Control': 'true' },
       body: JSON.stringify({ reasonMessage: 'bypass attempt' })
