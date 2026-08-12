@@ -117,26 +117,35 @@ WHERE  r.status_code IN (100, 200, 220)
   AND  r.leased_by_worker_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------------------------
--- 7. no step body ran after its result was recorded      [QUIESCED ONLY]
+-- 7. no step body ran more times than the step was attempted   [QUIESCED ONLY]
 -- ---------------------------------------------------------------------------------------------
 -- The differentiating claim, and the reason the note API exists: "kill the worker, completed steps
 -- do not re-run."
 --
 -- `steps` keeps only current state - one row per (job, name), UPDATE-in-place, no per-attempt
 -- history - so a body that ran twice leaves no trace there. The witness is the note each body writes
--- before doing its work.
+-- before doing its work, and `attempt_number` is how many times the engine admitted a body.
+--
+-- Counting, not timestamps. This check used to compare a note's time against the step's
+-- `modified_at_utc` and read "note after success" as a replay. That is wrong under load: every
+-- routine captures its clock at entry, so a write blocked on locks lands with a stale stamp, and a
+-- million-job SQL Server run produced 2,208 rows where `modified_at_utc` preceded the row's own
+-- `created_at_utc`. Every one of them had attempt_number = 1 and exactly one note: nothing had
+-- re-run. One note per admitted attempt is the same claim with no clock in it.
 --
 -- A second note is NOT a violation by itself: at-least-once means a body interrupted before its
--- outcome committed legitimately re-runs. The violation is a body that ran *after* the step already
--- succeeded, which is what this finds by comparing note timestamps to the step's completion.
-SELECT 'step-replay' AS check_name, s.job_id, s.name AS step_name, e.created_at_utc AS note_after_success
+-- outcome committed legitimately re-runs, and that re-run is an attempt the engine counted. The
+-- violation is a body that ran without the engine admitting it, which is exactly notes > attempts.
+SELECT 'step-replay' AS check_name, s.job_id, s.name AS step_name, s.attempt_number, n.notes
 FROM   {s}steps s
-JOIN   {s}events e
-  ON   e.job_id = s.job_id
- AND   e.event_code = 90
- AND   e.reason_message = CONCAT('step-body ', s.name)   -- CONCAT: || is not SQL Server
+JOIN   (SELECT job_id, reason_message, COUNT(*) AS notes
+        FROM   {s}events
+        WHERE  event_code = 90
+        GROUP BY job_id, reason_message) n
+  ON   n.job_id = s.job_id
+ AND   n.reason_message = CONCAT('step-body ', s.name)   -- CONCAT: || is not SQL Server
 WHERE  s.status_code = 100
-  AND  e.created_at_utc > s.modified_at_utc;
+  AND  n.notes > s.attempt_number;
 
 -- ---------------------------------------------------------------------------------------------
 -- 8. the chaos was real                                  [INVERTED: must return exactly one row]
@@ -160,3 +169,22 @@ SELECT 'chaos-was-real' AS check_name,
        SUM(CASE WHEN event_code = 122 THEN 1 ELSE 0 END) AS workers_marked_dead
 FROM   {s}events
 HAVING SUM(CASE WHEN event_code = 41 AND execution_status_code = 230 THEN 1 ELSE 0 END) > 0;
+
+-- ---------------------------------------------------------------------------------------------
+-- 9. how far the recorded clock ran backwards            [MEASURED: always reports, never fails]
+-- ---------------------------------------------------------------------------------------------
+-- `events.id` is assigned in insert order, so a higher id carrying an earlier `created_at_utc` means
+-- the recorded time moved backwards between those two writes. Reported, never asserted, because two
+-- causes are indistinguishable from here and only one is a fault: a routine captures its clock at
+-- entry, so a write blocked on locks lands with a stale stamp and looks identical to a container
+-- whose clock actually stepped back.
+--
+-- It is here because a run that certifies timing-dependent properties must show what its clock did.
+-- The million-job SQL Server run recorded 26,713 backwards steps of up to 30 seconds, and without
+-- this line the only symptom was a check failing for a reason it could not name.
+SELECT 'clock-backsteps' AS check_name, COUNT(*) AS backwards_writes
+FROM   (SELECT created_at_utc,
+               LAG(created_at_utc) OVER (ORDER BY id) AS previous_created_at_utc
+        FROM   {s}events) ordered
+WHERE  ordered.created_at_utc < ordered.previous_created_at_utc
+HAVING COUNT(*) >= 0;

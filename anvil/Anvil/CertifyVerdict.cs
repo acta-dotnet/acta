@@ -19,7 +19,8 @@ namespace Anvil;
 /// </remarks>
 internal static class CertifyVerdict
 {
-    private sealed record Check(string Name, string Sql, bool Inverted);
+    // Measured checks report a number and never fail: they describe the run rather than judge it.
+    private sealed record Check(string Name, string Sql, bool Inverted, bool Measured);
 
     public static async Task<int> RunAsync(string provider, string schema, CancellationToken ct)
     {
@@ -41,19 +42,23 @@ internal static class CertifyVerdict
         foreach (var check in checks)
         {
             var (rows, first) = await CountAsync(connection, check.Sql, ct);
-            var ok = check.Inverted ? rows > 0 : rows == 0;
+            var ok = check.Measured || (check.Inverted ? rows > 0 : rows == 0);
             if (!ok)
             {
                 failures.Add(check.Name);
             }
-            if (check.Inverted)
+            if (check.Inverted || check.Measured)
             {
                 measured.Add(first ?? "(no row)");
             }
 
-            var verdict = ok ? "ok  " : "FAIL";
+            var verdict =
+                check.Measured ? "note"
+                : ok ? "ok  "
+                : "FAIL";
             var detail =
-                check.Inverted ? first ?? "no reclaims observed"
+                check.Measured ? first ?? "(nothing recorded)"
+                : check.Inverted ? first ?? "no reclaims observed"
                 : rows == 0 ? "0"
                 : $"{rows} row(s)";
             Console.WriteLine($"  [{verdict}] {check.Name, -28} {detail}");
@@ -130,7 +135,14 @@ internal static class CertifyVerdict
                 continue;
             }
 
-            checks.Add(new Check(statement[(open + 1)..close], statement, chunk.Contains("[INVERTED", StringComparison.Ordinal)));
+            checks.Add(
+                new Check(
+                    statement[(open + 1)..close],
+                    statement,
+                    chunk.Contains("[INVERTED", StringComparison.Ordinal),
+                    chunk.Contains("[MEASURED", StringComparison.Ordinal)
+                )
+            );
         }
         return checks;
     }
