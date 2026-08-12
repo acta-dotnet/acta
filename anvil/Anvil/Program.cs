@@ -72,7 +72,11 @@ static async Task RunDashboardAsync(string[] args, string provider)
     // name for a throwaway, isolated run); --namespace pins the namespace.
     var id = RunIdentity.NewDashboard(DateTime.UtcNow, schema: GetArg(args, "--schema"), @namespace: GetArg(args, "--namespace"));
     var builder = WebApplication.CreateSlimBuilder(args);
-    builder.WebHost.UseUrls(AnvilServer.BindUrl);
+    // Two participants on one machine would otherwise both bind 5059 and the second would fail to
+    // start. Across machines everyone takes the default happily, which is why this is an override
+    // rather than a required argument.
+    var port = GetArg(args, "--port") is { } portArg ? int.Parse(portArg) : AnvilServer.Port;
+    builder.WebHost.UseUrls(AnvilServer.BindUrlFor(port));
     // Boot failures are reported once, as an actionable block, by FailDashboardBoot; without this
     // filter the host logger prints the same exception first as a raw stack trace.
     builder.Logging.AddFilter("Microsoft.Extensions.Hosting.Internal.Host", LogLevel.None);
@@ -80,7 +84,13 @@ static async Task RunDashboardAsync(string[] args, string provider)
     var session = new AnvilSession(id.RunId, id.Namespace, id.Schema, provider, DateTime.UtcNow);
     // The producer-side database for the outbox-pressure fault: always its own SQLite file, so the
     // handoff crosses a real database boundary even when the ledger itself is SQLite.
-    var outboxDb = new AnvilOutboxDatabase(Path.Combine(Path.GetTempPath(), $"anvil-outbox-{id.Schema}.db"), session);
+    // One file per participant, which is what schema plus namespace identifies. The namespace is the
+    // load-bearing half: there is exactly one sys.outbox relay registration per namespace, so keying
+    // on it makes relay and producer agree, and each participant drains the source it is bound to.
+    // Keying on schema alone put two participants sharing a schema on one file, and since
+    // InitializeAsync deletes the file to avoid a stale WAL, the second one could not even start.
+    // The schema half only separates concurrent runs that reuse namespace names across schemas.
+    var outboxDb = new AnvilOutboxDatabase(Path.Combine(Path.GetTempPath(), $"anvil-outbox-{id.Schema}-{id.Namespace}.db"), session);
     builder.Services.UseActa(j =>
     {
         // Shared local-dev bootstrap, then ExecutionProfile.Direct (2 write txns/job; on SQLite
@@ -132,11 +142,12 @@ static async Task RunDashboardAsync(string[] args, string provider)
     // Before any worker exists: the relay's first tick must find the producer file with its tables.
     await outboxDb.InitializeAsync();
     app.Services.GetRequiredService<WorkerProcessLauncher>().Spawn();
-    Console.WriteLine($"Anvil         : {AnvilServer.Url}");
-    Console.WriteLine($"Run/schema  : {id.RunId} / {id.Schema} ({provider})");
+    var url = AnvilServer.BindUrlFor(port) + "/";
+    Console.WriteLine($"Anvil         : {url}");
+    Console.WriteLine($"Run/schema  : {id.RunId} / {id.Schema} / {id.Namespace} ({provider})");
     if (!args.Contains("--no-open"))
     {
-        Browser.TryOpen(AnvilServer.Url);
+        Browser.TryOpen(url);
     }
 
     // --certify-jobs turns this into a one-shot certification: same host, same services, but the
@@ -255,4 +266,10 @@ public static class AnvilServer
     public const int Port = 5059;
     public const string BindUrl = "http://127.0.0.1:5059";
     public const string Url = BindUrl + "/";
+
+    /// <summary>
+    /// Loopback URL for a given port. Participants in one ensemble bind different ports on a single
+    /// machine; across machines they all take the default and this never comes up.
+    /// </summary>
+    public static string BindUrlFor(int port) => $"http://127.0.0.1:{port}";
 }
