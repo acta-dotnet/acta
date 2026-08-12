@@ -15,7 +15,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     private readonly IJobs _jobs = jobs;
     private readonly AnvilSession _session = session;
 
-    private sealed record SeedLine(string JobName, int Count, bool Fails, Func<int, JobPayload> Payload);
+    // Delay is per item so a line can be spread across a window rather than all due at once.
+    private sealed record SeedLine(string JobName, int Count, bool Fails, Func<int, JobPayload> Payload, Func<int, int?>? Delay = null);
 
     private static IReadOnlyList<SeedLine> Plan(AnvilRunSpec spec) =>
         spec.Workload switch
@@ -25,10 +26,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             [
                 new("steady-success", spec.Load, false, i => AnvilPayloads.Json(new SteadySuccess($"steady-{i}", 25))),
             ],
-            AnvilWorkloadCode.CrashRecovery =>
-            [
-                new("slow-success", spec.Load, false, i => AnvilPayloads.Json(new SlowSuccess($"slow-{i}", 5, spec.StepDelayMs))),
-            ],
+            AnvilWorkloadCode.CrashRecovery => CrashRecoveryPlan(spec),
             AnvilWorkloadCode.RetryAndFailure => RetryAndFailurePlan(spec.Load),
             AnvilWorkloadCode.FanOut =>
             [
@@ -36,6 +34,31 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             ],
             _ => throw new ArgumentOutOfRangeException(nameof(spec), spec.Workload, "Unknown Anvil workload."),
         };
+
+    // A tenth of the crash workload is the at-most-once charge shape, so the same kills that reclaim
+    // slow-success land inside a body that must never run twice. Marked as expected-to-fail: an
+    // interrupted AtMostOnce step terminalizes the ambiguity rather than retrying, which is the
+    // contract, so those failures are the shape working and the board's target must include them.
+    private static IReadOnlyList<SeedLine> CrashRecoveryPlan(AnvilRunSpec spec)
+    {
+        var charges = Math.Max(1, spec.Load / 10);
+        var slow = spec.Load - charges;
+        var spread = Math.Max(1, spec.EffectSpreadSeconds);
+        return
+        [
+            new("slow-success", slow, false, i => AnvilPayloads.Json(new SlowSuccess($"slow-{i}", 5, spec.StepDelayMs))),
+            new(
+                "at-most-once-charge",
+                charges,
+                true,
+                i => AnvilPayloads.Json(new AtMostOnceCharge($"charge-{i}", spec.StepDelayMs * 2)),
+                // Due inside the window where a kill can actually interrupt a body: after the warm-up,
+                // because nothing is reclaimable before a lease can lapse, and before the chaos ends.
+                // Zero means due now, which is what the cockpit wants and a certification never does.
+                i => spec.EffectDelaySeconds <= 0 ? null : spec.EffectDelaySeconds + (i % spread)
+            ),
+        ];
+    }
 
     private static IReadOnlyList<SeedLine> RetryAndFailurePlan(int load)
     {
@@ -63,7 +86,18 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                 var chunk = new List<JobEnqueueRequest>(ChunkSize);
                 for (var i = 0; i < line.Count; i++)
                 {
-                    chunk.Add(Request(_session.NamespaceName, _session.RunId, batch, line.JobName, i, line.Payload(i), spec.Workload));
+                    chunk.Add(
+                        Request(
+                            _session.NamespaceName,
+                            _session.RunId,
+                            batch,
+                            line.JobName,
+                            i,
+                            line.Payload(i),
+                            spec.Workload,
+                            line.Delay?.Invoke(i)
+                        )
+                    );
 
                     if (chunk.Count == ChunkSize)
                     {
@@ -110,7 +144,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
         string jobName,
         int index,
         JobPayload input,
-        AnvilWorkloadCode workload
+        AnvilWorkloadCode workload,
+        int? delaySeconds = null
     ) =>
         new(
             namespaceName,
@@ -118,7 +153,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             input,
             DeduplicationKey: $"anvil/{runId}/{batch:000}/{jobName}/{index}",
             CorrelationKey: runId,
-            DelaySeconds: null,
+            DelaySeconds: delaySeconds,
             Tags: [new TagInput("demo", "anvil"), new TagInput("run", runId), new TagInput("workload", workload.ToString())],
             // Every sixth of the seeded jobs cycles through a demo tenant so tenant-scoped views have
             // data; the rest stay untenanted so both kinds of jobs exist side by side.

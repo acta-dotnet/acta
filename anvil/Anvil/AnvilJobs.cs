@@ -32,6 +32,13 @@ public sealed record OutboxReceipt(string OperationId);
 /// <summary>A parent job that fans out to <see cref="ChildCount"/> children and joins on all of them; the lineage demo.</summary>
 public sealed record FanOut(string Label, int ChildCount);
 
+/// <summary>
+/// A job whose one effect must never repeat: the charge shape. Its step is <c>AtMostOnce</c>, so a kill
+/// mid-body does not re-run it - the replay terminalizes the ambiguity instead. These are seeded into the
+/// crash workload precisely so the kills land inside that window.
+/// </summary>
+public sealed record AtMostOnceCharge(string Label, int WorkMs);
+
 public static class SteadySuccessJob
 {
     [Job("steady-success")]
@@ -62,6 +69,11 @@ public static class SlowSuccessJob
     [Job("slow-success")]
     public static async Task<string> Handle(SlowSuccess input, JobContext ctx, CancellationToken ct)
     {
+        // Tenant witness, one per attempt. Comparing events.tenant_id to jobs.tenant_id would be
+        // tautological - two projections of one stored value - so the only non-circular question is
+        // what the HANDLER saw after the whole enqueue, claim and dispatch path, which is this.
+        await ctx.NoteAsync($"tenant {ctx.TenantKey ?? "-"}", ct);
+
         for (var step = 1; step <= input.StepCount; step++)
         {
             var name = $"step-{step}";
@@ -144,6 +156,39 @@ public static class FanOutJob
     }
 }
 
+public static class AtMostOnceChargeJob
+{
+    // The double-spend probe, and the one claim the seal could not previously make. The body writes a
+    // note before doing its work, and the note is its own operation rather than part of the step's
+    // transaction - which is the whole reason it survives to be evidence when the step does not.
+    //
+    // Two notes for one job would mean the body ran twice under an AtMostOnce contract that says it
+    // runs zero or one times. Zero notes is legal and common: the kill landed before the body was
+    // admitted. So the assertion is "never more than one", not "exactly one".
+    //
+    // Ending Failed is by design here, not a defect: a body interrupted before its outcome committed
+    // terminalizes as ambiguous and throws StepInterruptedException, because for a charge, an honest
+    // "this may have happened once" beats a confident retry. certify.sql exempts this shape from the
+    // expected-outcome check for that reason and names it there.
+    [Job("at-most-once-charge", MaxAttempts = 3, Backoff = "2s..4s")]
+    public static async Task<string> Handle(AtMostOnceCharge input, JobContext ctx, CancellationToken ct)
+    {
+        await ctx.NoteAsync($"tenant {ctx.TenantKey ?? "-"}", ct);
+        await ctx.RunStepAsync(
+            "charge",
+            async token =>
+            {
+                await ctx.NoteAsync("charge-body", token);
+                await Task.Delay(input.WorkMs, token);
+            },
+            options => options.AtMostOnce(),
+            ct
+        );
+
+        return $"charged: {input.Label}";
+    }
+}
+
 /// <summary>Payload-less recurring pulse: keeps the schedules view alive even with no workload seeded.</summary>
 public readonly record struct Pulse;
 
@@ -178,6 +223,8 @@ internal static class AnvilPayloads
     public static JobPayload Json(OutboxReceipt v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.OutboxReceipt);
 
     public static JobPayload Json(FanOut v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.FanOut);
+
+    public static JobPayload Json(AtMostOnceCharge v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.AtMostOnceCharge);
 }
 
 /// <summary>
@@ -201,6 +248,7 @@ internal static class AnvilPayloads
 [JsonSerializable(typeof(NoOp))]
 [JsonSerializable(typeof(OutboxReceipt))]
 [JsonSerializable(typeof(FanOut))]
+[JsonSerializable(typeof(AtMostOnceCharge))]
 [JsonSerializable(typeof(Pulse))]
 // Job outputs.
 [JsonSerializable(typeof(string))]

@@ -45,10 +45,19 @@ public sealed record RunIdentity(string RunId, string Schema, string Namespace)
     /// <summary>The schema dashboard runs share by default so their namespaces accumulate in one place.</summary>
     public const string DefaultDashboardSchema = "anvil";
 
-    public static RunIdentity NewDashboard(DateTime utcNow, string? schema = null, string? @namespace = null, string? suffix = null)
+    public static RunIdentity NewDashboard(
+        DateTime utcNow,
+        string? schema = null,
+        string? @namespace = null,
+        string? suffix = null,
+        string? runId = null
+    )
     {
         suffix ??= NewSuffix();
-        return new RunIdentity(NewRunId(utcNow, suffix), schema ?? DefaultDashboardSchema, @namespace ?? NewNamespace(utcNow));
+        // An explicit runId is what makes an ensemble one run rather than N. Every participant is given
+        // the same value, and because the seeder stamps it as each job's correlation key, it is also the
+        // exact boundary the checker scopes to. Minted per process when absent, which is every solo run.
+        return new RunIdentity(runId ?? NewRunId(utcNow, suffix), schema ?? DefaultDashboardSchema, @namespace ?? NewNamespace(utcNow));
     }
 
     // The run id carries the random suffix so two runs started in the same wall-clock second (parallel

@@ -70,7 +70,18 @@ static async Task RunDashboardAsync(string[] args, string provider)
     // namespace, so each run adds a namespace to one accumulating catalog the dashboard can grow (M001
     // re-applies idempotently; prior data is preserved). --schema overrides the schema (e.g. a unique
     // name for a throwaway, isolated run); --namespace pins the namespace.
-    var id = RunIdentity.NewDashboard(DateTime.UtcNow, schema: GetArg(args, "--schema"), @namespace: GetArg(args, "--namespace"));
+    var id = RunIdentity.NewDashboard(
+        DateTime.UtcNow,
+        schema: GetArg(args, "--schema"),
+        @namespace: GetArg(args, "--namespace"),
+        runId: GetArg(args, "--run")
+    );
+    // Ensemble roles, two flags and no coordination protocol. --seed marks the one participant that
+    // owns the workload and the verdict; every other participant brings workers and chaos to the same
+    // run id. --participant names this process in worker names and kill records. A solo run passes
+    // neither and behaves exactly as before: it is its own seeder, named "p1".
+    var participant = GetArg(args, "--participant") ?? "p1";
+    var isSeeder = args.Contains("--seed") || GetArg(args, "--run") is null;
     var builder = WebApplication.CreateSlimBuilder(args);
     // Two participants on one machine would otherwise both bind 5059 and the second would fail to
     // start. Across machines everyone takes the default happily, which is why this is an override
@@ -84,12 +95,14 @@ static async Task RunDashboardAsync(string[] args, string provider)
     var session = new AnvilSession(id.RunId, id.Namespace, id.Schema, provider, DateTime.UtcNow);
     // The producer-side database for the outbox-pressure fault: always its own SQLite file, so the
     // handoff crosses a real database boundary even when the ledger itself is SQLite.
-    // One file per participant, which is what schema plus namespace identifies. The namespace is the
-    // load-bearing half: there is exactly one sys.outbox relay registration per namespace, so keying
-    // on it makes relay and producer agree, and each participant drains the source it is bound to.
-    // Keying on schema alone put two participants sharing a schema on one file, and since
-    // InitializeAsync deletes the file to avoid a stale WAL, the second one could not even start.
-    // The schema half only separates concurrent runs that reuse namespace names across schemas.
+    // Keyed by schema AND namespace, which is what makes an ensemble work rather than a workaround for
+    // it. sys.outbox claims are namespace-wide and AddOutboxRelay names the source, not the slot, so
+    // every worker in one namespace must be bound to the SAME producer or a tick drains a file its
+    // claimant is not bound to. Participants sharing a namespace therefore share this path deliberately,
+    // and only the seeder initializes it (below) - InitializeAsync deletes the file to avoid inheriting
+    // a stale WAL, so a second initializer would destroy the producer the run is using.
+    // Keying on schema alone collided two participants in DIFFERENT namespaces, which is the case that
+    // must not share, and the second process died at startup unable to delete an open file.
     var outboxDb = new AnvilOutboxDatabase(Path.Combine(Path.GetTempPath(), $"anvil-outbox-{id.Schema}-{id.Namespace}.db"), session);
     builder.Services.UseActa(j =>
     {
@@ -104,7 +117,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
     });
     builder.Services.AddSingleton(session);
     builder.Services.AddSingleton(outboxDb);
-    builder.Services.AddSingleton(new WorkerProcessLauncher(id.RunId, id.Schema, provider, id.Namespace, outboxDb.Path));
+    builder.Services.AddSingleton(new WorkerProcessLauncher(id.RunId, id.Schema, provider, id.Namespace, outboxDb.Path, participant));
     builder.Services.AddSingleton<RateTelemetry>();
     builder.Services.AddSingleton<SeedProgress>();
     builder.Services.AddSingleton<FaultInjectors>();
@@ -140,11 +153,17 @@ static async Task RunDashboardAsync(string[] args, string provider)
         await operations.Tenants.RegisterAsync(key, displayName);
     }
     // Before any worker exists: the relay's first tick must find the producer file with its tables.
-    await outboxDb.InitializeAsync();
+    // Only the seeder initializes. Initializing deletes the file, so a joining participant that did it
+    // would destroy the producer the run is already draining; it attaches to the same path instead.
+    if (isSeeder)
+    {
+        await outboxDb.InitializeAsync();
+    }
     app.Services.GetRequiredService<WorkerProcessLauncher>().Spawn();
     var url = AnvilServer.BindUrlFor(port) + "/";
     Console.WriteLine($"Anvil         : {url}");
     Console.WriteLine($"Run/schema  : {id.RunId} / {id.Schema} / {id.Namespace} ({provider})");
+    Console.WriteLine($"Participant : {participant} ({(isSeeder ? "seeder, owns the verdict" : "workers and chaos only")})");
     if (!args.Contains("--no-open"))
     {
         Browser.TryOpen(url);
@@ -171,6 +190,8 @@ static async Task RunDashboardAsync(string[] args, string provider)
             TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-chaos-min") ?? "10")),
             TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-quiesce-min") ?? "45")),
             int.Parse(GetArg(args, "--certify-step-delay-ms") ?? "1000"),
+            isSeeder,
+            participant,
             CancellationToken.None
         );
         await app.StopAsync();

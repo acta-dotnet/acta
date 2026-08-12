@@ -20,8 +20,14 @@ internal static class AnvilWorkerPreset
 /// Owns the real child processes used by the lab. Worker-count changes are reconciled in place: existing
 /// healthy processes remain, excess processes drain gracefully, and only missing processes are spawned.
 /// </summary>
-public sealed class WorkerProcessLauncher(string runId, string schema, string provider, string namespaceName, string outboxSourcePath)
-    : IDisposable
+public sealed class WorkerProcessLauncher(
+    string runId,
+    string schema,
+    string provider,
+    string namespaceName,
+    string outboxSourcePath,
+    string participant
+) : IDisposable
 {
     /// <summary>
     /// Executor slots each spawned worker runs with. Defaults to the lab preset; a certification run
@@ -39,7 +45,10 @@ public sealed class WorkerProcessLauncher(string runId, string schema, string pr
     public WorkerSnapshot Spawn()
     {
         var ordinal = Interlocked.Increment(ref _sequence);
-        var name = $"worker-{ordinal}";
+        // Prefixed with the participant, because the counter is per launcher: two participants would
+        // both mint worker-1, and this string becomes workers.deployment_version, which is how a
+        // process is tied to its database row. Unprefixed, an ensemble's kill evidence is unassignable.
+        var name = $"{participant}-worker-{ordinal}";
         var start = BuildWorkerStartInfo(name);
         var process = new Process { StartInfo = start, EnableRaisingEvents = true };
         var managed = new ManagedWorker(ordinal, name, process);

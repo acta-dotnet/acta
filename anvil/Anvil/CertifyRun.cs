@@ -75,6 +75,8 @@ internal static class CertifyRun
         TimeSpan chaos,
         TimeSpan quiesceTimeout,
         int stepDelayMs,
+        bool isSeeder,
+        string participant,
         CancellationToken ct
     )
     {
@@ -91,10 +93,14 @@ internal static class CertifyRun
             Console.WriteLine($"  {DateTime.Now:HH:mm:ss}  {phase, -9} {detail}");
         }
 
-        Phase("START", "starting");
+        Phase(isSeeder ? "START" : "JOINING", isSeeder ? "starting" : $"joining run {id.RunId}");
         Console.WriteLine();
-        Console.WriteLine($"  Acta certification | {provider} | schema {id.Schema}");
-        Console.WriteLine($"  {jobs} jobs, {workers} workers, 5 steps x {stepDelayMs}ms, chaos for {chaos.TotalMinutes:0} min");
+        Console.WriteLine($"  Acta certification | {provider} | schema {id.Schema} | run {id.RunId}");
+        Console.WriteLine(
+            isSeeder
+                ? $"  {participant} seeds and owns the verdict | {jobs} jobs, {workers} workers, 5 steps x {stepDelayMs}ms, chaos for {chaos.TotalMinutes:0} min"
+                : $"  {participant} brings {workers} workers and chaos for {chaos.TotalMinutes:0} min | the seeder owns the verdict"
+        );
         Console.WriteLine();
 
         Phase("START", "waiting for the first worker to register");
@@ -129,11 +135,28 @@ internal static class CertifyRun
         }
 
         launcher.SetTargetCount(workers);
-        var spec = new AnvilRunSpec(AnvilWorkloadCode.CrashRecovery, jobs, workers, stepDelayMs);
-        var batch = session.NextBatch();
-        _ = SeedAsync(scopes, batch, spec, progress);
+        // Exactly one seeder, named by a flag rather than elected. At this scale - one operator, a few
+        // machines - a leader-election protocol would be more moving parts than the thing it coordinates,
+        // and a second seeder is a mistake the run reports rather than one it has to prevent.
+        if (isSeeder)
+        {
+            // The interruptible shapes are timed from the same two numbers this run already derived
+            // rather than from constants pasted here: due after the warm-up, because nothing can be
+            // reclaimed before a lease can lapse, and spread over what remains of the chaos window.
+            var spec = new AnvilRunSpec(
+                AnvilWorkloadCode.CrashRecovery,
+                jobs,
+                workers,
+                stepDelayMs,
+                EffectDelaySeconds: (int)warmUp.TotalSeconds,
+                EffectSpreadSeconds: (int)(chaos - warmUp).TotalSeconds
+            );
+            var batch = session.NextBatch();
+            _ = SeedAsync(scopes, batch, spec, progress);
+        }
+
         faults.StartContinuousCrashes();
-        Phase("RUNNING", "seeded; killing a worker every 5s");
+        Phase("RUNNING", isSeeder ? "seeded; killing a worker every 5s" : "claiming the run's work; killing a worker every 5s");
 
         var started = DateTime.UtcNow;
         while (DateTime.UtcNow - started < chaos)
@@ -157,6 +180,25 @@ internal static class CertifyRun
 
         faults.StopContinuousCrashes();
         Phase("QUIESCE", "chaos stopped; draining in-flight work");
+
+        // A joining participant keeps its workers alive through the drain and then leaves without a
+        // verdict. Exiting at the end of chaos would withdraw its executors from the very phase whose
+        // length it just extended, and two participants printing two verdicts is the failure this
+        // role split exists to remove: one run, one seal.
+        if (!isSeeder)
+        {
+            var drained = await WaitAsync(
+                async () => (await SeededAsync(scopes, id, ct)) is var (total, terminal) && total > 0 && terminal == total,
+                quiesceTimeout,
+                TimeSpan.FromSeconds(20),
+                ct
+            );
+            Phase(
+                drained ? "DONE" : "DONE",
+                drained ? "the run's work is terminal; the seeder owns the verdict" : "quiesce timed out here; the seeder owns the verdict"
+            );
+            return 0;
+        }
 
         // Quiesce does not end when the chaos stops: work held by already-killed workers stays
         // Executing until its lease lapses and recovery sweeps it, one batch per tick.

@@ -26,9 +26,9 @@
 -- Check 7 additionally needs the witness notes Anvil's step bodies write via ctx.NoteAsync, because
 -- `steps` keeps no per-attempt history.
 --
--- Still absent, and not claimed anywhere below: handler-body overlap (needs enter/exit notes plus an
--- external kill record with the killer's timestamp) and AtMostOnce double-spend. Nothing here says
--- "lease exclusivity"; see check 1 for what is actually proven instead.
+-- Still absent, and not claimed anywhere below: handler-body overlap, which needs enter/exit notes
+-- plus an external kill record carrying the killer's own timestamp. Nothing here says "lease
+-- exclusivity"; see check 1 for what is actually proven instead.
 
 -- ---------------------------------------------------------------------------------------------
 -- 1. execution-event ownership consistency               [any time]
@@ -61,6 +61,15 @@ HAVING COUNT(DISTINCT worker_id) > 1;
 -- Quiesce is not instant, and stopping the chaos does not end it: jobs held by already-killed workers
 -- stay Executing until their 180s lease lapses and the next recovery tick sweeps them. Wait for
 -- in-flight to reach zero rather than for the producer to stop, or this check fires on the tail.
+--
+-- OPEN, observed 2026-08-13 on a two-participant ensemble: this fired on a recurring slot with one
+-- unpaired start, and it was NOT a killed worker. Two live workers claimed the same slot 16ms apart
+-- and took different execution numbers; the later one completed, and the earlier one's completion was
+-- refused on a stale version. A refused completion writes no event, so the superseded attempt keeps a
+-- 40 with no 41 forever. No work was lost or repeated - the slot ran once - so the question is whether
+-- this invariant is stronger than the engine promises. Either the check narrows to attempts that were
+-- not superseded, or the engine closes a superseded attempt. Left failing on purpose until that is
+-- decided: narrowing it first would turn a real question into a green seal.
 SELECT 'attempt-pairing' AS check_name, job_id, execution_number,
        SUM(CASE WHEN event_code = 40 THEN 1 ELSE 0 END) AS started,
        SUM(CASE WHEN event_code = 41 THEN 1 ELSE 0 END) AS finished
@@ -104,8 +113,14 @@ FROM   {s}runtimes r
 JOIN   {s}jobs j ON j.id = r.job_id
 JOIN   {s}definitions d ON d.id = j.definition_id
 WHERE  r.status_code = 200
-  AND  d.name <> 'always-fails'
+  AND  d.name NOT IN ('always-fails', 'at-most-once-charge')
 GROUP  BY d.name, r.status_code;
+
+-- `at-most-once-charge` is exempt for a different reason than `always-fails`, and the difference
+-- matters. always-fails throws on purpose. at-most-once-charge fails only when a kill landed inside
+-- its body: the AtMostOnce contract refuses to re-run it and terminalizes the ambiguity instead,
+-- because for a charge an honest "this may have happened once" beats a confident second attempt.
+-- Its real assertion is check 10, which is about how many times the body ran, not how it ended.
 
 -- ---------------------------------------------------------------------------------------------
 -- 6. terminal-state integrity                            [QUIESCED ONLY]
@@ -188,3 +203,40 @@ FROM   (SELECT created_at_utc,
         FROM   {s}events) ordered
 WHERE  ordered.created_at_utc < ordered.previous_created_at_utc
 HAVING COUNT(*) >= 0;
+
+-- ---------------------------------------------------------------------------------------------
+-- 10. an AtMostOnce body never ran twice                 [any time]
+-- ---------------------------------------------------------------------------------------------
+-- The double-spend claim. `AtMostOnce` promises a body runs zero or one times: on replay the slot is
+-- poisoned rather than re-entered, and the caller gets StepInterruptedException instead of a second
+-- charge. `steps` cannot show this - one row per (job, name), updated in place - so the witness is
+-- the note the body writes before doing its work, which commits in its own operation and therefore
+-- survives when the step's own outcome does not.
+--
+-- Zero notes is legal and common: the kill landed before the engine admitted the body. The violation
+-- is strictly more than one, which is a body that ran again under a contract that forbids it.
+SELECT 'at-most-once' AS check_name, n.job_id, n.bodies
+FROM   (SELECT job_id, COUNT(*) AS bodies
+        FROM   {s}events
+        WHERE  event_code = 90 AND reason_message = 'charge-body'
+        GROUP  BY job_id) n
+WHERE  n.bodies > 1;
+
+-- ---------------------------------------------------------------------------------------------
+-- 11. tenant context survived every hop                  [any time]
+-- ---------------------------------------------------------------------------------------------
+-- The tenant supplied at enqueue is the tenant the handler observed. Deliberately NOT a comparison of
+-- events.tenant_id to jobs.tenant_id: those are two projections of one stored value, so that query
+-- passes by construction and proves nothing. The handler notes the TenantKey it actually saw, which
+-- is the far side of enqueue, claim, dispatch and payload decode, and this compares that against the
+-- row the job was stored with.
+--
+-- Not a security claim. docs/guide/concepts.md states plainly that the tenant field is not a security
+-- or isolation boundary; this asserts that the value survives intact, not that it confines anything.
+SELECT 'tenant-context' AS check_name, e.job_id, e.reason_message AS observed, COALESCE(t.tenant_key, '-') AS job_tenant
+FROM   {s}events e
+JOIN   {s}jobs j ON j.id = e.job_id
+LEFT   JOIN {s}tenants t ON t.id = j.tenant_id
+WHERE  e.event_code = 90
+  AND  e.reason_message LIKE 'tenant %'
+  AND  e.reason_message <> CONCAT('tenant ', COALESCE(t.tenant_key, '-'));
