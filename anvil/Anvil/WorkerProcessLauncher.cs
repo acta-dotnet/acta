@@ -6,10 +6,11 @@ namespace Anvil;
 
 internal static class AnvilWorkerPreset
 {
-    // Eight rather than four: at the API's 8-worker ceiling this gives 64 concurrent slots, which is
-    // what makes a certification run of real size finish in a sane window. The work is Task.Delay,
+    // Eight rather than four: at the dashboard's 8-worker ceiling this gives 64 concurrent slots,
+    // which is what makes a lab run of real size finish in a sane window. The work is Task.Delay,
     // not CPU, so the cost is database round trips - and more of them at once is the point, since
-    // claim contention is exactly what the ownership check is looking at.
+    // claim contention is exactly what the ownership check is looking at. A certification run
+    // overrides it with --certify-executors; the dashboard always uses this default.
     public const int Executors = 8;
     public const int ClaimBatch = 8;
     public const string Profile = "direct";
@@ -22,6 +23,13 @@ internal static class AnvilWorkerPreset
 public sealed class WorkerProcessLauncher(string runId, string schema, string provider, string namespaceName, string outboxSourcePath)
     : IDisposable
 {
+    /// <summary>
+    /// Executor slots each spawned worker runs with. Defaults to the lab preset; a certification run
+    /// raises it so total concurrency is workers x this, sized against the database's connection
+    /// ceiling rather than guessed.
+    /// </summary>
+    public int ExecutorsPerWorker { get; set; } = AnvilWorkerPreset.Executors;
+
     private const int ExitedWorkerRetention = 3;
 
     private readonly ConcurrentDictionary<int, ManagedWorker> _workers = new();
@@ -144,7 +152,7 @@ public sealed class WorkerProcessLauncher(string runId, string schema, string pr
         AddArgument(start, "--schema", schema);
         AddArgument(start, "--provider", provider);
         AddArgument(start, "--namespace", namespaceName);
-        AddArgument(start, "--executors", AnvilWorkerPreset.Executors.ToString(CultureInfo.InvariantCulture));
+        AddArgument(start, "--executors", ExecutorsPerWorker.ToString(CultureInfo.InvariantCulture));
         AddArgument(start, "--profile", AnvilWorkerPreset.Profile);
         AddArgument(start, "--claim-batch", AnvilWorkerPreset.ClaimBatch.ToString(CultureInfo.InvariantCulture));
         AddArgument(start, "--outbox-source", outboxSourcePath);

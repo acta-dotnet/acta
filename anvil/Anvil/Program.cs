@@ -143,6 +143,14 @@ static async Task RunDashboardAsync(string[] args, string provider)
     // orchestration runs in-process instead of a shell driving it over HTTP. See CertifyRun.
     if (GetArg(args, "--certify-jobs") is { } certifyJobs)
     {
+        // Executor slots per worker. Total concurrency is workers x executors, and the ceiling that
+        // matters is the database's max_connections, not the CPU: the workload is Task.Delay, so every
+        // slot is a connection holder rather than a core.
+        if (GetArg(args, "--certify-executors") is { } certifyExecutors)
+        {
+            app.Services.GetRequiredService<WorkerProcessLauncher>().ExecutorsPerWorker = int.Parse(certifyExecutors);
+        }
+
         var exit = await CertifyRun.ExecuteAsync(
             app.Services,
             id,
