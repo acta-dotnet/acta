@@ -82,8 +82,15 @@ Server. The full provider/connection/docker-compose setup is documented once in
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md); the short form is:
 
 ```bash
-set ACTA_LOCAL_PROVIDER=sqlserver          # or: postgres, sqlite
-set ConnectionStrings__acta=Host=...;Database=acta-dev;Username=...
+export ACTA_LOCAL_PROVIDER=sqlserver          # or: postgres, sqlite
+export ConnectionStrings__acta='Host=...;Database=acta-dev;Username=...'
+```
+
+PowerShell, since most of these run on Windows:
+
+```powershell
+$env:ACTA_LOCAL_PROVIDER = 'sqlserver'        # or: postgres, sqlite
+$env:ConnectionStrings__acta = 'Host=...;Database=acta-dev;Username=...'
 ```
 
 ## The ladder

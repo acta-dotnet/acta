@@ -25,7 +25,13 @@ await host.StopAsync();
 namespace Acta.Concepts.ChainedJobs
 {
     // Each stage enqueues the next. Unlike 206's in-handler step chain, every stage is its own durable
-    // job, so a crash mid-pipeline only loses the in-flight stage; work already handed off is safe.
+    // job, so a crash mid-pipeline re-runs only the in-flight stage; stages already finished are not
+    // re-executed.
+    //
+    // What a crash CAN repeat is the handoff itself. The enqueue happens before the stage completes,
+    // so a replay enqueues the next stage again. Each handoff therefore carries a deduplication key
+    // derived from the document, which makes the replay return the existing job rather than a second
+    // pipeline running beside the first.
     public sealed record IngestDocument(string FileName);
 
     public sealed record RenderPdf(string FileName);
@@ -38,7 +44,7 @@ namespace Acta.Concepts.ChainedJobs
         public async Task Handle(IngestDocument input, CancellationToken ct)
         {
             Console.WriteLine($"ingested {input.FileName}");
-            await jobs.EnqueueAsync(new RenderPdf(input.FileName), ct: ct);
+            await jobs.EnqueueAsync(new RenderPdf(input.FileName), o => o.DeduplicationKey($"render-{input.FileName}"), ct);
         }
     }
 
@@ -48,7 +54,7 @@ namespace Acta.Concepts.ChainedJobs
         public async Task Handle(RenderPdf input, CancellationToken ct)
         {
             Console.WriteLine($"rendered {input.FileName} -> PDF");
-            await jobs.EnqueueAsync(new ArchiveFile(input.FileName), ct: ct);
+            await jobs.EnqueueAsync(new ArchiveFile(input.FileName), o => o.DeduplicationKey($"archive-{input.FileName}"), ct);
         }
     }
 

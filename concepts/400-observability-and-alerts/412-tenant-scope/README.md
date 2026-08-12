@@ -43,7 +43,7 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 The lab uses `jobs_view` and `events_view`, joining the internal tenant catalog only to decode the key.
-It proves parent/child inheritance and also exercises the public `IJobs` tenant filter with a fresh
+It proves parent/child inheritance and also exercises the operator ledger read `IActaOperations.Ledger.ListJobsAsync` with its tenant filter and a fresh
 correlation key, so repeated runs still report exactly the current parent and child. Application code
 should use `IActaOperations.Tenants` and `IJobs`; the underlying catalog table is not a compatibility contract.
 

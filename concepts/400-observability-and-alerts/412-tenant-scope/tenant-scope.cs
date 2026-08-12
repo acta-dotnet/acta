@@ -35,7 +35,9 @@ if (parentTerminal.Status != JobStatusCode.Succeeded)
 var byTenant = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: jobNamespace, TenantId: acmeId, CorrelationKey: runId, IncludeTotal: true)
 );
-Console.WriteLine($"IJobs tenant + correlation filter returned {byTenant.TotalCount} current-run Acme job(s): parent and inherited child.");
+Console.WriteLine(
+    $"Ledger tenant + correlation filter returned {byTenant.TotalCount} current-run Acme job(s): parent and inherited child."
+);
 
 foreach (var rejectedKey in new[] { "missing-customer", "held-customer" })
 {
