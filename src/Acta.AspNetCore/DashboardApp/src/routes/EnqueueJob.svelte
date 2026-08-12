@@ -45,7 +45,7 @@
       let cursor: string | undefined;
       // Bounded walk: the catalog is small, but a misbehaving cursor must never spin forever.
       for (let guard = 0; guard < 100; guard++) {
-        const page = await api<Paged<{ id: number; name: string }>>('namespaces/admin', { pageSize: 100, cursor }, { signal });
+        const page = await api<Paged<{ id: number; name: string }>>('namespaces', { pageSize: 100, cursor }, { signal });
         all.push(...page.items);
         if (!page.hasMore || !page.nextCursor) break;
         cursor = page.nextCursor;

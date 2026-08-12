@@ -21,7 +21,7 @@ function stubApi(): void {
         : [];
       return jsonResponse({ items, hasMore: false, nextCursor: null });
     }
-    if (path === 'namespaces/admin') {
+    if (path === 'namespaces') {
       const items = 'billing'.includes(url.searchParams.get('nameContains') ?? '')
         ? [{ id: 2, name: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]
         : [];

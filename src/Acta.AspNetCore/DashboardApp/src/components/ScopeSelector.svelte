@@ -30,7 +30,7 @@
       let cursor;
       // Bound the walk so a misbehaving cursor can never spin forever; 100 pages * 100 = 10k namespaces.
       for (let guard = 0; guard < 100; guard++) {
-        const page = await api('namespaces/admin', { pageSize: 100, cursor });
+        const page = await api('namespaces', { pageSize: 100, cursor });
         all.push(...(page.items ?? []));
         if (!page.hasMore || !page.nextCursor) break;
         cursor = page.nextCursor;

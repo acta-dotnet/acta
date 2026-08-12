@@ -76,7 +76,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === 'capabilities') {
       return json({ controlsEnabled: options.controls, version: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
     }
-    if (path === 'namespaces/admin') {
+    if (path === 'namespaces') {
       return json(paged([{ id: 2, name: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]));
     }
     if (path === 'overview') {

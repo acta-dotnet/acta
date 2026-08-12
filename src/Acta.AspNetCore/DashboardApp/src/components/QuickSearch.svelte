@@ -89,7 +89,7 @@
   const namespaces = createQuery(() => ({
     queryKey: keys.list('palette-namespaces', { nameContains: textQ?.folded }),
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      api<Paged<NamespaceHit>>('namespaces/admin', { nameContains: textQ?.folded, pageSize: 5 }, { signal }),
+      api<Paged<NamespaceHit>>('namespaces', { nameContains: textQ?.folded, pageSize: 5 }, { signal }),
     enabled: probeEnabled,
     staleTime: 15_000
   }), clientArg);

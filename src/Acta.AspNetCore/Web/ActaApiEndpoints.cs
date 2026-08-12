@@ -334,6 +334,10 @@ internal static class ActaApiEndpoints
             .Produces<Features.Jobs.JobDetailResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        // A lookup, not a filter, and deliberately its own route. Both parameters are required and
+        // together identify at most one job, so this answers with a single object or 404. Folding it
+        // into /jobs would make one route return either a page or a job depending on which query
+        // parameters arrived, which is a worse contract than the path segment it would remove.
         group
             .MapGet(
                 "/jobs/by-key",
@@ -389,34 +393,6 @@ internal static class ActaApiEndpoints
         group
             .MapGet(
                 "/namespaces",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListNamespacesQuery(
-                        NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        IncludeTotal: includeTotal ?? false,
-                        Tags: QueryBinding.Tags(http.Request.Query)
-                    );
-                    return Guard(async () =>
-                        Results.Json(await operations.Namespaces.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultString)
-                    );
-                }
-            )
-            .Produces<PagedResult<string>>(StatusCodes.Status200OK);
-
-        group
-            .MapGet(
-                "/namespaces/admin",
                 static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
                     string? error = null;

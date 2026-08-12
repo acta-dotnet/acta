@@ -23,7 +23,7 @@
     let cursor: string | undefined;
     for (let guard = 0; guard < 100; guard++) {
       const page = await api<Paged<NamespaceListItem>>(
-        'namespaces/admin',
+        'namespaces',
         { nameStartsWith: namespaceName, pageSize: 100, cursor },
         { signal }
       );
@@ -92,7 +92,7 @@
     body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildNamespaceDetailsPayload(vars) }),
     notFound: () => ({ action: 'notFound', version: null }),
     versionConflict: () => ({ action: 'versionConflict', version: null }),
-    invalidateKeys: () => [['namespaces/admin']] as const
+    invalidateKeys: () => [['namespaces']] as const
   });
   let detailsMessage = $state('');
   let detailsMessageKind = $state('');
@@ -142,7 +142,7 @@
     path: (vars) => `namespaces/${encodeURIComponent(vars.name)}/${vars.action}`,
     notFound: () => ({ action: 'notFound', version: null }),
     versionConflict: () => ({ action: 'versionConflict', version: null }),
-    invalidateKeys: () => [['namespaces/admin']] as const
+    invalidateKeys: () => [['namespaces']] as const
   });
   let confirming = $state<'suspend' | 'resume' | null>(null);
   let statusMessage = $state('');

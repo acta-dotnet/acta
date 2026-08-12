@@ -24,7 +24,7 @@ CLI verbs run as `<exe> jobs <verb>`.
 | List jobs | `ILedger.ListJobsAsync` | `GET /jobs` | | |
 | List events | `ILedger.ListEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{id}/events` | `events` | Explain bundle |
 | Overview | `ILedger.GetOverviewAsync` | `GET /overview` | | |
-| Namespaces | `Namespaces.ListAsync` / `ListItemsAsync` | `GET /namespaces`, `/namespaces/admin` | | |
+| Namespaces | `Namespaces.ListItemsAsync` | `GET /namespaces` | | one representation, the row; `ListAsync` stays for name-only callers |
 | Definitions | `Definitions.ListAsync` / `GetAsync` | `GET /definitions`, `GET /definitions/{id}` | | |
 | Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/preview` | | |
 | Workers | `Workers.ListAsync` / `GetAsync` | `GET /workers`, `GET /workers/{id}` | | |

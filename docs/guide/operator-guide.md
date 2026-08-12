@@ -179,6 +179,47 @@ await operations.Schedules.ResumeAsync(nightly, note: "maintenance complete");
 Trigger now, misfire catch-up, normal cursor movement, and historical backfill are deliberately
 different operations. Use [Schedule operations](./schedule-operations.md) before choosing a control.
 
+### What each verb does from each status
+
+Read from the provider routines, not from intent. Every verb answers one of three ways: **applied**
+(`200`), **rejected** (`409`, the job exists but its status forbids the transition), or **not found**
+(`404`). All three carry the same `JobControlResponse` body, so a client reads `action` and the
+resulting `status` without special-casing the code.
+
+`R` Ready · `S` Suspended · `P` Paused · `D` Dispatched · `X` Executing · `✓` Succeeded · `F` Failed ·
+`C` Cancelled. **A** applied, **409** rejected.
+
+| Verb | R | S | P | D | X | ✓ | F | C | Result on applied |
+|---|---|---|---|---|---|---|---|---|---|
+| `pause` | A | A | A | 409 | 409 | 409 | 409 | 409 | Paused |
+| `resume` | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready |
+| `restart` | A | A | A | A | 409 | A | A | A | Ready, failure budget and retention reset |
+| `cancel` | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
+| `purge` | 409 | 409 | 409 | 409 | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
+| `reschedule` | A | A | A | 409 | 409 | 409 | 409 | 409 | Ready at the new instant |
+| `reprioritize` | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
+| `input` (amend) | A | A | A | 409 | 409 | A | A | A | Input replaced, format round-tripped |
+| `signal` | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job waiting on that name goes Ready |
+
+Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
+Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
+a 409 rather than a silent success. That asymmetry is deliberate - pausing twice expresses the same
+intent, resuming something that was never paused does not.
+
+Three rules the table cannot show:
+
+- **`purge` also rejects a job that has children**, whatever its status. `parent_id` carries no
+  database cascade, so purging a parent would leave a child pointing at a row that no longer exists.
+  Purge the leaves first.
+- **`cancel` on an Executing job** marks the row Cancelled and cancels the running attempt's token;
+  the handler still has to return. The row is terminal before the process notices.
+- **`signal` on a Paused job** records the slot and leaves the job Paused. The signal is not lost;
+  it is waiting for a `resume`.
+- **`input` on a terminal job is allowed**, which looks odd until you want it: amend the input of a
+  failed job, then `restart` it. Only Dispatched and Executing reject, because those are the two
+  states where a worker may already have read the payload. A job that stored no input has nothing to
+  amend and answers `409` from the endpoint before the routine is reached.
+
 ## Tenant and namespace administration
 
 Tenants and namespaces carry an operator-controlled status: `active` resolves at enqueue, `suspended`

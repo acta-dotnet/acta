@@ -4727,65 +4727,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfstring"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/acta/api/v1/namespaces/admin": {
-      "get": {
-        "tags": [
-          "Namespaces"
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
                   "$ref": "#/components/schemas/PagedResultOfNamespaceListItem"
                 }
               }
@@ -8218,56 +8159,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NamespaceListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfstring": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "string"
             },
             "description": "The page rows, at most PageSize of them."
           },

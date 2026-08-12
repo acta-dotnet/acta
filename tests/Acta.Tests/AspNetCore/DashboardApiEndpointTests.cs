@@ -418,7 +418,12 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Namespaces_returns_names()
+    /// <summary>
+    /// One namespace representation, not two. The route used to answer with bare names and a second
+    /// route carried the row; the row is now the only answer, so the assertion is on the fields only
+    /// the row has.
+    /// </summary>
+    public async Task Namespaces_returns_rows_not_bare_names()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
@@ -427,8 +432,9 @@ public sealed class DashboardApiEndpointTests
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("billing", body);
-        Assert.Contains("reports", body);
+        Assert.Contains("\"name\":\"billing\"", body);
+        Assert.Contains("\"status\":\"active\"", body);
+        Assert.Contains("\"ownerTeam\":\"payments\"", body);
     }
 
     [Fact]

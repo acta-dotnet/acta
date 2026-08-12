@@ -79,7 +79,7 @@
 
     <ActaGrid
       rowKey={(namespace: NamespaceListItem) => namespace.id}
-      endpoint="namespaces/admin"
+      endpoint="namespaces"
       mobileCards={true}
       {columns}
       filters={() => ({ nameContains: $filters.name.trim().toLowerCase(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
