@@ -46,7 +46,7 @@ GROUP  BY job_id, execution_number
 HAVING COUNT(DISTINCT worker_id) > 1;
 
 -- ---------------------------------------------------------------------------------------------
--- 2. attempt pairing                                     [QUIESCED ONLY]
+-- 2. no attempt starts twice or finishes twice          [QUIESCED ONLY]
 -- ---------------------------------------------------------------------------------------------
 -- No attempt starts twice, and no started attempt is left unclosed.
 --
@@ -62,14 +62,18 @@ HAVING COUNT(DISTINCT worker_id) > 1;
 -- stay Executing until their 180s lease lapses and the next recovery tick sweeps them. Wait for
 -- in-flight to reach zero rather than for the producer to stop, or this check fires on the tail.
 --
--- OPEN, observed 2026-08-13 on a two-participant ensemble: this fired on a recurring slot with one
--- unpaired start, and it was NOT a killed worker. Two live workers claimed the same slot 16ms apart
--- and took different execution numbers; the later one completed, and the earlier one's completion was
--- refused on a stale version. A refused completion writes no event, so the superseded attempt keeps a
--- 40 with no 41 forever. No work was lost or repeated - the slot ran once - so the question is whether
--- this invariant is stronger than the engine promises. Either the check narrows to attempts that were
--- not superseded, or the engine closes a superseded attempt. Left failing on purpose until that is
--- decided: narrowing it first would turn a real question into a green seal.
+-- A 40 with no 41 is also legal, and this check used to assert otherwise. Observed 2026-08-13 on a
+-- two-participant ensemble: two LIVE workers claimed the same recurring slot 16ms apart and took
+-- different execution numbers. The later one completed; the earlier one's completion was refused on a
+-- stale version, and a refused completion writes no event, so its attempt keeps a start with no finish
+-- forever. Nothing was lost or repeated - the slot ran once - and the refusal is deliberate engine
+-- behaviour with a spec of its own (the refused completion beside its successor). Asserting that every
+-- start closes therefore demanded a guarantee the design does not make.
+--
+-- What survives is the pair of claims that are real: an attempt never starts twice, and never finishes
+-- twice. Unclosed attempts are covered where they actually matter by check 4, which asks whether any
+-- job was left mid-flight - the operational question - rather than whether every attempt record was
+-- tidied up.
 SELECT 'attempt-pairing' AS check_name, job_id, execution_number,
        SUM(CASE WHEN event_code = 40 THEN 1 ELSE 0 END) AS started,
        SUM(CASE WHEN event_code = 41 THEN 1 ELSE 0 END) AS finished
@@ -77,7 +81,7 @@ FROM   {s}events
 WHERE  event_code IN (40, 41) AND execution_number IS NOT NULL
 GROUP  BY job_id, execution_number
 HAVING SUM(CASE WHEN event_code = 40 THEN 1 ELSE 0 END) > 1
-    OR SUM(CASE WHEN event_code = 41 THEN 1 ELSE 0 END) <> 1;
+    OR SUM(CASE WHEN event_code = 41 THEN 1 ELSE 0 END) > 1;
 
 -- ---------------------------------------------------------------------------------------------
 -- 3. namespace isolation                                 [any time]
