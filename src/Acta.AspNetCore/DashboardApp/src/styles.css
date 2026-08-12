@@ -233,7 +233,7 @@ option { background-color: var(--panel); color: var(--ink); }
    An outset ring on those draws at and past the sidebar's own edges, so it reads as a box around
    the whole column and gets clipped. Inset the ring instead. */
 nav.side a:focus-visible,
-.side-scope .scope .trigger:focus-visible,
+.side-scope .dropdown .trigger:focus-visible,
 .side-collapse:focus-visible,
 .side-theme .trigger:focus-visible { outline-offset: -2px; }
 
@@ -1206,10 +1206,10 @@ button.copy {
 button.copy:hover { color: var(--accent); }
 .filters button.copy .ic { width: 18px; height: 18px; }
 
-.side-scope .scope { display: block; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
+.side-scope .dropdown { display: block; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
 /* No border or fill: a bordered control insets its own text and would be the one thing in the
    sidebar not sitting on the shared 20px left margin. */
-.side-scope .scope .trigger {
+.side-scope .dropdown .trigger {
   padding: 8px 40px 8px 20px;
   border: 0;
   border-radius: 0;
@@ -1232,7 +1232,11 @@ button.copy:hover { color: var(--accent); }
   background-repeat: no-repeat;
   background-size: 5px 5px;
 }
-.side-scope .scope .trigger:hover { background-color: var(--panel-subtle); }
+.side-scope .dropdown .trigger:hover { background-color: var(--panel-subtle); }
+/* Dropdown's listbox is flush with its wrapper, which is right everywhere it sits inside a bordered
+   field. Here the trigger is borderless and indented to the sidebar's 20px margin, so the list insets
+   to put its option text under the trigger text instead of 8px to the left of it. */
+.side-scope .dropdown .listbox { left: 12px; right: 12px; }
 
 .lineage-trail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-bottom: 16px; font-size: var(--text-md); }
 .lineage-trail .sep { color: var(--muted); }

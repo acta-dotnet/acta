@@ -1,27 +1,25 @@
 <script>
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { get } from 'svelte/store';
   import { api } from '../api';
   import { scope, setScope } from '../scope';
   import { isSysNamespace } from '../routes/namespaceAdmin.ts';
+  import Dropdown from './Dropdown.svelte';
 
-  // A dropdown of namespaces led by "All namespaces" (the global default). The catalog read is
-  // paged, so we walk every page via the cursor to load the full namespace list (the catalog is small);
-  // a scope set from the URL that isn't present is still kept as its own option so the selection shows.
-  // The typed admin catalog carries the stable namespace id, letting us exclude seeded id 1 without
-  // guessing its name. A system scope supplied in the URL is cleared to the global scope.
-  // Not a native <select>: its OS-drawn popup ignores the theme (a white sheet on the dark themes),
-  // so the list is an in-page popover like the appearance menu.
+  // The namespace scope, led by "All namespaces" (the global default). The listbox, keyboard
+  // handling, outside-click and typeahead all come from Dropdown; what is left here is the part
+  // that is actually about namespaces.
+  //
+  // The catalog read is paged, so we walk every page via the cursor to load the full list (the
+  // catalog is small). A scope set from the URL that is not present is still kept as its own option
+  // so the selection shows. The typed catalog carries the stable namespace id, letting us exclude
+  // seeded id 1 without guessing its name; a system scope supplied in the URL is cleared to global.
   let namespaces = $state([]);
-  let open = $state(false);
-  let rootElement = $state(null);
-  let triggerElement = $state(null);
-  let optionButtons = $state([]);
 
   let options = $derived([
-    '',
-    ...($scope && !namespaces.includes($scope) ? [$scope] : []),
-    ...namespaces,
+    { value: '', label: 'All namespaces' },
+    ...($scope && !namespaces.includes($scope) ? [{ value: $scope, label: $scope }] : []),
+    ...namespaces.map((name) => ({ value: name, label: name })),
   ]);
 
   onMount(async () => {
@@ -42,128 +40,8 @@
       namespaces = [];
     }
   });
-
-  async function toggle() {
-    open = !open;
-    if (open) {
-      await tick();
-      const current = options.indexOf(get(scope));
-      optionButtons[current >= 0 ? current : 0]?.focus();
-    }
-  }
-
-  function close(restoreFocus) {
-    if (!open) return;
-    open = false;
-    if (restoreFocus) triggerElement?.focus();
-  }
-
-  function choose(ns) {
-    setScope(ns);
-    close(true);
-  }
-
-  function handleListKeyDown(event) {
-    const index = optionButtons.indexOf(document.activeElement);
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      optionButtons[Math.min(index + 1, options.length - 1)]?.focus();
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      optionButtons[Math.max(index - 1, 0)]?.focus();
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      optionButtons[0]?.focus();
-    } else if (event.key === 'End') {
-      event.preventDefault();
-      optionButtons[options.length - 1]?.focus();
-    }
-  }
-
-  function handleWindowPointerDown(event) {
-    if (open && rootElement && event.target instanceof Node && !rootElement.contains(event.target)) {
-      close(false);
-    }
-  }
-
-  function handleWindowKeyDown(event) {
-    if (event.key === 'Escape' && open) {
-      event.preventDefault();
-      close(true);
-    }
-  }
 </script>
 
-<svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeyDown} />
-
-<div class="scope" bind:this={rootElement}>
-  <!-- No visible label: the trigger shows the current scope. The accessible name has to come from
-       somewhere, so it rides aria-label, and title doubles as the hover hint. -->
-  <button
-    type="button"
-    class="trigger"
-    bind:this={triggerElement}
-    aria-haspopup="listbox"
-    aria-expanded={open}
-    aria-controls="scope-listbox"
-    aria-label="Namespace"
-    title={$scope || 'All namespaces'}
-    onclick={toggle}>
-    {$scope || 'All namespaces'}
-  </button>
-  {#if open}
-    <div id="scope-listbox" class="listbox" role="listbox" tabindex="-1" aria-label="Namespace" onkeydown={handleListKeyDown}>
-      {#each options as ns, index (ns)}
-        <button
-          type="button"
-          role="option"
-          class="option"
-          class:selected={$scope === ns}
-          bind:this={optionButtons[index]}
-          aria-selected={$scope === ns}
-          onclick={() => choose(ns)}>
-          {ns || 'All namespaces'}
-        </button>
-      {/each}
-    </div>
-  {/if}
-</div>
-
-<style>
-  .scope { position: relative; }
-
-  .listbox {
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    top: calc(100% + 4px);
-    z-index: 20;
-    max-height: min(48dvh, 420px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 4px;
-    display: flex;
-    flex-direction: column;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-panel);
-    box-shadow: 0 8px 30px var(--shadow);
-  }
-
-  .option {
-    padding: 7px 8px;
-    border: 0;
-    border-radius: var(--radius-control);
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-family: var(--mono);
-    text-align: left;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .option:hover { background: var(--panel-subtle); }
-  .option.selected { color: var(--accent); font-weight: 600; }
-</style>
+<!-- No visible label: the trigger shows the current scope, so the accessible name rides aria-label
+     (Dropdown's `label`) and Dropdown puts the selected label on title as the hover hint. -->
+<Dropdown {options} value={$scope} label="Namespace" onchange={setScope} />
