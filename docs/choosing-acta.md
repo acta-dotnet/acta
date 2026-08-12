@@ -65,7 +65,9 @@ scheduling.
 - Losing a tick is harmless and no one will ask what happened.
 - The work is host maintenance better owned by the OS, container platform, or cloud scheduler.
 - You need a message bus, event stream, or transport abstraction.
-- You need deterministic workflow replay.
+- You want a long-running function's local variables to survive a crash without naming what to
+  persist. Acta re-runs the handler from the top and skips completed steps, so state that outlives an
+  attempt is an explicit step result or durable variable.
 - You need BPMN, a visual process designer, or hosted workflow SaaS.
 - A duplicate external side effect would be unrecoverable, and you cannot make it idempotent,
   guarded, or reconciled with durable step semantics.

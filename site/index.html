@@ -236,6 +236,62 @@
       .example-capabilities { grid-template-columns: 1fr; }
     }
 
+    /* go-links: a link at the end of a block has to look like one */
+    .golink {
+      display: inline-flex; align-items: center; gap: 0.45rem; margin-top: 0.85rem;
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--verdi); text-decoration: none; white-space: nowrap;
+      border-bottom: 1px solid rgba(47, 214, 168, 0.35); padding-bottom: 3px;
+      transition: border-color 0.15s ease;
+    }
+    .golink::after { content: "→"; transition: transform 0.15s ease; }
+    .golink:hover { border-bottom-color: var(--verdi); }
+    .golink:hover::after { transform: translateX(3px); }
+    /* the CTA owns its own line: as a sentence tail it reads as prose and gets skipped */
+    .why .golink, .lede .golink, .fold li .golink { display: flex; width: fit-content; }
+
+    /* install block */
+    .install { margin: 2.2rem 0 0; border: 1px solid var(--hair); border-radius: 12px; background: var(--panel); overflow: hidden; max-width: 62rem; }
+    .install-row { display: grid; grid-template-columns: minmax(11rem, 0.5fr) 1fr auto; align-items: center; gap: 1.2rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--hair-soft); }
+    .install-row:last-child { border-bottom: 0; }
+    .install-row.primary { background: rgba(47, 214, 168, 0.045); }
+    .install-meta b { display: block; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--verdi); }
+    .install-meta span { font-size: 0.86rem; color: var(--faint); }
+    .install-row code { font-size: 0.95rem; color: var(--text); overflow-x: auto; }
+    .copy {
+      min-height: 2.2rem; padding: 0.35rem 0.95rem; border: 1px solid var(--hair); border-radius: 999px;
+      background: transparent; color: var(--muted); cursor: pointer;
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .copy:hover { border-color: var(--verdi); color: var(--verdi); }
+    .copy[data-copied] { border-color: var(--verdi); color: var(--verdi); }
+    @media (max-width: 760px) {
+      .install-row { grid-template-columns: 1fr auto; gap: 0.5rem 1rem; }
+      .install-meta { grid-column: 1 / -1; }
+    }
+
+    /* what you can build */
+    .builds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 2.4rem 0 0; border-top: 1px solid var(--hair); }
+    .build { padding: 1.5rem 1.6rem 1.7rem 0; border-bottom: 1px solid var(--hair); }
+    .build:not(:nth-child(3n)) { border-right: 1px solid var(--hair); padding-right: 2.2rem; }
+    .build:not(:nth-child(3n)) + .build { padding-left: 1.8rem; }
+    .build h3 { margin: 0 0 0.5rem; font-family: var(--sans); font-size: 1.02rem; font-weight: 600; color: var(--text); }
+    .build p { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.95rem; }
+    .build .carries { display: block; font-family: var(--mono); font-size: 0.72rem; line-height: 1.7; color: var(--faint); }
+    .build .carries b { color: var(--verdi); font-weight: 400; }
+    @media (max-width: 980px) {
+      .builds { grid-template-columns: repeat(2, 1fr); }
+      .build:not(:nth-child(3n)) { border-right: 0; padding-right: 1.6rem; }
+      .build:not(:nth-child(2n)) { border-right: 1px solid var(--hair); padding-right: 2.2rem; }
+      .build:not(:nth-child(2n)) + .build { padding-left: 1.8rem; }
+    }
+    @media (max-width: 640px) {
+      .builds { grid-template-columns: 1fr; }
+      .build, .build:not(:nth-child(2n)) { border-right: 0; padding: 1.3rem 0 1.4rem; }
+      .build:not(:nth-child(3n)) + .build, .build:not(:nth-child(2n)) + .build { padding-left: 0; }
+    }
+
     /* dashboard figure with field-record stamp */
     .shot { margin: 2.6rem auto 0; border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; box-shadow: 0 48px 120px rgba(0, 0, 0, 0.55); max-width: 1460px; }
     .shot-media { overflow-x: hidden; background: #0e131c; scrollbar-color: var(--faint) var(--panel); }
@@ -442,20 +498,153 @@
       <p class="hiw-note">A dead worker's lease expires; any peer reclaims the job and continues from recorded state. Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
     </section>
 
-    <section class="wrap" id="run">
-      <p class="record">Run it</p>
-      <h2>Acta est. Now run it yourself.</h2>
-      <p class="lede">Fresh clone to a running durable job on embedded SQLite: then point the same code at Postgres or SQL Server when it matters. Apache-2.0: the runtime, dashboard, CLI, and all SQL providers are free.</p>
-      <div class="term">
-        <div class="term-bar"><i></i><i></i><i></i>&nbsp;fresh clone → running durable job</div>
-        <pre><code><span class="p">$</span> git clone https://github.com/acta-dotnet/acta &amp;&amp; cd acta
-<span class="p">$</span> dotnet run --project concepts/000-fundamentals/001-hello-acta
-<span class="out">Enqueued. The worker is running - press Ctrl+C to stop.
-Hello, World!</span>
-<span class="c"># press Ctrl+C, then:</span>
-<span class="p">$</span> dotnet run --project anvil/Anvil
-<span class="out">Anvil         : http://127.0.0.1:5059/</span></code></pre>
+    <section class="wrap" id="install">
+      <p class="record">Install</p>
+      <h2>One package. Nothing new to run.</h2>
+      <p class="lede">The provider package carries everything: runtime, source generator, analyzers, dashboard, and CLI. No broker to stand up, no sidecar, no service to operate. Pick a provider and the rest follows.</p>
+      <div class="install">
+        <div class="install-row primary">
+          <div class="install-meta"><b>Zero setup</b><span>embedded SQLite, single node</span></div>
+          <code>dotnet add package Acta.Sqlite</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.Sqlite" aria-label="Copy the SQLite install command">Copy</button>
+        </div>
+        <div class="install-row">
+          <div class="install-meta"><b>Postgres</b><span>production</span></div>
+          <code>dotnet add package Acta.Postgres</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.Postgres" aria-label="Copy the Postgres install command">Copy</button>
+        </div>
+        <div class="install-row">
+          <div class="install-meta"><b>SQL Server</b><span>production</span></div>
+          <code>dotnet add package Acta.SqlServer</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer" aria-label="Copy the SQL Server install command">Copy</button>
+        </div>
       </div>
+      <p class="hiw-note">Requires .NET 10. One <code>UseActa()</code> call and a <code>[Job]</code> attribute later, the first enqueue creates its own schema.</p>
+    </section>
+
+    <section class="wrap" id="model">
+      <p class="record">What you can build</p>
+      <div class="example-head">
+        <div>
+          <h2>Work that outlives the process running it.</h2>
+          <p class="example-subtitle">Different domains, one shape</p>
+          <p class="lede">Acta has no domain types and never will: no <code>Agent</code>, no <code>Pipeline</code>, no <code>Workflow</code>. It does not care whether a step calls a model, a payment rail, FFmpeg, or a machine. What these have in common is work measured in minutes or days, expensive to repeat, and unacceptable to lose.</p>
+        </div>
+        <aside class="example-note">
+          <b>The common thread</b>
+          <p>Each of these has a step you must not pay for twice and a wait you must not hold a thread for. That is the whole product: a step that already succeeded is not re-run, and a job waiting on a human or a cure time occupies a row, not a worker.</p>
+        </aside>
+      </div>
+
+      <div class="builds">
+        <div class="build">
+          <h3>AI agents and LLM pipelines</h3>
+          <p>A retried agent step repeats the latency, the tokens, the tool calls, and the human approval, and a nondeterministic model does not repeat the same answer. Your agent can reason again; it should not have to do the work again.</p>
+          <span class="carries"><b>RunStepAsync</b> persists a completed step<br /><b>WaitSignalAsync</b> holds approval for days<br /><b>GetOrSetVariableAsync</b> is memory that survives the process</span>
+        </div>
+        <div class="build">
+          <h3>Document processing</h3>
+          <p>Ingest, OCR, extract, validate, index. A thousand-page batch is a thousand chances to lose the eight hundredth page, and re-running the whole batch to recover one document is the thing you are trying to avoid.</p>
+          <span class="carries"><b>MapAsync</b> fans a batch out with lineage<br /><b>JobPayload</b> by reference for large artifacts<br /><b>ctx.NoteAsync</b> for the per-document audit line</span>
+        </div>
+        <div class="build">
+          <h3>Media and video encoding</h3>
+          <p>A render measured in hours, several renditions per source, and a publish step that must happen exactly once even though the encode around it may be attempted many times.</p>
+          <span class="carries"><b>ParallelAsync</b> per rendition<br /><b>AtMostOnce()</b> on the publish<br />leases reclaimed when the encoder box dies</span>
+        </div>
+        <div class="build">
+          <h3>Manufacturing and physical processes</h3>
+          <p>ERP above, machines below, and Acta coordinating the business process between them. The six-hour cure, the cooldown, the maintenance window: nobody argues those should hold a thread.</p>
+          <span class="carries"><b>SleepAsync</b> for a wait measured in hours<br /><b>AtMostOnce()</b> where a repeat is a physical event<br />never real-time or safety control</span>
+        </div>
+        <div class="build">
+          <h3>Orders, billing, and payments</h3>
+          <p>The job and the business row commit together or not at all, so there is no window where the order exists and the work to fulfil it does not. Then one customer's work runs in order, without a queue per customer.</p>
+          <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>ExclusiveKey</b> serializes per customer</span>
+        </div>
+        <div class="build">
+          <h3>Pipelines, backfills, and ETL</h3>
+          <p>Scheduled work that must be explainable a month later: what ran, when, why it failed, what it produced, and whether the backfill you started on Friday is still going.</p>
+          <span class="carries"><b>[JobSchedule]</b> with cron or a duration<br />retries budgeted, not unbounded<br />the ledger is the audit trail</span>
+        </div>
+      </div>
+
+      <figure class="incident-figure">
+        <div class="incident-art">
+          <img src="assets/ai-incident-response-ring.svg" alt="Eight service-owned namespaces, each with its kebab-case jobs, arranged in a ring around one shared Acta SQL work ledger" loading="lazy" width="1600" height="1300" />
+        </div>
+        <figcaption>
+          <span class="stamp possible-stamp">Worked example</span>
+          <span>One of them in full: an AI incident-response system, where each service owns a namespace and one incident is a durable root job.</span>
+          <a class="architecture-source" href="https://github.com/acta-dotnet/acta/blob/main/docs/designs/incident-response.md">Read the proposed design →</a>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="wrap" id="compare">
+      <p class="record">How it compares</p>
+      <h2>You know these tools. Here is the difference.</h2>
+      <p class="lede">This table is the short version. The full fit guide covers when to keep exactly what you have. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta</a></p>
+      <div class="vs">
+        <div class="vs-row">
+          <div class="who"><b>Hangfire</b><span>background jobs</span></div>
+          <div class="why"><b>Keep Hangfire when its familiar persistent job runner is enough.</b> Consider Acta when job state should become first-class application data, with durable steps, signals, lineage, and curated SQL inspection. <a class="golink" href="/from-hangfire">Migration notes</a></div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>TickerQ</b><span>source-generated scheduler</span></div>
+          <div class="why"><b>Keep TickerQ when you want a source-generated scheduler with persistence, dashboard tooling, chaining, priorities, and concurrency controls.</b> Consider Acta when SQL must serve as the durable operational ledger for resumable work: checkpoints, signals, recovery evidence, and operator intervention. <a class="golink" href="/from-tickerq">Migration notes</a></div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>Quartz</b><span>scheduling</span></div>
+          <div class="why"><b>Keep Quartz when calendar sophistication, cron behavior, and misfire handling are the main problem.</b> Consider Acta when the execution lifecycle matters more than the calendar: durable steps, leases, waits, recovery, lineage, and operator controls. <a class="golink" href="/from-quartz">Migration notes</a></div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>Temporal / Dapr Workflow / Durable Task</b><span>replay engines</span></div>
+          <div class="why"><b>Keep a replay engine when deterministic event-history replay and orchestration semantics are requirements.</b> Consider Acta when you want ordinary re-entrant .NET handlers with no determinism contract, checkpoints instead of replayed history, and application-owned SQL state. <a class="golink" href="/vs-temporal">The longer answer</a></div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>A message bus</b><span>MassTransit, NServiceBus, …</span></div>
+          <div class="why"><b>Keep a message bus when you need distributed messaging, pub/sub, transport abstraction, or endpoint contracts.</b> Consider Acta when the problem is recording and operating the lifecycle of application-owned work rather than moving messages between systems.</div>
+        </div>
+        <div class="vs-row">
+          <div class="who"><b>DIY queue table</b><span>+ hosted service</span></div>
+          <div class="why"><b>Keep a DIY queue table when enqueue, claim, and complete are genuinely enough, and you are prepared to own its failure modes.</b> Consider Acta before adding leases, retries, schedules, recovery, operator controls, a dashboard, and deterministic testing yourself.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap center" id="dashboard">
+      <p class="record centered">The dashboard</p>
+      <h2>See exactly what your jobs are doing.</h2>
+      <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default, with mutating verbs off until you enable them; removing the local-only guard without configuring authorization does not degrade, it refuses to start.</p>
+      <figure class="shot">
+        <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
+          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with health verdict, job counts, workers with heartbeats, and next schedules" loading="lazy" width="3200" height="2000" />
+        </div>
+        <figcaption>
+          <span class="stamp">Field record · Anvil steady run</span>
+          <span>Captured mid-run: 10,000 jobs draining through two workers. The ledger shows the backlog, the oldest ready job, live heartbeats, and the next schedule firings. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Operator guide</a></span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="wrap" id="boundaries">
+      <p class="record">Numbers &amp; boundaries</p>
+      <h2>Measured, not promised.</h2>
+      <div class="bench-line">
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">38,079</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">145,806</a></b><span>jobs/s batch enqueue · Postgres</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">6.1 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">1,000,000 / 1,000,000</a></b><span>jobs succeeded while a worker was killed every 5 s · certification seal</span></div>
+        <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
+      </div>
+      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 0.2.0-alpha.1, for regression tracking and rough sizing, not capacity claims.</p>
+      <ul class="nots">
+        <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
+        <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
+        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md#at-most-once-steps">At-most-once steps</a></li>
+        <li><b>Not for every job</b>: disposable local loops belong in <code>BackgroundService</code> or cron.</li>
+      </ul>
     </section>
 
     <section class="wrap" id="inventory">
@@ -518,72 +707,6 @@ Hello, World!</span>
           </ul>
         </div>
       </div>
-    </section>
-
-    <section class="wrap" id="compare">
-      <p class="record">How it compares</p>
-      <h2>You know these tools. Here is the difference.</h2>
-      <p class="lede">This table is the short version. The full fit guide, including when to keep what you have, is <a href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta →</a></p>
-      <div class="vs">
-        <div class="vs-row">
-          <div class="who"><b>Hangfire</b><span>background jobs</span></div>
-          <div class="why"><b>Keep Hangfire when its familiar persistent job runner is enough.</b> Consider Acta when job state should become first-class application data, with durable steps, signals, lineage, and curated SQL inspection. <a href="/from-hangfire">Migration notes →</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>TickerQ</b><span>source-generated scheduler</span></div>
-          <div class="why"><b>Keep TickerQ when you want a source-generated scheduler with persistence, dashboard tooling, chaining, priorities, and concurrency controls.</b> Consider Acta when SQL must serve as the durable operational ledger for resumable work: checkpoints, signals, recovery evidence, and operator intervention. <a href="/from-tickerq">Migration notes →</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>Quartz</b><span>scheduling</span></div>
-          <div class="why"><b>Keep Quartz when calendar sophistication, cron behavior, and misfire handling are the main problem.</b> Consider Acta when the execution lifecycle matters more than the calendar: durable steps, leases, waits, recovery, lineage, and operator controls. <a href="/from-quartz">Migration notes →</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>Temporal / Dapr Workflow / Durable Task</b><span>replay engines</span></div>
-          <div class="why"><b>Keep a replay engine when deterministic event-history replay and orchestration semantics are requirements.</b> Consider Acta when you want ordinary re-entrant .NET handlers with no determinism contract, checkpoints instead of replayed history, and application-owned SQL state. <a href="/vs-temporal">The longer answer →</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>A message bus</b><span>MassTransit, NServiceBus, …</span></div>
-          <div class="why"><b>Keep a message bus when you need distributed messaging, pub/sub, transport abstraction, or endpoint contracts.</b> Consider Acta when the problem is recording and operating the lifecycle of application-owned work rather than moving messages between systems.</div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>DIY queue table</b><span>+ hosted service</span></div>
-          <div class="why"><b>Keep a DIY queue table when enqueue, claim, and complete are genuinely enough, and you are prepared to own its failure modes.</b> Consider Acta before adding leases, retries, schedules, recovery, operator controls, a dashboard, and deterministic testing yourself.</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="wrap center" id="dashboard">
-      <p class="record centered">The dashboard</p>
-      <h2>See exactly what your jobs are doing.</h2>
-      <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default, with mutating verbs off until you enable them; removing the local-only guard without configuring authorization does not degrade, it refuses to start.</p>
-      <figure class="shot">
-        <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
-          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with health verdict, job counts, workers with heartbeats, and next schedules" loading="lazy" width="3200" height="2000" />
-        </div>
-        <figcaption>
-          <span class="stamp">Field record · Anvil steady run</span>
-          <span>Captured mid-run: 10,000 jobs draining through two workers. The ledger shows the backlog, the oldest ready job, live heartbeats, and the next schedule firings. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Operator guide →</a></span>
-        </figcaption>
-      </figure>
-    </section>
-
-    <section class="wrap" id="boundaries">
-      <p class="record">Numbers &amp; boundaries</p>
-      <h2>Measured, not promised.</h2>
-      <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">38,079</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">145,806</a></b><span>jobs/s batch enqueue · Postgres</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">6.1 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">1,000,000 / 1,000,000</a></b><span>jobs succeeded while a worker was killed every 5 s · certification seal</span></div>
-        <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
-      </div>
-      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 0.2.0-alpha.1, for regression tracking and rough sizing, not capacity claims.</p>
-      <ul class="nots">
-        <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
-        <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
-        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md#at-most-once-steps">At-most-once steps →</a></li>
-        <li><b>Not for every job</b>: disposable local loops belong in <code>BackgroundService</code> or cron.</li>
-      </ul>
     </section>
 
     <section class="wrap" id="reference">
@@ -657,53 +780,23 @@ Hello, World!</span>
       </div>
     </section>
 
-    <section class="wrap" id="model">
-      <p class="record">Possible reference application</p>
-      <div class="example-head">
-        <div>
-          <h2>One ledger. A web of peer workers.</h2>
-          <p class="example-subtitle">AI incident-response system powered by Acta</p>
-          <p class="lede">One incident becomes a durable root job. Service-owned namespaces fan out evidence collection and AI diagnostics, pause at deterministic policy and human approval gates, run bounded remediation, wait to verify recovery, and publish an auditable report: even when workers restart halfway through.</p>
-        </div>
-        <aside class="example-note">
-          <b>What you could build</b>
-          <p>Start as a read-only investigation copilot. Add predefined, human-approved actions later. Acta supplies the resumability, isolation, waits, lineage, and operational evidence; the application owns prompts, policy, and side-effect safety.</p>
-        </aside>
-      </div>
-
-      <div class="incident-flow" aria-label="Example incident response lifecycle">
-        <span>Detect</span>
-        <span>Collect</span>
-        <span>Diagnose</span>
-        <span>Approve</span>
-        <span>Remediate</span>
-        <span>Verify</span>
-        <span>Report</span>
-      </div>
-
-      <figure class="incident-figure">
-        <div class="incident-art">
-          <img src="assets/ai-incident-response-ring.svg" alt="Eight service-owned namespaces, each with its kebab-case jobs, arranged in a ring around one shared Acta SQL work ledger" loading="lazy" width="1600" height="1300" />
-        </div>
-        <figcaption>
-          <span class="stamp possible-stamp">Possible reference application</span>
-          <span>An architecture example, not a bundled product or a roadmap commitment.</span>
-          <a class="architecture-source" href="https://github.com/acta-dotnet/acta/blob/main/docs/designs/incident-response.md">Read the proposed design →</a>
-        </figcaption>
-      </figure>
-
-      <div class="example-capabilities">
-        <div><b>Service-owned boundaries.</b> Each deployable service owns one namespace; its replicas are peer workers that claim only that namespace's jobs.</div>
-        <div><b>One root, parallel evidence.</b> A durable incident job starts cross-namespace children for logs, metrics, traces, deployments, and specialist analysis, then joins their results.</div>
-        <div><b>Structured, resumable diagnosis.</b> Checkpoints preserve evidence references, hypotheses, confidence, and proposed actions instead of rebuilding an ever-growing chat transcript.</div>
-        <div><b>Humans remain a durable gate.</b> The root suspends on an approval signal without holding a worker; deterministic policy decides which actions may proceed automatically.</div>
-        <div><b>Remediation stays bounded.</b> Exclusive service keys serialize actions, while idempotency keys and reconciliation protect external effects under at-least-once execution.</div>
-        <div><b>Verify, recover, and explain.</b> Durable timers delay verification; expired leases are reclaimed by peers; events preserve the incident timeline through resolution or escalation.</div>
+    <section class="wrap" id="run">
+      <p class="record">Run it</p>
+      <h2>Acta est. Now run it yourself.</h2>
+      <p class="lede">Fresh clone to a running durable job on embedded SQLite: then point the same code at Postgres or SQL Server when it matters. Apache-2.0: the runtime, dashboard, CLI, and all SQL providers are free.</p>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i>&nbsp;fresh clone → running durable job</div>
+        <pre><code><span class="p">$</span> git clone https://github.com/acta-dotnet/acta &amp;&amp; cd acta
+<span class="p">$</span> dotnet run --project concepts/000-fundamentals/001-hello-acta
+<span class="out">Enqueued. The worker is running - press Ctrl+C to stop.
+Hello, World!</span>
+<span class="c"># press Ctrl+C, then:</span>
+<span class="p">$</span> dotnet run --project anvil/Anvil
+<span class="out">Anvil         : http://127.0.0.1:5059/</span></code></pre>
       </div>
     </section>
 
     <section class="wrap center" id="outro">
-      <p class="record centered">Acta est.</p>
       <div class="actions" style="justify-content:center">
         <a class="button primary" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/docs">Read the docs</a>
@@ -718,5 +811,24 @@ Hello, World!</span>
       <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
     </footer>
   </main>
+  <script>
+    // Copy buttons on the install commands. Progressive enhancement: without JS the command is
+    // still selectable text, and the button simply does nothing rather than lying about it.
+    for (const button of document.querySelectorAll('.copy')) {
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy);
+        } catch {
+          return;
+        }
+        button.textContent = 'Copied';
+        button.dataset.copied = '';
+        setTimeout(() => {
+          button.textContent = 'Copy';
+          delete button.dataset.copied;
+        }, 1600);
+      });
+    }
+  </script>
 </body>
 </html>

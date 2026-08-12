@@ -48,7 +48,9 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 
 ## Do not use Acta when
 
-- You need deterministic workflow replay.
+- You want a long-running function's local variables to survive a crash without naming what to
+  persist. Acta re-runs the handler from the top and skips completed steps, so state that outlives an
+  attempt is an explicit step result or durable variable.
 - You need a general-purpose message bus.
 - You need Kafka-style streaming.
 - You need BPMN or visual workflow modeling.
