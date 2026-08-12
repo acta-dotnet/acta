@@ -62,20 +62,15 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `MaxConcurrentExecutors` | `clamp(ProcessorCount * 4, 8, 64)` | per process | Maximum in-flight handler executions per worker runtime. |
 | `ClaimBatchSize` | 32 | per process | Ready rows pulled per claim poll. Raise with executor count and DB capacity. |
 | `SafetyPollInterval` | 1 second | per process | Idle polling ceiling when no wakeup is received. Must be at least 1 second. |
-| `MinPollFloor` | 50 ms | per process | Anti-spin floor for due-but-locked horizons. Must be `> 0` and `<= SafetyPollInterval`. |
-| `ClaimIdleJitterMax` | 100 ms | per process | Idle poll jitter. Must be between 0 and 1 second. |
 | `ExecutionProfile` | `Buffered` | per process | Claim/dispatch strategy. See the execution profile table below. |
-| `ExclusiveKeyBounceDelaySeconds` | 2 | per process | Fixed re-arm delay for a claimed exclusive-key job that finds its key held at admission. The loser returns to Ready with `next_run_at_utc` pushed this far forward, budget-neutrally, so this is the contention throttle: no backoff, no counter. `0` re-arms immediately, which is useful in tests. |
-| `LeaseTtlSeconds` | 180 | coordination invariant | Lease window refreshed while handlers run. Keep this consistent across workers. |
-| `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence. Keep the lease about four times this value. |
-| `WorkerDeadAfter` | 5 minutes | coordination invariant | No-heartbeat window before `sys.recovery` marks a worker Dead. Must be greater than `LeaseTtlSeconds`. |
+| `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
+| `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
+| `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before `sys.recovery` marks a worker Dead. |
 | `WorkerRetention` | 90 days | cluster data | Dead worker row retention. Must be at least one day. |
 | `JobEventsRetentionDays` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetentionDays` | 90 | cluster data | Retention for settled alert rows. In-flight alert delivery rows are not purged by age. |
 | `RegisterSystemJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. **Setting this `false` disables crash recovery**: `sys.recovery` is the only thing that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay `Executing` behind a lapsed lease permanently. The runtime warns at startup when it is off. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling: caller-controlled inline writes (enqueue inputs, variables, progress, step results, signal values) throw past it, an oversize handler result is dropped, and it also caps the HTTP request body. |
-| `AlertDedupeWindow` | 1 hour | cluster data | Bucket width for deduped manual and automatic alerts. Must be positive. |
-| `AlertDeliveryMaxRetries` | 5 | cluster data | Delivery retries before an alert lands terminal Failed. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
 | `AlertChannelValidationMode` | `Warn` | startup policy | `Off`, `Warn`, or `Fail` when definitions route to missing alert channels. |
 | `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when eligible registrations change input/output contract columns. |
@@ -84,9 +79,19 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | The value a `[JobSchedule]`'s `Environments` list is matched against, case-insensitively, to decide whether that schedule registers on this worker. A schedule with no declared environments is a wildcard and registers everywhere; a scoped one registers only where its list contains this name. Null or empty means no environment is known, so every scoped schedule is withheld and only wildcards register. |
 | `AllowClockSkew` | `false` | startup policy | Downgrades excessive host/database clock skew from failure to warning. |
 
-The coordination invariant options are the ones that can create double execution or stale-worker
-misclassification if workers disagree. Keep `LeaseTtlSeconds`, `HeartbeatInterval`, and
-`WorkerDeadAfter` the same across every replica of a namespace.
+The coordination triple can create double execution or stale-worker misclassification if workers
+disagree, and nothing can verify that agreement at runtime. So it is a single knob: set
+`HeartbeatInterval` and the lease and dead-worker windows derive from it at x4 and x7. Keep that one
+value the same across every replica of a namespace and the proportions cannot drift.
+
+Shorten it to make a crash demo watchable - a 1-second beat gives a 4-second lease and a 7-second
+dead-worker window - and lengthen it to cut idle database chatter. Long-running handlers do not need a
+longer lease; they stay alive by heartbeating.
+
+Engine tuning with no operator-legible meaning is not configurable: the poll floor, claim jitter,
+exclusive-key bounce delay, alert dedupe window, alert delivery retries, and the Bulk-profile
+completion-buffer thresholds are fixed. A value nobody can set correctly is a way to break a
+deployment, not a feature.
 
 `JobEventsRetentionDays` (365 days) intentionally outlives the per-definition `[Job(JobRetention =
 ...)]` default (90 days) that purges terminal job rows: events are the audit ledger, so the incident
@@ -116,10 +121,9 @@ idempotent or safely repeatable. Good candidates: cache warmers, search indexing
 projections, idempotent batch transforms. Bad candidates: charging cards, sending emails without
 idempotency, irreversible external side effects, one-time webhooks.
 
-Tune profiles together with `MaxConcurrentExecutors`, `ClaimBatchSize`, and the Bulk-only
-`BatchCompletionSize` / `BatchCompletionInterval` / `BatchCompletionMaxBytes`. Measure after each
-change: throughput gains that overload the database, downstream APIs, or the connection pool are
-not real capacity.
+Tune profiles together with `MaxConcurrentExecutors` and `ClaimBatchSize`; the Bulk group-commit
+thresholds are fixed. Measure after each change: throughput gains that overload the database,
+downstream APIs, or the connection pool are not real capacity.
 
 ## External Outbox Relay
 

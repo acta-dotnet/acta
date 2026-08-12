@@ -479,10 +479,12 @@ public sealed class BenchHost : IAsyncDisposable
                 o.RegisterSystemJobs = opt.RegisterSystemJobs;
                 if (opt.LeaseTtlSeconds is { } lease)
                 {
-                    o.LeaseTtlSeconds = lease;
-                    // The lease must stay well above the heartbeat; keep the documented ~4x relation.
+                    // The lease is this sweep's experiment variable, so it is pinned exactly rather than
+                    // derived, and the heartbeat keeps the documented ~4x relation beneath it. The
+                    // dead-worker window then follows from the heartbeat. Only the benchmark decouples
+                    // these; a deployment sets the heartbeat and takes the other two as given.
                     o.HeartbeatInterval = TimeSpan.FromSeconds(Math.Max(1, lease / 4.0));
-                    o.WorkerDeadAfter = TimeSpan.FromSeconds(Math.Max(lease + 5, 10));
+                    o.LeaseTtlSeconds = lease;
                 }
                 if (opt.SafetyPollInterval is { } poll)
                 {

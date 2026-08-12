@@ -529,8 +529,8 @@ IAlertChannelRegistry. Every worker namespace has an implicit `default` log chan
 with `w.AddAlertChannel(...)`. Store real endpoints/secrets in appsettings, environment variables, or a
 secret store, then pass them into `AddAlertChannel` at startup. Route a job with
 `[Job(AlertChannelName = "...")]`; `AlertProfile` decides what fires,
-`JobsOptions.AlertDedupeWindow` collapses repeats, and delivery retries are capped by
-`AlertDeliveryMaxRetries`. Alert rows are queryable like everything else:
+a fixed one-hour dedupe window collapses repeats, and delivery retries are capped at five. Alert rows
+are queryable like everything else:
 `SELECT * FROM acta.alerts_view WHERE delivery_status = 'pending'` shows what has not delivered yet.
 
 ## What maintenance does for you
@@ -562,7 +562,7 @@ Provider and database:
 - SQL Server or Postgres for distributed multi-worker; SQLite for embedded single-node. Choose the schema name before installing. Size the connection pool for executors, claim loops, dashboard reads, and alerts. Keep the database clock healthy (`AllowClockSkew = true` bypasses the startup skew check). SQL polling is the correctness baseline; Redis wakeup only lowers pickup latency.
 
 Worker coordination:
-- Keep `LeaseTtlSeconds`, `HeartbeatInterval`, `WorkerDeadAfter` identical across replicas. Keep `LeaseTtlSeconds` above `HeartbeatInterval` (default 180 vs 45) and `WorkerDeadAfter` above `LeaseTtlSeconds` (validator-enforced). Tune `MaxConcurrentExecutors`/`ClaimBatchSize` against database capacity. Keep system maintenance on unless you have a tested replacement.
+- Keep `HeartbeatInterval` identical across replicas; the lease (x4) and dead-worker (x7) windows derive from it, so the proportions cannot drift. Tune `MaxConcurrentExecutors`/`ClaimBatchSize` against database capacity. Keep system maintenance on unless you have a tested replacement.
 
 Handlers:
 - Stable kebab-case `[Job("...")]` names; treat `TIn`, `TOut`, name, and format as durable contract. Make external side effects idempotent (Acta is at-least-once). Steps for run-once internal slots; child jobs for independently visible, retryable work.

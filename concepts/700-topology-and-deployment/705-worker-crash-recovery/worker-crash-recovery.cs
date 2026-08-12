@@ -59,9 +59,10 @@ builder.Services.UseActa(j =>
         j.Run<WorkerCrashRecoveryJobs>(jobNamespace);
         j.ConfigureOptions(o =>
         {
-            o.LeaseTtlSeconds = 4;
+            // One knob shortens the whole coordination triple in proportion: a 1s beat gives a 4s lease
+            // and a 7s dead-worker window, which is what makes the kill below observable in seconds
+            // instead of minutes.
             o.HeartbeatInterval = TimeSpan.FromSeconds(1);
-            o.WorkerDeadAfter = TimeSpan.FromSeconds(5);
             o.DeploymentVersion = $"{mode}:{sessionId[..8]}";
         });
     }

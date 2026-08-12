@@ -15,8 +15,8 @@ are declared.
 - Pin one Acta package version across all workers in a namespace.
 - Set `DeploymentVersion` to a build id or git SHA. Set `ManifestGenerationUtc` only when you need
   deterministic definition promotion across packaged or single-file deployments.
-- Keep `LeaseTtlSeconds`, `HeartbeatInterval`, and `WorkerDeadAfter` identical across replicas of a
-  namespace.
+- Keep `HeartbeatInterval` identical across replicas of a namespace; the lease and dead-worker windows
+  derive from it.
 - Size total handler concurrency as `worker process count * MaxConcurrentExecutors`, then validate
   against database capacity and downstream systems.
 - Keep inline payloads small. Store large or sensitive bodies externally and enqueue references.
@@ -108,15 +108,13 @@ startup checks host/database clock skew and fails loudly when skew is excessive 
 Keep clocks healthy rather than suppressing the check. A skewed host or database can make leases
 look expired too early or too late.
 
-Keep these coordination invariants the same across every worker in a namespace:
+The coordination triple is one setting. Keep `HeartbeatInterval` the same across every worker in a
+namespace; `LeaseTtlSeconds` (x4) and `WorkerDeadAfter` (x7) derive from it and are read-only, so
+replicas that agree on the heartbeat agree on all three by construction.
 
-- `LeaseTtlSeconds`
-- `HeartbeatInterval`
-- `WorkerDeadAfter`
-
-The default shape is a 180-second lease, 45-second heartbeat, and 5-minute dead-worker threshold.
-Long-running handlers stay alive through heartbeat extension; do not inflate lease windows to hide
-blocked handlers.
+The default shape is a 45-second heartbeat, a 180-second lease, and a 315-second dead-worker
+threshold. Long-running handlers stay alive through heartbeat extension, which is why no lease window
+needs inflating to accommodate them.
 
 ## Payload size guidance
 
@@ -238,7 +236,7 @@ process degrades in place or exits.
 | --- | --- | --- | --- |
 | Worker startup | Any init-time validation failure (invalid `JobsOptions`, clock skew past the fail threshold, an invalid `Backoff` DSL, an unresolvable schedule time zone, payload-contract drift or alert-routing misconfiguration under `Fail` mode) throws out of `IHostedService.StartAsync` with no catch. | Fails to start. Non-zero process exit; no partial startup. | Fix the configuration or manifest and restart. A `*Mode`/`Allow*` option (`PayloadContractDriftMode`, `AlertChannelValidationMode`, `AllowClockSkew`) can deliberately downgrade a check to `LogWarning` + continue instead of failing startup. |
 | Claim / dispatch / heartbeat / policy-reload loops | A per-tick fault logs at Error under the `Acta.Modules.Execution.Workers.WorkerRuntime` category, e.g. `"claim iteration failed; backing off {Interval} before retry."`, `"heartbeat tick failed; retrying next tick."`, `"definition-policy reload tick failed; retrying next tick."`. A per-job fault logs `"executor faulted on job {JobId}."`. | Degrades. The failing loop backs off (claim: a full `SafetyPollInterval`; heartbeat/policy-reload: the next `PeriodicTimer` tick) and keeps running; one bad job never tears down the loop. Shutdown (host cancellation) exits the loop cleanly with no error log (a provider that reports the cancelled command as a non-cancellation error may emit one final tick-failure line). | Investigate the logged exception (commonly a transient DB outage or command timeout); no restart needed; the loop self-heals once the dependency recovers. |
-| Framework jobs (`sys.recovery`, `sys.retention`, `sys.alerts`) | Alert delivery transport faults log at Warning under the `AlertsJob` category (`"ACTA sys.alerts: transport '{TransportKind}' threw delivering alert {AlertId}; will retry."`) and retry on a DB-backed backoff curve, terminal `Failed` past `AlertDeliveryMaxRetries`. `RecoveryJob`/`RetentionJob` carry no catch of their own; a pass failure is an ordinary job outcome retried by the executor on the job's next scheduled tick. | Degrades. Each is a bounded recurring job (about once a minute or once an hour), never a hot loop. | Usually none; a persistent failure shows up as retries/failures and events on the system job's own row. |
+| Framework jobs (`sys.recovery`, `sys.retention`, `sys.alerts`) | Alert delivery transport faults log at Warning under the `AlertsJob` category (`"ACTA sys.alerts: transport '{TransportKind}' threw delivering alert {AlertId}; will retry."`) and retry on a DB-backed backoff curve, terminal `Failed` past the fifth delivery attempt. `RecoveryJob`/`RetentionJob` carry no catch of their own; a pass failure is an ordinary job outcome retried by the executor on the job's next scheduled tick. | Degrades. Each is a bounded recurring job (about once a minute or once an hour), never a hot loop. | Usually none; a persistent failure shows up as retries/failures and events on the system job's own row. |
 | CLI mode | A rejected verb prints its message to stderr and exits 1; job-not-found exits 2; a usage error exits 64; Ctrl-C during a verb exits 130. `jobs debug`'s lease-heartbeat pump writes one diagnostic line to stderr on a failed tick (`"debug: heartbeat pump tick failed (...); lease may lapse."`) and keeps pumping. | Always exits; the CLI is a one-shot verb, never a long-running host. | Read the exit code and any stderr line, then retry the verb. A missed heartbeat-pump tick during `debug` only risks the job's lease being stolen by another worker, not data loss. |
 | Dashboard / API | An unhandled route exception logs at Error under the literal category `Acta.AspNetCore.Web` (`"Unhandled Acta API exception."`) and returns a fixed, safe ProblemDetails (no driver text or stack): 503 when the cause chain is the known transient family (database/network/timeout, including a provider command timeout surfacing as a non-abort cancellation), 500 for any other server fault. A client disconnect or host shutdown mid-request (`HttpContext.RequestAborted` cancelled) produces no log and no 503: the framework reports the aborted request instead. Known input errors (invalid cursor, malformed query parameters, most `ArgumentException`s) map to 400 via the read-endpoint `Guard`; a server-side `ArgumentException` also logs at Warning before returning 400 so it still leaves a trace. | Degrades. The dashboard process stays up; one bad or aborted request never takes down the host. | A sustained run of 503s with `"database is unreachable"` in the response detail means the database is down; otherwise check the host log for the exception logged at that timestamp. |
 

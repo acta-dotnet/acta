@@ -30,10 +30,10 @@ builder.Services.UseActa(j =>
     j.Run<AtMostOnceStepJobs>(jobNamespace);
     j.ConfigureOptions(o =>
     {
-        // Lab-only timings: production should keep the documented, generous heartbeat margin.
-        o.LeaseTtlSeconds = 4;
+        // Lab-only timing: production should keep the documented, generous heartbeat margin. The
+        // heartbeat is the only knob, and the lease (4s) and dead-worker window (7s) follow from it,
+        // so a demo cannot land on a combination that reclaims a live worker's own jobs.
         o.HeartbeatInterval = TimeSpan.FromSeconds(1);
-        o.WorkerDeadAfter = TimeSpan.FromSeconds(5);
     });
 });
 

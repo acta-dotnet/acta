@@ -6,14 +6,11 @@ namespace Acta;
 /// <c>[Job(...)]</c>, not here.
 /// </summary>
 /// <remarks>
-/// Each property is tagged coordination-invariant or per-process. Coordination invariants
-/// (<see cref="LeaseTtlSeconds"/>, <see cref="HeartbeatInterval"/>, <see cref="WorkerDeadAfter"/>) must
-/// agree across all workers in a deployment or the distributed reclaim and heartbeat math desyncs; the
-/// load-bearing rule is that the lease window stays much larger than the heartbeat (about four times),
-/// because a worker whose lease is at or below its own heartbeat cadence has its live jobs reclaimed
-/// mid-run and re-executed. Cluster data and contract knobs should also match for coherent behavior,
-/// but a mismatch yields inconsistent sweeps and validation rather than a race. Per-process knobs are
-/// safe to differ between workers; <see cref="DeploymentVersion"/> must differ across a rolling deploy.
+/// The coordination triple - heartbeat, lease window, dead-worker window - must agree across every
+/// worker or the reclaim math desyncs, and nothing verifies that at runtime. So only
+/// <see cref="HeartbeatInterval"/> is settable and the other two derive from it, holding the ratio by
+/// construction. Engine tuning with no operator-legible meaning is not exposed at all. Per-process
+/// settings are safe to differ; <see cref="DeploymentVersion"/> must differ across a rolling deploy.
 /// </remarks>
 public sealed class JobsOptions
 {
@@ -54,19 +51,19 @@ public sealed class JobsOptions
     public TimeSpan SafetyPollInterval { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// Per-process lower clamp on the idle claim-loop sleep, so an empty claim whose horizon says
-    /// work is already due (a due row transiently locked by another worker) retries after this floor
-    /// instead of spinning. Default 50ms.
+    /// Lower clamp on the idle claim-loop sleep, so an empty claim whose horizon says work is already
+    /// due (a due row transiently locked by another worker) retries after this floor instead of
+    /// spinning. Fixed at 50ms: engine tuning with no operator-legible meaning.
     /// </summary>
-    public TimeSpan MinPollFloor { get; set; } = TimeSpan.FromMilliseconds(50);
+    internal TimeSpan MinPollFloor { get; set; } = TimeSpan.FromMilliseconds(50);
 
     /// <summary>
-    /// Per-process maximum random jitter added to the idle claim-loop sleep so workers holding the
-    /// same deadline wake staggered instead of stampeding the claim index. A signaled wakeup returns
-    /// unjittered, the sleep never extends past <see cref="SafetyPollInterval"/>, and a deadline-woken
-    /// job may be claimed up to this much after its due instant. Default 100ms.
+    /// Maximum random jitter added to the idle claim-loop sleep so workers holding the same deadline
+    /// wake staggered instead of stampeding the claim index. A signaled wakeup returns unjittered, the
+    /// sleep never extends past <see cref="SafetyPollInterval"/>, and a deadline-woken job may be
+    /// claimed up to this much after its due instant. Fixed at 100ms.
     /// </summary>
-    public TimeSpan ClaimIdleJitterMax { get; set; } = TimeSpan.FromMilliseconds(100);
+    internal TimeSpan ClaimIdleJitterMax { get; set; } = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
     /// Per-process maximum number of Ready jobs the claim loop pulls per poll into the dispatch
@@ -76,43 +73,69 @@ public sealed class JobsOptions
     public int ClaimBatchSize { get; set; } = 32;
 
     /// <summary>
-    /// Coordination invariant: worker-wide lease window in seconds, set on every claim and refreshed
-    /// by the heartbeat while a handler executes. Keep it much larger than
-    /// <see cref="HeartbeatInterval"/> (about four times); a lease at or below the heartbeat cadence
-    /// gets a live worker's own jobs reclaimed mid-run (double execution). Long-running handlers stay
-    /// alive through heartbeating rather than inflating this value. Default 180s, four times the 45s
-    /// heartbeat, so a live worker can miss up to three consecutive beats before <c>sys.recovery</c>
-    /// may reclaim its leases. There is no per-definition override (that would re-add a JOIN to
-    /// <c>definitions</c> on the hot claim path).
+    /// Fixed re-arm delay in seconds for a claimed exclusive-key job that finds its key lock held at
+    /// execution admission. The loser returns to Ready with <c>next_run_at_utc</c> pushed this far
+    /// forward (budget-neutral), so the delay is the contention throttle (no backoff, no counter).
+    /// Fixed at 2s.
     /// </summary>
-    public int LeaseTtlSeconds { get; set; } = 180;
+    internal int ExclusiveKeyBounceDelaySeconds { get; set; } = 2;
 
     /// <summary>
-    /// Per-process: fixed re-arm delay in seconds for a claimed exclusive-key job that finds its key
-    /// lock held at execution admission. The loser returns to Ready with <c>next_run_at_utc</c> pushed
-    /// this far forward (budget-neutral), so the delay is the contention throttle (no backoff, no
-    /// counter). 0 re-arms due immediately (useful in tests). Default 2s.
-    /// </summary>
-    public int ExclusiveKeyBounceDelaySeconds { get; set; } = 2;
-
-    /// <summary>
-    /// Coordination invariant: cadence of the background loop that refreshes every in-flight lease
-    /// this process holds and stamps <c>workers.last_seen_at_utc</c>; pair with
-    /// <see cref="LeaseTtlSeconds"/> (lease about four times this). Runs on its own timer, so a flood
-    /// of long-running handlers cannot starve it. Default 45s.
+    /// Coordination invariant, and the only one you set: cadence of the background loop that refreshes
+    /// every in-flight lease this process holds and stamps <c>workers.last_seen_at_utc</c>. Runs on its
+    /// own timer, so a flood of long-running handlers cannot starve it. Default 45s.
+    /// <para>
+    /// <see cref="LeaseTtlSeconds"/> and <see cref="WorkerDeadAfter"/> are derived from this rather than
+    /// set beside it. All three must agree across every worker in a deployment or the reclaim math
+    /// desyncs, and nothing can verify that agreement at runtime - so the ratios that matter are held by
+    /// construction instead of by validation. Shorten this to make a crash-recovery demo watchable and
+    /// the whole triple shortens with it, still correctly proportioned.
+    /// </para>
     /// </summary>
     public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(45);
 
     /// <summary>
-    /// Coordination invariant: <c>sys.recovery</c> applies the running worker's value, so all workers
-    /// must agree for consistent dead-worker timing. How long a worker may go without heartbeating
-    /// before <c>sys.recovery</c> flips its <c>workers</c> row from Active to Dead (measured against
-    /// <c>last_seen_at_utc</c>). Independent of <see cref="LeaseTtlSeconds"/>; set it comfortably above
-    /// the lease window so a worker whose leases just lapsed is not retired while it might still recover.
-    /// The retention sweep deletes Dead rows once they exceed <see cref="WorkerRetention"/>. Default 5
-    /// minutes.
+    /// Derived, <see cref="HeartbeatInterval"/> x4: worker-wide lease window in seconds, set on every
+    /// claim and refreshed by the heartbeat while a handler executes. The multiple is what keeps a live
+    /// worker's own jobs from being reclaimed mid-run (double execution) - it can miss three consecutive
+    /// beats before <c>sys.recovery</c> may take its leases. Long-running handlers stay alive through
+    /// heartbeating rather than through a longer lease, which is why nothing here needs to grow for
+    /// them. There is no per-definition override (that would re-add a JOIN to <c>definitions</c> on the
+    /// hot claim path). Default 180s.
     /// </summary>
-    public TimeSpan WorkerDeadAfter { get; set; } = TimeSpan.FromMinutes(5);
+    public int LeaseTtlSeconds
+    {
+        get => _leaseTtlSeconds ?? (int)(HeartbeatInterval.TotalSeconds * LeaseHeartbeatMultiple);
+        internal set => _leaseTtlSeconds = value;
+    }
+
+    /// <summary>
+    /// Derived, <see cref="HeartbeatInterval"/> x7 - the lease window plus three further beats: how long
+    /// a worker may go without heartbeating before <c>sys.recovery</c> flips its <c>workers</c> row from
+    /// Active to Dead (measured against <c>last_seen_at_utc</c>). The margin past the lease is
+    /// deliberate, so a worker whose leases just lapsed is not retired while it might still recover.
+    /// <c>sys.recovery</c> applies the running worker's value, which is the second reason this is derived
+    /// rather than set. The retention sweep deletes Dead rows once they exceed
+    /// <see cref="WorkerRetention"/>. Default 315s.
+    /// </summary>
+    public TimeSpan WorkerDeadAfter
+    {
+        get => _workerDeadAfter ?? HeartbeatInterval * DeadAfterHeartbeatMultiple;
+        internal set => _workerDeadAfter = value;
+    }
+
+    // The two ratios, named rather than inlined so the relationship is greppable from either derived
+    // member. 4x is the lease's own margin (three missable beats); 7x is that plus three more before a
+    // worker is tombstoned, because retiring one that might still recover is the expensive mistake.
+    internal const int LeaseHeartbeatMultiple = 4;
+    internal const int DeadAfterHeartbeatMultiple = 7;
+
+    // The derived pair is decoupled only from inside the engine, and only by things that must vary it
+    // independently: the benchmark sweeps the lease as an experiment variable, and the drain specs need
+    // frequent beats beside a long lease so the suite's cross-test parallelism cannot starve a tick into
+    // a spurious reclaim. Null means derived, which is every deployment.
+    private int? _leaseTtlSeconds;
+    private TimeSpan? _workerDeadAfter;
 
     /// <summary>
     /// Per-process deployment environment name this worker runs as, the value a <c>[JobSchedule]</c>'s
@@ -173,17 +196,17 @@ public sealed class JobsOptions
     /// the framework automatic-alert paths). Repeats sharing a <c>(namespace_id, deduplication_key)</c>
     /// that fall in the same window collapse onto one <c>alerts</c> row (incrementing
     /// <c>occurrence_count</c>); the window start is the caller's <c>now</c> floored to a multiple of
-    /// this span. The dedupe window is the rate limit. Default 1 hour.
+    /// this span. The dedupe window is the rate limit. Fixed at 1 hour.
     /// </summary>
-    public TimeSpan AlertDedupeWindow { get; set; } = TimeSpan.FromHours(1);
+    internal TimeSpan AlertDedupeWindow { get; set; } = TimeSpan.FromHours(1);
 
     /// <summary>
     /// How many failed delivery attempts the <c>sys.alerts</c> deliver phase makes before a <c>alerts</c>
     /// is marked terminal <c>Failed</c>. Each retryable failure bumps <c>retry_count</c> and defers the
     /// next attempt by a backoff curve; once <c>retry_count</c> reaches this cap the row stops retrying.
-    /// Default 5.
+    /// Fixed at 5.
     /// </summary>
-    public int AlertDeliveryMaxRetries { get; set; } = 5;
+    internal int AlertDeliveryMaxRetries { get; set; } = 5;
 
     /// <summary>
     /// Number of failures within the <see cref="AlertDedupeWindow"/> at which an automatic failure alert
@@ -246,28 +269,27 @@ public sealed class JobsOptions
     /// <see cref="ExecutionProfile.Bulk"/> only. Maximum number of simple terminal completions buffered
     /// before the flusher group-commits them in one transaction. Amortizes the per-job completion commit;
     /// commit cost has sharp diminishing returns past ~100, and a larger batch widens the crash
-    /// re-execution window. Default 100. Must be >= 1.
+    /// re-execution window. Fixed at 100.
     /// </summary>
-    public int BatchCompletionSize { get; set; } = 100;
+    internal int BatchCompletionSize { get; set; } = 100;
 
     /// <summary>
     /// <see cref="ExecutionProfile.Bulk"/> only. How long a flusher accumulates its batch before a
     /// flush is forced (so a trickle still settles promptly). This bounds batch accumulation, not
     /// end-to-end buffered latency: a completion can additionally wait behind a slow store call. That
     /// wait is lease-safe while the worker lives (the heartbeat renews every row the worker leases,
-    /// flushed or not); a crash loses the buffer under Bulk's at-least-once contract. Must be positive
-    /// and well below the lease window (startup rejects a value above <see cref="LeaseTtlSeconds"/> / 4)
-    /// so buffering stays a small fraction of the lease. Default 250ms.
+    /// flushed or not); a crash loses the buffer under Bulk's at-least-once contract. Stays well below
+    /// the lease window so buffering is a small fraction of it. Fixed at 250ms.
     /// </summary>
-    public TimeSpan BatchCompletionInterval { get; set; } = TimeSpan.FromMilliseconds(250);
+    internal TimeSpan BatchCompletionInterval { get; set; } = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
     /// <see cref="ExecutionProfile.Bulk"/> only. Maximum accumulated <c>results</c> bytes buffered
     /// before a flush is forced, bounding the batch transaction regardless of individual result sizes
     /// (100 results at the 1 MiB cap would otherwise be ~100 MiB in one commit). A single result larger
-    /// than this still flushes alone. Default 4 MiB.
+    /// than this still flushes alone. Fixed at 4 MiB.
     /// </summary>
-    public int BatchCompletionMaxBytes { get; set; } = 4 * 1024 * 1024;
+    internal int BatchCompletionMaxBytes { get; set; } = 4 * 1024 * 1024;
 }
 
 /// <summary>

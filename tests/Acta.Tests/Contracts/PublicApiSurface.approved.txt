@@ -1894,27 +1894,19 @@ sealed class Acta.JobsOptions
     Acta.PayloadContractDriftMode PayloadContractDriftMode { get;set; }
     System.Boolean AllowClockSkew { get;set; }
     System.Boolean RegisterSystemJobs { get;set; }
-    System.Int32 AlertDeliveryMaxRetries { get;set; }
     System.Int32 AlertFailureThreshold { get;set; }
     System.Int32 AlertRetentionDays { get;set; }
-    System.Int32 BatchCompletionMaxBytes { get;set; }
-    System.Int32 BatchCompletionSize { get;set; }
     System.Int32 ClaimBatchSize { get;set; }
-    System.Int32 ExclusiveKeyBounceDelaySeconds { get;set; }
     System.Int32 JobEventsRetentionDays { get;set; }
-    System.Int32 LeaseTtlSeconds { get;set; }
+    System.Int32 LeaseTtlSeconds { get; }
     System.Int32 MaxConcurrentExecutors { get;set; }
     System.Int32 MaxInlinePayloadBytes { get;set; }
     System.Nullable<System.DateTime> ManifestGenerationUtc { get;set; }
     System.String DeploymentVersion { get;set; }
     System.String EnvironmentName { get;set; }
-    System.TimeSpan AlertDedupeWindow { get;set; }
-    System.TimeSpan BatchCompletionInterval { get;set; }
-    System.TimeSpan ClaimIdleJitterMax { get;set; }
     System.TimeSpan HeartbeatInterval { get;set; }
-    System.TimeSpan MinPollFloor { get;set; }
     System.TimeSpan SafetyPollInterval { get;set; }
-    System.TimeSpan WorkerDeadAfter { get;set; }
+    System.TimeSpan WorkerDeadAfter { get; }
     System.TimeSpan WorkerRetention { get;set; }
 sealed class Acta.JoinOutcome
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome> Children)

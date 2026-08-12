@@ -117,6 +117,11 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         // Coordination invariants. Each base value must be positive on its own before the cross-field
         // relationships are meaningful, so the relationship checks run only once the bases are valid to
         // avoid drowning the real cause in derived noise.
+        // The three relationship rules below cannot fail for a deployment, because the lease and the
+        // dead-worker window derive from the heartbeat at 4x and 7x. They are not dead: they guard the
+        // internal decoupling the benchmark and the drain specs use, which is the only way the triple
+        // can be set out of proportion. Deleting them would remove the check exactly where it still
+        // applies.
         var leaseTtl = TimeSpan.FromSeconds(options.LeaseTtlSeconds);
         var heartbeat = options.HeartbeatInterval;
         var leaseValid = options.LeaseTtlSeconds > 0;
@@ -199,6 +204,16 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         if (options.MaxInlinePayloadBytes > 256 * 1024 * 1024)
         {
             failures.Add("JobsOptions.MaxInlinePayloadBytes must be <= 256 MB: larger payloads belong behind a blob reference.");
+        }
+
+        // Named against the knob the caller actually set. The lease cap below is the same ceiling seen
+        // from the derived side, and reporting only that would name a property a deployment cannot
+        // assign - the one way this rework could have made an error message worse.
+        if (options.HeartbeatInterval > TimeSpan.FromHours(6))
+        {
+            failures.Add(
+                "JobsOptions.HeartbeatInterval must be <= 6 hours: the lease window derives from it at 4x and is capped at one day."
+            );
         }
 
         if (options.LeaseTtlSeconds > 86_400)
