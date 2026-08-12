@@ -12,9 +12,37 @@ namespace Acta.Tests.Conformance.SqlServer.Testing;
 public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 {
     /// <summary>
+    /// Runs a catalog read, retrying a deadlock victim (error 1205).
+    /// </summary>
+    /// <remarks>
+    /// These reads race the DDL other specs are provisioning in parallel, and SQL Server will pick a
+    /// plain SELECT against <c>sys.*</c> as the victim rather than the writer. A victim is fully rolled
+    /// back and nothing here is transactional, so re-reading is both safe and sufficient. The product
+    /// already classifies 1205 as transient (<c>SqlServerDialect.IsTransientConflict</c>) and
+    /// <c>SqlServerIntegrationSchema</c> handles the same race on the bootstrap side; the fixture's own
+    /// reads were the last unguarded path, and they failed a run on <c>sys.check_constraints</c>.
+    /// </remarks>
+    private static async ValueTask<T> ReadCatalogAsync<T>(Func<ValueTask<T>> read)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await read();
+            }
+            catch (SqlException ex) when (ex.Number == 1205 && attempt < 5)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt));
+            }
+        }
+    }
+
+    /// <summary>
     /// The user tables in <paramref name="schemaName"/> via the SQL Server information_schema.
     /// </summary>
-    public async ValueTask<IReadOnlyList<string>> ListTablesAsync(string schemaName)
+    public ValueTask<IReadOnlyList<string>> ListTablesAsync(string schemaName) => ReadCatalogAsync(() => ListTablesCoreAsync(schemaName));
+
+    private async ValueTask<IReadOnlyList<string>> ListTablesCoreAsync(string schemaName)
     {
         var conn = IntegrationConfig.SqlServerConnectionString!;
         var builder = new SqlConnectionStringBuilder(conn) { TrustServerCertificate = true };
@@ -35,7 +63,9 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return names;
     }
 
-    public async ValueTask<IReadOnlyList<string>> ListViewsAsync(string schemaName)
+    public ValueTask<IReadOnlyList<string>> ListViewsAsync(string schemaName) => ReadCatalogAsync(() => ListViewsCoreAsync(schemaName));
+
+    private async ValueTask<IReadOnlyList<string>> ListViewsCoreAsync(string schemaName)
     {
         var conn = IntegrationConfig.SqlServerConnectionString!;
         var builder = new SqlConnectionStringBuilder(conn) { TrustServerCertificate = true };
@@ -55,7 +85,10 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return names;
     }
 
-    public async ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(
+    public ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(string schemaName, string tableName) =>
+        ReadCatalogAsync(() => ListColumnsCoreAsync(schemaName, tableName));
+
+    private async ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsCoreAsync(
         string schemaName,
         string tableName
     )
@@ -78,7 +111,10 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return cols;
     }
 
-    public async ValueTask<IReadOnlyList<DbIndexInfo>> ListIndexesAsync(string schemaName, string tableName)
+    public ValueTask<IReadOnlyList<DbIndexInfo>> ListIndexesAsync(string schemaName, string tableName) =>
+        ReadCatalogAsync(() => ListIndexesCoreAsync(schemaName, tableName));
+
+    private async ValueTask<IReadOnlyList<DbIndexInfo>> ListIndexesCoreAsync(string schemaName, string tableName)
     {
         var builder = new SqlConnectionStringBuilder(IntegrationConfig.SqlServerConnectionString!) { TrustServerCertificate = true };
         await using var c = new SqlConnection(builder.ConnectionString);
@@ -111,7 +147,10 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return dict.Select(kv => new DbIndexInfo(kv.Key, kv.Value.IsUnique, kv.Value.Columns)).ToList();
     }
 
-    public async ValueTask<IReadOnlyList<DbForeignKeyInfo>> ListForeignKeysAsync(string schemaName, string tableName)
+    public ValueTask<IReadOnlyList<DbForeignKeyInfo>> ListForeignKeysAsync(string schemaName, string tableName) =>
+        ReadCatalogAsync(() => ListForeignKeysCoreAsync(schemaName, tableName));
+
+    private async ValueTask<IReadOnlyList<DbForeignKeyInfo>> ListForeignKeysCoreAsync(string schemaName, string tableName)
     {
         var builder = new SqlConnectionStringBuilder(IntegrationConfig.SqlServerConnectionString!) { TrustServerCertificate = true };
         await using var c = new SqlConnection(builder.ConnectionString);
@@ -145,7 +184,10 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return fks;
     }
 
-    public async ValueTask<IReadOnlyList<DbCheckInfo>> ListCheckConstraintsAsync(string schemaName, string tableName)
+    public ValueTask<IReadOnlyList<DbCheckInfo>> ListCheckConstraintsAsync(string schemaName, string tableName) =>
+        ReadCatalogAsync(() => ListCheckConstraintsCoreAsync(schemaName, tableName));
+
+    private async ValueTask<IReadOnlyList<DbCheckInfo>> ListCheckConstraintsCoreAsync(string schemaName, string tableName)
     {
         var builder = new SqlConnectionStringBuilder(IntegrationConfig.SqlServerConnectionString!) { TrustServerCertificate = true };
         await using var c = new SqlConnection(builder.ConnectionString);
@@ -169,7 +211,10 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return checks;
     }
 
-    public async ValueTask<IReadOnlyList<string>> ListCollationOverridesAsync(string schemaName, string tableName)
+    public ValueTask<IReadOnlyList<string>> ListCollationOverridesAsync(string schemaName, string tableName) =>
+        ReadCatalogAsync(() => ListCollationOverridesCoreAsync(schemaName, tableName));
+
+    private async ValueTask<IReadOnlyList<string>> ListCollationOverridesCoreAsync(string schemaName, string tableName)
     {
         var builder = new SqlConnectionStringBuilder(IntegrationConfig.SqlServerConnectionString!) { TrustServerCertificate = true };
         await using var c = new SqlConnection(builder.ConnectionString);
@@ -199,7 +244,9 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 
     public ValueTask<IIntegrationSchema> CreateSchemaAsync() => SqlServerIntegrationSchema.CreateAsync();
 
-    public async ValueTask<int> CountTablesAsync(string schemaName)
+    public ValueTask<int> CountTablesAsync(string schemaName) => ReadCatalogAsync(() => CountTablesCoreAsync(schemaName));
+
+    private async ValueTask<int> CountTablesCoreAsync(string schemaName)
     {
         var conn = IntegrationConfig.SqlServerConnectionString!;
         var builder = new SqlConnectionStringBuilder(conn) { TrustServerCertificate = true };

@@ -57,7 +57,14 @@ public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TF
 
         // Purge the job row but keep its events (wide event window).
         var purge = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-        Assert.Equal(1, purge.Jobs);
+
+        // Deliberately NOT "this call purged exactly one job". The sweep selects WITH (UPDLOCK, READPAST)
+        // and reports only what it deleted itself, so it skips a row another transaction holds - and
+        // sys.retention auto-registers into every worker namespace, including this one, so a scheduled
+        // sweep can legitimately reach the zero-retention job first and this call then reports 0.
+        // Asserting the count asserts which actor did it; the property under test is that the row is
+        // gone, which is checked below and holds either way. The same racy count assert was removed
+        // from the reap spec in July for exactly this reason.
         Assert.Equal(0, purge.Events);
 
         // Force a fresh insert after purge. SQLite used to reuse the deleted highest row id here,
