@@ -260,7 +260,7 @@ internal sealed class CliCommandRunner(
                 restarted = true;
             }
 
-            // --break: raise the debugger and stop at the handler seam (see JobRunner). Off Windows
+            // --break: raise the debugger and stop at the handler seam (see JobExecution). Off Windows
             // there is no JIT attach dialog, so hint that a debugger must be attached manually.
             DebugBreak.Requested = breakAtHandler;
             if (breakAtHandler && !OperatingSystem.IsWindows())

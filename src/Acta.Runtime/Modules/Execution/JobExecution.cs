@@ -19,7 +19,17 @@ namespace Acta.Runtime.Modules.Execution;
 /// serialization, and the <c>complete_execution</c> write (including recurring-completion outcome
 /// math). With no behaviors registered, dispatch uses <c>descriptor.Invoker</c> directly.
 /// </summary>
-internal sealed class JobRunner(
+// Separate from JobExecutor on purpose, and the seam is not "claim versus run": both are strictly
+// per-attempt, and the worker loop does the claiming. JobExecutor is the frame - four disposal
+// obligations (log scope, both cancellation sources, attempt DI scope) plus the running-attempt
+// registration, all of which must unwind whatever happens in here. This is the body it wraps.
+// Merging them nests a 600-line state machine four levels deep inside that unwind and gives one
+// class thirteen constructor dependencies.
+//
+// Named for what the ledger calls it: execution_number, start_execution, complete_execution and
+// ExecutionStatusCode are the persisted vocabulary and freeze at 1.0, while "run" names a scheduled
+// time in this schema (next_run_at_utc), never an attempt.
+internal sealed class JobExecution(
     IJobStore jobStore,
     IExecutionStore execution,
     IJobPayloadSerializerRegistry serializers,

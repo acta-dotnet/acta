@@ -17,7 +17,7 @@ namespace Acta.Runtime.Modules.Execution;
 /// <summary>
 /// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans
 /// a recurring slot fire, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope,
-/// then hands the start-invoke-complete lifecycle to <see cref="JobRunner"/> (which takes the
+/// then hands the start-invoke-complete lifecycle to <see cref="JobExecution"/> (which takes the
 /// exclusive-key lock after the start CAS and bounces a loser back to Ready). Claiming jobs from the
 /// DB and dispatching them to executors is the worker loop's job.
 /// </summary>
@@ -28,7 +28,7 @@ internal sealed class JobExecutor(
     IServiceProvider rootServices,
     IOptions<JobsOptions> options,
     WorkerContext context,
-    JobRunner runner,
+    JobExecution jobExecution,
     ILogger? log = null,
     JobMetrics? metrics = null
 )
@@ -40,7 +40,7 @@ internal sealed class JobExecutor(
     private readonly IServiceProvider _rootServices = rootServices;
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerContext _context = context;
-    private readonly JobRunner _runner = runner;
+    private readonly JobExecution _jobExecution = jobExecution;
     private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution =
         rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.IExecutionStore>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
@@ -109,7 +109,7 @@ internal sealed class JobExecutor(
         // Link a per-attempt cancellation source off the worker token AND a dedicated timeout source; the
         // heartbeat cancels it when an external cancel or lease steal drops this job from the worker's
         // lease set, and the timeout source cancels it when the per-attempt wall-clock cap elapses. The
-        // separate timeout source lets the runner tell a timeout from an external cancel. Registering the
+        // separate timeout source lets the execution tell a timeout from an external cancel. Registering the
         // attempt also lets the heartbeat extend every lock it holds.
         var timeoutCts = new CancellationTokenSource();
         var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
@@ -194,7 +194,7 @@ internal sealed class JobExecutor(
             // The handler resolves from this same scope, so the scoped accessor carries the set value.
             attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
 
-            return await _runner.RunAsync(
+            return await _jobExecution.RunAsync(
                 attemptServices,
                 descriptor,
                 job,

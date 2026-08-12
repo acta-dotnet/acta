@@ -286,7 +286,7 @@ internal sealed class CompletionSink
         _metrics?.RecordExecution(
             b.JobNamespace,
             b.JobName,
-            JobRunner.OutcomeTag(b.Request.Outcome),
+            JobExecution.OutcomeTag(b.Request.Outcome),
             b.Request.JobEventReasonCode?.Code,
             b.Request.DurationMs ?? 0
         );

@@ -5,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Unit-pins <see cref="JobRunner.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
+/// Unit-pins <see cref="JobExecution.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
 /// regardless of the consecutive-failure count (MaxAttempts is the one-off budget only), the counter
 /// saturates at <c>short.MaxValue</c>, a success resets it to zero, and an exhausted schedule pauses.
 /// </summary>
@@ -18,7 +18,7 @@ public class RecurringOutcomeTests
     {
         // failureCount already well past the budget: a one-off would land terminal Failed here; a
         // recurring slot re-arms Ready and just bumps the counter.
-        var (status, failureCount, reason, message) = JobRunner.ComputeRecurringOutcome(
+        var (status, failureCount, reason, message) = JobExecution.ComputeRecurringOutcome(
             ExecutionOutcome.Failed,
             Job(failureCount: 5),
             Descriptor(maxAttempts: 2),
@@ -36,7 +36,7 @@ public class RecurringOutcomeTests
     [Fact]
     public void Failure_counter_saturates_at_short_max_value()
     {
-        var (_, failureCount, _, _) = JobRunner.ComputeRecurringOutcome(
+        var (_, failureCount, _, _) = JobExecution.ComputeRecurringOutcome(
             ExecutionOutcome.Failed,
             Job(failureCount: short.MaxValue),
             Descriptor(maxAttempts: 2),
@@ -51,7 +51,7 @@ public class RecurringOutcomeTests
     [Fact]
     public void Succeeded_resets_the_failure_counter_to_zero()
     {
-        var (status, failureCount, _, _) = JobRunner.ComputeRecurringOutcome(
+        var (status, failureCount, _, _) = JobExecution.ComputeRecurringOutcome(
             ExecutionOutcome.Succeeded,
             Job(failureCount: 9),
             Descriptor(maxAttempts: 2),
@@ -67,7 +67,7 @@ public class RecurringOutcomeTests
     [Fact]
     public void Exhausted_schedule_pauses_with_schedules_exhausted()
     {
-        var (status, _, reason, _) = JobRunner.ComputeRecurringOutcome(
+        var (status, _, reason, _) = JobExecution.ComputeRecurringOutcome(
             ExecutionOutcome.Succeeded,
             Job(failureCount: 0),
             Descriptor(maxAttempts: 2),

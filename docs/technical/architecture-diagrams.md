@@ -35,7 +35,7 @@ flowchart LR
         WorkerLoop[WorkerLoop]
         WorkerHeartbeat[WorkerHeartbeat]
         JobExecutor[JobExecutor]
-        JobRunner[JobRunner]
+        JobExecution[JobExecution]
     end
 
     subgraph Storage[Durable SQL substrate]
@@ -55,9 +55,9 @@ flowchart LR
     WorkerRuntime --> WorkerLoop
     WorkerRuntime --> WorkerHeartbeat
     WorkerLoop --> JobExecutor
-    JobExecutor --> JobRunner
-    JobRunner --> Handlers
-    JobRunner --> DB
+    JobExecutor --> JobExecution
+    JobExecution --> Handlers
+    JobExecution --> DB
     WorkerHeartbeat --> DB
     Wakeup -. nudges .-> WorkerLoop
     Dashboard --> DB
@@ -95,12 +95,12 @@ flowchart LR
     Executor --> Descriptor[JobDescriptor lookup]
     Executor --> AttemptScope[Per-attempt DI scope]
     Executor --> RuntimeCtx[RuntimeJobContext]
-    Executor --> Runner[JobRunner]
+    Executor --> Execution[JobExecution]
 
-    Runner --> Start[StartExecution operation]
-    Runner --> Invoke["Generated descriptor.Invoker wrapped by pipeline behaviors"]
-    Runner --> Complete[CompleteExecution operation]
-    Runner --> Wake[WorkerWakeupPublisher]
+    Execution --> Start[StartExecution operation]
+    Execution --> Invoke["Generated descriptor.Invoker wrapped by pipeline behaviors"]
+    Execution --> Complete[CompleteExecution operation]
+    Execution --> Wake[WorkerWakeupPublisher]
 
     Heartbeat --> Extend[ExtendWorkerLeases operation]
     Heartbeat --> Cancel["Cancel running attempts that lost their lease"]
@@ -111,7 +111,7 @@ flowchart LR
 - `WorkerRuntime` is a facade/composition root, not the engine itself.
 - `WorkerLoop` owns claiming and concurrency fan-out.
 - `JobExecutor` prepares one already-claimed job attempt.
-- `JobRunner` owns the start -> invoke -> complete attempt lifecycle.
+- `JobExecution` owns the start -> invoke -> complete attempt lifecycle.
 - `WorkerHeartbeat` is intentionally independent of executor throughput so long-running handlers do not starve lease extension.
 
 ## 3. Claim -> dispatch -> execute -> complete
@@ -124,7 +124,7 @@ sequenceDiagram
     participant Wake as Wakeup transport
     participant WLoop as WorkerLoop
     participant Exec as JobExecutor
-    participant Runner as JobRunner
+    participant Execution as JobExecution
     participant Handler as Job handler
 
     Producer->>DB: EnqueueOne/EnqueueBatch inserts acta.jobs + its runtimes row as Ready
@@ -134,12 +134,12 @@ sequenceDiagram
     DB-->>WLoop: claimed rows
     WLoop->>Exec: bounded channel dispatch
     Exec->>Exec: resolve descriptor, create attempt scope, build context
-    Exec->>Runner: run claimed job
-    Runner->>DB: StartExecution CAS, Dispatched -> Executing, append started event
-    Runner->>Handler: descriptor.Invoker(input, ctx, ct)
-    Handler-->>Runner: result / exception / suspend signal
-    Runner->>DB: CompleteExecution writes result, appends finished event, sets next status
-    Runner-->>Wake: publish wakeup if more work may be ready
+    Exec->>Execution: run claimed job
+    Execution->>DB: StartExecution CAS, Dispatched -> Executing, append started event
+    Execution->>Handler: descriptor.Invoker(input, ctx, ct)
+    Handler-->>Execution: result / exception / suspend signal
+    Execution->>DB: CompleteExecution writes result, appends finished event, sets next status
+    Execution-->>Wake: publish wakeup if more work may be ready
 ```
 
 ### Key points
@@ -302,7 +302,7 @@ flowchart LR
 Before publishing a release, verify these diagrams still match source:
 
 - Job statuses and execution statuses still match the code families.
-- `WorkerRuntime`, `WorkerLoop`, `JobExecutor`, `JobRunner`, and `WorkerHeartbeat` still own the responsibilities shown here.
+- `WorkerRuntime`, `WorkerLoop`, `JobExecutor`, `JobExecution`, and `WorkerHeartbeat` still own the responsibilities shown here.
 - The persistence diagram still matches [`data-model.md`](../reference/data-model.md) and the generated migrations.
 - Maintenance jobs are still ordinary jobs claimed through the normal path.
 - Provider parity is still tested through shared conformance specs for both SQL Server and Postgres.

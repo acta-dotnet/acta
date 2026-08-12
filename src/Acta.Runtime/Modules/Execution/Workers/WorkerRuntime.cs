@@ -22,7 +22,7 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// <remarks>
 /// A thin facade over the runtime collaborators it composes from its constructor dependencies: the
 /// <see cref="WorkerContext"/> (shared state), <see cref="WorkerRuntimeInitializer"/> (catalog
-/// upsert), <see cref="JobExecutor"/> + <see cref="JobRunner"/> (claimed-job execution),
+/// upsert), <see cref="JobExecutor"/> + <see cref="JobExecution"/> (claimed-job execution),
 /// and <see cref="WorkerLoop"/> (the claim/dispatch poll loop). Enqueue-only runtimes (a
 /// <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c> worker)
 /// skip the worker-row write and short-circuit the loop, but still run provider bootstraps so
@@ -94,7 +94,7 @@ internal sealed class WorkerRuntime
             logger
         );
 
-        // One per-runtime completion buffer, shared by the runner (which buffers plain terminal
+        // One per-runtime completion buffer, shared by the execution (which buffers plain terminal
         // completions under the Bulk profile) and the loop (which runs the flusher). Inert on other
         // profiles: nothing is ever enqueued and the flusher is never started. Only routine providers
         // (SQL Server, Postgres) get a sink - Bulk degrades to Direct on inline-only providers (SQLite),
@@ -103,7 +103,7 @@ internal sealed class WorkerRuntime
             ? new CompletionSink(rootServices.GetRequiredService<IExecutionStore>(), publisher, options, logger, metrics)
             : null;
 
-        var runner = new JobRunner(
+        var jobExecution = new JobExecution(
             rootServices.GetRequiredService<IJobStore>(),
             rootServices.GetRequiredService<IExecutionStore>(),
             serializers,
@@ -114,7 +114,7 @@ internal sealed class WorkerRuntime
             metrics,
             completionSink
         );
-        _executor = new JobExecutor(lockStore, clock, serializers, rootServices, options, _context, runner, logger, metrics);
+        _executor = new JobExecutor(lockStore, clock, serializers, rootServices, options, _context, jobExecution, logger, metrics);
         _loop = new WorkerLoop(
             rootServices.GetRequiredService<IExecutionStore>(),
             _executor,

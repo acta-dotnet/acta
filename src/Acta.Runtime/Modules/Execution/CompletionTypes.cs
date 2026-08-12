@@ -72,7 +72,7 @@ internal sealed record CompleteExecutionRequest(
     /// Seconds added to <c>db_now</c> to stamp <c>runtimes.retention_until_utc</c> when this completion lands
     /// the Job in a terminal status (<c>100</c> Succeeded / <c>200</c> Failed / <c>220</c> Cancelled). Null
     /// leaves the column untouched; re-arm, suspend, and pause completions never stamp retention.
-    /// <c>JobRunner</c> resolves it from the definition's <c>JobRetentionSeconds</c> or the framework default.
+    /// <c>JobExecution</c> resolves it from the definition's <c>JobRetentionSeconds</c> or the framework default.
     /// </summary>
     public int? RetentionSeconds { get; init; }
 }

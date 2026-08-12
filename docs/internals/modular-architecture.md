@@ -96,7 +96,7 @@ It owns:
 
 Internal layout as built: subdomain folders (`Jobs`, `Schedules`, `Definitions`, `Namespaces`,
 `Tenants`, `Workers`, `Signals`, `Checkpoints`, `ChildLatches`, `Timers`) with the execution kernel
-files (`JobExecutor`, `JobRunner`, `RuntimeJobContext`, `RecoveryJob`, `CompletionSink`, store
+files (`JobExecutor`, `JobExecution`, `RuntimeJobContext`, `RecoveryJob`, `CompletionSink`, store
 ports) at the module root. Catalog and Scheduling are explicit subdomains, not separate top-level
 modules: the SQL proves they participate in execution invariants and atomic completion paths.
 
@@ -422,7 +422,7 @@ validation against the previous release once packages ship.
 ## Remaining direction
 
 - **Engine/ledger seam** (the main architectural debt): execution orchestration (`JobExecutor`,
-  `WorkerRuntime`, `RecoveryJob`, `JobRunner`) still injects persistence stores directly — legal
+  `WorkerRuntime`, `RecoveryJob`, `JobExecution`) still injects persistence stores directly — legal
   today because it stays within one module. Establish a narrow execution-ledger API incrementally
   around the claim/start/complete/recover/control transactions, then add a gate that engine code
   cannot inject store ports. Not a release hotfix.

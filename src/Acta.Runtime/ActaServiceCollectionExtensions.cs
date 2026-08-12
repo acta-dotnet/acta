@@ -191,7 +191,7 @@ public static class ActaServiceCollectionExtensions
         services.AddSingleton(JobDescriptorIndex.Build(builder.Catalogs));
 
         // Pipeline behaviors: the ordered resolver list captured on the builder (outermost first),
-        // snapshotted into the per-worker JobRunner's fold. Each behavior type was registered scoped by
+        // snapshotted into the per-worker JobExecution's fold. Each behavior type was registered scoped by
         // AddPipelineBehavior; this singleton holds only the order and never captures a scope, so
         // per-attempt resolution runs against the attempt scope inside JobBehaviorPipeline.Build.
         services.AddSingleton(new JobBehaviorPipeline(builder.PipelineBehaviors.ToArray()));

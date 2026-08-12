@@ -7,7 +7,7 @@ public sealed record SleepValidationResult(bool InvalidNameRejected, bool Reserv
 
 /// <summary>
 /// A user-defined <see cref="JobControlException"/> subclass the framework does not understand. Used to
-/// prove <c>JobRunner</c> rethrows unknown control signals instead of translating them to a re-arm.
+/// prove <c>JobExecution</c> rethrows unknown control signals instead of translating them to a re-arm.
 /// </summary>
 public sealed class FakeControlException : JobControlException
 {
