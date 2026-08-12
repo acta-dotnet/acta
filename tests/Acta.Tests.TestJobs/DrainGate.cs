@@ -23,7 +23,7 @@ public static class DrainGate
     /// <summary>Completes once the handler has entered (the job is executing).</summary>
     public static Task Entered(string jobNamespace) => _entered[jobNamespace].Task;
 
-    /// <summary>Lets the blocked handler return normally, so the job completes Done.</summary>
+    /// <summary>Lets the blocked handler return normally, so the job completes Succeeded.</summary>
     public static void Release(string jobNamespace) => _release[jobNamespace].TrySetResult();
 
     [Job("drain-gate")]

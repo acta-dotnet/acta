@@ -28,7 +28,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Contract = "A claim returns up to ClaimBatchSize rows with a null horizon, and an empty claim returns one sentinel carrying db_now and the earliest Ready run time.",
     Arrange = "ClaimBatchSize is set to 5, system jobs are disabled, and a surplus backlog plus one delayed job are enqueued.",
     Act = "Single claim ticks run against the surplus and the drained namespace, then the dispatch loop drains the backlog.",
-    Assert = "A claim caps at 5 rows, an empty claim returns one sentinel with db_now and the delayed row's run time, and the backlog lands Done."
+    Assert = "A claim caps at 5 rows, an empty claim returns one sentinel with db_now and the delayed row's run time, and the backlog lands Succeeded."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
 public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -170,7 +170,7 @@ public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         return (Db, dialect, leaseTtl, ns, workerId);
     }
 
-    [Fact(DisplayName = "The loop drains the whole backlog to Done")]
+    [Fact(DisplayName = "The loop drains the whole backlog to Succeeded")]
     public async Task Batched_loop_drains_the_backlog()
     {
         var ct = TestContext.Current.CancellationToken;

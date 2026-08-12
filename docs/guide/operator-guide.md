@@ -25,9 +25,36 @@ For a visual map of the job lifecycle, maintenance flow, and operator surfaces, 
 ## Status quick reference
 
 Live statuses: `Ready = 10`, `Suspended = 20`, `Paused = 30`, `Dispatched = 40`, `Executing = 50`.
-Terminal statuses follow the band rule: `100` is success (`Done`), `200+` is unsuccessful
+Terminal statuses follow the band rule: `100` is success (`Succeeded`), `200+` is unsuccessful
 (`Failed = 200`, `Cancelled = 220`). The reason for a transition lives on `events`, not on the
 runtime row.
+
+Workers use the same bands: `Active = 10`, `Draining = 80` (stopped polling, finishing in-flight),
+`Stopped = 100`, `Dead = 200`.
+
+## How a worker ended
+
+There are exactly two ways a worker process ends, and the terminal status names which one:
+
+| Status | What happened | Event and reason |
+|---|---|---|
+| `Stopped = 100` | Exited cleanly through SIGTERM / `IHostedService.StopAsync` | `121 worker.stopped` / `100 worker.clean-shutdown` |
+| `Dead = 200` | Heartbeat went stale past the liveness window; `sys.recovery` flipped it | `122 worker.dead` / `101 worker.heartbeat-stale` |
+
+On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. A worker
+killed outright never reaches the clean path, so it stays `Active` until recovery marks it `Dead` -
+which is why a kill and a crash are indistinguishable here, and correctly so.
+
+```sql
+-- Workers that died in the last hour, and how long they had been running.
+SELECT worker_id, host, deployment_version, created_at_utc, modified_at_utc
+  FROM acta.workers_view
+ WHERE status_code = 200 AND modified_at_utc > now() - interval '1 hour'
+ ORDER BY modified_at_utc DESC;
+```
+
+The same rows are readable through `IActaOperations.Workers.ListAsync`, filtered with
+`new ListWorkersQuery(Status: WorkerStatusCode.Dead)`.
 
 ## Common queries
 
@@ -294,7 +321,7 @@ Completed durable step example:
 
 ```
 job_01H8ZKX…  payments/checkout
-Done.
+Succeeded.
 
 Durable work:
 - Step "reserve-stock" succeeded and will not rerun.

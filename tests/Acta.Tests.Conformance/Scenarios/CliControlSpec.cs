@@ -116,7 +116,7 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(enqueued, ct));
     }
 
-    [Fact(DisplayName = "Debug claims only the targeted id, runs it in-process to Done, and result surfaces the payload")]
+    [Fact(DisplayName = "Debug claims only the targeted id, runs it in-process to Succeeded, and result surfaces the payload")]
     public async Task Debug_runs_the_targeted_job_to_done()
     {
         var ct = TestContext.Current.CancellationToken;

@@ -104,7 +104,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
         // Drive one real execution (own per-test namespace, so no cross-test claim contention) so
         // execution_number is non-zero - otherwise the "unchanged" assertion below would be a vacuous
-        // 0 == 0 that couldn't catch a regression that zeroed it. The job ends terminal (Done).
+        // 0 == 0 that couldn't catch a regression that zeroed it. The job ends terminal (Succeeded).
         var run = await Runtime.RunOnceAsync(enqueued, ct);
         Assert.Equal(RunOnceOutcome.Completed, run);
 

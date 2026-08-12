@@ -33,6 +33,8 @@ public sealed class SqlServerHandlerLockHeartbeatSpec : HandlerLockHeartbeatSpec
 
 public sealed class SqlServerJobContextDiResolutionSpec : JobContextDiResolutionSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerJobAttemptIdentitySpec : JobAttemptIdentitySpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerDeadlineSpec : DeadlineSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerJobRefContextSpec : JobRefContextSpec<SqlServerConformanceFixture>;

@@ -398,7 +398,7 @@ internal sealed class JobRunner(
         }
 
         // Resolved once and passed on every completion shape; complete_execution stamps it onto
-        // runtimes.retention_until_utc only at a terminal landing (Done/Failed/Cancelled) and ignores it on
+        // runtimes.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
         // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.
         var retentionSeconds = descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds;
 
@@ -578,7 +578,7 @@ internal sealed class JobRunner(
             };
         }
 
-        // Bulk profile: a plain terminal completion (Done/Failed, no re-arm / handler-control / recurring /
+        // Bulk profile: a plain terminal completion (Succeeded/Failed, no re-arm / handler-control / recurring /
         // signal branch) is buffered for group commit instead of committed per job. The handler already
         // ran; the slot frees now and the flusher durably finalizes the batch and publishes the deferred
         // wakeups. Everything needing a cross-row side effect or a control branch falls through to the

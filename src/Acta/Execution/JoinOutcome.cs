@@ -7,7 +7,7 @@ namespace Acta;
 /// </summary>
 public sealed record JoinOutcome(IReadOnlyList<ChildJobOutcome> Children)
 {
-    /// <summary>True when every child landed Done.</summary>
+    /// <summary>True when every child landed Succeeded.</summary>
     public bool Succeeded => Children.All(o => o.Succeeded);
 
     /// <summary>The non-succeeded child outcomes (failed or cancelled), in caller order.</summary>
@@ -15,7 +15,7 @@ public sealed record JoinOutcome(IReadOnlyList<ChildJobOutcome> Children)
 
     /// <summary>
     /// Throws <see cref="ChildGroupException"/> carrying the failed children when any child did not
-    /// land Done; otherwise returns. The caller's explicit require-all-succeeded escalation.
+    /// land Succeeded; otherwise returns. The caller's explicit require-all-succeeded escalation.
     /// </summary>
     public void ThrowIfAnyFailed()
     {

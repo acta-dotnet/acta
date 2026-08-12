@@ -96,7 +96,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         // Pin exact per-ordinal bool outcomes.
         Assert.Equal([true, false, true, true, false], results);
 
-        // Pin post-state: true → Done (100); false → still Executing (50).
+        // Pin post-state: true → Succeeded (100); false → still Executing (50).
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(childEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(exclEnq.JobId, ct)).Status);

@@ -42,7 +42,8 @@ internal sealed class RuntimeJobContext(
     ILogger? log = null,
     JobMetrics? metrics = null,
     IJobs? jobs = null,
-    string? tenantKey = null
+    string? tenantKey = null,
+    int workerId = 0
 ) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
@@ -76,6 +77,8 @@ internal sealed class RuntimeJobContext(
     public override string? TenantKey { get; } = tenantKey;
     public override string JobName { get; } = jobName;
     public override JobRef JobRef { get; } = new JobRef(job.JobRef);
+    public override int ExecutionNumber { get; } = job.ExecutionNumber;
+    public override int WorkerId { get; } = workerId;
     public override CancellationToken CancellationToken { get; } = cancellationToken;
     public override IReadOnlyList<string> TriggeringScheduleNames { get; } = triggeringScheduleNames;
     public override DateTime? DeadlineAtUtc { get; } = deadlineAtUtc;

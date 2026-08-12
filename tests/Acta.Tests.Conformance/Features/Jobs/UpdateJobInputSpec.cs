@@ -69,7 +69,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var marker = $"acta004-{Guid.NewGuid():N}";
 
-        // Terminal Done through the real path via the zero-retention probe, carrying the marker input.
+        // Terminal Succeeded through the real path via the zero-retention probe, carrying the marker input.
         var oldInput = JobPayload.Json(new PurgeProbe(marker));
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "purge-now", oldInput), ct);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));

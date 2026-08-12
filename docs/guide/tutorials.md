@@ -123,7 +123,7 @@ independent jobs through enqueue operations.
 | 010 | [deduplication-key](../../concepts/000-fundamentals/010-deduplication-key/) | Idempotent enqueue (dedupe by deduplication key) |
 | 011 | [delayed-job](../../concepts/000-fundamentals/011-delayed-job/) | Delay the earliest run with `Delayed` |
 | 012 | [read-status](../../concepts/000-fundamentals/012-read-status/) | Read a `JobSnapshot` with `GetAsync` |
-| 013 | [read-result](../../concepts/000-fundamentals/013-read-result/) | `GetResultAsync<T>` is a point-in-time read (null before Done) |
+| 013 | [read-result](../../concepts/000-fundamentals/013-read-result/) | `GetResultAsync<T>` is a point-in-time read (null before Succeeded) |
 | 014 | [read-by-deduplication-key](../../concepts/000-fundamentals/014-read-by-deduplication-key/) | Look a job up by `JobLookup.ByDeduplicationKey` |
 | 015 | [execute-vs-enqueue](../../concepts/000-fundamentals/015-execute-vs-enqueue/) | Fire-and-forget vs enqueue-and-wait |
 | 016 | [max-attempts](../../concepts/000-fundamentals/016-max-attempts/) | Retry budget; terminal `Failed` after the cap |

@@ -33,6 +33,8 @@ public sealed class PgHandlerLockHeartbeatSpec : HandlerLockHeartbeatSpec<PgConf
 
 public sealed class PgJobContextDiResolutionSpec : JobContextDiResolutionSpec<PgConformanceFixture>;
 
+public sealed class PgJobAttemptIdentitySpec : JobAttemptIdentitySpec<PgConformanceFixture>;
+
 public sealed class PgDeadlineSpec : DeadlineSpec<PgConformanceFixture>;
 
 public sealed class PgJobRefContextSpec : JobRefContextSpec<PgConformanceFixture>;

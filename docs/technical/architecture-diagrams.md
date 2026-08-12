@@ -158,7 +158,7 @@ stateDiagram-v2
     Ready --> Dispatched: ClaimBatch
     Dispatched --> Executing: StartExecution
 
-    Executing --> Done: succeeded
+    Executing --> Succeeded: succeeded
     Executing --> Ready: failed within retry budget
     Executing --> Ready: rescheduled
     Executing --> Suspended: wait signal
@@ -176,7 +176,7 @@ stateDiagram-v2
     Paused --> Cancelled: external cancel
     Suspended --> Cancelled: external cancel
 
-    Done --> [*]
+    Succeeded --> [*]
     Failed --> [*]
     Cancelled --> [*]
 ```
@@ -185,7 +185,7 @@ stateDiagram-v2
 
 - `Ready` is the only claimable state.
 - `Dispatched` and `Executing` are active lease-owned states.
-- `Done`, `Failed`, and `Cancelled` are terminal states.
+- `Succeeded`, `Failed`, and `Cancelled` are terminal states.
 - `Suspended` means waiting on an external signal; sleep/reschedule can also re-arm as `Ready` with a future due time.
 - The execution outcome (`Succeeded`, `Failed`, `Orphaned`, `Rescheduled`, `Suspended`, `Paused`, etc.) is recorded in the execution ledger.
 

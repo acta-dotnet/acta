@@ -14,7 +14,7 @@ namespace Acta;
 /// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
 /// <param name="IncludeTotal">Whether to also compute the filter-wide row count.</param>
 /// <param name="Tags">Restrict to jobs carrying every supplied tag filter.</param>
-/// <param name="TerminalOnly">True restricts to terminal jobs (Done, Failed, Cancelled); null or false skips the restriction.</param>
+/// <param name="TerminalOnly">True restricts to terminal jobs (Succeeded, Failed, Cancelled); null or false skips the restriction.</param>
 /// <param name="RecurringOnly">True restricts to jobs with at least one live (non-orphaned) schedule attached; null or false skips the restriction.</param>
 public sealed record ListJobsQuery(
     string? JobNamespace = null,

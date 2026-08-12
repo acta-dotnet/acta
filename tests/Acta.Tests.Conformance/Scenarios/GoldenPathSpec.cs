@@ -22,10 +22,10 @@ namespace Acta.Tests.Conformance.Scenarios;
     "golden-path.end-to-end",
     "A job registers, enqueues, claims, executes, persists and reads back",
     Area = "Execution",
-    Contract = "A registered job enqueued through IJobs is claimed, executed and completed to Done with the canonical claim/start/finish timeline and a deserializable result.",
+    Contract = "A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.",
     Arrange = "The add-numbers job definition is registered in the test namespace.",
     Act = "One AddNumbers job is enqueued through IJobs and a single runtime tick claims, executes, and completes it.",
-    Assert = "The job lands Done with the canonical Started then Finished timeline and a result that deserializes to the handler output."
+    Assert = "The job lands Succeeded with the canonical Started then Finished timeline and a result that deserializes to the handler output."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
@@ -38,7 +38,7 @@ public abstract class GoldenPathSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
     where TFixture : IConformanceFixture, new()
 {
     [Fact(
-        DisplayName = "Job completes Done with a Started then Finished(Succeeded, Executing to Done) timeline and a result that deserializes to the handler output"
+        DisplayName = "Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to the handler output"
     )]
     public async Task End_to_end_golden_path_registers_enqueues_claims_executes_persists_and_queries()
     {
@@ -66,7 +66,7 @@ public abstract class GoldenPathSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var enqueued = await Jobs.EnqueueAsync(enqueueRequest, ct);
         Assert.True(enqueued.JobId > 0);
 
-        // --- 3. Run one tick. Should claim the row, invoke the handler, and complete with Done.
+        // --- 3. Run one tick. Should claim the row, invoke the handler, and complete with Succeeded.
         var outcome = await Runtime.RunOnceAsync(enqueued, ct);
         Assert.Equal(RunOnceOutcome.Completed, outcome);
 

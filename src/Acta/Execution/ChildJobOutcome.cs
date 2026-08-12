@@ -8,6 +8,6 @@ namespace Acta;
 /// </summary>
 public sealed record ChildJobOutcome(long ChildJobId, JobStatusCode Status)
 {
-    /// <summary>True when the child landed <c>Done</c>.</summary>
+    /// <summary>True when the child landed <c>Succeeded</c>.</summary>
     public bool Succeeded => Status == JobStatusCode.Succeeded;
 }

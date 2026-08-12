@@ -36,7 +36,7 @@ public class M001CodeChecksTests
         );
 
     // JobStatusCode = { Ready=10, Suspended=20, Paused=30, Dispatched=40, Executing=50,
-    //               Done=100, Failed=200, Cancelled=220 }. Anchor enum for the test -
+    //               Succeeded=100, Failed=200, Cancelled=220 }. Anchor enum for the test -
     // small, stable, and non-nullable on `runtimes.status_code`.
     private const string JobStatusInList = "(10, 20, 30, 40, 50, 100, 200, 220)";
 

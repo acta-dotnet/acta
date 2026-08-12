@@ -6,7 +6,7 @@ namespace Acta.Tests.Context;
 /// <summary>
 /// In-memory JobContext double for the Map/Parallel/Join sugar: records the order of child starts
 /// and child waits, hands every start a fresh sequential id, and resolves each wait from a seeded
-/// per-child-name outcome (defaulting to Done). No database, no substrate; only the child-job sinks
+/// per-child-name outcome (defaulting to Succeeded). No database, no substrate; only the child-job sinks
 /// the sugar touches are implemented, the rest throw.
 /// </summary>
 internal sealed class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>? seeded = null) : JobContext

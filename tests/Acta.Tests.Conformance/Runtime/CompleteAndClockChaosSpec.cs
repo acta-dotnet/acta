@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Contract = "Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization.",
     Arrange = "A counting probe job is enqueued with store fault injection armed to fail CompleteExecution once, before or after its commit.",
     Act = "The runtime runs the job through the injected completion failure, and the before-commit case is then reclaimed and rerun.",
-    Assert = "A before-commit failure reruns to exactly one Succeeded finish while an after-commit failure leaves the job Done with no rerun."
+    Assert = "A before-commit failure reruns to exactly one Succeeded finish while an after-commit failure leaves the job Succeeded with no rerun."
 )]
 public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -59,13 +59,13 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
-    [Fact(DisplayName = "A complete after-commit failure leaves Done with one success event and is not rerun")]
+    [Fact(DisplayName = "A complete after-commit failure leaves Succeeded with one success event and is not rerun")]
     public async Task Sql_transient_failure_after_complete_commit_is_not_rerun()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // --- 1. CompleteExecution commits, then the post-commit failure surfaces; the job stays Done.
+        // --- 1. CompleteExecution commits, then the post-commit failure surfaces; the job stays Succeeded.
         _faults.ThrowAfterCompleteOnce();
         await Assert.ThrowsAsync<TimeoutException>(() => Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));

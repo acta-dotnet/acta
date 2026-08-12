@@ -25,10 +25,10 @@ namespace Acta.Tests.Conformance.Performance;
     "stress.batch-claim-drains",
     "A backlog drains exactly-once under N concurrent executors with batch claiming",
     Area = "Execution",
-    Contract = "A backlog enqueued through IJobs drains to Done exactly once under concurrent batch-claiming executors.",
+    Contract = "A backlog enqueued through IJobs drains to Succeeded exactly once under concurrent batch-claiming executors.",
     Arrange = "A backlog of ACTA_LOAD_JOBS ready jobs is preloaded, with ACTA_LOAD_EXECUTORS concurrent executors and a 32-row claim batch configured.",
     Act = "The real batch-claim dispatch loop drains the backlog while throughput and latency percentiles are recorded.",
-    Assert = "Every job in the backlog lands Done exactly once."
+    Assert = "Every job in the backlog lands Succeeded exactly once."
 )]
 public abstract class StressLoadSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

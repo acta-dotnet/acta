@@ -124,7 +124,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(originalDue, timer.DueAtUtc);
     }
 
-    [Fact(DisplayName = "Sleep rerun after due consumes the timer and the handler continues to Done")]
+    [Fact(DisplayName = "Sleep rerun after due consumes the timer and the handler continues to Succeeded")]
     public async Task Sleep_rerun_after_due_consumes_the_timer_and_continues()
     {
         var ct = TestContext.Current.CancellationToken;

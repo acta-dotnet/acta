@@ -43,6 +43,8 @@ public sealed class SqliteGetJobResultSpec : GetJobResultSpec<SqliteConformanceF
 
 public sealed class SqliteJobContextDiResolutionSpec : JobContextDiResolutionSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteJobAttemptIdentitySpec : JobAttemptIdentitySpec<SqliteConformanceFixture>;
+
 public sealed class SqliteDeadlineSpec : DeadlineSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteJobRefContextSpec : JobRefContextSpec<SqliteConformanceFixture>;

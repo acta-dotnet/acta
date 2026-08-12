@@ -66,7 +66,7 @@ internal sealed class JobRuntime : IEntity<long>
     public short NamespaceId { get; init; }
 
     /// <summary>
-    /// Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Done / Failed / Cancelled).
+    /// Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled).
     /// </summary>
     [DbColumn("status_code")]
     public JobStatusCode Status { get; set; }

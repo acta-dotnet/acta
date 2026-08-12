@@ -181,7 +181,7 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Contains("reconcile", step.Explanation, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact(DisplayName = "Caught StepInterruptedException lets the parent proceed to Done")]
+    [Fact(DisplayName = "Caught StepInterruptedException lets the parent proceed to Succeeded")]
     public async Task Caught_interruption_lets_the_parent_complete()
     {
         var ct = TestContext.Current.CancellationToken;

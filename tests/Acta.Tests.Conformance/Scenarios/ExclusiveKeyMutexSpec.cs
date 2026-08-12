@@ -42,7 +42,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         });
     }
 
-    [Fact(DisplayName = "Same-key jobs all drain to Done through the runtime")]
+    [Fact(DisplayName = "Same-key jobs all drain to Succeeded through the runtime")]
     public async Task Same_exclusive_key_jobs_all_drain_through_the_runtime()
     {
         const int jobs = 4;

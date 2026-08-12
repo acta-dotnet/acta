@@ -9,7 +9,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Jobs;
 
 /// <summary>
-/// Operator PurgeAsync: hard-deletes a terminal job. Only Done/Failed/Cancelled rows qualify; the
+/// Operator PurgeAsync: hard-deletes a terminal job. Only Succeeded/Failed/Cancelled rows qualify; the
 /// routine deletes the job's events and alerts explicitly (both FK-less) then the job row itself
 /// (CASCADE sweeps runtimes/schedules/steps/results/checkpoints/tags). Always emits job.purged (not
 /// audit-gated), and rejects a terminal job that has child jobs (parent_id carries no DB
@@ -20,15 +20,15 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "Operator purge hard-deletes a terminal job.",
     Area = "Control",
     Contract = "PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs.",
-    Arrange = "A Done job with its own events and an alert, an Executing job, a Done parent with child jobs, no job for an unknown lookup.",
+    Arrange = "A Succeeded job with its own events and an alert, an Executing job, a Succeeded parent with child jobs, no job for an unknown lookup.",
     Act = "PurgeAsync is invoked against each job.",
-    Assert = "The Done job is Applied with its row, events, and alerts gone plus a job.purged event, the others are Rejected, and the unknown lookup is NotFound."
+    Assert = "The Succeeded job is Applied with its row, events, and alerts gone plus a job.purged event, the others are Rejected, and the unknown lookup is NotFound."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PurgeJobAsync))]
 public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    [Fact(DisplayName = "PurgeAsync hard-deletes a Done job and audits job.purged")]
+    [Fact(DisplayName = "PurgeAsync hard-deletes a Succeeded job and audits job.purged")]
     public async Task Purge_done_job_deletes_it_and_audits()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -99,7 +99,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var ct = TestContext.Current.CancellationToken;
 
         // The child must be enqueued while the parent is still non-terminal (enqueue itself rejects a
-        // child under an already-terminal parent), then the parent is driven to Done, leaving the child
+        // child under an already-terminal parent), then the parent is driven to Succeeded, leaving the child
         // behind as the live descendant the purge guard must see.
         var parentId = await EnqueueAsync(ct);
         await Jobs.EnqueueAsync(

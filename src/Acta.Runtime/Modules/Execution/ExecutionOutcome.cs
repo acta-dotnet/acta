@@ -3,7 +3,7 @@ namespace Acta.Runtime.Modules.Execution;
 /// <summary>Coarse outcome the worker reports back after handler invocation.</summary>
 internal enum ExecutionOutcome : byte
 {
-    /// <summary>Handler returned normally. Terminal status <c>Done</c> (100).</summary>
+    /// <summary>Handler returned normally. Terminal status <c>Succeeded</c> (100).</summary>
     Succeeded = 1,
 
     /// <summary>Handler threw. The failure budget at completion decides re-arm to <c>Ready</c> versus

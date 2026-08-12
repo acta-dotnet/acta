@@ -47,7 +47,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         var jobId = (await EnqueueAndRunAsync("purge-now", new PurgeProbe("x"), ct)).JobId;
 
-        // Completed -> a results child row exists and the job is terminal Done.
+        // Completed -> a results child row exists and the job is terminal Succeeded.
         Assert.NotNull(await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.NotEmpty(await Db.From<JobResult>().Where(r => r.JobId == jobId).ToListAsync(ct));
 

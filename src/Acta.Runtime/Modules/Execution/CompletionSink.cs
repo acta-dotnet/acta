@@ -245,7 +245,7 @@ internal sealed class CompletionSink
         }
     }
 
-    // Buffered completions are always plain terminal landings (Done/Failed), never Ready: publish the
+    // Buffered completions are always plain terminal landings (Succeeded/Failed), never Ready: publish the
     // job-finished wakeup so a colocated ExecuteAndWaitAsync caller observes the outcome, plus the
     // parent-release wakeup the routine reports. Deferred to flush time (the small
     // extra latency is part of Bulk's relaxed contract).

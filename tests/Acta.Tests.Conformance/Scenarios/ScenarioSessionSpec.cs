@@ -13,12 +13,12 @@ namespace Acta.Tests.Conformance.Scenarios;
     Contract = "Scenario sessions pin one enqueued job and drive typed results, signals, timers, retries, diagnostics and failures without conformance boilerplate.",
     Arrange = "An ActaTestHost is started for TestJobsManifest in an isolated namespace.",
     Act = "The public Scenario API enqueues typed and contract jobs, ticks them, raises signals, fast-forwards due rows and reads diagnostics.",
-    Assert = "Sessions observe pinned job state, return typed results, expose diagnostics and drive Done or Failed outcomes deterministically."
+    Assert = "Sessions observe pinned job state, return typed results, expose diagnostics and drive Succeeded or Failed outcomes deterministically."
 )]
 public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
-    [Fact(DisplayName = "Typed result sessions run to Done and return TResult plus timeline diagnostics")]
+    [Fact(DisplayName = "Typed result sessions run to Succeeded and return TResult plus timeline diagnostics")]
     public async Task Typed_result_session_runs_to_done_and_reads_diagnostics()
     {
         var ct = TestContext.Current.CancellationToken;

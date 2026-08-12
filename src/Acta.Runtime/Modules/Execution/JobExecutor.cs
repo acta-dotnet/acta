@@ -186,7 +186,8 @@ internal sealed class JobExecutor(
                 _log,
                 _metrics,
                 attemptServices.GetService<IJobs>(),
-                tenantKey
+                tenantKey,
+                workerId
             );
 
             // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.

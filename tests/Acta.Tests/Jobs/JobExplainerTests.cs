@@ -271,7 +271,7 @@ public class JobExplainerTests
 
         var x = JobExplainer.Explain(data, Now);
 
-        Assert.Equal("Done.", x.Headline);
+        Assert.Equal("Succeeded.", x.Headline);
         var step = Assert.Single(x.Steps);
         Assert.Equal("reserve-stock", step.Name);
         Assert.Contains("will not rerun", step.Explanation);

@@ -121,7 +121,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 
 | Outcome | Meaning | Row status afterwards |
 |---------|---------|----------------------|
-| `Completed` | The handler finished (or the run was cancelled) | `Done` / `Cancelled` |
+| `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled` |
 | `Rearmed` | The job re-armed for a later claim: the handler rescheduled, slept, suspended on a signal, or threw with retry attempts remaining | `Ready` (forward-dated `NextRunAtUtc`) or `Suspended` |
 | `Failed` | The handler threw and the row settled terminally (attempts exhausted, or an exception classified as non-retryable: `NotImplementedException` / `NotSupportedException`) | `Failed` |
 | `NothingClaimed` | No claimable row this tick (not enqueued, not yet due, or already claimed) | unchanged |

@@ -12,7 +12,7 @@ public sealed record ParallelOutcome(string GroupName, IReadOnlyDictionary<strin
     /// </summary>
     public ChildJobOutcome this[string branchName] => Branches[branchName];
 
-    /// <summary>True when every branch landed Done.</summary>
+    /// <summary>True when every branch landed Succeeded.</summary>
     public bool Succeeded => Branches.Values.All(o => o.Succeeded);
 
     /// <summary>The non-succeeded branches (failed or cancelled), keyed by branch name.</summary>
@@ -21,7 +21,7 @@ public sealed record ParallelOutcome(string GroupName, IReadOnlyDictionary<strin
 
     /// <summary>
     /// Throws <see cref="ChildGroupException"/> carrying the failed branches when any branch did not
-    /// land Done; otherwise returns.
+    /// land Succeeded; otherwise returns.
     /// </summary>
     public void ThrowIfAnyFailed()
     {

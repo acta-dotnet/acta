@@ -14,7 +14,7 @@ public sealed class DeadlineProbes
     public static async Task Strict(JobContext ctx, CancellationToken ct) => await ctx.SetVariableAsync("ran", true, ct);
 
     /// <summary>
-    /// Advisory 1s deadline. Records ctx.IsOverdue; returns normally so the job lands Done.
+    /// Advisory 1s deadline. Records ctx.IsOverdue; returns normally so the job lands Succeeded.
     /// </summary>
     [Job("deadline-advisory-probe", Deadline = "PT1S", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]
     public static async Task Advisory(JobContext ctx, CancellationToken ct) => await ctx.SetVariableAsync("overdue", ctx.IsOverdue, ct);

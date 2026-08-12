@@ -5,7 +5,7 @@ namespace TestJobs;
 /// <summary>
 /// Handlers exercising <c>MaxInlinePayloadBytes</c> enforcement inside a running handler: an oversize
 /// variable write must throw <c>PayloadTooLargeException</c> (caller-controlled), while an oversize
-/// handler result must warn-and-persist (the job still completes Done).
+/// handler result must warn-and-persist (the job still completes Succeeded).
 /// </summary>
 public static class PayloadProbes
 {

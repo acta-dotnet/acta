@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// <summary>
 /// Exercises the production claim/dispatch loop (<see cref="WorkerRuntime.RunLoopAsync"/>): a single
 /// claim producer feeds a bounded channel that N executor loops drain concurrently. Enqueues a
-/// backlog, runs the loop in the background until every row reaches Done, then cancels and asserts a
+/// backlog, runs the loop in the background until every row reaches Succeeded, then cancels and asserts a
 /// clean shutdown (the loop completes the channel and awaits its executors - no fault, no hang).
 /// The RunOnceAsync-driven specs cover the per-job execute body; this covers the loop wiring,
 /// including the idle-sleep contract: an in-process wakeup interrupts the sleep on enqueue, a
@@ -24,10 +24,10 @@ namespace Acta.Tests.Conformance.Runtime;
     "worker-loop.dispatch",
     "The run loop drains a backlog, wakes on publishes, and shuts down cleanly",
     Area = "Execution",
-    Contract = "RunLoopAsync drains a backlog to Done, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly.",
+    Contract = "RunLoopAsync drains a backlog, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly.",
     Arrange = "A backlog is enqueued with an 8s SafetyPollInterval so wakeup-driven pickups are distinguishable from safety polls.",
     Act = "RunLoopAsync runs in the background across enqueues, delayed rows, colocated completions, retries, and an unpublished Ready row.",
-    Assert = "The loop drains the backlog to Done, wakes early on wakeup publishes, discovers the unpublished row via the safety poll, and cancels cleanly."
+    Assert = "The loop drains the backlog to Succeeded, wakes early on wakeup publishes, discovers the unpublished row via the safety poll, and cancels cleanly."
 )]
 public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -49,7 +49,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         });
     }
 
-    [Fact(DisplayName = "Backlog drains to Done and cancellation completes the channel and awaits executors cleanly")]
+    [Fact(DisplayName = "Backlog drains to Succeeded and cancellation completes the channel and awaits executors cleanly")]
     public async Task Run_loop_drains_a_backlog_and_shuts_down_cleanly()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -251,6 +251,6 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
             }
             await Task.Delay(50, ct);
         }
-        Assert.Fail("Backlog did not drain to Done within the timeout: the dispatch loop stalled.");
+        Assert.Fail("Backlog did not drain to Succeeded within the timeout: the dispatch loop stalled.");
     }
 }

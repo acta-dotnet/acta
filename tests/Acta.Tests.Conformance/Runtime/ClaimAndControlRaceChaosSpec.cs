@@ -104,7 +104,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
         Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Empty((await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e => e.JobEventCode == JobEventCode.JobRestarted));
 
-        // --- 3. Releasing the probe lets the original run finish Done.
+        // --- 3. Releasing the probe lets the original run finish Succeeded.
         ChaosProbes.Release(enqueued.JobId);
         Assert.Equal(RunOnceOutcome.Completed, await run);
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));

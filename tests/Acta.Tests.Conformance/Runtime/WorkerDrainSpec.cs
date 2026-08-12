@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// The graceful-drain contract, shared across every <see cref="ExecutionProfile"/>: a stop flips the worker
 /// Active -&gt; Draining (via the heartbeat, no dedicated routine), keeps the in-flight handler running under
 /// the live host token until it finishes, then stamps Stopped. The distinguishing guarantee versus a hard
-/// stop is that the in-flight job lands Done - it is NOT cancelled and left for reclaim.
+/// stop is that the in-flight job lands Succeeded - it is NOT cancelled and left for reclaim.
 /// </summary>
 /// <remarks>
 /// Drives the runtime directly: <see cref="WorkerRuntime.RunAsync"/> runs the claim loop and heartbeat,
@@ -75,11 +75,11 @@ public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, Runtime.InFlightCount);
 
-        // Let the handler finish: the drain runs it to completion (Done), never cancel-and-reclaim.
+        // Let the handler finish: the drain runs it to completion (Succeeded), never cancel-and-reclaim.
         DrainGate.Release(TestNamespace);
         await WaitForStatusAsync(enqueued.JobId, JobStatusCode.Succeeded, ct);
-        // Poll, not an instant assert: the inline-completion profiles write Done to the DB just before the
-        // attempt is removed from RunningAttempts, so the count can lag the committed Done read by a tick.
+        // Poll, not an instant assert: the inline-completion profiles write Succeeded to the DB just before the
+        // attempt is removed from RunningAttempts, so the count can lag the committed Succeeded read by a tick.
         await WaitForInFlightZeroAsync(ct);
 
         // Now stamp Stopped (Draining -> Stopped), then tear down the heartbeat.
@@ -132,14 +132,16 @@ public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     Contract = "Under the Buffered profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.",
     Arrange = "A worker runs the Buffered profile with a gate handler that holds its job in-flight until released.",
     Act = "With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.",
-    Assert = "The worker walks Active to Draining to Stopped and the in-flight job finishes Done rather than being cancelled."
+    Assert = "The worker walks Active to Draining to Stopped and the in-flight job finishes Succeeded rather than being cancelled."
 )]
 public abstract class BufferedWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
     where TFixture : IConformanceFixture, new()
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
 
-    [Fact(DisplayName = "Buffered: a graceful stop drains the in-flight job to Done and walks the worker Active -> Draining -> Stopped")]
+    [Fact(
+        DisplayName = "Buffered: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped"
+    )]
     public Task Drain_finishes_in_flight_then_stops() => DrainFinishesInFlightThenStopsAsync(TestContext.Current.CancellationToken);
 }
 
@@ -151,14 +153,14 @@ public abstract class BufferedWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixtu
     Contract = "Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.",
     Arrange = "A worker runs the Direct profile with a gate handler that holds its job in-flight until released.",
     Act = "With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.",
-    Assert = "The worker walks Active to Draining to Stopped and the in-flight job finishes Done rather than being cancelled."
+    Assert = "The worker walks Active to Draining to Stopped and the in-flight job finishes Succeeded rather than being cancelled."
 )]
 public abstract class DirectWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
     where TFixture : IConformanceFixture, new()
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Direct;
 
-    [Fact(DisplayName = "Direct: a graceful stop drains the in-flight job to Done and walks the worker Active -> Draining -> Stopped")]
+    [Fact(DisplayName = "Direct: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped")]
     public Task Drain_finishes_in_flight_then_stops() => DrainFinishesInFlightThenStopsAsync(TestContext.Current.CancellationToken);
 }
 
@@ -170,13 +172,13 @@ public abstract class DirectWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture
     Contract = "Under the Bulk profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion and group-commits it, then stamps Stopped.",
     Arrange = "A worker runs the Bulk profile with a one-row completion batch and a gate handler that holds its job in-flight until released.",
     Act = "With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.",
-    Assert = "The worker walks Active to Draining to Stopped and the flusher group-commits the in-flight job Done rather than cancelling it."
+    Assert = "The worker walks Active to Draining to Stopped and the flusher group-commits the in-flight job Succeeded rather than cancelling it."
 )]
 public abstract class BulkWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
     where TFixture : IConformanceFixture, new()
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Bulk;
 
-    [Fact(DisplayName = "Bulk: a graceful stop drains the in-flight job to Done and walks the worker Active -> Draining -> Stopped")]
+    [Fact(DisplayName = "Bulk: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped")]
     public Task Drain_finishes_in_flight_then_stops() => DrainFinishesInFlightThenStopsAsync(TestContext.Current.CancellationToken);
 }

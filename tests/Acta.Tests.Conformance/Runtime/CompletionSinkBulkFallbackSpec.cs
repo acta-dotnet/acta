@@ -30,7 +30,7 @@ namespace Acta.Tests.Conformance.Runtime;
 public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    [Fact(DisplayName = "Parent latch flip via fallback: child Done via sink releases Suspended parent to Ready")]
+    [Fact(DisplayName = "Parent latch flip via fallback: child Succeeded via sink releases Suspended parent to Ready")]
     public async Task Parent_latch_flip_via_fallback()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -77,7 +77,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
     }
 
     [Fact(
-        DisplayName = "Fallback equals scalar parity: child completion via sink emits exact Done status and Succeeded JobExecutionFinished event"
+        DisplayName = "Fallback equals scalar parity: child completion via sink emits exact Succeeded status and Succeeded JobExecutionFinished event"
     )]
     public async Task Fallback_equals_scalar_parity()
     {
@@ -117,7 +117,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(ExecutionStatusCode.Succeeded, evt.ExecutionStatus);
     }
 
-    [Fact(DisplayName = "Plain row finalized by batch (guard): plain job reaches Done via batch path and JobFinished wake fires")]
+    [Fact(DisplayName = "Plain row finalized by batch (guard): plain job reaches Succeeded via batch path and JobFinished wake fires")]
     public async Task Plain_row_finalized_by_batch_guard()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -146,7 +146,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         sink.CompleteWriter();
         await sink.RunFlusherAsync();
 
-        // Primary: job reaches Done via batch.
+        // Primary: job reaches Succeeded via batch.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enq.JobId, ct)).Status);
 
         // Secondary: JobCompletion/JobFinished wake fired (batch path), NOT the parent/key wakes.

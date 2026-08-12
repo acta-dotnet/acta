@@ -177,7 +177,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         }
     }
 
-    [Fact(DisplayName = "ExecuteAndWaitAsync throws when a Done job stored no typed result")]
+    [Fact(DisplayName = "ExecuteAndWaitAsync throws when a Succeeded job stored no typed result")]
     public async Task ExecuteAndWaitAsync_typed_result_against_result_less_job_throws()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -204,7 +204,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
         try
         {
-            // policy-probe completes Done but stores no result; requesting a typed result is a
+            // policy-probe completes Succeeded but stores no result; requesting a typed result is a
             // caller contract mismatch, not a default(TResult).
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 Jobs.ExecuteAndWaitAsync<PolicyProbe, AddNumbersResult>(

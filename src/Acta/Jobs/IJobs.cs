@@ -60,7 +60,7 @@ public interface IJobs
 
     /// <summary>
     /// Typed enqueue-and-wait with a result. Like <see cref="ExecuteAndWaitAsync{TInput}"/>, and on terminal
-    /// <c>Done</c> deserializes the handler's result to <typeparamref name="TResult"/>. The result is
+    /// <c>Succeeded</c> deserializes the handler's result to <typeparamref name="TResult"/>. The result is
     /// non-null by contract (Acta has no durable null payload); a handler returning null fails the Job.
     /// </summary>
     ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
@@ -412,7 +412,7 @@ public interface IJobs
     /// <summary>
     /// Hard-delete the terminal job identified by <paramref name="lookup"/>: deletes its <c>events</c>
     /// and <c>alerts</c> rows, then the job row itself (CASCADEs to its
-    /// runtime/schedule/step/result/checkpoint/tag rows). Only a terminal job (<c>Done</c>/<c>Failed</c>/
+    /// runtime/schedule/step/result/checkpoint/tag rows). Only a terminal job (<c>Succeeded</c>/<c>Failed</c>/
     /// <c>Cancelled</c>) may be purged; a non-terminal job is <see cref="JobControlAction.Rejected"/>, and
     /// so is a terminal job that has child jobs (deleting it would orphan the child's lineage - <c>parent_id</c>
     /// carries no DB cascade). Always emits <c>job.purged</c> (not audit-gated), with <c>job_id</c>/<c>job_ref</c>

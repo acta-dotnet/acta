@@ -65,7 +65,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
             ct
         );
 
-        // Drive to Done: claim → start → complete.
+        // Drive to Succeeded: claim → start → complete.
         var claimed = Assert.Single(
             await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
@@ -153,7 +153,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
             (await Services.GetRequiredService<IExecutionStore>().CompleteExecutionAsync(req, ct)).Action
         );
 
-        // Baseline: Done with exactly one finished event.
+        // Baseline: Succeeded with exactly one finished event.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         var finishedBefore = await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
         Assert.Equal(1, finishedBefore);

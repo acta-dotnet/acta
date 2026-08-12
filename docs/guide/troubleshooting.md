@@ -51,7 +51,7 @@ Next actions:
 ```
 
 ```text
-Done.
+Succeeded.
 
 Durable work:
 - Step "reserve-stock" succeeded and will not rerun.

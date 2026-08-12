@@ -8,7 +8,7 @@ namespace Acta;
 public sealed record MapOutcome<TKey>(string GroupName, IReadOnlyList<MapItemOutcome<TKey>> Items)
     where TKey : notnull
 {
-    /// <summary>True when every item's child landed Done.</summary>
+    /// <summary>True when every item's child landed Succeeded.</summary>
     public bool Succeeded => Items.All(i => i.Outcome.Succeeded);
 
     /// <summary>The items whose child did not succeed (failed or cancelled), in input order.</summary>
@@ -16,7 +16,7 @@ public sealed record MapOutcome<TKey>(string GroupName, IReadOnlyList<MapItemOut
 
     /// <summary>
     /// Throws <see cref="ChildGroupException"/> carrying the failed children when any item did not
-    /// land Done; otherwise returns.
+    /// land Succeeded; otherwise returns.
     /// </summary>
     public void ThrowIfAnyFailed()
     {

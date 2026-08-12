@@ -9,17 +9,17 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for <c>IJobs.ExplainAsync</c> over live states driven through the real runtime: a
 /// signal wait lands the job Suspended and the explanation names the pending signal; a raise drives it
-/// to Done and the explanation reports terminal success. Covers the full facade composition (resolve +
+/// to Succeeded and the explanation reports terminal success. Covers the full facade composition (resolve +
 /// GetJobExplanation + clock + JobExplainer), beyond the point-read column mapping.
 /// </summary>
 [ConformanceSpec(
     "explain.live-states",
-    "Explain reports live Suspended and Done states through the facade",
+    "Explain reports live Suspended and Succeeded states through the facade",
     Area = "Reads",
-    Contract = "ExplainAsync reports a signal-suspended job as Suspended awaiting its signal and a finished job as Done.",
+    Contract = "ExplainAsync reports a signal-suspended job as Suspended awaiting its signal and a finished job as Succeeded.",
     Arrange = "A job-wait-signal handler is enqueued and driven through the real runtime loop.",
     Act = "ExplainAsync is called after the wait suspends the job and again after a raise drives it to completion.",
-    Assert = "The suspended read names the pending signal wait and the completed read reports Done."
+    Assert = "The suspended read names the pending signal wait and the completed read reports Succeeded."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobExplanationAsync))]
 public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -44,7 +44,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Contains(x.NextActions, a => a.Kind == "cancel");
     }
 
-    [Fact(DisplayName = "Explain reports a released-and-finished job as Done")]
+    [Fact(DisplayName = "Explain reports a released-and-finished job as Succeeded")]
     public async Task Explains_a_completed_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -57,7 +57,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Succeeded, x!.Status);
-        Assert.Equal("Done.", x.Headline);
+        Assert.Equal("Succeeded.", x.Headline);
         Assert.Null(x.ActiveWait);
     }
 

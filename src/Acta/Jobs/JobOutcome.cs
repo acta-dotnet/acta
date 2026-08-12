@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Await-to-completion outcome returned by <see cref="IJobs.ExecuteAndWaitAsync{TInput}"/>. Carries the
-/// terminal outcome (<c>Done</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; it is
+/// terminal outcome (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; it is
 /// returned, never thrown.
 /// </summary>
 /// <remarks>
@@ -48,7 +48,7 @@ public class JobOutcome
         throw new JobFailedException(JobId, TerminalStatus);
     }
 
-    internal static JobOutcome Done(long jobId) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false);
+    internal static JobOutcome Succeeded(long jobId) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false);
 
     internal static JobOutcome Failed(long jobId) => new(jobId, JobStatusCode.Failed, isTimedOut: false);
 
@@ -59,7 +59,7 @@ public class JobOutcome
 
 /// <summary>
 /// Await-to-completion outcome returned by <see cref="IJobs.ExecuteAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>. Extends
-/// <see cref="JobOutcome"/> with the handler's typed <typeparamref name="T"/> result on <c>Done</c>;
+/// <see cref="JobOutcome"/> with the handler's typed <typeparamref name="T"/> result on <c>Succeeded</c>;
 /// it is returned, never thrown.
 /// </summary>
 public sealed class JobOutcome<T> : JobOutcome
@@ -96,7 +96,7 @@ public sealed class JobOutcome<T> : JobOutcome
         return Value ?? throw new InvalidOperationException($"Job {JobId} succeeded but the result Value is null.");
     }
 
-    internal static JobOutcome<T> Done(long jobId, T value) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false, value);
+    internal static JobOutcome<T> Succeeded(long jobId, T value) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false, value);
 
     internal static new JobOutcome<T> Failed(long jobId) => new(jobId, JobStatusCode.Failed, isTimedOut: false, value: default);
 

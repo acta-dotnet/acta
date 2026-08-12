@@ -18,7 +18,7 @@ public enum ActaRunOutcome : byte
     /// <summary>Nothing was claimable this tick (no Ready job, or a claim lost its row before start).</summary>
     NothingClaimed = 1,
 
-    /// <summary>A job ran to terminal <c>Done</c>.</summary>
+    /// <summary>A job ran to terminal <c>Succeeded</c>.</summary>
     Completed = 2,
 
     /// <summary>A job ran and threw; row terminal-<c>Failed</c>.</summary>

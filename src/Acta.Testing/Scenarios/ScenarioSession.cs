@@ -43,7 +43,7 @@ public class ScenarioSession<TInput>
     public Task<ActaRunOutcome> RunOnceAsync(CancellationToken ct = default) => Host.RunOnceAsync(JobId, ct);
 
     public Task RunUntilDoneAsync(int maxTicks = DefaultMaxTicks, CancellationToken ct = default) =>
-        RunUntilStatusAsync(JobStatusCode.Succeeded, "reach Done", maxTicks, ct);
+        RunUntilStatusAsync(JobStatusCode.Succeeded, "reach Succeeded", maxTicks, ct);
 
     public Task RunUntilFailedAsync(int maxTicks = DefaultMaxTicks, CancellationToken ct = default) =>
         RunUntilStatusAsync(JobStatusCode.Failed, "reach Failed", maxTicks, ct);
@@ -234,7 +234,7 @@ public sealed class ScenarioSession<TInput, TResult> : ScenarioSession<TInput>
         var status = await StatusAsync(ct);
         if (status != JobStatusCode.Succeeded)
         {
-            throw await AssertionFailureAsync($"Scenario job {JobId} result was requested while status is {status}, not Done.", ct);
+            throw await AssertionFailureAsync($"Scenario job {JobId} result was requested while status is {status}, not Succeeded.", ct);
         }
 
         var payload =

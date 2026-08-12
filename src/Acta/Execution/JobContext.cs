@@ -67,6 +67,31 @@ public abstract class JobContext
     public virtual IReadOnlyList<string> TriggeringScheduleNames => [];
 
     /// <summary>
+    /// Which attempt this is: <c>1</c> on the first execution, incrementing on every retry and on
+    /// every reclaim after a worker died mid-attempt. The same number the ledger records as
+    /// <c>execution_number</c>, so <c>(JobId, ExecutionNumber)</c> identifies this attempt in the
+    /// timeline and makes a stable idempotency key for an external call. Defaults to <c>1</c> for
+    /// test contexts that do not set it.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// if (ctx.ExecutionNumber > 1)
+    /// {
+    ///     await ctx.NoteAsync($"retrying after {ctx.ExecutionNumber - 1} failed attempts");
+    /// }
+    /// </code>
+    /// </example>
+    public virtual int ExecutionNumber => 1;
+
+    /// <summary>
+    /// The <c>workers</c> row id of the worker process running this attempt, for log correlation and
+    /// for a handler that wants to stamp its own execution into a note. <c>0</c> when no worker owns
+    /// the context, which is the case only in test contexts. Not an affinity handle: the next attempt
+    /// of this job may run on any worker, and nothing in Acta promises otherwise.
+    /// </summary>
+    public virtual int WorkerId => 0;
+
+    /// <summary>
     /// Absolute UTC deadline for the whole job (job creation plus the definition's deadline), or null
     /// when no deadline is configured. Anchored to job creation, so it is stable across retries.
     /// </summary>
@@ -593,7 +618,7 @@ public abstract class JobContext
         var outcome = await WaitChildAsync(child.JobId, ct);
         return outcome.Status switch
         {
-            JobStatusCode.Succeeded => JobOutcome.Done(child.JobId),
+            JobStatusCode.Succeeded => JobOutcome.Succeeded(child.JobId),
             JobStatusCode.Cancelled => JobOutcome.Cancelled(child.JobId),
             _ => JobOutcome.Failed(child.JobId),
         };
@@ -629,7 +654,7 @@ public abstract class JobContext
                 $"Child job {child.JobId} ('{name}') succeeded but stored no result; "
                     + "use the non-result ExecuteChildAsync overload for result-less children."
             );
-        return JobOutcome<TResult>.Done(child.JobId, value);
+        return JobOutcome<TResult>.Succeeded(child.JobId, value);
     }
 
     private JobEnqueueOptions BuildChildOptions(string name, Action<JobEnqueueOptionsBuilder>? configure)

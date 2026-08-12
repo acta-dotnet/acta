@@ -105,7 +105,7 @@ internal sealed class JobsApi(
             ? JobOutcome.TimedOut(outcome.JobId, snapshot?.Status ?? JobStatusCode.Ready)
             : snapshot!.Status switch
             {
-                JobStatusCode.Succeeded => JobOutcome.Done(outcome.JobId),
+                JobStatusCode.Succeeded => JobOutcome.Succeeded(outcome.JobId),
                 JobStatusCode.Cancelled => JobOutcome.Cancelled(outcome.JobId),
                 _ => JobOutcome.Failed(outcome.JobId),
             };
@@ -282,7 +282,7 @@ internal sealed class JobsApi(
     }
 
     // Wait for terminal status then materialize the typed result. Shared by the type-inference and
-    // contract ExecuteAndWaitAsync overloads. A Done job that stored no result is a caller contract
+    // contract ExecuteAndWaitAsync overloads. A Succeeded job that stored no result is a caller contract
     // mismatch (throws), never a default(TResult).
     private async ValueTask<JobOutcome<TResult>> AwaitTypedResultAsync<TResult>(
         long jobId,
@@ -314,7 +314,7 @@ internal sealed class JobsApi(
                             + "result exceeded MaxInlinePayloadBytes and was dropped; the job's events say which."
                     );
                 var value = serializers.Resolve(payload.Format.Id).Deserialize<TResult>(payload);
-                return JobOutcome<TResult>.Done(jobId, value!);
+                return JobOutcome<TResult>.Succeeded(jobId, value!);
             case JobStatusCode.Cancelled:
                 return JobOutcome<TResult>.Cancelled(jobId);
             default:

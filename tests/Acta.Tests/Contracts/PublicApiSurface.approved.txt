@@ -955,6 +955,8 @@ abstract class Acta.JobContext
     System.Boolean IsOverdue { get; }
     System.Collections.Generic.IReadOnlyList<System.String> TriggeringScheduleNames { get; }
     System.Int16 NamespaceId { get; }
+    System.Int32 ExecutionNumber { get; }
+    System.Int32 WorkerId { get; }
     System.Int64 JobId { get; }
     System.Nullable<System.DateTime> DeadlineAtUtc { get; }
     System.Nullable<System.Int32> TenantId { get; }
@@ -2363,7 +2365,6 @@ sealed class Acta.StepInterruptedException
     .ctor(System.String stepName)
     System.String StepName { get; }
 sealed class Acta.StepOptions
-    .ctor(System.Nullable<System.Int32> MaxAttempts, System.Nullable<System.Int32> BackoffInitialDelaySeconds, System.Nullable<System.Int32> BackoffMaxDelaySeconds, System.Nullable<System.Decimal> BackoffMultiplier, System.Nullable<System.Decimal> BackoffJitter, System.Nullable<System.Int32> RetryWindowSeconds, System.Boolean AtMostOnce = default)
     Acta.StepOptions Inherit
     System.Boolean AtMostOnce { get;init; }
     System.Nullable<System.Decimal> BackoffJitter { get;init; }

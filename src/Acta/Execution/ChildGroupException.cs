@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Thrown by the ThrowIfAnyFailed escalation on a Join, Parallel, or Map outcome when at least one
-/// child job did not land Done. Carries the non-succeeded child outcomes (failed or cancelled); the
+/// child job did not land Succeeded. Carries the non-succeeded child outcomes (failed or cancelled); the
 /// group wait itself never throws.
 /// </summary>
 /// <remarks>

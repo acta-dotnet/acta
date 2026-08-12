@@ -78,7 +78,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
 /// Conformance for the deferred-retry branch of durable steps: a step that fails with nonzero backoff
 /// stores <c>next_retry_at_utc</c> in the future, the parent re-arms to Ready at that instant budget-
 /// neutrally, a second <c>RunOnceAsync</c> before the instant returns <c>NothingClaimed</c>, and at/
-/// after the instant the body is re-invoked and the parent completes Done on success.
+/// after the instant the body is re-invoked and the parent completes Succeeded on success.
 /// </summary>
 [ConformanceSpec(
     "step.deferred-retry",
@@ -87,7 +87,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
     Contract = "A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant.",
     Arrange = "A deferred-retry step that fails once then succeeds is registered with MaxAttempts 3 and a 30s initial backoff.",
     Act = "The job runs, is re-run before the retry instant, and runs again after the clock advances to it.",
-    Assert = "The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Done."
+    Assert = "The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Succeeded."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
@@ -144,7 +144,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Equal(1, DeferredRetryStepHandler.BodyInvocations[enqueued.JobId]);
     }
 
-    [Fact(DisplayName = "At the retry instant the step body is re-invoked on attempt 2 and the parent completes Done")]
+    [Fact(DisplayName = "At the retry instant the step body is re-invoked on attempt 2 and the parent completes Succeeded")]
     public async Task At_retry_instant_body_is_reinvoked_and_parent_completes_done()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -168,7 +168,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         await SetJobNextRunAsync(Db, enqueued.JobId, past, ct);
         await SetStepNextRetryAtAsync(Db, enqueued.JobId, StepName, past, ct);
 
-        // Tick 3: at/after retry instant, body re-invoked (attempt 2 succeeds), parent Done.
+        // Tick 3: at/after retry instant, body re-invoked (attempt 2 succeeds), parent Succeeded.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body invoked twice total.
@@ -180,7 +180,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Equal((short)2, step3.AttemptNumber);
         Assert.Null(step3.NextRetryAtUtc);
 
-        // Parent: Done, failure_count still untouched.
+        // Parent: Succeeded, failure_count still untouched.
         var job3 = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, job3.Status);
         Assert.Equal((short)0, job3.FailureCount);

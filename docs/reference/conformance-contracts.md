@@ -343,10 +343,10 @@
 - **Contract:** Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization.
 - **Arrange:** A counting probe job is enqueued with store fault injection armed to fail CompleteExecution once, before or after its commit.
 - **Act:** The runtime runs the job through the injected completion failure, and the before-commit case is then reclaimed and rerun.
-- **Assert:** A before-commit failure reruns to exactly one Succeeded finish while an after-commit failure leaves the job Done with no rerun.
+- **Assert:** A before-commit failure reruns to exactly one Succeeded finish while an after-commit failure leaves the job Succeeded with no rerun.
 - **Guarantees:**
   - A complete before-commit failure leaves Executing with no success event, and reclaim reruns to a single Succeeded finish
-  - A complete after-commit failure leaves Done with one success event and is not rerun
+  - A complete after-commit failure leaves Succeeded with one success event and is not rerun
 
 ### Duplicated maintenance registration still has one slot and one claimant
 - **Contract:** Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker.
@@ -422,11 +422,11 @@
 - **Contract:** A claim returns up to ClaimBatchSize rows with a null horizon, and an empty claim returns one sentinel carrying db_now and the earliest Ready run time.
 - **Arrange:** ClaimBatchSize is set to 5, system jobs are disabled, and a surplus backlog plus one delayed job are enqueued.
 - **Act:** Single claim ticks run against the surplus and the drained namespace, then the dispatch loop drains the backlog.
-- **Assert:** A claim caps at 5 rows, an empty claim returns one sentinel with db_now and the delayed row's run time, and the backlog lands Done.
+- **Assert:** A claim caps at 5 rows, an empty claim returns one sentinel with db_now and the delayed row's run time, and the backlog lands Succeeded.
 - **Guarantees:**
   - A single claim is capped at the batch size and a non-empty claim carries no horizon
   - A drained sentinel reports no due work and a delayed row bounds the horizon
-  - The loop drains the whole backlog to Done
+  - The loop drains the whole backlog to Succeeded
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
 
@@ -448,7 +448,7 @@
 - **Act:** The runtime claims the same-key rows together and drains them while one run holds the key lock.
 - **Assert:** At most one same-key handler executes at a time and a loser skips its handler, re-arming Ready budget-neutral after the bounce delay.
 - **Guarantees:**
-  - Same-key jobs all drain to Done through the runtime
+  - Same-key jobs all drain to Succeeded through the runtime
   - A single claim admits every same-key row
   - Parallel executors never run two same-key handlers concurrently
   - A claimed job whose key lock is held bounces to Ready with the configured delay
@@ -492,7 +492,7 @@
   - Signal verb maps to IJobs and applies on a live job
   - Info and status read verbs print the job row
   - A verb resolves a job by deduplication key with an explicit namespace
-  - Debug claims only the targeted id, runs it in-process to Done, and result surfaces the payload
+  - Debug claims only the targeted id, runs it in-process to Succeeded, and result surfaces the payload
   - Events verb prints the job timeline after a run
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimOneAsync`
@@ -571,11 +571,11 @@
 
 ### Operator purge hard-deletes a terminal job.
 - **Contract:** PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs.
-- **Arrange:** A Done job with its own events and an alert, an Executing job, a Done parent with child jobs, no job for an unknown lookup.
+- **Arrange:** A Succeeded job with its own events and an alert, an Executing job, a Succeeded parent with child jobs, no job for an unknown lookup.
 - **Act:** PurgeAsync is invoked against each job.
-- **Assert:** The Done job is Applied with its row, events, and alerts gone plus a job.purged event, the others are Rejected, and the unknown lookup is NotFound.
+- **Assert:** The Succeeded job is Applied with its row, events, and alerts gone plus a job.purged event, the others are Rejected, and the unknown lookup is NotFound.
 - **Guarantees:**
-  - PurgeAsync hard-deletes a Done job and audits job.purged
+  - PurgeAsync hard-deletes a Succeeded job and audits job.purged
   - PurgeAsync rejects a non-terminal job and leaves it intact
   - PurgeAsync rejects a terminal parent that still has a live child
   - PurgeAsync returns NotFound for an unknown lookup
@@ -846,7 +846,7 @@
   - A delayed job is not claimable before due but runs once due
   - A handler returning a null result fails the job and stores no result
   - ExecuteAndWaitAsync enqueues, waits for completion and returns the typed result
-  - ExecuteAndWaitAsync throws when a Done job stored no typed result
+  - ExecuteAndWaitAsync throws when a Succeeded job stored no typed result
   - ExecuteAndWaitAsync honors WaitTimeout when PollInterval exceeds it
   - ExecuteAndWaitAsync rejects non-positive wait options before enqueue
 - **Store methods:**
@@ -888,9 +888,9 @@
 - **Act:** The child completes through the sink's scalar fallback while the plain job finalizes via CompleteExecutionsBatch.
 - **Assert:** The fallback flips the Suspended parent to Ready with lifecycle events matching scalar completion, and the plain row finalizes with exact statuses.
 - **Guarantees:**
-  - Parent latch flip via fallback: child Done via sink releases Suspended parent to Ready
-  - Fallback equals scalar parity: child completion via sink emits exact Done status and Succeeded JobExecutionFinished event
-  - Plain row finalized by batch (guard): plain job reaches Done via batch path and JobFinished wake fires
+  - Parent latch flip via fallback: child Succeeded via sink releases Suspended parent to Ready
+  - Fallback equals scalar parity: child completion via sink emits exact Succeeded status and Succeeded JobExecutionFinished event
+  - Plain row finalized by batch (guard): plain job reaches Succeeded via batch path and JobFinished wake fires
   - One failed per-job completion leaves only that job for recovery: later jobs in the batch still complete and already-committed jobs still get their wake
 
 ### A Strict deadline terminates an overdue job and blocks a retry past the deadline
@@ -939,12 +939,12 @@
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ExtendWorkerLeasesAsync`
 
 ### A job registers, enqueues, claims, executes, persists and reads back
-- **Contract:** A registered job enqueued through IJobs is claimed, executed and completed to Done with the canonical claim/start/finish timeline and a deserializable result.
+- **Contract:** A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.
 - **Arrange:** The add-numbers job definition is registered in the test namespace.
 - **Act:** One AddNumbers job is enqueued through IJobs and a single runtime tick claims, executes, and completes it.
-- **Assert:** The job lands Done with the canonical Started then Finished timeline and a result that deserializes to the handler output.
+- **Assert:** The job lands Succeeded with the canonical Started then Finished timeline and a result that deserializes to the handler output.
 - **Guarantees:**
-  - Job completes Done with a Started then Finished(Succeeded, Executing to Done) timeline and a result that deserializes to the handler output
+  - Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to the handler output
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
@@ -961,6 +961,14 @@
 - **Assert:** The job leaves Executing, re-arms Ready within its retry budget, and its finished event identifies the deserialization exception.
 - **Guarantees:**
   - Malformed input leaves Executing and records the deserialization exception
+
+### A handler reads the attempt number and worker the ledger recorded for it
+- **Contract:** ctx.ExecutionNumber and ctx.WorkerId report the running attempt's ledger identity, advancing with each retry.
+- **Arrange:** An attempt-identity probe notes both values per attempt and throws on its first attempt.
+- **Act:** The runtime drives the job through its failed first attempt to a successful second.
+- **Assert:** Two notes read attempts 1 then 2, each matching the execution number the engine stamped on its own event, and both name the registered worker.
+- **Guarantees:**
+  - ctx.ExecutionNumber advances with each attempt and ctx.WorkerId matches the executing worker
 
 ### JobContext is resolvable by constructor injection in the attempt scope
 - **Contract:** An instance handler receives a populated JobContext by constructor injection matching the running job's identity and its resolved tenant scope.
@@ -1038,10 +1046,10 @@
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
 
 ### A backlog drains exactly-once under N concurrent executors with batch claiming
-- **Contract:** A backlog enqueued through IJobs drains to Done exactly once under concurrent batch-claiming executors.
+- **Contract:** A backlog enqueued through IJobs drains to Succeeded exactly once under concurrent batch-claiming executors.
 - **Arrange:** A backlog of ACTA_LOAD_JOBS ready jobs is preloaded, with ACTA_LOAD_EXECUTORS concurrent executors and a 32-row claim batch configured.
 - **Act:** The real batch-claim dispatch loop drains the backlog while throughput and latency percentiles are recorded.
-- **Assert:** Every job in the backlog lands Done exactly once.
+- **Assert:** Every job in the backlog lands Succeeded exactly once.
 - **Guarantees:**
   - Every enqueued job executes exactly once and the whole backlog drains to completion
   - Per-phase claim, start, and complete costs are reported (diagnostic)
@@ -1055,12 +1063,12 @@
   - Timeout re-arms within budget bumping failure_count, then terminates Failed once MaxAttempts is exhausted
 
 ### The run loop drains a backlog, wakes on publishes, and shuts down cleanly
-- **Contract:** RunLoopAsync drains a backlog to Done, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly.
+- **Contract:** RunLoopAsync drains a backlog, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly.
 - **Arrange:** A backlog is enqueued with an 8s SafetyPollInterval so wakeup-driven pickups are distinguishable from safety polls.
 - **Act:** RunLoopAsync runs in the background across enqueues, delayed rows, colocated completions, retries, and an unpublished Ready row.
-- **Assert:** The loop drains the backlog to Done, wakes early on wakeup publishes, discovers the unpublished row via the safety poll, and cancels cleanly.
+- **Assert:** The loop drains the backlog to Succeeded, wakes early on wakeup publishes, discovers the unpublished row via the safety poll, and cancels cleanly.
 - **Guarantees:**
-  - Backlog drains to Done and cancellation completes the channel and awaits executors cleanly
+  - Backlog drains to Succeeded and cancellation completes the channel and awaits executors cleanly
   - A due-now enqueue wake interrupts the idle sleep
   - A delayed enqueue refreshes the sleeping loop's horizon
   - An unpublished Ready row is discovered by the safety poll
@@ -1284,14 +1292,14 @@
 
 ## Reads
 
-### Explain reports live Suspended and Done states through the facade
-- **Contract:** ExplainAsync reports a signal-suspended job as Suspended awaiting its signal and a finished job as Done.
+### Explain reports live Suspended and Succeeded states through the facade
+- **Contract:** ExplainAsync reports a signal-suspended job as Suspended awaiting its signal and a finished job as Succeeded.
 - **Arrange:** A job-wait-signal handler is enqueued and driven through the real runtime loop.
 - **Act:** ExplainAsync is called after the wait suspends the job and again after a raise drives it to completion.
-- **Assert:** The suspended read names the pending signal wait and the completed read reports Done.
+- **Assert:** The suspended read names the pending signal wait and the completed read reports Succeeded.
 - **Guarantees:**
   - Explain reports a signal-suspended job as Suspended awaiting its signal
-  - Explain reports a released-and-finished job as Done
+  - Explain reports a released-and-finished job as Succeeded
   - Explain reports a completed durable step as non-rerunning
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobExplanationAsync`
@@ -1602,25 +1610,25 @@
 - **Contract:** Under the Bulk profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion and group-commits it, then stamps Stopped.
 - **Arrange:** A worker runs the Bulk profile with a one-row completion batch and a gate handler that holds its job in-flight until released.
 - **Act:** With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.
-- **Assert:** The worker walks Active to Draining to Stopped and the flusher group-commits the in-flight job Done rather than cancelling it.
+- **Assert:** The worker walks Active to Draining to Stopped and the flusher group-commits the in-flight job Succeeded rather than cancelling it.
 - **Guarantees:**
-  - Bulk: a graceful stop drains the in-flight job to Done and walks the worker Active -> Draining -> Stopped
+  - Bulk: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
 
 ### Direct drain finishes the in-flight job, then Active to Draining to Stopped
 - **Contract:** Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
 - **Arrange:** A worker runs the Direct profile with a gate handler that holds its job in-flight until released.
 - **Act:** With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.
-- **Assert:** The worker walks Active to Draining to Stopped and the in-flight job finishes Done rather than being cancelled.
+- **Assert:** The worker walks Active to Draining to Stopped and the in-flight job finishes Succeeded rather than being cancelled.
 - **Guarantees:**
-  - Direct: a graceful stop drains the in-flight job to Done and walks the worker Active -> Draining -> Stopped
+  - Direct: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
 
 ### Buffered drain finishes the in-flight job, then Active to Draining to Stopped
 - **Contract:** Under the Buffered profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
 - **Arrange:** A worker runs the Buffered profile with a gate handler that holds its job in-flight until released.
 - **Act:** With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.
-- **Assert:** The worker walks Active to Draining to Stopped and the in-flight job finishes Done rather than being cancelled.
+- **Assert:** The worker walks Active to Draining to Stopped and the in-flight job finishes Succeeded rather than being cancelled.
 - **Guarantees:**
-  - Buffered: a graceful stop drains the in-flight job to Done and walks the worker Active -> Draining -> Stopped
+  - Buffered: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
 
 ### Bulk worker stop never group-commits an in-flight job as Failed
 - **Contract:** Under the Bulk profile a graceful worker stop with a job in-flight buffers no completion and leaves it Executing for recovery, never a group-committed Failed.
@@ -1742,7 +1750,7 @@
   - Reschedule to an absolute past instant is immediately reclaimable
   - First sleep arms one Pending timer and suspends the handler
   - Sleep rerun before due does not extend or duplicate the timer
-  - Sleep rerun after due consumes the timer and the handler continues to Done
+  - Sleep rerun after due consumes the timer and the handler continues to Succeeded
   - Zero-delay sleep continues without arming a timer
   - Sleep validation rejects invalid names, reserved names and negative delay
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
@@ -1980,7 +1988,7 @@
   - A first invocation of an at-most-once step still runs the body (Invoke)
   - A pending step re-entered under at-most-once terminalizes Interrupted, version-idempotent
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
-  - Caught StepInterruptedException lets the parent proceed to Done
+  - Caught StepInterruptedException lets the parent proceed to Succeeded
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
 
@@ -1988,10 +1996,10 @@
 - **Contract:** A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant.
 - **Arrange:** A deferred-retry step that fails once then succeeds is registered with MaxAttempts 3 and a 30s initial backoff.
 - **Act:** The job runs, is re-run before the retry instant, and runs again after the clock advances to it.
-- **Assert:** The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Done.
+- **Assert:** The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Succeeded.
 - **Guarantees:**
   - After a step failure with nonzero backoff the parent is Ready at the retry instant and NothingClaimed before it
-  - At the retry instant the step body is re-invoked on attempt 2 and the parent completes Done
+  - At the retry instant the step body is re-invoked on attempt 2 and the parent completes Succeeded
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
@@ -2079,9 +2087,9 @@
 - **Contract:** Scenario sessions pin one enqueued job and drive typed results, signals, timers, retries, diagnostics and failures without conformance boilerplate.
 - **Arrange:** An ActaTestHost is started for TestJobsManifest in an isolated namespace.
 - **Act:** The public Scenario API enqueues typed and contract jobs, ticks them, raises signals, fast-forwards due rows and reads diagnostics.
-- **Assert:** Sessions observe pinned job state, return typed results, expose diagnostics and drive Done or Failed outcomes deterministically.
+- **Assert:** Sessions observe pinned job state, return typed results, expose diagnostics and drive Succeeded or Failed outcomes deterministically.
 - **Guarantees:**
-  - Typed result sessions run to Done and return TResult plus timeline diagnostics
+  - Typed result sessions run to Succeeded and return TResult plus timeline diagnostics
   - No-input contract sessions run until a signal, raise it and complete
   - Timer and step retry helpers fast-forward only the pinned session job
   - RunUntilFailed stops on Failed and assertion failures include a scenario dump
@@ -2123,7 +2131,7 @@
 - **Contract:** Three Run calls in one process register three workers each owning its own namespace and manifest catalog and each claims and runs jobs only in its namespace.
 - **Arrange:** One process configures three j.Run calls, one per namespace.
 - **Act:** Each namespace enqueues a job and its owning runtime runs one tick.
-- **Assert:** Three workers are registered and each completes only its own namespace's job to Done.
+- **Assert:** Three workers are registered and each completes only its own namespace's job to Succeeded.
 - **Guarantees:**
   - Three workers register, each owning one namespace and running jobs only in its own namespace
 
@@ -2194,7 +2202,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.EnqueueOneInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
 | `IJobStore.GetJobAsync` | GetJob returns the snapshot for a known id and null for an unknown id |
 | `IJobStore.GetJobCheckpointsAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
-| `IJobStore.GetJobExplanationAsync` | Explain reports live Suspended and Done states through the facade<br>GetJobExplanation returns explain sets for a known id and null otherwise |
+| `IJobStore.GetJobExplanationAsync` | Explain reports live Suspended and Succeeded states through the facade<br>GetJobExplanation returns explain sets for a known id and null otherwise |
 | `IJobStore.GetJobInputAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
 | `IJobStore.GetJobLineageMapAsync` | GetJobLineageMap returns the focus job with ancestors and children or null |
 | `IJobStore.GetJobResultAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Contract enqueue names the job explicitly and resolves its route<br>GetJobResult returns null before completion and the typed result after<br>Typed enqueue resolves the route and delayed jobs gate on next_run |

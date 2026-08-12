@@ -13,7 +13,7 @@ internal enum RunOnceOutcome : byte
     /// </summary>
     NothingClaimed = 1,
 
-    /// <summary>Claimed and ran a job; handler completed; row terminal-<c>Done</c>.</summary>
+    /// <summary>Claimed and ran a job; handler completed; row terminal-<c>Succeeded</c>.</summary>
     Completed = 2,
 
     /// <summary>Claimed and ran a job; handler threw; row terminal-<c>Failed</c>.</summary>
