@@ -4,15 +4,10 @@
        dependency centrally managed. Bump these after each publish (docs/internals/releasing.md). -->
   <Import Project="../Directory.Packages.props" />
   <ItemGroup>
-    <PackageVersion Include="Acta" Version="0.5.0-beta.1" />
-    <PackageVersion Include="Acta.AspNetCore" Version="0.5.0-beta.1" />
-    <PackageVersion Include="Acta.Postgres" Version="0.5.0-beta.1" />
-    <PackageVersion Include="Acta.SqlServer" Version="0.5.0-beta.1" />
-    <PackageVersion Include="Acta.Sqlite" Version="0.5.0-beta.1" />
-    <!-- The demos consume PUBLISHED packages, and the published Acta.Sqlite still requires the
-         SQLitePCLRaw-preview line: the repo dropped that pin only after these versions shipped. Central
-         management would otherwise downgrade the transitive and fail the restore (NU1109). Delete this
-         line when the Acta versions above move to a release built after the pin was dropped. -->
-    <PackageVersion Update="Microsoft.Data.Sqlite" Version="11.0.0-preview.6.26359.118" />
+    <PackageVersion Include="Acta" Version="0.8.0-beta.1" />
+    <PackageVersion Include="Acta.AspNetCore" Version="0.8.0-beta.1" />
+    <PackageVersion Include="Acta.Postgres" Version="0.8.0-beta.1" />
+    <PackageVersion Include="Acta.SqlServer" Version="0.8.0-beta.1" />
+    <PackageVersion Include="Acta.Sqlite" Version="0.8.0-beta.1" />
   </ItemGroup>
 </Project>
