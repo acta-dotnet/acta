@@ -15,6 +15,7 @@
   - One name addresses distinct rows at global, namespace, and definition scope
   - An unregistered namespace or definition target is NotFound and writes nothing
   - Every set emits setting.updated whose detail carries the setting name
+  - A non-null expectedVersion is a CAS: applied on match, VersionConflict with the current version on mismatch, NotFound when no row exists
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Settings.ISettingStore.GetSettingAsync`
   - `Acta.Runtime.Modules.Execution.Settings.ISettingStore.SetSettingAsync`
@@ -1424,7 +1425,9 @@
   - Alert list keeps the job ref after the job row is gone
   - ListJobAlerts returns the keyset page and the filter-wide total from one command
   - An acknowledged alert row carries acknowledged_at_utc, an open one carries null
+  - GetAsync point-reads one alert in the list projection shape and answers null for a missing id
 - **Store methods:**
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetJobAlertAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ListJobAlertsAsync`
 
 ### ListJobDefinitions filter-matrix selects exactly matching rows per dimension
@@ -2184,6 +2187,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
+| `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.RaiseJobAlertAsync` | Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
@@ -2281,6 +2285,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Alerting/AlertsView` | yes | yes | yes |
 | `Alerting/GetAlertableEvents` | yes | yes | yes |
 | `Alerting/GetDeliverableAlerts` | yes | yes | yes |
+| `Alerting/GetJobAlert` | yes | yes | yes |
 | `Alerting/ListJobAlerts` | yes | yes | yes |
 | `Alerting/RaiseJobAlert` | yes | yes | yes |
 | `Alerting/ResolveJobAlertManual` | yes | yes | yes |

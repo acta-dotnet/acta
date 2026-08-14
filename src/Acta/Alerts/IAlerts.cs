@@ -45,4 +45,7 @@ public interface IAlerts
     /// severity, and delivery status.
     /// </summary>
     ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default);
+
+    /// <summary>Point-read one alert by id; null when it does not exist.</summary>
+    ValueTask<AlertDetail?> GetAsync(long alertId, CancellationToken ct = default);
 }

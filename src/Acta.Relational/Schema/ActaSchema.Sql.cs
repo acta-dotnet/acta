@@ -712,6 +712,18 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
+        // Optional CAS guard for upsert-style admin writes (set_setting): null skips the version
+        // check (last write wins); non-null requires an existing row at exactly that version, else
+        // the write is rejected with VersionConflict (or NotFound when no row exists at the scope).
+        public static readonly DbValueSpec<int?> ExpectedRowVersionOptional = new(
+            ParameterName: "p_expected_version",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         // Admin metadata CAS guard: the caller's expected row version; a mismatch rejects with the row's current version.
         public static readonly DbValueSpec<int> ExpectedRowVersion = new(
             ParameterName: "p_expected_version",

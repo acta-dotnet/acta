@@ -35,7 +35,7 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
 
         Assert.Null(await Service.GetAsync(name, namespaceName: null, jobName: null, ct));
 
-        var created = await Service.SetAsync(name, "42", "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
+        var created = await Service.SetAsync(name, "42", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
         Assert.Equal(AdminControlAction.Applied, created.Action);
         Assert.Equal(0, created.Version);
 
@@ -45,7 +45,7 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
         Assert.Equal("the answer", first.Description);
         Assert.Equal(0, first.Version);
 
-        var overwritten = await Service.SetAsync(name, "43", "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
+        var overwritten = await Service.SetAsync(name, "43", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
         Assert.Equal(AdminControlAction.Applied, overwritten.Action);
         Assert.Equal(1, overwritten.Version);
 
@@ -62,9 +62,9 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
         var jobName = TestKey("cfg-job");
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen, [Def(jobName)], ct);
 
-        await Service.SetAsync(name, "global", null, namespaceName: null, jobName: null, null, "op-1", ct);
-        await Service.SetAsync(name, "ns", null, TestNamespace, jobName: null, null, "op-1", ct);
-        await Service.SetAsync(name, "def", null, TestNamespace, jobName, null, "op-1", ct);
+        await Service.SetAsync(name, "global", null, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        await Service.SetAsync(name, "ns", null, null, TestNamespace, jobName: null, null, "op-1", ct);
+        await Service.SetAsync(name, "def", null, null, TestNamespace, jobName, null, "op-1", ct);
 
         Assert.Equal("global", (await Service.GetAsync(name, null, null, ct))!.Value);
         Assert.Equal("ns", (await Service.GetAsync(name, TestNamespace, null, ct))!.Value);
@@ -77,10 +77,10 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
         var ct = TestContext.Current.CancellationToken;
         var name = TestKey("cfg-miss");
 
-        var unknownNamespace = await Service.SetAsync(name, "x", null, TestKey("no-such-ns"), jobName: null, null, "op-1", ct);
+        var unknownNamespace = await Service.SetAsync(name, "x", null, null, TestKey("no-such-ns"), jobName: null, null, "op-1", ct);
         Assert.Equal(AdminControlAction.NotFound, unknownNamespace.Action);
 
-        var unknownDefinition = await Service.SetAsync(name, "x", null, TestNamespace, TestKey("no-such-job"), null, "op-1", ct);
+        var unknownDefinition = await Service.SetAsync(name, "x", null, null, TestNamespace, TestKey("no-such-job"), null, "op-1", ct);
         Assert.Equal(AdminControlAction.NotFound, unknownDefinition.Action);
 
         Assert.Null(await Service.GetAsync(name, TestNamespace, null, ct));
@@ -94,7 +94,7 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
         var name = TestKey("cfg-ev");
         var reason = TestKey("because");
 
-        await Service.SetAsync(name, "on", null, TestNamespace, jobName: null, reason, "op-1", ct);
+        await Service.SetAsync(name, "on", null, null, TestNamespace, jobName: null, reason, "op-1", ct);
 
         var events = await Db.From<JobEvent>()
             .Where(e => e.EventCode == EventCode.SettingUpdated && e.ReasonMessage == reason)
@@ -102,6 +102,38 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
         var evt = Assert.Single(events);
         Assert.Equal(TestNamespaceId, evt.NamespaceId);
         Assert.Equal($"{{\"name\":\"{name}\"}}", Encoding.UTF8.GetString(evt.Detail!));
+    }
+
+    [Fact(
+        DisplayName = "A non-null expectedVersion is a CAS: applied on match, VersionConflict with the current version on mismatch, NotFound when no row exists"
+    )]
+    public async Task Set_with_expected_version_is_compare_and_swap()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var name = TestKey("cas");
+
+        // Expecting a version of a row that does not exist is NotFound, and nothing is created.
+        var absent = await Service.SetAsync(name, "v", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        Assert.Equal(AdminControlAction.NotFound, absent.Action);
+        Assert.Null(await Service.GetAsync(name, namespaceName: null, jobName: null, ct));
+
+        await Service.SetAsync(name, "one", null, null, namespaceName: null, jobName: null, null, "op-1", ct);
+
+        // Matching CAS applies and bumps: 0 -> 1.
+        var applied = await Service.SetAsync(name, "two", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        Assert.Equal(AdminControlAction.Applied, applied.Action);
+        Assert.Equal(1, applied.Version);
+
+        // Stale CAS rejects, reports the row's current version, and writes neither the row nor an event.
+        var eventsBefore = await Db.From<JobEvent>().Where(e => e.EventCode == EventCode.SettingUpdated).CountAsync(ct);
+        var stale = await Service.SetAsync(name, "three", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        Assert.Equal(AdminControlAction.VersionConflict, stale.Action);
+        Assert.Equal(1, stale.Version);
+
+        var current = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);
+        Assert.Equal("two", current!.Value);
+        Assert.Equal(1, current.Version);
+        Assert.Equal(eventsBefore, await Db.From<JobEvent>().Where(e => e.EventCode == EventCode.SettingUpdated).CountAsync(ct));
     }
 
     // Framework defaults fill the policy columns; only the identity matters to these facts.

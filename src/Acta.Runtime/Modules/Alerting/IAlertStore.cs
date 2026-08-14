@@ -67,6 +67,9 @@ internal interface IAlertStore
     /// opt-in filter-wide total, fetched in one round trip as two result sets.
     /// </summary>
     Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct);
+
+    /// <summary>Point-read of one alert row by id, in the list projection's shape; null when missing.</summary>
+    Task<AlertListItem?> GetJobAlertAsync(long alertId, CancellationToken ct);
 }
 
 /// <summary>

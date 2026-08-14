@@ -172,6 +172,18 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             ct
         );
 
+    public Task<AlertListItem?> GetJobAlertAsync(long alertId, CancellationToken ct) =>
+        session.QueryAsync(
+            "Sql/Alerting/GetJobAlert.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId)),
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<JobAlertListProjectionRow>();
+                return await reader.ReadAsync(token) ? read(reader).ToItem() : null;
+            },
+            ct
+        );
+
     private void AddRaiseParameters(DbCommand cmd, RaiseJobAlertCommand command)
     {
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.JobNamespace));

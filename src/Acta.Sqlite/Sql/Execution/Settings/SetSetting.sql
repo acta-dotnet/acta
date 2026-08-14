@@ -16,13 +16,34 @@ SELECT
         FROM {{schema}}.definitions d
         JOIN {{schema}}.namespaces n ON n.id = d.namespace_id
         WHERE n.name = @p_namespace_name AND d.name = @p_job_name
-    ) AS definition_id;
+    ) AS definition_id,
+    (
+        SELECT s.version
+        FROM {{schema}}.settings s
+        WHERE
+            s.scope_code = CASE
+                WHEN @p_namespace_name IS NULL THEN 10 /* SettingScopeCode.Global */
+                WHEN @p_job_name IS NULL THEN 30 /* SettingScopeCode.Namespace */
+                ELSE 40 /* SettingScopeCode.Definition */
+            END
+            AND s.scope_id IS COALESCE(
+                (
+                    SELECT d.id
+                    FROM {{schema}}.definitions d
+                    JOIN {{schema}}.namespaces n ON n.id = d.namespace_id
+                    WHERE n.name = @p_namespace_name AND d.name = @p_job_name
+                ),
+                CASE WHEN @p_namespace_name IS NOT NULL AND @p_job_name IS NULL THEN (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name) END
+            )
+            AND s.name = @p_name
+    ) AS current_version;
 
 INSERT INTO {{schema}}.settings
     (scope_code, scope_id, name, value_format_id, value, description)
 SELECT r.scope_code, NULL, @p_name, @p_value_format_id, @p_value, @p_description
 FROM temp._set_setting r
 WHERE r.scope_code = 10 /* SettingScopeCode.Global */
+    AND (@p_expected_version IS NULL OR r.current_version = @p_expected_version)
 ON CONFLICT (scope_code, name) WHERE scope_id IS NULL DO UPDATE
 SET
     value_format_id = excluded.value_format_id,
@@ -36,8 +57,9 @@ INSERT INTO {{schema}}.settings
 SELECT r.scope_code, COALESCE(r.definition_id, r.namespace_id), @p_name, @p_value_format_id, @p_value, @p_description
 FROM temp._set_setting r
 WHERE
-    (r.scope_code = 30 /* SettingScopeCode.Namespace */ AND r.namespace_id IS NOT NULL)
-    OR (r.scope_code = 40 /* SettingScopeCode.Definition */ AND r.definition_id IS NOT NULL)
+    ((r.scope_code = 30 /* SettingScopeCode.Namespace */ AND r.namespace_id IS NOT NULL)
+    OR (r.scope_code = 40 /* SettingScopeCode.Definition */ AND r.definition_id IS NOT NULL))
+    AND (@p_expected_version IS NULL OR r.current_version = @p_expected_version)
 ON CONFLICT (scope_code, scope_id, name) WHERE scope_id IS NOT NULL DO UPDATE
 SET
     value_format_id = excluded.value_format_id,
@@ -91,15 +113,17 @@ SELECT
     CAST('{"name":"' || @p_name || '"}' AS BLOB)
 FROM temp._set_setting r
 WHERE
-    r.scope_code = 10 /* SettingScopeCode.Global */
+    (r.scope_code = 10 /* SettingScopeCode.Global */
     OR (r.scope_code = 30 /* SettingScopeCode.Namespace */ AND r.namespace_id IS NOT NULL)
-    OR (r.scope_code = 40 /* SettingScopeCode.Definition */ AND r.definition_id IS NOT NULL);
+    OR (r.scope_code = 40 /* SettingScopeCode.Definition */ AND r.definition_id IS NOT NULL))
+    AND (@p_expected_version IS NULL OR r.current_version = @p_expected_version);
 
 SELECT
     CASE
-        WHEN r.scope_code = 10 /* SettingScopeCode.Global */ THEN 1 /* AdminControlAction.Applied */
         WHEN r.scope_code = 30 /* SettingScopeCode.Namespace */ AND r.namespace_id IS NULL THEN 2 /* AdminControlAction.NotFound */
         WHEN r.scope_code = 40 /* SettingScopeCode.Definition */ AND r.definition_id IS NULL THEN 2 /* AdminControlAction.NotFound */
+        WHEN @p_expected_version IS NOT NULL AND r.current_version IS NULL THEN 2 /* AdminControlAction.NotFound */
+        WHEN @p_expected_version IS NOT NULL AND r.current_version <> @p_expected_version THEN 4 /* AdminControlAction.VersionConflict */
         ELSE 1 /* AdminControlAction.Applied */
     END AS action,
     (

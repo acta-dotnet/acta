@@ -30,7 +30,8 @@ internal sealed record SetSettingCommand(
     string? NamespaceName,
     string? JobName,
     JobControlActor Actor,
-    string? ReasonMessage
+    string? ReasonMessage,
+    int? ExpectedVersion
 );
 
 /// <summary>Flat setting row projected from storage.</summary>

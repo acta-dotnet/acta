@@ -44,6 +44,7 @@ internal sealed class RelationalSettingStore(IDbSession session, ISqlDialect dia
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersionOptional, command.ExpectedVersion));
             },
             DbProjectionResolver.Resolve<AdminControlOutcome>(),
             ct

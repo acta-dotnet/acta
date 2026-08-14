@@ -10,7 +10,8 @@ CREATE OR ALTER PROCEDURE {{schema}}.set_setting
     @p_job_name VARCHAR(128),
     @p_actor_code TINYINT,
     @p_actor_key VARCHAR(128),
-    @p_reason_message NVARCHAR(512)
+    @p_reason_message NVARCHAR(512),
+    @p_expected_version INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -59,6 +60,24 @@ BEGIN
             s.scope_code = @scope_code
             AND ((@scope_id IS NULL AND s.scope_id IS NULL) OR s.scope_id = @scope_id)
             AND s.name = @p_name;
+
+        -- CAS misses never create and never write the event: report the row as it stands.
+        IF @p_expected_version IS NOT NULL AND @version IS NULL
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(NULL AS INT) AS version;
+                RETURN;
+            END;
+        IF @p_expected_version IS NOT NULL AND @version <> @p_expected_version
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    CAST(4 /* AdminControlAction.VersionConflict */ AS SMALLINT) AS action,
+                    @version AS version;
+                RETURN;
+            END;
 
         IF @version IS NULL
             BEGIN

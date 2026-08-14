@@ -922,6 +922,9 @@ internal static class TestDashboardHost
                 return ValueTask.FromResult(new AlertControlResult(alertId, ControlAction.Applied, null, ResolvedAt));
             }
 
+            public ValueTask<AlertDetail?> GetAsync(long alertId, CancellationToken ct = default) =>
+                ValueTask.FromResult<AlertDetail?>(null);
+
             public ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(new PagedResult<AlertListItem>([], null, false, 50, null));
         }

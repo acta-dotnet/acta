@@ -30,6 +30,7 @@ internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions>
     public async ValueTask<AdminControlResult> SetAsync(
         string name,
         string value,
+        int? expectedVersion,
         string? description,
         string? namespaceName,
         string? jobName,
@@ -60,7 +61,8 @@ internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions>
                 namespaceName,
                 jobName,
                 Operator(actorKey),
-                reasonMessage.Truncate(ActaTextLimits.ReasonMessage)
+                reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
+                expectedVersion
             ),
             ct
         );

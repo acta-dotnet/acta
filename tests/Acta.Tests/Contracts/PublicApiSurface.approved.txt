@@ -351,6 +351,26 @@ sealed class Acta.AlertDeliveryStatusCodeJsonConverter
     .ctor()
     Acta.AlertDeliveryStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertDeliveryStatusCode value, System.Text.Json.JsonSerializerOptions options)
+sealed class Acta.AlertDetail
+    .ctor(System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Byte RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
+    Acta.AlertDeliveryStatusCode DeliveryStatus { get;init; }
+    Acta.AlertKindCode Kind { get;init; }
+    Acta.AlertOriginCode Origin { get;init; }
+    Acta.AlertSeverityCode Severity { get;init; }
+    System.Byte RetryCount { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 OccurrenceCount { get;init; }
+    System.Int64 AlertId { get;init; }
+    System.Nullable<Acta.JobRef> JobRef { get;init; }
+    System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
+    System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
+    System.Nullable<System.DateTime> RetryAfterUtc { get;init; }
+    System.Nullable<System.Int64> JobId { get;init; }
+    System.String ChannelName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String Message { get;init; }
+    System.String Title { get;init; }
 enum Acta.AlertKindCode
     FinalFailure = 30
     FirstFailure = 10
@@ -787,6 +807,7 @@ interface Acta.IAlertTransportRegistry
 interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.AlertControlResult> AcknowledgeAsync(System.Int64 alertId, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AlertControlResult> ResolveAsync(System.Int64 alertId, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(System.Int64 alertId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IDefinitions
     System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.Int32 jobDefinitionId, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String actorKey = default, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
@@ -866,7 +887,7 @@ interface Acta.ISchedules
     System.Threading.Tasks.ValueTask<Acta.ScheduleControlResult> UpdateOverridesAsync(Acta.ScheduleLookup schedule, System.Int32 expectedVersion, System.String expression, System.String timeZoneId, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SchedulePreview> PreviewAsync(Acta.ScheduleLookup schedule, System.Int32 count = default, System.Threading.CancellationToken ct = default)
 interface Acta.ISettings
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SetAsync(System.String name, System.String value, System.String description = default, System.String namespaceName = default, System.String jobName = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SetAsync(System.String name, System.String value, System.Nullable<System.Int32> expectedVersion = default, System.String description = default, System.String namespaceName = default, System.String jobName = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SettingDetail> GetAsync(System.String name, System.String namespaceName = default, System.String jobName = default, System.Threading.CancellationToken ct = default)
 interface Acta.ITags
     System.Threading.Tasks.ValueTask<Acta.TagMutationResult> RemoveAsync(Acta.TagTarget target, System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)

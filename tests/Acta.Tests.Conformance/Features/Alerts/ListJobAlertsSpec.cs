@@ -23,6 +23,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Assert = "Rows return newest first with lower severities excluded by the floor, full stored text, and a filter-wide total in one command."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ListJobAlertsAsync))]
+[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetJobAlertAsync))]
 public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
@@ -205,5 +206,42 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var acked = page.Items.Single(a => a.JobAlertId == ackedId);
         Assert.NotNull(acked.AcknowledgedAtUtc);
         Assert.Contains(page.Items, a => a.AcknowledgedAtUtc is null);
+    }
+
+    [Fact(DisplayName = "GetAsync point-reads one alert in the list projection shape and answers null for a missing id")]
+    public async Task Get_point_reads_one_alert_and_null_for_missing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var queries = Services.GetRequiredService<IActaOperations>();
+
+        await AlertTestOps.RaiseAsync(
+            Services,
+            TestNamespace,
+            null,
+            AlertOriginCode.Manual,
+            AlertSeverityCode.Warning,
+            AlertKindCode.Manual,
+            "get-spec title",
+            "get-spec message",
+            "default",
+            AlertDeliveryStatusCode.Pending,
+            null,
+            null,
+            ct
+        );
+
+        var listed = Assert.Single(
+            (await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace), ct)).Items,
+            a => a.Title == "get-spec title"
+        );
+
+        var detail = await queries.Alerts.GetAsync(listed.JobAlertId, ct);
+        Assert.NotNull(detail);
+        Assert.Equal(listed.JobAlertId, detail.AlertId);
+        Assert.Equal(listed.JobNamespace, detail.JobNamespace);
+        Assert.Equal("get-spec message", detail.Message);
+        Assert.Equal(listed.CreatedAtUtc, detail.CreatedAtUtc);
+
+        Assert.Null(await queries.Alerts.GetAsync(long.MaxValue, ct));
     }
 }

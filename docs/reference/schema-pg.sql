@@ -5280,7 +5280,8 @@ CREATE OR REPLACE FUNCTION acta.set_setting(
     p_job_name VARCHAR,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
-    p_reason_message VARCHAR
+    p_reason_message VARCHAR,
+    p_expected_version INT
 )
 RETURNS TABLE (action SMALLINT, version INT)
 LANGUAGE plpgsql
@@ -5327,9 +5328,25 @@ BEGIN
         s.scope_code = v_scope_code
         AND s.scope_id IS NOT DISTINCT FROM v_scope_id
         AND s.name = p_name
+        AND (p_expected_version IS NULL OR s.version = p_expected_version)
     RETURNING s.version INTO v_version;
 
     IF NOT FOUND THEN
+        -- CAS misses never create and never write the event: report the row as it stands.
+        IF p_expected_version IS NOT NULL THEN
+            SELECT s.version INTO v_version
+            FROM acta.settings s
+            WHERE
+                s.scope_code = v_scope_code
+                AND s.scope_id IS NOT DISTINCT FROM v_scope_id
+                AND s.name = p_name;
+            IF FOUND THEN
+                RETURN QUERY SELECT 4 /* AdminControlAction.VersionConflict */::SMALLINT, v_version;
+            ELSE
+                RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+            END IF;
+            RETURN;
+        END IF;
         IF v_scope_id IS NULL THEN
             INSERT INTO acta.settings AS s (
                 scope_code,

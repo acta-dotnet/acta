@@ -44,6 +44,33 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         return ToResult(alertId, outcome);
     }
 
+    public async ValueTask<AlertDetail?> GetAsync(long alertId, CancellationToken ct = default)
+    {
+        var row = await store.GetJobAlertAsync(alertId, ct);
+        return row is null
+            ? null
+            : new AlertDetail(
+                row.JobAlertId,
+                row.JobNamespace,
+                row.JobId,
+                row.JobRef,
+                row.Origin,
+                row.Severity,
+                row.Kind,
+                row.Title,
+                row.Message,
+                row.ChannelName,
+                row.OccurrenceCount,
+                row.ResolvedAtUtc,
+                row.DeliveryStatus,
+                row.RetryCount,
+                row.RetryAfterUtc,
+                row.CreatedAtUtc,
+                row.ModifiedAtUtc,
+                row.AcknowledgedAtUtc
+            );
+    }
+
     public async ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);
