@@ -173,16 +173,18 @@ internal sealed class JobSchedule : IEntity<long>
 
     /// <summary>
     /// Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the
-    /// attribute sets none. Distinct from <see cref="Note"/>, which is operator-written.
+    /// attribute sets none. Distinct from <see cref="ReasonMessage"/>, which is operator-written.
     /// </summary>
     [DbColumn("description", DbKind.UnicodeString, Size = 512)]
     public string? Description { get; internal set; }
 
     /// <summary>
-    /// Operator note explaining the change.
+    /// Operator-authored justification for the last pause/resume/overrides change: the same
+    /// reasonMessage text the audit event records, kept on the row so the current state explains
+    /// itself.
     /// </summary>
-    [DbColumn("note", DbKind.UnicodeString, Size = 512)]
-    public string? Note { get; set; }
+    [DbColumn("reason_message", DbKind.UnicodeString, Size = 512)]
+    public string? ReasonMessage { get; set; }
 
     /// <summary>When the schedule row was created. Set server-side.</summary>
     [DbColumn("created_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]

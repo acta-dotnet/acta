@@ -1,17 +1,18 @@
 CREATE OR REPLACE FUNCTION {{schema}}.acquire_lock(
-    p_lease_key VARCHAR,
+    p_lock_key VARCHAR,
     p_job_id BIGINT,
-    p_lease_ttl_seconds INT
+    p_lease_ttl_seconds INT,
+    p_hold_token UUID
 )
-RETURNS TABLE (version INT)
+RETURNS TABLE (hold_token UUID)
 LANGUAGE sql
 AS $$
-    INSERT INTO {{schema}}.leases (lease_key, kind_code, job_id, expires_at_utc, version)
-    VALUES (p_lease_key, 10 /* LeaseKindCode.Lock */, p_job_id, now() + (p_lease_ttl_seconds * INTERVAL '1 second'), 1)
-    ON CONFLICT (lease_key) DO UPDATE SET
+    INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
+    VALUES (p_lock_key, p_job_id, now() + (p_lease_ttl_seconds * INTERVAL '1 second'), p_hold_token)
+    ON CONFLICT (lock_key) DO UPDATE SET
         job_id = EXCLUDED.job_id,
         expires_at_utc = EXCLUDED.expires_at_utc,
-        version = leases.version + 1
-    WHERE leases.expires_at_utc <= now()
-    RETURNING version;
+        hold_token = EXCLUDED.hold_token
+    WHERE locks.expires_at_utc <= now()
+    RETURNING hold_token;
 $$;

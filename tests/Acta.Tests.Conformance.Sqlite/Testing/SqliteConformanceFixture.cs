@@ -98,7 +98,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name=@t;";
         cmd.Parameters.AddWithValue("@t", tableName);
         var ddl = (string?)await cmd.ExecuteScalarAsync() ?? "";
-        return MyRegex().Matches(ddl).Select(m => new DbCheckInfo(m.Value)).ToList();
+        return CheckConstraintRegex().Matches(ddl).Select(m => new DbCheckInfo(m.Groups[1].Value)).ToList();
     }
 
     public async ValueTask<IReadOnlyList<string>> ListCollationOverridesAsync(string schemaName, string tableName)
@@ -177,6 +177,8 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         return tableName;
     }
 
-    [GeneratedRegex(@"ck_[a-z0-9_]+")]
-    private static partial Regex MyRegex();
+    // Anchored on the CONSTRAINT keyword: a bare ck_ scan also matches inside column names
+    // such as locks.lock_key.
+    [GeneratedRegex(@"CONSTRAINT (ck_[a-z0-9_]+) CHECK")]
+    private static partial Regex CheckConstraintRegex();
 }

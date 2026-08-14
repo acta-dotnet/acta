@@ -112,13 +112,13 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     , CONSTRAINT ck_definitions_status_code CHECK (status_code IN (10, 240))
     , CONSTRAINT ck_definitions_tenant_requirement_code CHECK (tenant_requirement_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
-    , CONSTRAINT ck_definitions_priority_code_override_code CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
+    , CONSTRAINT ck_definitions_priority_code_override CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_deadline_behavior_code CHECK (deadline_behavior_code IN (10, 20))
-    , CONSTRAINT ck_definitions_deadline_behavior_code_override_code CHECK (deadline_behavior_code_override IS NULL OR deadline_behavior_code_override IN (10, 20))
+    , CONSTRAINT ck_definitions_deadline_behavior_code_override CHECK (deadline_behavior_code_override IS NULL OR deadline_behavior_code_override IN (10, 20))
     , CONSTRAINT ck_definitions_audit_level_code CHECK (audit_level_code IN (0, 10, 20))
-    , CONSTRAINT ck_definitions_audit_level_code_override_code CHECK (audit_level_code_override IS NULL OR audit_level_code_override IN (0, 10, 20))
+    , CONSTRAINT ck_definitions_audit_level_code_override CHECK (audit_level_code_override IS NULL OR audit_level_code_override IN (0, 10, 20))
     , CONSTRAINT ck_definitions_alert_profile_code CHECK (alert_profile_code IN (0, 10, 20, 30, 40))
-    , CONSTRAINT ck_definitions_alert_profile_code_override_code CHECK (alert_profile_code_override IS NULL OR alert_profile_code_override IN (0, 10, 20, 30, 40))
+    , CONSTRAINT ck_definitions_alert_profile_code_override CHECK (alert_profile_code_override IS NULL OR alert_profile_code_override IN (0, 10, 20, 30, 40))
     , CONSTRAINT ck_definitions_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
     , CONSTRAINT ck_definitions_output_format_id_byte CHECK (output_format_id BETWEEN 0 AND 255)
 );
@@ -187,17 +187,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_ref ON {{schema}}.jobs (job_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_deduplication_key_root ON {{schema}}.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL;
 
--- Lease
-CREATE TABLE IF NOT EXISTS {{schema}}.leases (
-    lease_key varchar(256) NOT NULL,
-    kind_code smallint NOT NULL,
+-- Lock
+CREATE TABLE IF NOT EXISTS {{schema}}.locks (
+    lock_key varchar(256) NOT NULL,
     job_id bigint NOT NULL,
     expires_at_utc timestamptz NOT NULL,
-    version integer DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_leases PRIMARY KEY (lease_key)
-    , CONSTRAINT ck_leases_kind_code CHECK (kind_code IN (10))
+    hold_token uuid NOT NULL
+    , CONSTRAINT pk_locks PRIMARY KEY (lock_key)
 );
-CREATE INDEX IF NOT EXISTS ix_leases_reclaim_expired ON {{schema}}.leases (kind_code, expires_at_utc);
+CREATE INDEX IF NOT EXISTS ix_locks_reclaim_expired ON {{schema}}.locks (expires_at_utc);
 
 -- JobNamespace
 CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
@@ -280,7 +278,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     status_code smallint NOT NULL,
     paused_until_utc timestamptz NULL,
     description varchar(512) NULL,
-    note varchar(512) NULL,
+    reason_message varchar(512) NULL,
     created_at_utc timestamptz DEFAULT now() NOT NULL,
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
     version integer DEFAULT 0 NOT NULL
@@ -393,8 +391,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.workers (
     , CONSTRAINT ck_workers_status_code CHECK (status_code IN (10, 80, 100, 200))
     , CONSTRAINT fk_workers_namespaces FOREIGN KEY (namespace_id) REFERENCES {{schema}}.namespaces (id)
 );
-CREATE INDEX IF NOT EXISTS ix_workers_namespace_status_lastseen ON {{schema}}.workers (namespace_id, status_code, last_seen_at_utc);
-CREATE INDEX IF NOT EXISTS ix_workers_status_lastseen ON {{schema}}.workers (status_code, last_seen_at_utc);
+CREATE INDEX IF NOT EXISTS ix_workers_namespace_status_last_seen ON {{schema}}.workers (namespace_id, status_code, last_seen_at_utc);
+CREATE INDEX IF NOT EXISTS ix_workers_status_last_seen ON {{schema}}.workers (status_code, last_seen_at_utc);
 CREATE INDEX IF NOT EXISTS ix_workers_namespace_last_seen ON {{schema}}.workers (namespace_id, last_seen_at_utc DESC, id DESC);
 
 -- JobCheckpoint
@@ -419,7 +417,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'init-extensible-status-v1', '{{schema}}')
+VALUES (0, 'init-locks-hold-token-v1', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

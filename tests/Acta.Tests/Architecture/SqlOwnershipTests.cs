@@ -28,7 +28,7 @@ public sealed partial class SqlOwnershipTests
         // Notes is the one application-authored writer, and the only event code an app can emit.
         ["events"] = ["Execution", "Notes"],
         ["jobs"] = ["Jobs"],
-        ["leases"] = ["Locks"],
+        ["locks"] = ["Locks"],
         ["namespaces"] = ["Namespaces"],
         ["results"] = ["Execution"],
         // The unit-of-work pair: a jobs row and its 1:1 runtimes row change together.
@@ -114,7 +114,7 @@ public sealed partial class SqlOwnershipTests
             "events",
             "alerts",
             "workers",
-            "leases",
+            "locks",
             "tags",
         ],
     };

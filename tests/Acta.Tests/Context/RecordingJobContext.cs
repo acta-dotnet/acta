@@ -135,9 +135,10 @@ internal sealed class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOu
         CancellationToken ct
     ) => Unsupported<Task<TResult>>();
 
-    protected override Task<int?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) => Task.FromResult<int?>(1);
+    protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
+        Task.FromResult<Guid?>(Guid.NewGuid());
 
-    protected override Task ReleaseLockCoreAsync(string key, LockScope scope, int version, CancellationToken ct)
+    protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
     {
         LockReleaseCalls++;
         return LockReleaseException is null ? Task.CompletedTask : Task.FromException(LockReleaseException);

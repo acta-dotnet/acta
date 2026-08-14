@@ -7,6 +7,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
+using Lock = Acta.Relational.Entities.Lock;
 
 namespace Acta.Tests.Conformance.Runtime;
 
@@ -67,10 +68,10 @@ public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<T
         var run = Runtime.RunOnceAsync(enqueued, ct);
         await LockHolder.Entered(TestNamespace).WaitAsync(Timeout, ct);
 
-        // Steal the lock out-of-band: delete the leases row the handler holds (version-CAS DELETE),
+        // Steal the lock out-of-band: delete the locks row the handler holds (token-CAS DELETE),
         // so the next heartbeat extend fails for a lock the handler still relies on.
-        var version = await LeaseVersionAsync(lockKey, ct);
-        Assert.True(await Services.GetRequiredService<ILockStore>().ReleaseAsync(new LockToken(lockKey, version), ct));
+        var holdToken = await HoldTokenAsync(lockKey, ct);
+        Assert.True(await Services.GetRequiredService<ILockStore>().ReleaseAsync(new LockToken(lockKey, holdToken), ct));
 
         await Runtime.RunHeartbeatOnceAsync(ct);
 
@@ -95,15 +96,15 @@ public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<T
 
     private async Task<DateTime> LeaseExpiryAsync(string lockKey, CancellationToken ct)
     {
-        var row = await Db.From<Lease>().Where(l => l.LeaseKey == lockKey).SingleOrDefaultAsync(ct);
+        var row = await Db.From<Lock>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         return row!.ExpiresAtUtc;
     }
 
-    private async Task<int> LeaseVersionAsync(string lockKey, CancellationToken ct)
+    private async Task<Guid> HoldTokenAsync(string lockKey, CancellationToken ct)
     {
-        var row = await Db.From<Lease>().Where(l => l.LeaseKey == lockKey).SingleOrDefaultAsync(ct);
+        var row = await Db.From<Lock>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
-        return row!.Version;
+        return row!.HoldToken;
     }
 }

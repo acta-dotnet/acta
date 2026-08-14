@@ -1,15 +1,14 @@
-INSERT INTO {{schema}}.leases (lease_key, kind_code, job_id, expires_at_utc, version)
+INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
 VALUES (
-    @p_lease_key,
-    10 /* LeaseKindCode.Lock */,
+    @p_lock_key,
     @p_job_id,
     {{now}} + (@p_lease_ttl_seconds) * 1000,
-    1
+    @p_hold_token
 )
-ON CONFLICT (lease_key) DO UPDATE
+ON CONFLICT (lock_key) DO UPDATE
 SET
     job_id = excluded.job_id,
     expires_at_utc = excluded.expires_at_utc,
-    version = leases.version + 1
-WHERE leases.expires_at_utc <= {{now}}
-RETURNING version;
+    hold_token = excluded.hold_token
+WHERE locks.expires_at_utc <= {{now}}
+RETURNING hold_token;

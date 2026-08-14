@@ -1094,15 +1094,15 @@ public abstract class JobContext
 
     /// <summary>
     /// Subclass sink: a single no-wait acquire attempt for the scoped <paramref name="key"/>.
-    /// Returns the lease version token on success, or <c>null</c> when the lock is busy.
+    /// Returns the per-hold token on success, or <c>null</c> when the lock is busy.
     /// </summary>
-    protected abstract Task<int?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct);
+    protected abstract Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct);
 
     /// <summary>
-    /// Subclass sink: release the lock held under <paramref name="version"/> for the scoped
+    /// Subclass sink: release the lock held under <paramref name="holdToken"/> for the scoped
     /// <paramref name="key"/>.
     /// </summary>
-    protected abstract Task ReleaseLockCoreAsync(string key, LockScope scope, int version, CancellationToken ct);
+    protected abstract Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct);
 
     /// <summary>
     /// Optional runtime observability hook for a best-effort release failure. Implementations must not

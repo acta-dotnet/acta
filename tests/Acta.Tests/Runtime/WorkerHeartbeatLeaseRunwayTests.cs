@@ -100,8 +100,8 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Lock_heartbeat_extends_held_locks_even_when_the_worker_lease_is_failing()
     {
         // The worker-lease store being down must not stop the (independent) lock store from renewing.
-        var lockA = new LockToken("orders.a", 1);
-        var lockB = new LockToken("orders.b", 1);
+        var lockA = new LockToken("orders.a", Guid.NewGuid());
+        var lockB = new LockToken("orders.b", Guid.NewGuid());
         var lockStore = new RecordingLockStore(_ => true);
         var context = Context();
         var lockHeartbeat = new LockLeaseHeartbeat(lockStore, Options(), Registration, context, NullLogger.Instance);
@@ -129,7 +129,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     [Fact]
     public async Task Lock_heartbeat_cancels_immediately_when_a_held_lock_is_lost()
     {
-        var lost = new LockToken("orders.lost", 1);
+        var lost = new LockToken("orders.lost", Guid.NewGuid());
         var lockStore = new RecordingLockStore(_ => false);
         var context = Context();
         var lockHeartbeat = new LockLeaseHeartbeat(lockStore, Options(), Registration, context, NullLogger.Instance);
@@ -148,7 +148,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     [Fact]
     public async Task Lock_heartbeat_tolerates_a_transient_throw_without_cancelling_or_feeding()
     {
-        var flaky = new LockToken("orders.flaky", 1);
+        var flaky = new LockToken("orders.flaky", Guid.NewGuid());
         var lockStore = new ThrowingLockStore(flaky);
         var context = Context();
         var lockHeartbeat = new LockLeaseHeartbeat(lockStore, Options(), Registration, context, NullLogger.Instance);
@@ -171,7 +171,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     {
         // Simulate the handler releasing (untracking) the lock while the extend is in flight, then the
         // extend throwing: the renewer must treat it as a non-failure, not cancel.
-        var released = new LockToken("orders.released", 1);
+        var released = new LockToken("orders.released", Guid.NewGuid());
         var context = Context();
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts);
@@ -226,7 +226,10 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         {
             JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)),
         };
-        byLock.TrackLock(new LockToken("orders.stuck", 1), Stopwatch.GetTimestamp() + TicksFor(Margin) - TicksFor(TimeSpan.FromSeconds(1)));
+        byLock.TrackLock(
+            new LockToken("orders.stuck", Guid.NewGuid()),
+            Stopwatch.GetTimestamp() + TicksFor(Margin) - TicksFor(TimeSpan.FromSeconds(1))
+        );
 
         context.RunningAttempts[1] = byJob;
         context.RunningAttempts[2] = byLock;

@@ -25,6 +25,9 @@ reprovision):
     The one-member `lease-kind` family retires from the persisted-code catalog while retiring is
     legal. A future primitive re-adds a discriminator additively or gets its own table.
   - **`version int` → `hold_token uuid`**, minted per acquire and CAS'd on release/extend. The
+    token is minted in C# (`Guid.NewGuid()` in `RelationalLockStore`) and passed as a parameter, so
+    no dialect needs its own uuid generator; the `JobContext` lock-core seam is retyped to `Guid`
+    accordingly (`AcquireLockCoreAsync` returns `Guid?`, `ReleaseLockCoreAsync` takes the token). The
     recycling int has an ABA window: release deletes the row and the next acquire restarts at
     version 1, so a zombie holder surviving a full steal → release → reacquire cycle can delete its
     successor's hold (`ReleaseLock` guards on `(key, version)` only). A uuid token cannot collide
@@ -38,9 +41,13 @@ reprovision):
     superseded-attempt refusal) and per-job external effects by `ExecutionNumber`; a global
     sequence plus a `RunWithLockAsync` exposure overload both remain legal additive moves in 1.x
     if a fence-checking consumer materializes.
-- **`alerts.dedupe_key` → `deduplication_key`** (+ `ck_alerts_dedupe_pair`, `ux_alerts_dedupe`).
-  One concept, two spellings; the comment defending the abbreviation documents a column name that
-  does not exist two paragraphs earlier.
+- **`alerts.dedupe_key` → `deduplication_key`: REVERSED during execution.** The column-width
+  parity gate rejected the rename: `alerts` would put `deduplication_key` at 512 (sized for the
+  generated template) beside the caller-supplied `jobs.deduplication_key` at 128, and one name
+  meaning two widths is the exact drift the gate exists to block. The column stays `dedupe_key`
+  with a comment citing the gate; the operator-facing spelling is handled at the mapping layer
+  instead — `AlertsView` aliases `a.dedupe_key AS deduplication_key`, the same precedent as the
+  definitions view's inverted aliases below.
 - **Definitions override columns stay `{base}_override` / `{base}_effective`** — the audit's
   `_override_code` rename was considered and reversed: the current columns follow the table's own
   composition rule (`runbook_url_override`, `max_attempts_override`), and inverting only the coded

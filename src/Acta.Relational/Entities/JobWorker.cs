@@ -12,8 +12,12 @@ namespace Acta.Relational.Entities;
 /// </summary>
 [DbTable("workers")]
 [DbPrimaryKey(Name = "pk_workers", Columns = ["id"])]
-[DbIndex(Name = "ix_workers_namespace_status_lastseen", Columns = ["namespace_id", "status_code", "last_seen_at_utc"], Usage = "dashboard")]
-[DbIndex(Name = "ix_workers_status_lastseen", Columns = ["status_code", "last_seen_at_utc"], Usage = "maintenance")]
+[DbIndex(
+    Name = "ix_workers_namespace_status_last_seen",
+    Columns = ["namespace_id", "status_code", "last_seen_at_utc"],
+    Usage = "dashboard"
+)]
+[DbIndex(Name = "ix_workers_status_last_seen", Columns = ["status_code", "last_seen_at_utc"], Usage = "maintenance")]
 [DbIndex(
     Name = "ix_workers_namespace_last_seen",
     Columns = ["namespace_id", "last_seen_at_utc", "id"],

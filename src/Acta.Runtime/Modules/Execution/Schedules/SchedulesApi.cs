@@ -53,7 +53,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         var jobNextRun = ScheduleWalker.RecomputeSlotMin(simulated, ctx.NowUtc);
 
         var outcome = await store.PauseScheduleAsync(
-            new PauseScheduleCommand(ctx.JobId, ctx.Target.Name, untilUtc, jobNextRun, Operator(actorKey), Note(reasonMessage)),
+            new PauseScheduleCommand(ctx.JobId, ctx.Target.Name, untilUtc, jobNextRun, Operator(actorKey), RowReason(reasonMessage)),
             ct
         );
         await PublishScheduleWakeAsync(jobNextRun, outcome.Action, ct);
@@ -91,7 +91,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         var jobNextRun = ScheduleWalker.RecomputeSlotMin(simulated, ctx.NowUtc);
 
         var outcome = await store.ResumeScheduleAsync(
-            new ResumeScheduleCommand(ctx.JobId, ctx.Target.Name, reconciled, jobNextRun, Operator(actorKey), Note(reasonMessage)),
+            new ResumeScheduleCommand(ctx.JobId, ctx.Target.Name, reconciled, jobNextRun, Operator(actorKey), RowReason(reasonMessage)),
             ct
         );
         await PublishScheduleWakeAsync(jobNextRun, outcome.Action, ct);
@@ -145,7 +145,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
                 expectedVersion,
                 expression,
                 timeZoneId,
-                Note(reasonMessage),
+                RowReason(reasonMessage),
                 scheduleNextRun,
                 jobNextRun,
                 Operator(actorKey),
@@ -171,7 +171,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
 
         // The authoritative paused/in-flight guards live in trigger_schedule_now itself; no C#
         // short-circuit here keeps a single source of truth for transition legality.
-        var reason = (reasonMessage is null ? ctx.Target.Name : $"{ctx.Target.Name}: {Note(reasonMessage)}").Truncate(
+        var reason = (reasonMessage is null ? ctx.Target.Name : $"{ctx.Target.Name}: {RowReason(reasonMessage)}").Truncate(
             ActaTextLimits.ReasonMessage
         )!;
         var outcome = await store.TriggerScheduleNowAsync(
@@ -297,7 +297,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     private static List<LiveSchedule> Simulate(IReadOnlyList<LiveSchedule> live, long targetId, Func<LiveSchedule, LiveSchedule> change) =>
         [.. live.Select(s => s.Id == targetId ? change(s) : s)];
 
-    private static string? Note(string? reasonMessage) => reasonMessage.Truncate(ActaTextLimits.ScheduleNote);
+    private static string? RowReason(string? reasonMessage) => reasonMessage.Truncate(ActaTextLimits.ScheduleReasonMessage);
 
     // Mirrors the [JobSchedule] registration path's validation, restricted to the schedule's existing
     // kind (expression_kind_code carries no override, so an operator override cannot switch Cron<->interval).

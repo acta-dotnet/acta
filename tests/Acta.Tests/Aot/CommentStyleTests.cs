@@ -69,7 +69,7 @@ public sealed partial class CommentStyleTests
     // scrub tightens the policy; never add a file for plain narration.
     private static readonly HashSet<string> InternalRemarksAllowlist = Allow(
         "src/Acta.Relational/Entities/JobStep.cs",
-        "src/Acta.Relational/Entities/Lease.cs",
+        "src/Acta.Relational/Entities/Lock.cs",
         "src/Acta.Relational/Entities/JobResult.cs",
         "src/Acta.Relational/Entities/JobCheckpoint.cs",
         "src/Acta.Runtime/Modules/Execution/StepOwnershipLostException.cs",

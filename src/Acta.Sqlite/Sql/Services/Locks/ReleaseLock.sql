@@ -1,3 +1,3 @@
-DELETE FROM {{schema}}.leases
-WHERE lease_key = @p_lease_key AND version = @p_version
-RETURNING version;
+DELETE FROM {{schema}}.locks
+WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token
+RETURNING hold_token;

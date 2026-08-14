@@ -4,17 +4,18 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using Lock = Acta.Relational.Entities.Lock;
 
 namespace Acta.Tests.Conformance.Features.Locks;
 
 /// <summary>
 /// Conformance for <c>ReleaseLock</c> - the version-CAS DELETE that backs
 /// <c>ILockStore.ReleaseAsync</c>. Releasing a held lock removes the lease row and makes the key
-/// re-acquirable; releasing an already-released token is a version-CAS miss that returns false.
+/// re-acquirable; releasing an already-released token is a token-CAS miss that returns false.
 /// </summary>
 /// <remarks>
 /// The row-absence assert is load-bearing: release must DELETE, not expire the row in place.
-/// Exclusive-key mutexes put arbitrary per-job user strings into <c>lease_key</c>, so a release
+/// Exclusive-key mutexes put arbitrary per-job user strings into <c>lock_key</c>, so a release
 /// that keeps the row turns this table from O(currently held) into O(keys used per retention
 /// window) - the order of the jobs table itself under an exclusive-key workload, bloating a
 /// claim-path table until the reap catches up. Near-emptiness by construction is the table's
@@ -54,10 +55,10 @@ public abstract class ReleaseLockSpec<TFixture> : ActaStorageTestBase<TFixture>
         // Gone, not expired in place: the query carries no expiry filter, so an expire-style
         // release would still return the row and fail here. See the class remarks for why
         // absence (table stays O(currently held)) is the contract.
-        var lease = await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct);
+        var lease = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.Null(lease);
 
-        // Releasing again with the same (now-stale) token is a version-CAS miss.
+        // Releasing again with the same (now-stale) token is a token-CAS miss.
         Assert.False(await lockStore.ReleaseAsync(token.Value, ct));
 
         // Key is free: a new acquire succeeds.

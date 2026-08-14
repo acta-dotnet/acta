@@ -91,7 +91,7 @@ internal sealed record PauseScheduleCommand(
     DateTime? PausedUntilUtc,
     DateTime? JobNextRunAtUtc,
     JobControlActor Actor,
-    string? Note
+    string? ReasonMessage
 );
 
 /// <summary>Validated resume; <c>ScheduleNextRunAtUtc</c> is the C#-reconciled per-schedule cursor.</summary>
@@ -101,7 +101,7 @@ internal sealed record ResumeScheduleCommand(
     DateTime? ScheduleNextRunAtUtc,
     DateTime? JobNextRunAtUtc,
     JobControlActor Actor,
-    string? Note
+    string? ReasonMessage
 );
 
 /// <summary>
@@ -115,11 +115,11 @@ internal sealed record SetScheduleOverridesCommand(
     int ExpectedVersion,
     string? Expression,
     string? TimeZoneId,
-    string? Note,
+    string? ReasonMessage,
     DateTime? ScheduleNextRunAtUtc,
     DateTime? JobNextRunAtUtc,
     JobControlActor Actor,
-    string? ReasonMessage
+    string? ChangeSummary
 );
 
 /// <summary>Validated manual fire; <c>ReasonMessage</c> is the schedule name plus any operator note.</summary>

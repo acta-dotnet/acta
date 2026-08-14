@@ -8,6 +8,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
+using Lock = Acta.Relational.Entities.Lock;
 
 namespace Acta.Tests.Conformance.Scenarios;
 
@@ -263,8 +264,8 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
             // The reap is global (leases has no namespace), so a concurrent spec's purge may sweep the
             // dead row first and leave this call's count at 0 - assert only the per-key outcome.
-            Assert.Null(await Db.From<Lease>().Where(l => l.LeaseKey == deadKey).SingleOrDefaultAsync(ct));
-            Assert.NotNull(await Db.From<Lease>().Where(l => l.LeaseKey == liveKey).SingleOrDefaultAsync(ct));
+            Assert.Null(await Db.From<Lock>().Where(l => l.LockKey == deadKey).SingleOrDefaultAsync(ct));
+            Assert.NotNull(await Db.From<Lock>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
         }
         finally
         {
@@ -401,7 +402,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
                 var remaining = new List<string>();
                 foreach (var key in deadKeys)
                 {
-                    if (await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct) is not null)
+                    if (await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct) is not null)
                     {
                         remaining.Add(key);
                     }
@@ -413,7 +414,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
                 Assert.True(attempt < 10, "expired locks never drained: " + string.Join(", ", remaining));
                 await Task.Delay(100, ct);
             }
-            Assert.NotNull(await Db.From<Lease>().Where(l => l.LeaseKey == liveKey).SingleOrDefaultAsync(ct));
+            Assert.NotNull(await Db.From<Lock>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
         }
         finally
         {

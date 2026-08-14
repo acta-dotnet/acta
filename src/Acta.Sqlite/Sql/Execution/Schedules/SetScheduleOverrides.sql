@@ -48,7 +48,7 @@ SELECT
     NULL,
     NULL,
     NULL,
-    @p_reason_message
+    @p_change_summary
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
@@ -61,7 +61,7 @@ SET
     expression_override = @p_expression,
     time_zone_id_override = @p_time_zone_id,
     next_run_at_utc = @p_schedule_next_run_at_utc,
-    note = @p_note,
+    reason_message = @p_reason_message,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE

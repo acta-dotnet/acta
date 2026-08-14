@@ -116,13 +116,13 @@ CREATE TABLE {{schema}}.definitions (
     , CONSTRAINT ck_definitions_status_code CHECK (status_code IN (10, 240))
     , CONSTRAINT ck_definitions_tenant_requirement_code CHECK (tenant_requirement_code IN (0, 10, 20))
     , CONSTRAINT ck_definitions_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
-    , CONSTRAINT ck_definitions_priority_code_override_code CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
+    , CONSTRAINT ck_definitions_priority_code_override CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
     , CONSTRAINT ck_definitions_deadline_behavior_code CHECK (deadline_behavior_code IN (10, 20))
-    , CONSTRAINT ck_definitions_deadline_behavior_code_override_code CHECK (deadline_behavior_code_override IS NULL OR deadline_behavior_code_override IN (10, 20))
+    , CONSTRAINT ck_definitions_deadline_behavior_code_override CHECK (deadline_behavior_code_override IS NULL OR deadline_behavior_code_override IN (10, 20))
     , CONSTRAINT ck_definitions_audit_level_code CHECK (audit_level_code IN (0, 10, 20))
-    , CONSTRAINT ck_definitions_audit_level_code_override_code CHECK (audit_level_code_override IS NULL OR audit_level_code_override IN (0, 10, 20))
+    , CONSTRAINT ck_definitions_audit_level_code_override CHECK (audit_level_code_override IS NULL OR audit_level_code_override IN (0, 10, 20))
     , CONSTRAINT ck_definitions_alert_profile_code CHECK (alert_profile_code IN (0, 10, 20, 30, 40))
-    , CONSTRAINT ck_definitions_alert_profile_code_override_code CHECK (alert_profile_code_override IS NULL OR alert_profile_code_override IN (0, 10, 20, 30, 40))
+    , CONSTRAINT ck_definitions_alert_profile_code_override CHECK (alert_profile_code_override IS NULL OR alert_profile_code_override IN (0, 10, 20, 30, 40))
 );
 CREATE UNIQUE INDEX ux_definitions_namespace_name ON {{schema}}.definitions (namespace_id, name);
 END
@@ -197,19 +197,17 @@ CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_i
 END
 GO
 
--- Lease
-IF OBJECT_ID(N'{{schema}}.leases', N'U') IS NULL
+-- Lock
+IF OBJECT_ID(N'{{schema}}.locks', N'U') IS NULL
 BEGIN
-CREATE TABLE {{schema}}.leases (
-    lease_key varchar(256) NOT NULL,
-    kind_code tinyint NOT NULL,
+CREATE TABLE {{schema}}.locks (
+    lock_key varchar(256) NOT NULL,
     job_id bigint NOT NULL,
     expires_at_utc datetime2(3) NOT NULL,
-    version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_leases PRIMARY KEY (lease_key)
-    , CONSTRAINT ck_leases_kind_code CHECK (kind_code IN (10))
+    hold_token uniqueidentifier NOT NULL
+    , CONSTRAINT pk_locks PRIMARY KEY (lock_key)
 );
-CREATE INDEX ix_leases_reclaim_expired ON {{schema}}.leases (kind_code, expires_at_utc);
+CREATE INDEX ix_locks_reclaim_expired ON {{schema}}.locks (expires_at_utc);
 END
 GO
 
@@ -311,7 +309,7 @@ CREATE TABLE {{schema}}.schedules (
     status_code tinyint NOT NULL,
     paused_until_utc datetime2(3) NULL,
     description nvarchar(512) NULL,
-    note nvarchar(512) NULL,
+    reason_message nvarchar(512) NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     version int DEFAULT 0 NOT NULL
@@ -442,8 +440,8 @@ CREATE TABLE {{schema}}.workers (
     , CONSTRAINT ck_workers_status_code CHECK (status_code IN (10, 80, 100, 200))
     , CONSTRAINT fk_workers_namespaces FOREIGN KEY (namespace_id) REFERENCES {{schema}}.namespaces (id)
 );
-CREATE INDEX ix_workers_namespace_status_lastseen ON {{schema}}.workers (namespace_id, status_code, last_seen_at_utc);
-CREATE INDEX ix_workers_status_lastseen ON {{schema}}.workers (status_code, last_seen_at_utc);
+CREATE INDEX ix_workers_namespace_status_last_seen ON {{schema}}.workers (namespace_id, status_code, last_seen_at_utc);
+CREATE INDEX ix_workers_status_last_seen ON {{schema}}.workers (status_code, last_seen_at_utc);
 CREATE INDEX ix_workers_namespace_last_seen ON {{schema}}.workers (namespace_id, last_seen_at_utc DESC, id DESC);
 END
 GO
@@ -603,7 +601,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'init-extensible-status-v1', '{{schema}}');
+VALUES (0, 'init-locks-hold-token-v1', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

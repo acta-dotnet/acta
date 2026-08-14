@@ -754,6 +754,18 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
+        // set_schedule_overrides audit text: the rendered what-changed summary written to
+        // events.reason_message. A separate parameter from p_reason_message, which carries the
+        // operator's justification into schedules.reason_message on the same command.
+        public static readonly DbValueSpec<string?> ChangeSummary = new(
+            ParameterName: "p_change_summary",
+            Kind: DbKind.UnicodeString,
+            Size: 512,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         // set_schedule_overrides: the target schedule's own cursor, recomputed in C# from the new
         // effective expression/time zone (distinct from p_job_next_run_at_utc, the owning slot's MIN).
         public static readonly DbValueSpec<DateTime?> ScheduleNextRunAtUtc = new(

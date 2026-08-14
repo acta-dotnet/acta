@@ -70,10 +70,10 @@ public class JobContextDeadlineTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        protected override Task<int?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
+        protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        protected override Task ReleaseLockCoreAsync(string key, LockScope scope, int version, CancellationToken ct) =>
+        protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct) =>
             throw new NotSupportedException();
 
         protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)

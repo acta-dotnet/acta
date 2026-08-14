@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.resume_schedule(
     p_job_next_run_at_utc TIMESTAMPTZ,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
-    p_note VARCHAR
+    p_reason_message VARCHAR
 )
 RETURNS TABLE (
     out_action SMALLINT, out_status_code SMALLINT, out_paused_until_utc TIMESTAMPTZ, out_next_run_at_utc TIMESTAMPTZ, out_version INT
@@ -57,7 +57,7 @@ BEGIN
         status_code = 10 /* ScheduleStatusCode.Active */,
         paused_until_utc = NULL,
         next_run_at_utc = p_next_run_at_utc,
-        note = p_note,
+        reason_message = p_reason_message,
         modified_at_utc = now(),
         version = version + 1
     WHERE id = v_schedule_id

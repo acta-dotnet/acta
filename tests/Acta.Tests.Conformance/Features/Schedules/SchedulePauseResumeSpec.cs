@@ -283,7 +283,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
 
         var seeded = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(description, seeded.Description);
-        Assert.Null(seeded.Note);
+        Assert.Null(seeded.ReasonMessage);
 
         await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "operator drain", ct: ct);
 
@@ -293,7 +293,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
 
         var resynced = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(description, resynced.Description); // description keeps tracking the attribute
-        Assert.Equal("operator drain", resynced.Note); // the operator note survives the re-sync
+        Assert.Equal("operator drain", resynced.ReasonMessage); // the operator note survives the re-sync
     }
 
     [Fact(DisplayName = "Pause and resume emit audit events against the slot job")]

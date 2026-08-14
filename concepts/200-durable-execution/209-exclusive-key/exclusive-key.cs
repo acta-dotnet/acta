@@ -71,10 +71,10 @@ await lab.ShowAsync(
     new { ownerJobId, competitorJobId }
 );
 await lab.ShowAsync(
-    "The exclusive key is a named lease owned by the running job",
+    "The exclusive key is a named lock owned by the running job",
     """
-    SELECT lease_key, job_id, expires_at_utc, version
-    FROM {{schema}}.leases
+    SELECT lock_key, job_id, expires_at_utc, hold_token
+    FROM {{schema}}.locks
     WHERE job_id = @ownerJobId
     """,
     new { ownerJobId }

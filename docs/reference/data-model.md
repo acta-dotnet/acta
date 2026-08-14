@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **225 columns**, **29 indexes**, **27 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **224 columns**, **29 indexes**, **27 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -13,7 +13,7 @@ Structural reference for the Acta persistence model: **15 entities**, **225 colu
 | [`acta.definitions`](#entity-acta-definitions) | The live job policy: one row per definition, the single source of truth for every per-job policy. | [`JobDefinitionStatusCode`](./code-families.md#code-family-jobdefinitionstatuscode), [`JobTenantRequirementCode`](./code-families.md#code-family-jobtenantrequirementcode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode), [`DeadlineBehaviorCode`](./code-families.md#code-family-deadlinebehaviorcode), [`JobAuditLevelCode`](./code-families.md#code-family-jobauditlevelcode), [`AlertProfileCode`](./code-families.md#code-family-alertprofilecode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.events`](#entity-acta-events) | Append-only lifecycle timeline and execution ledger. | [`EventCode`](./code-families.md#code-family-eventcode), [`ActorCode`](./code-families.md#code-family-actorcode), [`JobStatusCode`](./code-families.md#code-family-jobstatuscode), [`ExecutionStatusCode`](./code-families.md#code-family-executionstatuscode), [`JobEventReasonCode`](./code-families.md#code-family-jobeventreasoncode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.jobs`](#entity-acta-jobs) | One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. | [`JobAuditLevelCode`](./code-families.md#code-family-jobauditlevelcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
-| [`acta.leases`](#entity-acta-leases) | One row per held named lock in the `leases` table, discriminated by `Kind`: `Lock` rows back both the handler-facing `JobContext.RunWithLock` and the `exclusive_key` execution mutex the runner takes after claim; execution ownership/TTL lives on the `runtimes` row. | [`LeaseKindCode`](./code-families.md#code-family-leasekindcode) |
+| [`acta.locks`](#entity-acta-locks) | One row per held named lock in the `locks` table: the rows behind both the handler-facing `JobContext.RunWithLockAsync` and the `exclusive_key` execution mutex the runner takes after claim. | · |
 | [`acta.namespaces`](#entity-acta-namespaces) | Service-owned execution boundary. | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) |
 | [`acta.results`](#entity-acta-results) | Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite `(JobId, ExecutionNumber)`. | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.runtimes`](#entity-acta-runtimes) | The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, split out so claim/complete churn never rewrites the append-mostly identity/input row. | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) |
@@ -37,7 +37,7 @@ One materialized alert. Rows carrying a non-null `DedupeKey` collapse repeats in
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
 | `id`<a id="column-acta-alerts--id"></a> | `Int64` | · | no | `Identity` | PK | Alert row identifier. |
-| `namespace_id`<a id="column-acta-alerts--namespace-id"></a> | `Int16` | · | no | · | · | Scope of the dedupe window; alerts collapse onto one row per `(namespace_id, deduplication_key, dedupe_window_start_utc)`. |
+| `namespace_id`<a id="column-acta-alerts--namespace-id"></a> | `Int16` | · | no | · | · | Scope of the dedupe window; alerts collapse onto one row per `(namespace_id, dedupe_key, dedupe_window_start_utc)`. |
 | `job_id`<a id="column-acta-alerts--job-id"></a> | `Int64` | · | yes | · | · | Job that triggered the alert. No FK; SP-side validation. Operators reach the definition via `job.definition_id`. |
 | `job_ref`<a id="column-acta-alerts--job-ref"></a> | `Guid` | · | yes | · | · | Public ref of the Job that triggered the alert, denormalized at write so the alert stays publicly addressable after Job purge. NULL when `JobId` is null. |
 | `origin_code`<a id="column-acta-alerts--origin-code"></a> | `Byte` | · | no | · | [`AlertOriginCode`](./code-families.md#code-family-alertorigincode) (`alert-origin`) | Origin of the alert (`Automatic` / `Manual`); shapes the deduplication-key default and audit attribution. |
@@ -46,7 +46,7 @@ One materialized alert. Rows carrying a non-null `DedupeKey` collapse repeats in
 | `title`<a id="column-acta-alerts--title"></a> | `UnicodeString` | 512 | no | · | · | Short headline for delivery channels. |
 | `message`<a id="column-acta-alerts--message"></a> | `UnicodeString` | 512 | no | · | · | Operator-readable message body; what oncall reads first. Truncated by `MessageTruncator`. |
 | `channel_name`<a id="column-acta-alerts--channel-name"></a> | `AsciiString` | 128 | no | · | · | Channel that delivers this alert; resolved at delivery time, not at write, so there is no enforced FK. |
-| `dedupe_key`<a id="column-acta-alerts--dedupe-key"></a> | `AsciiString` | 512 | yes | · | · | Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null, the unique `(namespace_id, dedupe_key, dedupe_window_start_utc)` index collapses repeats inside the window onto one row; when null, every call inserts a fresh row. Sized for the Automatic-origin default template `auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}`. Deliberately not named `deduplication_key`: unlike the caller-supplied `jobs.deduplication_key` (128, an idempotency key), this one is composed by Acta and sized for the generated template. |
+| `dedupe_key`<a id="column-acta-alerts--dedupe-key"></a> | `AsciiString` | 512 | yes | · | · | Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null, the unique `(namespace_id, dedupe_key, dedupe_window_start_utc)` index collapses repeats inside the window onto one row; when null, every call inserts a fresh row. Sized for the Automatic-origin default template `auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}` - wider than the caller-supplied `jobs.dedupe_key` (128) because Acta composes this one; the concept is the same deduplication both spell. |
 | `dedupe_window_start_utc`<a id="column-acta-alerts--dedupe-window-start-utc"></a> | `UtcInstant` | · | yes | · | · | Window-bucket start aligned to the fixed one-hour dedupe window; that window IS the rate limit. NULL when `DedupeKey` is null (no dedupe). |
 | `occurrence_count`<a id="column-acta-alerts--occurrence-count"></a> | `Int32` | · | no | · | · | How many times this alert condition has fired within the dedupe window. Seeded to 1 by the alert-emitting operation on first insert (no server default); increments on repeat. |
 | `resolved_at_utc`<a id="column-acta-alerts--resolved-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the underlying condition cleared (recovery instant). NULL means the alert is still unresolved and is the single source of truth for resolution. Set by `complete_execution` when a previously-failed Job's next execution succeeds; cleared back to NULL when a re-failure inside the same dedupe window re-opens the row. |
@@ -291,27 +291,26 @@ One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input 
 
 ---
 
-### `acta.leases` <a id="entity-acta-leases"></a>
+### `acta.locks` <a id="entity-acta-locks"></a>
 
-One row per held named lock in the `leases` table, discriminated by `Kind`: `Lock` rows back both the handler-facing `JobContext.RunWithLock` and the `exclusive_key` execution mutex the runner takes after claim; execution ownership/TTL lives on the `runtimes` row. Lifecycle is `ExpiresAtUtc` alone (no status column): held while ahead of now. Acquire is a steal-on-expiry upsert (a contended acquire succeeds only on an expired row, rewriting the holder and bumping `Version`); release DELETEs the row; abandoned lock rows are swept by the `sys.retention` reap. `Version` is a per-hold CAS token: acquire returns it, release and steal guard on it (`WHERE lease_key = @k AND version = @mine`) so a holder stolen from never frees its successor's lock. `LeaseKey` is an opaque discriminator-segmented composite (`{namespace_id}.lock.{key}`, `global.lock.{key}`, `{namespace_id}.excl.{key}`) so the lock spaces never collide on identical user text; keying on namespace id keeps the key compact and stable across renames.
+One row per held named lock in the `locks` table: the rows behind both the handler-facing `JobContext.RunWithLockAsync` and the `exclusive_key` execution mutex the runner takes after claim. Execution ownership/TTL is not a row here - it lives on the `runtimes` row. Lifecycle is `ExpiresAtUtc` alone (no status column): held while ahead of now. Acquire is a steal-on-expiry upsert; release DELETEs the row - exclusive keys are unbounded per-job user strings, so the table stays O(currently held) by construction (`ReleaseLockSpec` pins that); abandoned rows are swept by the `sys.retention` reap. `HoldToken` is minted fresh per hold and CAS-guards extend and release: unlike a counter, no other hold can ever re-mint it, so a stale holder that slept through a full steal-release-reacquire cycle still cannot free or extend its successor's lock. `LockKey` is an opaque discriminator-segmented composite (`{namespace_id}.lock.{key}`, `global.lock.{key}`, `{namespace_id}.excl.{key}`) so the lock spaces never collide on identical user text; keying on namespace id keeps the key compact and stable across renames.
 
-**CLR type** `Acta.Relational.Entities.Lease` · **Primary key** `pk_leases` (`lease_key`)
+**CLR type** `Acta.Relational.Entities.Lock` · **Primary key** `pk_locks` (`lock_key`)
 
 **Columns**
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `lease_key`<a id="column-acta-leases--lease-key"></a> | `AsciiString` | 256 | no | · | PK | Opaque composite lease identity and primary key. Holds a discriminator-segmented string (`{ns}.lock.{key}` / `global.lock.{key}` / `{ns}.excl.{key}`); never parsed for safety, since keys are compared as whole strings. |
-| `kind_code`<a id="column-acta-leases--kind-code"></a> | `Byte` | · | no | · | [`LeaseKindCode`](./code-families.md#code-family-leasekindcode) (`lease-kind`) | Which lock primitive owns this row; `Lock` is the only kind. The family is deliberately closed: `ck_leases_kind_code` pins the value list, so adding a kind is a migration. That is the deliberate cost, because the retention reap filters on this column (`PurgeExpiredData`, `WHERE kind_code = 10`) - an unrecognized kind would not be a display gap, it would be lease rows that never get reaped. |
-| `job_id`<a id="column-acta-leases--job-id"></a> | `Int64` | · | no | · | · | Job that currently holds (or last held) the lease. No FK; written by the acquire routine for observability ("which job holds this lock"). Release is version-CAS on the PK, not on this column. |
-| `expires_at_utc`<a id="column-acta-leases--expires-at-utc"></a> | `UtcInstant` | · | no | · | · | Instant the current hold expires. Held while ahead of now; free once at or before now (stealable in place via steal-on-expiry). Release deletes the row rather than expiring it. |
-| `version`<a id="column-acta-leases--version"></a> | `Int32` | · | no | `0` | concurrency token | Per-hold CAS token. Set to 1 on a fresh acquire and bumped on each steal-on-expiry; the acquire routine returns it, and release/steal guard on it. Not monotonic across a release: the row is deleted, so the next acquire of the same key restarts at 1. |
+| `lock_key`<a id="column-acta-locks--lock-key"></a> | `AsciiString` | 256 | no | · | PK | Opaque composite lock identity and primary key. Holds a discriminator-segmented string (`{ns}.lock.{key}` / `global.lock.{key}` / `{ns}.excl.{key}`); never parsed for safety, since keys are compared as whole strings. |
+| `job_id`<a id="column-acta-locks--job-id"></a> | `Int64` | · | no | · | · | Job that currently holds (or last held) the lock. No FK; written by the acquire routine for observability ("which job holds this lock"). Release is token-CAS on the PK, not on this column. |
+| `expires_at_utc`<a id="column-acta-locks--expires-at-utc"></a> | `UtcInstant` | · | no | · | · | Instant the current hold expires. Held while ahead of now; free once at or before now (stealable in place via steal-on-expiry). Release deletes the row rather than expiring it. |
+| `hold_token`<a id="column-acta-locks--hold-token"></a> | `Guid` | · | no | · | · | Per-hold CAS token, minted by the caller on every acquire (fresh insert and steal alike). Extend and release guard on it, so only the current holder can do either. |
 
 **Indexes**
 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
-| `ix_leases_reclaim_expired` | `kind_code`, `expires_at_utc` | not unique | none | `lock_reclaim` |
+| `ix_locks_reclaim_expired` | `expires_at_utc` | not unique | none | `lock_reclaim` |
 
 ---
 
@@ -447,8 +446,8 @@ One named recurring schedule attached to a definition's slot Job. The `Origin` r
 | `last_occurrence_at_utc`<a id="column-acta-schedules--last-occurrence-at-utc"></a> | `UtcInstant` | · | yes | · | · | The most recent schedule occurrence this row was advanced past, set to the outgoing `NextRunAtUtc` on every advance. Deliberately an occurrence, not a run: the cursor also moves when the misfire policy skips, so this records the latest schedule point *crossed* rather than a completed execution. NULL until the schedule first advances. Explains why `NextRunAtUtc` holds its current value, and is the only per-schedule history when several schedules share one recurring slot Job. |
 | `status_code`<a id="column-acta-schedules--status-code"></a> | `Byte` | · | no | · | [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) (`schedule-status`) | Lifecycle state and the single source of truth for orphaning. `Active` schedules fire; `Paused` schedules do not and are excluded from the slot's MIN; `Orphaned` is set by catalog reconciliation when the origin declaration disappears, and the walker ignores those rows (`ix_schedules_namespace_next` filters them out). Only `Definition`-origin rows can be orphaned, since no other origin has a descriptor anchor to be orphaned from. An orphaned row that is re-declared resets to `Active`: the pause does not survive, because a schedule that vanished and came back warrants a fresh operator decision. |
 | `paused_until_utc`<a id="column-acta-schedules--paused-until-utc"></a> | `UtcInstant` | · | yes | · | · | When a timed pause expires. NULL means an indefinite pause (resume is operator-driven) or not paused. While set, the slot's cursor includes this instant so the scheduler wakes to auto-resume: the walker flips the row back to `Active` and reconciles the cursor by misfire policy. |
-| `description`<a id="column-acta-schedules--description"></a> | `UnicodeString` | 512 | yes | · | · | Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the attribute sets none. Distinct from `Note`, which is operator-written. |
-| `note`<a id="column-acta-schedules--note"></a> | `UnicodeString` | 512 | yes | · | · | Operator note explaining the change. |
+| `description`<a id="column-acta-schedules--description"></a> | `UnicodeString` | 512 | yes | · | · | Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the attribute sets none. Distinct from `ReasonMessage`, which is operator-written. |
+| `reason_message`<a id="column-acta-schedules--reason-message"></a> | `UnicodeString` | 512 | yes | · | · | Operator-authored justification for the last pause/resume/overrides change: the same reasonMessage text the audit event records, kept on the row so the current state explains itself. |
 | `created_at_utc`<a id="column-acta-schedules--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the schedule row was created. Set server-side. |
 | `modified_at_utc`<a id="column-acta-schedules--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | Last write of any kind. Drives the per-namespace reload tick. |
 | `version`<a id="column-acta-schedules--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token; SPs manually increment via `SET version = version + 1` on every UPDATE. |
@@ -646,8 +645,8 @@ Worker registration and liveness row. One row per worker process; every `WorkerR
 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
-| `ix_workers_namespace_status_lastseen` | `namespace_id`, `status_code`, `last_seen_at_utc` | not unique | none | `dashboard` |
-| `ix_workers_status_lastseen` | `status_code`, `last_seen_at_utc` | not unique | none | `maintenance` |
+| `ix_workers_namespace_status_last_seen` | `namespace_id`, `status_code`, `last_seen_at_utc` | not unique | none | `dashboard` |
+| `ix_workers_status_last_seen` | `status_code`, `last_seen_at_utc` | not unique | none | `maintenance` |
 | `ix_workers_namespace_last_seen` | `namespace_id`, `last_seen_at_utc` DESC, `id` DESC | not unique | none | `dashboard_grid` |
 
 **Check constraints**

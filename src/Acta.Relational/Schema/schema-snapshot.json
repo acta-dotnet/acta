@@ -657,16 +657,12 @@
         "ForeignKeys": []
       },
       {
-        "Table": "leases",
-        "PrimaryKey": "pk_leases(lease_key)|manual=False|seq=False",
+        "Table": "locks",
+        "PrimaryKey": "pk_locks(lock_key)|manual=False|seq=False",
         "Columns": [
           {
-            "Name": "lease_key",
+            "Name": "lock_key",
             "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "kind_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=lease-kind|values=10"
           },
           {
             "Name": "job_id",
@@ -677,14 +673,14 @@
             "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Name": "hold_token",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
           }
         ],
         "Indexes": [
           {
-            "Name": "ix_leases_reclaim_expired",
-            "Signature": "I|cols=kind_code,expires_at_utc|inc=|desc=|filter="
+            "Name": "ix_locks_reclaim_expired",
+            "Signature": "I|cols=expires_at_utc|inc=|desc=|filter="
           }
         ],
         "Checks": [],
@@ -944,7 +940,7 @@
             "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "note",
+            "Name": "reason_message",
             "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
           },
           {
@@ -1298,11 +1294,11 @@
             "Signature": "I|cols=namespace_id,last_seen_at_utc,id|inc=|desc=last_seen_at_utc,id|filter="
           },
           {
-            "Name": "ix_workers_namespace_status_lastseen",
+            "Name": "ix_workers_namespace_status_last_seen",
             "Signature": "I|cols=namespace_id,status_code,last_seen_at_utc|inc=|desc=|filter="
           },
           {
-            "Name": "ix_workers_status_lastseen",
+            "Name": "ix_workers_status_last_seen",
             "Signature": "I|cols=status_code,last_seen_at_utc|inc=|desc=|filter="
           }
         ],
@@ -2192,17 +2188,6 @@
             "Id": 20,
             "Code": "forbidden",
             "Description": "An explicit TenantKey is rejected and a child never inherits its parent\u0027s tenant; rows always store tenant NULL.",
-            "Lifecycle": "Active"
-          }
-        ]
-      },
-      {
-        "CodeKind": "lease-kind",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "lock",
-            "Description": "Mutual-exclusion lock row; steal-on-expiry acquire, version-CAS release.",
             "Lifecycle": "Active"
           }
         ]

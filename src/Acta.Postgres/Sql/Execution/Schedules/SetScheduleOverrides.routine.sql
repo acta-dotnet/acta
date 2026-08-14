@@ -4,12 +4,12 @@ CREATE OR REPLACE FUNCTION {{schema}}.set_schedule_overrides(
     p_expected_version INT,
     p_expression VARCHAR,
     p_time_zone_id VARCHAR,
-    p_note VARCHAR,
+    p_reason_message VARCHAR,
     p_job_next_run_at_utc TIMESTAMPTZ,
     p_schedule_next_run_at_utc TIMESTAMPTZ,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
-    p_reason_message VARCHAR
+    p_change_summary VARCHAR
 )
 RETURNS TABLE (
     out_action SMALLINT, out_status_code SMALLINT, out_paused_until_utc TIMESTAMPTZ, out_next_run_at_utc TIMESTAMPTZ, out_version INT
@@ -66,7 +66,7 @@ BEGIN
         expression_override = p_expression,
         time_zone_id_override = p_time_zone_id,
         next_run_at_utc = p_schedule_next_run_at_utc,
-        note = p_note,
+        reason_message = p_reason_message,
         modified_at_utc = now(),
         version = version + 1
     WHERE id = v_schedule_id
@@ -120,7 +120,7 @@ BEGIN
             NULL,
             NULL,
             NULL,
-            p_reason_message);
+            p_change_summary);
     END IF;
 
     RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;

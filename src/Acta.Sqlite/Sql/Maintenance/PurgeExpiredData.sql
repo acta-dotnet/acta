@@ -66,15 +66,14 @@ DELETE FROM {{schema}}.tags WHERE scope_code = 70 /* TagScopeCode.Worker */ AND 
 DELETE FROM {{schema}}.workers WHERE id IN (SELECT id FROM temp._purge_workers);
 
 CREATE TEMP TABLE _purge_locks AS
-SELECT lease_key
-FROM {{schema}}.leases
+SELECT lock_key
+FROM {{schema}}.locks
 WHERE
-    kind_code = 10 /* LeaseKindCode.Lock */
-    AND expires_at_utc <= {{now}}
+    expires_at_utc <= {{now}}
 ORDER BY expires_at_utc
 LIMIT (@p_batch_size * @p_max_iterations);
 
-DELETE FROM {{schema}}.leases WHERE lease_key IN (SELECT lease_key FROM temp._purge_locks);
+DELETE FROM {{schema}}.locks WHERE lock_key IN (SELECT lock_key FROM temp._purge_locks);
 
 SELECT
     (SELECT COUNT(*) FROM temp._purge_jobs) AS jobs_deleted,

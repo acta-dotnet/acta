@@ -1,4 +1,4 @@
-UPDATE {{schema}}.leases
+UPDATE {{schema}}.locks
 SET expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000
-WHERE lease_key = @p_lease_key AND version = @p_version
-RETURNING version;
+WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token
+RETURNING hold_token;

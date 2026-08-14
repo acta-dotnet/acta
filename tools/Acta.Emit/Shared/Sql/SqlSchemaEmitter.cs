@@ -124,8 +124,9 @@ internal static class SqlSchemaEmitter
         }
 
         // Per-coded-column IN-list CHECK: invalid enum ids fail at the DB layer, not just in C#.
-        // Constraint name dedupes the `_code` suffix if the column already ends in `_code` (the
-        // Acta column convention for code-bearing columns); avoids `_code_code` doubling.
+        // Constraint name dedupes the `_code` suffix if the column already carries a `_code` segment (the
+        // Acta column convention for code-bearing columns, including `{base}_code_override` shapes);
+        // avoids `_code_code` doubling and the `_code_override_code` stutter alike.
         // Skipped for extensible families (the point of Extensible is that new members need no
         // migration) and for generated columns whose every source column already carries the CHECK
         // (COALESCE cannot leave a set both inputs are constrained to).
@@ -137,7 +138,7 @@ internal static class SqlSchemaEmitter
                 continue;
             }
             var predicate = c.IsNullable ? $"{c.Name} IS NULL OR {c.Name} IN ({values})" : $"{c.Name} IN ({values})";
-            var suffix = c.Name.EndsWith("_code", StringComparison.Ordinal) ? "" : "_code";
+            var suffix = c.Name.Contains("_code", StringComparison.Ordinal) ? "" : "_code";
             sb.AppendLine(CultureInfo.InvariantCulture, $"    , CONSTRAINT ck_{e.TableName}_{c.Name}{suffix} CHECK ({predicate})");
         }
 

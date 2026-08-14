@@ -4,6 +4,7 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using Lock = Acta.Relational.Entities.Lock;
 
 namespace Acta.Tests.Conformance.Features.Locks;
 
@@ -36,9 +37,9 @@ public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
         var token = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
         Assert.NotNull(token);
 
-        var lease = await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct);
+        var lease = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.NotNull(lease);
-        Assert.Equal(key, lease!.LeaseKey);
+        Assert.Equal(key, lease!.LockKey);
         Assert.Equal(-1L, lease.JobId);
         Assert.True(lease.ExpiresAtUtc > DateTime.UtcNow);
 
@@ -65,7 +66,7 @@ public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
         // Deterministically expire the lease by back-dating expires_at_utc.
         {
             var expired = DateTime.UtcNow.AddHours(-1);
-            await Db.From<Lease>().Where(l => l.LeaseKey == key).UpdateOnlyAsync(() => new Lease { ExpiresAtUtc = expired }, ct);
+            await Db.From<Lock>().Where(l => l.LockKey == key).UpdateOnlyAsync(() => new Lock { ExpiresAtUtc = expired }, ct);
         }
 
         // A competing acquire on the now-expired lease must succeed (steal). Poll briefly: under SQL Server
@@ -85,7 +86,7 @@ public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
         // steal, in which case TryAcquireAsync re-inserts a fresh lease (version resets) rather than
         // updating it in place.
         {
-            var postSteal = await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct);
+            var postSteal = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
             Assert.NotNull(postSteal);
             Assert.Equal(-2L, postSteal!.JobId);
         }
@@ -93,7 +94,7 @@ public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
         // Token A is stale only when the row was updated in place and the version bumped. If the
         // retention sweep reaped the expired row between the back-date and the competing acquire, the
         // fresh insert can reuse version 1, making token A indistinguishable from token B.
-        if (tokenA!.Value.Version != tokenB!.Value.Version)
+        if (tokenA!.Value.HoldToken != tokenB!.Value.HoldToken)
         {
             Assert.False(await lockStore.ReleaseAsync(tokenA.Value, ct));
         }

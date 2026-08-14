@@ -94,7 +94,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.PausedUntilUtc, command.PausedUntilUtc));
-                AddControlTailParameters(cmd, command.JobNextRunAtUtc, command.Actor, command.Note);
+                AddControlTailParameters(cmd, command.JobNextRunAtUtc, command.Actor, command.ReasonMessage);
             },
             ct
         );
@@ -107,7 +107,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.NextRunAtUtc, command.ScheduleNextRunAtUtc));
-                AddControlTailParameters(cmd, command.JobNextRunAtUtc, command.Actor, command.Note);
+                AddControlTailParameters(cmd, command.JobNextRunAtUtc, command.Actor, command.ReasonMessage);
             },
             ct
         );
@@ -122,12 +122,12 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedScheduleVersion, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleExpressionOverride, command.Expression));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleTimeZoneIdOverride, command.TimeZoneId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Note, command.Note));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.ReasonMessage, command.ReasonMessage));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, command.JobNextRunAtUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleNextRunAtUtc, command.ScheduleNextRunAtUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChangeSummary, command.ChangeSummary));
             },
             ct
         );
@@ -173,6 +173,6 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRunAtUtc));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Note, reasonMessage));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.ReasonMessage, reasonMessage));
     }
 }

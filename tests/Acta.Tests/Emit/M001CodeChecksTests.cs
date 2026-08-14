@@ -67,14 +67,19 @@ public class M001CodeChecksTests
     }
 
     [Fact]
-    public void LeaseKind_stays_closed()
+    public void Locks_carry_a_hold_token_and_no_kind_discriminator()
     {
-        // lease-kind is deliberately NOT extensible: PurgeExpiredData reaps with `WHERE kind_code = 10`,
-        // so a kind an older build cannot recognize would not be a display gap - those lease rows would
-        // simply never be reaped. Adding a kind must therefore cost a migration.
-        Assert.Contains("CONSTRAINT ck_leases_kind_code CHECK (kind_code IN (10))", SqlServerM001, StringComparison.Ordinal);
-        Assert.Contains("CONSTRAINT ck_leases_kind_code CHECK (kind_code IN (10))", PgM001, StringComparison.Ordinal);
-        Assert.Contains("CONSTRAINT ck_leases_kind_code CHECK (kind_code IN (10))", SqliteM001, StringComparison.Ordinal);
+        // 0.9.0 dropped the one-value kind column: the key's middle segment (.lock. / .excl.)
+        // discriminates the spaces, and the reap sweeps the whole table by expiry. A future
+        // primitive re-adds a discriminator additively or gets its own table; this pins that the
+        // baseline does not resurrect the dead column, and that every hold carries its CAS token.
+        foreach (var m001 in new[] { SqlServerM001, PgM001, SqliteM001 })
+        {
+            var locksTable = m001.Split("CREATE TABLE", StringSplitOptions.None)
+                .First(t => t.Contains(".locks (", StringComparison.Ordinal));
+            Assert.DoesNotContain("kind_code", locksTable, StringComparison.Ordinal);
+            Assert.Contains("hold_token", locksTable, StringComparison.Ordinal);
+        }
     }
 
     [Theory]

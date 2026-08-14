@@ -5,7 +5,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.pause_schedule
     @p_job_next_run_at_utc DATETIME2(7),
     @p_actor_code TINYINT,
     @p_actor_key VARCHAR(128),
-    @p_note NVARCHAR(512)
+    @p_reason_message NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -56,7 +56,7 @@ BEGIN
         SET
             status_code = 30 /* ScheduleStatusCode.Paused */,
             paused_until_utc = @p_paused_until_utc,
-            note = @p_note,
+            reason_message = @p_reason_message,
             modified_at_utc = @now,
             version = version + 1
         WHERE id = @schedule_id;

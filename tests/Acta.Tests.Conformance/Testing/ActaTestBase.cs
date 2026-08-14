@@ -70,7 +70,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
 
     /// <summary>
     /// Per-test needle: <c>{name}-{TestId}</c>. Mandatory for GLOBAL keyspaces
-    /// (e.g. <c>leases.lease_key</c>, which carries no namespace); preferred over ad-hoc Guids
+    /// (e.g. <c>locks.lock_key</c>, which carries no namespace); preferred over ad-hoc Guids
     /// anywhere a test needs a unique name (deduplication keys, extra namespaces), since the shared token
     /// makes every row a test leaves behind joinable.
     /// </summary>

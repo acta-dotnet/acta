@@ -551,7 +551,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <24441 chars, sha256:87456F9D>
+    System.String MarkdownReport = <24203 chars, sha256:190FC8E5>
 enum Acta.ControlAction
     Applied = 1
     NotFound = 2
@@ -1060,7 +1060,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task NoteAsync<T>(System.String message, T detail, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task PauseAsync(System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task RaiseAlertCoreAsync(Acta.AlertSeverityCode severityCode, System.String title, System.String message, System.String channelName, System.String deduplicationKey, System.Threading.CancellationToken ct)
-    System.Threading.Tasks.Task ReleaseLockCoreAsync(System.String key, Acta.LockScope scope, System.Int32 version, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.Task ReleaseLockCoreAsync(System.String key, Acta.LockScope scope, System.Guid holdToken, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task RescheduleAsync(System.TimeSpan delay, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task RescheduleUntilAsync(System.DateTimeOffset resumeAtUtc, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ResetStateAsync(System.Threading.CancellationToken ct = default)
@@ -1095,7 +1095,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<System.Boolean> ExistsVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> ExistsVariableCoreAsync(System.String name, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome>> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<System.Int64> childJobIds, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<System.Nullable<System.Int32>> AcquireLockCoreAsync(System.String key, Acta.LockScope scope, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.Task<System.Nullable<System.Guid>> AcquireLockCoreAsync(System.String key, Acta.LockScope scope, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task<System.ValueTuple<System.Boolean, T>> TryGetVariableCoreAsync<T>(System.String name, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>> valueFactory, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<T> valueFactory, System.Threading.CancellationToken ct = default)
@@ -1725,23 +1725,6 @@ sealed class Acta.JsonJobPayloadSerializer
     Acta.JsonJobPayloadSerializer WithResolver(System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver resolver)
     System.Text.Json.JsonSerializerOptions DefaultJsonOptions { get; }
     T Deserialize<T>(Acta.JobPayload payload)
-enum Acta.LeaseKindCode
-    Lock = 10
-static class Acta.LeaseKindCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
-    Acta.LeaseKindCode FromCode(System.String code)
-    Acta.LeaseKindCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte get_ToId(Acta.LeaseKindCode value)
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
-    System.String get_Code(Acta.LeaseKindCode value)
-    System.String get_CodeKind()
-    System.String get_Description(Acta.LeaseKindCode value)
-sealed class Acta.LeaseKindCodeJsonConverter
-    .ctor()
-    Acta.LeaseKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.LeaseKindCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.ListAlertsQuery
     .ctor(System.String JobNamespace = default, System.Nullable<System.Int64> JobId = default, System.Nullable<System.Boolean> UnresolvedOnly = default, System.Nullable<Acta.AlertSeverityCode> SeverityAtLeast = default, System.Nullable<Acta.AlertDeliveryStatusCode> DeliveryStatus = default, System.Nullable<System.Boolean> AcknowledgedOnly = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }

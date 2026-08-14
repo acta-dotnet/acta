@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **31 families**, **166 values**.
+This release: **30 families**, **165 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -54,7 +54,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`JobStatusCode`](#code-family-jobstatuscode) | `job-status` | `byte` | `Jobs` |
 | [`JobStepStatusCode`](#code-family-jobstepstatuscode) | `job-step-status` | `byte` | `Execution` |
 | [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) | `job-tenant-requirement` | `byte` | `Jobs` |
-| [`LeaseKindCode`](#code-family-leasekindcode) | `lease-kind` | `byte` | `Execution` |
 | [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` | `Schedules` |
 | [`NamespaceStatusCode`](#code-family-namespacestatuscode) | `namespace-status` | `byte` | `Namespaces` |
 | [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` | `Outbox` |
@@ -261,12 +260,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Succeeded` | 100 | `succeeded` | Step completed successfully; Result populated (or ResultFormatId = 0 for void steps). | Active |
 | `Exhausted` | 200 | `exhausted` | Step exhausted retry budget; parent handler receives StepExhaustedException. | Active |
 | `Interrupted` | 230 | `interrupted` | At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException. | Active |
-
-#### `LeaseKindCode` · `lease-kind` <a id="code-family-leasekindcode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Lock` | 10 | `lock` | Mutual-exclusion lock row; steal-on-expiry acquire, version-CAS release. | Active |
 
 ### Jobs
 

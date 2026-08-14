@@ -29,5 +29,5 @@ internal static class ActaTextLimits
     public const int AlertTitle = 512;
     public const int AlertMessage = 512;
     public const int DefinitionBackoff = 64;
-    public const int ScheduleNote = 512;
+    public const int ScheduleReasonMessage = 512;
 }

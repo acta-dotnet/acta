@@ -391,7 +391,7 @@ internal sealed class RuntimeJobContext(
         _metrics?.RecordStep(JobNamespace, JobName, outcome);
     }
 
-    protected override async Task<int?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct)
+    protected override async Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct)
     {
         // Capture the request-start BEFORE the acquire: the store stamps the lease no earlier than this
         // instant, so requestStart + TTL is a conservative lower bound on when the lock actually expires.
@@ -404,14 +404,14 @@ internal sealed class RuntimeJobContext(
             // could be stolen mid-section.
             _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());
         }
-        return token?.Version;
+        return token?.HoldToken;
     }
 
     private long LeaseTtlStopwatchTicks() => (long)(_leaseTtlSeconds * (double)Stopwatch.Frequency);
 
-    protected override Task ReleaseLockCoreAsync(string key, LockScope scope, int version, CancellationToken ct)
+    protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
     {
-        var token = new LockToken(ComposeLockKey(key, scope), version);
+        var token = new LockToken(ComposeLockKey(key, scope), holdToken);
         // Untrack before the store release so a heartbeat tick racing this release sees Holds()==false
         // and does not mistake the normal release for a steal.
         _runningAttempt?.UntrackLock(token);

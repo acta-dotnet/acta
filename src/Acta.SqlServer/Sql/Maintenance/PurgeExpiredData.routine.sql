@@ -15,7 +15,7 @@ BEGIN
     DECLARE @rows INT, @iter INT;
     DECLARE @del TABLE (id BIGINT NOT NULL);
     DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
-    DECLARE @lock_del TABLE (lease_key VARCHAR(256) NOT NULL);
+    DECLARE @lock_del TABLE (lock_key VARCHAR(256) NOT NULL);
 
     SET @rows = 1;
     SET @iter = 0;
@@ -149,14 +149,13 @@ BEGIN
         -- Stage the batch first (same shape as the sections above), so the READPAST probe runs
         -- exactly once per iteration and the delete stays within the batch size.
             DELETE @lock_del;
-            INSERT INTO @lock_del (lease_key)
-            SELECT TOP (@p_batch_size) lease_key
-            FROM {{schema}}.leases WITH (UPDLOCK, READPAST)
+            INSERT INTO @lock_del (lock_key)
+            SELECT TOP (@p_batch_size) lock_key
+            FROM {{schema}}.locks WITH (UPDLOCK, READPAST)
             WHERE
-                kind_code = 10 /* LeaseKindCode.Lock */
-                AND expires_at_utc <= @now
+                expires_at_utc <= @now
             ORDER BY expires_at_utc;
-            DELETE t FROM {{schema}}.leases t INNER JOIN @lock_del d ON d.lease_key = t.lease_key;
+            DELETE t FROM {{schema}}.locks t INNER JOIN @lock_del d ON d.lock_key = t.lock_key;
             SET @rows = @@ROWCOUNT;
             SET @locks_deleted = @locks_deleted + @rows;
             SET @iter = @iter + 1;

@@ -1,11 +1,11 @@
 CREATE OR REPLACE FUNCTION {{schema}}.release_lock(
-    p_lease_key VARCHAR,
-    p_version INT
+    p_lock_key VARCHAR,
+    p_hold_token UUID
 )
-RETURNS TABLE (version INT)
+RETURNS TABLE (hold_token UUID)
 LANGUAGE sql
 AS $$
-    DELETE FROM {{schema}}.leases
-    WHERE lease_key = p_lease_key AND version = p_version
-    RETURNING version;
+    DELETE FROM {{schema}}.locks
+    WHERE lock_key = p_lock_key AND hold_token = p_hold_token
+    RETURNING hold_token;
 $$;

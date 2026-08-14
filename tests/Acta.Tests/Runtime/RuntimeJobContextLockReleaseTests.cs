@@ -64,7 +64,7 @@ public sealed class RuntimeJobContextLockReleaseTests
         public int ReleaseCalls { get; private set; }
 
         public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            Task.FromResult<LockToken?>(new LockToken(key, 1));
+            Task.FromResult<LockToken?>(new LockToken(key, Guid.NewGuid()));
 
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 

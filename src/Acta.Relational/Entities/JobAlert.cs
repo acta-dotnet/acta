@@ -52,7 +52,7 @@ internal sealed class JobAlert : IEntity<long>
 
     /// <summary>
     /// Scope of the dedupe window; alerts collapse onto one row per
-    /// <c>(namespace_id, deduplication_key, dedupe_window_start_utc)</c>.
+    /// <c>(namespace_id, dedupe_key, dedupe_window_start_utc)</c>.
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int16)]
     public short NamespaceId { get; init; }
@@ -114,9 +114,9 @@ internal sealed class JobAlert : IEntity<long>
     /// Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null, the unique
     /// <c>(namespace_id, dedupe_key, dedupe_window_start_utc)</c> index collapses repeats inside the
     /// window onto one row; when null, every call inserts a fresh row. Sized for the Automatic-origin
-    /// default template <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c>. Deliberately not
-    /// named <c>deduplication_key</c>: unlike the caller-supplied <c>jobs.deduplication_key</c> (128, an
-    /// idempotency key), this one is composed by Acta and sized for the generated template.
+    /// default template <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c> - wider than
+    /// the caller-supplied <c>jobs.dedupe_key</c> (128) because Acta composes this one; the
+    /// concept is the same deduplication both spell.
     /// </summary>
     [DbColumn("dedupe_key", DbKind.AsciiString, Size = 512)]
     public string? DedupeKey { get; init; }

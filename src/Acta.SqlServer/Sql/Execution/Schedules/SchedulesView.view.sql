@@ -24,7 +24,7 @@ SELECT
     s.last_occurrence_at_utc,
     s.paused_until_utc,
     s.description,
-    s.note,
+    s.reason_message,
     s.created_at_utc,
     s.modified_at_utc,
     s.version

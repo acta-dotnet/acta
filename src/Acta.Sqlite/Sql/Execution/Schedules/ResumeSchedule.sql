@@ -56,7 +56,7 @@ SET
     status_code = 10 /* ScheduleStatusCode.Active */,
     paused_until_utc = NULL,
     next_run_at_utc = @p_next_run_at_utc,
-    note = @p_note,
+    reason_message = @p_reason_message,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE

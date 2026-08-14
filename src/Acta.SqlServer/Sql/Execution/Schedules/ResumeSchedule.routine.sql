@@ -5,7 +5,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.resume_schedule
     @p_job_next_run_at_utc DATETIME2(7),
     @p_actor_code TINYINT,
     @p_actor_key VARCHAR(128),
-    @p_note NVARCHAR(512)
+    @p_reason_message NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -57,7 +57,7 @@ BEGIN
             status_code = 10 /* ScheduleStatusCode.Active */,
             paused_until_utc = NULL,
             next_run_at_utc = @p_next_run_at_utc,
-            note = @p_note,
+            reason_message = @p_reason_message,
             modified_at_utc = @now,
             version = version + 1
         WHERE id = @schedule_id;

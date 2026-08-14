@@ -55,7 +55,7 @@ UPDATE {{schema}}.schedules
 SET
     status_code = 30 /* ScheduleStatusCode.Paused */,
     paused_until_utc = @p_paused_until_utc,
-    note = @p_note,
+    reason_message = @p_reason_message,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE

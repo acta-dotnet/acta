@@ -16,7 +16,7 @@ internal abstract class SqlDdlDialect
     // at bootstrap by SchemaMigrationRunner.RequiredBaselineStamp. The history is not frozen until 1.0,
     // so a re-cut baseline is expected; bump this and that constant together on every `schema reset` so
     // a database built from the previous baseline fails loudly rather than taking a mismatched schema.
-    protected const string BaselineStamp = "init-extensible-status-v1";
+    protected const string BaselineStamp = "init-locks-hold-token-v1";
 
     // Every migration records its plain snake name; the baseline generation identity lives in a
     // dedicated version-0 sentinel row that every full baseline ('init' at any version - a provider

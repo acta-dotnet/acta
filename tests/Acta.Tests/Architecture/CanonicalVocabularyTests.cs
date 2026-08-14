@@ -75,6 +75,11 @@ public sealed class CanonicalVocabularyTests
             "fire-once-" + "catch-up",
             "FireOnce" + "CatchUp",
             "job-deadline-" + "behavior",
+            // 0.9.0 renamed the named-lock table to locks and replaced the recycling version with a
+            // per-hold token; the one-member kind family retired with the kind column.
+            "LeaseKind" + "Code",
+            "lease-" + "kind",
+            "lease_" + "key",
         };
 
         var root = IntegrationConfig.FindRepoRoot();

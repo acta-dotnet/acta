@@ -4,12 +4,12 @@ CREATE OR ALTER PROCEDURE {{schema}}.set_schedule_overrides
     @p_expected_version INT,
     @p_expression VARCHAR(128),
     @p_time_zone_id VARCHAR(128),
-    @p_note NVARCHAR(512),
+    @p_reason_message NVARCHAR(512),
     @p_job_next_run_at_utc DATETIME2(7),
     @p_schedule_next_run_at_utc DATETIME2(7),
     @p_actor_code TINYINT,
     @p_actor_key VARCHAR(128),
-    @p_reason_message NVARCHAR(512)
+    @p_change_summary NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -78,7 +78,7 @@ BEGIN
             expression_override = @p_expression,
             time_zone_id_override = @p_time_zone_id,
             next_run_at_utc = @p_schedule_next_run_at_utc,
-            note = @p_note,
+            reason_message = @p_reason_message,
             modified_at_utc = @now,
             version = version + 1
         WHERE id = @schedule_id;
@@ -125,7 +125,7 @@ BEGIN
                     NULL,
                     NULL, NULL,
                     NULL, NULL,
-                    NULL, @p_reason_message
+                    NULL, @p_change_summary
                 );
             END
 
