@@ -9,77 +9,92 @@ namespace Acta.Testing.Diagnostics;
 /// Exception thrown by Scenario Studio drive and assertion helpers. The message includes a compact
 /// dump of the pinned job's current state so failures stay useful in any test framework.
 /// </summary>
-public sealed class ScenarioAssertionException(string message) : Exception(message) { }
+public sealed class ScenarioAssertionException : Exception
+{
+    public ScenarioAssertionException(string message)
+        : base(message) { }
 
-/// <summary>Testing snapshot of one pinned job.</summary>
-public sealed record ScenarioJobSnapshot(
-    long JobId,
-    JobRef JobRef,
-    string Namespace,
-    string JobName,
-    JobStatusCode Status,
-    JobPriorityCode Priority,
-    int ExecutionNumber,
-    short FailureCount,
-    DateTime? NextRunAtUtc,
-    int? LeasedByWorkerId,
-    DateTime? LeaseExpiresAtUtc,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc,
-    long? ParentJobId,
-    long? LineageRootId,
-    string? DeduplicationKey,
-    string? CorrelationKey,
-    string? ExclusiveKey
-);
+    public ScenarioAssertionException(string message, Exception? innerException)
+        : base(message, innerException) { }
+}
 
-/// <summary>Testing snapshot of one job timeline event.</summary>
-public sealed record ScenarioEventSnapshot(
-    long EventId,
-    EventCode EventCode,
-    DateTime CreatedAtUtc,
-    string Namespace,
-    long? JobId,
-    int? ExecutionNumber,
-    ActorCode ActorCode,
-    string? ActorKey,
-    JobStatusCode? FromStatus,
-    JobStatusCode? ToStatus,
-    ExecutionStatusCode? ExecutionStatus,
-    int? DurationMs,
-    JobEventReasonCode? ReasonCode,
-    string? ReasonMessage,
-    string? DetailText
-);
+/// <summary>
+/// Testing snapshot of one pinned job. Init-only properties, deliberately not positional: a
+/// snapshot gains fields as the ledger does, and property reads keep that additive, where a
+/// positional record's Deconstruct would source-break every caller on each new field.
+/// </summary>
+public sealed record ScenarioJobSnapshot
+{
+    public required long JobId { get; init; }
+    public required JobRef JobRef { get; init; }
+    public required string Namespace { get; init; }
+    public required string JobName { get; init; }
+    public required JobStatusCode Status { get; init; }
+    public required JobPriorityCode Priority { get; init; }
+    public required int ExecutionNumber { get; init; }
+    public required short FailureCount { get; init; }
+    public required DateTime? NextRunAtUtc { get; init; }
+    public required int? LeasedByWorkerId { get; init; }
+    public required DateTime? LeaseExpiresAtUtc { get; init; }
+    public required DateTime CreatedAtUtc { get; init; }
+    public required DateTime ModifiedAtUtc { get; init; }
+    public required long? ParentJobId { get; init; }
+    public required long? LineageRootId { get; init; }
+    public required string? DeduplicationKey { get; init; }
+    public required string? CorrelationKey { get; init; }
+    public required string? ExclusiveKey { get; init; }
+}
 
-/// <summary>Testing snapshot of one durable step slot.</summary>
-public sealed record ScenarioStepSnapshot(
-    long StepId,
-    long JobId,
-    string Name,
-    JobStepStatusCode Status,
-    short AttemptNumber,
-    DateTime? NextRetryAtUtc,
-    JobEventReasonCode? ReasonCode,
-    string? ReasonMessage,
-    JobPayload? Result,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc,
-    int Version
-);
+/// <summary>Testing snapshot of one job timeline event. Init-only for the same additive-growth reason as <see cref="ScenarioJobSnapshot"/>.</summary>
+public sealed record ScenarioEventSnapshot
+{
+    public required long EventId { get; init; }
+    public required EventCode EventCode { get; init; }
+    public required DateTime CreatedAtUtc { get; init; }
+    public required string Namespace { get; init; }
+    public required long? JobId { get; init; }
+    public required int? ExecutionNumber { get; init; }
+    public required ActorCode ActorCode { get; init; }
+    public required string? ActorKey { get; init; }
+    public required JobStatusCode? FromStatus { get; init; }
+    public required JobStatusCode? ToStatus { get; init; }
+    public required ExecutionStatusCode? ExecutionStatus { get; init; }
+    public required int? DurationMs { get; init; }
+    public required JobEventReasonCode? ReasonCode { get; init; }
+    public required string? ReasonMessage { get; init; }
+    public required string? DetailText { get; init; }
+}
 
-/// <summary>Testing snapshot of one checkpoint slot.</summary>
-public sealed record ScenarioCheckpointSnapshot(
-    long JobId,
-    JobCheckpointKindCode Kind,
-    string Name,
-    JobCheckpointStatusCode? Status,
-    DateTime? DueAtUtc,
-    JobPayload? Value,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc,
-    int Version
-);
+/// <summary>Testing snapshot of one durable step slot. Init-only for the same additive-growth reason as <see cref="ScenarioJobSnapshot"/>.</summary>
+public sealed record ScenarioStepSnapshot
+{
+    public required long StepId { get; init; }
+    public required long JobId { get; init; }
+    public required string Name { get; init; }
+    public required JobStepStatusCode Status { get; init; }
+    public required short AttemptNumber { get; init; }
+    public required DateTime? NextRetryAtUtc { get; init; }
+    public required JobEventReasonCode? ReasonCode { get; init; }
+    public required string? ReasonMessage { get; init; }
+    public required JobPayload? Result { get; init; }
+    public required DateTime CreatedAtUtc { get; init; }
+    public required DateTime ModifiedAtUtc { get; init; }
+    public required int Version { get; init; }
+}
+
+/// <summary>Testing snapshot of one checkpoint slot. Init-only for the same additive-growth reason as <see cref="ScenarioJobSnapshot"/>.</summary>
+public sealed record ScenarioCheckpointSnapshot
+{
+    public required long JobId { get; init; }
+    public required JobCheckpointKindCode Kind { get; init; }
+    public required string Name { get; init; }
+    public required JobCheckpointStatusCode? Status { get; init; }
+    public required DateTime? DueAtUtc { get; init; }
+    public required JobPayload? Value { get; init; }
+    public required DateTime CreatedAtUtc { get; init; }
+    public required DateTime ModifiedAtUtc { get; init; }
+    public required int Version { get; init; }
+}
 
 internal static class ScenarioDiagnostics
 {
@@ -189,74 +204,78 @@ internal static class ScenarioDiagnostics
     }
 
     public static ScenarioJobSnapshot ToScenario(JobDetail snapshot) =>
-        new(
-            snapshot.JobId,
-            snapshot.JobRef,
-            snapshot.JobNamespace,
-            snapshot.JobName,
-            snapshot.Status,
-            snapshot.Priority,
-            snapshot.ExecutionNumber,
-            snapshot.FailureCount,
-            snapshot.NextRunAtUtc,
-            snapshot.LeasedByWorkerId,
-            snapshot.LeaseExpiresAtUtc,
-            snapshot.CreatedAtUtc,
-            snapshot.ModifiedAtUtc,
-            snapshot.ParentJobId,
-            snapshot.LineageRootId,
-            snapshot.DeduplicationKey,
-            snapshot.CorrelationKey,
-            snapshot.ExclusiveKey
-        );
+        new()
+        {
+            JobId = snapshot.JobId,
+            JobRef = snapshot.JobRef,
+            Namespace = snapshot.JobNamespace,
+            JobName = snapshot.JobName,
+            Status = snapshot.Status,
+            Priority = snapshot.Priority,
+            ExecutionNumber = snapshot.ExecutionNumber,
+            FailureCount = snapshot.FailureCount,
+            NextRunAtUtc = snapshot.NextRunAtUtc,
+            LeasedByWorkerId = snapshot.LeasedByWorkerId,
+            LeaseExpiresAtUtc = snapshot.LeaseExpiresAtUtc,
+            CreatedAtUtc = snapshot.CreatedAtUtc,
+            ModifiedAtUtc = snapshot.ModifiedAtUtc,
+            ParentJobId = snapshot.ParentJobId,
+            LineageRootId = snapshot.LineageRootId,
+            DeduplicationKey = snapshot.DeduplicationKey,
+            CorrelationKey = snapshot.CorrelationKey,
+            ExclusiveKey = snapshot.ExclusiveKey,
+        };
 
     public static ScenarioEventSnapshot ToScenario(EventListItem item) =>
-        new(
-            item.JobEventId,
-            item.EventCode,
-            item.CreatedAtUtc,
-            item.JobNamespace,
-            item.JobId,
-            item.ExecutionNumber,
-            item.ActorCode,
-            item.ActorKey,
-            item.FromStatus,
-            item.ToStatus,
-            item.ExecutionStatus,
-            item.DurationMs,
-            item.ReasonCode,
-            item.ReasonMessage,
-            item.DetailText
-        );
+        new()
+        {
+            EventId = item.JobEventId,
+            EventCode = item.EventCode,
+            CreatedAtUtc = item.CreatedAtUtc,
+            Namespace = item.JobNamespace,
+            JobId = item.JobId,
+            ExecutionNumber = item.ExecutionNumber,
+            ActorCode = item.ActorCode,
+            ActorKey = item.ActorKey,
+            FromStatus = item.FromStatus,
+            ToStatus = item.ToStatus,
+            ExecutionStatus = item.ExecutionStatus,
+            DurationMs = item.DurationMs,
+            ReasonCode = item.ReasonCode,
+            ReasonMessage = item.ReasonMessage,
+            DetailText = item.DetailText,
+        };
 
     public static ScenarioStepSnapshot ToScenario(JobStep step) =>
-        new(
-            step.Id,
-            step.JobId,
-            step.Name,
-            step.Status,
-            step.AttemptNumber,
-            step.NextRetryAtUtc,
-            step.ReasonCode,
-            step.ReasonMessage,
-            ToPayload(step.ResultFormatId, step.Result),
-            step.CreatedAtUtc,
-            step.ModifiedAtUtc,
-            step.Version
-        );
+        new()
+        {
+            StepId = step.Id,
+            JobId = step.JobId,
+            Name = step.Name,
+            Status = step.Status,
+            AttemptNumber = step.AttemptNumber,
+            NextRetryAtUtc = step.NextRetryAtUtc,
+            ReasonCode = step.ReasonCode,
+            ReasonMessage = step.ReasonMessage,
+            Result = ToPayload(step.ResultFormatId, step.Result),
+            CreatedAtUtc = step.CreatedAtUtc,
+            ModifiedAtUtc = step.ModifiedAtUtc,
+            Version = step.Version,
+        };
 
     public static ScenarioCheckpointSnapshot ToScenario(JobCheckpoint checkpoint) =>
-        new(
-            checkpoint.JobId,
-            checkpoint.Kind,
-            checkpoint.Name,
-            checkpoint.Status,
-            checkpoint.DueAtUtc,
-            ToPayload(checkpoint.ValueFormatId, checkpoint.Value),
-            checkpoint.CreatedAtUtc,
-            checkpoint.ModifiedAtUtc,
-            checkpoint.Version
-        );
+        new()
+        {
+            JobId = checkpoint.JobId,
+            Kind = checkpoint.Kind,
+            Name = checkpoint.Name,
+            Status = checkpoint.Status,
+            DueAtUtc = checkpoint.DueAtUtc,
+            Value = ToPayload(checkpoint.ValueFormatId, checkpoint.Value),
+            CreatedAtUtc = checkpoint.CreatedAtUtc,
+            ModifiedAtUtc = checkpoint.ModifiedAtUtc,
+            Version = checkpoint.Version,
+        };
 
     private static JobPayload? ToPayload(byte formatId, byte[]? data) =>
         formatId == 0 ? null : JobPayload.FromBytes(JobPayloadFormat.ForId(formatId), data ?? []);

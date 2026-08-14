@@ -72,7 +72,7 @@ public interface IActaTestHost : IAsyncDisposable
 
     /// <summary>
     /// Claim + execute the specific job <paramref name="jobId"/> (by id), retrying a transient claim
-    /// miss under parallel load. Single-worker hosts only; multi-worker hosts use the namespace overload.
+    /// miss under parallel load. Multi-worker hosts route by the job's own namespace.
     /// </summary>
     Task<ActaRunOutcome> RunOnceAsync(long jobId, CancellationToken ct = default);
 
@@ -161,16 +161,25 @@ public static class ActaTestHost
 
         public async Task<ActaRunOutcome> RunOnceAsync(long jobId, CancellationToken ct = default)
         {
-            if (runtimes.Length != 1)
+            if (runtimes.Length == 0)
             {
                 throw new InvalidOperationException(
-                    runtimes.Length == 0
-                        ? "RunOnceAsync requires a worker. Call Run<TManifest>(namespace) in the start callback."
-                        : "RunOnceAsync(jobId) needs a single-worker host; use RunOnceAsync(namespace, ...) to disambiguate."
+                    "RunOnceAsync requires a worker. Call Run<TManifest>(namespace) in the start callback."
                 );
             }
 
-            var outcome = await runtimes[0].RunOnceAsync(jobId, ct);
+            // Multi-worker hosts route by the job's own namespace, so Scenario drive helpers work
+            // regardless of how many Run(...) namespaces the host registered.
+            var runtime =
+                runtimes.Length == 1
+                    ? runtimes[0]
+                    : ResolveRuntime(
+                        (
+                            await Jobs.GetAsync(JobLookup.ById(jobId), ct)
+                            ?? throw new InvalidOperationException($"Job {jobId} does not exist; enqueue it before driving it.")
+                        ).JobNamespace
+                    );
+            var outcome = await runtime.RunOnceAsync(jobId, ct);
             return (ActaRunOutcome)(byte)outcome;
         }
 
@@ -187,7 +196,6 @@ public static class ActaTestHost
             }
 
             var options = provider.GetRequiredService<IOptions<JobsOptions>>().Value;
-            _ = Db;
             var signals = provider.GetRequiredService<ISignalStore>();
             var deadWorkers = await provider
                 .GetRequiredService<IWorkerStore>()

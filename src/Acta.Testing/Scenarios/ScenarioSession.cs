@@ -38,7 +38,7 @@ public class ScenarioSession<TInput>
 
     public string JobName { get; }
 
-    protected IActaTestHost Host { get; }
+    private protected IActaTestHost Host { get; }
 
     public Task<ActaRunOutcome> RunOnceAsync(CancellationToken ct = default) => Host.RunOnceAsync(JobId, ct);
 
@@ -161,7 +161,7 @@ public class ScenarioSession<TInput>
         return checkpoints.OrderBy(c => c.Name, StringComparer.Ordinal).Select(ScenarioDiagnostics.ToScenario).ToList();
     }
 
-    protected Task<ScenarioAssertionException> AssertionFailureAsync(string summary, CancellationToken ct) =>
+    private protected Task<ScenarioAssertionException> AssertionFailureAsync(string summary, CancellationToken ct) =>
         ScenarioDiagnostics.FailureAsync(Host, JobId, summary, ct);
 
     private async Task RunUntilStatusAsync(JobStatusCode expected, string description, int maxTicks, CancellationToken ct)
