@@ -79,7 +79,7 @@ internal static class NextOccurrenceCalculator
     /// <summary>
     /// MisfireStrategy-aware reconciliation for startup / resume / restart. New schedules (null stored
     /// cursor) seed from the first occurrence after now. An un-missed stored cursor (still ahead of
-    /// now) is kept. A missed cursor either fires once now (<see cref="MisfireStrategyCode.FireOnceCatchUp"/>,
+    /// now) is kept. A missed cursor either fires once now (<see cref="MisfireStrategyCode.CatchUpOnce"/>,
     /// keep the past instant so the next fire coalesces all misses) or skips to the first occurrence
     /// after now (<see cref="MisfireStrategyCode.Skip"/>).
     /// </summary>
@@ -99,7 +99,7 @@ internal static class NextOccurrenceCalculator
 
         stored = DateTime.SpecifyKind(stored, DateTimeKind.Utc);
         return stored > DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc) ? stored
-            : misfire == MisfireStrategyCode.FireOnceCatchUp ? stored
+            : misfire == MisfireStrategyCode.CatchUpOnce ? stored
             : FirstAfter(expression, timeZone, kind, stored, nowUtc);
     }
 

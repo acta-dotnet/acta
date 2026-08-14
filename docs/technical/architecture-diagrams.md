@@ -266,7 +266,7 @@ flowchart LR
         Job[("runtimes (status + execution lease)")]
         Worker[("workers (last_seen_at_utc)")]
         Lease[("leases (named locks)")]
-        Event[("events (worker.dead / execution.finished)")]
+        Event[("events (worker.died / execution.finished)")]
     end
 
     subgraph SystemJobs[System maintenance jobs]

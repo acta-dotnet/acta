@@ -5,7 +5,7 @@ namespace Acta.Tests.Attributes;
 /// <summary>
 /// The runtime fallback default for a <c>[JobSchedule]</c> with no explicit misfire is Skip
 /// (forward-only, drop missed occurrences), matching the generator default and the production
-/// scheduler. FireOnceCatchUp is opt-in.
+/// scheduler. CatchUpOnce is opt-in.
 /// </summary>
 public sealed class JobScheduleAttributeTests
 {

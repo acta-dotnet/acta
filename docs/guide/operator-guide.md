@@ -39,7 +39,7 @@ There are exactly two ways a worker process ends, and the terminal status names 
 | Status | What happened | Event and reason |
 |---|---|---|
 | `Stopped = 100` | Exited cleanly through SIGTERM / `IHostedService.StopAsync` | `121 worker.stopped` / `100 worker.clean-shutdown` |
-| `Dead = 200` | Heartbeat went stale past the liveness window; `sys.recovery` flipped it | `122 worker.dead` / `101 worker.heartbeat-stale` |
+| `Dead = 200` | Heartbeat went stale past the liveness window; `sys.recovery` flipped it | `122 worker.died` / `101 worker.heartbeat-stale` |
 
 On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. A worker
 killed outright never reaches the clean path, so it stays `Active` until recovery marks it `Dead` -

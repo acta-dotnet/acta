@@ -989,12 +989,12 @@
   - Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution
 
 ### A handler writes application-authored notes onto the job's own timeline
-- **Contract:** ctx.NoteAsync appends a job.note event carrying the message, the job's denormalized identity, and the optional JSON detail.
+- **Contract:** ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's denormalized identity, and the optional JSON detail.
 - **Arrange:** A probe job calls NoteAsync once without detail and once with a typed detail payload.
 - **Act:** The job runs to completion on a real worker runtime.
-- **Assert:** Two job.note events exist for the job, actor Job, one with a JSON detail body and one with none.
+- **Assert:** Two job.note-recorded events exist for the job, actor Job, one with a JSON detail body and one with none.
 - **Guarantees:**
-  - NoteAsync appends job.note events carrying the message and the optional detail payload
+  - NoteAsync appends job.note-recorded events carrying the message and the optional detail payload
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.RecordJobNoteAsync`
 
@@ -1736,7 +1736,7 @@
 - **Act:** The startup reconcile reads the stored state, reconciles each cell, registers the result, then re-registers the same definition.
 - **Assert:** Every (kind x stored-state x misfire) cell persists the reconciled next-run cursor and re-registration upserts one row without duplicating.
 - **Guarantees:**
-  - Insert persists the misfire-reconciled cursor across new, future, and missed cron and interval cells: new seeds after now, future is kept, Skip advances past now, FireOnceCatchUp keeps the past instant
+  - Insert persists the misfire-reconciled cursor across new, future, and missed cron and interval cells: new seeds after now, future is kept, Skip advances past now, CatchUpOnce keeps the past instant
   - Re-registration upserts the single schedule row and its misfire code rather than duplicating it
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetScheduleStateAsync`
@@ -1848,7 +1848,7 @@
   - Pausing the only schedule system-pauses the slot job and resume re-arms it
   - A timed pause sets the slot wake point to the pause expiry
   - A timed pause with an expiry in the past is rejected
-  - Resume reconciles the cursor by misfire: Skip advances past now and FireOnceCatchUp keeps the past instant
+  - Resume reconciles the cursor by misfire: Skip advances past now and CatchUpOnce keeps the past instant
   - An orphaned schedule cannot be paused or resumed
   - Catalog re-registration preserves operator pause state
   - Orphaning a timed-paused schedule clears the pause deadline along with the status
@@ -2133,10 +2133,10 @@
 ## Workers
 
 ### Stale workers in any namespace are marked Dead by one global sweep
-- **Contract:** MarkDeadWorkers marks every Active worker past the dead-after window Dead across all namespaces and writes each worker.dead event to its own namespace.
+- **Contract:** MarkDeadWorkers marks every Active worker past the dead-after window Dead across all namespaces and writes each worker.died event to its own namespace.
 - **Arrange:** An aged Active worker and a fresh worker exist in one namespace, and another aged worker exists in a second namespace.
 - **Act:** A single MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument.
-- **Assert:** Both aged workers are marked Dead with a worker.dead event in each worker's own namespace while the fresh worker stays Active.
+- **Assert:** Both aged workers are marked Dead with a worker.died event in each worker's own namespace while the fresh worker stays Active.
 - **Guarantees:**
   - One global sweep marks aged workers Dead in every namespace, keeps fresh workers, and attributes each event to the worker's namespace
 - **Store methods:**

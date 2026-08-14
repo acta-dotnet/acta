@@ -111,7 +111,7 @@ public enum EventCode : byte
     JobStateReset = 81,
 
     [Code(
-        "job.note",
+        "job.note-recorded",
         "Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload."
     )]
     JobNoteRecorded = 90,
@@ -152,8 +152,8 @@ public enum EventCode : byte
     [Code("worker.stopped", "Worker process shut down cleanly (Status: Active/Draining to Stopped).")]
     WorkerStopped = 121,
 
-    [Code("worker.dead", "Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead.")]
-    WorkerDead = 122,
+    [Code("worker.died", "Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead.")]
+    WorkerDied = 122,
 
     // ---------- Alert lifecycle ----------
     // job_id carries the alert's job when it has one; the alert id rides reason_message. Always

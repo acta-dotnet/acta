@@ -26,7 +26,7 @@
     'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
     'job.signal-raised', 'job.state-reset',
     'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered',
-    'worker.started', 'worker.stopped', 'worker.dead',
+    'worker.started', 'worker.stopped', 'worker.died',
     'alert.acknowledged', 'alert.resolved'
   ];
   const ACTOR_CODES = ['sys', 'operator', 'job', 'worker'];

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 [JsonConverter(typeof(AlertProfileCodeJsonConverter))]
-[CodeKind("job-alert-profile")]
+[CodeKind("alert-profile")]
 public enum AlertProfileCode : byte
 {
     [Code("none", "No automatic failure alerts. ctx.AlertAsync still creates rows.")]

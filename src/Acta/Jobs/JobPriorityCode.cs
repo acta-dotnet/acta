@@ -10,7 +10,7 @@ namespace Acta;
 /// override, or per-enqueue priority override.
 /// </summary>
 [JsonConverter(typeof(JobPriorityCodeJsonConverter))]
-[CodeKind("priority")]
+[CodeKind("job-priority")]
 public enum JobPriorityCode : byte
 {
     [Code("bulk", "Lowest practical priority; bulk-class workloads.")]

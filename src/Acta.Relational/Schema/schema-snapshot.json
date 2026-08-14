@@ -241,15 +241,15 @@
           },
           {
             "Name": "priority_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
           },
           {
             "Name": "priority_code_override",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
           },
           {
             "Name": "priority_code_effective",
-            "Signature": "Byte|0|0|0|False|None|COALESCE(priority_code_override, priority_code)|coded=True|codeKind=priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|False|None|COALESCE(priority_code_override, priority_code)|coded=True|codeKind=job-priority|values=0,50,70,85,100"
           },
           {
             "Name": "max_attempts",
@@ -301,15 +301,15 @@
           },
           {
             "Name": "deadline_behavior_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-deadline-behavior|values=10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=deadline-behavior|values=10,20"
           },
           {
             "Name": "deadline_behavior_code_override",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-deadline-behavior|values=10,20"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=deadline-behavior|values=10,20"
           },
           {
             "Name": "deadline_behavior_code_effective",
-            "Signature": "Byte|0|0|0|False|None|COALESCE(deadline_behavior_code_override, deadline_behavior_code)|coded=True|codeKind=job-deadline-behavior|values=10,20"
+            "Signature": "Byte|0|0|0|False|None|COALESCE(deadline_behavior_code_override, deadline_behavior_code)|coded=True|codeKind=deadline-behavior|values=10,20"
           },
           {
             "Name": "retention_seconds",
@@ -337,15 +337,15 @@
           },
           {
             "Name": "alert_profile_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-alert-profile|values=0,10,20,30,40"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-profile|values=0,10,20,30,40"
           },
           {
             "Name": "alert_profile_code_override",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-alert-profile|values=0,10,20,30,40"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=alert-profile|values=0,10,20,30,40"
           },
           {
             "Name": "alert_profile_code_effective",
-            "Signature": "Byte|0|0|0|False|None|COALESCE(alert_profile_code_override, alert_profile_code)|coded=True|codeKind=job-alert-profile|values=0,10,20,30,40"
+            "Signature": "Byte|0|0|0|False|None|COALESCE(alert_profile_code_override, alert_profile_code)|coded=True|codeKind=alert-profile|values=0,10,20,30,40"
           },
           {
             "Name": "alert_channel_name",
@@ -797,7 +797,7 @@
           },
           {
             "Name": "priority_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
           },
           {
             "Name": "next_run_at_utc",
@@ -1467,6 +1467,41 @@
         ]
       },
       {
+        "CodeKind": "alert-profile",
+        "Values": [
+          {
+            "Id": 0,
+            "Code": "none",
+            "Description": "No automatic failure alerts. ctx.AlertAsync still creates rows.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 10,
+            "Code": "on-failure",
+            "Description": "Default. Alerts on every failure transition; dedupe-window collapses repeats. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "info",
+            "Description": "Informational alerts on final failure only; low severity.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 30,
+            "Code": "on-terminal",
+            "Description": "Alert on terminal failure only (final exhaustion / orphan / deadline). Resolves on recovery.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 40,
+            "Code": "sys-critical",
+            "Description": "Reserved for system Jobs. Emits at Severity = Critical to the Job\u0027s channel, or the configured \u0022default\u0022 channel when none is declared.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
         "CodeKind": "alert-severity",
         "Values": [
           {
@@ -1491,6 +1526,23 @@
             "Id": 40,
             "Code": "critical",
             "Description": "Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel\u0027s transport and config.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
+        "CodeKind": "deadline-behavior",
+        "Values": [
+          {
+            "Id": 10,
+            "Code": "strict",
+            "Description": "Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 20,
+            "Code": "advisory",
+            "Description": "Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue.",
             "Lifecycle": "Active"
           }
         ]
@@ -1632,7 +1684,7 @@
           },
           {
             "Id": 90,
-            "Code": "job.note",
+            "Code": "job.note-recorded",
             "Description": "Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload.",
             "Lifecycle": "Active"
           },
@@ -1680,7 +1732,7 @@
           },
           {
             "Id": 122,
-            "Code": "worker.dead",
+            "Code": "worker.died",
             "Description": "Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead.",
             "Lifecycle": "Active"
           },
@@ -1753,41 +1805,6 @@
             "Id": 230,
             "Code": "orphaned",
             "Description": "Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget.",
-            "Lifecycle": "Active"
-          }
-        ]
-      },
-      {
-        "CodeKind": "job-alert-profile",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "none",
-            "Description": "No automatic failure alerts. ctx.AlertAsync still creates rows.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 10,
-            "Code": "on-failure",
-            "Description": "Default. Alerts on every failure transition; dedupe-window collapses repeats. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "info",
-            "Description": "Informational alerts on final failure only; low severity.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "on-terminal",
-            "Description": "Alert on terminal failure only (final exhaustion / orphan / deadline). Resolves on recovery.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "sys-critical",
-            "Description": "Reserved for system Jobs. Emits at Severity = Critical to the Job\u0027s channel, or the configured \u0022default\u0022 channel when none is declared.",
             "Lifecycle": "Active"
           }
         ]
@@ -1869,23 +1886,6 @@
             "Id": 100,
             "Code": "consumed",
             "Description": "Due instant reached; the replayed handler consumed the timer and proceeded.",
-            "Lifecycle": "Active"
-          }
-        ]
-      },
-      {
-        "CodeKind": "job-deadline-behavior",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "strict",
-            "Description": "Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "advisory",
-            "Description": "Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue.",
             "Lifecycle": "Active"
           }
         ]
@@ -2057,6 +2057,41 @@
         ]
       },
       {
+        "CodeKind": "job-priority",
+        "Values": [
+          {
+            "Id": 0,
+            "Code": "bulk",
+            "Description": "Lowest practical priority; bulk-class workloads.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 50,
+            "Code": "normal",
+            "Description": "Default priority. Most jobs use this.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 70,
+            "Code": "high",
+            "Description": "Above normal; operator opt-in for time-sensitive work.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 85,
+            "Code": "critical",
+            "Description": "Critical priority; close-to-realtime operator workloads.",
+            "Lifecycle": "Active"
+          },
+          {
+            "Id": 100,
+            "Code": "realtime",
+            "Description": "Highest priority; always pages.",
+            "Lifecycle": "Active"
+          }
+        ]
+      },
+      {
         "CodeKind": "job-status",
         "Values": [
           {
@@ -2177,7 +2212,7 @@
         "Values": [
           {
             "Id": 10,
-            "Code": "fire-once-catch-up",
+            "Code": "catch-up-once",
             "Description": "After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now.",
             "Lifecycle": "Active"
           },
@@ -2225,41 +2260,6 @@
             "Id": 90,
             "Code": "quarantined",
             "Description": "Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete.",
-            "Lifecycle": "Active"
-          }
-        ]
-      },
-      {
-        "CodeKind": "priority",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "bulk",
-            "Description": "Lowest practical priority; bulk-class workloads.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "normal",
-            "Description": "Default priority. Most jobs use this.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 70,
-            "Code": "high",
-            "Description": "Above normal; operator opt-in for time-sensitive work.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 85,
-            "Code": "critical",
-            "Description": "Critical priority; close-to-realtime operator workloads.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "realtime",
-            "Description": "Highest priority; always pages.",
             "Lifecycle": "Active"
           }
         ]

@@ -551,7 +551,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <24441 chars, sha256:8F5C9C5E>
+    System.String MarkdownReport = <24441 chars, sha256:87456F9D>
 enum Acta.ControlAction
     Applied = 1
     NotFound = 2
@@ -687,7 +687,7 @@ enum Acta.EventCode
     TenantSuspended = 10
     TenantUpdated = 12
     Unspecified = 0
-    WorkerDead = 122
+    WorkerDied = 122
     WorkerStarted = 120
     WorkerStopped = 121
 static class Acta.EventCodeExtensions
@@ -1850,7 +1850,7 @@ sealed class Acta.MapOutcome<TKey>
     System.String GroupName { get;init; }
     System.Void ThrowIfAnyFailed()
 enum Acta.MisfireStrategyCode
-    FireOnceCatchUp = 10
+    CatchUpOnce = 10
     Skip = 20
 static class Acta.MisfireStrategyCodeExtensions
     Acta.CodeCapacityReport get_Capacity()

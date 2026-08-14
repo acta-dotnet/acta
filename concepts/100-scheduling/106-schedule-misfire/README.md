@@ -19,7 +19,7 @@ After downtime, a schedule cursor can point into the past. “Run everything mis
 
 ## Why this design
 
-Acta makes `Skip` versus `FireOnceCatchUp` explicit per schedule. Resume reconciles the stored cursor by
+Acta makes `Skip` versus `CatchUpOnce` explicit per schedule. Resume reconciles the stored cursor by
 that policy rather than hiding an accidental default in a worker loop.
 
 ## Trade-offs
@@ -45,7 +45,7 @@ application host's clock.
 
 ## Break it
 
-Extend the paused interval across several occurrences. `FireOnceCatchUp` still retains one recovery fire,
+Extend the paused interval across several occurrences. `CatchUpOnce` still retains one recovery fire,
 not one per missed instant.
 
 ## When not to use

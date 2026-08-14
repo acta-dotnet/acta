@@ -73,7 +73,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         }
 
         // Resume reconciles the schedule's stored cursor by its misfire policy (Skip jumps forward,
-        // FireOnceCatchUp fires once), then recomputes the slot MIN over the now-active set.
+        // CatchUpOnce fires once), then recomputes the slot MIN over the now-active set.
         var t = ctx.Target;
         var reconciled = NextOccurrenceCalculator.Reconcile(
             t.Expression,

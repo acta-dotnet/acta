@@ -48,7 +48,7 @@ queries are operator/learning surfaces; code should normally use `IJobs` and `IJ
 
 Stop the process for longer than one interval, restart it, and inspect how the configured misfire policy
 advances. Lab [`106-schedule-misfire`](../106-schedule-misfire/) isolates the `Skip` versus
-`FireOnceCatchUp` decision.
+`CatchUpOnce` decision.
 
 ## When not to use
 

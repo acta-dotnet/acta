@@ -13,7 +13,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_key,
-    {{decode:priority:r.priority_code}} AS priority,
+    {{decode:job-priority:r.priority_code}} AS priority,
     r.priority_code,
     CASE j.input_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'

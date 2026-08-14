@@ -150,7 +150,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         Assert.Equal(ControlAction.Rejected, result.Action);
     }
 
-    [Fact(DisplayName = "Resume reconciles the cursor by misfire: Skip advances past now and FireOnceCatchUp keeps the past instant")]
+    [Fact(DisplayName = "Resume reconciles the cursor by misfire: Skip advances past now and CatchUpOnce keeps the past instant")]
     public async Task Resume_with_skip_advances_past_now_and_fire_once_catch_up_keeps_the_past_instant()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -176,7 +176,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         Assert.NotNull(skipResumed.NextRunAtUtc);
         Assert.True(skipResumed.NextRunAtUtc > now, "Skip resume advances strictly past now");
 
-        // FireOnceCatchUp: the past instant is kept so the slot fires once on resume.
+        // CatchUpOnce: the past instant is kept so the slot fires once on resume.
         var catchJob = TestKey("catch");
         var catchDef = await CreateDefinitionAsync(db, dialect, catchJob, ct);
         var past = now.AddMinutes(-35); // a real */5 occurrence relative to a 5-minute aligned base is not required here
@@ -186,7 +186,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
             catchDef,
             catchJob,
             past,
-            [Slot("only", past, MisfireStrategyCode.FireOnceCatchUp)],
+            [Slot("only", past, MisfireStrategyCode.CatchUpOnce)],
             JobStatusCode.Ready,
             ct
         );
@@ -194,7 +194,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         var catchResumed = await Schedules.ResumeAsync(Lookup(catchJob, "only"), ct: ct);
         Assert.Equal(ControlAction.Applied, catchResumed.Action);
         Assert.NotNull(catchResumed.NextRunAtUtc);
-        Assert.True(catchResumed.NextRunAtUtc <= now, "FireOnceCatchUp resume keeps a past instant for one catch-up fire");
+        Assert.True(catchResumed.NextRunAtUtc <= now, "CatchUpOnce resume keeps a past instant for one catch-up fire");
     }
 
     [Fact(DisplayName = "An orphaned schedule cannot be paused or resumed")]

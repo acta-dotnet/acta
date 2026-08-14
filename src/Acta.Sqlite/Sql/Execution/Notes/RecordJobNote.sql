@@ -1,4 +1,4 @@
--- Appends one application-authored job.note event; see IExecutionStore.RecordJobNoteAsync.
+-- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
 -- Denormalized columns are read from the job, so a note cannot disagree with the row it is about.
 SELECT ACTA_ERROR('ACTA:NOTE_UNKNOWN_JOB:record_job_note: unknown job id')
 WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.jobs WHERE id = @p_job_id);

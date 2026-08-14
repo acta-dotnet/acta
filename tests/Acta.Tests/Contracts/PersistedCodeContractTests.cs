@@ -61,7 +61,7 @@ public sealed class PersistedCodeContractTests
         EventCode.JobInputAmended=76|job.input-amended
         EventCode.JobSignalRaised=80|job.signal-raised
         EventCode.JobStateReset=81|job.state-reset
-        EventCode.JobNoteRecorded=90|job.note
+        EventCode.JobNoteRecorded=90|job.note-recorded
         EventCode.SchedulePaused=100|schedule.paused
         EventCode.ScheduleResumed=101|schedule.resumed
         EventCode.SchedulePauseExpired=102|schedule.pause-expired
@@ -69,7 +69,7 @@ public sealed class PersistedCodeContractTests
         EventCode.ScheduleTriggered=104|schedule.triggered
         EventCode.WorkerStarted=120|worker.started
         EventCode.WorkerStopped=121|worker.stopped
-        EventCode.WorkerDead=122|worker.dead
+        EventCode.WorkerDied=122|worker.died
         EventCode.AlertAcknowledged=140|alert.acknowledged
         EventCode.AlertResolved=141|alert.resolved
         EventCode.SettingUpdated=160|setting.updated
@@ -148,7 +148,7 @@ public sealed class PersistedCodeContractTests
         OutboxStatusCode.Quarantined=90|quarantined
         NamespaceStatusCode.Active=10|active
         NamespaceStatusCode.Suspended=20|suspended
-        MisfireStrategyCode.FireOnceCatchUp=10|fire-once-catch-up
+        MisfireStrategyCode.CatchUpOnce=10|catch-up-once
         MisfireStrategyCode.Skip=20|skip
         ScheduleExpressionKindCode.Cron=10|cron
         ScheduleExpressionKindCode.Interval=20|interval
@@ -173,7 +173,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "264B6437140C254160ADAA6C272F77B14E34EDAFF77AF0146027AB5B31B9B90D";
+    private const string ExpectedDescriptionHash = "2C76EFA0A534B5E33FC455D827D08D42342D3EA44525DEEB641D4115488F0E7B";
 
     [Fact]
     public void Frozen_contract_covers_all_30_families_and_162_values()

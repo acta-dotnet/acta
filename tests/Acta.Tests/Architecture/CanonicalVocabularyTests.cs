@@ -63,6 +63,18 @@ public sealed class CanonicalVocabularyTests
             "ScheduleOverrides" + "Changed",
             "SetOverrides" + "Async",
             "job." + "other",
+            // 0.9.0 restored noun.past-participle on the last two event strings, renamed the two
+            // CLR-side family names whose slugs were right all along (the slugs stayed event/actor),
+            // and normalized the misfire member. The bare old slug "priority" is ordinary English
+            // and cannot be pinned here; its family slug moved to job-priority.
+            // The retired note event string is a prefix of its replacement, and the retired member
+            // name a prefix of WorkerDeadAfter, so both pins carry a delimiter that only the retired form produces.
+            "job." + "note\"",
+            "worker." + "dead",
+            "WorkerDead" + " = 122",
+            "fire-once-" + "catch-up",
+            "FireOnce" + "CatchUp",
+            "job-deadline-" + "behavior",
         };
 
         var root = IntegrationConfig.FindRepoRoot();
@@ -99,5 +111,10 @@ public sealed class CanonicalVocabularyTests
         || path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
         || path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
         || path.Contains($"{Path.DirectorySeparatorChar}dist{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
-        || path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase);
+        || path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        // Certification seals are sworn transcripts of published runs and quote the vocabulary of
+        // their day; design plans document renames, so the retired name is their subject matter.
+        // Neither is ever edited to track a rename.
+        || path.Contains($"docs{Path.DirectorySeparatorChar}certification{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        || path.Contains($"docs{Path.DirectorySeparatorChar}designs{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase);
 }

@@ -32,7 +32,7 @@ internal interface IWorkerStore
     /// <summary>
     /// Dead-worker sweep across all namespaces: flips Active <c>workers</c> rows whose
     /// <c>last_seen_at_utc</c> is older than the window to Dead, skipping rows another sweep holds, and
-    /// emits one <c>worker.dead</c> event per reaped worker. Returns the count marked (diagnostic).
+    /// emits one <c>worker.died</c> event per reaped worker. Returns the count marked (diagnostic).
     /// </summary>
     Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct);
 

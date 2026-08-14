@@ -63,7 +63,7 @@ migration, not a refactor.
 ## …the service is down across scheduled occurrences?
 
 The schedule's misfire policy decides the cursor when the schedule reloads or resumes. `Skip` moves
-past missed occurrences; `FireOnceCatchUp` produces one coalesced catch-up execution. Neither policy
+past missed occurrences; `CatchUpOnce` produces one coalesced catch-up execution. Neither policy
 creates one historical job per missed period. See [Schedule operations](./schedule-operations.md).
 
 ## …an operator restarts a failed or cancelled job?

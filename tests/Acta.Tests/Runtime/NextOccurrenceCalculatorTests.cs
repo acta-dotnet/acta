@@ -5,7 +5,7 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// Pure next-occurrence math: cron (5- and 6-field), ISO 8601 intervals, and the
-/// FireOnceCatchUp / Skip misfire policies. No clock, no DB.
+/// CatchUpOnce / Skip misfire policies. No clock, no DB.
 /// </summary>
 public sealed class NextOccurrenceCalculatorTests
 {
@@ -89,7 +89,7 @@ public sealed class NextOccurrenceCalculatorTests
             "*/5 * * * *",
             null,
             ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.FireOnceCatchUp,
+            MisfireStrategyCode.CatchUpOnce,
             stored,
             nowUtc: Utc(12, 0)
         );
@@ -105,7 +105,7 @@ public sealed class NextOccurrenceCalculatorTests
             "*/5 * * * *",
             null,
             ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.FireOnceCatchUp,
+            MisfireStrategyCode.CatchUpOnce,
             stored,
             nowUtc: Utc(12, 3)
         );
@@ -150,7 +150,7 @@ public sealed class NextOccurrenceCalculatorTests
             "PT5M",
             null,
             ScheduleExpressionKindCode.Interval,
-            MisfireStrategyCode.FireOnceCatchUp,
+            MisfireStrategyCode.CatchUpOnce,
             stored,
             nowUtc: Utc(12, 17)
         );

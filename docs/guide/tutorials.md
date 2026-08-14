@@ -149,7 +149,7 @@ independent jobs through enqueue operations.
 | 103 | [multiple-schedules](../../concepts/100-scheduling/103-multiple-schedules/) | **Engineering Lab.** One recurring job row, several moving schedule cursors, event-backed occurrence history |
 | 104 | [timezone-schedule](../../concepts/100-scheduling/104-timezone-schedule/) | A cron schedule pinned to a wall clock (`TimeZoneId = "Europe/Ljubljana"`), DST-safe |
 | 105 | [schedule-control](../../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `operations.Schedules` |
-| 106 | [schedule-misfire](../../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip` and `FireOnceCatchUp` move overdue cursor rows differently |
+| 106 | [schedule-misfire](../../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip` and `CatchUpOnce` move overdue cursor rows differently |
 | 201 | [durable-checkout](../../concepts/200-durable-execution/201-durable-checkout/) | **Engineering Lab flagship.** Durable orchestration as inspectable jobs, steps, checkpoints, events, and results |
 | 202 | [durable-step](../../concepts/200-durable-execution/202-durable-step/) | **Engineering Lab.** Completed step outcome replays while the job advances to execution two |
 | 203 | [durable-variable](../../concepts/200-durable-execution/203-durable-variable/) | A durable variable pins a value (a sync watermark) across retries |

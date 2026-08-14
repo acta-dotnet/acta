@@ -39,9 +39,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`AlertDeliveryStatusCode`](#code-family-alertdeliverystatuscode) | `alert-delivery-status` | `byte` | `Alerts` |
 | [`AlertKindCode`](#code-family-alertkindcode) | `alert-kind` | `byte` | `Alerts` |
 | [`AlertOriginCode`](#code-family-alertorigincode) | `alert-origin` | `byte` | `Alerts` |
-| [`AlertProfileCode`](#code-family-alertprofilecode) | `job-alert-profile` | `byte` | `Alerts` |
+| [`AlertProfileCode`](#code-family-alertprofilecode) | `alert-profile` | `byte` | `Alerts` |
 | [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` | `Alerts` |
-| [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `job-deadline-behavior` | `byte` | `Jobs` |
+| [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `deadline-behavior` | `byte` | `Jobs` |
 | [`EventCode`](#code-family-eventcode) | `event` | `byte` | `Events` |
 | [`ExecutionStatusCode`](#code-family-executionstatuscode) | `execution-status` | `byte` | `Execution` |
 | [`JobAuditLevelCode`](#code-family-jobauditlevelcode) | `job-audit-level` | `byte` | `Jobs` |
@@ -50,7 +50,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`JobDefinitionStatusCode`](#code-family-jobdefinitionstatuscode) | `job-definition-status` | `byte` | `Definitions` |
 | [`JobEventReasonCode`](#code-family-jobeventreasoncode) | `job-event-reason` | `byte` | `Events` |
 | [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` | `Payloads` |
-| [`JobPriorityCode`](#code-family-jobprioritycode) | `priority` | `byte` | `Jobs` |
+| [`JobPriorityCode`](#code-family-jobprioritycode) | `job-priority` | `byte` | `Jobs` |
 | [`JobStatusCode`](#code-family-jobstatuscode) | `job-status` | `byte` | `Jobs` |
 | [`JobStepStatusCode`](#code-family-jobstepstatuscode) | `job-step-status` | `byte` | `Execution` |
 | [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) | `job-tenant-requirement` | `byte` | `Jobs` |
@@ -106,7 +106,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Automatic` | 10 | `automatic` | System-emitted from a state-mutating SP (failure / timeout / orphan / deadline). | Active |
 | `Manual` | 20 | `manual` | ctx.AlertAsync from inside a user handler. | Active |
 
-#### `AlertProfileCode` · `job-alert-profile` <a id="code-family-alertprofilecode"></a>
+#### `AlertProfileCode` · `alert-profile` <a id="code-family-alertprofilecode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -172,7 +172,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobInputAmended` | 76 | `job.input-amended` | Operator amended a job's stored input payload; Detail carries bounded JSON metadata (format name and byte count) about the previous payload and ReasonMessage carries the why. | Active |
 | `JobSignalRaised` | 80 | `job.signal-raised` | Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed. | Active |
 | `JobStateReset` | 81 | `job.state-reset` | Handler called ctx.ResetStateAsync; the Job's JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new. | Active |
-| `JobNoteRecorded` | 90 | `job.note` | Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload. | Active |
+| `JobNoteRecorded` | 90 | `job.note-recorded` | Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload. | Active |
 | `SchedulePaused` | 100 | `schedule.paused` | A recurring schedule was paused; ReasonMessage carries the schedule name. | Active |
 | `ScheduleResumed` | 101 | `schedule.resumed` | A recurring schedule was resumed; ReasonMessage carries the schedule name. | Active |
 | `SchedulePauseExpired` | 102 | `schedule.pause-expired` | A timed pause elapsed; the scheduler auto-resumed the schedule. ReasonMessage carries the schedule name. | Active |
@@ -180,7 +180,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `ScheduleTriggered` | 104 | `schedule.triggered` | Operator fired a schedule manually; the slot's cursor was pulled to now. ReasonMessage carries the schedule name. | Active |
 | `WorkerStarted` | 120 | `worker.started` | Worker process registered; a workers row was appended (Status: Active). | Active |
 | `WorkerStopped` | 121 | `worker.stopped` | Worker process shut down cleanly (Status: Active/Draining to Stopped). | Active |
-| `WorkerDead` | 122 | `worker.dead` | Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead. | Active |
+| `WorkerDied` | 122 | `worker.died` | Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead. | Active |
 | `AlertAcknowledged` | 140 | `alert.acknowledged` | Operator acknowledged an alert; ReasonMessage carries the alert id and note. | Active |
 | `AlertResolved` | 141 | `alert.resolved` | Operator manually resolved an alert; ReasonMessage carries the alert id and note. | Active |
 | `SettingUpdated` | 160 | `setting.updated` | A durable setting was written (created or overwritten); Detail carries the setting name. | Active |
@@ -279,7 +279,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Job` | 50 | `job` | ctx.* throw-to-transition inside a user handler. ActorKey = "{jobId}". | Active |
 | `Worker` | 70 | `worker` | Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey = "{workerId}". | Active |
 
-#### `DeadlineBehaviorCode` · `job-deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
+#### `DeadlineBehaviorCode` · `deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -294,7 +294,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Failures` | 10 | `failures` | Emit failed job.execution-finished only; suppress other audit-filtered per-job events. | Active |
 | `Audit` | 20 | `audit` | Emit all audit-filtered per-job events. User Jobs default. | Active |
 
-#### `JobPriorityCode` · `priority` <a id="code-family-jobprioritycode"></a>
+#### `JobPriorityCode` · `job-priority` <a id="code-family-jobprioritycode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -361,7 +361,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `FireOnceCatchUp` | 10 | `fire-once-catch-up` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
+| `CatchUpOnce` | 10 | `catch-up-once` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
 | `Skip` | 20 | `skip` | After downtime, skip all missed occurrences and resume from the first occurrence strictly after now. | Active |
 
 #### `ScheduleExpressionKindCode` · `schedule-expression-kind` <a id="code-family-scheduleexpressionkindcode"></a>

@@ -13,7 +13,7 @@
 --                        Succeeded=100 Failed=200 Cancelled=220
 --   ExecutionStatusCode  Executing=50 Succeeded=100 Rescheduled=150 Suspended=151 Paused=152
 --                        Failed=200 Cancelled=220 Orphaned=230
---   EventCode         40=job.execution-started 41=job.execution-finished 122=worker.dead
+--   EventCode         40=job.execution-started 41=job.execution-finished 122=worker.died
 --
 -- TIMING - the seal MUST stamp LeaseTtlSeconds, HeartbeatInterval and WorkerDeadAfter, because every
 -- property here is timing-dependent. A shorter lease manufactures more handler overlap than
@@ -172,7 +172,7 @@ WHERE  s.status_code = 100
 -- A run in which nothing was reclaimed proves nothing, and would pass every check above trivially.
 -- This is the guard against a green seal that means nothing.
 --
--- Keys on ORPHANED ATTEMPTS, not on worker.dead (122). Observed live: recovery reclaims a killed
+-- Keys on ORPHANED ATTEMPTS, not on worker.died (122). Observed live: recovery reclaims a killed
 -- worker's in-flight work on lease expiry without necessarily marking the worker row dead - 56
 -- orphaned attempts accumulated while 122 stayed at zero. Requiring 122 would have failed a run
 -- whose chaos was demonstrably real. It is reported as a number, never asserted.

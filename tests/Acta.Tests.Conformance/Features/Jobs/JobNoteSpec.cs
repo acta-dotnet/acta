@@ -10,16 +10,16 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "jobs.note",
     "A handler writes application-authored notes onto the job's own timeline",
     Area = "Execution",
-    Contract = "ctx.NoteAsync appends a job.note event carrying the message, the job's denormalized identity, and the optional JSON detail.",
+    Contract = "ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's denormalized identity, and the optional JSON detail.",
     Arrange = "A probe job calls NoteAsync once without detail and once with a typed detail payload.",
     Act = "The job runs to completion on a real worker runtime.",
-    Assert = "Two job.note events exist for the job, actor Job, one with a JSON detail body and one with none."
+    Assert = "Two job.note-recorded events exist for the job, actor Job, one with a JSON detail body and one with none."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.RecordJobNoteAsync))]
 public abstract class JobNoteSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    [Fact(DisplayName = "NoteAsync appends job.note events carrying the message and the optional detail payload")]
+    [Fact(DisplayName = "NoteAsync appends job.note-recorded events carrying the message and the optional detail payload")]
     public async Task Notes_are_appended_to_the_job_timeline()
     {
         var ct = TestContext.Current.CancellationToken;

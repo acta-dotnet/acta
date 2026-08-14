@@ -1,4 +1,4 @@
-// Concept: misfire decision - Skip advances past missed occurrences; FireOnceCatchUp keeps one
+// Concept: misfire decision - Skip advances past missed occurrences; CatchUpOnce keeps one
 // so it fires once on recovery. Proven by comparing the reconciled next-run cursors after resume.
 using Acta;
 using Acta.Concepts.ScheduleMisfire;
@@ -56,7 +56,7 @@ var overdueCatchUp = overdue.Items.Single(item => item.JobName == "catch-up-repo
 
 // Resume reconciles each schedule's cursor by its misfire policy.
 // Skip: first occurrence strictly after now - the missed instant is dropped.
-// FireOnceCatchUp: the missed past instant is kept so it fires once on recovery.
+// CatchUpOnce: the missed past instant is kept so it fires once on recovery.
 Console.WriteLine("Resuming both schedules - each cursor is reconciled by its misfire policy...");
 var rs1 = await schedules.ResumeAsync(skipLookup, reasonMessage: "misfire demo");
 CatchUpReportJob.HoldNextExecution();
@@ -147,7 +147,7 @@ namespace Acta.Concepts.ScheduleMisfire
         public static Task WaitForExecutionAsync(CancellationToken ct) => _completed.Task.WaitAsync(ct);
 
         [Job("catch-up-report", AuditLevel = JobAuditLevelCode.Off)]
-        [JobSchedule("every-2s-catchup", "PT2S", MisfireStrategy = MisfireStrategyCode.FireOnceCatchUp)]
+        [JobSchedule("every-2s-catchup", "PT2S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
         public async Task Handle(CatchUpReportInput input, CancellationToken ct)
         {
             var controlledRecoveryExecution = false;

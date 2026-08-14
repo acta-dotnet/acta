@@ -46,7 +46,7 @@
 
   // Worker lifecycle trail (started/stopped/dead), scoped to this worker server-side via the events
   // endpoint's workerId filter, then merged newest-first across the codes.
-  const HISTORY_CODES = ['worker.started', 'worker.stopped', 'worker.dead'];
+  const HISTORY_CODES = ['worker.started', 'worker.stopped', 'worker.died'];
   const history = createQuery(() => ({
     queryKey: keys.detail('worker-history', workerId),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {

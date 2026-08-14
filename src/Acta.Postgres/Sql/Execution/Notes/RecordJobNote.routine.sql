@@ -1,4 +1,4 @@
--- Appends one application-authored job.note event; see IExecutionStore.RecordJobNoteAsync.
+-- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
 -- Denormalized columns are read from the job, so a note cannot disagree with the row it is about.
 CREATE OR REPLACE FUNCTION {{schema}}.record_job_note(
     p_job_id BIGINT,

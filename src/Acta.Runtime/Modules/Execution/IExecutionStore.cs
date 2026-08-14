@@ -87,7 +87,7 @@ internal interface IExecutionStore
     Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct);
 
     /// <summary>
-    /// Appends one application-authored <c>job.note</c> event for a job.
+    /// Appends one application-authored <c>job.note-recorded</c> event for a job.
     /// </summary>
     /// <remarks>
     /// The only event write that does not ride inside the operation causing a state transition, and

@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Features.Workers;
 /// <summary>
 /// Conformance for <c>sys.recovery</c>'s dead-worker sweep (<c>mark_dead_workers</c>), now namespace-agnostic:
 /// one call flips every Active worker whose <c>last_seen_at_utc</c> is past the dead-after window to Dead
-/// across all namespaces, emitting one <c>worker.dead</c> event per worker into that worker's own namespace.
+/// across all namespaces, emitting one <c>worker.died</c> event per worker into that worker's own namespace.
 /// A worker is aged into the past and a positive window is used, so the sweep targets only the aged worker
 /// (a fresh worker in the same shared DB survives). A worker seeded in a second namespace is reaped by the
 /// same call, proving the sweep is global and that each event lands in the dead worker's namespace.
@@ -19,10 +19,10 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "mark-dead-workers.global-heartbeat-sweep",
     "Stale workers in any namespace are marked Dead by one global sweep",
     Area = "Workers",
-    Contract = "MarkDeadWorkers marks every Active worker past the dead-after window Dead across all namespaces and writes each worker.dead event to its own namespace.",
+    Contract = "MarkDeadWorkers marks every Active worker past the dead-after window Dead across all namespaces and writes each worker.died event to its own namespace.",
     Arrange = "An aged Active worker and a fresh worker exist in one namespace, and another aged worker exists in a second namespace.",
     Act = "A single MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument.",
-    Assert = "Both aged workers are marked Dead with a worker.dead event in each worker's own namespace while the fresh worker stays Active."
+    Assert = "Both aged workers are marked Dead with a worker.died event in each worker's own namespace while the fresh worker stays Active."
 )]
 [CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.MarkDeadWorkersAsync))]
 public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -89,12 +89,12 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(WorkerStatusCode.Dead, afterB!.Status);
         Assert.Equal(WorkerStatusCode.Active, afterFresh!.Status);
 
-        // Each worker.dead event lands in the dead worker's OWN namespace.
+        // Each worker.died event lands in the dead worker's OWN namespace.
         var eventA = Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == workerA.Id && e.EventCode == EventCode.WorkerDead).ToListAsync(ct)
+            await Db.From<JobEvent>().Where(e => e.WorkerId == workerA.Id && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
         );
         var eventB = Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == workerBId && e.EventCode == EventCode.WorkerDead).ToListAsync(ct)
+            await Db.From<JobEvent>().Where(e => e.WorkerId == workerBId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
         );
         Assert.Equal(nsA, eventA.NamespaceId);
         Assert.Equal(nsB, eventB.NamespaceId);

@@ -978,7 +978,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                     // MisfireStrategyCode is byte-backed; read it through TryGetEnumByte rather than an
                     // `is int` pattern that never matches a boxed byte and silently drops the value.
                     case "MisfireStrategy" when TryGetEnumByte(named.Value, out var mf):
-                        misfireName = mf == 20 ? "Skip" : "FireOnceCatchUp";
+                        misfireName = mf == 20 ? "Skip" : "CatchUpOnce";
                         break;
                     case "Environments" when !named.Value.IsNull:
                         environments = [.. named.Value.Values.Select(v => v.Value as string ?? "")];

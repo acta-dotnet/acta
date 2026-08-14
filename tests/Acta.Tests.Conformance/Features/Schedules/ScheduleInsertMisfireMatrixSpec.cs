@@ -36,7 +36,7 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
     private static DateTime At(int minutes) => Base.AddMinutes(minutes);
 
     [Theory(
-        DisplayName = "Insert persists the misfire-reconciled cursor across new, future, and missed cron and interval cells: new seeds after now, future is kept, Skip advances past now, FireOnceCatchUp keeps the past instant"
+        DisplayName = "Insert persists the misfire-reconciled cursor across new, future, and missed cron and interval cells: new seeds after now, future is kept, Skip advances past now, CatchUpOnce keeps the past instant"
     )]
     // New (no stored cursor): first occurrence strictly after now; misfire policy is irrelevant.
     [InlineData("cron-new", ScheduleExpressionKindCode.Cron, Cron5, null, 1, MisfireStrategyCode.Skip, 5)]
@@ -47,9 +47,9 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
     // Missed + Skip: advance to the first occurrence strictly after now.
     [InlineData("cron-missed-skip", ScheduleExpressionKindCode.Cron, Cron5, -60, 3, MisfireStrategyCode.Skip, 5)]
     [InlineData("interval-missed-skip", ScheduleExpressionKindCode.Interval, "PT5M", 0, 17, MisfireStrategyCode.Skip, 20)]
-    // Missed + FireOnceCatchUp: keep the past instant for one coalesced catch-up fire.
-    [InlineData("cron-missed-catchup", ScheduleExpressionKindCode.Cron, Cron5, -60, 3, MisfireStrategyCode.FireOnceCatchUp, -60)]
-    [InlineData("interval-missed-catchup", ScheduleExpressionKindCode.Interval, "PT5M", 0, 17, MisfireStrategyCode.FireOnceCatchUp, 0)]
+    // Missed + CatchUpOnce: keep the past instant for one coalesced catch-up fire.
+    [InlineData("cron-missed-catchup", ScheduleExpressionKindCode.Cron, Cron5, -60, 3, MisfireStrategyCode.CatchUpOnce, -60)]
+    [InlineData("interval-missed-catchup", ScheduleExpressionKindCode.Interval, "PT5M", 0, 17, MisfireStrategyCode.CatchUpOnce, 0)]
     public async Task Insert_persists_the_reconciled_cursor(
         string label,
         ScheduleExpressionKindCode kind,

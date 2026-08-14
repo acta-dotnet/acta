@@ -51,7 +51,7 @@ public sealed class JobScheduleAttribute(string name, string expression) : Attri
     /// <summary>
     /// Behavior when occurrences were missed during downtime. Default
     /// <see cref="MisfireStrategyCode.Skip"/> (forward-only: drop missed occurrences and resume from
-    /// the first occurrence after now). Set <see cref="MisfireStrategyCode.FireOnceCatchUp"/> to fire
+    /// the first occurrence after now). Set <see cref="MisfireStrategyCode.CatchUpOnce"/> to fire
     /// one coalesced catch-up occurrence on recovery.
     /// </summary>
     public MisfireStrategyCode MisfireStrategy { get; init; } = MisfireStrategyCode.Skip;

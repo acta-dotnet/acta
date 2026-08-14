@@ -1196,7 +1196,7 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Subclass sink: append the note as a <c>job.note</c> event. Generic so the subclass serializes
+    /// Subclass sink: append the note as a <c>job.note-recorded</c> event. Generic so the subclass serializes
     /// through its payload serializer and source-generated JSON is honored under Native AOT. The
     /// message is truncated to the column width in the concrete implementation.
     /// </summary>

@@ -6,7 +6,7 @@ namespace Acta;
 /// How the engine treats a job that has passed its deadline.
 /// </summary>
 [JsonConverter(typeof(DeadlineBehaviorCodeJsonConverter))]
-[CodeKind("job-deadline-behavior")]
+[CodeKind("deadline-behavior")]
 public enum DeadlineBehaviorCode : byte
 {
     /// <summary>

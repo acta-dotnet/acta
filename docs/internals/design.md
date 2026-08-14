@@ -165,7 +165,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 - **`ExclusiveKey` is execution-time mutual exclusion (size 1), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
 - **Delayed enqueue: relative delay is DB-clock; absolute is the only caller-instant path.** The two are mutually exclusive. *Reason:* an enqueue-only frontend must not silently depend on its own clock.
 - **Recurring schedules are a single slot job per `(namespace, definition)`** carrying many `schedules` rows; due schedules coalesce into one execution; cursors computed in C#, applied in SQL. *Reason:* single-cursor claim scan, no per-firing row inflation, no Cronos in SQL.
-- **Misfire is a two-strategy per-schedule choice.** `Skip` (default, forward-only) or `FireOnceCatchUp`. *Reason:* forward-only avoids startup catch-up bursts; catch-up is opt-in.
+- **Misfire is a two-strategy per-schedule choice.** `Skip` (default, forward-only) or `CatchUpOnce`. *Reason:* forward-only avoids startup catch-up bursts; catch-up is opt-in.
 - **`job.audit_level_code` is a per-job snapshot** copied from the definition at enqueue; unset defaults to `Audit`. *Reason:* hot-path read with no join.
 - **`AuditLevel=Off` records no transition reasons.** No `JobEvent` rows means no persisted reason; current state and `FailureCount` remain. *Reason:* leanness is the point of `Off`; no hot-row reason columns to paper over a disabled trail.
 - **`Job.Status = Failed` is terminal.** Non-terminal failures stay `Ready` with `NextRunAtUtc` advanced. *Reason:* terminal is terminal.

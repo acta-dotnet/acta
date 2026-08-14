@@ -51,10 +51,10 @@ MisfireStrategy policy answers one narrow question: what should the cursor do wh
 already in the past?
 
 - `Skip` advances to the first occurrence strictly after now. This is the default.
-- `FireOnceCatchUp` keeps one missed occurrence due, causing one coalesced catch-up execution, then
+- `CatchUpOnce` keeps one missed occurrence due, causing one coalesced catch-up execution, then
   resumes from the next occurrence after now.
 
-`FireOnceCatchUp` does not create one job for every missed period. Ten missed hourly occurrences
+`CatchUpOnce` does not create one job for every missed period. Ten missed hourly occurrences
 still produce one catch-up execution. The handler can inspect its current data and the triggering
 schedule names, but it does not receive ten synthetic occurrence rows.
 
@@ -98,7 +98,7 @@ Before a large backfill:
 
 - Pause excludes a schedule from the slot's minimum cursor. An indefinite pause needs an operator
   resume; a timed pause wakes and reconciles by misfire policy.
-- Resume does not blindly run every missed occurrence. It applies `Skip` or `FireOnceCatchUp`.
+- Resume does not blindly run every missed occurrence. It applies `Skip` or `CatchUpOnce`.
 - Preview computes upcoming instants from the effective expression and time zone without reading or
   advancing the persisted cursor. It is safe on a paused schedule.
 - Expression/time-zone overrides are operator state protected by an expected-version check. A stale
