@@ -12,7 +12,7 @@ public readonly record struct OutboxSeed(
     string JobNamespace,
     string JobName,
     byte InputFormatId,
-    byte[]? InputData,
+    byte[]? Input,
     string DeduplicationKey,
     byte? PriorityCode,
     DateTime CreatedAtUtc,

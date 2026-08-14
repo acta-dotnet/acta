@@ -75,7 +75,7 @@ public abstract class OutboxDdlSpec<TFixture> : ActaTestBase<TFixture>
             JobNamespace: "orders",
             JobName: "send",
             InputFormatId: 0,
-            InputData: null,
+            Input: null,
             DeduplicationKey: Guid.NewGuid().ToString("N"),
             PriorityCode: null,
             CreatedAtUtc: DateTime.UtcNow.AddMinutes(-5),

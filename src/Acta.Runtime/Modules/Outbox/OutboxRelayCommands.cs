@@ -13,7 +13,7 @@ internal sealed record OutboxRow(
     string JobNamespace,
     string JobName,
     byte InputFormatId,
-    byte[]? InputData,
+    byte[]? Input,
     string DeduplicationKey,
     string? CorrelationKey,
     string? ExclusiveKey,

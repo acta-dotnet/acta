@@ -21,6 +21,6 @@ SET
 FROM due
 WHERE o.outbox_id = due.outbox_id
 RETURNING
-    o.outbox_id, o.job_namespace, o.job_name, o.input_format_id, o.input_data,
+    o.outbox_id, o.job_namespace, o.job_name, o.input_format_id, o.input,
     o.deduplication_key, o.correlation_key, o.exclusive_key, o.priority_code,
     o.next_run_at_utc, o.delay_seconds, o.tenant_key, o.meta, o.created_at_utc, o.failure_count;

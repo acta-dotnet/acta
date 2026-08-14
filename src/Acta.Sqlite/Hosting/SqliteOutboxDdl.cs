@@ -26,7 +26,7 @@ public static class SqliteOutboxDdl
                 job_namespace TEXT NOT NULL,
                 job_name TEXT NOT NULL,
                 input_format_id INTEGER NOT NULL,
-                input_data BLOB NULL,
+                input BLOB NULL,
                 deduplication_key TEXT NOT NULL,
                 correlation_key TEXT NULL,
                 exclusive_key TEXT NULL,
@@ -45,7 +45,7 @@ public static class SqliteOutboxDdl
                 CONSTRAINT pk_{table} PRIMARY KEY (outbox_id),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
-                    AND ((input_format_id = 0 AND input_data IS NULL) OR (input_format_id <> 0 AND input_data IS NOT NULL))),
+                    AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count >= 0),
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),

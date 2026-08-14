@@ -100,7 +100,7 @@ public sealed partial class PgConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {Schema}.{table}
-                (outbox_id, job_namespace, job_name, input_format_id, input_data, deduplication_key,
+                (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
                  meta, priority_code, created_at_utc, next_attempt_at_utc, status_code, failure_count,
                  claim_token, claim_until_utc)
             VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
@@ -110,7 +110,7 @@ public sealed partial class PgConformanceFixture
         cmd.Parameters.Add(new NpgsqlParameter("@ns", NpgsqlDbType.Varchar) { Value = seed.JobNamespace });
         cmd.Parameters.Add(new NpgsqlParameter("@name", NpgsqlDbType.Varchar) { Value = seed.JobName });
         cmd.Parameters.Add(new NpgsqlParameter("@fmt", NpgsqlDbType.Smallint) { Value = (short)seed.InputFormatId });
-        cmd.Parameters.Add(new NpgsqlParameter("@data", NpgsqlDbType.Bytea) { Value = (object?)seed.InputData ?? DBNull.Value });
+        cmd.Parameters.Add(new NpgsqlParameter("@data", NpgsqlDbType.Bytea) { Value = (object?)seed.Input ?? DBNull.Value });
         cmd.Parameters.Add(new NpgsqlParameter("@dedup", NpgsqlDbType.Varchar) { Value = seed.DeduplicationKey });
         cmd.Parameters.Add(new NpgsqlParameter("@meta", NpgsqlDbType.Jsonb) { Value = (object?)seed.Meta ?? DBNull.Value });
         cmd.Parameters.Add(

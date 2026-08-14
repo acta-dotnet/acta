@@ -34,7 +34,7 @@ public sealed class OutboxStagingCoreTests
     private static JobEnqueueRequest Reconstruct(OutboxStagingRow row)
     {
         var input =
-            row.InputFormatId == 0 ? JobPayload.None : JobPayload.CopyBytes(JobPayloadFormat.ForId(row.InputFormatId), row.InputData ?? []);
+            row.InputFormatId == 0 ? JobPayload.None : JobPayload.CopyBytes(JobPayloadFormat.ForId(row.InputFormatId), row.Input ?? []);
         return new JobEnqueueRequest(
             row.JobNamespace,
             row.JobName,

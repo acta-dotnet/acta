@@ -21,10 +21,10 @@ public static class PostgresOutboxDdl
         return $"""
             CREATE TABLE {t} (
                 outbox_id uuid NOT NULL,
-                job_namespace varchar(64) NOT NULL,
+                job_namespace varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id smallint NOT NULL,
-                input_data bytea NULL,
+                input bytea NULL,
                 deduplication_key varchar(128) NOT NULL,
                 correlation_key varchar(64) NULL,
                 exclusive_key varchar(128) NULL,
@@ -43,7 +43,7 @@ public static class PostgresOutboxDdl
                 CONSTRAINT pk_{table} PRIMARY KEY (outbox_id),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
-                    AND ((input_format_id = 0 AND input_data IS NULL) OR (input_format_id <> 0 AND input_data IS NOT NULL))),
+                    AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count >= 0),
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),

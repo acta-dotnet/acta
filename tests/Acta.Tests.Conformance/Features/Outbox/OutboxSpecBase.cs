@@ -41,7 +41,7 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
             JobNamespace: "orders",
             JobName: "send",
             InputFormatId: inputFormatId,
-            InputData: null,
+            Input: null,
             DeduplicationKey: dedup,
             PriorityCode: priority,
             CreatedAtUtc: DateTime.UtcNow.AddMinutes(-minutesAgo),

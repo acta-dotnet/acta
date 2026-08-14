@@ -49,7 +49,7 @@ public static class SqliteOutboxStagingExtensions
         p.Add(new SqliteParameter("@job_namespace", SqliteType.Text) { Value = row.JobNamespace });
         p.Add(new SqliteParameter("@job_name", SqliteType.Text) { Value = row.JobName });
         p.Add(new SqliteParameter("@input_format_id", SqliteType.Integer) { Value = (long)row.InputFormatId });
-        p.Add(new SqliteParameter("@input_data", SqliteType.Blob) { Value = (object?)row.InputData ?? DBNull.Value });
+        p.Add(new SqliteParameter("@input", SqliteType.Blob) { Value = (object?)row.Input ?? DBNull.Value });
         p.Add(new SqliteParameter("@deduplication_key", SqliteType.Text) { Value = row.DeduplicationKey });
         p.Add(new SqliteParameter("@correlation_key", SqliteType.Text) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new SqliteParameter("@exclusive_key", SqliteType.Text) { Value = (object?)row.ExclusiveKey ?? DBNull.Value });

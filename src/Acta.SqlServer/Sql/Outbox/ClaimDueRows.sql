@@ -18,7 +18,7 @@ SET
     claim_token = @p_claim_token,
     claim_until_utc = DATEADD(SECOND, @p_lease_ttl_seconds, SYSUTCDATETIME())
 OUTPUT
-    INSERTED.outbox_id, INSERTED.job_namespace, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input_data,
+    INSERTED.outbox_id, INSERTED.job_namespace, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
     INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.exclusive_key, INSERTED.priority_code,
     INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_key, INSERTED.meta, INSERTED.created_at_utc, INSERTED.failure_count
 FROM {{table_ref}} AS o

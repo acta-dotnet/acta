@@ -60,7 +60,7 @@ public abstract class OutboxRelayIntegrationBase<TFixture> : ActaRuntimeTestBase
             JobNamespace: jobNamespace ?? TestNamespace,
             JobName: jobName ?? "echo",
             InputFormatId: inputFormatId,
-            InputData: data ?? EchoJson(),
+            Input: data ?? EchoJson(),
             DeduplicationKey: dedup,
             PriorityCode: null,
             CreatedAtUtc: when,

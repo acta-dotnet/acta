@@ -362,7 +362,7 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 | `job_namespace` | yes | ASCII, 64-character public cap; canonical user namespace. |
 | `job_name` | yes | ASCII, 128 characters; canonical user job name. |
 | `input_format_id` | yes | Byte-sized format id; `0` is None. |
-| `input_data` | no | Provider binary payload; null exactly when the format id is `0`. |
+| `input` | no | Provider binary payload; null exactly when the format id is `0`. |
 | `deduplication_key` | yes | ASCII, 128 characters; target root-job identity within the namespace. |
 | `correlation_key` | no | ASCII, 64 characters. |
 | `exclusive_key` | no | ASCII, 128 characters. |

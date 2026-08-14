@@ -82,7 +82,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await using var cmd = c.CreateCommand();
         cmd.CommandText = """
             INSERT INTO main.acta_outbox
-                (outbox_id, job_namespace, job_name, input_format_id, input_data, deduplication_key,
+                (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
                  created_at_utc, next_attempt_at_utc, status_code, failure_count)
             VALUES (@id, @ns, 'echo', 1, @data, @dedup,
                     strftime('%Y-%m-%d %H:%M:%f','now','-5 minutes'),

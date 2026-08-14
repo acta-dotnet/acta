@@ -212,9 +212,11 @@ Full rename batch, one breaking pass, release notes carry the table:
   prefix + Crockford32, which this plain uuid is not), and `next_attempt_at_utc` stays (it covers
   the FIRST delivery attempt — defaults to `now()` at insert — so `next_retry_at_utc` would
   misdescribe it; `steps.next_retry_at_utc` means a genuine post-failure retry and the two are
-  different concepts, not two spellings). `input_data` and `meta` renames are decided after
-  checking the decoded-view field collision; if real, they stay and the decision is recorded
-  here.
+  different concepts, not two spellings). The collision check came back clean — the staging
+  table lives in the producer's database and no Acta view touches it — so **`input_data` →
+  `input`** shipped (parity with `jobs.input`; no production use existed to migrate, per Marko).
+  **`meta` stays**: it is an extensible envelope by design (root object, currently carrying only
+  `tags`), so renaming it to its current sole content would misname it.
 
 ## 6. Conventions doc
 

@@ -88,7 +88,7 @@ public sealed partial class SqliteConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO main.{table}
-                (outbox_id, job_namespace, job_name, input_format_id, input_data, deduplication_key,
+                (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
                  meta, priority_code, created_at_utc, next_attempt_at_utc, status_code, failure_count,
                  claim_token, claim_until_utc)
             VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
@@ -100,7 +100,7 @@ public sealed partial class SqliteConformanceFixture
         cmd.Parameters.AddWithValue("@ns", seed.JobNamespace);
         cmd.Parameters.AddWithValue("@name", seed.JobName);
         cmd.Parameters.AddWithValue("@fmt", (long)seed.InputFormatId);
-        cmd.Parameters.AddWithValue("@data", (object?)seed.InputData ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@data", (object?)seed.Input ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@dedup", seed.DeduplicationKey);
         cmd.Parameters.AddWithValue("@meta", (object?)seed.Meta ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@prio", seed.PriorityCode is { } p ? (long)p : DBNull.Value);

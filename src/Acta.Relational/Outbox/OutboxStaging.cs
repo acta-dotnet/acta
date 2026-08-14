@@ -21,9 +21,9 @@ internal static class OutboxStaging
     // The canonical INSERT column list and VALUES clause, byte-identical across every provider. The provider
     // extension binds these named parameters with its own typed parameter objects.
     private const string InsertColumnsAndValues = """
-            (outbox_id, job_namespace, job_name, input_format_id, input_data, deduplication_key,
+            (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
              correlation_key, exclusive_key, priority_code, next_run_at_utc, delay_seconds, tenant_key, meta)
-        VALUES (@outbox_id, @job_namespace, @job_name, @input_format_id, @input_data, @deduplication_key,
+        VALUES (@outbox_id, @job_namespace, @job_name, @input_format_id, @input, @deduplication_key,
                 @correlation_key, @exclusive_key, @priority_code, @next_run_at_utc, @delay_seconds, @tenant_key, @meta);
         """;
 
@@ -71,7 +71,7 @@ internal static class OutboxStaging
                 JobNamespace: normalized.JobNamespace,
                 JobName: normalized.JobName,
                 InputFormatId: normalized.Input.Format.Id,
-                InputData: normalized.Input.IsNone ? null : normalized.Input.Data.ToArray(),
+                Input: normalized.Input.IsNone ? null : normalized.Input.Data.ToArray(),
                 DeduplicationKey: normalized.DeduplicationKey,
                 CorrelationKey: normalized.CorrelationKey,
                 ExclusiveKey: normalized.ExclusiveKey,
@@ -99,7 +99,7 @@ internal readonly record struct OutboxStagingRow(
     string JobNamespace,
     string JobName,
     byte InputFormatId,
-    byte[]? InputData,
+    byte[]? Input,
     string DeduplicationKey,
     string? CorrelationKey,
     string? ExclusiveKey,

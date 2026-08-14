@@ -46,7 +46,7 @@ public static class SqlServerOutboxStagingExtensions
         p.Add(new SqlParameter("@job_namespace", SqlDbType.VarChar, 64) { Value = row.JobNamespace });
         p.Add(new SqlParameter("@job_name", SqlDbType.VarChar, 128) { Value = row.JobName });
         p.Add(new SqlParameter("@input_format_id", SqlDbType.TinyInt) { Value = row.InputFormatId });
-        p.Add(new SqlParameter("@input_data", SqlDbType.VarBinary, -1) { Value = (object?)row.InputData ?? DBNull.Value });
+        p.Add(new SqlParameter("@input", SqlDbType.VarBinary, -1) { Value = (object?)row.Input ?? DBNull.Value });
         p.Add(new SqlParameter("@deduplication_key", SqlDbType.VarChar, 128) { Value = row.DeduplicationKey });
         p.Add(new SqlParameter("@correlation_key", SqlDbType.VarChar, 64) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new SqlParameter("@exclusive_key", SqlDbType.VarChar, 128) { Value = (object?)row.ExclusiveKey ?? DBNull.Value });

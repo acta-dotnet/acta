@@ -11,7 +11,7 @@ internal static class OutboxRequestReconstruction
 {
     public static JobEnqueueRequest ToRequest(OutboxRow row, int maxInlinePayloadBytes)
     {
-        var inputLength = row.InputData?.Length ?? 0;
+        var inputLength = row.Input?.Length ?? 0;
         if (inputLength > maxInlinePayloadBytes)
         {
             throw new OutboxContractException(
@@ -35,7 +35,7 @@ internal static class OutboxRequestReconstruction
                 throw new OutboxContractException($"input_format_id {row.InputFormatId} is not a supported payload format: {ex.Message}");
             }
 
-            input = JobPayload.FromBytes(format, row.InputData ?? []);
+            input = JobPayload.FromBytes(format, row.Input ?? []);
         }
 
         return new JobEnqueueRequest(
