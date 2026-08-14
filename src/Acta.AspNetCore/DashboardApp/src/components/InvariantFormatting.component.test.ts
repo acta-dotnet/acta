@@ -135,7 +135,7 @@ describe('invariant dashboard formatting', () => {
       jobNamespace: 'billing',
       jobName: 'invoice',
       scheduleName: 'daily',
-      note: null,
+      reasonMessage: null,
       pausedUntilUtc: '2026-07-15T08:26:00.000Z'
     });
   });
