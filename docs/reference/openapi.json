@@ -1078,6 +1078,117 @@
         "tags": [
           "Jobs"
         ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Only jobs in this namespace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "query",
+            "description": "Exact job name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Exact job status as a kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "terminalOnly",
+            "in": "query",
+            "description": "True restricts to terminal statuses.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "recurringOnly",
+            "in": "query",
+            "description": "True restricts to recurring slots.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "parentJobRef",
+            "in": "query",
+            "description": "Only direct children of this parent job ref.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "correlationKey",
+            "in": "query",
+            "description": "Only jobs stamped with this correlation key.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "description": "Only jobs admitted under this tenant id.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "tenantKey",
+            "in": "query",
+            "description": "Only jobs admitted under this tenant key.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1383,6 +1494,60 @@
       "get": {
         "tags": [
           "Tenants"
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Exact tenant status as a kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nameContains",
+            "in": "query",
+            "description": "Case-insensitive substring matched against key, display name, or description.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         ],
         "responses": {
           "400": {
@@ -1774,7 +1939,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TenantListItem"
+                  "$ref": "#/components/schemas/TenantDetail"
                 }
               }
             }
@@ -4491,6 +4656,24 @@
         "tags": [
           "Jobs"
         ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "The deduplication key's namespace scope (required).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deduplicationKey",
+            "in": "query",
+            "description": "The caller-supplied deduplication key to resolve (required).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -4560,6 +4743,16 @@
         "tags": [
           "Overview"
         ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Scope the overview to one namespace; omit for all.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -4618,6 +4811,16 @@
       "get": {
         "tags": [
           "Overview"
+        ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Scope the outbox lens to one namespace; omit for all.",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "400": {
@@ -4681,6 +4884,60 @@
         "tags": [
           "Namespaces"
         ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Exact namespace status as a kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nameContains",
+            "in": "query",
+            "description": "Case-insensitive substring match on the namespace name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -4739,6 +4996,129 @@
       "get": {
         "tags": [
           "Events"
+        ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Only events recorded in this namespace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "query",
+            "description": "Only events for this job id.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "eventCode",
+            "in": "query",
+            "description": "Exact event code as its kebab string.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorCode",
+            "in": "query",
+            "description": "Exact actor as its kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reasonCode",
+            "in": "query",
+            "description": "Exact reason as its kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "description": "Only events stamped with this tenant id.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "tenantKey",
+            "in": "query",
+            "description": "Only events stamped with this tenant key.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workerId",
+            "in": "query",
+            "description": "Only events recorded by this worker.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "createdFromUtc",
+            "in": "query",
+            "description": "Inclusive lower bound on the event instant.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "createdToUtc",
+            "in": "query",
+            "description": "Exclusive upper bound on the event instant.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         ],
         "responses": {
           "400": {
@@ -4806,6 +5186,39 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "eventCode",
+            "in": "query",
+            "description": "Exact event code as its kebab string.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -4878,6 +5291,76 @@
         "tags": [
           "Definitions"
         ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Only definitions registered in this namespace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "query",
+            "description": "Exact job name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nameContains",
+            "in": "query",
+            "description": "Case-insensitive substring match on the job name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Exact definition status as a kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -4947,6 +5430,31 @@
               "type": "integer",
               "format": "int32"
             }
+          },
+          {
+            "name": "eventCode",
+            "in": "query",
+            "description": "Exact event code as its kebab string.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5007,6 +5515,76 @@
       "get": {
         "tags": [
           "Schedules"
+        ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Only schedules in this namespace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "query",
+            "description": "Only schedules on this job name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "description": "Exact schedule origin as a kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "liveOnly",
+            "in": "query",
+            "description": "Null or true returns only schedules with no orphaned instant; false includes orphaned ones.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         ],
         "responses": {
           "400": {
@@ -5126,6 +5704,41 @@
         "tags": [
           "Schedules"
         ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "The schedule's namespace (required).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "query",
+            "description": "The schedule's job name (required).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleName",
+            "in": "query",
+            "description": "The schedule name (required).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "How many upcoming occurrences to forecast.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -5194,6 +5807,60 @@
       "get": {
         "tags": [
           "Workers"
+        ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Only workers registered for this namespace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Exact worker status as a kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         ],
         "responses": {
           "400": {
@@ -5335,6 +6002,92 @@
       "get": {
         "tags": [
           "Alerts"
+        ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Only alerts raised in this namespace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobRef",
+            "in": "query",
+            "description": "Only alerts attached to this job ref.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "severityAtLeast",
+            "in": "query",
+            "description": "Severity floor as a kebab code; lower severities are excluded.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "unresolvedOnly",
+            "in": "query",
+            "description": "True restricts to alerts with no resolved instant.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "acknowledgedOnly",
+            "in": "query",
+            "description": "True restricts to acknowledged alerts, false to unacknowledged; omit for both.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "deliveryStatus",
+            "in": "query",
+            "description": "Exact delivery status as a kebab code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag filter as name or name:value; repeatable, and every repeat must match (AND).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         ],
         "responses": {
           "400": {
@@ -8177,6 +8930,72 @@
           }
         },
         "description": "One normalized tag attached to a target."
+      },
+      "TenantDetail": {
+        "required": [
+          "tenantId",
+          "tenantKey",
+          "displayName",
+          "description",
+          "status",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "DB-assigned tenant id, referenced by `job.tenant_id`.",
+            "format": "int32"
+          },
+          "tenantKey": {
+            "type": "string",
+            "description": "Caller-supplied opaque external identifier. Unique."
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Human display label for dashboards, or null (dashboards fall back to the key)."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Operator-readable description, or null."
+          },
+          "status": {
+            "description": "Tenant lifecycle status (Active resolves at enqueue; Suspended rejects it).",
+            "$ref": "#/components/schemas/TenantStatusCode"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "description": "Row insert instant.",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "description": "Last row change instant.",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
+            "format": "int32"
+          }
+        },
+        "description": "The single-tenant read model returned by ValueTask&lt;TenantDetail?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). Today it carries the\nsame fields as TenantListItem; it is a distinct type because a detail read can grow\nadditively (usage counts, per-tenant policy) without the list row paying for it."
       },
       "TenantListItem": {
         "required": [

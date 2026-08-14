@@ -248,6 +248,19 @@ internal static class ActaApiEndpoints
                 }
             )
             .Produces<PagedResult<JobListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only jobs in this namespace."),
+                new QueryParameterDoc("jobName", QueryParameterKind.String, "Exact job name."),
+                new QueryParameterDoc("status", QueryParameterKind.String, "Exact job status as a kebab code."),
+                new QueryParameterDoc("terminalOnly", QueryParameterKind.Bool, "True restricts to terminal statuses."),
+                new QueryParameterDoc("recurringOnly", QueryParameterKind.Bool, "True restricts to recurring slots."),
+                new QueryParameterDoc("parentJobRef", QueryParameterKind.String, "Only direct children of this parent job ref."),
+                new QueryParameterDoc("correlationKey", QueryParameterKind.String, "Only jobs stamped with this correlation key."),
+                new QueryParameterDoc("tenantId", QueryParameterKind.Int, "Only jobs admitted under this tenant id."),
+                new QueryParameterDoc("tenantKey", QueryParameterKind.String, "Only jobs admitted under this tenant key."),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            )
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
@@ -357,6 +370,14 @@ internal static class ActaApiEndpoints
                 }
             )
             .Produces<JobDetail>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "The deduplication key's namespace scope (required)."),
+                new QueryParameterDoc(
+                    "deduplicationKey",
+                    QueryParameterKind.String,
+                    "The caller-supplied deduplication key to resolve (required)."
+                )
+            )
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
@@ -376,7 +397,10 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<OverviewSnapshot>(StatusCodes.Status200OK);
+            .Produces<OverviewSnapshot>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the overview to one namespace; omit for all.")
+            );
 
         // The overview's outbox lens: each namespace's sys.outbox slot result (the relay's persisted
         // tick summary) so the health verdict can show source lag from ledger reads alone.
@@ -394,7 +418,10 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<IReadOnlyList<OverviewOutboxLine>>(StatusCodes.Status200OK);
+            .Produces<IReadOnlyList<OverviewOutboxLine>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the outbox lens to one namespace; omit for all.")
+            );
 
         group
             .MapGet(
@@ -427,7 +454,13 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<PagedResult<NamespaceListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<NamespaceListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("status", QueryParameterKind.String, "Exact namespace status as a kebab code."),
+                new QueryParameterDoc("nameContains", QueryParameterKind.String, "Case-insensitive substring match on the namespace name."),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            );
 
         group
             .MapGet(
@@ -457,7 +490,17 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<PagedResult<TenantListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<TenantListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("status", QueryParameterKind.String, "Exact tenant status as a kebab code."),
+                new QueryParameterDoc(
+                    "nameContains",
+                    QueryParameterKind.String,
+                    "Case-insensitive substring matched against key, display name, or description."
+                ),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            );
 
         group
             .MapGet(
@@ -477,7 +520,7 @@ internal static class ActaApiEndpoints
                     return tenant is null ? NotFound() : Results.Json(tenant, DashboardJsonContext.Default.TenantListItem);
                 }
             )
-            .Produces<TenantListItem>(StatusCodes.Status200OK)
+            .Produces<TenantDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
@@ -490,6 +533,7 @@ internal static class ActaApiEndpoints
                         !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                         || !QueryBinding.TryEventCode(http.Request.Query, "eventCode", out var eventCode, ref error)
                         || !QueryBinding.TryLong(http.Request.Query, "jobId", out var jobId, ref error)
+                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
                         || !QueryBinding.TryInt(http.Request.Query, "tenantId", out var tenantId, ref error)
                         || !QueryBinding.TryInt(http.Request.Query, "workerId", out var workerId, ref error)
                         || !QueryBinding.TryCode<ActorCode>(
@@ -515,6 +559,7 @@ internal static class ActaApiEndpoints
 
                     var query = new ListEventsQuery(
                         JobId: jobId,
+                        IncludeTotal: includeTotal == true,
                         JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
                         EventCode: eventCode,
                         TenantId: tenantId,
@@ -536,7 +581,21 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only events recorded in this namespace."),
+                new QueryParameterDoc("jobId", QueryParameterKind.Int, "Only events for this job id."),
+                new QueryParameterDoc("eventCode", QueryParameterKind.String, "Exact event code as its kebab string."),
+                new QueryParameterDoc("actorCode", QueryParameterKind.String, "Exact actor as its kebab code."),
+                new QueryParameterDoc("reasonCode", QueryParameterKind.String, "Exact reason as its kebab code."),
+                new QueryParameterDoc("tenantId", QueryParameterKind.Int, "Only events stamped with this tenant id."),
+                new QueryParameterDoc("tenantKey", QueryParameterKind.String, "Only events stamped with this tenant key."),
+                new QueryParameterDoc("workerId", QueryParameterKind.Int, "Only events recorded by this worker."),
+                new QueryParameterDoc("createdFromUtc", QueryParameterKind.Instant, "Inclusive lower bound on the event instant."),
+                new QueryParameterDoc("createdToUtc", QueryParameterKind.Instant, "Exclusive upper bound on the event instant."),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            );
 
         group
             .MapGet(
@@ -577,6 +636,10 @@ internal static class ActaApiEndpoints
                 }
             )
             .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("eventCode", QueryParameterKind.String, "Exact event code as its kebab string."),
+                QueryParameterDocExtensions.Paging
+            )
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
@@ -611,7 +674,15 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<PagedResult<JobDefinitionListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<JobDefinitionListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only definitions registered in this namespace."),
+                new QueryParameterDoc("jobName", QueryParameterKind.String, "Exact job name."),
+                new QueryParameterDoc("nameContains", QueryParameterKind.String, "Case-insensitive substring match on the job name."),
+                new QueryParameterDoc("status", QueryParameterKind.String, "Exact definition status as a kebab code."),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            );
 
         group
             .MapGet(
@@ -656,7 +727,16 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("eventCode", QueryParameterKind.String, "Exact event code as its kebab string."),
+                new QueryParameterDoc("pageSize", QueryParameterKind.Int, "Rows per page; the server clamps to its bounds."),
+                new QueryParameterDoc(
+                    "cursor",
+                    QueryParameterKind.String,
+                    "Opaque keyset cursor from the previous page's nextCursor; omit for the first page."
+                )
+            );
 
         group
             .MapGet(
@@ -692,7 +772,19 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<PagedResult<ScheduleListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<ScheduleListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only schedules in this namespace."),
+                new QueryParameterDoc("jobName", QueryParameterKind.String, "Only schedules on this job name."),
+                new QueryParameterDoc("origin", QueryParameterKind.String, "Exact schedule origin as a kebab code."),
+                new QueryParameterDoc(
+                    "liveOnly",
+                    QueryParameterKind.Bool,
+                    "Null or true returns only schedules with no orphaned instant; false includes orphaned ones."
+                ),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            );
 
         group
             .MapGet(
@@ -756,6 +848,12 @@ internal static class ActaApiEndpoints
                 }
             )
             .Produces<SchedulePreview>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "The schedule's namespace (required)."),
+                new QueryParameterDoc("jobName", QueryParameterKind.String, "The schedule's job name (required)."),
+                new QueryParameterDoc("scheduleName", QueryParameterKind.String, "The schedule name (required)."),
+                new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")
+            )
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
@@ -786,7 +884,13 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
-            .Produces<PagedResult<WorkerListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<WorkerListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only workers registered for this namespace."),
+                new QueryParameterDoc("status", QueryParameterKind.String, "Exact worker status as a kebab code."),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            );
 
         group
             .MapGet(
@@ -865,6 +969,24 @@ internal static class ActaApiEndpoints
                 }
             )
             .Produces<PagedResult<AlertListItem>>(StatusCodes.Status200OK)
+            .WithQueryParameters(
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only alerts raised in this namespace."),
+                new QueryParameterDoc("jobRef", QueryParameterKind.String, "Only alerts attached to this job ref."),
+                new QueryParameterDoc(
+                    "severityAtLeast",
+                    QueryParameterKind.String,
+                    "Severity floor as a kebab code; lower severities are excluded."
+                ),
+                new QueryParameterDoc("unresolvedOnly", QueryParameterKind.Bool, "True restricts to alerts with no resolved instant."),
+                new QueryParameterDoc(
+                    "acknowledgedOnly",
+                    QueryParameterKind.Bool,
+                    "True restricts to acknowledged alerts, false to unacknowledged; omit for both."
+                ),
+                new QueryParameterDoc("deliveryStatus", QueryParameterKind.String, "Exact delivery status as a kebab code."),
+                QueryParameterDocExtensions.Paging,
+                QueryParameterDocExtensions.TagFilter
+            )
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 

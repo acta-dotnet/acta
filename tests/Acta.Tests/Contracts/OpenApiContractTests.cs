@@ -1,7 +1,9 @@
+using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi;
 using Xunit;
 
 namespace Acta.Tests.Contracts;
@@ -54,19 +56,51 @@ public sealed class OpenApiContractTests
         builder.Services.AddSingleton<IJobs>(fake);
         builder.Services.AddSingleton<IActaOperations>(fake);
         builder.Services.AddOpenApi(o =>
-            // Two request records carry `JsonElement Input = default` for the free-form payload. The
-            // generator copies that default into the schema and then cannot serialize it, because an
-            // uninitialized JsonElement has no value to write. The defaults document nothing anyway -
-            // the field is "whatever JSON the caller sends" - so they are dropped rather than paid for
-            // by weakening the request types to keep a generator happy.
+        // Two request records carry `JsonElement Input = default` for the free-form payload. The
+        // generator copies that default into the schema and then cannot serialize it, because an
+        // uninitialized JsonElement has no value to write. The defaults document nothing anyway -
+        // the field is "whatever JSON the caller sends" - so they are dropped rather than paid for
+        // by weakening the request types to keep a generator happy.
+        {
             o.AddSchemaTransformer(
                 (schema, _, _) =>
                 {
                     schema.Default = null;
                     return Task.CompletedTask;
                 }
-            )
-        );
+            );
+            // The handlers bind query strings through QueryBinding rather than typed parameters,
+            // so the generator cannot see the filter surface; each endpoint declares it as
+            // QueryParameterDoc metadata (product-side, OpenAPI-free) and this transformer
+            // renders it, which is what makes the committed document protect the filters.
+            o.AddOperationTransformer(
+                (operation, context, _) =>
+                {
+                    foreach (var doc in context.Description.ActionDescriptor.EndpointMetadata.OfType<QueryParameterDoc>())
+                    {
+                        var schema = doc.Kind switch
+                        {
+                            QueryParameterKind.Int => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+                            QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
+                            QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+                            _ => new OpenApiSchema { Type = JsonSchemaType.String },
+                        };
+                        operation.Parameters ??= [];
+                        operation.Parameters.Add(
+                            new OpenApiParameter
+                            {
+                                Name = doc.Name,
+                                In = ParameterLocation.Query,
+                                Required = false,
+                                Description = doc.Description,
+                                Schema = doc.Repeatable ? new OpenApiSchema { Type = JsonSchemaType.Array, Items = schema } : schema,
+                            }
+                        );
+                    }
+                    return Task.CompletedTask;
+                }
+            );
+        });
 
         var app = builder.Build();
         // The dashboard UI is off: its index, asset, and SPA-fallback routes are not part of the API

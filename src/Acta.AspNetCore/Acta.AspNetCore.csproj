@@ -14,6 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Acta.Tests" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Acta\Acta.csproj" PrivateAssets="none" />
   </ItemGroup>
