@@ -48,4 +48,31 @@ internal interface IOutboxRelayStore
     /// Read after finalization so each successful tick's summary reports what still awaits relay.
     /// </summary>
     Task<long> CountBacklogAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Counts the source's Quarantined rows. Read with the backlog so the tick summary carries the
+    /// current quarantine total cross-peer - the only channel a peer without this source registration
+    /// has into the producer's database.
+    /// </summary>
+    Task<long> CountQuarantinedAsync(CancellationToken ct);
+
+    /// <summary>
+    /// One keyset page of Quarantined rows ordered by <c>outbox_id</c>, identity and failure evidence
+    /// only (never the payload). Serves the operator listing on peers where this source is registered.
+    /// </summary>
+    Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct);
+
+    /// <summary>
+    /// Returns Quarantined rows to Pending, immediately due, with <c>failure_count</c> reset to 0 and
+    /// <c>last_error</c> kept as evidence. The status filter is the whole guard (quarantined rows are
+    /// never claimed, so no token CAS applies). Returns the ids actually requeued.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct);
+
+    /// <summary>
+    /// Deletes Quarantined rows outright. Returns the ids actually deleted so the applying tick can write
+    /// them into ledger event evidence before the proof leaves the source table. The status filter
+    /// guarantees an in-flight claimed row is never deleted.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct);
 }

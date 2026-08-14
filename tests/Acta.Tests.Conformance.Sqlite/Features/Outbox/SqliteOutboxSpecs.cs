@@ -17,6 +17,12 @@ public sealed class SqliteOutboxReleaseSpec : OutboxReleaseSpec<SqliteConformanc
 
 public sealed class SqliteOutboxBacklogCountSpec : OutboxBacklogCountSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteOutboxListQuarantinedSpec : OutboxListQuarantinedSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteOutboxRequeueSpec : OutboxRequeueSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteOutboxDiscardSpec : OutboxDiscardSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteOutboxStagingSpec : OutboxStagingSpec<SqliteConformanceFixture>;

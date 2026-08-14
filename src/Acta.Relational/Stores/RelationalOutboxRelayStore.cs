@@ -102,6 +102,58 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             ct
         );
 
+    public Task<long> CountQuarantinedAsync(CancellationToken ct) =>
+        session.RunWithRetryAsync(
+            async token =>
+            {
+                await using var conn = await session.OpenConnectionAsync(token);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = OutboxSchema.Sql.CountQuarantined(_tableRef);
+                return Convert.ToInt64(await cmd.ExecuteScalarAsync(token), CultureInfo.InvariantCulture);
+            },
+            ct
+        );
+
+    public async Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct)
+    {
+        var read = DbProjectionResolver.Resolve<OutboxQuarantinedRow>();
+        return await session.ExecuteAsync(
+            new StoreCommand("Outbox", "ListQuarantinedRows"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.PageSize, command.PageSize));
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.AfterOutboxId, command.AfterOutboxId));
+            },
+            read,
+            ct
+        );
+    }
+
+    public async Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct)
+    {
+        var affected = await session.ExecuteAsync(
+            new StoreCommand("Outbox", "RequeueQuarantinedRows"),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, ToOptionalIdArray(command.OutboxIds))),
+            DbProjectionResolver.Resolve<OutboxAffectedRow>(),
+            ct
+        );
+        return affected.Select(row => row.OutboxId).ToList();
+    }
+
+    public async Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct)
+    {
+        var affected = await session.ExecuteAsync(
+            new StoreCommand("Outbox", "DiscardQuarantinedRows"),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, ToOptionalIdArray(command.OutboxIds))),
+            DbProjectionResolver.Resolve<OutboxAffectedRow>(),
+            ct
+        );
+        return affected.Select(row => row.OutboxId).ToList();
+    }
+
+    // NULL (not an empty array) is the every-quarantined-row form the operator SQL tests for.
+    private static string? ToOptionalIdArray(IReadOnlyList<Guid>? ids) => ids is null ? null : ToIdArray(ids);
+
     private static string? Truncate(string? value) => value is { Length: > MaxLastError } ? value[..MaxLastError] : value;
 
     // A JSON array of the claimed ids as their canonical GUID text; every provider's set-based finalize

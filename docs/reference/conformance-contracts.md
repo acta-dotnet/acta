@@ -1173,6 +1173,27 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.DeleteClaimedAsync`
 
+### Discard deletes quarantined rows and returns the ids as the evidence handle
+- **Contract:** DiscardQuarantined deletes targeted (or all, when ids are null) Quarantined rows, returns the deleted ids, and never touches a row in any other status.
+- **Arrange:** Two rows are quarantined and a third is claimed in-flight.
+- **Act:** One quarantined row is discarded by id, then the null all-form runs, then the claimed row is named explicitly.
+- **Assert:** Each discard returns exactly the deleted ids, discarded rows are gone, and the claimed row survives both the sweep and being named.
+- **Guarantees:**
+  - Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row
+- **Store methods:**
+  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.DiscardQuarantinedAsync`
+
+### Quarantined rows list in keyset pages with their failure evidence
+- **Contract:** ListQuarantined pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.
+- **Arrange:** Three claimed rows are quarantined with distinct errors.
+- **Act:** The listing is read in two keyset pages and the quarantine total is counted.
+- **Assert:** The two pages cover all three rows exactly once with failure evidence intact, and the count is three.
+- **Guarantees:**
+  - Two keyset pages cover every quarantined row exactly once, evidence intact
+- **Store methods:**
+  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.CountQuarantinedAsync`
+  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ListQuarantinedAsync`
+
 ### Quarantine retains a claimed row at status 90 and excludes it from claims
 - **Contract:** Quarantine retains a claimed row at status 90 with its error and clears the claim pair, only under its token, excluding it from claims.
 - **Arrange:** A source row is claimed under one token.
@@ -1192,6 +1213,16 @@
   - A stale token no-ops and the owning token releases the row for immediate reclaim
 - **Store methods:**
   - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ReleaseClaimedAsync`
+
+### Requeue returns quarantined rows to Pending, budget reset, evidence kept
+- **Contract:** RequeueQuarantined moves targeted (or all, when ids are null) Quarantined rows to Pending, due now, failure_count reset, last_error kept, returning the ids.
+- **Arrange:** Two rows are quarantined with their errors and one row stays Pending.
+- **Act:** One row is requeued by id, then the remainder by the null all-form, then the all-form again on an empty quarantine.
+- **Assert:** Each requeue returns exactly the touched ids, rows land Pending with failure_count 0 and last_error kept, claim again, and the empty sweep returns nothing.
+- **Guarantees:**
+  - Id-scoped requeue frees one row, the null form sweeps the rest, and freed rows claim again
+- **Store methods:**
+  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.RequeueQuarantinedAsync`
 
 ### Reschedule returns a claimed row to Pending with backoff, only under its token
 - **Contract:** Reschedule returns a claimed row to Pending with a bumped failure count, a future attempt, and the error, only under its token.
@@ -2269,9 +2300,13 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ITagStore.GetAsync` | Tags read and mutate all first-class targets and filter typed queries |
 | `IOutboxRelayStore.ClaimDueAsync` | A claim recovers an expired lease and reclaims it, leaving a live lease alone<br>Claim takes a bounded urgent-first batch under one token, no double claim<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
 | `IOutboxRelayStore.CountBacklogAsync` | Backlog counts Pending rows only |
+| `IOutboxRelayStore.CountQuarantinedAsync` | Quarantined rows list in keyset pages with their failure evidence |
 | `IOutboxRelayStore.DeleteClaimedAsync` | Delete removes a claimed row only under its token, a stale token no-ops<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
+| `IOutboxRelayStore.DiscardQuarantinedAsync` | Discard deletes quarantined rows and returns the ids as the evidence handle |
+| `IOutboxRelayStore.ListQuarantinedAsync` | Quarantined rows list in keyset pages with their failure evidence |
 | `IOutboxRelayStore.QuarantineAsync` | Quarantine retains a claimed row at status 90 and excludes it from claims<br>Threshold and contract failures quarantine with one bounded summary |
 | `IOutboxRelayStore.ReleaseClaimedAsync` | Relay crash windows never lose a row or duplicate a target job<br>Release returns a claimed row to Pending, attempt unchanged, reclaimable |
+| `IOutboxRelayStore.RequeueQuarantinedAsync` | Requeue returns quarantined rows to Pending, budget reset, evidence kept |
 | `IOutboxRelayStore.RescheduleAsync` | Reschedule returns a claimed row to Pending with backoff, only under its token |
 | `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
 | `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
@@ -2374,8 +2409,11 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Operations/Tags/TagsView` | yes | yes | yes |
 | `Outbox/ClaimDueRows` | yes | yes | yes |
 | `Outbox/DeleteClaimedRow` | yes | yes | yes |
+| `Outbox/DiscardQuarantinedRows` | yes | yes | yes |
+| `Outbox/ListQuarantinedRows` | yes | yes | yes |
 | `Outbox/QuarantineRow` | yes | yes | yes |
 | `Outbox/ReleaseClaimedRow` | yes | yes | yes |
+| `Outbox/RequeueQuarantinedRows` | yes | yes | yes |
 | `Outbox/RescheduleRow` | yes | yes | yes |
 | `Services/Locks/AcquireLock` | yes | yes | yes |
 | `Services/Locks/ExtendLock` | yes | yes | yes |

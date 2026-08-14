@@ -17,6 +17,12 @@ public sealed class PgOutboxReleaseSpec : OutboxReleaseSpec<PgConformanceFixture
 
 public sealed class PgOutboxBacklogCountSpec : OutboxBacklogCountSpec<PgConformanceFixture>;
 
+public sealed class PgOutboxListQuarantinedSpec : OutboxListQuarantinedSpec<PgConformanceFixture>;
+
+public sealed class PgOutboxRequeueSpec : OutboxRequeueSpec<PgConformanceFixture>;
+
+public sealed class PgOutboxDiscardSpec : OutboxDiscardSpec<PgConformanceFixture>;
+
 public sealed class PgOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<PgConformanceFixture>;
 
 public sealed class PgOutboxStagingSpec : OutboxStagingSpec<PgConformanceFixture>;

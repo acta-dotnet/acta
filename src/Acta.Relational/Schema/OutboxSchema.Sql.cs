@@ -50,11 +50,47 @@ internal static class OutboxSchema
             IsNullable: false
         );
 
+        // The operator verbs' optional id filter: the same JSON id-array shape as OutboxIds, but NULL
+        // means "every quarantined row" so a bulk requeue-after-fix needs no listing round trip.
+        public static readonly DbValueSpec<string?> OutboxIdsOptional = new(
+            ParameterName: "p_outbox_ids",
+            Kind: DbKind.UnicodeString,
+            Size: -1,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
+        public static readonly DbValueSpec<int> PageSize = new(
+            ParameterName: "p_page_size",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
+        // Keyset cursor for the quarantined listing: the last outbox_id of the previous page, NULL for
+        // the first page. The id is the order key - see ListQuarantinedRows.sql for why not a timestamp.
+        public static readonly DbValueSpec<Guid?> AfterOutboxId = new(
+            ParameterName: "p_after_outbox_id",
+            Kind: DbKind.Guid,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         // The backlog count is the one relay command whose SQL is identical across the three source
         // providers, so it is composed here as shared inline text over the validated table reference
         // instead of landing as three per-provider resources.
         public static string CountBacklog(string tableRef) =>
             $"SELECT COUNT(*) FROM {tableRef} WHERE status_code = 10 /* OutboxStatusCode.Pending */;";
+
+        // Same shared-inline reasoning as CountBacklog: the quarantine total the tick summary carries
+        // cross-peer so operator surfaces see it without reaching the source database.
+        public static string CountQuarantined(string tableRef) =>
+            $"SELECT COUNT(*) FROM {tableRef} WHERE status_code = 90 /* OutboxStatusCode.Quarantined */;";
 
         // A JSON array of per-row reschedule/quarantine records
         // ([{"outbox_id","failure_count","backoff_seconds"?,"last_error"}, ...]) so each of those finalizes

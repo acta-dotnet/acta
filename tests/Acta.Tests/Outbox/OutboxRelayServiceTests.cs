@@ -60,8 +60,8 @@ public sealed class OutboxRelayServiceTests
         Assert.Equal("k1", request.DeduplicationKey);
         Assert.Equal([early.OutboxId, late.OutboxId], store.Deleted.ToHashSet());
         // Two rows claimed, one job inserted, one coalesced member absorbed as a dedup.
-        Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0), summary);
-        Assert.Equal("claimed=2 relayed=1 dedup=1 quarantined=0 backlog=0", summary.ToString());
+        Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0, 0), summary);
+        Assert.Equal("claimed=2 relayed=1 dedup=1 quarantined=0 backlog=0 quarantine=0", summary.ToString());
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class OutboxRelayServiceTests
         Assert.Contains(row.OutboxId, store.Deleted);
         Assert.Empty(store.Quarantined);
         // The target already held the handoff: nothing relayed, the whole group counts as deduplicated.
-        Assert.Equal(new OutboxTickSummary(1, 0, 1, 0, 0), summary);
+        Assert.Equal(new OutboxTickSummary(1, 0, 1, 0, 0, 0), summary);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class OutboxRelayServiceTests
         Assert.Contains(good2.OutboxId, store.Deleted);
         Assert.DoesNotContain(bad.OutboxId, store.Deleted);
         // The per-group retry arm counts too: two groups relayed, the rejected group counts nothing.
-        Assert.Equal(new OutboxTickSummary(3, 2, 0, 0, 0), summary);
+        Assert.Equal(new OutboxTickSummary(3, 2, 0, 0, 0, 0), summary);
         var reschedule = Assert.Single(store.Rescheduled);
         Assert.Equal(bad.OutboxId, reschedule.OutboxId);
         Assert.Equal(1, reschedule.FailureCount);
@@ -173,7 +173,7 @@ public sealed class OutboxRelayServiceTests
         Assert.Equal(20, store.ClaimCalls);
         Assert.Equal(20 * 256, store.Deleted.Count);
         // The summary reports the full envelope relayed and the 300 unclaimed rows as remaining backlog.
-        Assert.Equal(new OutboxTickSummary(20 * 256, 20 * 256, 0, 0, 300), summary);
+        Assert.Equal(new OutboxTickSummary(20 * 256, 20 * 256, 0, 0, 300, 0), summary);
     }
 
     [Fact]
@@ -287,6 +287,17 @@ public sealed class OutboxRelayServiceTests
         public Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) => Task.CompletedTask;
 
         public Task<long> CountBacklogAsync(CancellationToken ct) => Task.FromResult(0L);
+
+        public Task<long> CountQuarantinedAsync(CancellationToken ct) => Task.FromResult(0L);
+
+        public Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<OutboxQuarantinedRow>>([]);
+
+        public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+
+        public Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
     }
 
     private sealed class FakeSubmission : IJobSubmission
@@ -361,5 +372,16 @@ public sealed class OutboxRelayServiceTests
 
         // The unclaimed remainder plus everything released back stands in for the Pending backlog.
         public Task<long> CountBacklogAsync(CancellationToken ct) => Task.FromResult((long)(_due.Count + Released.Count));
+
+        public Task<long> CountQuarantinedAsync(CancellationToken ct) => Task.FromResult((long)Quarantined.Count);
+
+        public Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<OutboxQuarantinedRow>>([]);
+
+        public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+
+        public Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
     }
 }

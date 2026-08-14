@@ -56,6 +56,48 @@ internal sealed record QuarantineOutboxCommand(Guid ClaimToken, IReadOnlyList<Ou
 internal readonly record struct OutboxQuarantine(Guid OutboxId, int FailureCount, string? LastError);
 
 /// <summary>
+/// One Quarantined row as the operator surface lists it: identity and routing fields plus the failure
+/// evidence, never the payload (opaque bytes stay in the producer's database). The constructor order is
+/// the <c>[DbProjection]</c> contract against every provider's <c>ListQuarantinedRows.sql</c>.
+/// </summary>
+internal sealed record OutboxQuarantinedRow(
+    Guid OutboxId,
+    string JobNamespace,
+    string JobName,
+    string DeduplicationKey,
+    string? CorrelationKey,
+    string? TenantKey,
+    int FailureCount,
+    string? LastError,
+    DateTime CreatedAtUtc
+);
+
+/// <summary>
+/// A keyset page request over the Quarantined rows, ordered by <c>outbox_id</c> - the one portable
+/// unique order across the three source encodings. <paramref name="AfterOutboxId"/> is the last id of
+/// the previous page, or null for the first page.
+/// </summary>
+internal sealed record ListQuarantinedOutboxCommand(int PageSize, Guid? AfterOutboxId);
+
+/// <summary>
+/// Operator requeue of Quarantined rows: back to Pending, immediately due, failure budget reset,
+/// <c>last_error</c> kept as evidence. A null <paramref name="OutboxIds"/> targets every quarantined row.
+/// </summary>
+internal sealed record RequeueQuarantinedOutboxCommand(IReadOnlyList<Guid>? OutboxIds);
+
+/// <summary>
+/// Operator discard of Quarantined rows: the rows are deleted; the returned ids become event evidence in
+/// the ledger. A null <paramref name="OutboxIds"/> targets every quarantined row.
+/// </summary>
+internal sealed record DiscardQuarantinedOutboxCommand(IReadOnlyList<Guid>? OutboxIds);
+
+/// <summary>
+/// The single-column id projection the operator verbs return: the rows a requeue or discard actually
+/// touched, in the same command.
+/// </summary>
+internal sealed record OutboxAffectedRow(Guid OutboxId);
+
+/// <summary>
 /// A deterministic, non-recoverable defect in one external-outbox row (malformed <c>meta</c>, missing
 /// tag name, or a payload above the target's hard inline cap). The relay quarantines the row
 /// immediately rather than accruing retries.

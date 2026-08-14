@@ -72,4 +72,13 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
         Assert.Single(claimed);
         return (row.OutboxId, token);
     }
+
+    // Seed one due row, claim it, and quarantine it under the owning token with the given error - the
+    // arrange step of every operator-verb spec (requeue, discard, listing).
+    private protected async Task<Guid> SeedAndQuarantineAsync(string dedup, string error, CancellationToken ct)
+    {
+        var (id, token) = await SeedAndClaimAsync(dedup, ct);
+        await Store.QuarantineAsync(new QuarantineOutboxCommand(token, [new OutboxQuarantine(id, 5, error)]), ct);
+        return id;
+    }
 }

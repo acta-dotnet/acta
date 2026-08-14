@@ -124,9 +124,11 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
             throw new OutboxQuarantineTickException(options.SourceName, quarantinedIds);
         }
 
-        // The backlog is read after finalization, so the summary reports what is still awaiting relay.
+        // Both totals are read after finalization, so the summary reports what still awaits relay and
+        // what currently sits in quarantine - the cross-peer channel operator surfaces read.
         var backlog = await store.CountBacklogAsync(ct);
-        return new OutboxTickSummary(claimedTotal, counters.Relayed, counters.Deduplicated, quarantinedIds.Count, backlog);
+        var quarantineTotal = await store.CountQuarantinedAsync(ct);
+        return new OutboxTickSummary(claimedTotal, counters.Relayed, counters.Deduplicated, quarantinedIds.Count, backlog, quarantineTotal);
     }
 
     // Processes one claimed batch. Returns true when the per-tick target-enqueue budget was exhausted
@@ -422,10 +424,13 @@ internal sealed record OutboxRelayTickOptions(string SourceName, int QuarantineT
 /// One relay tick's accounting, persisted as the <c>sys.outbox</c> job result on success: source rows
 /// claimed, new jobs inserted at the target, rows absorbed by deduplication (coalesced members plus
 /// already-present handoffs), rows quarantined (zero on every persisted summary, since a quarantine
-/// fails the tick), and the source's remaining Pending backlog after finalization.
+/// fails the tick), the source's remaining Pending backlog after finalization, and the current
+/// Quarantined total. The rendered string is the cross-peer contract: operator surfaces on peers
+/// without this source registration parse <c>backlog=</c> and <c>quarantine=</c> out of the slot's
+/// persisted result.
 /// </summary>
-internal sealed record OutboxTickSummary(int Claimed, int Relayed, int Deduplicated, int Quarantined, long Backlog)
+internal sealed record OutboxTickSummary(int Claimed, int Relayed, int Deduplicated, int Quarantined, long Backlog, long QuarantineTotal)
 {
     public override string ToString() =>
-        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} quarantined={Quarantined} backlog={Backlog}";
+        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} quarantined={Quarantined} backlog={Backlog} quarantine={QuarantineTotal}";
 }

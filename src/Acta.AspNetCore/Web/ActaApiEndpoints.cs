@@ -1093,12 +1093,20 @@ internal static class ActaApiEndpoints
         return lines;
     }
 
-    // The backlog is the summary's last "backlog=N" token; an unparseable result reads as zero so a
-    // format drift degrades the lens rather than failing the overview.
+    // The backlog is the summary's last "backlog=N" token, read up to the next space so trailing
+    // tokens (quarantine=) don't spoil the parse; an unparseable result reads as zero so a format
+    // drift degrades the lens rather than failing the overview.
     private static long ParseBacklog(string tick)
     {
         var index = tick.LastIndexOf("backlog=", StringComparison.Ordinal);
-        return index >= 0 && long.TryParse(tick.AsSpan(index + "backlog=".Length), out var value) ? value : 0;
+        if (index < 0)
+        {
+            return 0;
+        }
+
+        var span = tick.AsSpan(index + "backlog=".Length);
+        var end = span.IndexOf(' ');
+        return long.TryParse(end >= 0 ? span[..end] : span, out var value) ? value : 0;
     }
 
     private static IResult BadRequest(string? detail) =>

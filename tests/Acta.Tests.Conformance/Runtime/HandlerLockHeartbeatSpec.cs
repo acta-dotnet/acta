@@ -45,6 +45,10 @@ public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<T
         await LockHolder.Entered(TestNamespace).WaitAsync(Timeout, ct);
 
         var before = await LeaseExpiryAsync(lockKey, ct);
+        // SQLite stores the expiry at millisecond precision and the acquire-to-heartbeat gap here can be
+        // sub-millisecond, which would make an applied extend land on the same stored instant and read as
+        // "did not advance". Let the clock tick past the stored granularity before extending.
+        await Task.Delay(TimeSpan.FromMilliseconds(10), ct);
         await Runtime.RunHeartbeatOnceAsync(ct);
         var after = await LeaseExpiryAsync(lockKey, ct);
 

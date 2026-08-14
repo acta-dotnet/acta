@@ -21,6 +21,8 @@
     typeof(global::Acta.Runtime.Modules.Execution.Timers.SleepDecision),
     typeof(global::Acta.Runtime.Modules.Execution.Namespaces.NamespaceListRow),
     typeof(global::Acta.Runtime.Modules.Outbox.OutboxRow),
+    typeof(global::Acta.Runtime.Modules.Outbox.OutboxQuarantinedRow),
+    typeof(global::Acta.Runtime.Modules.Outbox.OutboxAffectedRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.CancelJobOutcomeRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.EnqueueOutcomeRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.ExplainCheckpointRow),
