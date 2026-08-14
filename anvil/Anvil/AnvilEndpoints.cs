@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using Acta;
 
@@ -8,6 +9,7 @@ namespace Anvil;
 public static class AnvilEndpoints
 {
     private static readonly SemaphoreSlim RunStart = new(1, 1);
+    private static string? openApiDocument;
 
     public static RouteGroupBuilder MapAnvil(this IEndpointRouteBuilder endpoints)
     {
@@ -17,6 +19,17 @@ public static class AnvilEndpoints
         GuardCertification(group);
 
         group.MapGet("/state", async (AnvilStateReader reader, CancellationToken ct) => Results.Ok(await reader.ReadAsync(ct)));
+
+        // The committed OpenAPI contract (docs/reference/openapi.json), embedded at build time and
+        // re-based onto this host so the Scalar page's try-it requests land on the mounted /acta API.
+        group.MapGet(
+            "/openapi",
+            (HttpRequest request) =>
+            {
+                var document = openApiDocument ??= ReadEmbeddedOpenApi();
+                return Results.Text(document.Replace("http://localhost/", $"{request.Scheme}://{request.Host}/"), "application/json");
+            }
+        );
 
         group.MapPost(
             "/workers",
@@ -154,6 +167,15 @@ public static class AnvilEndpoints
                 AnvilWorkloadCode.FanOut => "Fan-out supports 10, 100, or 1,000 parent jobs.",
                 _ => "Unknown workload.",
             };
+    }
+
+    private static string ReadEmbeddedOpenApi()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("openapi.json", StringComparison.Ordinal));
+        using var stream = assembly.GetManifestResourceStream(name)!;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     private static void CatchErrors(RouteGroupBuilder group) =>

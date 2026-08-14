@@ -45,5 +45,7 @@
   <ItemGroup>
     <EmbeddedResource Include="wwwroot\**" />
     <EmbeddedResource Include="certify.sql" />
+    <!-- The committed API contract, served to the Scalar reference page. -->
+    <EmbeddedResource Include="..\..\docs\reference\openapi.json" Link="openapi.json" />
   </ItemGroup>
 </Project>
