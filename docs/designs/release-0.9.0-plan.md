@@ -64,6 +64,21 @@ The `settings` table is deliberately untouched: kept as the landing zone for fut
 style configuration, not finished now (ListAsync/HTTP/dashboard are additive in 1.x). One half-day
 audit of its shape against that future happens while the re-cut window is open.
 
+**Settings shape audit conclusion (done 2026-08-14, window closed clean).** The shape holds for
+the 1.x future: the `(scope_code, scope_id, name)` identity under the filtered unique pair,
+`ck_settings_value_pair` mirroring `ck_jobs_input_pair`, the version CAS, and `scope_id` as
+`int` (covers every referenced catalog) all survive scrutiny; ListAsync/HTTP/dashboard remain
+purely additive on this shape. Two outcomes:
+
+- `Setting.ValueFormatCode` → `ValueFormatId` — the column was already `value_format_id` and the
+  sibling property is `Job.InputFormatId`; one concept, one spelling. C#-only, rode the re-cut PR.
+- **The `setting-scope` family stays closed** and the CHECK stays `IN (10, 30, 40)`. Value 20
+  remains reserved for a tenant scope; if that scope ever ships, it arrives with its own additive
+  M002 widening the list — it needs new resolution code anyway, so it can never arrive without a
+  release. Adding a dormant member now, or going extensible, were both considered and rejected:
+  the first is exactly the "not yet" surface this release deletes, the second misstates a
+  genuinely closed resolution algorithm.
+
 ## 2. Persisted-code vocabulary (ids unchanged, strings move)
 
 Destructive-class, same precedent as 0.7.0's `*.metadata-changed` renames:
