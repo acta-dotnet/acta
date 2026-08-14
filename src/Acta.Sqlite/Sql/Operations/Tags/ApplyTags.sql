@@ -95,6 +95,6 @@ WHERE
 
 SELECT
     CASE
-        WHEN EXISTS (SELECT 1 FROM temp._tag_target) THEN 1 /* TagMutationResult.Applied */
-        ELSE 2 /* TagMutationResult.NotFound */
+        WHEN EXISTS (SELECT 1 FROM temp._tag_target) THEN 1 /* TagMutationAction.Applied */
+        ELSE 2 /* TagMutationAction.NotFound */
     END AS action;

@@ -1,9 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// One namespace row in an <see cref="INamespaces.ListItemsAsync"/> page, projected from the
+/// One namespace row in an <see cref="INamespaces.ListAsync"/> page, projected from the
 /// <c>namespaces</c> table, and the one representation <c>GET /namespaces</c> answers with.
-/// <see cref="INamespaces.ListAsync"/> remains for callers that want only the names.
+/// <see cref="INamespaces.ListNamesAsync"/> remains for callers that want only the names.
 /// </summary>
 /// <param name="Id">DB-assigned namespace id, referenced by <c>job.namespace_id</c>. The seeded sys namespace is id 1.</param>
 /// <param name="Name">Operator-readable kebab-case namespace name. Unique.</param>

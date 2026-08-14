@@ -17,9 +17,11 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
         var normalized = NormalizeTags(tags, nameof(tags));
         var json = TagJson.Write(normalized);
         var resolved = await ResolveAsync(target, ct);
-        return resolved is null
-            ? TagMutationResult.NotFound
-            : await store.ApplyAsync(resolved, new TagMutation(TagMutationKind.Replace, json), ct);
+        return new TagMutationResult(
+            resolved is null
+                ? TagMutationAction.NotFound
+                : await store.ApplyAsync(resolved, new TagMutation(TagMutationKind.Replace, json), ct)
+        );
     }
 
     public async ValueTask<TagMutationResult> UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct = default)
@@ -28,9 +30,11 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
         var normalized = TagInput.Normalize(tag, nameof(tag));
         var json = TagJson.Write([normalized]);
         var resolved = await ResolveAsync(target, ct);
-        return resolved is null
-            ? TagMutationResult.NotFound
-            : await store.ApplyAsync(resolved, new TagMutation(TagMutationKind.Upsert, json), ct);
+        return new TagMutationResult(
+            resolved is null
+                ? TagMutationAction.NotFound
+                : await store.ApplyAsync(resolved, new TagMutation(TagMutationKind.Upsert, json), ct)
+        );
     }
 
     public async ValueTask<TagMutationResult> RemoveAsync(TagTarget target, string name, CancellationToken ct = default)
@@ -39,9 +43,11 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
         name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), TagLimits.MaxNameLength);
         var json = TagJson.Write([new TagInput(name)]);
         var resolved = await ResolveAsync(target, ct);
-        return resolved is null
-            ? TagMutationResult.NotFound
-            : await store.ApplyAsync(resolved, new TagMutation(TagMutationKind.Remove, json), ct);
+        return new TagMutationResult(
+            resolved is null
+                ? TagMutationAction.NotFound
+                : await store.ApplyAsync(resolved, new TagMutation(TagMutationKind.Remove, json), ct)
+        );
     }
 
     private async ValueTask<ResolvedTagTarget?> ResolveAsync(TagTarget target, CancellationToken ct)

@@ -28,11 +28,23 @@ internal sealed class TenantsService(ITenantStore store)
         return await store.RegisterTenantAsync(new RegisterTenantCommand(key, displayName, description), ct);
     }
 
-    public async ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct)
+    public async ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantKey);
         var key = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-        return await store.GetTenantAsync(new TenantPointLookup(key, null), ct);
+        var row = await store.GetTenantAsync(new TenantPointLookup(key, null), ct);
+        return row is null
+            ? null
+            : new TenantDetail(
+                row.TenantId,
+                row.TenantKey,
+                row.DisplayName,
+                row.Description,
+                row.Status,
+                row.CreatedAtUtc,
+                row.ModifiedAtUtc,
+                row.Version
+            );
     }
 
     public async ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct)

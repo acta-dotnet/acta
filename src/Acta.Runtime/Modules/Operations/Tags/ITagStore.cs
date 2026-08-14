@@ -4,7 +4,7 @@ internal interface ITagStore
 {
     Task<TagSet?> GetAsync(ResolvedTagTarget target, CancellationToken ct);
 
-    Task<TagMutationResult> ApplyAsync(ResolvedTagTarget target, TagMutation mutation, CancellationToken ct);
+    Task<TagMutationAction> ApplyAsync(ResolvedTagTarget target, TagMutation mutation, CancellationToken ct);
 }
 
 internal sealed record ResolvedTagTarget(TagScopeCode ScopeCode, long? LookupId, string? LookupName);

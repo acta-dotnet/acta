@@ -31,7 +31,7 @@ public sealed record JobExplanation(
 );
 
 /// <summary>The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant.</summary>
-public sealed record JobExplainWait(JobExplainWaitKind Kind, string Name, DateTime? DueAtUtc);
+public sealed record JobExplainWait(JobCheckpointKindCode Kind, string Name, DateTime? DueAtUtc);
 
 /// <summary>
 /// The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.
@@ -59,13 +59,3 @@ public sealed record JobExplainStep(string Name, JobStepStatusCode Status, strin
 /// <c>wait-recovery</c> | <c>view-result</c> | <c>none</c>); <see cref="Description"/> is the prose shown to the operator.
 /// </summary>
 public sealed record JobExplainAction(string Kind, string Description);
-
-/// <summary>Which durable wait primitive a Suspended Job is blocked on.</summary>
-public enum JobExplainWaitKind : byte
-{
-    /// <summary>Awaiting an external signal via <c>ctx.WaitSignalAsync</c>.</summary>
-    Signal = 20,
-
-    /// <summary>Awaiting a durable sleep timer's due instant.</summary>
-    Timer = 30,
-}

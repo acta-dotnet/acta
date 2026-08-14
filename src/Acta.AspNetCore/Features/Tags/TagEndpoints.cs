@@ -214,7 +214,7 @@ internal static class TagEndpoints
             }
 
             var result = await apply(target);
-            return result == TagMutationResult.Applied
+            return result.IsApplied
                 ? Results.Json(
                     new AdminControlResponse(AdminControlAction.Applied, null),
                     DashboardJsonContext.Default.AdminControlResponse

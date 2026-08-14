@@ -6816,7 +6816,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "$ref": "#/components/schemas/JobExplainWaitKind"
+            "$ref": "#/components/schemas/JobCheckpointKindCode"
           },
           "name": {
             "type": "string"
@@ -6830,13 +6830,6 @@
           }
         },
         "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant."
-      },
-      "JobExplainWaitKind": {
-        "enum": [
-          "Signal",
-          "Timer"
-        ],
-        "description": "Which durable wait primitive a Suspended Job is blocked on."
       },
       "JobExplanation": {
         "required": [
@@ -7066,7 +7059,7 @@
           "steps": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/JobLineageStep"
+              "$ref": "#/components/schemas/JobExplainStep"
             }
           },
           "activeWait": {
@@ -7075,7 +7068,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobLineageWait"
+                "$ref": "#/components/schemas/JobExplainWait"
               }
             ]
           },
@@ -7090,57 +7083,6 @@
           }
         },
         "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the\nfocused Job itself with its steps and the durable wait it is blocked on, and its direct children.\nLike JobExplanation it is assembled from the same durable rows an operator could read\nwith a `SELECT` - Acta maps the work it runs rather than hiding it behind synthesized state.\nReturned by ValueTask&lt;JobLineageMap?&gt; IJobs.GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel.\nV1 is shallow: Ancestors is context only (root first, immediate parent last, no steps\nof their own), Job is the focused subtree root, and Children are the direct children\ncapped at int JobLineageMapOptions.ChildLimit with ChildrenHasMore flagging a\ntruncated set. Recursive descent below direct children is deferred."
-      },
-      "JobLineageStep": {
-        "required": [
-          "name",
-          "status",
-          "explanation"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStepStatusCode"
-          },
-          "explanation": {
-            "type": "string"
-          }
-        },
-        "description": "One step slot of the focused Job, with string JobLineageStep.Explanation as the state's plain-English meaning."
-      },
-      "JobLineageWait": {
-        "required": [
-          "kind",
-          "name",
-          "dueAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/JobLineageWaitKind"
-          },
-          "name": {
-            "type": "string"
-          },
-          "dueAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        },
-        "description": "The durable wait the focused Job is blocked on: a signal name, or a timer slot and its due instant."
-      },
-      "JobLineageWaitKind": {
-        "enum": [
-          "Signal",
-          "Timer"
-        ],
-        "description": "Which durable wait primitive the focused Job is blocked on. Values match JobCheckpointKindCode."
       },
       "JobListItem": {
         "required": [
@@ -7387,7 +7329,7 @@
             "format": "int32"
           }
         },
-        "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListItemsAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\n`namespaces` table, and the one representation `GET /namespaces` answers with.\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
+        "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\n`namespaces` table, and the one representation `GET /namespaces` answers with.\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
       },
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode. Id 90 is reserved for an Archived (hidden/historical)\nstatus, for symmetry with TenantStatusCode's reservation."

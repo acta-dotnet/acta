@@ -851,8 +851,8 @@ interface Acta.INamespaces
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> ResumeAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SuspendAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListItemsAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListNamesAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IOutboxSourceBuilder
     System.Int32 QuarantineThreshold { get;set; }
     System.String Schema { get;set; }
@@ -878,7 +878,7 @@ interface Acta.ITenants
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SuspendAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> UpdateAsync(System.String tenantKey, System.Int32 expectedVersion, System.String displayName, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.TenantListItem>> ListAsync(Acta.ListTenantsQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.TenantListItem> GetAsync(System.String tenantKey, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.TenantDetail> GetAsync(System.String tenantKey, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<System.Int32> RegisterAsync(System.String tenantKey, System.String displayName = default, System.String description = default, System.Threading.CancellationToken ct = default)
 interface Acta.IWorkerBuilder
     Acta.IWorkerBuilder AddAlertChannel(System.String name, System.String transportKind, System.String endpoint, System.Action<Acta.AlertChannelOptions> configure = default)
@@ -1384,13 +1384,10 @@ sealed class Acta.JobExplainStep
     System.String Explanation { get;init; }
     System.String Name { get;init; }
 sealed class Acta.JobExplainWait
-    .ctor(Acta.JobExplainWaitKind Kind, System.String Name, System.Nullable<System.DateTime> DueAtUtc)
-    Acta.JobExplainWaitKind Kind { get;init; }
+    .ctor(Acta.JobCheckpointKindCode Kind, System.String Name, System.Nullable<System.DateTime> DueAtUtc)
+    Acta.JobCheckpointKindCode Kind { get;init; }
     System.Nullable<System.DateTime> DueAtUtc { get;init; }
     System.String Name { get;init; }
-enum Acta.JobExplainWaitKind
-    Signal = 20
-    Timer = 30
 sealed class Acta.JobExplanation
     .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.String StatusMeaning, System.String Headline, Acta.JobExplainWait ActiveWait, Acta.JobExplainLease Lease, System.String LastExecutedBy, System.Collections.Generic.IReadOnlyList<Acta.JobExplainStep> Steps, System.String Reason, System.Collections.Generic.IReadOnlyList<Acta.JobExplainAction> NextActions)
     Acta.JobExplainLease Lease { get;init; }
@@ -1453,29 +1450,16 @@ sealed class Acta.JobLineageJob
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
 sealed class Acta.JobLineageMap
-    .ctor(System.Collections.Generic.IReadOnlyList<Acta.JobLineageJob> Ancestors, Acta.JobLineageJob Job, System.Collections.Generic.IReadOnlyList<Acta.JobLineageStep> Steps, Acta.JobLineageWait ActiveWait, System.Collections.Generic.IReadOnlyList<Acta.JobLineageChild> Children, System.Boolean ChildrenHasMore)
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.JobLineageJob> Ancestors, Acta.JobLineageJob Job, System.Collections.Generic.IReadOnlyList<Acta.JobExplainStep> Steps, Acta.JobExplainWait ActiveWait, System.Collections.Generic.IReadOnlyList<Acta.JobLineageChild> Children, System.Boolean ChildrenHasMore)
+    Acta.JobExplainWait ActiveWait { get;init; }
     Acta.JobLineageJob Job { get;init; }
-    Acta.JobLineageWait ActiveWait { get;init; }
     System.Boolean ChildrenHasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.JobExplainStep> Steps { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.JobLineageChild> Children { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.JobLineageJob> Ancestors { get;init; }
-    System.Collections.Generic.IReadOnlyList<Acta.JobLineageStep> Steps { get;init; }
 sealed class Acta.JobLineageMapOptions
     .ctor(System.Int32 ChildLimit = default)
     System.Int32 ChildLimit { get;init; }
-sealed class Acta.JobLineageStep
-    .ctor(System.String Name, Acta.JobStepStatusCode Status, System.String Explanation)
-    Acta.JobStepStatusCode Status { get;init; }
-    System.String Explanation { get;init; }
-    System.String Name { get;init; }
-sealed class Acta.JobLineageWait
-    .ctor(Acta.JobLineageWaitKind Kind, System.String Name, System.Nullable<System.DateTime> DueAtUtc)
-    Acta.JobLineageWaitKind Kind { get;init; }
-    System.Nullable<System.DateTime> DueAtUtc { get;init; }
-    System.String Name { get;init; }
-enum Acta.JobLineageWaitKind
-    Signal = 20
-    Timer = 30
 sealed class Acta.JobListItem
     .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.Nullable<System.Int32> TenantId, System.String TenantKey, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.String DeduplicationKey, System.String CorrelationKey, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Int32 ExecutionNumber, System.Int16 FailureCount)
     Acta.JobPriorityCode Priority { get;init; }
@@ -2157,9 +2141,13 @@ static class Acta.TagLimits
     System.Int32 MaxNameLength = 128
     System.Int32 MaxTagsPerTarget = 32
     System.Int32 MaxValueLength = 128
-enum Acta.TagMutationResult
+enum Acta.TagMutationAction
     Applied = 1
     NotFound = 2
+sealed class Acta.TagMutationResult
+    .ctor(Acta.TagMutationAction Action)
+    Acta.TagMutationAction Action { get;init; }
+    System.Boolean IsApplied { get; }
 enum Acta.TagScopeCode
     Alert = 80
     Definition = 40
@@ -2199,6 +2187,16 @@ sealed class Acta.TagTarget
     Acta.TagTarget ForSchedule(Acta.ScheduleLookup schedule)
     Acta.TagTarget ForTenant(System.String tenantKey)
     Acta.TagTarget ForWorker(System.Int32 workerId)
+sealed class Acta.TenantDetail
+    .ctor(System.Int32 TenantId, System.String TenantKey, System.String DisplayName, System.String Description, Acta.TenantStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    Acta.TenantStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 TenantId { get;init; }
+    System.Int32 Version { get;init; }
+    System.String Description { get;init; }
+    System.String DisplayName { get;init; }
+    System.String TenantKey { get;init; }
 sealed class Acta.TenantListItem
     .ctor(System.Int32 TenantId, System.String TenantKey, System.String DisplayName, System.String Description, Acta.TenantStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.TenantStatusCode Status { get;init; }

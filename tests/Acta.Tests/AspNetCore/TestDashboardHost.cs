@@ -757,7 +757,7 @@ internal static class TestDashboardHost
         {
             public TagSet? Current { get; set; } = new([new TagItem("env", "prod"), new TagItem("team")]);
 
-            public TagMutationResult MutationResult { get; set; } = TagMutationResult.Applied;
+            public TagMutationResult MutationResult { get; set; } = new(TagMutationAction.Applied);
 
             public List<TagInput> UpsertCalls { get; } = [];
 
@@ -930,10 +930,10 @@ internal static class TestDashboardHost
                 return ValueTask.FromResult(7);
             }
 
-            public ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct = default) =>
-                ValueTask.FromResult<TenantListItem?>(
+            public ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default) =>
+                ValueTask.FromResult<TenantDetail?>(
                     tenantKey == "cust-001"
-                        ? new TenantListItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)
+                        ? new TenantDetail(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)
                         : null
                 );
 
@@ -1013,10 +1013,10 @@ internal static class TestDashboardHost
         private sealed class FakeNamespaces(List<(string Verb, string Name, string? ReasonMessage, string? ActorKey)> adminCalls)
             : INamespaces
         {
-            public ValueTask<PagedResult<string>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
+            public ValueTask<PagedResult<string>> ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(new PagedResult<string>(["billing", "reports"], null, false, 50, null));
 
-            public ValueTask<PagedResult<NamespaceListItem>> ListItemsAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
+            public ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(
                     new PagedResult<NamespaceListItem>(
                         [

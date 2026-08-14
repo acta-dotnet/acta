@@ -19,10 +19,10 @@ internal static class JobLineageMapper
             ancestors.Add(ToJob(a));
         }
 
-        var steps = new List<JobLineageStep>(data.Steps.Count);
+        var steps = new List<JobExplainStep>(data.Steps.Count);
         foreach (var s in data.Steps)
         {
-            steps.Add(new JobLineageStep(s.Name, s.Status, s.Status.Description));
+            steps.Add(new JobExplainStep(s.Name, s.Status, s.Status.Description));
         }
 
         var children = new List<JobLineageChild>();
@@ -51,20 +51,20 @@ internal static class JobLineageMapper
 
     // The focused job is blocked on a pending signal or a pending timer checkpoint; a signal wins when
     // both are present (a job awaits one primitive at a time, and the signal is the operator-actionable one).
-    private static JobLineageWait? FindWait(IReadOnlyList<ExplainCheckpointRow> checkpoints)
+    private static JobExplainWait? FindWait(IReadOnlyList<ExplainCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
         {
             if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
             {
-                return new JobLineageWait(JobLineageWaitKind.Signal, c.Name, null);
+                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, null);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == JobCheckpointKindCode.Timer && c.Status == JobCheckpointStatusCode.Pending)
             {
-                return new JobLineageWait(JobLineageWaitKind.Timer, c.Name, c.DueAtUtc);
+                return new JobExplainWait(JobCheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;

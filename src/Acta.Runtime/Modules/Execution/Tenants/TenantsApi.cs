@@ -13,7 +13,7 @@ internal sealed class TenantsApi(TenantsService tenants) : ITenants
         CancellationToken ct = default
     ) => tenants.RegisterAsync(tenantKey, displayName, description, ct);
 
-    public ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct = default) => tenants.GetAsync(tenantKey, ct);
+    public ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default) => tenants.GetAsync(tenantKey, ct);
 
     public ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
         tenants.ListAsync(query, ct);

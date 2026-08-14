@@ -213,7 +213,7 @@ internal static class CliOutput
             writer.WriteLine($"- Last executed on worker {lastWorker}.");
         }
 
-        if (x.Steps.Count > 0 || x.ActiveWait?.Kind == JobExplainWaitKind.Timer)
+        if (x.Steps.Count > 0 || x.ActiveWait?.Kind == JobCheckpointKindCode.Timer)
         {
             writer.WriteLine();
             writer.WriteLine("Durable work:");
@@ -221,7 +221,7 @@ internal static class CliOutput
             {
                 writer.WriteLine($"- Step \"{s.Name}\" {s.Explanation}.");
             }
-            if (x.ActiveWait?.Kind == JobExplainWaitKind.Timer && x.Lease is null)
+            if (x.ActiveWait?.Kind == JobCheckpointKindCode.Timer && x.Lease is null)
             {
                 writer.WriteLine("- The job holds no executor while waiting.");
             }

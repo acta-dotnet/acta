@@ -1,11 +1,13 @@
 namespace Acta;
 
-/// <summary>Outcome of a tag mutation.</summary>
-public enum TagMutationResult : byte
+/// <summary>
+/// Outcome of one tag mutation (<see cref="ITags.UpsertAsync"/> / <see cref="ITags.ReplaceAsync"/> /
+/// <see cref="ITags.RemoveAsync"/>): the <see cref="Action"/> taken against the target. A record so
+/// the shape can grow additively (a count, a version) without breaking callers, matching every
+/// sibling control result on the surface.
+/// </summary>
+public sealed record TagMutationResult(TagMutationAction Action)
 {
-    /// <summary>The target existed and the requested final state was established.</summary>
-    Applied = 1,
-
-    /// <summary>The target did not exist; no tag rows were written.</summary>
-    NotFound = 2,
+    /// <summary>True when the mutation applied (the target existed).</summary>
+    public bool IsApplied => Action == TagMutationAction.Applied;
 }

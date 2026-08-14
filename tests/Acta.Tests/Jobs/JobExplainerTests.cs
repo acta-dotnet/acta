@@ -68,7 +68,7 @@ public class JobExplainerTests
         var x = JobExplainer.Explain(data, Now);
 
         Assert.NotNull(x.ActiveWait);
-        Assert.Equal(JobExplainWaitKind.Signal, x.ActiveWait!.Kind);
+        Assert.Equal(JobCheckpointKindCode.Signal, x.ActiveWait!.Kind);
         Assert.Equal("fraud-review", x.ActiveWait.Name);
         Assert.Contains("waiting for signal \"fraud-review\"", x.Headline);
         Assert.Contains(x.NextActions, a => a.Kind == "raise-signal" && a.Description.Contains("fraud-review"));
@@ -86,7 +86,7 @@ public class JobExplainerTests
 
         var x = JobExplainer.Explain(data, Now);
 
-        Assert.Equal(JobExplainWaitKind.Timer, x.ActiveWait!.Kind);
+        Assert.Equal(JobCheckpointKindCode.Timer, x.ActiveWait!.Kind);
         Assert.Equal(Now.AddMinutes(30), x.ActiveWait.DueAtUtc);
         Assert.Contains("durable sleep \"acta.sleep\"", x.Headline);
         Assert.Contains("due in 30m", x.Headline);

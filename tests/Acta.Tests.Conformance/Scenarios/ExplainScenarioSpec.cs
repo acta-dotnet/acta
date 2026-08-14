@@ -37,7 +37,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Suspended, x!.Status);
         Assert.NotNull(x.ActiveWait);
-        Assert.Equal(JobExplainWaitKind.Signal, x.ActiveWait!.Kind);
+        Assert.Equal(JobCheckpointKindCode.Signal, x.ActiveWait!.Kind);
         Assert.Equal("go", x.ActiveWait.Name);
         Assert.Null(x.Lease);
         Assert.Contains(x.NextActions, a => a.Kind == "raise-signal");

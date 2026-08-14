@@ -421,7 +421,7 @@ internal static class ActaApiEndpoints
                     );
                     return Guard(async () =>
                         Results.Json(
-                            await operations.Namespaces.ListItemsAsync(query, ct),
+                            await operations.Namespaces.ListAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultNamespaceListItem
                         )
                     );
@@ -464,7 +464,7 @@ internal static class ActaApiEndpoints
                 "/tenants/{tenantKey}",
                 async (string tenantKey, IActaOperations operations, CancellationToken ct) =>
                 {
-                    TenantListItem? tenant;
+                    TenantDetail? tenant;
                     try
                     {
                         tenant = await operations.Tenants.GetAsync(tenantKey, ct);
@@ -894,7 +894,7 @@ internal static class ActaApiEndpoints
     {
         IReadOnlyList<string> namespaces = jobNamespace is not null
             ? [jobNamespace]
-            : (await operations.Namespaces.ListAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
+            : (await operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
 
         var lines = new List<OverviewOutboxLine>();
         foreach (var ns in namespaces)

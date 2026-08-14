@@ -6751,7 +6751,7 @@ BEGIN
     END CASE;
 
     IF v_scope_id IS NULL THEN
-        RETURN QUERY SELECT 2 /* TagMutationResult.NotFound */::SMALLINT;
+        RETURN QUERY SELECT 2 /* TagMutationAction.NotFound */::SMALLINT;
         RETURN;
     END IF;
 
@@ -6809,7 +6809,7 @@ BEGIN
         RAISE EXCEPTION 'Unsupported tag mutation code %.', p_mutation;
     END IF;
 
-    RETURN QUERY SELECT 1 /* TagMutationResult.Applied */::SMALLINT;
+    RETURN QUERY SELECT 1 /* TagMutationAction.Applied */::SMALLINT;
 END;
 $$;
 

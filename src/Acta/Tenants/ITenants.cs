@@ -18,7 +18,7 @@ public interface ITenants
     ValueTask<int> RegisterAsync(string tenantKey, string? displayName = null, string? description = null, CancellationToken ct = default);
 
     /// <summary>Point-read one registered tenant by opaque key; null when it does not exist.</summary>
-    ValueTask<TenantListItem?> GetAsync(string tenantKey, CancellationToken ct = default);
+    ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default);
 
     /// <summary>List registered tenants ordered by tenant key ascending.</summary>
     ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default);

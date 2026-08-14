@@ -86,7 +86,7 @@ BEGIN
         IF @scope_id IS NULL
             BEGIN
                 COMMIT TRANSACTION;
-                SELECT CAST(2 /* TagMutationResult.NotFound */ AS TINYINT) AS action;
+                SELECT CAST(2 /* TagMutationAction.NotFound */ AS TINYINT) AS action;
                 RETURN;
             END;
 
@@ -152,7 +152,7 @@ BEGIN
             THROW 50000, 'Unsupported tag mutation code.', 1;
 
         COMMIT TRANSACTION;
-        SELECT CAST(1 /* TagMutationResult.Applied */ AS TINYINT) AS action;
+        SELECT CAST(1 /* TagMutationAction.Applied */ AS TINYINT) AS action;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;

@@ -16,8 +16,8 @@ namespace Acta;
 public sealed record JobLineageMap(
     IReadOnlyList<JobLineageJob> Ancestors,
     JobLineageJob Job,
-    IReadOnlyList<JobLineageStep> Steps,
-    JobLineageWait? ActiveWait,
+    IReadOnlyList<JobExplainStep> Steps,
+    JobExplainWait? ActiveWait,
     IReadOnlyList<JobLineageChild> Children,
     bool ChildrenHasMore
 );
@@ -45,12 +45,6 @@ public sealed record JobLineageJob(
     DateTime ModifiedAtUtc
 );
 
-/// <summary>One step slot of the focused Job, with <see cref="Explanation"/> as the state's plain-English meaning.</summary>
-public sealed record JobLineageStep(string Name, JobStepStatusCode Status, string Explanation);
-
-/// <summary>The durable wait the focused Job is blocked on: a signal name, or a timer slot and its due instant.</summary>
-public sealed record JobLineageWait(JobLineageWaitKind Kind, string Name, DateTime? DueAtUtc);
-
 /// <summary>A direct child of the focused Job, linkable to its own detail view.</summary>
 public sealed record JobLineageChild(
     [property: JsonIgnore] long JobId,
@@ -60,13 +54,3 @@ public sealed record JobLineageChild(
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc
 );
-
-/// <summary>Which durable wait primitive the focused Job is blocked on. Values match <see cref="JobCheckpointKindCode"/>.</summary>
-public enum JobLineageWaitKind : byte
-{
-    /// <summary>Awaiting an external signal via <c>ctx.WaitSignalAsync</c>.</summary>
-    Signal = 20,
-
-    /// <summary>Awaiting a durable sleep timer's due instant.</summary>
-    Timer = 30,
-}

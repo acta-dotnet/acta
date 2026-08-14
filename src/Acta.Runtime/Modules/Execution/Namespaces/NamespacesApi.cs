@@ -6,10 +6,10 @@ namespace Acta.Runtime.Modules.Execution.Namespaces;
 /// </summary>
 internal sealed class NamespacesApi(NamespacesService namespaces) : INamespaces
 {
-    public ValueTask<PagedResult<string>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
+    public ValueTask<PagedResult<string>> ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
         namespaces.ListAsync(query, ct);
 
-    public ValueTask<PagedResult<NamespaceListItem>> ListItemsAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
+    public ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
         namespaces.ListItemsAsync(query, ct);
 
     public ValueTask<AdminControlResult> SuspendAsync(

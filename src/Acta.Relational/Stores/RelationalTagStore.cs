@@ -29,7 +29,7 @@ internal sealed class RelationalTagStore(IDbSession session, ISqlDialect dialect
             ct
         );
 
-    public async Task<TagMutationResult> ApplyAsync(ResolvedTagTarget target, TagMutation mutation, CancellationToken ct)
+    public async Task<TagMutationAction> ApplyAsync(ResolvedTagTarget target, TagMutation mutation, CancellationToken ct)
     {
         var results = await session.ExecuteAsync(
             new StoreCommand("Operations", "Tags/ApplyTags"),
@@ -39,7 +39,7 @@ internal sealed class RelationalTagStore(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagMutation, (byte)mutation.Kind));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagItemsJson, mutation.ItemsJson));
             },
-            reader => (TagMutationResult)reader.GetByteFromNumeric(0),
+            reader => (TagMutationAction)reader.GetByteFromNumeric(0),
             ct
         );
 

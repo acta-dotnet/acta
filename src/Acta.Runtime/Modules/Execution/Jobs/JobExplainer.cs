@@ -29,12 +29,12 @@ internal static class JobExplainer
                 wait = FindWait(data.Checkpoints);
                 switch (wait?.Kind)
                 {
-                    case JobExplainWaitKind.Signal:
+                    case JobCheckpointKindCode.Signal:
                         headline = $"Suspended, waiting for signal \"{wait.Name}\".";
                         actions.Add(new JobExplainAction("raise-signal", $"raise signal \"{wait.Name}\""));
                         actions.Add(new JobExplainAction("cancel", "cancel the job"));
                         break;
-                    case JobExplainWaitKind.Timer:
+                    case JobCheckpointKindCode.Timer:
                         headline = wait.DueAtUtc is { } due
                             ? $"Suspended on durable sleep \"{wait.Name}\", {DuePhrase(due, nowUtc)}."
                             : $"Suspended on durable sleep \"{wait.Name}\".";
@@ -155,14 +155,14 @@ internal static class JobExplainer
         {
             if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobExplainWaitKind.Signal, c.Name, null);
+                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, null);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == JobCheckpointKindCode.Timer && c.Status == JobCheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobExplainWaitKind.Timer, c.Name, c.DueAtUtc);
+                return new JobExplainWait(JobCheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;
