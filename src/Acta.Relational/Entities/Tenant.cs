@@ -41,13 +41,13 @@ internal sealed class Tenant : IEntity<int>
     public TenantStatusCode Status { get; internal set; }
 
     /// <summary>Human display label for dashboards and pickers; NULL falls back to the key.</summary>
-    [DbColumn("display_name", DbKind.UnicodeString, Size = CatalogLimits.TenantDisplayName)]
+    [DbColumn("display_name", DbKind.UnicodeString, Size = AdminTextLimits.TenantDisplayName)]
     public string? DisplayName { get; internal set; }
 
     /// <summary>
     /// Longer operator-readable notes about the tenant. Unicode-capable.
     /// </summary>
-    [DbColumn("description", DbKind.UnicodeString, Size = CatalogLimits.TenantDescription)]
+    [DbColumn("description", DbKind.UnicodeString, Size = AdminTextLimits.TenantDescription)]
     public string? Description { get; internal set; }
 
     /// <summary>When the tenant row was first created. Set server-side.</summary>

@@ -78,8 +78,8 @@ WHERE
 
 SELECT
     CASE
-        WHEN t.schedule_id IS NULL THEN 2 /* JobControlAction.NotFound */
-        ELSE 1 /* JobControlAction.Applied */
+        WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
+        ELSE 1 /* ControlAction.Applied */
     END AS action,
     js.status_code AS status_code,
     js.paused_until_utc AS paused_until_utc,

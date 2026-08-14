@@ -278,14 +278,14 @@ internal sealed class NoOpWakeup : IWorkerWakeup
     public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default) =>
         ValueTask.CompletedTask;
 
-    public async ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
+    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
     {
         try
         {
             await Task.Delay(timeout, ct);
         }
         catch (OperationCanceledException) { }
-        return WorkerWakeupWaitResult.TimedOut;
+        return WorkerWakeupWaitStatus.TimedOut;
     }
 }
 

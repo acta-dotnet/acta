@@ -30,10 +30,10 @@ public sealed class RedisWakeupOptions
     /// per message. Default 50ms; set <see cref="TimeSpan.Zero"/> to relay every wake immediately.
     /// Capped at <see cref="MaxRemoteWakeJitter"/>.
     /// </summary>
-    public TimeSpan RemoteWakeJitterMax { get; set; } = TimeSpan.FromMilliseconds(50);
+    public TimeSpan RemoteWakeJitter { get; set; } = TimeSpan.FromMilliseconds(50);
 
     /// <summary>
-    /// Upper bound on <see cref="RemoteWakeJitterMax"/>, matching <c>JobsOptions.ClaimIdleJitterMax</c>.
+    /// Upper bound on <see cref="RemoteWakeJitter"/>, matching <c>JobsOptions.ClaimIdleJitterMax</c>.
     /// Jitter exists to spread a claim herd across a moment, not to defer work: past a second it is
     /// competing with the poll floor that would have found the job anyway.
     /// </summary>
@@ -52,8 +52,8 @@ internal sealed class RedisWakeupOptionsValidator : IValidateOptions<RedisWakeup
         // Bounded at both ends: a negative flips the random range, and an unbounded one overflows the
         // tick arithmetic that picks the delay (TimeSpan.MaxValue.Ticks + 1) before Task.Delay ever
         // sees it. Same 0..1s window as JobsOptions.ClaimIdleJitterMax.
-        return options.RemoteWakeJitterMax < TimeSpan.Zero || options.RemoteWakeJitterMax > RedisWakeupOptions.MaxRemoteWakeJitter
-            ? ValidateOptionsResult.Fail("RedisWakeupOptions.RemoteWakeJitterMax must be between 0 and 1s.")
+        return options.RemoteWakeJitter < TimeSpan.Zero || options.RemoteWakeJitter > RedisWakeupOptions.MaxRemoteWakeJitter
+            ? ValidateOptionsResult.Fail("RedisWakeupOptions.RemoteWakeJitter must be between 0 and 1s.")
             : ValidateOptionsResult.Success;
     }
 }

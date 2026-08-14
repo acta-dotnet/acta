@@ -104,7 +104,7 @@ public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         await Assert.ThrowsAsync<ArgumentException>(async () =>
             await Operations.Namespaces.UpdateAsync(
                 TestNamespace,
-                new string('x', CatalogLimits.NamespaceOwnerTeam + 1),
+                new string('x', AdminTextLimits.NamespaceOwnerTeam + 1),
                 null,
                 0,
                 null,

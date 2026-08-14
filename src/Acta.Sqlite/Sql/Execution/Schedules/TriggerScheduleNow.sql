@@ -4,10 +4,10 @@ CREATE TEMP TABLE _tsn_target AS
 SELECT
     js.id AS schedule_id,
     CASE
-        WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* JobControlAction.Rejected */
-        WHEN r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 3 /* JobControlAction.Rejected */
-        WHEN r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* JobControlAction.Rejected */
-        ELSE 1 /* JobControlAction.Applied */
+        WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
+        WHEN r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 3 /* ControlAction.Rejected */
+        WHEN r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* ControlAction.Rejected */
+        ELSE 1 /* ControlAction.Applied */
     END AS action
 FROM {{schema}}.schedules js
 JOIN {{schema}}.runtimes r ON r.job_id = js.job_id
@@ -57,7 +57,7 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_job_id
     AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-    AND EXISTS (SELECT 1 FROM temp._tsn_target WHERE action = 1 /* JobControlAction.Applied */);
+    AND EXISTS (SELECT 1 FROM temp._tsn_target WHERE action = 1 /* ControlAction.Applied */);
 
 UPDATE {{schema}}.runtimes
 SET
@@ -68,10 +68,10 @@ SET
 WHERE
     job_id = @p_job_id
     AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
-    AND EXISTS (SELECT 1 FROM temp._tsn_target WHERE action = 1 /* JobControlAction.Applied */);
+    AND EXISTS (SELECT 1 FROM temp._tsn_target WHERE action = 1 /* ControlAction.Applied */);
 
 SELECT
-    CASE WHEN t.schedule_id IS NULL THEN 2 /* JobControlAction.NotFound */ ELSE t.action END AS action,
+    CASE WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE t.action END AS action,
     js.status_code AS status_code,
     js.paused_until_utc AS paused_until_utc,
     js.next_run_at_utc AS next_run_at_utc,

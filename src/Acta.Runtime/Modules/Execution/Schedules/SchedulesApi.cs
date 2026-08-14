@@ -21,8 +21,8 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     private const string ListOperationName = "ListJobSchedules";
     private const string OrderSchedules = "next_run_at_utc asc, id asc";
 
-    private static readonly ScheduleControlResult NotFound = new(JobControlAction.NotFound, null, null, null, null);
-    private static readonly ScheduleControlResult Rejected = new(JobControlAction.Rejected, null, null, null, null);
+    private static readonly ScheduleControlResult NotFound = new(ControlAction.NotFound, null, null, null, null);
+    private static readonly ScheduleControlResult Rejected = new(ControlAction.Rejected, null, null, null, null);
 
     // The control surface is operator/manual only: the actor (Operator) is stamped here, never accepted
     // from the caller, so a caller cannot forge the audit actor.
@@ -354,7 +354,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     }
 
     private static ScheduleControlResult ToResult(ScheduleControlOutcome o) =>
-        new((JobControlAction)(byte)o.Action, o.Status, o.PausedUntilUtc, o.NextRunAtUtc, o.Version);
+        new((ControlAction)(byte)o.Action, o.Status, o.PausedUntilUtc, o.NextRunAtUtc, o.Version);
 
     // When recomputation finds an upcoming slot, the slot job lands ready. It may carry a scheduled run
     // time, but waking idle loops makes them re-read their horizon. Without an upcoming slot, the job

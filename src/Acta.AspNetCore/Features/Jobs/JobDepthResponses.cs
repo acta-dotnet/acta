@@ -64,7 +64,7 @@ internal sealed record JobPayloadResponse(
 /// related collections are capped pages, so each ships its filter-wide count alongside.
 /// </summary>
 internal sealed record JobDetailResponse(
-    JobSnapshot Snapshot,
+    JobDetail Snapshot,
     JobPayloadResponse Input,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadResponse? Result,
     IReadOnlyList<JobCheckpointResponse> Checkpoints,
@@ -95,7 +95,7 @@ internal sealed record JobDetailResponse(
     public static async Task<JobDetailResponse> ComposeAsync(
         IJobs jobs,
         IActaOperations operations,
-        JobSnapshot snapshot,
+        JobDetail snapshot,
         int maxInlineBytes,
         CancellationToken ct
     )

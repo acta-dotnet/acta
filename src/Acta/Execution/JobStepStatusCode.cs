@@ -41,7 +41,7 @@ public enum JobStepStatusCode : byte
     Interrupted = 230,
 }
 
-public static partial class JobStepStateExtensions
+public static partial class JobStepStatusExtensions
 {
     extension(JobStepStatusCode value)
     {

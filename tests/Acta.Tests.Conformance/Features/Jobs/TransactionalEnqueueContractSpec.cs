@@ -270,7 +270,7 @@ public abstract class TransactionalEnqueueContractSpec<TFixture> : ActaRuntimeTe
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
+        public ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
             throw new NotSupportedException("Enqueue-only spec never waits on a wakeup.");
     }
 }

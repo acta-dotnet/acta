@@ -41,7 +41,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
 
         // --- 1. Raise the signal before any waiter exists; the job stays Ready.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
-        Assert.Equal(JobControlAction.Applied, raise.Action);
+        Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
         // --- 2. One tick consumes the pre-set signal and completes without suspending.
@@ -70,7 +70,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
 
         // --- 2. Raising the signal resumes the job; the next tick completes it.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
-        Assert.Equal(JobControlAction.Applied, raise.Action);
+        Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -133,7 +133,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         Assert.True(_wakeup.WakeCount > 0);
         Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(enqueued, ct));
-        _wakeup.ReleaseWait(WorkerWakeupWaitResult.TimedOut);
+        _wakeup.ReleaseWait(WorkerWakeupWaitStatus.TimedOut);
 
         // --- 2. The safety poll claims and completes the job without a delivered wake. The
         // discriminator is the JobCompletion wake, published only after the terminal completion

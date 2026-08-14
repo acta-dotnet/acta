@@ -44,7 +44,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
             .GetRequiredService<INamespaceStore>()
             .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(ActorCode.Operator, "op"), null), ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(), ct));
-        Assert.Equal(EnqueueRejectionReasonCode.NamespaceSuspended, ex.Reason);
+        Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, ex.Reason);
     }
 
     [Fact(DisplayName = "Enqueue with a suspended tenant throws TenantSuspended")]
@@ -55,7 +55,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
         await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
         await Services.GetRequiredService<TenantsService>().SuspendAsync(key, null, null, ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(tenantKey: key), ct));
-        Assert.Equal(EnqueueRejectionReasonCode.TenantSuspended, ex.Reason);
+        Assert.Equal(EnqueueRejectionReason.TenantSuspended, ex.Reason);
     }
 
     [Fact(DisplayName = "Enqueue with an unknown tenant throws TenantUnknown")]
@@ -65,7 +65,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
             await Jobs.EnqueueAsync(Request(tenantKey: TestKey("tax-ghost")), ct)
         );
-        Assert.Equal(EnqueueRejectionReasonCode.TenantUnknown, ex.Reason);
+        Assert.Equal(EnqueueRejectionReason.TenantUnknown, ex.Reason);
     }
 
     [Fact(DisplayName = "A batch into a suspended namespace throws NamespaceSuspended")]
@@ -76,7 +76,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
             .GetRequiredService<INamespaceStore>()
             .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(ActorCode.Operator, "op"), null), ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueBatchAsync([Request(), Request()], ct));
-        Assert.Equal(EnqueueRejectionReasonCode.NamespaceSuspended, ex.Reason);
+        Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, ex.Reason);
     }
 
     [Fact(DisplayName = "An unknown job rejection throws RouteUnknown")]
@@ -86,7 +86,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
             await Jobs.EnqueueAsync(Request(jobName: "no-such-job"), ct)
         );
-        Assert.Equal(EnqueueRejectionReasonCode.RouteUnknown, ex.Reason);
+        Assert.Equal(EnqueueRejectionReason.RouteUnknown, ex.Reason);
         Assert.IsAssignableFrom<DbException>(ex.InnerException);
     }
 
@@ -99,7 +99,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
             .Where(d => d.NamespaceId == ns && d.Name == "add-numbers")
             .UpdateOnlyAsync(() => new JobDefinition { Status = JobDefinitionStatusCode.Retired }, ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(), ct));
-        Assert.Equal(EnqueueRejectionReasonCode.DefinitionRetired, ex.Reason);
+        Assert.Equal(EnqueueRejectionReason.DefinitionRetired, ex.Reason);
         Assert.IsAssignableFrom<DbException>(ex.InnerException);
     }
 }

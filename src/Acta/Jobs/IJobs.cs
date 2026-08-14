@@ -233,11 +233,11 @@ public interface IJobs
     ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct = default);
 
     /// <summary>
-    /// Read the full <see cref="JobSnapshot"/> for the job identified by <paramref name="lookup"/>.
+    /// Read the full <see cref="JobDetail"/> for the job identified by <paramref name="lookup"/>.
     /// Returns <c>null</c> when no row matches. Resolves <paramref name="lookup"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct = default);
 
     /// <summary>
     /// Explain the durable state of the job identified by <paramref name="lookup"/> in plain English:
@@ -303,8 +303,8 @@ public interface IJobs
     /// <c>actor = Operator</c>, <c>reason = ControlManual</c> on the target;
     /// <paramref name="reasonMessage"/> is persisted on the row and the audit event. <paramref name="actorKey"/> is
     /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
-    /// unknown. An already-terminal job is <see cref="JobControlAction.Rejected"/>; a missing job is
-    /// <see cref="JobControlAction.NotFound"/>.
+    /// unknown. An already-terminal job is <see cref="ControlAction.Rejected"/>; a missing job is
+    /// <see cref="ControlAction.NotFound"/>.
     /// </summary>
     ValueTask<JobControlResult> CancelAsync(
         JobLookup lookup,
@@ -318,7 +318,7 @@ public interface IJobs
     /// <c>Paused</c>. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
     /// <paramref name="reasonMessage"/> is persisted on the row and the audit event. <paramref name="actorKey"/> is
     /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
-    /// unknown. A running or terminal job is <see cref="JobControlAction.Rejected"/>. <see
+    /// unknown. A running or terminal job is <see cref="ControlAction.Rejected"/>. <see
     /// cref="RescheduleAsync"/> re-arms a <c>Paused</c> job to <c>Ready</c>, a documented path out of
     /// <c>Paused</c>.
     /// </summary>
@@ -334,7 +334,7 @@ public interface IJobs
     /// to run now. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
     /// <paramref name="reasonMessage"/> is recorded on the audit event only (the row's reason is
     /// cleared). <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
-    /// authenticated principal name); null when unknown. A non-paused job is <see cref="JobControlAction.Rejected"/>.
+    /// authenticated principal name); null when unknown. A non-paused job is <see cref="ControlAction.Rejected"/>.
     /// </summary>
     ValueTask<JobControlResult> ResumeAsync(
         JobLookup lookup,
@@ -349,7 +349,7 @@ public interface IJobs
     /// attempt counter is unchanged. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
     /// <paramref name="reasonMessage"/> is recorded on the audit event only. <paramref name="actorKey"/> is
     /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
-    /// unknown. An executing job is <see cref="JobControlAction.Rejected"/>.
+    /// unknown. An executing job is <see cref="ControlAction.Rejected"/>.
     /// </summary>
     ValueTask<JobControlResult> RestartAsync(
         JobLookup lookup,
@@ -377,7 +377,7 @@ public interface IJobs
     /// <summary>
     /// Change the claim priority of the job identified by <paramref name="lookup"/>: any non-terminal
     /// row (including in-flight) accepts <paramref name="priority"/>, which affects only its next
-    /// claim; status and cursor are unchanged. A terminal job is <see cref="JobControlAction.Rejected"/>.
+    /// claim; status and cursor are unchanged. A terminal job is <see cref="ControlAction.Rejected"/>.
     /// The transition is audited (job.reprioritized); <paramref name="reasonMessage"/> is persisted on
     /// the audit event and <paramref name="actorKey"/> is recorded on the audit event as the operator
     /// identity (e.g. the authenticated principal name); null when unknown.
@@ -393,8 +393,8 @@ public interface IJobs
     /// <summary>
     /// Amend the stored input payload of the job identified by <paramref name="lookup"/>. Allowed in any
     /// status except <c>Dispatched</c>/<c>Executing</c> (a mid-flight handler may already have read the
-    /// input); an in-flight job is <see cref="JobControlAction.Rejected"/> and a missing job is
-    /// <see cref="JobControlAction.NotFound"/>. On success the job's input and format are replaced and
+    /// input); an in-flight job is <see cref="ControlAction.Rejected"/> and a missing job is
+    /// <see cref="ControlAction.NotFound"/>. On success the job's input and format are replaced and
     /// the transition is audited (job.input-amended); the event detail carries bounded metadata about
     /// the previous payload (format name and byte count), never the payload itself, so the amended-away
     /// value cannot outlive the job's payload retention. <paramref name="reasonMessage"/> is recorded on the
@@ -413,7 +413,7 @@ public interface IJobs
     /// Hard-delete the terminal job identified by <paramref name="lookup"/>: deletes its <c>events</c>
     /// and <c>alerts</c> rows, then the job row itself (CASCADEs to its
     /// runtime/schedule/step/result/checkpoint/tag rows). Only a terminal job (<c>Succeeded</c>/<c>Failed</c>/
-    /// <c>Cancelled</c>) may be purged; a non-terminal job is <see cref="JobControlAction.Rejected"/>, and
+    /// <c>Cancelled</c>) may be purged; a non-terminal job is <see cref="ControlAction.Rejected"/>, and
     /// so is a terminal job that has child jobs (deleting it would orphan the child's lineage - <c>parent_id</c>
     /// carries no DB cascade). Always emits <c>job.purged</c> (not audit-gated), with <c>job_id</c>/<c>job_ref</c>
     /// null on that row and the purged job's ref and name recorded on its <c>ReasonMessage</c> instead.
@@ -428,8 +428,8 @@ public interface IJobs
     /// <paramref name="job"/>. Sets the <c>(job_id, name)</c> slot to <c>Set</c> (last-writer-wins) and,
     /// when the job is <c>Suspended</c> on a matching <c>ctx.WaitSignalAsync</c>, moves it to
     /// <c>Ready</c> to run now. A <c>Paused</c> job stays paused (the signal is still recorded). A
-    /// terminal job is <see cref="JobControlAction.Rejected"/> and no slot is written; a missing job is
-    /// <see cref="JobControlAction.NotFound"/>. <paramref name="actorKey"/> is recorded on the audit event
+    /// terminal job is <see cref="ControlAction.Rejected"/> and no slot is written; a missing job is
+    /// <see cref="ControlAction.NotFound"/>. <paramref name="actorKey"/> is recorded on the audit event
     /// as the operator identity (e.g. the authenticated principal name); null when unknown. Unlike the
     /// other control verbs, <paramref name="actorKey"/> trails <paramref name="ct"/> here: this overload
     /// shares an argument count with <see cref="RaiseSignalAsync{T}"/> once <c>T</c> is inferred as

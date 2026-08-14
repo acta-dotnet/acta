@@ -10,7 +10,7 @@
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StateView from '../../components/StateView.svelte';
   import { routes } from '../../routes.ts';
-  import type { JobEvent, JobSnapshot } from './types.ts';
+  import type { JobEvent, JobDetail } from './types.ts';
   import { mergeJobEvents } from './jobDetailState.ts';
   import { deriveExecutions, executionGapSummary, executionPresentation, type ExecutionSummary } from './executionsState.ts';
 
@@ -22,7 +22,7 @@
     onViewInTimeline = () => {}
   }: {
     jobRef: string;
-    snapshot: JobSnapshot;
+    snapshot: JobDetail;
     polling?: boolean;
     focusExecution?: number | null;
     onViewInTimeline?: (executionNumber: number) => void;

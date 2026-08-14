@@ -25,7 +25,7 @@ public enum WorkerWakeupReason : byte
 /// <summary>
 /// How a <see cref="IWorkerWakeup.WaitAsync"/> call returned.
 /// </summary>
-public enum WorkerWakeupWaitResult : byte
+public enum WorkerWakeupWaitStatus : byte
 {
     /// <summary>Unspecified. Present so a defaulted value is distinguishable in logs and metrics.</summary>
     Unknown = 0,
@@ -180,5 +180,5 @@ public interface IWorkerWakeup
     /// Wait until a wake for <paramref name="channel"/> arrives, <paramref name="timeout"/>
     /// elapses, or <paramref name="ct"/> cancels.
     /// </summary>
-    ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct);
+    ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct);
 }

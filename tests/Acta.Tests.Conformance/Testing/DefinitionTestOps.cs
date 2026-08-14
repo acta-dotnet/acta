@@ -26,7 +26,7 @@ internal static class DefinitionTestOps
             .RegisterAsync(namespaceId, manifestGenerationUtc, descriptors, stored, ct);
     }
 
-    public static async Task<DefinitionOverrideResult> UpdateOverridesAsync(
+    public static async Task<DefinitionControlResult> UpdateOverridesAsync(
         IServiceProvider services,
         int definitionId,
         int expectedVersion,

@@ -80,7 +80,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
 
         // --- 2. Pause is rejected and leaves the row Dispatched with no JobPaused event.
         var pause = await Jobs.PauseAsync(enqueued, "race pause", ct: ct);
-        Assert.Equal(JobControlAction.Rejected, pause.Action);
+        Assert.Equal(ControlAction.Rejected, pause.Action);
         Assert.Equal(JobStatusCode.Dispatched, pause.Status);
         Assert.Equal(JobStatusCode.Dispatched, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Empty((await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e => e.EventCode == EventCode.JobPaused));
@@ -99,7 +99,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
 
         // --- 2. Restart is rejected and leaves the row Executing with no JobRestarted event.
         var restart = await Jobs.RestartAsync(enqueued, "race restart", ct: ct);
-        Assert.Equal(JobControlAction.Rejected, restart.Action);
+        Assert.Equal(ControlAction.Rejected, restart.Action);
         Assert.Equal(JobStatusCode.Executing, restart.Status);
         Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Empty((await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e => e.EventCode == EventCode.JobRestarted));
@@ -123,7 +123,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
 
         // --- 2. Cancel applies; the heartbeat then cancels the running handler.
         var cancel = await Jobs.CancelAsync(enqueued, "operator stop", ct: ct);
-        Assert.Equal(JobControlAction.Applied, cancel.Action);
+        Assert.Equal(ControlAction.Applied, cancel.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancel.Status);
         await Runtime.RunHeartbeatOnceAsync(ct);
         await ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct);
@@ -152,11 +152,11 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
 
         // --- 1. Pause a Ready job, then resume it back to Ready.
         var pause = await Jobs.PauseAsync(enqueued, "pause race", ct: ct);
-        Assert.Equal(JobControlAction.Applied, pause.Action);
+        Assert.Equal(ControlAction.Applied, pause.Action);
         Assert.Equal(JobStatusCode.Paused, pause.Status);
 
         var resume = await Jobs.ResumeAsync(enqueued, "resume race", ct: ct);
-        Assert.Equal(JobControlAction.Applied, resume.Action);
+        Assert.Equal(ControlAction.Applied, resume.Action);
         Assert.Equal(JobStatusCode.Ready, resume.Status);
 
         // --- 2. The resumed job runs to completion, with paired pause/resume events.

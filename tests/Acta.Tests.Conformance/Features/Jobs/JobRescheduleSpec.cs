@@ -38,7 +38,7 @@ public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture
 
         var result = await Jobs.RescheduleAsync(enqueued, near, "ops", "spec-actor", ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Ready, result.Status);
 
         var snapshot = await Jobs.GetAsync(enqueued, ct);
@@ -70,9 +70,9 @@ public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var resultExecuting = await Jobs.RescheduleAsync(JobLookup.ById(executingJob), next, ct: ct);
         var resultCompleted = await Jobs.RescheduleAsync(JobLookup.ById(completedJob), next, ct: ct);
 
-        Assert.Equal(JobControlAction.Rejected, resultExecuting.Action);
+        Assert.Equal(ControlAction.Rejected, resultExecuting.Action);
         Assert.Equal(JobStatusCode.Executing, resultExecuting.Status);
-        Assert.Equal(JobControlAction.Rejected, resultCompleted.Action);
+        Assert.Equal(ControlAction.Rejected, resultCompleted.Action);
         Assert.Equal(JobStatusCode.Succeeded, resultCompleted.Status);
 
         var afterExecuting = await ReadJobAsync(executingJob, ct);
@@ -89,7 +89,7 @@ public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var result = await Jobs.RescheduleAsync(JobLookup.ById(999_999_999_999L), DateTime.UtcNow.AddMinutes(5), ct: ct);
-        Assert.Equal(JobControlAction.NotFound, result.Action);
+        Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
     // ---------- helpers ----------

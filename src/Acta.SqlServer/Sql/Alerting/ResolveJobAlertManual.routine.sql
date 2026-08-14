@@ -30,7 +30,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS DATETIME2(7)) AS acknowledged_at_utc,
                     CAST(NULL AS DATETIME2(7)) AS resolved_at_utc;
                 RETURN;
@@ -40,7 +40,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
                     @ack AS acknowledged_at_utc,
                     @resolved AS resolved_at_utc;
                 RETURN;
@@ -87,7 +87,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @ack AS acknowledged_at_utc,
             @resolved AS resolved_at_utc;
     END TRY

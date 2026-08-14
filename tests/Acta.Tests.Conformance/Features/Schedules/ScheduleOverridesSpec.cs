@@ -61,7 +61,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
             actorKey: "operator-1",
             ct: ct
         );
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(before.Version + 1, result.Version);
 
         var expectedNext = NextOccurrenceCalculator.Next(DailyCron, null, ScheduleExpressionKindCode.Cron, now);
@@ -101,7 +101,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         var before = await ScheduleAsync(Db, jobName, "only", ct);
         var result = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), before.Version + 1, DailyCron, null, ct: ct);
 
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
         Assert.Equal(before.Version, result.Version); // current version, so the caller can re-read
 
         var after = await ScheduleAsync(Db, jobName, "only", ct);
@@ -123,11 +123,11 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         Assert.Equal("UTC", v1.TimeZoneId);
         Assert.Equal("UTC", v1.TimeZoneIdEffective);
         var set = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), v1.Version, DailyCron, "Europe/Ljubljana", ct: ct);
-        Assert.Equal(JobControlAction.Applied, set.Action);
+        Assert.Equal(ControlAction.Applied, set.Action);
 
         var v2 = await ScheduleAsync(Db, jobName, "only", ct);
         var cleared = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), v2.Version, null, null, ct: ct);
-        Assert.Equal(JobControlAction.Applied, cleared.Action);
+        Assert.Equal(ControlAction.Applied, cleared.Action);
 
         var v3 = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Null(v3.ExpressionOverride);
@@ -187,14 +187,14 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
         Assert.Equal(
-            JobControlAction.NotFound,
+            ControlAction.NotFound,
             (await Schedules.UpdateOverridesAsync(Lookup(jobName, "nope"), 0, DailyCron, null, ct: ct)).Action
         );
 
         // Re-register with no declared schedules: the orphan sweep stamps orphaned_at_utc on "gone".
         await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
         Assert.Equal(
-            JobControlAction.NotFound,
+            ControlAction.NotFound,
             (await Schedules.UpdateOverridesAsync(Lookup(jobName, "gone"), 0, DailyCron, null, ct: ct)).Action
         );
     }
@@ -210,13 +210,13 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
         var paused = await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: null, ct: ct);
-        Assert.Equal(JobControlAction.Applied, paused.Action);
+        Assert.Equal(ControlAction.Applied, paused.Action);
 
         var beforeOverride = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(ScheduleStatusCode.Paused, beforeOverride.Status);
 
         var result = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), beforeOverride.Version, DailyCron, null, ct: ct);
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
 
         var expectedNext = NextOccurrenceCalculator.Next(DailyCron, null, ScheduleExpressionKindCode.Cron, now);
         var afterOverride = await ScheduleAsync(Db, jobName, "only", ct);
@@ -231,7 +231,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         Assert.Null(slot.NextRunAtUtc);
 
         var resumed = await Schedules.ResumeAsync(Lookup(jobName, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Applied, resumed.Action);
+        Assert.Equal(ControlAction.Applied, resumed.Action);
         Assert.Equal(expectedNext, resumed.NextRunAtUtc); // resume reconciles the still-future overridden cursor unchanged
 
         var resumedSlot = await SlotAsync(jobName, ct);

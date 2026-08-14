@@ -1,4 +1,4 @@
-import type { JobEvent, JobExplanation, JobLineageNode, JobSnapshot } from './types.ts';
+import type { JobEvent, JobExplanation, JobLineageNode, JobDetail } from './types.ts';
 
 export function latestMeaningfulEvent(events: readonly JobEvent[]): JobEvent | null {
   if (events.length === 0) return null;
@@ -31,7 +31,7 @@ export function payloadFormatLabel(id: number): string {
 }
 
 export function buildIncidentSummary(
-  snapshot: JobSnapshot,
+  snapshot: JobDetail,
   explanation: JobExplanation | null,
   events: readonly JobEvent[],
   dashboardUrl: string

@@ -43,7 +43,7 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* JobControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
         RETURN;
     END IF;
 
@@ -114,6 +114,6 @@ BEGIN
             p_name);
     END IF;
 
-    RETURN QUERY SELECT 1 /* JobControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
 END;
 $$;

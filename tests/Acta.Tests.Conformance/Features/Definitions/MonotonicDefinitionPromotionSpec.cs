@@ -188,7 +188,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
         var payload = Services.GetRequiredService<IJobPayloadSerializerRegistry>().Resolve(JobPayloadFormat.Json.Id).Serialize(1);
         var ready = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, gone, payload, null, null, null), ct);
         var paused = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, gone, payload, null, null, null), ct);
-        Assert.Equal(JobControlAction.Applied, (await jobs.PauseAsync(paused, null, null, ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await jobs.PauseAsync(paused, null, null, ct)).Action);
         var kept = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, keep, payload, null, null, null), ct);
 
         // Re-register without 'gone': the same transaction that retires the definition cancels its
@@ -229,7 +229,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
         Assert.Equal(JobStatusCode.Cancelled, await jobs.GetStatusAsync(job, ct));
 
         // Operator restarts the cancelled job: it is parked (Ready) again under the already-retired definition.
-        Assert.Equal(JobControlAction.Applied, (await jobs.RestartAsync(job, null, null, ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await jobs.RestartAsync(job, null, null, ct)).Action);
         Assert.Equal(JobStatusCode.Ready, await jobs.GetStatusAsync(job, ct));
 
         // A later registration that changes 'keep' runs the routine again, but 'gone' did not transition

@@ -6,7 +6,7 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 /// </summary>
 internal sealed class DefinitionsApi(DefinitionsService definitions) : IDefinitions
 {
-    public ValueTask<DefinitionOverrideResult> UpdateOverridesAsync(
+    public ValueTask<DefinitionControlResult> UpdateOverridesAsync(
         int definitionId,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,

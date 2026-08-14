@@ -144,7 +144,7 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
         var resumed = await Jobs.ResumeAsync(JobLookup.ById(enqueued.JobId), "operator resumed", ct: ct);
-        Assert.Equal(JobControlAction.Applied, resumed.Action);
+        Assert.Equal(ControlAction.Applied, resumed.Action);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 }

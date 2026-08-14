@@ -4389,7 +4389,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobSnapshot"
+                  "$ref": "#/components/schemas/JobDetail"
                 }
               }
             }
@@ -4537,7 +4537,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobSnapshot"
+                  "$ref": "#/components/schemas/JobDetail"
                 }
               }
             }
@@ -5452,7 +5452,7 @@
             "format": "int64"
           },
           "action": {
-            "$ref": "#/components/schemas/JobControlAction"
+            "$ref": "#/components/schemas/ControlAction"
           },
           "acknowledgedAtUtc": {
             "type": [
@@ -5631,6 +5631,14 @@
           }
         }
       },
+      "ControlAction": {
+        "enum": [
+          "Applied",
+          "NotFound",
+          "Rejected"
+        ],
+        "description": "Coarse outcome of an IJobs control verb."
+      },
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
       },
@@ -5651,7 +5659,7 @@
             "format": "int32"
           },
           "action": {
-            "$ref": "#/components/schemas/JobControlAction"
+            "$ref": "#/components/schemas/ControlAction"
           },
           "message": {
             "type": "string"
@@ -5920,14 +5928,6 @@
         }
       },
       "JobCheckpointStatusCode": { },
-      "JobControlAction": {
-        "enum": [
-          "Applied",
-          "NotFound",
-          "Rejected"
-        ],
-        "description": "Coarse outcome of an IJobs control verb."
-      },
       "JobControlResponse": {
         "required": [
           "jobRef",
@@ -5941,7 +5941,7 @@
             "$ref": "#/components/schemas/JobRef"
           },
           "action": {
-            "$ref": "#/components/schemas/JobControlAction"
+            "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
             "oneOf": [
@@ -6419,6 +6419,174 @@
         "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail)."
       },
       "JobDefinitionStatusCode": { },
+      "JobDetail": {
+        "required": [
+          "jobRef",
+          "jobNamespace",
+          "jobDefinitionId",
+          "jobName",
+          "lineageRootJobRef",
+          "parentJobRef",
+          "tenantId",
+          "tenantKey",
+          "deduplicationKey",
+          "correlationKey",
+          "exclusiveKey",
+          "inputFormatId",
+          "status",
+          "priority",
+          "nextRunAtUtc",
+          "executionNumber",
+          "failureCount",
+          "leasedByWorkerId",
+          "leaseExpiresAtUtc",
+          "retentionUntilUtc",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobDefinitionId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "lineageRootJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "parentJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "tenantId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deduplicationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "correlationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "exclusiveKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "inputFormatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusCode"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "executionNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failureCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
+          "leasedByWorkerId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "leaseExpiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "retentionUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids."
+      },
       "JobDetailResponse": {
         "required": [
           "snapshot",
@@ -6437,7 +6605,7 @@
         "type": "object",
         "properties": {
           "snapshot": {
-            "$ref": "#/components/schemas/JobSnapshot"
+            "$ref": "#/components/schemas/JobDetail"
           },
           "input": {
             "$ref": "#/components/schemas/JobPayloadResponse"
@@ -7161,174 +7329,6 @@
       "JobRef": {
         "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
       },
-      "JobSnapshot": {
-        "required": [
-          "jobRef",
-          "jobNamespace",
-          "jobDefinitionId",
-          "jobName",
-          "lineageRootJobRef",
-          "parentJobRef",
-          "tenantId",
-          "tenantKey",
-          "deduplicationKey",
-          "correlationKey",
-          "exclusiveKey",
-          "inputFormatId",
-          "status",
-          "priority",
-          "nextRunAtUtc",
-          "executionNumber",
-          "failureCount",
-          "leasedByWorkerId",
-          "leaseExpiresAtUtc",
-          "retentionUntilUtc",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobDefinitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "lineageRootJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "parentJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "tenantKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "deduplicationKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "correlationKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "exclusiveKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "inputFormatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "uint8"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatusCode"
-          },
-          "priority": {
-            "$ref": "#/components/schemas/JobPriorityCode"
-          },
-          "nextRunAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "executionNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "failureCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int16"
-          },
-          "leasedByWorkerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "leaseExpiresAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "retentionUntilUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids."
-      },
       "JobStatusCode": { },
       "JobStepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
@@ -8010,7 +8010,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "$ref": "#/components/schemas/JobControlAction"
+            "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
             "oneOf": [

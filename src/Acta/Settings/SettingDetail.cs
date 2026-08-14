@@ -11,7 +11,7 @@ namespace Acta;
 /// <param name="CreatedAtUtc">When the setting row was first inserted.</param>
 /// <param name="ModifiedAtUtc">Last-write instant; every set bumps it.</param>
 /// <param name="Version">Optimistic-concurrency token; every set increments it.</param>
-public sealed record SettingSnapshot(
+public sealed record SettingDetail(
     string Name,
     string? Value,
     string? Description,

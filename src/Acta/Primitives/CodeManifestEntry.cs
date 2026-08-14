@@ -6,4 +6,4 @@ namespace Acta;
 /// member and exposed via <c>&lt;EnumName&gt;Extensions.Manifest</c>; the name-to-id mapping is
 /// documented in the generated <c>docs/reference/code-families.md</c>.
 /// </summary>
-public sealed record CodeManifestEntry(string CodeKind, byte Id, string Code, string Description, CodeLifecycleCode Lifecycle);
+public sealed record CodeManifestEntry(string CodeKind, byte Id, string Code, string Description, CodeLifecycle Lifecycle);

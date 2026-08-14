@@ -5,7 +5,7 @@
   import Icon from '../../components/Icon.svelte';
   import { childRollup } from './jobDetailState.ts';
   import { statusTonePresentation } from '../../components/jobTimelineState.ts';
-  import type { JobLineage, JobSnapshot } from './types.ts';
+  import type { JobLineage, JobDetail } from './types.ts';
   import { routes } from '../../routes.ts';
   import { displayFormatter, statusClass } from '../../format.ts';
   import JobRef from '../../components/JobRef.svelte';
@@ -13,7 +13,7 @@
   let {
     job,
     lineage = null
-  }: { job: JobSnapshot; lineage?: JobLineage | null } = $props();
+  }: { job: JobDetail; lineage?: JobLineage | null } = $props();
 
   let hasLineage = $derived(
     !!lineage &&

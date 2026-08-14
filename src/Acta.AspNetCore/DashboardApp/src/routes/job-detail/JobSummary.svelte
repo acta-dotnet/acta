@@ -4,11 +4,11 @@
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StatusBadge from '../../components/StatusBadge.svelte';
   import { payloadFormatLabel } from './jobDetailState.ts';
-  import type { JobEvent, JobSnapshot } from './types.ts';
+  import type { JobEvent, JobDetail } from './types.ts';
   import { routes } from '../../routes.ts';
   import JobRef from '../../components/JobRef.svelte';
 
-  let { job, tenantKey = undefined, lastEvent = null, maxAttempts = null }: { job: JobSnapshot; tenantKey?: string; lastEvent?: JobEvent | null; maxAttempts?: number | null } = $props();
+  let { job, tenantKey = undefined, lastEvent = null, maxAttempts = null }: { job: JobDetail; tenantKey?: string; lastEvent?: JobEvent | null; maxAttempts?: number | null } = $props();
 </script>
 
 <section class="panel" aria-labelledby="job-summary-heading">

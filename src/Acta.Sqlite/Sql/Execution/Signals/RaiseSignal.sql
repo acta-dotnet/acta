@@ -96,11 +96,11 @@ WHERE job_id = @p_job_id AND status_code = 20 /* JobStatusCode.Suspended */;
 
 SELECT
     CASE
-        WHEN r.job_id IS NULL THEN 2 /* JobControlAction.NotFound */
+        WHEN r.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN
             r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            THEN 3 /* JobControlAction.Rejected */
-        ELSE 1 /* JobControlAction.Applied */
+            THEN 3 /* ControlAction.Rejected */
+        ELSE 1 /* ControlAction.Applied */
     END AS action,
     r.status_code AS status_code
 FROM (SELECT @p_job_id AS id) probe

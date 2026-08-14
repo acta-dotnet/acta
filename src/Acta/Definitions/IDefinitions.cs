@@ -7,7 +7,7 @@ namespace Acta;
 public interface IDefinitions
 {
     /// <summary>Apply <paramref name="overrides"/> to the definition <paramref name="jobDefinitionId"/>, guarded by <paramref name="expectedVersion"/>. Missing is NotFound; stale version is Rejected.</summary>
-    ValueTask<DefinitionOverrideResult> UpdateOverridesAsync(
+    ValueTask<DefinitionControlResult> UpdateOverridesAsync(
         int jobDefinitionId,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,

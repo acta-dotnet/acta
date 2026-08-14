@@ -234,7 +234,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(one, ct));
         var restart = await Jobs.RestartAsync(one, ct: ct);
-        Assert.Equal(JobControlAction.Applied, restart.Action);
+        Assert.Equal(ControlAction.Applied, restart.Action);
         await AssertNamespaceAgreementAsync(one.JobId, ct);
     }
 

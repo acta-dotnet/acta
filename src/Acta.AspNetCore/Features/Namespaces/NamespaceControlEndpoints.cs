@@ -92,14 +92,14 @@ internal static class NamespaceControlEndpoints
                     );
                 }
                 if (
-                    ControlEndpointValidation.ValidateLength(body.OwnerTeam, "ownerTeam", CatalogLimits.NamespaceOwnerTeam) is
+                    ControlEndpointValidation.ValidateLength(body.OwnerTeam, "ownerTeam", AdminTextLimits.NamespaceOwnerTeam) is
                     { } ownerTeamError
                 )
                 {
                     return ownerTeamError;
                 }
                 if (
-                    ControlEndpointValidation.ValidateLength(body.Description, "description", CatalogLimits.NamespaceDescription) is
+                    ControlEndpointValidation.ValidateLength(body.Description, "description", AdminTextLimits.NamespaceDescription) is
                     { } descriptionError
                 )
                 {

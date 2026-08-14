@@ -40,7 +40,7 @@ public abstract class CancelPropagatesToHandlerSpec<TFixture> : ActaRuntimeTestB
         // Cancel through the public surface (Executing -> Cancelled), then drive one heartbeat tick - the
         // channel that propagates an external cancel to the running handler's token.
         var cancel = await Jobs.CancelAsync(JobLookup.ById(enqueued.JobId), ct: ct);
-        Assert.Equal(JobControlAction.Applied, cancel.Action);
+        Assert.Equal(ControlAction.Applied, cancel.Action);
         await Runtime.RunHeartbeatOnceAsync(ct);
 
         // The handler observed cancellation; the dispatch unwinds; the row is terminal Cancelled.

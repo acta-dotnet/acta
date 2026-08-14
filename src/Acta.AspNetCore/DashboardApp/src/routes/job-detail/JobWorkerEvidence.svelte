@@ -1,6 +1,6 @@
 <script lang="ts">
   import RelativeTime from '../../components/RelativeTime.svelte';
-  import type { JobSnapshot, JobWorker } from './types.ts';
+  import type { JobDetail, JobWorker } from './types.ts';
   import { routes } from '../../routes.ts';
   import { displayFormatter } from '../../format.ts';
 
@@ -10,7 +10,7 @@
     job,
     workers = null,
     workersTotal = null
-  }: { job: JobSnapshot; workers?: JobWorker[] | null; workersTotal?: number | null } = $props();
+  }: { job: JobDetail; workers?: JobWorker[] | null; workersTotal?: number | null } = $props();
 
   let dueInFuture = $derived(job.nextRunAtUtc ? new Date(job.nextRunAtUtc).getTime() > Date.now() : false);
   let liveWorkerCount = $derived(workers?.filter((worker) => worker.status === 'active' || worker.status === 'draining').length ?? null);

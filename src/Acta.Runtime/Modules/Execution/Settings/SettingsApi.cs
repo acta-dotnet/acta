@@ -3,7 +3,7 @@ namespace Acta.Runtime.Modules.Execution.Settings;
 /// <summary><see cref="ISettings"/> implementation: thin delegation to the settings feature service.</summary>
 internal sealed class SettingsApi(SettingsService service) : ISettings
 {
-    public ValueTask<SettingSnapshot?> GetAsync(
+    public ValueTask<SettingDetail?> GetAsync(
         string name,
         string? namespaceName = null,
         string? jobName = null,

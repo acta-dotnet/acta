@@ -17,11 +17,11 @@ internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions>
     private static JobControlActor Operator(string? actorKey) =>
         new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
-    public async ValueTask<SettingSnapshot?> GetAsync(string name, string? namespaceName, string? jobName, CancellationToken ct)
+    public async ValueTask<SettingDetail?> GetAsync(string name, string? namespaceName, string? jobName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(name);
         // Read paths validate shape only and stay permissive of the sys prefix.
-        IdentifierSyntax.ValidateDottedKebab(name, nameof(name), CatalogLimits.SettingName);
+        IdentifierSyntax.ValidateDottedKebab(name, nameof(name), AdminTextLimits.SettingName);
         ValidateScope(namespaceName, jobName);
         var row = await store.GetSettingAsync(new SettingPointLookup(name, namespaceName, jobName), ct);
         return row?.ToSnapshot();
@@ -40,7 +40,7 @@ internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions>
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(value);
-        IdentifierSyntax.ValidateUserDottedKebab(name, nameof(name), CatalogLimits.SettingName);
+        IdentifierSyntax.ValidateUserDottedKebab(name, nameof(name), AdminTextLimits.SettingName);
         ValidateScope(namespaceName, jobName);
         CatalogValidation.ValidateSetting(description);
 

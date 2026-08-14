@@ -59,7 +59,7 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
         Assert.Equal(JobCheckpointStatusCode.Pending, (await session.SignalAsync("go", ct))!.Status);
 
         var raise = await session.RaiseSignalAsync("go", ct);
-        Assert.Equal(JobControlAction.Applied, raise.Action);
+        Assert.Equal(ControlAction.Applied, raise.Action);
 
         await session.RunUntilDoneAsync(ct: ct);
         Assert.Equal(JobCheckpointStatusCode.Set, (await session.SignalAsync("go", ct))!.Status);

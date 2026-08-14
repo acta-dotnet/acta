@@ -317,8 +317,8 @@ public class CodeGeneratorDiagnosticTests
         Assert.Contains("public static bool IsKnownId(byte id) => false;", generated);
     }
 
-    // Regression for a bug where `Lifecycle = CodeLifecycleCode.Deprecated` was read via
-    // `named.Value.Value is int lc`, but CodeLifecycleCode is byte-backed, so Roslyn boxes the
+    // Regression for a bug where `Lifecycle = CodeLifecycle.Deprecated` was read via
+    // `named.Value.Value is int lc`, but CodeLifecycle is byte-backed, so Roslyn boxes the
     // TypedConstant as byte and the pattern never matched, silently emitting "Active" for every
     // family regardless of the declared lifecycle (F24).
     [Fact]
@@ -335,7 +335,7 @@ public class CodeGeneratorDiagnosticTests
                 [Code("one", "First value.")]
                 One = 1,
 
-                [Code("gone", "Superseded value.", Lifecycle = CodeLifecycleCode.Deprecated)]
+                [Code("gone", "Superseded value.", Lifecycle = CodeLifecycle.Deprecated)]
                 Gone = 2,
             }
             """
@@ -343,7 +343,7 @@ public class CodeGeneratorDiagnosticTests
 
         Assert.Empty(result.Diagnostics);
         var generated = string.Concat(result.Results.Single().GeneratedSources.Select(s => s.SourceText.ToString()));
-        Assert.Contains("""new("sample", (byte)1, "one", "First value.", global::Acta.CodeLifecycleCode.Active),""", generated);
-        Assert.Contains("""new("sample", (byte)2, "gone", "Superseded value.", global::Acta.CodeLifecycleCode.Deprecated),""", generated);
+        Assert.Contains("""new("sample", (byte)1, "one", "First value.", global::Acta.CodeLifecycle.Active),""", generated);
+        Assert.Contains("""new("sample", (byte)2, "gone", "Superseded value.", global::Acta.CodeLifecycle.Deprecated),""", generated);
     }
 }

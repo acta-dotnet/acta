@@ -545,7 +545,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                 .Append(c.Code)
                 .Append("\", ")
                 .Append(EscapeStringLiteral(c.Description))
-                .Append(", global::Acta.CodeLifecycleCode.")
+                .Append(", global::Acta.CodeLifecycle.")
                 .Append(c.Lifecycle)
                 .AppendLine("),");
         }
@@ -835,7 +835,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                     .Append(c.Code)
                     .Append("\", ")
                     .Append(EscapeStringLiteral(c.Description))
-                    .Append(", global::Acta.CodeLifecycleCode.")
+                    .Append(", global::Acta.CodeLifecycle.")
                     .Append(c.Lifecycle)
                     .AppendLine("),");
             }

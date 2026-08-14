@@ -33,7 +33,7 @@ internal sealed record JobSnapshotRow(
 {
     // Named, not positional: this row is in SELECT order and the snapshot in entity order, and both
     // carry runs of same-typed fields a positional call would silently swap.
-    public JobSnapshot ToSnapshot() =>
+    public JobDetail ToSnapshot() =>
         new(
             JobId: JobId,
             JobRef: new JobRef(JobRef),

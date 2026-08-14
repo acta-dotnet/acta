@@ -111,8 +111,8 @@ internal sealed class CliCommandRunner(
         CliOutput.WriteControl(output, verb, result, json);
         return result.Action switch
         {
-            JobControlAction.Applied => ExitOk,
-            JobControlAction.NotFound => ExitNotFound,
+            ControlAction.Applied => ExitOk,
+            ControlAction.NotFound => ExitNotFound,
             _ => ExitRejected,
         };
     }
@@ -252,7 +252,7 @@ internal sealed class CliCommandRunner(
             if (snapshot.Status != JobStatusCode.Ready)
             {
                 var restart = await jobs.RestartAsync(JobLookup.ById(jobId), "cli debug", ct: ct);
-                if (restart.Action != JobControlAction.Applied)
+                if (restart.Action != ControlAction.Applied)
                 {
                     await error.WriteLineAsync($"could not make job {jobId} Ready: {restart.Action} (status {restart.Status}).");
                     return ExitRejected;

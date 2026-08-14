@@ -8,7 +8,7 @@ namespace Acta.AspNetCore.Features.Jobs;
 /// <summary>
 /// POST job-control endpoints: thin HTTP wrappers over the <see cref="IJobs"/> control verbs. The
 /// verbs own transition legality and audit stamping; this layer validates the request shape and
-/// maps <see cref="JobControlAction"/> to 200 (applied), 409 (rejected), and 404 (not found).
+/// maps <see cref="ControlAction"/> to 200 (applied), 409 (rejected), and 404 (not found).
 /// </summary>
 internal static class ActaControlEndpoints
 {
@@ -380,8 +380,8 @@ internal static class ActaControlEndpoints
     {
         var (statusCode, message) = result.Action switch
         {
-            JobControlAction.Applied => (StatusCodes.Status200OK, $"{Title(verb)} applied."),
-            JobControlAction.Rejected => (
+            ControlAction.Applied => (StatusCodes.Status200OK, $"{Title(verb)} applied."),
+            ControlAction.Rejected => (
                 StatusCodes.Status409Conflict,
                 $"{Title(verb)} rejected: the job's current status does not allow it."
             ),

@@ -62,9 +62,9 @@ WHERE
 
 SELECT
     CASE
-        WHEN s.id IS NULL THEN 2 /* JobControlAction.NotFound */
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN 1 /* JobControlAction.Applied */
-        ELSE 3 /* JobControlAction.Rejected */
+        WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN 1 /* ControlAction.Applied */
+        ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL

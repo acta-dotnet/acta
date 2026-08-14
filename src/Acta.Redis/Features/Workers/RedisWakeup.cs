@@ -21,7 +21,7 @@ namespace Acta.Redis.Features.Workers;
 /// coalesces onto the local latch and is harmless. Channel semantics are preserved across the
 /// relay: a remote job-completion wake reaches existing waiters only (the local transport never
 /// allocates for it), and a remote worker-namespace wake is jittered per
-/// <see cref="RedisWakeupOptions.RemoteWakeJitterMax"/> to soften the fleet-wide claim herd. A
+/// <see cref="RedisWakeupOptions.RemoteWakeJitter"/> to soften the fleet-wide claim herd. A
 /// jittered channel holds at most one pending wake, so a duplicate burst costs one timer for the
 /// channel rather than one per message.
 /// </remarks>
@@ -54,7 +54,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         _redis = redis;
         _channelPrefix = options.Value.ChannelPrefix + ":wake:";
         _wakePattern = RedisChannel.Pattern(_channelPrefix + "*");
-        _remoteJitterMax = options.Value.RemoteWakeJitterMax;
+        _remoteJitterMax = options.Value.RemoteWakeJitter;
         _log = (ILogger?)log ?? NullLogger.Instance;
     }
 
@@ -83,7 +83,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
     }
 
-    public async ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
+    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
     {
         await EnsureSubscribedAsync(ct);
         return await _local.WaitAsync(channel, timeout, ct);

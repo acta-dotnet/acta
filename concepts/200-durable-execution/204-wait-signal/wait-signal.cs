@@ -106,14 +106,14 @@ EnsureDone(terminal);
 await ShowSignalStateAsync(lab, job.JobId);
 await host.StopAsync();
 
-static async Task<JobSnapshot> RequireJobAsync(IJobs jobs, string jobRefText)
+static async Task<JobDetail> RequireJobAsync(IJobs jobs, string jobRefText)
 {
     JobRef.TryParse(jobRefText, out var jobRef);
     return await jobs.GetAsync(JobLookup.ByRef(jobRef))
         ?? throw new InvalidOperationException($"Job {jobRefText} was not found. Use the same configured database for every command.");
 }
 
-static async Task<JobSnapshot> WaitForAsync(IJobs jobs, long jobId, Func<JobSnapshot, bool> predicate, string description)
+static async Task<JobDetail> WaitForAsync(IJobs jobs, long jobId, Func<JobDetail, bool> predicate, string description)
 {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     try
@@ -138,7 +138,7 @@ static async Task<JobSnapshot> WaitForAsync(IJobs jobs, long jobId, Func<JobSnap
     }
 }
 
-static void EnsureDone(JobSnapshot snapshot)
+static void EnsureDone(JobDetail snapshot)
 {
     if (snapshot.Status != JobStatusCode.Succeeded)
     {

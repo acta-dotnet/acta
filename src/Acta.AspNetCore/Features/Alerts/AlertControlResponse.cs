@@ -5,4 +5,4 @@ namespace Acta.AspNetCore.Features.Alerts;
 /// not-found (404) outcomes; there is no rejected (409) case since re-acknowledging or re-resolving is
 /// always Applied (idempotent, no mutation).
 /// </summary>
-internal sealed record AlertControlResponse(long AlertId, JobControlAction Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);
+internal sealed record AlertControlResponse(long AlertId, ControlAction Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);

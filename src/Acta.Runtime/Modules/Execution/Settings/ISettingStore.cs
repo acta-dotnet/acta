@@ -44,6 +44,6 @@ internal sealed record SettingRow(
     int Version
 )
 {
-    public SettingSnapshot ToSnapshot() =>
+    public SettingDetail ToSnapshot() =>
         new(Name, Value is null ? null : System.Text.Encoding.UTF8.GetString(Value), Description, CreatedAtUtc, ModifiedAtUtc, Version);
 }

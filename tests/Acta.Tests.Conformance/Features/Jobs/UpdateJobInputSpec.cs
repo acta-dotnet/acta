@@ -38,7 +38,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
         var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "corrected operands", "spec-actor", ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Ready, result.Status);
 
         var job = await ReadJobRowAsync(enqueued.JobId, ct);
@@ -75,7 +75,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
-        Assert.Equal(JobControlAction.Applied, amend.Action);
+        Assert.Equal(ControlAction.Applied, amend.Action);
 
         // Sweep with the events window wide open: the job row goes, the ledger stays. Bounded retries
         // because a concurrent spec's purge can hold rows this call's sweep would otherwise reap.
@@ -132,7 +132,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
             var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "should not apply", ct: ct);
 
-            Assert.Equal(JobControlAction.Rejected, result.Action);
+            Assert.Equal(ControlAction.Rejected, result.Action);
             Assert.Equal(status, result.Status);
 
             var job = await ReadJobRowAsync(enqueued.JobId, ct);
@@ -153,10 +153,10 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         await SetJobStatusAsync(enqueued.JobId, (byte)JobStatusCode.Failed, ct);
 
         var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new AddNumbers(10, 20)), "retry with new operands", ct: ct);
-        Assert.Equal(JobControlAction.Applied, amend.Action);
+        Assert.Equal(ControlAction.Applied, amend.Action);
 
         var restart = await Jobs.RestartAsync(enqueued, ct: ct);
-        Assert.Equal(JobControlAction.Applied, restart.Action);
+        Assert.Equal(ControlAction.Applied, restart.Action);
         Assert.Equal(JobStatusCode.Ready, restart.Status);
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued.JobId, ct));
@@ -176,7 +176,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oldInput), ct);
 
         var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
 
         var stored = await Jobs.GetInputAsync(enqueued, ct);
         Assert.NotNull(stored);
@@ -189,7 +189,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var result = await Jobs.UpdateJobInputAsync(JobLookup.ById(999_999_999_999L), JobPayload.Json(new AddNumbers(0, 0)), ct: ct);
-        Assert.Equal(JobControlAction.NotFound, result.Action);
+        Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
     // ---------- helpers ----------

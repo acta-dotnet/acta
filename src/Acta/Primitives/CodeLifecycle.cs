@@ -5,7 +5,7 @@ namespace Acta;
 /// All three appear in <c>FromId</c>, <c>IsKnownId</c>, <c>Manifest</c>, and <c>code-family docs</c>;
 /// <c>IsWritableId</c> excludes Retired only.
 /// </summary>
-public enum CodeLifecycleCode : byte
+public enum CodeLifecycle : byte
 {
     /// <summary>Current. Writable; recommended.</summary>
     Active = 1,

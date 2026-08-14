@@ -2,23 +2,23 @@ namespace Acta;
 
 /// <summary>
 /// Outcome of an <see cref="IJobs"/> control verb (Cancel / Pause / Resume / Restart). Carries the
-/// targeted <see cref="JobId"/>, the coarse <see cref="JobControlAction"/>, and the job's
+/// targeted <see cref="JobId"/>, the coarse <see cref="ControlAction"/>, and the job's
 /// <see cref="Status"/> after the attempt.
 /// </summary>
 /// <remarks>
-/// <see cref="Status"/> carries the new target status on <see cref="JobControlAction.Applied"/>, the
-/// current status that blocked the transition on <see cref="JobControlAction.Rejected"/>, and
-/// <c>null</c> on <see cref="JobControlAction.NotFound"/>.
+/// <see cref="Status"/> carries the new target status on <see cref="ControlAction.Applied"/>, the
+/// current status that blocked the transition on <see cref="ControlAction.Rejected"/>, and
+/// <c>null</c> on <see cref="ControlAction.NotFound"/>.
 /// </remarks>
 /// <param name="JobId">The targeted job's id; <c>0</c> when the lookup matched no row.</param>
 /// <param name="Action">Whether the control transition was applied, rejected, or the job was absent.</param>
 /// <param name="Status">The job's status after the attempt; see remarks.</param>
-public sealed record JobControlResult(long JobId, JobControlAction Action, JobStatusCode? Status);
+public sealed record JobControlResult(long JobId, ControlAction Action, JobStatusCode? Status);
 
 /// <summary>
 /// Coarse outcome of an <see cref="IJobs"/> control verb.
 /// </summary>
-public enum JobControlAction : byte
+public enum ControlAction : byte
 {
     /// <summary>The transition was applied; <c>Status</c> is the new target status.</summary>
     Applied = 1,

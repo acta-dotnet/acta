@@ -86,7 +86,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
             ct
         );
 
-        Assert.Equal(JobControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         var after = await ReadAsync(name, ct);
         Assert.Equal((short)3, after.MaxAttempts); // default untouched
         Assert.Equal((short)9, after.MaxAttemptsOverride);
@@ -133,7 +133,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
             ct
         );
 
-        Assert.Equal(JobControlAction.Rejected, outcome.Action);
+        Assert.Equal(ControlAction.Rejected, outcome.Action);
         var after = await ReadAsync(name, ct);
         Assert.Null(after.MaxAttemptsOverride);
         Assert.Equal(before.Version, after.Version);
@@ -225,7 +225,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
             ct
         );
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
     }
 
     [Fact(DisplayName = "An unknown definition id is NotFound")]
@@ -244,7 +244,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
             ct
         );
 
-        Assert.Equal(JobControlAction.NotFound, outcome.Action);
+        Assert.Equal(ControlAction.NotFound, outcome.Action);
     }
 
     [Fact(DisplayName = "A definition-scoped policy-changed event is emitted")]

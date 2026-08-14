@@ -102,7 +102,7 @@ public abstract class UpdateTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
         var key = TestKey("adm-meta-long");
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await service.UpdateAsync(key, new string('x', CatalogLimits.TenantDisplayName + 1), null, 0, null, null, ct)
+            await service.UpdateAsync(key, new string('x', AdminTextLimits.TenantDisplayName + 1), null, 0, null, null, ct)
         );
     }
 }

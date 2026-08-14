@@ -28,8 +28,8 @@ public sealed class WorkerWakeupTests
         var signal = new AsyncWakeSignal();
         signal.Set();
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await signal.WaitAsync(WaitBriefly, None));
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await signal.WaitAsync(WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await signal.WaitAsync(WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await signal.WaitAsync(WaitBriefly, None));
     }
 
     [Fact]
@@ -40,8 +40,8 @@ public sealed class WorkerWakeupTests
         signal.Set();
         signal.Set();
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await signal.WaitAsync(WaitBriefly, None));
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await signal.WaitAsync(WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await signal.WaitAsync(WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await signal.WaitAsync(WaitBriefly, None));
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class WorkerWakeupTests
 
         signal.Set();
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await wait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class WorkerWakeupTests
     {
         var signal = new AsyncWakeSignal();
 
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await signal.WaitAsync(WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await signal.WaitAsync(WaitBriefly, None));
     }
 
     [Fact]
@@ -91,8 +91,8 @@ public sealed class WorkerWakeupTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await billing.WaitAsync(WaitGenerously, None));
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await shipping.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await billing.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await shipping.WaitAsync(WaitGenerously, None));
     }
 
     [Fact]
@@ -108,8 +108,8 @@ public sealed class WorkerWakeupTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await billing.WaitAsync(WaitGenerously, None));
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await shipping.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await billing.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await shipping.WaitAsync(WaitGenerously, None));
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class WorkerWakeupTests
         );
 
         Assert.Equal(
-            WorkerWakeupWaitResult.TimedOut,
+            WorkerWakeupWaitStatus.TimedOut,
             await wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitBriefly, None)
         );
     }
@@ -141,7 +141,7 @@ public sealed class WorkerWakeupTests
         );
 
         Assert.Equal(
-            WorkerWakeupWaitResult.Signaled,
+            WorkerWakeupWaitStatus.Signaled,
             await wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitBriefly, None)
         );
     }
@@ -160,7 +160,7 @@ public sealed class WorkerWakeupTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await wait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public sealed class WorkerWakeupTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await wakeup.WaitAsync(WorkerWakeupChannel.JobCompletion(42), WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await wakeup.WaitAsync(WorkerWakeupChannel.JobCompletion(42), WaitBriefly, None));
     }
 
     [Fact]
@@ -186,13 +186,13 @@ public sealed class WorkerWakeupTests
 
         // First wait times out and removes the entry; a wake after that finds nothing to latch on,
         // so a second wait times out too - proving the per-job entry does not outlive its waiters.
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await wakeup.WaitAsync(WorkerWakeupChannel.JobCompletion(42), WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await wakeup.WaitAsync(WorkerWakeupChannel.JobCompletion(42), WaitBriefly, None));
         await wakeup.WakeAsync(
             WorkerWakeupChannel.JobCompletion(42),
             WorkerWakeupReason.JobFinished,
             TestContext.Current.CancellationToken
         );
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await wakeup.WaitAsync(WorkerWakeupChannel.JobCompletion(42), WaitBriefly, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await wakeup.WaitAsync(WorkerWakeupChannel.JobCompletion(42), WaitBriefly, None));
     }
 
     [Fact]
@@ -208,8 +208,8 @@ public sealed class WorkerWakeupTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await nsWait.WaitAsync(WaitGenerously, None));
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, await jobWait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await nsWait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await jobWait.WaitAsync(WaitGenerously, None));
     }
 
     // ---- WorkerLoop.ComputeSleep ----
@@ -399,7 +399,7 @@ public sealed class WorkerWakeupTests
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
+        public ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
             throw new InvalidOperationException("wait not used");
     }
 
@@ -408,7 +408,7 @@ public sealed class WorkerWakeupTests
         public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default) =>
             throw new InvalidOperationException("transport down");
 
-        public ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
+        public ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
             throw new InvalidOperationException("transport down");
     }
 

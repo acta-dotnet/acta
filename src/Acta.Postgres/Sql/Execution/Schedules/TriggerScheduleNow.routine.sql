@@ -43,22 +43,22 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* JobControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
         RETURN;
     END IF;
 
     IF v_status = 30 /* ScheduleStatusCode.Paused */ THEN
-        RETURN QUERY SELECT 3 /* JobControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
         RETURN;
     END IF;
 
     IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN
-        RETURN QUERY SELECT 3 /* JobControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
         RETURN;
     END IF;
 
     IF v_slot_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* JobControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
         RETURN;
     END IF;
 
@@ -116,6 +116,6 @@ BEGIN
             p_reason_message);
     END IF;
 
-    RETURN QUERY SELECT 1 /* JobControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
 END;
 $$;

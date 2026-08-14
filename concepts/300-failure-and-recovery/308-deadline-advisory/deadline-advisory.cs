@@ -21,7 +21,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 var outcome = await jobs.EnqueueAsync(new GenerateReport("q3"), o => o.Delayed(TimeSpan.FromSeconds(4)));
 Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] enqueued; 2s deadline, but the first run is held 4s.");
 
-JobSnapshot? snapshot;
+JobDetail? snapshot;
 do
 {
     await Task.Delay(500);

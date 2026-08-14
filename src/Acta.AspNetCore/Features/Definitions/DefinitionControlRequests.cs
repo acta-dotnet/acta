@@ -12,4 +12,4 @@ internal sealed record SetDefinitionOverridesRequest(int Version = 0, JobDefinit
 /// Response of a definition override write: the targeted definition id, the coarse outcome, and a
 /// human-readable message.
 /// </summary>
-internal sealed record DefinitionOverrideResponse(int JobDefinitionId, JobControlAction Action, string Message);
+internal sealed record DefinitionOverrideResponse(int JobDefinitionId, ControlAction Action, string Message);

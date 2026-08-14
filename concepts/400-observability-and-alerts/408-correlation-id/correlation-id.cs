@@ -43,7 +43,7 @@ Console.WriteLine("pipeline done");
 
 // Operator read: CorrelationKey is both a ListJobsQuery filter and a JobListItem field, so one list
 // read pulls every job on a trace - parent and inherited children - with the id already on each row.
-// (It is also on JobSnapshot via GetAsync when you want the full per-job detail.)
+// (It is also on JobDetail via GetAsync when you want the full per-job detail.)
 Console.WriteLine($"operator read: ListJobs filtered by CorrelationKey={correlationKey}");
 var operations = host.Services.GetRequiredService<IActaOperations>();
 var trace = await operations.Ledger.ListJobsAsync(

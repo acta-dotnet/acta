@@ -35,7 +35,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
                     CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
@@ -109,7 +109,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @status AS status_code,
             @paused AS paused_until_utc,
             @next AS next_run_at_utc,

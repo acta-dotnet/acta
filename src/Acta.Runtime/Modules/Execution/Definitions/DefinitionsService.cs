@@ -89,7 +89,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         return new PagedResult<JobDefinitionListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
-    public async ValueTask<DefinitionOverrideResult> UpdateOverridesAsync(
+    public async ValueTask<DefinitionControlResult> UpdateOverridesAsync(
         int definitionId,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
@@ -156,12 +156,12 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             ct
         );
 
-        return new DefinitionOverrideResult(
+        return new DefinitionControlResult(
             outcome.Action switch
             {
-                DefinitionOverrideAction.Applied => JobControlAction.Applied,
-                DefinitionOverrideAction.NotFound => JobControlAction.NotFound,
-                _ => JobControlAction.Rejected,
+                DefinitionOverrideAction.Applied => ControlAction.Applied,
+                DefinitionOverrideAction.NotFound => ControlAction.NotFound,
+                _ => ControlAction.Rejected,
             }
         );
     }

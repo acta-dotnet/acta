@@ -100,7 +100,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // The sleep the loop was parked in ended in a wake, so the enqueue publish interrupted it;
         // the safety poll is the only other way out and it reports itself as a timeout.
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, ParkedSleepOutcome());
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, ParkedSleepOutcome());
     }
 
     [Fact(DisplayName = "A delayed enqueue refreshes the sleeping loop's horizon")]
@@ -132,7 +132,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         // The HorizonChanged publish ended the full safety sleep in a wake; the loop's next empty
         // claim then read the ~1.5s horizon and slept to the due instant. That second sleep is meant
         // to time out, which is why only the parked sleep's outcome is the fact here.
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, ParkedSleepOutcome());
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, ParkedSleepOutcome());
     }
 
     [Fact(DisplayName = "An unpublished Ready row is discovered by the safety poll")]
@@ -161,7 +161,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // No publish reached the loop, so the sleep it was parked in ran out instead of being woken:
         // the timeout IS safety-poll discovery, where an elapsed-time lower bound could only infer it.
-        Assert.Equal(WorkerWakeupWaitResult.TimedOut, ParkedSleepOutcome());
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, ParkedSleepOutcome());
     }
 
     [Fact(DisplayName = "ExecuteAndWaitAsync observes a colocated completion at wake speed")]
@@ -186,7 +186,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.True(outcome.IsSuccess, $"Execute outcome: timedOut={outcome.IsTimedOut}, status={outcome.TerminalStatus}.");
         // Not one completion wait fell through to its poll interval, so the colocated completion's
         // wake is what returned this call.
-        Assert.DoesNotContain(WorkerWakeupWaitResult.TimedOut, _wakeup.WaitsOn(WorkerWakeupChannelKind.JobCompletion));
+        Assert.DoesNotContain(WorkerWakeupWaitStatus.TimedOut, _wakeup.WaitsOn(WorkerWakeupChannelKind.JobCompletion));
     }
 
     [Fact(DisplayName = "A re-arming completion wakes the loop for its own retry")]
@@ -210,7 +210,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // Every idle sleep across the whole retry chain ended in a wake, so no attempt was found by
         // the safety poll. One elapsed-time budget for the chain could not say which link was slow.
-        Assert.DoesNotContain(WorkerWakeupWaitResult.TimedOut, _wakeup.WaitsOn(WorkerWakeupChannelKind.WorkerNamespace));
+        Assert.DoesNotContain(WorkerWakeupWaitStatus.TimedOut, _wakeup.WaitsOn(WorkerWakeupChannelKind.WorkerNamespace));
     }
 
     // Starts the real loop and returns once its first empty claim has parked in the idle sleep. Every
@@ -224,7 +224,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
     }
 
     // How the idle sleep the loop was parked in when the fact acted ended: a wake or the safety poll.
-    private WorkerWakeupWaitResult ParkedSleepOutcome()
+    private WorkerWakeupWaitStatus ParkedSleepOutcome()
     {
         var sleeps = _wakeup.WaitsOn(WorkerWakeupChannelKind.WorkerNamespace);
         Assert.NotEmpty(sleeps);

@@ -65,7 +65,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         );
 
         var result = await Schedules.PauseAsync(Lookup(jobName, "late"), untilUtc: null, note: "drain", ct: ct);
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(ScheduleStatusCode.Paused, result.Status);
 
         var paused = await ScheduleAsync(Db, jobName, "late", ct);
@@ -89,7 +89,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
         var paused = await Schedules.PauseAsync(Lookup(jobName, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Applied, paused.Action);
+        Assert.Equal(ControlAction.Applied, paused.Action);
 
         {
             var slot = await SlotAsync(jobName, ct);
@@ -98,7 +98,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         }
 
         var resumed = await Schedules.ResumeAsync(Lookup(jobName, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Applied, resumed.Action);
+        Assert.Equal(ControlAction.Applied, resumed.Action);
         Assert.Equal(ScheduleStatusCode.Active, resumed.Status);
 
         {
@@ -124,7 +124,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
 
         var until = now.AddMinutes(10);
         var result = await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: until, ct: ct);
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(until, result.PausedUntilUtc);
 
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
@@ -147,7 +147,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
         var result = await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: now.AddMinutes(-1), ct: ct);
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
     }
 
     [Fact(DisplayName = "Resume reconciles the cursor by misfire: Skip advances past now and FireOnceCatchUp keeps the past instant")]
@@ -172,7 +172,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         );
         await Schedules.PauseAsync(Lookup(skipJob, "only"), ct: ct);
         var skipResumed = await Schedules.ResumeAsync(Lookup(skipJob, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Applied, skipResumed.Action);
+        Assert.Equal(ControlAction.Applied, skipResumed.Action);
         Assert.NotNull(skipResumed.NextRunAtUtc);
         Assert.True(skipResumed.NextRunAtUtc > now, "Skip resume advances strictly past now");
 
@@ -192,7 +192,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         );
         await Schedules.PauseAsync(Lookup(catchJob, "only"), ct: ct);
         var catchResumed = await Schedules.ResumeAsync(Lookup(catchJob, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Applied, catchResumed.Action);
+        Assert.Equal(ControlAction.Applied, catchResumed.Action);
         Assert.NotNull(catchResumed.NextRunAtUtc);
         Assert.True(catchResumed.NextRunAtUtc <= now, "FireOnceCatchUp resume keeps a past instant for one catch-up fire");
     }
@@ -210,8 +210,8 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         // Re-register with no declared schedules: the orphan sweep stamps orphaned_at_utc on "gone".
         await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
 
-        Assert.Equal(JobControlAction.NotFound, (await Schedules.PauseAsync(Lookup(jobName, "gone"), ct: ct)).Action);
-        Assert.Equal(JobControlAction.NotFound, (await Schedules.ResumeAsync(Lookup(jobName, "gone"), ct: ct)).Action);
+        Assert.Equal(ControlAction.NotFound, (await Schedules.PauseAsync(Lookup(jobName, "gone"), ct: ct)).Action);
+        Assert.Equal(ControlAction.NotFound, (await Schedules.ResumeAsync(Lookup(jobName, "gone"), ct: ct)).Action);
     }
 
     [Fact(DisplayName = "Catalog re-registration preserves operator pause state")]

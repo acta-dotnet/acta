@@ -86,9 +86,9 @@ WHERE
 
 SELECT
     CASE
-        WHEN s.id IS NULL THEN 2 /* JobControlAction.NotFound */
-        WHEN s.from_status NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 1 /* JobControlAction.Applied */
-        ELSE 3 /* JobControlAction.Rejected */
+        WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.from_status NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
+        ELSE 3 /* ControlAction.Rejected */
     END AS action,
     s.from_status AS status_code
 FROM (SELECT @p_id AS qid) q

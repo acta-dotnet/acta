@@ -16,6 +16,6 @@ public sealed class CodeAttribute(string code, string description) : Attribute
     /// </summary>
     public string Description { get; } = description;
 
-    /// <summary>Lifecycle flag. See <see cref="CodeLifecycleCode"/>.</summary>
-    public CodeLifecycleCode Lifecycle { get; init; } = CodeLifecycleCode.Active;
+    /// <summary>Lifecycle flag. See <see cref="CodeLifecycle"/>.</summary>
+    public CodeLifecycle Lifecycle { get; init; } = CodeLifecycle.Active;
 }

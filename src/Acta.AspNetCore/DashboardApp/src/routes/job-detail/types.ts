@@ -1,6 +1,6 @@
-// Field order mirrors the server-side JobSnapshot record, which in turn mirrors the jobs entity and
+// Field order mirrors the server-side JobDetail record, which in turn mirrors the jobs entity and
 // then its runtimes row: identity, scope/routing, caller keys, input format, runtime state, audit.
-export interface JobSnapshot {
+export interface JobDetail {
   jobRef: string;
   jobNamespace: string;
   jobDefinitionId: number;

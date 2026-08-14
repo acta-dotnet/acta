@@ -65,8 +65,8 @@ WHERE
 
 SELECT
     CASE
-        WHEN t.id IS NULL THEN 2 /* JobControlAction.NotFound */
-        ELSE 1 /* JobControlAction.Applied */
+        WHEN t.id IS NULL THEN 2 /* ControlAction.NotFound */
+        ELSE 1 /* ControlAction.Applied */
     END AS action,
     t.acknowledged_at_utc AS acknowledged_at_utc,
     CASE

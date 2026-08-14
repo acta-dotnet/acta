@@ -9,7 +9,7 @@ public class CliOutputTests
     public void Control_plain_writes_key_value_lines()
     {
         var w = new StringWriter();
-        CliOutput.WriteControl(w, "pause", new JobControlResult(123, JobControlAction.Applied, JobStatusCode.Paused), json: false);
+        CliOutput.WriteControl(w, "pause", new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused), json: false);
         var text = w.ToString();
         Assert.Contains("job: 123", text);
         Assert.Contains("action: Applied", text);
@@ -20,7 +20,7 @@ public class CliOutputTests
     public void Control_json_writes_wire_record()
     {
         var w = new StringWriter();
-        CliOutput.WriteControl(w, "pause", new JobControlResult(123, JobControlAction.Applied, JobStatusCode.Paused), json: true);
+        CliOutput.WriteControl(w, "pause", new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused), json: true);
         var text = w.ToString();
         Assert.Contains("\"jobId\":123", text);
         Assert.Contains("\"action\":\"Applied\"", text);
@@ -31,7 +31,7 @@ public class CliOutputTests
     public void Snapshot_plain_writes_identity_and_status()
     {
         var w = new StringWriter();
-        var s = new JobSnapshot(
+        var s = new JobDetail(
             JobId: 7,
             JobRef: JobRef.New(),
             LineageRootId: null,
@@ -88,7 +88,7 @@ public class CliOutputTests
         Assert.Contains("\"tenantId\":null", jsonNull.ToString());
     }
 
-    private static JobSnapshot Snapshot(JobStatusCode status, int? tenantId) =>
+    private static JobDetail Snapshot(JobStatusCode status, int? tenantId) =>
         new(
             JobId: 7,
             JobRef: JobRef.New(),
@@ -121,11 +121,11 @@ public class CliOutputTests
     public void Control_null_status_prints_none_and_json_null()
     {
         var plain = new StringWriter();
-        CliOutput.WriteControl(plain, "cancel", new JobControlResult(0, JobControlAction.NotFound, null), json: false);
+        CliOutput.WriteControl(plain, "cancel", new JobControlResult(0, ControlAction.NotFound, null), json: false);
         Assert.Contains("status: (none)", plain.ToString());
 
         var json = new StringWriter();
-        CliOutput.WriteControl(json, "cancel", new JobControlResult(0, JobControlAction.NotFound, null), json: true);
+        CliOutput.WriteControl(json, "cancel", new JobControlResult(0, ControlAction.NotFound, null), json: true);
         Assert.Contains("\"status\":null", json.ToString());
     }
 
@@ -236,7 +236,7 @@ public class CliOutputTests
     public void Snapshot_failed_hints_at_events_command()
     {
         var w = new StringWriter();
-        var s = new JobSnapshot(
+        var s = new JobDetail(
             JobId: 7,
             JobRef: JobRef.New(),
             LineageRootId: null,

@@ -28,7 +28,7 @@ public sealed class FacadeReadValidationTests
 
     private sealed class EmptyJobStore : IJobStore
     {
-        public ValueTask<JobSnapshot?> GetJobAsync(long jobId, CancellationToken ct) => ValueTask.FromResult<JobSnapshot?>(null);
+        public ValueTask<JobDetail?> GetJobAsync(long jobId, CancellationToken ct) => ValueTask.FromResult<JobDetail?>(null);
 
         public ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct) => ValueTask.FromResult<JobStatusCode?>(null);
 

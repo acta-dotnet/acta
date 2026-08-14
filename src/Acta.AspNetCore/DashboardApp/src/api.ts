@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { advanceNow } from './time.ts';
-import type { JobSnapshot, JobExplanation, JobLineage, JobWorker } from './routes/job-detail/types.ts';
+import type { JobDetail, JobExplanation, JobLineage, JobWorker } from './routes/job-detail/types.ts';
 
 export const online = writable(true);
 
@@ -194,14 +194,14 @@ export async function controlRequest<TResult extends { action: string }>(
   );
 }
 
-export type JobControlAction = 'applied' | 'notFound' | 'rejected';
+export type ControlAction = 'applied' | 'notFound' | 'rejected';
 
 // All seven job-control verbs (pause/resume/restart/cancel/reschedule/reprioritize/purge) return this
 // shape at `jobs/{jobRef}/{action}`; JobControls.svelte drives them all through useControlMutation
 // (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function.
 export interface JobControlResponse {
   jobRef: string;
-  action: JobControlAction;
+  action: ControlAction;
   status: string | null;
   message: string;
 }
@@ -211,7 +211,7 @@ export interface JobControlResponse {
 // ever 'applied' or 'notFound' - acknowledge/resolve are idempotent, so the backend never rejects.
 export interface AlertControlResponse {
   alertId: number;
-  action: JobControlAction;
+  action: ControlAction;
   acknowledgedAtUtc: string | null;
   resolvedAtUtc: string | null;
 }
@@ -228,7 +228,7 @@ export interface TenantListItem {
 }
 
 // Admin controls use a distinct action set from job controls and can return optimistic conflicts.
-// #6: materially different from JobControlAction. No message field (the frontend synthesizes its
+// #6: materially different from ControlAction. No message field (the frontend synthesizes its
 // own operator-facing text from `action`); `alreadyInState` is a successful idempotent no-op, not
 // a rejection. NotFound/VersionConflict come back from the server as a bare Problem body with no
 // `action` field at all - useControlMutation's notFound/versionConflict fallbacks supply those two
@@ -282,7 +282,7 @@ export async function registerTenant(
 
 export interface DefinitionOverrideResponse {
   jobDefinitionId: number;
-  action: JobControlAction;
+  action: ControlAction;
   message: string;
 }
 
@@ -325,7 +325,7 @@ export async function setDefinitionOverrides(
 }
 
 export interface ScheduleControlResponse {
-  action: JobControlAction;
+  action: ControlAction;
   status: string | null;
   pausedUntilUtc: string | null;
   nextRunAtUtc: string | null;
@@ -391,7 +391,7 @@ export interface JobScheduleView {
 // schedule/worker set is a null/empty field. The unbounded event history keeps its own paged
 // endpoint (JobEventsPanel), so it is not part of this shape.
 export interface JobDetailView {
-  snapshot: JobSnapshot;
+  snapshot: JobDetail;
   input: JobPayloadView;
   result: JobPayloadView | null;
   checkpoints: JobCheckpoint[];

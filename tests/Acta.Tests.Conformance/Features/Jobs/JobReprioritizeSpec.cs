@@ -37,7 +37,7 @@ public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         var result = await Jobs.ReprioritizeAsync(enqueued, JobPriorityCode.Critical, "ops", "spec-actor", ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Ready, result.Status);
 
         var snapshot = await Jobs.GetAsync(enqueued, ct);
@@ -62,7 +62,7 @@ public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         var result = await Jobs.ReprioritizeAsync(JobLookup.ById(executingJob), JobPriorityCode.High, ct: ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Executing, result.Status);
 
         var after = await ReadJobAsync(executingJob, ct);
@@ -80,7 +80,7 @@ public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         var result = await Jobs.ReprioritizeAsync(JobLookup.ById(completedJob), JobPriorityCode.Bulk, ct: ct);
 
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
         Assert.Equal(JobStatusCode.Succeeded, result.Status);
 
         var after = await ReadJobAsync(completedJob, ct);
@@ -93,7 +93,7 @@ public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixtu
     {
         var ct = TestContext.Current.CancellationToken;
         var result = await Jobs.ReprioritizeAsync(JobLookup.ById(999_999_999_999L), JobPriorityCode.High, ct: ct);
-        Assert.Equal(JobControlAction.NotFound, result.Action);
+        Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
     // ---------- helpers ----------

@@ -129,10 +129,10 @@ public sealed class AdminEndpointTests
     }
 
     [Theory]
-    [InlineData("/acta/api/v1/tenants/cust-1", "displayName", CatalogLimits.TenantDisplayName)]
-    [InlineData("/acta/api/v1/tenants/cust-1", "description", CatalogLimits.TenantDescription)]
-    [InlineData("/acta/api/v1/namespaces/billing", "ownerTeam", CatalogLimits.NamespaceOwnerTeam)]
-    [InlineData("/acta/api/v1/namespaces/billing", "description", CatalogLimits.NamespaceDescription)]
+    [InlineData("/acta/api/v1/tenants/cust-1", "displayName", AdminTextLimits.TenantDisplayName)]
+    [InlineData("/acta/api/v1/tenants/cust-1", "description", AdminTextLimits.TenantDescription)]
+    [InlineData("/acta/api/v1/namespaces/billing", "ownerTeam", AdminTextLimits.NamespaceOwnerTeam)]
+    [InlineData("/acta/api/v1/namespaces/billing", "description", AdminTextLimits.NamespaceDescription)]
     public async Task Metadata_patch_rejects_overlong_fields(string path, string fieldName, int maxLength)
     {
         var (app, client) = await StartAsync();
@@ -156,7 +156,7 @@ public sealed class AdminEndpointTests
     {
         var jobs = new TestDashboardHost.FakeJobs
         {
-            ListJobsException = new EnqueueRejectedException(EnqueueRejectionReasonCode.NamespaceSuspended, "namespace suspended"),
+            ListJobsException = new EnqueueRejectedException(EnqueueRejectionReason.NamespaceSuspended, "namespace suspended"),
         };
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,

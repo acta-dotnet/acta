@@ -329,7 +329,7 @@ internal sealed class JobsApi(
     // colocated worker (or a cross-process transport) is observed immediately; without one the
     // PollInterval is the discovery floor, so split deployments without a shared transport keep pure
     // polling latency.
-    private async ValueTask<(JobSnapshot? Snapshot, bool TimedOut)> AwaitTerminalAsync(
+    private async ValueTask<(JobDetail? Snapshot, bool TimedOut)> AwaitTerminalAsync(
         long jobId,
         JobExecutionOptions options,
         CancellationToken ct
@@ -338,7 +338,7 @@ internal sealed class JobsApi(
         var lookup = JobLookup.ById(jobId);
         var channel = WorkerWakeupChannel.JobCompletion(jobId);
         var start = Stopwatch.GetTimestamp();
-        JobSnapshot? last = null;
+        JobDetail? last = null;
 
         while (true)
         {
@@ -364,7 +364,7 @@ internal sealed class JobsApi(
     public ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct = default) =>
         jobsService.ResolveJobIdAsync(lookup, ct);
 
-    public ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default) => jobsService.GetAsync(lookup, ct);
+    public ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct = default) => jobsService.GetAsync(lookup, ct);
 
     public ValueTask<JobExplanation?> ExplainAsync(JobLookup lookup, CancellationToken ct = default) =>
         jobsService.ExplainAsync(lookup, ct);

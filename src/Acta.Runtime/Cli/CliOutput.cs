@@ -45,7 +45,7 @@ internal static class CliOutput
     /// <summary>
     /// Writes a job snapshot in plain or JSON format.
     /// </summary>
-    public static void WriteSnapshot(TextWriter writer, JobSnapshot snapshot, bool json)
+    public static void WriteSnapshot(TextWriter writer, JobDetail snapshot, bool json)
     {
         if (json)
         {

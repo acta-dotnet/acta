@@ -188,7 +188,7 @@ internal static class ScenarioDiagnostics
         return new ScenarioAssertionException(sb.ToString());
     }
 
-    public static ScenarioJobSnapshot ToScenario(JobSnapshot snapshot) =>
+    public static ScenarioJobSnapshot ToScenario(JobDetail snapshot) =>
         new(
             snapshot.JobId,
             snapshot.JobRef,

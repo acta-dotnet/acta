@@ -8,7 +8,7 @@ namespace Acta.AspNetCore.Features.Definitions;
 /// PATCH definition-control endpoint: a thin HTTP wrapper over <see cref="IDefinitions"/>. The
 /// definition is addressed by its catalog id in the route; the JSON body carries the version (optimistic
 /// concurrency), the full override set, and an optional note. The verb owns the version gate and audit
-/// stamping; this layer validates the request shape and maps <see cref="JobControlAction"/> to 200
+/// stamping; this layer validates the request shape and maps <see cref="ControlAction"/> to 200
 /// (applied), 409 (version conflict), and 404 (not found). An invalid override (e.g. an out-of-range
 /// numeric value or a malformed backoff expression) throws <see cref="ArgumentException"/>, caught here
 /// and mapped to 400.
@@ -66,12 +66,12 @@ internal static class DefinitionControlEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
-    private static IResult ToResult(int defId, DefinitionOverrideResult result)
+    private static IResult ToResult(int defId, DefinitionControlResult result)
     {
         var (statusCode, message) = result.Action switch
         {
-            JobControlAction.Applied => (StatusCodes.Status200OK, "Definition overrides applied."),
-            JobControlAction.Rejected => (
+            ControlAction.Applied => (StatusCodes.Status200OK, "Definition overrides applied."),
+            ControlAction.Rejected => (
                 StatusCodes.Status409Conflict,
                 "Definition override rejected: the definition changed since you loaded it (version conflict). Reload and retry."
             ),

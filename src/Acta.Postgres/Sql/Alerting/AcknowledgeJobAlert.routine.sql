@@ -24,12 +24,12 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* JobControlAction.NotFound */::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ;
         RETURN;
     END IF;
 
     IF v_ack IS NOT NULL THEN
-        RETURN QUERY SELECT 1 /* JobControlAction.Applied */::SMALLINT, v_ack, v_resolved;
+        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
         RETURN;
     END IF;
 
@@ -86,6 +86,6 @@ BEGIN
         NULL,
         p_reason_message);
 
-    RETURN QUERY SELECT 1 /* JobControlAction.Applied */::SMALLINT, v_ack, v_resolved;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
 END;
 $$;

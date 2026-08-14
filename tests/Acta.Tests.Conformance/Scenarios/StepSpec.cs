@@ -76,7 +76,7 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         Assert.Equal(JobStepStatusCode.Succeeded, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
 
         // Tick 2: raise the signal and replay - the step must replay-skip (no second invocation).
-        Assert.Equal(JobControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "proceed", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "proceed", ct: ct)).Action);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);

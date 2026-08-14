@@ -19,7 +19,7 @@ internal sealed class WakeupParkProbe : IWorkerWakeup
 {
     private readonly InProcessWakeup _inner = new();
     private readonly TaskCompletionSource _parked = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly ConcurrentQueue<(WorkerWakeupChannelKind Kind, WorkerWakeupWaitResult Result)> _waits = new();
+    private readonly ConcurrentQueue<(WorkerWakeupChannelKind Kind, WorkerWakeupWaitStatus Result)> _waits = new();
 
     /// <summary>Completes once a claim loop has parked in its namespace wait.</summary>
     public Task Parked => _parked.Task;
@@ -28,13 +28,13 @@ internal sealed class WakeupParkProbe : IWorkerWakeup
     /// How each completed wait on <paramref name="kind"/> ended, in completion order. A wait ended by
     /// cancellation (loop shutdown) never completes and is not reported.
     /// </summary>
-    public IReadOnlyList<WorkerWakeupWaitResult> WaitsOn(WorkerWakeupChannelKind kind) =>
+    public IReadOnlyList<WorkerWakeupWaitStatus> WaitsOn(WorkerWakeupChannelKind kind) =>
         [.. _waits.Where(w => w.Kind == kind).Select(w => w.Result)];
 
     public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default) =>
         _inner.WakeAsync(channel, reason, ct);
 
-    public async ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
+    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
     {
         // Reported before the inner wait enqueues its waiter. A wake published in that window latches
         // on this publish-allocating channel and satisfies the wait at once, so the report is never

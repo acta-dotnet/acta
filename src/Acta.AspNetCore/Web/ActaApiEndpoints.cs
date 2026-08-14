@@ -261,10 +261,10 @@ internal static class ActaApiEndpoints
                     }
 
                     var snapshot = await jobs.GetAsync(lookup, ct);
-                    return snapshot is null ? NotFound() : Results.Json(snapshot, DashboardJsonContext.Default.JobSnapshot);
+                    return snapshot is null ? NotFound() : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
                 }
             )
-            .Produces<JobSnapshot>(StatusCodes.Status200OK)
+            .Produces<JobDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         // The stored input on its own, for callers that want only the payload (the enqueue screen's
@@ -352,11 +352,11 @@ internal static class ActaApiEndpoints
                             var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey), ct);
                             return snapshot is null
                                 ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.")
-                                : Results.Json(snapshot, DashboardJsonContext.Default.JobSnapshot);
+                                : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
                         });
                 }
             )
-            .Produces<JobSnapshot>(StatusCodes.Status200OK)
+            .Produces<JobDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group

@@ -110,7 +110,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
             ct
         );
 
-        Assert.Equal(JobControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
 
         var after = await ReadAsync(name, ct);
 

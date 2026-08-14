@@ -255,7 +255,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             await Db.From<JobSchedule>().Where(x => x.JobId == jobId && x.Name == "every-5-minutes").ToListAsync(ct)
         );
 
-        Assert.Equal(JobControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
         await AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
@@ -288,7 +288,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             Assert.Equal(TagMutationResult.Applied, await Operations.Tags.UpsertAsync(target, new TagInput("purge-me"), ct));
         }
 
-        Assert.Equal(JobControlAction.Applied, (await Jobs.PurgeAsync(lookup, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(lookup, ct: ct)).Action);
 
         Assert.Null(await Db.From<Job>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Null(await Db.From<JobSchedule>().Where(x => x.Id == schedule.Id).SingleOrDefaultAsync(ct));
@@ -317,14 +317,14 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         var ct = TestContext.Current.CancellationToken;
         var lookup = JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping");
         var jobId = Assert.IsType<long>(await Jobs.ResolveJobIdAsync(lookup, ct));
-        Assert.Equal(JobControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
 
         var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct).AsTask();
         var purgeTask = Jobs.PurgeAsync(lookup, ct: ct).AsTask();
         await Task.WhenAll(mutationTask, purgeTask);
 
         Assert.Contains(mutationTask.Result, new[] { TagMutationResult.Applied, TagMutationResult.NotFound });
-        Assert.Equal(JobControlAction.Applied, purgeTask.Result.Action);
+        Assert.Equal(ControlAction.Applied, purgeTask.Result.Action);
         Assert.Null(await Db.From<Job>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Empty(await Db.From<Tag>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));
     }

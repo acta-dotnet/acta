@@ -48,7 +48,7 @@ internal sealed class JobsService(
             _ => throw new ArgumentOutOfRangeException(nameof(lookup), lookup.Kind, "Unsupported job lookup kind."),
         };
 
-    public async ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct)
     {
         var jobId = await ResolveJobIdAsync(lookup, ct);
         return jobId is null ? null : await store.GetJobAsync(jobId.Value, ct);
@@ -438,13 +438,13 @@ internal sealed class JobsService(
         var jobId = await ResolveJobIdAsync(lookup, ct);
         if (jobId is null)
         {
-            return new JobControlResult(0, JobControlAction.NotFound, null);
+            return new JobControlResult(0, ControlAction.NotFound, null);
         }
 
         var cancel = await store.CancelJobAsync(jobId.Value, Input(reasonMessage, actorKey), ct);
-        var result = new JobControlResult(jobId.Value, (JobControlAction)(byte)cancel.Outcome.Action, cancel.Outcome.Status);
+        var result = new JobControlResult(jobId.Value, (ControlAction)(byte)cancel.Outcome.Action, cancel.Outcome.Status);
 
-        if (result.Action == JobControlAction.Applied)
+        if (result.Action == ControlAction.Applied)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(result.JobId), WorkerWakeupReason.JobFinished, ct);
             if (
@@ -567,16 +567,16 @@ internal sealed class JobsService(
     // Enqueue guards raise provider exceptions whose message begins with a stable ACTA:ENQ_* token
     // (sqlite RAISE carries only text, so the discriminator lives in the message). Tokens are matched
     // by substring because provider wrappers may prepend context (e.g. "SQLite Error N:").
-    private static readonly (string Token, EnqueueRejectionReasonCode Reason)[] EnqueueRejectionTokens =
+    private static readonly (string Token, EnqueueRejectionReason Reason)[] EnqueueRejectionTokens =
     [
-        ("ACTA:ENQ_NS_SUSPENDED:", EnqueueRejectionReasonCode.NamespaceSuspended),
-        ("ACTA:ENQ_TENANT_SUSPENDED:", EnqueueRejectionReasonCode.TenantSuspended),
-        ("ACTA:ENQ_TENANT_UNKNOWN:", EnqueueRejectionReasonCode.TenantUnknown),
-        ("ACTA:ENQ_ROUTE_UNKNOWN:", EnqueueRejectionReasonCode.RouteUnknown),
-        ("ACTA:ENQ_DEF_RETIRED:", EnqueueRejectionReasonCode.DefinitionRetired),
-        ("ACTA:ENQ_TENANT_REQUIRED:", EnqueueRejectionReasonCode.TenantRequired),
-        ("ACTA:ENQ_TENANT_FORBIDDEN:", EnqueueRejectionReasonCode.TenantForbidden),
-        ("ACTA:ENQ_TENANT_MISMATCH:", EnqueueRejectionReasonCode.TenantMismatch),
+        ("ACTA:ENQ_NS_SUSPENDED:", EnqueueRejectionReason.NamespaceSuspended),
+        ("ACTA:ENQ_TENANT_SUSPENDED:", EnqueueRejectionReason.TenantSuspended),
+        ("ACTA:ENQ_TENANT_UNKNOWN:", EnqueueRejectionReason.TenantUnknown),
+        ("ACTA:ENQ_ROUTE_UNKNOWN:", EnqueueRejectionReason.RouteUnknown),
+        ("ACTA:ENQ_DEF_RETIRED:", EnqueueRejectionReason.DefinitionRetired),
+        ("ACTA:ENQ_TENANT_REQUIRED:", EnqueueRejectionReason.TenantRequired),
+        ("ACTA:ENQ_TENANT_FORBIDDEN:", EnqueueRejectionReason.TenantForbidden),
+        ("ACTA:ENQ_TENANT_MISMATCH:", EnqueueRejectionReason.TenantMismatch),
     ];
 
     private static EnqueueRejectedException? TryTranslateEnqueue(DbException ex)
@@ -690,15 +690,15 @@ internal sealed class JobsService(
         var jobId = await ResolveJobIdAsync(lookup, ct);
         if (jobId is null)
         {
-            return new JobControlResult(0, JobControlAction.NotFound, null);
+            return new JobControlResult(0, ControlAction.NotFound, null);
         }
 
         var result = await invoke(jobId.Value, ct);
-        return new JobControlResult(jobId.Value, (JobControlAction)(byte)result.Action, result.Status);
+        return new JobControlResult(jobId.Value, (ControlAction)(byte)result.Action, result.Status);
     }
 
     private ValueTask PublishControlWakeAsync(JobControlResult result, CancellationToken ct) =>
-        result is { Action: JobControlAction.Applied, Status: JobStatusCode.Ready }
+        result is { Action: ControlAction.Applied, Status: JobStatusCode.Ready }
             ? wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct)
             : ValueTask.CompletedTask;
 

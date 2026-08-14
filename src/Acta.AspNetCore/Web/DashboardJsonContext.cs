@@ -29,7 +29,7 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(PagedResult<string>))]
 [JsonSerializable(typeof(PagedResult<TenantListItem>))]
 [JsonSerializable(typeof(PagedResult<NamespaceListItem>))]
-[JsonSerializable(typeof(JobSnapshot))]
+[JsonSerializable(typeof(JobDetail))]
 [JsonSerializable(typeof(JobExplanation))]
 [JsonSerializable(typeof(JobLineageMap))]
 [JsonSerializable(typeof(JobControlRequest))]
@@ -68,11 +68,11 @@ namespace Acta.AspNetCore.Web;
 internal sealed partial class DashboardJsonContext : JsonSerializerContext;
 
 /// <summary>
-/// Serializes <see cref="JobControlAction"/> camelCase ("applied", "notFound", "rejected") to
+/// Serializes <see cref="ControlAction"/> camelCase ("applied", "notFound", "rejected") to
 /// match the response property convention; the type is not a code family so it has no wire name.
 /// </summary>
 internal sealed class CamelCaseJobControlActionConverter()
-    : JsonStringEnumConverter<JobControlAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
+    : JsonStringEnumConverter<ControlAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
 
 /// <summary>
 /// Serializes <see cref="AdminControlAction"/> camelCase ("applied", "notFound", "alreadyInState",

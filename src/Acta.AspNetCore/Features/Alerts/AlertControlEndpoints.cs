@@ -8,7 +8,7 @@ namespace Acta.AspNetCore.Features.Alerts;
 /// POST alert-control endpoints: thin HTTP wrappers over the <see cref="IAlerts"/> acknowledge/resolve
 /// verbs. Unlike the natural-key-addressed schedule verbs, an alert is addressed by its route id. The
 /// verbs are idempotent (re-acknowledge/re-resolve is Applied without mutation), so this layer maps
-/// <see cref="JobControlAction"/> to only 200 (applied) and 404 (not found), never 409.
+/// <see cref="ControlAction"/> to only 200 (applied) and 404 (not found), never 409.
 /// </summary>
 internal static class AlertControlEndpoints
 {
@@ -66,7 +66,7 @@ internal static class AlertControlEndpoints
 
     private static IResult ToResult(AlertControlResult result)
     {
-        var statusCode = result.Action == JobControlAction.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status200OK;
+        var statusCode = result.Action == ControlAction.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status200OK;
         return Results.Json(
             new AlertControlResponse(result.AlertId, result.Action, result.AcknowledgedAtUtc, result.ResolvedAtUtc),
             DashboardJsonContext.Default.AlertControlResponse,

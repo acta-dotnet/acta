@@ -10,7 +10,7 @@ namespace Acta;
 /// resolved to a public value follows the id it came from, and the created/modified pair closes the
 /// record together. JSON serialization carries the public refs and hides the numeric ids.
 /// </summary>
-public sealed record JobSnapshot(
+public sealed record JobDetail(
     // Identity.
     [property: JsonIgnore] long JobId,
     JobRef JobRef,

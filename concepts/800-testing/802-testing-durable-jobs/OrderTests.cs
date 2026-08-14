@@ -22,7 +22,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         // The approval API raises a typed decision; the job moves to Ready.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(true, "alice"), ct: Ct);
-        Assert.Equal(JobControlAction.Applied, raise.Action);
+        Assert.Equal(ControlAction.Applied, raise.Action);
 
         // Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.
         Assert.Equal(ActaRunOutcome.Completed, await Host.RunOnceAsync(enqueued, Ct));

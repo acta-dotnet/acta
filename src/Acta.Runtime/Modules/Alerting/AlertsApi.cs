@@ -115,5 +115,5 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         (note is null ? $"alert {alertId}" : $"alert {alertId}: {note}").Truncate(ActaTextLimits.ReasonMessage)!;
 
     private static AlertControlResult ToResult(long alertId, AlertControlOutcome o) =>
-        new(alertId, (JobControlAction)(byte)o.Action, o.AcknowledgedAtUtc, o.ResolvedAtUtc);
+        new(alertId, (ControlAction)(byte)o.Action, o.AcknowledgedAtUtc, o.ResolvedAtUtc);
 }

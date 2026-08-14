@@ -152,8 +152,7 @@ public class CliRunnerClipboardTests
 
     private sealed class NothingJobs : IJobs, IActaOperations, ILedger
     {
-        public ValueTask<JobSnapshot?> GetAsync(JobLookup lookup, CancellationToken ct = default) =>
-            ValueTask.FromResult<JobSnapshot?>(null);
+        public ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct = default) => ValueTask.FromResult<JobDetail?>(null);
 
         public ValueTask<JobExplanation?> ExplainAsync(JobLookup lookup, CancellationToken ct = default) =>
             ValueTask.FromResult<JobExplanation?>(null);
@@ -389,7 +388,7 @@ public class CliRunnerClipboardTests
         )
         {
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
-            return ValueTask.FromResult(new JobControlResult(1, JobControlAction.Applied, JobStatusCode.Ready));
+            return ValueTask.FromResult(new JobControlResult(1, ControlAction.Applied, JobStatusCode.Ready));
         }
     }
 }

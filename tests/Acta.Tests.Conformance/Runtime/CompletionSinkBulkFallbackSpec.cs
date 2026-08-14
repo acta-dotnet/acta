@@ -295,7 +295,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
-            ValueTask.FromResult(WorkerWakeupWaitResult.TimedOut);
+        public ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
+            ValueTask.FromResult(WorkerWakeupWaitStatus.TimedOut);
     }
 }

@@ -196,7 +196,7 @@ internal sealed class ControlledWakeup : IWorkerWakeup
     private readonly List<(WorkerWakeupChannelKind Kind, int Threshold, TaskCompletionSource Tcs)> _wakeWaiters = [];
     private readonly Dictionary<WorkerWakeupChannelKind, int> _wakesByKind = [];
     private TaskCompletionSource? _waiting;
-    private WorkerWakeupWaitResult _nextResult = WorkerWakeupWaitResult.TimedOut;
+    private WorkerWakeupWaitStatus _nextResult = WorkerWakeupWaitStatus.TimedOut;
 
     public int WakeCount { get; private set; }
 
@@ -249,7 +249,7 @@ internal sealed class ControlledWakeup : IWorkerWakeup
         return tcs.Task.WaitAsync(ct);
     }
 
-    public async ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
+    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
     {
         TaskCompletionSource waiter;
         lock (_gate)
@@ -263,7 +263,7 @@ internal sealed class ControlledWakeup : IWorkerWakeup
         return _nextResult;
     }
 
-    public void ReleaseWait(WorkerWakeupWaitResult result = WorkerWakeupWaitResult.TimedOut)
+    public void ReleaseWait(WorkerWakeupWaitStatus result = WorkerWakeupWaitStatus.TimedOut)
     {
         TaskCompletionSource? waiter;
         lock (_gate)

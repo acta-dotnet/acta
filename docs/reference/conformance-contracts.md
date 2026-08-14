@@ -1352,12 +1352,12 @@
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobStatusAsync`
 
 ### GetJob returns the snapshot for a known id and null for an unknown id
-- **Contract:** GetJob returns the JobSnapshot projection for a matching job row and null when no row matches the supplied id.
+- **Contract:** GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id.
 - **Arrange:** A job is enqueued so a known job id exists.
 - **Act:** GetJob is called with the enqueued id and then with an id that matches no row.
-- **Assert:** The known id returns a populated JobSnapshot with Ready status and the unknown id returns null.
+- **Assert:** The known id returns a populated JobDetail with Ready status and the unknown id returns null.
 - **Guarantees:**
-  - A known job id returns a populated JobSnapshot whose id and Ready status match the enqueued row
+  - A known job id returns a populated JobDetail whose id and Ready status match the enqueued row
   - A tenant-scoped job's snapshot carries the tenant id and its external key
   - An unknown job id returns null
 - **Store methods:**

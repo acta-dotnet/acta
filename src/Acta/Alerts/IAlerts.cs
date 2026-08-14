@@ -10,8 +10,8 @@ public interface IAlerts
     /// Acknowledge the alert identified by <paramref name="alertId"/>: sets <c>AcknowledgedAtUtc</c> to
     /// now and emits <c>alert.acknowledged</c> always, regardless of the alert's job's audit level,
     /// since this is low-volume operator activity. Re-acknowledging an already-acknowledged alert is
-    /// <see cref="JobControlAction.Applied"/> without mutation: the existing timestamp is returned and
-    /// no second event is emitted. A missing alert is <see cref="JobControlAction.NotFound"/>.
+    /// <see cref="ControlAction.Applied"/> without mutation: the existing timestamp is returned and
+    /// no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
     /// <paramref name="note"/> is folded into the audit event's reason message alongside the alert id;
     /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown.
@@ -27,8 +27,8 @@ public interface IAlerts
     /// Manually resolve the alert identified by <paramref name="alertId"/>: sets
     /// <c>ResolvedAtUtc</c> to now and emits <c>alert.resolved</c> always, regardless of the alert's
     /// job's audit level. Does not require a prior acknowledge. Re-resolving an already-resolved alert
-    /// is <see cref="JobControlAction.Applied"/> without mutation: the existing timestamp is returned
-    /// and no second event is emitted. A missing alert is <see cref="JobControlAction.NotFound"/>.
+    /// is <see cref="ControlAction.Applied"/> without mutation: the existing timestamp is returned
+    /// and no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
     /// <paramref name="note"/> is folded into the audit event's reason message alongside the alert id;
     /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown.

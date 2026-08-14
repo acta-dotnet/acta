@@ -50,7 +50,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobControlAction.Applied, (await Jobs.RaiseSignalAsync(JobLookup.ById(enqueued.JobId), "go", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(JobLookup.ById(enqueued.JobId), "go", ct: ct)).Action);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);

@@ -42,7 +42,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
         var pause = await Jobs.PauseAsync(enqueued, "maintenance window", ct: ct);
         Assert.Equal(enqueued.JobId, pause.JobId);
-        Assert.Equal(JobControlAction.Applied, pause.Action);
+        Assert.Equal(ControlAction.Applied, pause.Action);
         Assert.Equal(JobStatusCode.Paused, pause.Status);
 
         var paused = await ReadJobAsync(enqueued.JobId, ct);
@@ -56,7 +56,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal("maintenance window", pausedEvent.ReasonMessage);
 
         var resume = await Jobs.ResumeAsync(enqueued, "all clear", ct: ct);
-        Assert.Equal(JobControlAction.Applied, resume.Action);
+        Assert.Equal(ControlAction.Applied, resume.Action);
         Assert.Equal(JobStatusCode.Ready, resume.Status);
 
         var resumed = await ReadJobAsync(enqueued.JobId, ct);
@@ -77,7 +77,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         var enqueued = await EnqueueOneAsync(ct);
 
         var cancel = await Jobs.CancelAsync(enqueued, "no longer needed", actorKey: "spec-actor", ct: ct);
-        Assert.Equal(JobControlAction.Applied, cancel.Action);
+        Assert.Equal(ControlAction.Applied, cancel.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancel.Status);
 
         var cancelled = await ReadJobAsync(enqueued.JobId, ct);
@@ -113,7 +113,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.True(beforeRestart.ExecutionNumber > 0);
 
         var restart = await Jobs.RestartAsync(enqueued, "retry from scratch", ct: ct);
-        Assert.Equal(JobControlAction.Applied, restart.Action);
+        Assert.Equal(ControlAction.Applied, restart.Action);
         Assert.Equal(JobStatusCode.Ready, restart.Status);
 
         var restarted = await ReadJobAsync(enqueued.JobId, ct);
@@ -140,7 +140,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
         // Freshly enqueued job is Ready, not Paused.
         var resume = await Jobs.ResumeAsync(enqueued, ct: ct);
-        Assert.Equal(JobControlAction.Rejected, resume.Action);
+        Assert.Equal(ControlAction.Rejected, resume.Action);
         Assert.Equal(JobStatusCode.Ready, resume.Status);
 
         var status = await Jobs.GetStatusAsync(enqueued, ct);
@@ -153,7 +153,7 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         var ct = TestContext.Current.CancellationToken;
 
         var result = await Jobs.CancelAsync(JobLookup.ById(long.MaxValue), ct: ct);
-        Assert.Equal(JobControlAction.NotFound, result.Action);
+        Assert.Equal(ControlAction.NotFound, result.Action);
         Assert.Null(result.Status);
     }
 

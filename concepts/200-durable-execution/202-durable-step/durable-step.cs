@@ -23,7 +23,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var enqueued = await jobs.EnqueueAsync(new FreezeBox("box-1"));
 
-JobSnapshot? snapshot;
+JobDetail? snapshot;
 using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 do
 {

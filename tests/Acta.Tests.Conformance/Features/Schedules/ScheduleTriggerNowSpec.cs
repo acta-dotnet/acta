@@ -57,7 +57,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         var result = await Schedules.TriggerNowAsync(Lookup(jobName, "only"), note: "fire now", ct: ct);
         var tAfter = await NowAsync(ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
 
         // The slot is now claimable immediately: its cursor moved to (approximately) now and it's Ready.
         var slot = await SlotAsync(jobName, ct);
@@ -89,11 +89,11 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
 
         var paused = await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: null, ct: ct);
-        Assert.Equal(JobControlAction.Applied, paused.Action);
+        Assert.Equal(ControlAction.Applied, paused.Action);
 
         var beforeSlot = await SlotAsync(jobName, ct);
         var result = await Schedules.TriggerNowAsync(Lookup(jobName, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
 
         var afterSlot = await SlotAsync(jobName, ct);
         Assert.Equal(beforeSlot.Status, afterSlot.Status);
@@ -119,7 +119,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         await SetRuntimeStatusAsync(db, slotId, (byte)JobStatusCode.Executing, ct);
 
         var result = await Schedules.TriggerNowAsync(Lookup(jobName, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
 
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Executing, slot.Status); // untouched: the in-flight execution owns the row
@@ -144,7 +144,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         await SetRuntimeStatusAsync(db, slotId, (byte)JobStatusCode.Succeeded, ct);
 
         var result = await Schedules.TriggerNowAsync(Lookup(jobName, "only"), ct: ct);
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
 
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Succeeded, slot.Status); // untouched
@@ -165,11 +165,11 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
-        Assert.Equal(JobControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "nope"), ct: ct)).Action);
+        Assert.Equal(ControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "nope"), ct: ct)).Action);
 
         // Re-register with no declared schedules: the orphan sweep stamps orphaned_at_utc on "gone".
         await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
-        Assert.Equal(JobControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "gone"), ct: ct)).Action);
+        Assert.Equal(ControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "gone"), ct: ct)).Action);
     }
 
     // ---------- helpers ----------

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildIncidentSummary, childRollup, latestMeaningfulEvent, mergeJobEvents, payloadFormatLabel } from './jobDetailState.ts';
-import type { JobEvent, JobSnapshot } from './types.ts';
+import type { JobEvent, JobDetail } from './types.ts';
 
 const event = (jobEventId: number, createdAtUtc: string, reasonMessage: string | null = null): JobEvent => ({
   jobEventId,
@@ -62,7 +62,7 @@ test('incident summary includes current evidence in newest-first order', () => {
     status: 'failed',
     createdAtUtc: '2026-01-01T00:00:00Z',
     modifiedAtUtc: '2026-01-02T00:00:00Z'
-  } as JobSnapshot;
+  } as JobDetail;
   const summary = buildIncidentSummary(
     snapshot,
     null,

@@ -12,7 +12,7 @@ namespace Acta.Runtime.Modules.Execution.Jobs;
 internal interface IJobStore
 {
     /// <summary>The full job snapshot by id, or null when no row matches.</summary>
-    ValueTask<JobSnapshot?> GetJobAsync(long jobId, CancellationToken ct);
+    ValueTask<JobDetail?> GetJobAsync(long jobId, CancellationToken ct);
 
     /// <summary>The current status by id, or null when no row matches.</summary>
     ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct);

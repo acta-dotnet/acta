@@ -44,14 +44,14 @@ internal static class TenantControlEndpoints
                     }
 
                     if (
-                        ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
+                        ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", AdminTextLimits.TenantDisplayName) is
                         { } displayNameError
                     )
                     {
                         return displayNameError;
                     }
                     if (
-                        ControlEndpointValidation.ValidateLength(request.Description, "description", CatalogLimits.TenantDescription) is
+                        ControlEndpointValidation.ValidateLength(request.Description, "description", AdminTextLimits.TenantDescription) is
                         { } descriptionError
                     )
                     {
@@ -163,14 +163,14 @@ internal static class TenantControlEndpoints
                         );
                     }
                     if (
-                        ControlEndpointValidation.ValidateLength(body.DisplayName, "displayName", CatalogLimits.TenantDisplayName) is
+                        ControlEndpointValidation.ValidateLength(body.DisplayName, "displayName", AdminTextLimits.TenantDisplayName) is
                         { } displayNameError
                     )
                     {
                         return displayNameError;
                     }
                     if (
-                        ControlEndpointValidation.ValidateLength(body.Description, "description", CatalogLimits.TenantDescription) is
+                        ControlEndpointValidation.ValidateLength(body.Description, "description", AdminTextLimits.TenantDescription) is
                         { } descriptionError
                     )
                     {

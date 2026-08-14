@@ -33,7 +33,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         await ShowSplitStateAsync("The append-mostly job row and hot runtime row start together", checkout.JobId, ct);
 
         var release = await jobs.RescheduleAsync(checkout, DateTime.UnixEpoch, "release the HERO 201 enqueue snapshot", "concept-201", ct);
-        if (release.Action != JobControlAction.Applied)
+        if (release.Action != ControlAction.Applied)
         {
             throw new InvalidOperationException($"Could not release checkout {checkout.JobRef}: {release.Action}.");
         }
@@ -221,7 +221,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         lifetime.StopApplication();
     }
 
-    private async Task<JobSnapshot> WaitForAsync(long jobId, Func<JobSnapshot, bool> predicate, string description, CancellationToken ct)
+    private async Task<JobDetail> WaitForAsync(long jobId, Func<JobDetail, bool> predicate, string description, CancellationToken ct)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(60));

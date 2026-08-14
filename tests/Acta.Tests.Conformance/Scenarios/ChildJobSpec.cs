@@ -165,7 +165,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(done, ct));
 
         var cancel = await Jobs.CancelAsync(root, "stop the job tree", ct: ct);
-        Assert.Equal(JobControlAction.Applied, cancel.Action);
+        Assert.Equal(ControlAction.Applied, cancel.Action);
 
         var rootJob = await ReadJobAsync(root.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, rootJob.Status);
@@ -348,7 +348,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         // whole tree terminal and no surfaced error. Single-row cancel transactions plus the store's
         // bounded deadlock retry recover the claim-vs-cancel index lock race under load.
         var runs = children.Select(c => Task.Run(() => Runtime.RunOnceAsync(c.JobId, ct), ct)).ToArray();
-        var cancel = Task.Run(async () => Assert.Equal(JobControlAction.Applied, (await Jobs.CancelAsync(root, ct: ct)).Action), ct);
+        var cancel = Task.Run(async () => Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(root, ct: ct)).Action), ct);
         await Task.WhenAll([.. runs, cancel]);
 
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(root.JobId, ct)).Status);

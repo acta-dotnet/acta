@@ -58,7 +58,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var result = await Jobs.PurgeAsync(completed, "spec-actor", ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Null(result.Status);
 
         Assert.Null(await Jobs.GetAsync(completed, ct));
@@ -86,7 +86,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var result = await Jobs.PurgeAsync(JobLookup.ById(executingJob), ct: ct);
 
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
         Assert.Equal(JobStatusCode.Executing, result.Status);
 
         var after = await ReadJobAsync(executingJob, ct);
@@ -110,7 +110,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var result = await Jobs.PurgeAsync(JobLookup.ById(parentId), ct: ct);
 
-        Assert.Equal(JobControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.Rejected, result.Action);
         Assert.Equal(JobStatusCode.Succeeded, result.Status);
 
         Assert.NotNull(await Jobs.GetAsync(JobLookup.ById(parentId), ct));
@@ -121,7 +121,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
         var result = await Jobs.PurgeAsync(JobLookup.ById(999_999_999_999L), ct: ct);
-        Assert.Equal(JobControlAction.NotFound, result.Action);
+        Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
     // ---------- helpers ----------

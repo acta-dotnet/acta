@@ -15,8 +15,8 @@ namespace Acta.Relational.Stores;
 /// </summary>
 internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect) : IJobStore
 {
-    public async ValueTask<JobSnapshot?> GetJobAsync(long jobId, CancellationToken ct) =>
-        await session.QueryAsync<JobSnapshot?>(
+    public async ValueTask<JobDetail?> GetJobAsync(long jobId, CancellationToken ct) =>
+        await session.QueryAsync<JobDetail?>(
             "Sql/Execution/Jobs/GetJob.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) =>

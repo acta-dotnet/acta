@@ -1018,7 +1018,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS DATETIME2(7)) AS acknowledged_at_utc,
                     CAST(NULL AS DATETIME2(7)) AS resolved_at_utc;
                 RETURN;
@@ -1028,7 +1028,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
                     @ack AS acknowledged_at_utc,
                     @resolved AS resolved_at_utc;
                 RETURN;
@@ -1075,7 +1075,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @ack AS acknowledged_at_utc,
             @resolved AS resolved_at_utc;
     END TRY
@@ -1234,7 +1234,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS DATETIME2(7)) AS acknowledged_at_utc,
                     CAST(NULL AS DATETIME2(7)) AS resolved_at_utc;
                 RETURN;
@@ -1244,7 +1244,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
                     @ack AS acknowledged_at_utc,
                     @resolved AS resolved_at_utc;
                 RETURN;
@@ -1291,7 +1291,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @ack AS acknowledged_at_utc,
             @resolved AS resolved_at_utc;
     END TRY
@@ -2943,7 +2943,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS BIGINT) AS parent_id;
                 RETURN;
@@ -2960,7 +2960,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code,
                     @parent_id AS parent_id;
                 RETURN;
@@ -3030,7 +3030,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(220 /* JobStatusCode.Cancelled */ AS TINYINT) AS status_code,
             @parent_id AS parent_id;
     END TRY
@@ -3647,7 +3647,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -3661,7 +3661,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -3699,7 +3699,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(30 /* JobStatusCode.Paused */ AS TINYINT) AS status_code;
     END TRY
     BEGIN CATCH
@@ -3749,7 +3749,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -3763,7 +3763,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -3778,7 +3778,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -3831,7 +3831,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(NULL AS TINYINT) AS status_code;
     END TRY
     BEGIN CATCH
@@ -3882,7 +3882,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -3896,7 +3896,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -3934,7 +3934,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @from_status AS status_code;
     END TRY
     BEGIN CATCH
@@ -3985,7 +3985,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -3999,7 +3999,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -4038,7 +4038,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code;
     END TRY
     BEGIN CATCH
@@ -4167,7 +4167,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -4176,7 +4176,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -4219,7 +4219,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code;
     END TRY
     BEGIN CATCH
@@ -4270,7 +4270,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -4279,7 +4279,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -4318,7 +4318,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code;
     END TRY
     BEGIN CATCH
@@ -4374,7 +4374,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -4387,7 +4387,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -4444,7 +4444,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @from_status AS status_code;
     END TRY
     BEGIN CATCH
@@ -4871,7 +4871,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
                     CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
@@ -4945,7 +4945,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @status AS status_code,
             @paused AS paused_until_utc,
             @next AS next_run_at_utc,
@@ -5221,7 +5221,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
                     CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
@@ -5296,7 +5296,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @status AS status_code,
             @paused AS paused_until_utc,
             @next AS next_run_at_utc,
@@ -5358,7 +5358,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
                     CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
@@ -5370,7 +5370,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @status AS status_code,
                     @paused AS paused_until_utc,
                     @next AS next_run_at_utc,
@@ -5445,7 +5445,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @status AS status_code,
             @paused AS paused_until_utc,
             @next AS next_run_at_utc,
@@ -5505,7 +5505,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
                     CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
@@ -5517,7 +5517,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @status AS status_code,
                     @paused AS paused_until_utc,
                     @next AS next_run_at_utc,
@@ -5529,7 +5529,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @status AS status_code,
                     @paused AS paused_until_utc,
                     @next AS next_run_at_utc,
@@ -5541,7 +5541,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @status AS status_code,
                     @paused AS paused_until_utc,
                     @next AS next_run_at_utc,
@@ -5594,7 +5594,7 @@ BEGIN
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @status AS status_code,
             @paused AS paused_until_utc,
             @next AS next_run_at_utc,
@@ -5763,7 +5763,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(2 /* JobControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
                 RETURN;
             END;
@@ -5772,7 +5772,7 @@ BEGIN
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(3 /* JobControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
                 RETURN;
             END;
@@ -5849,14 +5849,14 @@ BEGIN
 
                 COMMIT TRANSACTION;
                 SELECT
-                    CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
                     CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code;
                 RETURN;
             END
 
         COMMIT TRANSACTION;
         SELECT
-            CAST(1 /* JobControlAction.Applied */ AS TINYINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @from_status AS status_code;
     END TRY
     BEGIN CATCH

@@ -13,7 +13,7 @@ internal sealed record JobControlInput(JobControlActor Actor, JobEventReasonCode
 internal sealed record JobControlOutcome(JobControlActionInternal Action, JobStatusCode? Status);
 
 /// <summary>
-/// Internal mirror of <see cref="JobControlAction"/>; the facade maps it to the public enum.
+/// Internal mirror of <see cref="ControlAction"/>; the facade maps it to the public enum.
 /// </summary>
 internal enum JobControlActionInternal : byte
 {

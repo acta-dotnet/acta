@@ -34,7 +34,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
 
         var result = await Operations.Alerts.AcknowledgeAsync(alertId, "looks fine", "spec-actor", ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.NotNull(result.AcknowledgedAtUtc);
         Assert.Null(result.ResolvedAtUtc);
 
@@ -66,7 +66,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var first = await Operations.Alerts.AcknowledgeAsync(alertId, ct: ct);
         var second = await Operations.Alerts.AcknowledgeAsync(alertId, ct: ct);
 
-        Assert.Equal(JobControlAction.Applied, second.Action);
+        Assert.Equal(ControlAction.Applied, second.Action);
         Assert.Equal(first.AcknowledgedAtUtc, second.AcknowledgedAtUtc);
 
         var eventCount = await Db.From<JobEvent>()
@@ -83,7 +83,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
 
         var result = await Operations.Alerts.ResolveAsync(alertId, "handled", "spec-actor", ct);
 
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Null(result.AcknowledgedAtUtc);
         Assert.NotNull(result.ResolvedAtUtc);
 
@@ -102,7 +102,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var first = await Operations.Alerts.ResolveAsync(alertId, ct: ct);
         var second = await Operations.Alerts.ResolveAsync(alertId, ct: ct);
 
-        Assert.Equal(JobControlAction.Applied, second.Action);
+        Assert.Equal(ControlAction.Applied, second.Action);
         Assert.Equal(first.ResolvedAtUtc, second.ResolvedAtUtc);
 
         var eventCount = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).CountAsync(ct);
@@ -115,12 +115,12 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var ct = TestContext.Current.CancellationToken;
 
         var ack = await Operations.Alerts.AcknowledgeAsync(999_999_999_999L, ct: ct);
-        Assert.Equal(JobControlAction.NotFound, ack.Action);
+        Assert.Equal(ControlAction.NotFound, ack.Action);
         Assert.Null(ack.AcknowledgedAtUtc);
         Assert.Null(ack.ResolvedAtUtc);
 
         var resolve = await Operations.Alerts.ResolveAsync(999_999_999_999L, ct: ct);
-        Assert.Equal(JobControlAction.NotFound, resolve.Action);
+        Assert.Equal(ControlAction.NotFound, resolve.Action);
         Assert.Null(resolve.AcknowledgedAtUtc);
         Assert.Null(resolve.ResolvedAtUtc);
     }

@@ -8,7 +8,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Jobs;
 
 /// <summary>
-/// Conformance for <c>GetJob</c>: a point-read that returns the <c>JobSnapshot</c> projection for a
+/// Conformance for <c>GetJob</c>: a point-read that returns the <c>JobDetail</c> projection for a
 /// known job id, and <c>null</c> for an unknown id. Exercises the column mapping (id, namespace,
 /// name, status, failure_count, reason_code) and the absent-row sentinel.
 /// </summary>
@@ -16,16 +16,16 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "get-job.point-read",
     "GetJob returns the snapshot for a known id and null for an unknown id",
     Area = "Reads",
-    Contract = "GetJob returns the JobSnapshot projection for a matching job row and null when no row matches the supplied id.",
+    Contract = "GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id.",
     Arrange = "A job is enqueued so a known job id exists.",
     Act = "GetJob is called with the enqueued id and then with an id that matches no row.",
-    Assert = "The known id returns a populated JobSnapshot with Ready status and the unknown id returns null."
+    Assert = "The known id returns a populated JobDetail with Ready status and the unknown id returns null."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobAsync))]
 public abstract class GetJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    [Fact(DisplayName = "A known job id returns a populated JobSnapshot whose id and Ready status match the enqueued row")]
+    [Fact(DisplayName = "A known job id returns a populated JobDetail whose id and Ready status match the enqueued row")]
     public async Task Returns_snapshot_for_known_job_id()
     {
         var ct = TestContext.Current.CancellationToken;

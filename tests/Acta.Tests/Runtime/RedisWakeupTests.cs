@@ -102,7 +102,7 @@ public sealed class RedisWakeupTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await wait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
 
         static ServiceProvider BuildHost(string configuration, string prefix)
         {
@@ -144,7 +144,7 @@ public sealed class RedisWakeupTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await wait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class RedisWakeupTests
             WorkerWakeupReason.WorkAvailable,
             TestContext.Current.CancellationToken
         );
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await nsWait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await nsWait.WaitAsync(WaitGenerously, None));
 
         // Job-completion relay (never jittered; reaches existing waiters only on the remote side too).
         var jobWait = receiver.WaitAsync(WorkerWakeupChannel.JobCompletion(12345), WaitGenerously, None).AsTask();
@@ -176,7 +176,7 @@ public sealed class RedisWakeupTests
             WorkerWakeupReason.JobFinished,
             TestContext.Current.CancellationToken
         );
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await jobWait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await jobWait.WaitAsync(WaitGenerously, None));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class RedisWakeupTests
 
         // The full jitter window, so every wake this burst schedules is still pending when it ends and
         // the count below is the number of timers the burst actually allocated.
-        prefix.RemoteWakeJitterMax = RedisWakeupOptions.MaxRemoteWakeJitter;
+        prefix.RemoteWakeJitter = RedisWakeupOptions.MaxRemoteWakeJitter;
         await using var receiver = new RedisWakeup(redis, Options.Create(prefix));
         await using var sender = new RedisWakeup(redis, Options.Create(prefix));
 
@@ -220,6 +220,6 @@ public sealed class RedisWakeupTests
         Assert.True(scheduled is >= 1 and <= 20, $"expected a per-channel count, got {scheduled} scheduled wakes for 400 messages.");
 
         // And the wake still lands: coalescing drops duplicates, never the delivery they stand for.
-        Assert.Equal(WorkerWakeupWaitResult.Signaled, await wait.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
     }
 }

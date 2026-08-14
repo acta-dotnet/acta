@@ -56,7 +56,7 @@ public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TF
         var slotId = await SlotIdAsync(ct);
 
         var result = await Schedules.PauseAsync(Lookup(), ct: ct);
-        Assert.Equal(JobControlAction.Applied, result.Action);
+        Assert.Equal(ControlAction.Applied, result.Action);
 
         // The lone schedule paused -> the slot is system-paused, so a tick claims nothing.
         Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
@@ -72,7 +72,7 @@ public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TF
 
         var until = await SlotNextRunAsync(slotId, ct); // the schedule's current due instant (fake-clock future)
         var paused = await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct);
-        Assert.Equal(JobControlAction.Applied, paused.Action);
+        Assert.Equal(ControlAction.Applied, paused.Action);
 
         // The scheduler reaches the pause expiry: the slot wakes, the schedule auto-resumes and fires once.
         Clock.AdvanceTo(until);

@@ -24,19 +24,19 @@ BEGIN
     FOR UPDATE OF j, r;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* JobControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
         RETURN;
     END IF;
 
     IF v_from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* JobControlAction.Rejected */::SMALLINT, v_from_status;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;
 
     -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
     -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject.
     IF EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = p_id) THEN
-        RETURN QUERY SELECT 3 /* JobControlAction.Rejected */::SMALLINT, v_from_status;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;
 
@@ -98,6 +98,6 @@ BEGIN
         p_reason_code,
         'purged ' || v_job_ref::text || ' (' || v_job_name || ')');
 
-    RETURN QUERY SELECT 1 /* JobControlAction.Applied */::SMALLINT, NULL::SMALLINT;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, NULL::SMALLINT;
 END;
 $$;

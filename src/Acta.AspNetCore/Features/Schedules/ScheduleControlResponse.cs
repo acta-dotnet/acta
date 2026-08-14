@@ -5,7 +5,7 @@ namespace Acta.AspNetCore.Features.Schedules;
 /// Returned for applied (200), rejected (409), and not-found (404) outcomes alike.
 /// </summary>
 internal sealed record ScheduleControlResponse(
-    JobControlAction Action,
+    ControlAction Action,
     ScheduleStatusCode? Status,
     DateTime? PausedUntilUtc,
     DateTime? NextRunAtUtc,

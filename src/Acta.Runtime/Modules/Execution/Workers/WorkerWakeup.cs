@@ -53,7 +53,7 @@ internal sealed class AsyncWakeSignal
         }
     }
 
-    public async ValueTask<WorkerWakeupWaitResult> WaitAsync(TimeSpan timeout, CancellationToken ct)
+    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(TimeSpan timeout, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -63,7 +63,7 @@ internal sealed class AsyncWakeSignal
             if (_latched)
             {
                 _latched = false;
-                return WorkerWakeupWaitResult.Signaled;
+                return WorkerWakeupWaitStatus.Signaled;
             }
 
             while (_waiters.Count > 0 && _waiters.Peek().Task.IsCompleted)
@@ -83,18 +83,18 @@ internal sealed class AsyncWakeSignal
             // Cancel the delay so its timer dies now. A cancelled Task.Delay left unawaited is safe:
             // it transitions to Canceled, which never surfaces as an unobserved fault.
             await delayCts.CancelAsync();
-            return WorkerWakeupWaitResult.Signaled;
+            return WorkerWakeupWaitStatus.Signaled;
         }
 
         // Timeout or cancellation: retire the waiter so a Set after this point latches. A failed
         // retire means Set won the race; consume that wake rather than dropping it.
         if (!waiter.TrySetCanceled(ct))
         {
-            return WorkerWakeupWaitResult.Signaled;
+            return WorkerWakeupWaitStatus.Signaled;
         }
 
         ct.ThrowIfCancellationRequested();
-        return WorkerWakeupWaitResult.TimedOut;
+        return WorkerWakeupWaitStatus.TimedOut;
     }
 }
 
@@ -146,7 +146,7 @@ internal sealed class InProcessWakeup : IWorkerWakeup
         return ValueTask.CompletedTask;
     }
 
-    public async ValueTask<WorkerWakeupWaitResult> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
+    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
     {
         var entry = _channels.GetOrAdd(channel.Name, static (_, kind) => new Entry(kind), channel.Kind);
         if (channel.AllocatesOnPublish)
@@ -227,11 +227,11 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
             _ => "unknown",
         };
 
-    internal static string WaitResultTag(WorkerWakeupWaitResult result) =>
+    internal static string WaitResultTag(WorkerWakeupWaitStatus result) =>
         result switch
         {
-            WorkerWakeupWaitResult.Signaled => "signaled",
-            WorkerWakeupWaitResult.TimedOut => "timed_out",
+            WorkerWakeupWaitStatus.Signaled => "signaled",
+            WorkerWakeupWaitStatus.TimedOut => "timed_out",
             _ => "unknown",
         };
 }
