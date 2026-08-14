@@ -99,10 +99,10 @@ AS $$
             reason_code,
             reason_message)
         SELECT
-            120 /* JobEventCode.WorkerStarted */,
+            120 /* EventCode.WorkerStarted */,
             now(),
             w.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             w.id::VARCHAR,
             NULL,
             NULL,

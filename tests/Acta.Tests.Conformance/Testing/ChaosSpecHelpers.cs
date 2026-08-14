@@ -76,7 +76,7 @@ internal static class ChaosSpecHelpers
     public static JobEventRecord AssertRecoveryEvent(IReadOnlyList<JobEventRecord> events, JobStatusCode? from, JobStatusCode? to)
     {
         var match = Assert.Single(
-            events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Orphaned)
+            events.Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Orphaned)
         );
         Assert.Equal(from, match.FromStatus);
         Assert.Equal(to, match.ToStatus);
@@ -91,7 +91,7 @@ internal static class ChaosSpecHelpers
         JobStatusCode? to
     )
     {
-        var match = Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished && e.ExecutionStatus == status));
+        var match = Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == status));
         Assert.Equal(from, match.FromStatus);
         Assert.Equal(to, match.ToStatus);
         return match;

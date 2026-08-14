@@ -17,7 +17,7 @@ namespace Acta;
 /// <param name="RetryCount">Delivery retry attempts so far.</param> <param name="RetryAfterUtc">Earliest next delivery attempt, or null.</param>
 /// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 /// <param name="AcknowledgedAtUtc">When the alert was acknowledged, or null while open.</param>
-public sealed record JobAlertListItem(
+public sealed record AlertListItem(
     long JobAlertId,
     string JobNamespace,
     [property: JsonIgnore] long? JobId,

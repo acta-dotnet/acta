@@ -26,7 +26,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    61 /* JobEventCode.JobRescheduled */,
+    61 /* EventCode.JobRescheduled */,
     {{now}},
     j.namespace_id,
     @p_actor_code,

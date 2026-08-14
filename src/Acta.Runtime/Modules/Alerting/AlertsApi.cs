@@ -14,7 +14,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
     // The control surface is operator/manual only: the actor (Operator) is stamped here, never accepted
     // from the caller, so a caller cannot forge the audit actor.
     private static JobControlActor Operator(string? actorKey) =>
-        new(JobActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
     public async ValueTask<AlertControlResult> AcknowledgeAsync(
         long alertId,
@@ -41,7 +41,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         return ToResult(alertId, outcome);
     }
 
-    public async ValueTask<PagedResult<JobAlertListItem>> ListAsync(ListJobAlertsQuery query, CancellationToken ct = default)
+    public async ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
@@ -51,7 +51,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         QueryValidation.ValidatePositiveId(query.JobId, nameof(query.JobId));
 
         var unresolvedOnly = query.UnresolvedOnly == true ? true : (bool?)null;
-        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListJobAlertsQuery));
+        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListAlertsQuery));
         var filterHash = QueryFilterHash.Compute([
             ("ns", query.JobNamespace),
             ("job", Num(query.JobId)),
@@ -102,7 +102,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
             ? PageCursorCodec.Encode(ListOperationName, OrderCreatedDesc, filterHash, [items[^1].CreatedAtUtc, items[^1].JobAlertId])
             : null;
 
-        return new PagedResult<JobAlertListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return new PagedResult<AlertListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
     private static string? Num<T>(T? value)

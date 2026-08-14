@@ -50,7 +50,7 @@ internal sealed class JobEvent : IEntity<long>
     /// <c>41 = "job.execution-finished"</c>. Closed taxonomy.
     /// </summary>
     [DbColumn("event_code")]
-    public JobEventCode EventCode { get; init; }
+    public EventCode EventCode { get; init; }
 
     /// <summary>
     /// When the event was committed; rendered server-side via <see cref="DbDefault.UtcNow"/> in the same
@@ -72,11 +72,11 @@ internal sealed class JobEvent : IEntity<long>
     /// System-determined at the emission site; callers cannot pass it directly.
     /// </summary>
     [DbColumn("actor_code")]
-    public JobActorCode ActorCode { get; init; }
+    public ActorCode ActorCode { get; init; }
 
     /// <summary>
     /// Identifier of the actor whose <see cref="ActorCode"/> classifies it. Format depends on
-    /// <see cref="ActorCode"/>; see the <see cref="JobActorCode"/> doc. A string identifier by design
+    /// <see cref="ActorCode"/>; see the <see cref="ActorCode"/> doc. A string identifier by design
     /// (its format varies by <see cref="ActorCode"/>), an accepted exception to the integer-<c>_id</c>
     /// convention.
     /// </summary>

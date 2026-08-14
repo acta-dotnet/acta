@@ -75,7 +75,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    74 /* JobEventCode.JobReprioritized */, @now, @namespace_id,
+                    74 /* EventCode.JobReprioritized */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,

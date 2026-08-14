@@ -52,7 +52,7 @@ public abstract class OneShotRetrySpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal((short)3, after3.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
+        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
         Assert.Equal(JobEventReasonCode.JobUnhandledException, finished.JobEventReasonCode);
 
         Assert.Equal(3, RetryProbe.Attempts(TestNamespace));

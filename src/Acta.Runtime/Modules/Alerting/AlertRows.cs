@@ -12,7 +12,7 @@ internal sealed record AlertableEvent(
     long? JobId,
     int DefinitionId,
     string JobName,
-    JobAlertProfileCode AlertProfile,
+    AlertProfileCode AlertProfile,
     string? AlertChannelName,
     ExecutionStatusCode? ExecutionStatus,
     JobStatusCode? ToStatus,
@@ -69,7 +69,7 @@ internal sealed record JobAlertListProjectionRow(
     DateTime? AcknowledgedAtUtc
 )
 {
-    public JobAlertListItem ToItem() =>
+    public AlertListItem ToItem() =>
         new(
             JobAlertId,
             JobNamespace,

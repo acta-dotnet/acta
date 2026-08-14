@@ -59,10 +59,10 @@ public abstract class ResetJobStateSpec<TFixture> : ActaRuntimeTestBase<TFixture
 
         await Services.GetRequiredService<IJobStore>().ResetJobStateAsync(jobId, ct);
 
-        var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == JobEventCode.JobStateReset).ToListAsync(ct);
+        var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).ToListAsync(ct);
 
         var ev = Assert.Single(events);
-        Assert.Equal(JobActorCode.Job, ev.ActorCode);
+        Assert.Equal(ActorCode.Job, ev.ActorCode);
         Assert.Equal(jobId.ToString(CultureInfo.InvariantCulture), ev.ActorKey);
         // Substrate event: no transition, so from == to == the job's current status.
         Assert.Equal(ev.FromStatus, ev.ToStatus);
@@ -83,7 +83,7 @@ public abstract class ResetJobStateSpec<TFixture> : ActaRuntimeTestBase<TFixture
 
         await AssertSubstrateCountsAsync(Db, jobId, 0, ct);
 
-        var count = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == JobEventCode.JobStateReset).CountAsync(ct);
+        var count = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).CountAsync(ct);
         Assert.Equal(0, count);
     }
 
@@ -112,7 +112,7 @@ public abstract class ResetJobStateSpec<TFixture> : ActaRuntimeTestBase<TFixture
                     "s.test",
                     0,
                     null,
-                    new JobControlInput(new JobControlActor(JobActorCode.Operator, "op"), JobEventReasonCode.JobControlManual, "seed")
+                    new JobControlInput(new JobControlActor(ActorCode.Operator, "op"), JobEventReasonCode.JobControlManual, "seed")
                 ),
                 ct
             );

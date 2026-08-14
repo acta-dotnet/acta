@@ -2,9 +2,9 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-[JsonConverter(typeof(JobActorCodeJsonConverter))]
+[JsonConverter(typeof(ActorCodeJsonConverter))]
 [CodeKind("actor")]
-public enum JobActorCode : byte
+public enum ActorCode : byte
 {
     [Code(
         "sys",

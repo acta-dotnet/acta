@@ -195,7 +195,7 @@ public sealed class FacadeReadValidationTests
         );
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Schedules().ListAsync(new ListJobSchedulesQuery(JobName: "send-invoice"), Ct)
+            await Schedules().ListAsync(new ListSchedulesQuery(JobName: "send-invoice"), Ct)
         );
     }
 
@@ -227,14 +227,14 @@ public sealed class FacadeReadValidationTests
     public async Task Events_total_without_job_id_throws()
     {
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Events().ListJobEventsAsync(new ListJobEventsQuery(IncludeTotal: true), Ct)
+            await Events().ListJobEventsAsync(new ListEventsQuery(IncludeTotal: true), Ct)
         );
     }
 
     [Fact]
     public async Task Events_total_with_job_id_is_allowed()
     {
-        var result = await Events().ListJobEventsAsync(new ListJobEventsQuery(JobId: 1, IncludeTotal: true), Ct);
+        var result = await Events().ListJobEventsAsync(new ListEventsQuery(JobId: 1, IncludeTotal: true), Ct);
 
         Assert.Equal(0L, result.TotalCount);
     }
@@ -250,7 +250,7 @@ public sealed class FacadeReadValidationTests
         );
 
         await Assert.ThrowsAsync<InvalidPageCursorException>(async () =>
-            await Alerts().ListAsync(new ListJobAlertsQuery(Cursor: jobsCursor), Ct)
+            await Alerts().ListAsync(new ListAlertsQuery(Cursor: jobsCursor), Ct)
         );
     }
 
@@ -277,7 +277,7 @@ public sealed class FacadeReadValidationTests
         );
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Alerts().ListAsync(new ListJobAlertsQuery(SeverityAtLeast: (AlertSeverityCode)200), Ct)
+            await Alerts().ListAsync(new ListAlertsQuery(SeverityAtLeast: (AlertSeverityCode)200), Ct)
         );
     }
 
@@ -287,10 +287,10 @@ public sealed class FacadeReadValidationTests
     public async Task Non_positive_id_filters_throw(long jobId)
     {
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Events().ListJobEventsAsync(new ListJobEventsQuery(JobId: jobId), Ct)
+            await Events().ListJobEventsAsync(new ListEventsQuery(JobId: jobId), Ct)
         );
 
-        await Assert.ThrowsAsync<InvalidQueryException>(async () => await Alerts().ListAsync(new ListJobAlertsQuery(JobId: jobId), Ct));
+        await Assert.ThrowsAsync<InvalidQueryException>(async () => await Alerts().ListAsync(new ListAlertsQuery(JobId: jobId), Ct));
     }
 
     [Fact]

@@ -50,7 +50,7 @@ public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.True(after.Version > before.Version);
 
-        var evt = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobRescheduled, ct);
+        var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal("spec-actor", evt.ActorKey);
     }
 

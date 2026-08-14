@@ -36,12 +36,12 @@ public sealed record ScenarioJobSnapshot(
 /// <summary>Testing snapshot of one job timeline event.</summary>
 public sealed record ScenarioEventSnapshot(
     long EventId,
-    JobEventCode EventCode,
+    EventCode EventCode,
     DateTime CreatedAtUtc,
     string Namespace,
     long? JobId,
     int? ExecutionNumber,
-    JobActorCode ActorCode,
+    ActorCode ActorCode,
     string? ActorKey,
     JobStatusCode? FromStatus,
     JobStatusCode? ToStatus,
@@ -122,7 +122,7 @@ internal static class ScenarioDiagnostics
         }
         sb.AppendLine();
 
-        var events = await host.Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: 8), ct);
+        var events = await host.Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 8), ct);
         if (events.Items.Count > 0)
         {
             sb.AppendLine("Recent events:");
@@ -210,7 +210,7 @@ internal static class ScenarioDiagnostics
             snapshot.ExclusiveKey
         );
 
-    public static ScenarioEventSnapshot ToScenario(JobEventListItem item) =>
+    public static ScenarioEventSnapshot ToScenario(EventListItem item) =>
         new(
             item.JobEventId,
             item.EventCode,

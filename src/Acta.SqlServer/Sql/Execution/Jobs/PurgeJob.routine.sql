@@ -105,7 +105,7 @@ BEGIN
             reason_code, reason_message
         )
         VALUES (
-            75 /* JobEventCode.JobPurged */, @now, @namespace_id,
+            75 /* EventCode.JobPurged */, @now, @namespace_id,
             @p_actor_code, @p_actor_key,
             NULL, NULL, NULL,
             NULL, @definition_id, @tenant_id,

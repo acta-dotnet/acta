@@ -142,4 +142,4 @@ internal sealed record AlertPageRequest(
 );
 
 /// <summary>One page of mapped alert list items plus the opt-in filtered total.</summary>
-internal sealed record AlertPage(IReadOnlyList<JobAlertListItem> Rows, long? Total);
+internal sealed record AlertPage(IReadOnlyList<AlertListItem> Rows, long? Total);

@@ -86,12 +86,12 @@ public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TF
         }
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        Assert.Contains(JobEventCode.SchedulePauseExpired, events.Select(e => e.JobEventCode));
+        Assert.Contains(EventCode.SchedulePauseExpired, events.Select(e => e.EventCode));
     }
 
     // ---------- helpers ----------
 
-    private JobScheduleLookup Lookup() => new(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ScheduleName);
+    private ScheduleLookup Lookup() => new(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ScheduleName);
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {

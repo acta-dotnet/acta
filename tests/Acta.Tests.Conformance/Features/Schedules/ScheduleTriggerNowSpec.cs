@@ -72,9 +72,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         Assert.Equal(ScheduleStatusCode.Active, after.Status);
 
         var slotId = await SlotIdAsync(jobName, ct);
-        var events = await Db.From<JobEvent>()
-            .Where(e => e.JobId == slotId && e.EventCode == JobEventCode.ScheduleTriggered)
-            .ToListAsync(ct);
+        var events = await Db.From<JobEvent>().Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered).ToListAsync(ct);
         var triggered = Assert.Single(events);
         Assert.Equal("only: fire now", triggered.ReasonMessage); // the schedule name plus the operator note rides reason_message
     }
@@ -152,7 +150,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         Assert.Equal(JobStatusCode.Succeeded, slot.Status); // untouched
         Assert.Equal(farFuture, slot.NextRunAtUtc); // no phantom cursor move
         var events = await Db.From<Acta.Relational.Entities.JobEvent>()
-            .Where(e => e.JobId == slotId && e.EventCode == JobEventCode.ScheduleTriggered)
+            .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered)
             .ToListAsync(ct);
         Assert.Empty(events); // no schedule.triggered
     }
@@ -178,7 +176,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-    private JobScheduleLookup Lookup(string jobName, string scheduleName) =>
+    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
         new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
 
     private static SlotSchedule Slot(string name, DateTime? cursor) =>

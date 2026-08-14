@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
 /// <summary>
 /// Namespace status gate at enqueue: EnqueueOne/EnqueueBatch reject when the resolved namespace is
 /// suspended, and succeed again once it is reactivated. No API suspends a namespace yet
-/// (JobNamespaceStatusCode F3/F4), so this spec drives the transition with a direct SQL UPDATE via
+/// (NamespaceStatusCode F3/F4), so this spec drives the transition with a direct SQL UPDATE via
 /// the test harness, mirroring <see cref="TenantEnqueueSpec{TFixture}"/>'s suspended-tenant coverage.
 /// </summary>
 [ConformanceSpec(
@@ -45,7 +45,7 @@ public abstract class NamespaceEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixt
         return await Db.From<Job>().Where(j => j.NamespaceId == namespaceId).CountAsync(ct);
     }
 
-    private Task SetNamespaceStatusAsync(JobNamespaceStatusCode status, CancellationToken ct)
+    private Task SetNamespaceStatusAsync(NamespaceStatusCode status, CancellationToken ct)
     {
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         return Db.ExecuteRawAsync(
@@ -61,7 +61,7 @@ public abstract class NamespaceEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixt
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        await SetNamespaceStatusAsync(JobNamespaceStatusCode.Suspended, ct);
+        await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
         var before = await CountJobsAsync(ct);
 
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct));
@@ -74,7 +74,7 @@ public abstract class NamespaceEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixt
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        await SetNamespaceStatusAsync(JobNamespaceStatusCode.Suspended, ct);
+        await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
         var before = await CountJobsAsync(ct);
 
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueOneAsync(Services, Row(), ct));
@@ -87,10 +87,10 @@ public abstract class NamespaceEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixt
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        await SetNamespaceStatusAsync(JobNamespaceStatusCode.Suspended, ct);
+        await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct));
 
-        await SetNamespaceStatusAsync(JobNamespaceStatusCode.Active, ct);
+        await SetNamespaceStatusAsync(NamespaceStatusCode.Active, ct);
         var result = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct);
         var job = await ReadJobAsync(result[0].JobId, ct);
 

@@ -48,7 +48,7 @@ BEGIN
     SELECT COUNT(*)
     INTO ns_active_count
     FROM unnest(p_b_namespace_name, p_b_job_name) AS b(namespace_name, job_name)
-    INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* JobNamespaceStatusCode.Active */
+    INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN {{schema}}.definitions jd
         ON jd.namespace_id = ns.id
         AND jd.name = b.job_name;
@@ -226,7 +226,7 @@ BEGIN
         deduplication_key, correlation_key, priority_override,
         input_format_id, input, exclusive_key, next_run_at_utc,
         delay_seconds, parent_id, tenant_key)
-    INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* JobNamespaceStatusCode.Active */
+    INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
     LEFT JOIN {{schema}}.tenants t ON t.tenant_key = b.tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */
     LEFT JOIN {{schema}}.jobs pj ON pj.id = b.parent_id;

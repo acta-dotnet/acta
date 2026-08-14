@@ -47,11 +47,11 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Paused, outcomeL.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, JobEventCode.JobPaused, ct));
+        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobPaused, ct));
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Paused, outcomeF.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, JobEventCode.JobPaused, ct));
+        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobPaused, ct));
     }
 
     [Fact(DisplayName = "Resume applies transition regardless of audit level and emits event only at full audit")]
@@ -72,11 +72,11 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, JobEventCode.JobResumed, ct));
+        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobResumed, ct));
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, JobEventCode.JobResumed, ct));
+        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobResumed, ct));
     }
 
     [Fact(DisplayName = "Cancel applies transition regardless of audit level and emits event only at full audit")]
@@ -95,11 +95,11 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeL.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, outcomeL.Outcome.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, JobEventCode.JobCancelled, ct));
+        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobCancelled, ct));
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeF.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, outcomeF.Outcome.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, JobEventCode.JobCancelled, ct));
+        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobCancelled, ct));
     }
 
     [Fact(DisplayName = "Restart applies transition regardless of audit level and emits event only at full audit")]
@@ -120,11 +120,11 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, JobEventCode.JobRestarted, ct));
+        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobRestarted, ct));
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, JobEventCode.JobRestarted, ct));
+        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobRestarted, ct));
     }
 
     [Fact(DisplayName = "RaiseSignal upserts the signal unconditionally and emits event only at full audit")]
@@ -148,12 +148,12 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
         Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobL, ct)).Single().Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, JobEventCode.JobSignalRaised, ct));
+        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobSignalRaised, ct));
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
         Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobF, ct)).Single().Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, JobEventCode.JobSignalRaised, ct));
+        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobSignalRaised, ct));
     }
 
     // ---------- helpers ----------
@@ -168,7 +168,7 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
     }
 
     private static JobControlInput ControlInput() =>
-        new(new JobControlActor(JobActorCode.Operator, "test"), JobEventReasonCode.JobControlManual, "audit gate test");
+        new(new JobControlActor(ActorCode.Operator, "test"), JobEventReasonCode.JobControlManual, "audit gate test");
 
     private static Task SetAuditLevelAsync(IDbSession db, long jobId, JobAuditLevelCode auditLevel, CancellationToken ct) =>
         db.ExecuteRawAsync(

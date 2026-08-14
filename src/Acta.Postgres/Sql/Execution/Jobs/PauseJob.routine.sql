@@ -67,7 +67,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            71 /* JobEventCode.JobPaused */,
+            71 /* EventCode.JobPaused */,
             now(),
             v_namespace_id,
             p_actor_code,

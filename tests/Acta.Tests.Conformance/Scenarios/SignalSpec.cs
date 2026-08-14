@@ -103,7 +103,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Suspended, ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobSuspended, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
     [Fact(DisplayName = "Wait is idempotent while pending, not duplicating the slot or consuming an attempt")]
@@ -137,8 +137,8 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(JobStatusCode.Ready, job.Status);
         Assert.NotNull(job.NextRunAtUtc);
         Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobSignalRaised, ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobResumed, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobResumed, ct));
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -159,7 +159,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobSuspended, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
     [Fact(DisplayName = "A typed signal round-trips its payload to the handler")]

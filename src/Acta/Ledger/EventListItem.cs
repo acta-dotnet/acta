@@ -18,9 +18,9 @@ namespace Acta;
 /// <param name="ExecutionStatus">Execution outcome attached to the event, or null.</param> <param name="DurationMs">Execution duration, or null.</param>
 /// <param name="ReasonCode">Reason recorded with the event, or null.</param> <param name="ReasonMessage">Reason text, or null.</param>
 /// <param name="DetailText">Free-form (text) or structured (json) detail decoded to text, or null when the event carries no detail or a non-text format.</param>
-public sealed record JobEventListItem(
+public sealed record EventListItem(
     long JobEventId,
-    JobEventCode EventCode,
+    EventCode EventCode,
     DateTime CreatedAtUtc,
     string JobNamespace,
     string? JobName,
@@ -32,7 +32,7 @@ public sealed record JobEventListItem(
     int? TenantId,
     int? WorkerId,
     int? ExecutionNumber,
-    JobActorCode ActorCode,
+    ActorCode ActorCode,
     string? ActorKey,
     JobStatusCode? FromStatus,
     JobStatusCode? ToStatus,

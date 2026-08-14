@@ -24,7 +24,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    30 /* JobEventCode.JobDefinitionOverridesUpdated */,
+    30 /* EventCode.JobDefinitionOverridesUpdated */,
     {{now}},
     s.namespace_id,
     @p_actor_code,

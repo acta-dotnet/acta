@@ -83,7 +83,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
         Assert.Equal(JobControlAction.Rejected, pause.Action);
         Assert.Equal(JobStatusCode.Dispatched, pause.Status);
         Assert.Equal(JobStatusCode.Dispatched, await Jobs.GetStatusAsync(enqueued, ct));
-        Assert.Empty((await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e => e.JobEventCode == JobEventCode.JobPaused));
+        Assert.Empty((await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e => e.EventCode == EventCode.JobPaused));
     }
 
     [Fact(DisplayName = "Restart while executing is rejected")]
@@ -102,7 +102,7 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
         Assert.Equal(JobControlAction.Rejected, restart.Action);
         Assert.Equal(JobStatusCode.Executing, restart.Status);
         Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
-        Assert.Empty((await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e => e.JobEventCode == JobEventCode.JobRestarted));
+        Assert.Empty((await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e => e.EventCode == EventCode.JobRestarted));
 
         // --- 3. Releasing the probe lets the original run finish Succeeded.
         ChaosProbes.Release(enqueued.JobId);
@@ -135,13 +135,13 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
         // cancel_job emits the finished event (Executing->Cancelled) before JobCancelled when it
         // cancels an executing job, so both are deterministic here.
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionStarted));
+        Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionStarted));
         var finished = Assert.Single(
-            events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Cancelled)
+            events.Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Cancelled)
         );
         Assert.Equal(JobStatusCode.Executing, finished.FromStatus);
         Assert.Equal(JobStatusCode.Cancelled, finished.ToStatus);
-        Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobCancelled));
+        Assert.Single(events.Where(e => e.EventCode == EventCode.JobCancelled));
     }
 
     [Fact(DisplayName = "Resume after pause returns to Ready")]
@@ -164,12 +164,12 @@ public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBa
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(
             events.Where(e =>
-                e.JobEventCode == JobEventCode.JobPaused && e.FromStatus == JobStatusCode.Ready && e.ToStatus == JobStatusCode.Paused
+                e.EventCode == EventCode.JobPaused && e.FromStatus == JobStatusCode.Ready && e.ToStatus == JobStatusCode.Paused
             )
         );
         Assert.Single(
             events.Where(e =>
-                e.JobEventCode == JobEventCode.JobResumed && e.FromStatus == JobStatusCode.Paused && e.ToStatus == JobStatusCode.Ready
+                e.EventCode == EventCode.JobResumed && e.FromStatus == JobStatusCode.Paused && e.ToStatus == JobStatusCode.Ready
             )
         );
     }

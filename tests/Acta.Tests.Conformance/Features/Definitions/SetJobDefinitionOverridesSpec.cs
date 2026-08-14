@@ -28,7 +28,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     where TFixture : IConformanceFixture, new()
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static JobControlActor Actor => new(JobActorCode.Operator, "tester");
+    private static JobControlActor Actor => new(ActorCode.Operator, "tester");
 
     private static JobDescriptor Def(string name, short maxAttempts) =>
         new(
@@ -267,12 +267,12 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         );
 
         var evt = await Db.From<JobEvent>()
-            .Where(e => e.DefinitionId == id && e.EventCode == JobEventCode.JobDefinitionOverridesUpdated)
+            .Where(e => e.DefinitionId == id && e.EventCode == EventCode.JobDefinitionOverridesUpdated)
             .SingleOrDefaultAsync(ct);
 
         Assert.NotNull(evt);
         Assert.Null(evt!.JobId); // definition-scoped, not a job instance
-        Assert.Equal(JobActorCode.Operator, evt.ActorCode);
+        Assert.Equal(ActorCode.Operator, evt.ActorCode);
         Assert.Equal("tester", evt.ActorKey);
         Assert.Equal("audited edit", evt.ReasonMessage);
     }

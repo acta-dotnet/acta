@@ -39,22 +39,19 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Null(result.ResolvedAtUtc);
 
         var evt = await Db.From<JobEvent>()
-            .Where(e => e.JobId == jobId && e.EventCode == JobEventCode.AlertAcknowledged)
+            .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
-        Assert.Equal(JobActorCode.Operator, evt!.ActorCode);
+        Assert.Equal(ActorCode.Operator, evt!.ActorCode);
         Assert.Equal("spec-actor", evt.ActorKey);
         Assert.Contains($"alert {alertId}", evt.ReasonMessage);
         Assert.Contains("looks fine", evt.ReasonMessage);
 
-        var acknowledgedOnly = await Operations.Alerts.ListAsync(
-            new ListJobAlertsQuery(JobNamespace: TestNamespace, Acknowledged: true),
-            ct
-        );
+        var acknowledgedOnly = await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Acknowledged: true), ct);
         Assert.Contains(acknowledgedOnly.Items, a => a.JobAlertId == alertId);
 
         var unacknowledgedOnly = await Operations.Alerts.ListAsync(
-            new ListJobAlertsQuery(JobNamespace: TestNamespace, Acknowledged: false),
+            new ListAlertsQuery(JobNamespace: TestNamespace, Acknowledged: false),
             ct
         );
         Assert.DoesNotContain(unacknowledgedOnly.Items, a => a.JobAlertId == alertId);
@@ -73,7 +70,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(first.AcknowledgedAtUtc, second.AcknowledgedAtUtc);
 
         var eventCount = await Db.From<JobEvent>()
-            .Where(e => e.JobId == jobId && e.EventCode == JobEventCode.AlertAcknowledged)
+            .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
             .CountAsync(ct);
         Assert.Equal(1, eventCount);
     }
@@ -90,11 +87,9 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Null(result.AcknowledgedAtUtc);
         Assert.NotNull(result.ResolvedAtUtc);
 
-        var evt = await Db.From<JobEvent>()
-            .Where(e => e.JobId == jobId && e.EventCode == JobEventCode.AlertResolved)
-            .SingleOrDefaultAsync(ct);
+        var evt = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
-        Assert.Equal(JobActorCode.Operator, evt!.ActorCode);
+        Assert.Equal(ActorCode.Operator, evt!.ActorCode);
         Assert.Contains($"alert {alertId}", evt.ReasonMessage);
     }
 
@@ -110,7 +105,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(JobControlAction.Applied, second.Action);
         Assert.Equal(first.ResolvedAtUtc, second.ResolvedAtUtc);
 
-        var eventCount = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == JobEventCode.AlertResolved).CountAsync(ct);
+        var eventCount = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).CountAsync(ct);
         Assert.Equal(1, eventCount);
     }
 

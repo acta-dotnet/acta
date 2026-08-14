@@ -74,7 +74,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
                 AuditLevel: JobAuditLevelCode.Audit,
-                AlertProfile: JobAlertProfileCode.OnFailure,
+                AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await StepExhaustionProbes.ExhaustReplay(ctx, ct);
@@ -100,7 +100,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 1,
                 AuditLevel: JobAuditLevelCode.Audit,
-                AlertProfile: JobAlertProfileCode.OnFailure,
+                AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await StepExhaustionProbes.WindowExhaust(ctx, ct);
@@ -197,7 +197,7 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
+        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(JobEventReasonCode.JobUnhandledException, finishedEvent.ReasonCode);
     }
 

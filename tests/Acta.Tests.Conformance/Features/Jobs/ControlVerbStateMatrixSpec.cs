@@ -206,7 +206,7 @@ public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase
     }
 
     private static JobControlInput ControlInput(string reason) =>
-        new(new JobControlActor(JobActorCode.Operator, "test"), JobEventReasonCode.JobControlManual, reason);
+        new(new JobControlActor(ActorCode.Operator, "test"), JobEventReasonCode.JobControlManual, reason);
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
         db.ExecuteRawAsync(

@@ -24,7 +24,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         return await store.GetDefinitionAsync(definitionId, ct);
     }
 
-    public async ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListJobDefinitionsQuery query, CancellationToken ct)
+    public async ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
@@ -33,7 +33,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         query = query with { NameContains = QueryValidation.ValidateJobNameFragment(query.NameContains, nameof(query.NameContains)) };
 
         var nameSearch = query.NameContains is null ? null : "%" + query.NameContains + "%";
-        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListJobDefinitionsQuery));
+        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListDefinitionsQuery));
         var filterHash = QueryFilterHash.Compute([
             ("ns", query.JobNamespace),
             ("contains", query.NameContains),
@@ -149,10 +149,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             }
         }
 
-        var actor = new JobControlActor(
-            JobActorCode.Operator,
-            JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey)
-        );
+        var actor = new JobControlActor(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
         var outcome = await store.SetDefinitionOverridesAsync(
             new SetDefinitionOverridesCommand(definitionId, expectedVersion, overrides, actor, note.Truncate(ActaTextLimits.ReasonMessage)),

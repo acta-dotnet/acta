@@ -311,7 +311,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
 
         public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
 
-        public ValueTask<JobWorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) => throw new NotSupportedException();
+        public ValueTask<WorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class LiveWorkerStore(IReadOnlyList<long> liveJobIds) : WorkerStoreStub

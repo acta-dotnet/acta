@@ -71,7 +71,7 @@ public sealed class AtMostOnceStepManifest : IJobManifest
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 5,
             AuditLevel: JobAuditLevelCode.Audit,
-            AlertProfile: JobAlertProfileCode.OnFailure,
+            AlertProfile: AlertProfileCode.OnFailure,
             Invoker: async (_, _, ctx, ct) =>
             {
                 await run(ctx, ct);

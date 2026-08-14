@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal sealed record JobEventRecord(
     long Id,
-    JobEventCode JobEventCode,
+    EventCode EventCode,
     DateTime CreatedAtUtc,
     int? ExecutionNumber,
     JobStatusCode? FromStatus,

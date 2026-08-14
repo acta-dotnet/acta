@@ -181,7 +181,7 @@ public class CliRunnerClipboardTests
         public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<PagedResult<JobEventListItem>> ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
+        public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>

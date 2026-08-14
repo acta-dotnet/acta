@@ -14,7 +14,7 @@ WHERE EXISTS (
     SELECT 1 FROM {{schema}}.namespaces ns
     WHERE
         ns.name = @p_namespace_name
-        AND ns.status_code <> 10 /* JobNamespaceStatusCode.Active */
+        AND ns.status_code <> 10 /* NamespaceStatusCode.Active */
 );
 
 SELECT ACTA_ERROR('ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.')

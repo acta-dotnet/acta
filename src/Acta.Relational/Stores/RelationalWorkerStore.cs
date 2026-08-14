@@ -24,7 +24,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.OwnerTeam, command.OwnerTeam));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.Description, command.Description));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.CatalogHash, command.CatalogHash));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.StatusCode, JobNamespaceStatusCode.Active));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.StatusCode, NamespaceStatusCode.Active));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.DeploymentVersion, command.DeploymentVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.Host, command.HostName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.EngineVersion, command.EngineVersion));
@@ -77,8 +77,8 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
             : throw new InvalidOperationException("mark_dead_workers returned no count.");
     }
 
-    public async ValueTask<JobWorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) =>
-        await session.QueryAsync<JobWorkerDetail?>(
+    public async ValueTask<WorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) =>
+        await session.QueryAsync<WorkerDetail?>(
             "Sql/Execution/Workers/GetWorker.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.Id, workerId)),
             async (reader, token) =>
@@ -102,7 +102,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<JobWorkerListRow>();
-                var rows = new List<JobWorkerListItem>(request.Take);
+                var rows = new List<WorkerListItem>(request.Take);
                 while (await reader.ReadAsync(token))
                 {
                     rows.Add(read(reader).ToItem());

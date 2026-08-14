@@ -37,7 +37,7 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                 Priority: JobPriorityCode.Critical,
                 MaxAttempts: 2,
                 AuditLevel: JobAuditLevelCode.Audit,
-                AlertProfile: JobAlertProfileCode.OnFailure,
+                AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await PrioritySlotHandler.Run(ctx, ct);
@@ -49,7 +49,7 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
             {
                 Schedules =
                 [
-                    new JobScheduleDescriptor(
+                    new ScheduleDescriptor(
                         JobName: JobName,
                         ScheduleName: ScheduleName,
                         Expression: "PT30S",

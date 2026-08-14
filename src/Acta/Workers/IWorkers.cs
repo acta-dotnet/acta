@@ -4,8 +4,8 @@ namespace Acta;
 public interface IWorkers
 {
     /// <summary>Get one worker by its durable worker-row id, or <see langword="null"/> when it no longer exists.</summary>
-    ValueTask<JobWorkerDetail?> GetAsync(int workerId, CancellationToken ct = default);
+    ValueTask<WorkerDetail?> GetAsync(int workerId, CancellationToken ct = default);
 
     /// <summary>List workers most recently seen first, optionally filtered by namespace and status.</summary>
-    ValueTask<PagedResult<JobWorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default);
+    ValueTask<PagedResult<WorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default);
 }

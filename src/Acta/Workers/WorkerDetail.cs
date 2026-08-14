@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>Durable operator detail for one worker process registration.</summary>
-public sealed record JobWorkerDetail(
+public sealed record WorkerDetail(
     int WorkerId,
     string JobNamespace,
     WorkerStatusCode Status,

@@ -35,7 +35,7 @@ public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixtur
                 {
                     Name = $"{TestNamespace}-insert",
                     OwnerTeam = "team-a",
-                    Status = JobNamespaceStatusCode.Active,
+                    Status = NamespaceStatusCode.Active,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
                 },
@@ -134,7 +134,7 @@ public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixtur
                 {
                     Name = $"{TestNamespace}-delete",
                     OwnerTeam = "team-b",
-                    Status = JobNamespaceStatusCode.Active,
+                    Status = NamespaceStatusCode.Active,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
                 },

@@ -25,12 +25,12 @@ public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase
 {
     protected override bool RunAsWorker => true;
 
-    private static JobControlActor Actor() => new(JobActorCode.Operator, "op-1");
+    private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
 
     private async Task<JobNamespace?> ReadNsAsync(CancellationToken ct) =>
         await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
 
-    private async Task<int> EventCountAsync(short nsId, JobEventCode code, CancellationToken ct) =>
+    private async Task<int> EventCountAsync(short nsId, EventCode code, CancellationToken ct) =>
         await Db.From<JobEvent>().Where(e => e.NamespaceId == nsId && e.EventCode == code).CountAsync(ct);
 
     [Fact(DisplayName = "Suspending an active namespace applies, bumps version, and emits one namespace.suspended to itself")]
@@ -46,11 +46,11 @@ public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(AdminControlAction.Applied, outcome.Action);
         var after = await ReadNsAsync(ct);
-        Assert.Equal(JobNamespaceStatusCode.Suspended, after!.Status);
+        Assert.Equal(NamespaceStatusCode.Suspended, after!.Status);
         Assert.True(after.Version > before!.Version);
-        Assert.Equal(1, await EventCountAsync(nsId, JobEventCode.NamespaceSuspended, ct));
+        Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceSuspended, ct));
         var ev = await Db.From<JobEvent>()
-            .Where(e => e.NamespaceId == nsId && e.EventCode == JobEventCode.NamespaceSuspended)
+            .Where(e => e.NamespaceId == nsId && e.EventCode == EventCode.NamespaceSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(nsId, ev!.NamespaceId);
         Assert.Equal("op-1", ev.ActorKey);
@@ -69,7 +69,7 @@ public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase
             .GetRequiredService<INamespaceStore>()
             .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), null), ct);
         Assert.Equal(AdminControlAction.AlreadyInState, again.Action);
-        Assert.Equal(1, await EventCountAsync(nsId, JobEventCode.NamespaceSuspended, ct));
+        Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceSuspended, ct));
     }
 
     [Fact(DisplayName = "Resuming a suspended namespace applies and emits namespace.resumed")]
@@ -84,8 +84,8 @@ public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase
             .GetRequiredService<INamespaceStore>()
             .ResumeNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), "back"), ct);
         Assert.Equal(AdminControlAction.Applied, outcome.Action);
-        Assert.Equal(JobNamespaceStatusCode.Active, (await ReadNsAsync(ct))!.Status);
-        Assert.Equal(1, await EventCountAsync(nsId, JobEventCode.NamespaceResumed, ct));
+        Assert.Equal(NamespaceStatusCode.Active, (await ReadNsAsync(ct))!.Status);
+        Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceResumed, ct));
     }
 
     [Fact(DisplayName = "An unknown namespace name is NotFound")]
@@ -108,7 +108,7 @@ public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase
         await Assert.ThrowsAsync<ArgumentException>(async () => await Operations.Namespaces.ResumeAsync("sys", null, null, ct));
 
         var after = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
-        Assert.Equal(JobNamespaceStatusCode.Active, after!.Status);
+        Assert.Equal(NamespaceStatusCode.Active, after!.Status);
         Assert.Equal(before!.Version, after.Version);
 
         var page = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);

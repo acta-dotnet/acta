@@ -68,7 +68,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        141 /* JobEventCode.AlertResolved */,
+        141 /* EventCode.AlertResolved */,
         now(),
         v_namespace_id,
         p_actor_code,

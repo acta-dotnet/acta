@@ -79,7 +79,7 @@ BEGIN
             reason_code, reason_message
         )
         VALUES (
-            30 /* JobEventCode.JobDefinitionOverridesUpdated */, @now, @ns,
+            30 /* EventCode.JobDefinitionOverridesUpdated */, @now, @ns,
             @p_actor_code, @p_actor_key,
             NULL, NULL, NULL,
             NULL, @p_id,

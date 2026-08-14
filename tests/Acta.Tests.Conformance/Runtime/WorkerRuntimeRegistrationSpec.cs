@@ -67,12 +67,12 @@ public abstract class WorkerRuntimeRegistrationSpec<TFixture> : ActaRuntimeTestB
         Assert.NotNull(worker);
 
         var events = await Db.From<JobEvent>()
-            .Where(e => e.WorkerId == worker!.Id && e.EventCode == JobEventCode.WorkerStarted)
+            .Where(e => e.WorkerId == worker!.Id && e.EventCode == EventCode.WorkerStarted)
             .ToListAsync(ct);
         var startedEvent = Assert.Single(events);
         Assert.Null(startedEvent.JobId);
         Assert.Equal(assignedId, startedEvent.NamespaceId);
-        Assert.Equal(JobActorCode.Worker, startedEvent.ActorCode);
+        Assert.Equal(ActorCode.Worker, startedEvent.ActorCode);
         Assert.Null(startedEvent.ReasonCode);
     }
 

@@ -75,7 +75,7 @@ internal sealed record SchedulePageRequest(
 );
 
 /// <summary>One page of mapped schedule list items plus the opt-in filtered total.</summary>
-internal sealed record SchedulePage(IReadOnlyList<JobScheduleListItem> Rows, long? Total);
+internal sealed record SchedulePage(IReadOnlyList<ScheduleListItem> Rows, long? Total);
 
 /// <summary>
 /// Validated startup reconcile upsert: all definitions share one namespace. <c>SlotRefs</c> is

@@ -383,7 +383,7 @@ internal sealed class WorkerRuntimeInitializer(
             }
 
             var declared = descriptor.Schedules.IsDefaultOrEmpty
-                ? (IReadOnlyList<JobScheduleDescriptor>)[]
+                ? (IReadOnlyList<ScheduleDescriptor>)[]
                 : descriptor.Schedules.Where(s => ScheduleEnvironment.IsActiveIn(s.Environments, env)).ToList();
             var storedForDef = storedByDefinition.TryGetValue(defId, out var byName)
                 ? byName

@@ -15,7 +15,7 @@ internal sealed record EffectiveJobPolicy(
     DeadlineBehaviorCode DeadlineBehavior,
     int JobRetentionSeconds,
     JobAuditLevelCode AuditLevel,
-    JobAlertProfileCode AlertProfile,
+    AlertProfileCode AlertProfile,
     string? AlertChannelName,
     string? RunbookUrl
 );
@@ -61,7 +61,7 @@ internal sealed record StoredDefinitionContractRow(
     DeadlineBehaviorCode DeadlineBehavior,
     int JobRetentionSeconds,
     JobAuditLevelCode AuditLevel,
-    JobAlertProfileCode AlertProfile,
+    AlertProfileCode AlertProfile,
     string? AlertChannelName,
     string? RunbookUrl
 )
@@ -134,9 +134,9 @@ internal sealed record JobDefinitionDetailRow(
     JobAuditLevelCode AuditLevel,
     JobAuditLevelCode? AuditLevelOverride,
     JobAuditLevelCode AuditLevelEffective,
-    JobAlertProfileCode AlertProfile,
-    JobAlertProfileCode? AlertProfileOverride,
-    JobAlertProfileCode AlertProfileEffective,
+    AlertProfileCode AlertProfile,
+    AlertProfileCode? AlertProfileOverride,
+    AlertProfileCode AlertProfileEffective,
     string? AlertChannelName,
     string? AlertChannelNameOverride,
     string? AlertChannelNameEffective,

@@ -35,7 +35,7 @@ public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFi
         do
         {
             var page = await queries.Definitions.ListAsync(
-                new ListJobDefinitionsQuery(JobNamespace: TestNamespace, PageSize: 1, Cursor: cursor),
+                new ListDefinitionsQuery(JobNamespace: TestNamespace, PageSize: 1, Cursor: cursor),
                 ct
             );
             seen.AddRange(page.Items);
@@ -53,7 +53,7 @@ public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFi
         // ignores the hyphen in names like 'jobref-probe', .NET CompareOrdinal does not). The contract
         // is that paging preserves the operation's own order, not ASCII order.
         var single = await queries.Definitions.ListAsync(
-            new ListJobDefinitionsQuery(JobNamespace: TestNamespace, PageSize: seen.Count, IncludeTotal: true),
+            new ListDefinitionsQuery(JobNamespace: TestNamespace, PageSize: seen.Count, IncludeTotal: true),
             ct
         );
         Assert.Equal(seen.Select(static i => i.JobDefinitionId), single.Items.Select(static i => i.JobDefinitionId));

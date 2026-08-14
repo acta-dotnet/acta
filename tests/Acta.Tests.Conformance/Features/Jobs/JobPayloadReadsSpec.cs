@@ -85,7 +85,7 @@ public abstract class JobPayloadReadsSpec<TFixture> : ActaRuntimeTestBase<TFixtu
                     "s.ready",
                     signalValue.Format.Id,
                     signalValue.Data.ToArray(),
-                    new JobControlInput(new JobControlActor(JobActorCode.Operator, "op"), JobEventReasonCode.JobControlManual, "seed")
+                    new JobControlInput(new JobControlActor(ActorCode.Operator, "op"), JobEventReasonCode.JobControlManual, "seed")
                 ),
                 ct
             );

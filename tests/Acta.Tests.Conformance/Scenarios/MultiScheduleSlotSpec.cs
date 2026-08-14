@@ -44,7 +44,7 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
                 AuditLevel: JobAuditLevelCode.Audit,
-                AlertProfile: JobAlertProfileCode.OnFailure,
+                AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await MultiSchedulePingHandler.Run(ctx, ct);
@@ -56,7 +56,7 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
             {
                 Schedules =
                 [
-                    new JobScheduleDescriptor(
+                    new ScheduleDescriptor(
                         JobName: PingJobName,
                         ScheduleName: FastScheduleName,
                         Expression: "PT30S",
@@ -66,7 +66,7 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                         Description: null,
                         Environments: []
                     ),
-                    new JobScheduleDescriptor(
+                    new ScheduleDescriptor(
                         JobName: PingJobName,
                         ScheduleName: SlowScheduleName,
                         Expression: "PT50S",

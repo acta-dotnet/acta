@@ -24,7 +24,7 @@ internal static class RaiseChildLatch
     )
     {
         var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus);
-        var input = new JobControlInput(new JobControlActor(JobActorCode.Sys), JobEventReasonCode.JobSignalReleased, null);
+        var input = new JobControlInput(new JobControlActor(ActorCode.Sys), JobEventReasonCode.JobSignalReleased, null);
         var outcome = await signals.RaiseSignalAsync(
             new RaiseSignalCommand(
                 parentJobId,

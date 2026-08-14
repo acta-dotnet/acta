@@ -36,7 +36,7 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
         "sys.retention",
         Priority = JobPriorityCode.Critical,
         AuditLevel = JobAuditLevelCode.Failures,
-        AlertProfile = JobAlertProfileCode.SysCritical
+        AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.Hourly)]
     public Task Handle(JobContext ctx, CancellationToken ct)

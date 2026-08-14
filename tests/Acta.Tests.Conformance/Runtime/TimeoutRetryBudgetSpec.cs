@@ -40,7 +40,7 @@ public abstract class TimeoutRetryBudgetSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.NotNull(after1.NextRunAtUtc);
 
         var events1 = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished1 = events1.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
+        var finished1 = events1.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
         Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished1.JobEventReasonCode);
         Assert.Equal(ExecutionStatusCode.Rescheduled, finished1.ExecutionStatus);
 
@@ -54,7 +54,7 @@ public abstract class TimeoutRetryBudgetSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Equal((short)2, after2.FailureCount);
 
         var events2 = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished2 = events2.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
+        var finished2 = events2.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
         Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished2.JobEventReasonCode);
     }
 }

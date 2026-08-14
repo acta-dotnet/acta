@@ -53,8 +53,8 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    81 /* JobEventCode.JobStateReset */, @now, @namespace_id,
-                    50 /* JobActorCode.Job */, CONVERT(VARCHAR(128), @p_id),
+                    81 /* EventCode.JobStateReset */, @now, @namespace_id,
+                    50 /* ActorCode.Job */, CONVERT(VARCHAR(128), @p_id),
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
                     NULL,

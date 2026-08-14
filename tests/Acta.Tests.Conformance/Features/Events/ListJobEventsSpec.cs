@@ -42,12 +42,12 @@ public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var jobId = enqueued[0].JobId;
         await Runtime.RunOnceAsync(jobId, ct);
 
-        var seen = new List<JobEventListItem>();
+        var seen = new List<EventListItem>();
         string? cursor = null;
         var pages = 0;
         do
         {
-            var page = await queries.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: 1, Cursor: cursor), ct);
+            var page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 1, Cursor: cursor), ct);
             seen.AddRange(page.Items);
             cursor = page.NextCursor;
             pages++;
@@ -64,7 +64,7 @@ public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             Assert.True(ordered, "rows are not in created_at DESC, id DESC order");
         }
 
-        var withTotal = await queries.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: 1, IncludeTotal: true), ct);
+        var withTotal = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 1, IncludeTotal: true), ct);
         Assert.Equal(seen.Count, withTotal.TotalCount);
     }
 

@@ -34,22 +34,21 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Family | Code kind | Backing | Folder |
 |---|---|---|---|
+| [`ActorCode`](#code-family-actorcode) | `actor` | `byte` | `Jobs` |
 | [`AlertChannelStatusCode`](#code-family-alertchannelstatuscode) | `alert-channel-status` | `byte` | `Alerts` |
 | [`AlertDeliveryStatusCode`](#code-family-alertdeliverystatuscode) | `alert-delivery-status` | `byte` | `Alerts` |
 | [`AlertKindCode`](#code-family-alertkindcode) | `alert-kind` | `byte` | `Alerts` |
 | [`AlertOriginCode`](#code-family-alertorigincode) | `alert-origin` | `byte` | `Alerts` |
+| [`AlertProfileCode`](#code-family-alertprofilecode) | `job-alert-profile` | `byte` | `Alerts` |
 | [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` | `Alerts` |
 | [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `job-deadline-behavior` | `byte` | `Jobs` |
+| [`EventCode`](#code-family-eventcode) | `event` | `byte` | `Events` |
 | [`ExecutionStatusCode`](#code-family-executionstatuscode) | `execution-status` | `byte` | `Execution` |
-| [`JobActorCode`](#code-family-jobactorcode) | `actor` | `byte` | `Jobs` |
-| [`JobAlertProfileCode`](#code-family-jobalertprofilecode) | `job-alert-profile` | `byte` | `Alerts` |
 | [`JobAuditLevelCode`](#code-family-jobauditlevelcode) | `job-audit-level` | `byte` | `Jobs` |
 | [`JobCheckpointKindCode`](#code-family-jobcheckpointkindcode) | `job-checkpoint-kind` | `byte` | `Execution` |
 | [`JobCheckpointStatusCode`](#code-family-jobcheckpointstatuscode) | `job-checkpoint-status` | `byte` | `Execution` |
 | [`JobDefinitionStatusCode`](#code-family-jobdefinitionstatuscode) | `job-definition-status` | `byte` | `Definitions` |
-| [`JobEventCode`](#code-family-jobeventcode) | `event` | `byte` | `Events` |
 | [`JobEventReasonCode`](#code-family-jobeventreasoncode) | `job-event-reason` | `byte` | `Events` |
-| [`JobNamespaceStatusCode`](#code-family-jobnamespacestatuscode) | `namespace-status` | `byte` | `Namespaces` |
 | [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` | `Payloads` |
 | [`JobPriorityCode`](#code-family-jobprioritycode) | `priority` | `byte` | `Jobs` |
 | [`JobStatusCode`](#code-family-jobstatuscode) | `job-status` | `byte` | `Jobs` |
@@ -57,6 +56,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) | `job-tenant-requirement` | `byte` | `Jobs` |
 | [`LeaseKindCode`](#code-family-leasekindcode) | `lease-kind` | `byte` | `Execution` |
 | [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` | `Schedules` |
+| [`NamespaceStatusCode`](#code-family-namespacestatuscode) | `namespace-status` | `byte` | `Namespaces` |
 | [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` | `Outbox` |
 | [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` | `Schedules` |
 | [`ScheduleOriginCode`](#code-family-scheduleorigincode) | `schedule-origin` | `byte` | `Schedules` |
@@ -106,16 +106,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Automatic` | 10 | `automatic` | System-emitted from a state-mutating SP (failure / timeout / orphan / deadline). | Active |
 | `Manual` | 20 | `manual` | ctx.AlertAsync from inside a user handler. | Active |
 
-#### `AlertSeverityCode` · `alert-severity` <a id="code-family-alertseveritycode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Info` | 10 | `info` | Informational; not paging. | Active |
-| `Warning` | 20 | `warning` | Non-terminal failure transition; dedupe-window collapses repeats. | Active |
-| `Error` | 30 | `error` | Terminal failure or operator-attention event. | Active |
-| `Critical` | 40 | `critical` | Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel's transport and config. | Active |
-
-#### `JobAlertProfileCode` · `job-alert-profile` <a id="code-family-jobalertprofilecode"></a>
+#### `AlertProfileCode` · `job-alert-profile` <a id="code-family-alertprofilecode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -124,6 +115,15 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Info` | 20 | `info` | Informational alerts on final failure only; low severity. | Active |
 | `OnTerminal` | 30 | `on-terminal` | Alert on terminal failure only (final exhaustion / orphan / deadline). Resolves on recovery. | Active |
 | `SysCritical` | 40 | `sys-critical` | Reserved for system Jobs. Emits at Severity = Critical to the Job's channel, or the configured "default" channel when none is declared. | Active |
+
+#### `AlertSeverityCode` · `alert-severity` <a id="code-family-alertseveritycode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Info` | 10 | `info` | Informational; not paging. | Active |
+| `Warning` | 20 | `warning` | Non-terminal failure transition; dedupe-window collapses repeats. | Active |
+| `Error` | 30 | `error` | Terminal failure or operator-attention event. | Active |
+| `Critical` | 40 | `critical` | Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel's transport and config. | Active |
 
 ### Configuration
 
@@ -146,7 +146,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 ### Events
 
-#### `JobEventCode` · `event` <a id="code-family-jobeventcode"></a>
+#### `EventCode` · `event` <a id="code-family-eventcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -270,14 +270,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 ### Jobs
 
-#### `DeadlineBehaviorCode` · `job-deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Strict` | 10 | `strict` | Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline. | Active |
-| `Advisory` | 20 | `advisory` | Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue. | Active |
-
-#### `JobActorCode` · `actor` <a id="code-family-jobactorcode"></a>
+#### `ActorCode` · `actor` <a id="code-family-actorcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -285,6 +278,13 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Operator` | 20 | `operator` | A human or admin tool acting from outside any job context (endpoint, dashboard, admin script). ActorKey carries the authenticated principal name as-is (e.g. http.User.Identity.Name); null when the host did not authenticate. | Active |
 | `Job` | 50 | `job` | ctx.* throw-to-transition inside a user handler. ActorKey = "{jobId}". | Active |
 | `Worker` | 70 | `worker` | Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey = "{workerId}". | Active |
+
+#### `DeadlineBehaviorCode` · `job-deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Strict` | 10 | `strict` | Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline. | Active |
+| `Advisory` | 20 | `advisory` | Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue. | Active |
 
 #### `JobAuditLevelCode` · `job-audit-level` <a id="code-family-jobauditlevelcode"></a>
 
@@ -327,7 +327,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 ### Namespaces
 
-#### `JobNamespaceStatusCode` · `namespace-status` <a id="code-family-jobnamespacestatuscode"></a>
+#### `NamespaceStatusCode` · `namespace-status` <a id="code-family-namespacestatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|

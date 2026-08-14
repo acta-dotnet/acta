@@ -23,12 +23,12 @@ namespace Acta.Tests.Conformance.Features.Tenants;
 public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
-    private static JobControlActor Actor() => new(JobActorCode.Operator, "op-1");
+    private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
 
     private async Task<Tenant?> ReadTenantAsync(string key, CancellationToken ct) =>
         await Db.From<Tenant>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
 
-    private async Task<int> EventCountAsync(int tenantId, JobEventCode code, CancellationToken ct) =>
+    private async Task<int> EventCountAsync(int tenantId, EventCode code, CancellationToken ct) =>
         await Db.From<JobEvent>().Where(e => e.TenantId == tenantId && e.EventCode == code).CountAsync(ct);
 
     [Fact(DisplayName = "Suspending an active tenant applies, bumps version, and emits one tenant.suspended to sys")]
@@ -48,9 +48,9 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
         Assert.Equal(TenantStatusCode.Suspended, after!.Status);
         Assert.True(after.Version > before!.Version);
         Assert.Equal(after.Version, outcome.Version);
-        Assert.Equal(1, await EventCountAsync(id, JobEventCode.TenantSuspended, ct));
+        Assert.Equal(1, await EventCountAsync(id, EventCode.TenantSuspended, ct));
         var ev = await Db.From<JobEvent>()
-            .Where(e => e.TenantId == id && e.EventCode == JobEventCode.TenantSuspended)
+            .Where(e => e.TenantId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal((short)1, ev!.NamespaceId);
         Assert.Equal("op-1", ev.ActorKey);
@@ -68,7 +68,7 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
         var again = await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
 
         Assert.Equal(AdminControlAction.AlreadyInState, again.Action);
-        Assert.Equal(1, await EventCountAsync(id, JobEventCode.TenantSuspended, ct));
+        Assert.Equal(1, await EventCountAsync(id, EventCode.TenantSuspended, ct));
     }
 
     [Fact(DisplayName = "Resuming a suspended tenant applies and emits one tenant.resumed")]
@@ -85,7 +85,7 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
 
         Assert.Equal(AdminControlAction.Applied, outcome.Action);
         Assert.Equal(TenantStatusCode.Active, (await ReadTenantAsync(key, ct))!.Status);
-        Assert.Equal(1, await EventCountAsync(id, JobEventCode.TenantResumed, ct));
+        Assert.Equal(1, await EventCountAsync(id, EventCode.TenantResumed, ct));
     }
 
     [Fact(DisplayName = "Re-resuming an active tenant is AlreadyInState with no event")]
@@ -98,7 +98,7 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
         var outcome = await Services.GetRequiredService<ITenantStore>().ResumeTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
 
         Assert.Equal(AdminControlAction.AlreadyInState, outcome.Action);
-        Assert.Equal(0, await EventCountAsync(id, JobEventCode.TenantResumed, ct));
+        Assert.Equal(0, await EventCountAsync(id, EventCode.TenantResumed, ct));
     }
 
     [Fact(DisplayName = "Suspending an unknown key is NotFound")]

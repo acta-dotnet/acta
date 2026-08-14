@@ -76,7 +76,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    61 /* JobEventCode.JobRescheduled */, @now, @namespace_id,
+                    61 /* EventCode.JobRescheduled */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,

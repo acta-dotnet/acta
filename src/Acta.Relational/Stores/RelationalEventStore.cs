@@ -38,7 +38,7 @@ internal sealed class RelationalEventStore(IDbSession session, ISqlDialect diale
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<EventListProjectionRow>();
-                var rows = new List<JobEventListItem>(request.Take);
+                var rows = new List<EventListItem>(request.Take);
                 while (await reader.ReadAsync(token))
                 {
                     rows.Add(read(reader).ToListItem());

@@ -39,7 +39,7 @@ public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         Assert.Equal(0, snapshot.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
+        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
         Assert.Equal(JobEventReasonCode.JobDeadlineExceeded, finished.JobEventReasonCode);
 
         var ran = await CheckpointSlot.GetAsync(
@@ -65,7 +65,7 @@ public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         Assert.Equal(0, snapshot.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
+        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
         Assert.Equal(JobEventReasonCode.JobDeadlineExceeded, finished.JobEventReasonCode);
     }
 

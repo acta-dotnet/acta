@@ -25,10 +25,10 @@ BEGIN
         execution_status_code, duration_ms, reason_code, reason_message
     )
     SELECT
-        121 /* JobEventCode.WorkerStopped */,
+        121 /* EventCode.WorkerStopped */,
         @now,
         @p_namespace_id,
-        70 /* JobActorCode.Worker */,
+        70 /* ActorCode.Worker */,
         CAST(s.id AS VARCHAR(128)),
         NULL,
         NULL,

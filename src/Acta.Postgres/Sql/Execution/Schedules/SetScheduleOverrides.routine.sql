@@ -104,7 +104,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            103 /* JobEventCode.ScheduleOverridesUpdated */,
+            103 /* EventCode.ScheduleOverridesUpdated */,
             now(),
             v_ns,
             p_actor_code,

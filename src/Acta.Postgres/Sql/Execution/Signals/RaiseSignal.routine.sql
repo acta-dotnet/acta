@@ -106,7 +106,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            80 /* JobEventCode.JobSignalRaised */,
+            80 /* EventCode.JobSignalRaised */,
             v_now,
             v_namespace_id,
             p_actor_code,
@@ -156,7 +156,7 @@ BEGIN
                 reason_code,
                 reason_message)
             VALUES (
-                72 /* JobEventCode.JobResumed */,
+                72 /* EventCode.JobResumed */,
                 v_now,
                 v_namespace_id,
                 p_actor_code,

@@ -16,16 +16,16 @@ namespace Acta;
 /// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
 /// <param name="IncludeTotal">Whether to also compute the row count; allowed only with <paramref name="JobId"/>.</param>
 /// <param name="Tags">Restrict to events carrying every supplied exact tag filter.</param>
-public sealed record ListJobEventsQuery(
+public sealed record ListEventsQuery(
     long? JobId = null,
     long? LineageRootId = null,
     string? JobNamespace = null,
-    JobEventCode? EventCode = null,
+    EventCode? EventCode = null,
     int? JobDefinitionId = null,
     int? TenantId = null,
     string? TenantKey = null,
     int? WorkerId = null,
-    JobActorCode? ActorCode = null,
+    ActorCode? ActorCode = null,
     JobEventReasonCode? ReasonCode = null,
     DateTime? CreatedFromUtc = null,
     DateTime? CreatedToUtc = null,

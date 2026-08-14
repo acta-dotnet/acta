@@ -46,7 +46,7 @@ internal sealed class LedgerApi(OverviewService overview, IExecutionQueries exec
     public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
         executionQueries.ListJobsAsync(query, ct);
 
-    public ValueTask<PagedResult<JobEventListItem>> ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default) =>
+    public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
         events.ListJobEventsAsync(query, ct);
 
     public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>

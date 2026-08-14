@@ -36,13 +36,13 @@ public abstract class ListJobSchedulesSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var seen = new List<JobScheduleListItem>();
+        var seen = new List<ScheduleListItem>();
         string? cursor = null;
         var pages = 0;
         do
         {
             var page = await queries.Schedules.ListAsync(
-                new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 1, Cursor: cursor),
+                new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 1, Cursor: cursor),
                 ct
             );
             seen.AddRange(page.Items);
@@ -66,7 +66,7 @@ public abstract class ListJobSchedulesSpec<TFixture> : ActaRuntimeTestBase<TFixt
         }
 
         var withTotal = await queries.Schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 1, IncludeTotal: true),
+            new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 1, IncludeTotal: true),
             ct
         );
         Assert.Equal(seen.Count, withTotal.TotalCount);

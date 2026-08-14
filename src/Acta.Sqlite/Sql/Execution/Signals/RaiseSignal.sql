@@ -30,7 +30,7 @@ INSERT INTO {{schema}}.events (
     execution_status_code, duration_ms, reason_code, reason_message
 )
 SELECT
-    80 /* JobEventCode.JobSignalRaised */,
+    80 /* EventCode.JobSignalRaised */,
     {{now}},
     j.namespace_id,
     @p_actor_code,
@@ -61,7 +61,7 @@ INSERT INTO {{schema}}.events (
     execution_status_code, duration_ms, reason_code, reason_message
 )
 SELECT
-    72 /* JobEventCode.JobResumed */,
+    72 /* EventCode.JobResumed */,
     {{now}},
     j.namespace_id,
     @p_actor_code,

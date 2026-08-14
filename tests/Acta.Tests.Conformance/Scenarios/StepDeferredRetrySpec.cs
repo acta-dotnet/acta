@@ -62,7 +62,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 5,
                 AuditLevel: JobAuditLevelCode.Audit,
-                AlertProfile: JobAlertProfileCode.OnFailure,
+                AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await DeferredRetryStepHandler.RunAsync(ctx, ct);

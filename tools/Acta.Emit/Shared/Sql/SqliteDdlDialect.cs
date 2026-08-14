@@ -84,7 +84,7 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
         tableName == "namespaces"
             ? "-- Seed: reserved system namespace (id=1, 'sys') for cross-namespace audit events. Collation-neutral.\n"
                 + $"INSERT OR IGNORE INTO {SchemaPlaceholder}.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)\n"
-                + $"VALUES (1, 'sys', {(byte)JobNamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER), CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER));"
+                + $"VALUES (1, 'sys', {(byte)NamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER), CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER));"
             : null;
 
     // Never reached: every identity-backed key is a sole integer PK folded inline as the

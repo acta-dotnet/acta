@@ -129,8 +129,8 @@ public class CliOutputTests
         Assert.Contains("\"status\":null", json.ToString());
     }
 
-    private static JobEventListItem Event(
-        JobEventCode code,
+    private static EventListItem Event(
+        EventCode code,
         JobStatusCode? from,
         JobStatusCode? to,
         JobEventReasonCode? reason = null,
@@ -151,7 +151,7 @@ public class CliOutputTests
             TenantId: null,
             WorkerId: 3,
             ExecutionNumber: 1,
-            ActorCode: JobActorCode.Worker,
+            ActorCode: ActorCode.Worker,
             ActorKey: null,
             FromStatus: from,
             ToStatus: to,
@@ -166,11 +166,11 @@ public class CliOutputTests
     public void Events_plain_writes_one_line_per_event_with_reason_detail()
     {
         var w = new StringWriter();
-        var page = new PagedResult<JobEventListItem>(
+        var page = new PagedResult<EventListItem>(
             [
-                Event(JobEventCode.JobExecutionStarted, JobStatusCode.Ready, JobStatusCode.Executing),
+                Event(EventCode.JobExecutionStarted, JobStatusCode.Ready, JobStatusCode.Executing),
                 Event(
-                    JobEventCode.JobExecutionFinished,
+                    EventCode.JobExecutionFinished,
                     JobStatusCode.Executing,
                     JobStatusCode.Failed,
                     JobEventReasonCode.JobUnhandledException,
@@ -197,7 +197,7 @@ public class CliOutputTests
     public void Events_plain_empty_page_prints_no_events()
     {
         var w = new StringWriter();
-        var page = new PagedResult<JobEventListItem>([], NextCursor: null, HasMore: false, PageSize: 50, TotalCount: null);
+        var page = new PagedResult<EventListItem>([], NextCursor: null, HasMore: false, PageSize: 50, TotalCount: null);
         CliOutput.WriteEvents(w, 7, page, json: false);
         Assert.Contains("(no events)", w.ToString());
     }
@@ -206,10 +206,10 @@ public class CliOutputTests
     public void Events_json_writes_event_array_and_next_cursor()
     {
         var w = new StringWriter();
-        var page = new PagedResult<JobEventListItem>(
+        var page = new PagedResult<EventListItem>(
             [
                 Event(
-                    JobEventCode.JobExecutionFinished,
+                    EventCode.JobExecutionFinished,
                     JobStatusCode.Executing,
                     JobStatusCode.Failed,
                     JobEventReasonCode.JobUnhandledException,

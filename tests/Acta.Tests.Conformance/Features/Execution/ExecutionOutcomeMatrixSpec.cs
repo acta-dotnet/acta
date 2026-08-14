@@ -51,7 +51,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(StartExecutionAction.NotOwner, action);
         Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionStarted, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionStarted, ct));
     }
 
     [Fact(DisplayName = "StartExecution on a terminal job returns AlreadyTerminal and writes no additional started event")]
@@ -81,7 +81,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         );
 
         // Exactly one started event written during the successful execution.
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionStarted, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionStarted, ct));
 
         // Retry start with stale claim: SQL checks status IN (100, 200, 220) → AlreadyTerminal before NotOwner.
         var action = await Services
@@ -91,7 +91,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(StartExecutionAction.AlreadyTerminal, action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Count must remain at 1: no second started event written by the no-op.
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionStarted, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionStarted, ct));
     }
 
     // ---------- CompleteExecution outcomes ----------
@@ -124,7 +124,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 
         Assert.Equal(CompleteExecutionAction.NotOwner, result.Action);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
     [Fact(DisplayName = "Second CompleteExecution on a terminal job returns AlreadyTerminal with no additional finished event")]
@@ -155,7 +155,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 
         // Baseline: Succeeded with exactly one finished event.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        var finishedBefore = await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
+        var finishedBefore = await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(1, finishedBefore);
 
         // Second complete: same worker and execution_number.
@@ -164,7 +164,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(CompleteExecutionAction.AlreadyTerminal, result2.Action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Event count must be unchanged: no second finished event.
-        Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct));
+        Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
     [Fact(DisplayName = "Stale CompleteExecution by a displaced worker returns NotOwner and leaves job owned by the new claimant")]
@@ -207,7 +207,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(claimed1.ExecutionNumber + 1, claimed2.ExecutionNumber);
 
         // Capture finished-event count before the stale attempt (one orphaned event exists from the reclaim).
-        var finishedBefore = await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
+        var finishedBefore = await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(1, finishedBefore);
 
         // Worker1's stale complete: (worker1Id, execution_number=1) vs. current (worker2Id, execution_number=2, status=40).
@@ -219,7 +219,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(CompleteExecutionAction.NotOwner, result.Action);
         Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Count unchanged: the stale attempt wrote no additional finished event.
-        Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct));
+        Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
     // ---------- helpers ----------

@@ -24,13 +24,13 @@ public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 {
     protected override bool RunAsWorker => true;
 
-    private static JobControlActor Actor() => new(JobActorCode.Operator, "op-1");
+    private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
 
     private async Task<JobNamespace?> ReadNsAsync(CancellationToken ct) =>
         await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(short nsId, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.NamespaceId == nsId && e.EventCode == JobEventCode.NamespaceUpdated).CountAsync(ct);
+        await Db.From<JobEvent>().Where(e => e.NamespaceId == nsId && e.EventCode == EventCode.NamespaceUpdated).CountAsync(ct);
 
     [Fact(DisplayName = "A matching version writes owner_team + description, bumps version, and emits namespace.updated")]
     public async Task Applies_and_emits()

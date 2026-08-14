@@ -95,7 +95,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            100 /* JobEventCode.SchedulePaused */,
+            100 /* EventCode.SchedulePaused */,
             now(),
             v_ns,
             p_actor_code,

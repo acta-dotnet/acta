@@ -68,7 +68,7 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
 
             case TagScopeCode.Schedule:
             {
-                var schedule = (JobScheduleLookup)target.Lookup;
+                var schedule = (ScheduleLookup)target.Lookup;
                 var jobId = await jobs.ResolveJobIdAsync(schedule.Job, ct);
                 if (jobId is null)
                 {
@@ -77,7 +77,7 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
 
                 var name = IdentifierSyntax.CanonicalizeUserKebab(
                     schedule.ScheduleName,
-                    nameof(JobScheduleLookup.ScheduleName),
+                    nameof(ScheduleLookup.ScheduleName),
                     TagLimits.MaxNameLength
                 );
                 return new ResolvedTagTarget(TagScopeCode.Schedule, jobId, name);

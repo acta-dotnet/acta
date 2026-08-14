@@ -96,7 +96,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    100 /* JobEventCode.SchedulePaused */, @now, @ns,
+                    100 /* EventCode.SchedulePaused */, @now, @ns,
                     @p_actor_code, @p_actor_key,
                     @p_job_id, @job_ref, @en,
                     COALESCE(@lineage, @p_job_id), @def,

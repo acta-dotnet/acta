@@ -16,7 +16,7 @@ public static class NoAlertProbe
 
     public static int Attempts(string jobNamespace) => _attempts.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("no-alert-probe", MaxAttempts = 1, AlertProfile = JobAlertProfileCode.None)]
+    [Job("no-alert-probe", MaxAttempts = 1, AlertProfile = AlertProfileCode.None)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         _attempts.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);

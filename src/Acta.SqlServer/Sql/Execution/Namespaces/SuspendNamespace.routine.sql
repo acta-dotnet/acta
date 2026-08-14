@@ -27,7 +27,7 @@ BEGIN
                 RETURN;
             END;
 
-        IF @status = 20 /* JobNamespaceStatusCode.Suspended */
+        IF @status = 20 /* NamespaceStatusCode.Suspended */
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
@@ -37,7 +37,7 @@ BEGIN
             END;
 
         UPDATE {{schema}}.namespaces
-        SET status_code = 20 /* JobNamespaceStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
+        SET status_code = 20 /* NamespaceStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
         WHERE id = @id;
         SET @version = @version + 1;
 
@@ -47,7 +47,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            20 /* JobEventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key,
+            20 /* EventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );

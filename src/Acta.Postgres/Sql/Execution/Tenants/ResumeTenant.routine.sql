@@ -57,7 +57,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        11 /* JobEventCode.TenantResumed */,
+        11 /* EventCode.TenantResumed */,
         now(),
         1,
         p_actor_code,

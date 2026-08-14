@@ -84,10 +84,10 @@ public abstract class GoldenPathSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var jobId = enqueued.JobId;
 
         var events = await GetEventsByJobId.Run(Services, jobId, ct);
-        var observedTypes = events.Select(e => e.JobEventCode).ToArray();
-        Assert.Equal([JobEventCode.JobExecutionStarted, JobEventCode.JobExecutionFinished], observedTypes);
+        var observedTypes = events.Select(e => e.EventCode).ToArray();
+        Assert.Equal([EventCode.JobExecutionStarted, EventCode.JobExecutionFinished], observedTypes);
 
-        var finishedEvent = events.Single(e => e.JobEventCode == JobEventCode.JobExecutionFinished);
+        var finishedEvent = events.Single(e => e.EventCode == EventCode.JobExecutionFinished);
         Assert.Equal(ExecutionStatusCode.Succeeded, finishedEvent.ExecutionStatus);
         Assert.Equal(JobStatusCode.Executing, finishedEvent.FromStatus);
         Assert.Equal(JobStatusCode.Succeeded, finishedEvent.ToStatus);

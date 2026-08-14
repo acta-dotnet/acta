@@ -18,7 +18,7 @@ internal sealed class OutboxRelayJob(OutboxRelayRegistry registry, IOptions<Jobs
         "sys.outbox",
         Priority = JobPriorityCode.Critical,
         AuditLevel = JobAuditLevelCode.Failures,
-        AlertProfile = JobAlertProfileCode.SysCritical
+        AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.Every5Seconds)]
     public async Task<string> Handle(JobContext ctx, CancellationToken ct)

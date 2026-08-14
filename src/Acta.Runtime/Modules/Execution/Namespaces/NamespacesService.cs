@@ -17,7 +17,7 @@ internal sealed class NamespacesService(INamespaceStore store)
     private const string ListItemsOperationName = "ListNamespaceItems";
 
     private static JobControlActor Operator(string? actorKey) =>
-        new(JobActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
     private static string? Reason(string? msg) => msg.Truncate(ActaTextLimits.ReasonMessage);
 

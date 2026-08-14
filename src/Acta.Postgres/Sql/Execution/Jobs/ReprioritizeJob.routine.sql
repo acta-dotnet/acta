@@ -64,7 +64,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            74 /* JobEventCode.JobReprioritized */,
+            74 /* EventCode.JobReprioritized */,
             now(),
             v_namespace_id,
             p_actor_code,

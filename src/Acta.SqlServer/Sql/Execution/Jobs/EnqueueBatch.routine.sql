@@ -57,7 +57,7 @@ BEGIN
         IF
             EXISTS (
                 SELECT 1 FROM @resolved
-                WHERE ns_status <> 10 /* JobNamespaceStatusCode.Active */
+                WHERE ns_status <> 10 /* NamespaceStatusCode.Active */
             )
             BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;

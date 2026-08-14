@@ -415,7 +415,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                                 Diagnostics.InvalidPolicyValue(
                                     named.Key,
                                     ap.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The value is not a defined `JobAlertProfileCode`.",
+                                    "The value is not a defined `AlertProfileCode`.",
                                     location
                                 )
                             );
@@ -595,7 +595,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     }
 
     // Enum-typed attribute arguments box as their underlying type: byte for the code-family enums
-    // (JobPriorityCode / JobAuditLevelCode / JobAlertProfileCode), so an `is int` pattern silently
+    // (JobPriorityCode / JobAuditLevelCode / AlertProfileCode), so an `is int` pattern silently
     // misses them. Read whatever integral the constant carries and narrow to byte.
     private static bool TryGetEnumByte(TypedConstant constant, out byte value)
     {
@@ -1443,7 +1443,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             sb.AppendLine($"                    Priority: JobPriorityCode.{j.PriorityName},");
             sb.AppendLine($"                    MaxAttempts: {j.MaxAttempts},");
             sb.AppendLine($"                    AuditLevel: JobAuditLevelCode.{j.AuditLevelName},");
-            sb.AppendLine($"                    AlertProfile: JobAlertProfileCode.{j.AlertProfileName},");
+            sb.AppendLine($"                    AlertProfile: AlertProfileCode.{j.AlertProfileName},");
             sb.AppendLine($"                    Invoker: GeneratedHandlerDispatch.Invoke_{j.JobNameSafe()},");
             sb.AppendLine($"                    DeserializeInput: GeneratedHandlerDispatch.DeserializeInput_{j.JobNameSafe()},");
             var serExpr = j.OutputType is null ? "null" : $"GeneratedHandlerDispatch.SerializeOutput_{j.JobNameSafe()}";
@@ -1519,7 +1519,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 }
                 if (hasSchedules)
                 {
-                    sb.AppendLine("                    Schedules = ImmutableArray.Create<JobScheduleDescriptor>(");
+                    sb.AppendLine("                    Schedules = ImmutableArray.Create<ScheduleDescriptor>(");
                     EmitScheduleDescriptors(sb, j);
                     sb.AppendLine("                    ),");
                     sb.AppendLine($"                    CreateDefaultInput = static () => new {InputTypeExpr(j)}(),");
@@ -1576,7 +1576,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             var envExpr = s.Environments.IsDefaultOrEmpty
                 ? "ImmutableArray<string>.Empty"
                 : $"ImmutableArray.Create<string>({string.Join(", ", s.Environments.Select(Lit))})";
-            sb.AppendLine("                        new JobScheduleDescriptor(");
+            sb.AppendLine("                        new ScheduleDescriptor(");
             sb.AppendLine($"                            JobName: {Lit(s.JobName)},");
             sb.AppendLine($"                            ScheduleName: {Lit(s.ScheduleName)},");
             sb.AppendLine($"                            Expression: {Lit(s.Expression)},");

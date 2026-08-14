@@ -8,7 +8,7 @@ public interface ISchedules
 {
     /// <summary>Pause the schedule identified by <paramref name="schedule"/>. Null <paramref name="untilUtc"/> pauses indefinitely; a timestamp auto-resumes. Stamps actor=Operator and records <paramref name="note"/>. <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. Missing schedule is NotFound; orphaned or past untilUtc is Rejected.</summary>
     ValueTask<ScheduleControlResult> PauseAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         DateTime? untilUtc = null,
         string? note = null,
         string? actorKey = null,
@@ -17,7 +17,7 @@ public interface ISchedules
 
     /// <summary>Resume the schedule identified by <paramref name="schedule"/>: clears the pause and reconciles the cursor by misfire policy. <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. Missing schedule is NotFound; orphaned is Rejected.</summary>
     ValueTask<ScheduleControlResult> ResumeAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         string? note = null,
         string? actorKey = null,
         CancellationToken ct = default
@@ -25,7 +25,7 @@ public interface ISchedules
 
     /// <summary>Sets a full-set operator override on <paramref name="schedule"/>'s expression and/or time zone, CAS-guarded on <paramref name="expectedVersion"/>. A null <paramref name="expression"/>/<paramref name="timeZoneId"/> clears that override (falls back to the definition default); a non-null value replaces it after validating that it parses (Cron or ISO 8601, per the schedule's existing kind) and, for a time zone, that the id resolves via <see cref="TimeZoneInfo.FindSystemTimeZoneById(string)"/>; an invalid value throws <see cref="ArgumentException"/> before any write. <paramref name="actorKey"/> is recorded on the audit event as the operator identity; null when unknown. Missing/orphaned schedule is NotFound; a stale <paramref name="expectedVersion"/> is Rejected carrying the schedule's current state so the caller can re-read.</summary>
     ValueTask<ScheduleControlResult> UpdateOverridesAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         int expectedVersion,
         string? expression,
         string? timeZoneId,
@@ -36,14 +36,14 @@ public interface ISchedules
 
     /// <summary>Fires the schedule identified by <paramref name="schedule"/> right now: pulls the owning slot's cursor to the current instant so the next claim sweep picks it up immediately, leaving the schedule's own cursor (and cadence) untouched. <paramref name="actorKey"/> is recorded on the audit event as the operator identity; null when unknown. <paramref name="note"/> rides the audit event's reason message alongside the schedule name (this verb writes no schedule row, so the note is not persisted anywhere else). Missing/orphaned schedule is NotFound; a paused schedule is Rejected (resume first); a slot already Dispatched or Executing is Rejected (a fire is already in flight).</summary>
     ValueTask<ScheduleControlResult> TriggerNowAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         string? note = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
 
     /// <summary>List schedules next-run first, optionally filtered by namespace, name, origin, and liveness.</summary>
-    ValueTask<PagedResult<JobScheduleListItem>> ListAsync(ListJobSchedulesQuery query, CancellationToken ct = default);
+    ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// Previews up to <paramref name="count"/> (clamped to [1, 50]) upcoming fire instants for the
@@ -55,5 +55,5 @@ public interface ISchedules
     /// entries (down to none) when the expression is exhausted (e.g. an unsatisfiable cron field
     /// combination). Missing schedule is null.
     /// </summary>
-    ValueTask<SchedulePreview?> PreviewAsync(JobScheduleLookup schedule, int count = 10, CancellationToken ct = default);
+    ValueTask<SchedulePreview?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default);
 }

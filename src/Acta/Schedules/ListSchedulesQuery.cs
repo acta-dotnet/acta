@@ -12,7 +12,7 @@ namespace Acta;
 /// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
 /// <param name="IncludeTotal">Whether to also compute the filter-wide row count.</param>
 /// <param name="Tags">Restrict to schedules carrying every supplied exact tag filter.</param>
-public sealed record ListJobSchedulesQuery(
+public sealed record ListSchedulesQuery(
     string? JobNamespace = null,
     string? JobName = null,
     ScheduleOriginCode? Origin = null,

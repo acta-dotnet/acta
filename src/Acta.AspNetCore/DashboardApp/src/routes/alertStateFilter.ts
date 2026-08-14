@@ -21,7 +21,7 @@ export function alertStateMatches(bucket: AlertStateBucket, row: AlertStateRow):
   return alertStateBucket(row) === bucket;
 }
 
-// Server-side query params for the selected bucket (ListJobAlertsQuery.UnresolvedOnly/Acknowledged).
+// Server-side query params for the selected bucket (ListAlertsQuery.UnresolvedOnly/Acknowledged).
 // unacknowledged/acknowledged narrow the fetch server-side; resolved has no "resolved only" server
 // param (UnresolvedOnly only ever restricts to unresolved, never to resolved), so it fetches
 // unfiltered and relies on alertStateMatches (via ActaGrid's rowFilter) as the client-side backstop.

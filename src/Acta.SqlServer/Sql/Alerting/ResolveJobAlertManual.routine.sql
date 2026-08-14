@@ -75,7 +75,7 @@ BEGIN
             reason_code, reason_message
         )
         VALUES (
-            141 /* JobEventCode.AlertResolved */, @now, @namespace_id,
+            141 /* EventCode.AlertResolved */, @now, @namespace_id,
             @p_actor_code, @p_actor_key,
             @job_id, @job_ref, @execution_number,
             COALESCE(@lineage_root_id, @job_id), @definition_id,

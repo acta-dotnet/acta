@@ -26,7 +26,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    41 /* JobEventCode.JobExecutionFinished */,
+    41 /* EventCode.JobExecutionFinished */,
     {{now}},
     j.namespace_id,
     @p_actor_code,
@@ -71,7 +71,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    70 /* JobEventCode.JobCancelled */,
+    70 /* EventCode.JobCancelled */,
     {{now}},
     j.namespace_id,
     @p_actor_code,

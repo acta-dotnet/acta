@@ -125,10 +125,10 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
         await FireOnceAsync(slotId, ct);
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        var codes = events.Select(e => e.JobEventCode).ToHashSet();
-        Assert.Contains(JobEventCode.JobExecutionStarted, codes);
-        Assert.Contains(JobEventCode.JobExecutionFinished, codes);
-        Assert.Contains(JobEventCode.JobRecurringRolledOver, codes);
+        var codes = events.Select(e => e.EventCode).ToHashSet();
+        Assert.Contains(EventCode.JobExecutionStarted, codes);
+        Assert.Contains(EventCode.JobExecutionFinished, codes);
+        Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
 
     [Fact(DisplayName = "Result ring buffer trims to the cap keeping the newest entries")]
@@ -225,7 +225,7 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Null(slot.NextRunAtUtc);
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        var cancelEvent = Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobCancelled));
+        var cancelEvent = Assert.Single(events.Where(e => e.EventCode == EventCode.JobCancelled));
         Assert.Equal(JobEventReasonCode.JobHandlerCancelled, cancelEvent.JobEventReasonCode);
     }
 

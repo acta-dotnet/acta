@@ -69,7 +69,7 @@ INSERT INTO {{schema}}.events (
     detail_format_id,
     detail)
 SELECT
-    160 /* JobEventCode.SettingUpdated */,
+    160 /* EventCode.SettingUpdated */,
     {{now}},
     COALESCE(r.namespace_id, 1),
     @p_actor_code,

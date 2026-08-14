@@ -26,7 +26,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    74 /* JobEventCode.JobReprioritized */,
+    74 /* EventCode.JobReprioritized */,
     {{now}},
     j.namespace_id,
     @p_actor_code,

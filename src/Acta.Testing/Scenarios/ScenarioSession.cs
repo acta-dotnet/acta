@@ -117,7 +117,7 @@ public class ScenarioSession<TInput>
 
     public async Task<IReadOnlyList<ScenarioEventSnapshot>> EventsAsync(CancellationToken ct = default)
     {
-        var page = await Host.Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: JobId, PageSize: 100), ct);
+        var page = await Host.Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: JobId, PageSize: 100), ct);
         return page.Items.Reverse().Select(ScenarioDiagnostics.ToScenario).ToList();
     }
 

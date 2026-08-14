@@ -58,7 +58,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<JobScheduleListRow>();
-                var rows = new List<JobScheduleListItem>(request.Take);
+                var rows = new List<ScheduleListItem>(request.Take);
                 while (await reader.ReadAsync(token))
                 {
                     rows.Add(read(reader).ToItem());

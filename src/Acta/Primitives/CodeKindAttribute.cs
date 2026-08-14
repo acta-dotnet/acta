@@ -8,7 +8,7 @@ namespace Acta;
 /// </summary>
 /// <remarks>
 /// Value pattern: kebab segments, optionally dotted (mirrors the per-member <c>Code</c> rule used
-/// by <c>JobEventCode</c>): <c>^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*$</c>.
+/// by <c>EventCode</c>): <c>^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*$</c>.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Enum, AllowMultiple = false, Inherited = false)]
 public sealed class CodeKindAttribute(string codeKind) : Attribute

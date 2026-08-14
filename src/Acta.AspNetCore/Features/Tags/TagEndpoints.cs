@@ -231,7 +231,7 @@ internal static class TagEndpoints
         JobTargetBinding.TryParseTarget(jobRef, options, out var lookup) ? TagTarget.ForJob(lookup) : null;
 
     private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
-        TagTarget.ForSchedule(new JobScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));
+        TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));
 
     /// <summary>Resolve a target for a read, mapping a malformed identifier to null (a 404) rather than a fault.</summary>
     private static TagTarget? ResolveOrNull(Func<TagTarget> factory)

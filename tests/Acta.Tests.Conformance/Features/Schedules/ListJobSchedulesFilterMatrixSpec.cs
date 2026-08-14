@@ -106,7 +106,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
         // Capture IDs via namespace-only read (independent of jobName filter)
-        var all = (await Queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
+        var all = (await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
         var aIds = all.Where(s => s.JobName == "recurring-ping").Select(s => s.JobScheduleId).ToHashSet();
         var bIds = all.Where(s => s.JobName == jobBName).Select(s => s.JobScheduleId).ToHashSet();
         Assert.NotEmpty(aIds);
@@ -114,7 +114,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
 
         // Filter by recurring-ping: exact set + total, job B excluded
         var aPage = await Queries.Schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: TestNamespace, JobName: "recurring-ping", IncludeTotal: true),
+            new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: "recurring-ping", IncludeTotal: true),
             ct
         );
         Assert.Equal(aIds, [.. aPage.Items.Select(s => s.JobScheduleId)]);
@@ -122,7 +122,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
         Assert.Empty(aPage.Items.Select(s => s.JobScheduleId).Intersect(bIds));
 
         // Filter by job B: exact set, recurring-ping excluded
-        var bPage = await Queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, JobName: jobBName), ct);
+        var bPage = await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: jobBName), ct);
         Assert.Equal(bIds, [.. bPage.Items.Select(s => s.JobScheduleId)]);
         Assert.Empty(bPage.Items.Select(s => s.JobScheduleId).Intersect(aIds));
     }
@@ -140,19 +140,14 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
         // Capture all schedule IDs via namespace read (independent of origin filter)
-        var all = (await Queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
+        var all = (await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
         var defIds = all.Select(s => s.JobScheduleId).ToHashSet();
         Assert.True(defIds.Count >= 2);
         Assert.All(all, s => Assert.Equal(ScheduleOriginCode.Definition, s.Origin));
 
         // Origin=Definition returns exactly all namespace schedules + total
         var page = await Queries.Schedules.ListAsync(
-            new ListJobSchedulesQuery(
-                JobNamespace: TestNamespace,
-                Origin: ScheduleOriginCode.Definition,
-                PageSize: 100,
-                IncludeTotal: true
-            ),
+            new ListSchedulesQuery(JobNamespace: TestNamespace, Origin: ScheduleOriginCode.Definition, PageSize: 100, IncludeTotal: true),
             ct
         );
         Assert.Equal(defIds, [.. page.Items.Select(s => s.JobScheduleId)]);
@@ -179,7 +174,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
 
         // Capture all (including orphaned) via LiveOnly=false: independent of the liveOnly filter
         var allItems = (
-            await Queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, LiveOnly: false), ct)
+            await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, LiveOnly: false), ct)
         ).Items;
         var liveIds = allItems.Where(s => s.Status != ScheduleStatusCode.Orphaned).Select(s => s.JobScheduleId).ToHashSet();
         var orphanedIds = allItems.Where(s => s.Status == ScheduleStatusCode.Orphaned).Select(s => s.JobScheduleId).ToHashSet();
@@ -190,7 +185,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
 
         // LiveOnly=true (default): exact liveIds, no orphaned, total = liveIds count
         var livePage = await Queries.Schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: true, PageSize: 100, IncludeTotal: true),
+            new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: true, PageSize: 100, IncludeTotal: true),
             ct
         );
         Assert.Equal(liveIds, [.. livePage.Items.Select(s => s.JobScheduleId)]);
@@ -199,7 +194,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
 
         // LiveOnly=false: exact full set (live + orphaned)
         var allPage = await Queries.Schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: false, PageSize: 100),
+            new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: false, PageSize: 100),
             ct
         );
         Assert.Equal(allItems.Select(s => s.JobScheduleId).ToHashSet(), [.. allPage.Items.Select(s => s.JobScheduleId)]);
@@ -227,13 +222,10 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
 
         // Read each namespace independently (the reads are the independent origin for each partition)
         var ns1Page = await Queries.Schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, IncludeTotal: true),
+            new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, IncludeTotal: true),
             ct
         );
-        var ns2Page = await Queries.Schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: ns2, PageSize: 100, IncludeTotal: true),
-            ct
-        );
+        var ns2Page = await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: ns2, PageSize: 100, IncludeTotal: true), ct);
 
         var ns1Ids = ns1Page.Items.Select(s => s.JobScheduleId).ToHashSet();
         var ns2Ids = ns2Page.Items.Select(s => s.JobScheduleId).ToHashSet();

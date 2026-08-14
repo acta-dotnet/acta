@@ -19,10 +19,10 @@ INSERT INTO {{schema}}.events (
     reason_message
 )
 SELECT
-    90 /* JobEventCode.JobNoteRecorded */,
+    90 /* EventCode.JobNoteRecorded */,
     {{now}},
     j.namespace_id,
-    50 /* JobActorCode.Job */,
+    50 /* ActorCode.Job */,
     j.id,
     j.job_ref,
     r.execution_number,

@@ -58,7 +58,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        22 /* JobEventCode.NamespaceUpdated */,
+        22 /* EventCode.NamespaceUpdated */,
         now(),
         v_id,
         p_actor_code,

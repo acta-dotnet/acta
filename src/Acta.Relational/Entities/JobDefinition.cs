@@ -256,15 +256,15 @@ internal sealed class JobDefinition : IEntity<int>
     /// <c>Info</c> / <c>OnTerminal</c> / <c>SysCritical</c>).
     /// </summary>
     [DbColumn("alert_profile_code")]
-    public JobAlertProfileCode AlertProfile { get; internal set; }
+    public AlertProfileCode AlertProfile { get; internal set; }
 
     /// <summary>Operator override of <see cref="AlertProfile"/>; NULL = inherit.</summary>
     [DbColumn("alert_profile_code_override")]
-    public JobAlertProfileCode? AlertProfileOverride { get; internal set; }
+    public AlertProfileCode? AlertProfileOverride { get; internal set; }
 
     /// <summary>Effective alert profile (DB-computed); read-only.</summary>
     [DbColumn("alert_profile_code_effective", Generated = "COALESCE(alert_profile_code_override, alert_profile_code)")]
-    public JobAlertProfileCode AlertProfileEffective { get; internal set; }
+    public AlertProfileCode AlertProfileEffective { get; internal set; }
 
     /// <summary>
     /// Channel that automatic alerts route to; must resolve to a startup-configured alert channel at

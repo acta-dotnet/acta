@@ -679,7 +679,7 @@ internal sealed class JobsService(
         new(Operator(actorKey), Acta.JobEventReasonCode.JobControlManual, msg.Truncate(ActaTextLimits.ReasonMessage));
 
     private static JobControlActor Operator(string? actorKey) =>
-        new(JobActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
     private async ValueTask<JobControlResult> ApplyControlAsync(
         JobLookup lookup,

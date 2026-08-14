@@ -96,7 +96,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            76 /* JobEventCode.JobInputAmended */,
+            76 /* EventCode.JobInputAmended */,
             now(),
             v_namespace_id,
             p_actor_code,

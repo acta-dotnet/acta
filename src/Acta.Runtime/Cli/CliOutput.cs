@@ -272,7 +272,7 @@ internal static class CliOutput
     /// instant, code, and status transition on one line; reason code and message, when present,
     /// follow on indented lines. A trailing hint surfaces the cursor for the next page.
     /// </summary>
-    public static void WriteEvents(TextWriter writer, long jobId, PagedResult<JobEventListItem> page, bool json)
+    public static void WriteEvents(TextWriter writer, long jobId, PagedResult<EventListItem> page, bool json)
     {
         if (json)
         {

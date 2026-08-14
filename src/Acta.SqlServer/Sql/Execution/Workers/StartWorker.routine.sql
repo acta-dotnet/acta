@@ -90,7 +90,7 @@ BEGIN
             execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            120 /* JobEventCode.WorkerStarted */, @now, @ns_id, 70 /* JobActorCode.Worker */, CAST(@worker_id AS VARCHAR(128)),
+            120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, CAST(@worker_id AS VARCHAR(128)),
             NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
         );
 

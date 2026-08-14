@@ -182,6 +182,6 @@ public class ScheduleWalkerPauseTests
         Assert.Equal(row.NextRunAtUtc, slotMin);
     }
 
-    private static JobScheduleDescriptor Descriptor(string scheduleName) =>
+    private static ScheduleDescriptor Descriptor(string scheduleName) =>
         new("job", scheduleName, Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, []);
 }

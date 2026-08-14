@@ -46,10 +46,10 @@ BEGIN
             reason_code,
             reason_message)
         SELECT
-            122 /* JobEventCode.WorkerDead */,
+            122 /* EventCode.WorkerDead */,
             now(),
             d.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             d.id::VARCHAR,
             NULL,
             NULL,

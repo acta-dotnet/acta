@@ -23,7 +23,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                 {
                     Name = name,
                     OwnerTeam = ownerTeam,
-                    Status = JobNamespaceStatusCode.Active,
+                    Status = NamespaceStatusCode.Active,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
                 },
@@ -60,7 +60,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     DeadlineBehavior = DeadlineBehaviorCode.Advisory,
                     JobRetentionSeconds = 3600,
                     AuditLevel = JobAuditLevelCode.Off,
-                    AlertProfile = JobAlertProfileCode.None,
+                    AlertProfile = AlertProfileCode.None,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
                 },

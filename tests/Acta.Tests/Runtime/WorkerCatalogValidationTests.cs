@@ -72,7 +72,7 @@ public sealed class WorkerCatalogValidationTests
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
             AuditLevel: JobAuditLevelCode.Audit,
-            AlertProfile: JobAlertProfileCode.None,
+            AlertProfile: AlertProfileCode.None,
             Invoker: static async (_, _, _, _) =>
             {
                 await Task.CompletedTask;

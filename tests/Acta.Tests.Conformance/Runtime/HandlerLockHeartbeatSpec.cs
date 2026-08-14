@@ -83,7 +83,7 @@ public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<T
         Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished));
+        var finished = Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionFinished));
         Assert.Equal(JobEventReasonCode.JobAttemptAborted, finished.JobEventReasonCode);
     }
 

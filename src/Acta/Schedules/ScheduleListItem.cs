@@ -12,7 +12,7 @@ namespace Acta;
 /// <param name="Status">Lifecycle state (Active / Paused / Orphaned).</param> <param name="PausedUntilUtc">When a timed pause expires, or null.</param>
 /// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 /// <param name="Version">Optimistic-concurrency row version; pass as the expected version to a CAS control verb.</param>
-public sealed record JobScheduleListItem(
+public sealed record ScheduleListItem(
     long JobScheduleId,
     long JobId,
     int JobDefinitionId,

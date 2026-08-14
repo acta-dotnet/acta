@@ -11,7 +11,7 @@ public interface ILedger
     ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default);
 
     /// <summary>List audit events newest first, optionally scoped to a job, lineage, namespace, or event code.</summary>
-    ValueTask<PagedResult<JobEventListItem>> ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default);
+    ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default);
 
     /// <summary>One-shot dashboard health counters, optionally scoped to a namespace.</summary>
     ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default);

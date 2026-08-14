@@ -204,7 +204,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
             Assert.NotNull(runtime!.RetentionUntilUtc);
 
             var ev = await Db.From<JobEvent>()
-                .Where(e => e.JobId == cancelled.JobId && e.EventCode == JobEventCode.JobCancelled)
+                .Where(e => e.JobId == cancelled.JobId && e.EventCode == EventCode.JobCancelled)
                 .SingleOrDefaultAsync(ct);
             Assert.NotNull(ev);
             Assert.Equal(JobEventReasonCode.JobDefinitionRetired, ev!.ReasonCode);
@@ -240,7 +240,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
 
         // Exactly one cancellation event exists (from the first registration); the later call emitted none.
         var ev = await Db.From<JobEvent>()
-            .Where(e => e.JobId == job.JobId && e.EventCode == JobEventCode.JobCancelled)
+            .Where(e => e.JobId == job.JobId && e.EventCode == EventCode.JobCancelled)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(ev);
     }

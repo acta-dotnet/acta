@@ -4,7 +4,7 @@ namespace Acta.Runtime.Modules.Execution.Api;
 /// Who or what caused a control transition, stamped onto the emitted <c>events</c>
 /// (<c>actor_code</c> and <c>actor_key</c>). Internal and constructor-validated so callers cannot forge
 /// an out-of-range actor or an over-long id; the public <see cref="IJobs"/> control verbs never accept
-/// an actor from the caller and stamp <see cref="JobActorCode.Operator"/> themselves.
+/// an actor from the caller and stamp <see cref="ActorCode.Operator"/> themselves.
 /// </summary>
 internal readonly record struct JobControlActor
 {
@@ -14,7 +14,7 @@ internal readonly record struct JobControlActor
     /// Build a validated actor. <paramref name="actorKey"/> is ASCII, at most 128 chars, matching the
     /// <c>events.actor_key</c> column.
     /// </summary>
-    public JobControlActor(JobActorCode actorCode, string? actorKey = null)
+    public JobControlActor(ActorCode actorCode, string? actorKey = null)
     {
         if (!Enum.IsDefined(actorCode))
         {
@@ -66,8 +66,8 @@ internal readonly record struct JobControlActor
     }
 
     /// <summary>Actor classification stamped on the event.</summary>
-    public JobActorCode ActorCode { get; }
+    public ActorCode ActorCode { get; }
 
-    /// <summary>Actor identifier, format per <see cref="JobActorCode"/>; may be null.</summary>
+    /// <summary>Actor identifier, format per <see cref="ActorCode"/>; may be null.</summary>
     public string? ActorKey { get; }
 }

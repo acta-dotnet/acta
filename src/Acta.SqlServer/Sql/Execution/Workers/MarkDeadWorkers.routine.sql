@@ -23,10 +23,10 @@ BEGIN
         execution_status_code, duration_ms, reason_code, reason_message
     )
     SELECT
-        122 /* JobEventCode.WorkerDead */,
+        122 /* EventCode.WorkerDead */,
         SYSUTCDATETIME(),
         m.namespace_id,
-        70 /* JobActorCode.Worker */,
+        70 /* ActorCode.Worker */,
         CAST(m.id AS VARCHAR(128)),
         NULL,
         NULL,

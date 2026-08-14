@@ -52,7 +52,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             );
         }
 
-        var all = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, IncludeTotal: true), ct);
+        var all = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, IncludeTotal: true), ct);
         Assert.Equal(3, all.TotalCount);
         Assert.Equal(3, all.Items.Count);
         Assert.All(all.Items, a => Assert.Equal(longTitle, a.Title));
@@ -65,13 +65,13 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         }
 
         var floored = await queries.Alerts.ListAsync(
-            new ListJobAlertsQuery(JobNamespace: TestNamespace, SeverityAtLeast: AlertSeverityCode.Error),
+            new ListAlertsQuery(JobNamespace: TestNamespace, SeverityAtLeast: AlertSeverityCode.Error),
             ct
         );
         Assert.Equal(2, floored.Items.Count);
         Assert.All(floored.Items, static a => Assert.True(a.Severity >= AlertSeverityCode.Error));
 
-        var unresolved = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, UnresolvedOnly: true), ct);
+        var unresolved = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, UnresolvedOnly: true), ct);
         Assert.Equal(3, unresolved.Items.Count);
     }
 
@@ -102,7 +102,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         // list read itself keeps job_ref from the alert's own column, not by joining back to jobs.
         await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE id = @p_id", ct, ("@p_id", completed.JobId));
 
-        var page = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace), ct);
+        var page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace), ct);
         var alert = Assert.Single(page.Items);
         Assert.Equal(completed.JobRef, alert.JobRef);
     }
@@ -197,11 +197,11 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         await Services
             .GetRequiredService<IAlertStore>()
             .AcknowledgeJobAlertAsync(
-                new AlertControlCommand(ackedId, new JobControlActor(JobActorCode.Operator, "op"), $"alert {ackedId}"),
+                new AlertControlCommand(ackedId, new JobControlActor(ActorCode.Operator, "op"), $"alert {ackedId}"),
                 ct
             );
 
-        var page = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, PageSize: 50), ct);
+        var page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, PageSize: 50), ct);
         var acked = page.Items.Single(a => a.JobAlertId == ackedId);
         Assert.NotNull(acked.AcknowledgedAtUtc);
         Assert.Contains(page.Items, a => a.AcknowledgedAtUtc is null);

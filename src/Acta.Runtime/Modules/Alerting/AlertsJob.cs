@@ -57,7 +57,7 @@ internal sealed class AlertsJob(
         "sys.alerts",
         Priority = JobPriorityCode.Critical,
         AuditLevel = JobAuditLevelCode.Failures,
-        AlertProfile = JobAlertProfileCode.SysCritical
+        AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.EveryMinute)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
@@ -133,14 +133,14 @@ internal sealed class AlertsJob(
     private async Task ProjectAsync(JobContext ctx, AlertableEvent e, DateTime windowStart, CancellationToken ct)
     {
         var profile = e.AlertProfile;
-        if (profile == JobAlertProfileCode.None)
+        if (profile == AlertProfileCode.None)
         {
             return;
         }
 
         // SysCritical only raises the severity to Critical; the channel is uniform (the declared
         // one, else the configured "default" log channel), so system-job failures sink to logs out of the box.
-        var system = profile == JobAlertProfileCode.SysCritical;
+        var system = profile == AlertProfileCode.SysCritical;
         var channel = e.AlertChannelName ?? DefaultChannelName;
 
         var isSuccess = e.ExecutionStatus == ExecutionStatusCode.Succeeded;
@@ -167,14 +167,14 @@ internal sealed class AlertsJob(
         {
             var severity = system
                 ? AlertSeverityCode.Critical
-                : (profile == JobAlertProfileCode.Info ? AlertSeverityCode.Info : AlertSeverityCode.Error);
+                : (profile == AlertProfileCode.Info ? AlertSeverityCode.Info : AlertSeverityCode.Error);
             await EmitAsync(ctx, e, channel, AlertKindCode.FinalFailure, severity, windowStart, ct);
             return;
         }
 
         // Non-terminal failure (re-armed for retry / next occurrence). Only OnFailure and the system
         // profile alert on these; OnTerminal / Info stay quiet until the terminal transition.
-        if (profile is not (JobAlertProfileCode.OnFailure or JobAlertProfileCode.SysCritical))
+        if (profile is not (AlertProfileCode.OnFailure or AlertProfileCode.SysCritical))
         {
             return;
         }

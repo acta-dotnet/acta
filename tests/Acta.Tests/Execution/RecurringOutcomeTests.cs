@@ -117,7 +117,7 @@ public class RecurringOutcomeTests
             Priority: JobPriorityCode.Normal,
             MaxAttempts: maxAttempts,
             AuditLevel: JobAuditLevelCode.Audit,
-            AlertProfile: JobAlertProfileCode.OnFailure,
+            AlertProfile: AlertProfileCode.OnFailure,
             Invoker: static async (_, _, _, _) =>
             {
                 await Task.CompletedTask;

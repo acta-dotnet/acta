@@ -117,9 +117,9 @@ public sealed class JobAttribute(string name) : Attribute
 
     /// <summary>
     /// Automatic-alert profile; default <c>OnFailure</c> for user Jobs. The transition-to-severity
-    /// mapping lives in the <c>JobAlertProfileCode</c> code-family XML docs.
+    /// mapping lives in the <c>AlertProfileCode</c> code-family XML docs.
     /// </summary>
-    public JobAlertProfileCode AlertProfile { get; init; } = JobAlertProfileCode.OnFailure;
+    public AlertProfileCode AlertProfile { get; init; } = AlertProfileCode.OnFailure;
 
     /// <summary>
     /// Operator-stable alert channel name to which this Job's alerts route.

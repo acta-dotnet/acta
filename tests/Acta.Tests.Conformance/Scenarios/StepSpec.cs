@@ -99,7 +99,7 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
 
         var jobAfterFirst = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal((short)0, jobAfterFirst.FailureCount);
-        var rescheduleEvent = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobRescheduled, ct);
+        var rescheduleEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(JobEventReasonCode.JobStepRetryScheduled, rescheduleEvent.ReasonCode);
 
         // Tick 2: attempt_number increments before the second invocation, which also fails.
@@ -137,7 +137,7 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
+        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(JobEventReasonCode.JobUnhandledException, finishedEvent.ReasonCode);
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }

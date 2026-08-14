@@ -48,7 +48,7 @@ public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.True(after.Version > before.Version);
 
-        var evt = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobReprioritized, ct);
+        var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobReprioritized, ct);
         Assert.Equal("spec-actor", evt.ActorKey);
     }
 

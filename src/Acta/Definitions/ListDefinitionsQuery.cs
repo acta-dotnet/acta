@@ -10,7 +10,7 @@ namespace Acta;
 /// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
 /// <param name="IncludeTotal">Whether to also compute the filter-wide row count.</param>
 /// <param name="Tags">Restrict to definitions carrying every supplied exact tag filter.</param>
-public sealed record ListJobDefinitionsQuery(
+public sealed record ListDefinitionsQuery(
     string? JobNamespace = null,
     string? NameContains = null,
     JobDefinitionStatusCode? Status = null,

@@ -89,10 +89,10 @@ BEGIN
             reason_code,
             reason_message)
         SELECT
-            41 /* JobEventCode.JobExecutionFinished */,
+            41 /* EventCode.JobExecutionFinished */,
             now(),
             u.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             u.job_id,
             u.job_ref,

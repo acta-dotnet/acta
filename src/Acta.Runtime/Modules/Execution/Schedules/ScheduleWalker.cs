@@ -80,7 +80,7 @@ internal static class ScheduleWalker
     /// an upcoming occurrence).
     /// </summary>
     public static (IReadOnlyList<SlotSchedule> Schedules, DateTime? SlotMin) Reconcile(
-        IReadOnlyList<JobScheduleDescriptor> declared,
+        IReadOnlyList<ScheduleDescriptor> declared,
         IReadOnlyDictionary<string, StoredScheduleState> storedByName,
         DateTime nowUtc
     )

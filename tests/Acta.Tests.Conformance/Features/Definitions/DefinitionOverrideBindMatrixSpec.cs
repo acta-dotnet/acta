@@ -27,7 +27,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
     where TFixture : IConformanceFixture, new()
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static JobControlActor Actor => new(JobActorCode.Operator, "tester");
+    private static JobControlActor Actor => new(ActorCode.Operator, "tester");
 
     // Def() registers with well-known base values so the clear fact can assert exact effective fallbacks.
     // Base policy: Priority=Bulk(0), MaxAttempts=3, AuditLevel=Off(0), AlertProfile=None(0).
@@ -99,7 +99,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
                 JobRetentionSeconds: 555, // distinct int 5
                 AuditLevel: JobAuditLevelCode.Audit, // ≠ Off base
-                AlertProfile: JobAlertProfileCode.OnTerminal, // ≠ None base
+                AlertProfile: AlertProfileCode.OnTerminal, // ≠ None base
                 AlertChannelName: channelName,
                 RunbookUrl: runbookUrl,
                 DisplayName: displayName,
@@ -123,7 +123,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorOverride);
         Assert.Equal(555, after.JobRetentionSecondsOverride);
         Assert.Equal(JobAuditLevelCode.Audit, after.AuditLevelOverride);
-        Assert.Equal(JobAlertProfileCode.OnTerminal, after.AlertProfileOverride);
+        Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileOverride);
         Assert.Equal(channelName, after.AlertChannelNameOverride);
         Assert.Equal(runbookUrl, after.RunbookUrlOverride);
         Assert.Equal(displayName, after.DisplayNameOverride);
@@ -138,7 +138,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorEffective);
         Assert.Equal(555, after.JobRetentionSecondsEffective);
         Assert.Equal(JobAuditLevelCode.Audit, after.AuditLevelEffective);
-        Assert.Equal(JobAlertProfileCode.OnTerminal, after.AlertProfileEffective);
+        Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileEffective);
         Assert.Equal(channelName, after.AlertChannelNameEffective);
         Assert.Equal(runbookUrl, after.RunbookUrlEffective);
         Assert.Equal(displayName, after.DisplayNameEffective);
@@ -171,7 +171,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory,
                 JobRetentionSeconds: 555,
                 AuditLevel: JobAuditLevelCode.Audit,
-                AlertProfile: JobAlertProfileCode.OnTerminal,
+                AlertProfile: AlertProfileCode.OnTerminal,
                 AlertChannelName: "chan-" + TestId,
                 RunbookUrl: "https://rb/" + TestId,
                 DisplayName: "Renamed By Operator",
@@ -211,7 +211,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         Assert.Equal(DeadlineBehaviorCode.Strict, cleared.DeadlineBehaviorEffective);
         Assert.Equal(7776000, cleared.JobRetentionSecondsEffective); // framework default
         Assert.Equal(JobAuditLevelCode.Off, cleared.AuditLevelEffective);
-        Assert.Equal(JobAlertProfileCode.None, cleared.AlertProfileEffective);
+        Assert.Equal(AlertProfileCode.None, cleared.AlertProfileEffective);
         Assert.Null(cleared.AlertChannelNameEffective);
         Assert.Null(cleared.RunbookUrlEffective);
         Assert.Null(cleared.DisplayNameEffective); // Def() sets no [Job] DisplayName

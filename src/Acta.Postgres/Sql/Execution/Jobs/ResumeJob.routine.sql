@@ -65,7 +65,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            72 /* JobEventCode.JobResumed */,
+            72 /* EventCode.JobResumed */,
             now(),
             v_namespace_id,
             p_actor_code,

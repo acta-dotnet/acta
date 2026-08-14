@@ -78,7 +78,7 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.NotNull(after.LeasedByWorkerId);
         Assert.Equal((short)0, after.FailureCount);
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
     protected async Task ShutdownAbandonedJobIsReclaimedAndRetriedAsync(CancellationToken ct)

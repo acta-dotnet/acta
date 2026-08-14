@@ -97,7 +97,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            104 /* JobEventCode.ScheduleTriggered */,
+            104 /* EventCode.ScheduleTriggered */,
             now(),
             v_ns,
             p_actor_code,

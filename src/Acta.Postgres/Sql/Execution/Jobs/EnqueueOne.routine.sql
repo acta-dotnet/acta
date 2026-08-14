@@ -49,7 +49,7 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    IF v_ns_status <> 10 /* JobNamespaceStatusCode.Active */ THEN
+    IF v_ns_status <> 10 /* NamespaceStatusCode.Active */ THEN
         RAISE EXCEPTION 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.'
             USING ERRCODE = 'P0001';
     END IF;

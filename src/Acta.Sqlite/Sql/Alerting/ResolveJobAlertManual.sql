@@ -32,7 +32,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    141 /* JobEventCode.AlertResolved */,
+    141 /* EventCode.AlertResolved */,
     t.now_utc,
     t.namespace_id,
     @p_actor_code,

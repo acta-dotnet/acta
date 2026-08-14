@@ -31,7 +31,7 @@ public abstract class ScheduleSysPreviewSpec<TFixture> : ActaRuntimeTestBase<TFi
         // sys.retention is one of the framework jobs auto-registered into the worker's own namespace
         // (not the seeded "sys" namespace); its recurring slot carries the job name as deduplication key
         // and its sole schedule is named "default" (confirmed in FrameworkJobRegistrationSpec / RetentionJob).
-        var lookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey(TestNamespace, "sys.retention"), "default");
+        var lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey(TestNamespace, "sys.retention"), "default");
         var preview = await Operations.Schedules.PreviewAsync(lookup, 3, ct);
         Assert.NotNull(preview);
     }

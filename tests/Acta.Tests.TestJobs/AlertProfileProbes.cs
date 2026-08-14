@@ -15,7 +15,7 @@ public static class OnTerminalProbe
 
     public static int Attempts(string jobNamespace) => _attempts.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("on-terminal-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = JobAlertProfileCode.OnTerminal)]
+    [Job("on-terminal-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = AlertProfileCode.OnTerminal)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         _attempts.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);
@@ -36,7 +36,7 @@ public static class InfoAlertProbe
 
     public static int Attempts(string jobNamespace) => _attempts.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("info-alert-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = JobAlertProfileCode.Info)]
+    [Job("info-alert-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = AlertProfileCode.Info)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         _attempts.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);
@@ -57,7 +57,7 @@ public static class SysCriticalProbe
 
     public static int Attempts(string jobNamespace) => _attempts.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("sys-critical-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = JobAlertProfileCode.SysCritical)]
+    [Job("sys-critical-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = AlertProfileCode.SysCritical)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         _attempts.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);

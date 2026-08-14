@@ -7,9 +7,9 @@ namespace Acta;
 /// <see cref="TenantStatusCode"/>. Id 90 is reserved for an Archived (hidden/historical)
 /// status, for symmetry with <see cref="TenantStatusCode"/>'s reservation.
 /// </summary>
-[JsonConverter(typeof(JobNamespaceStatusCodeJsonConverter))]
+[JsonConverter(typeof(NamespaceStatusCodeJsonConverter))]
 [CodeKind("namespace-status")]
-public enum JobNamespaceStatusCode : byte
+public enum NamespaceStatusCode : byte
 {
     [Code("active", "Namespace resolves at enqueue; enqueue allowed.")]
     Active = 10,

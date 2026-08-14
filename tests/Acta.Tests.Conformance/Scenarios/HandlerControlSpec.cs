@@ -41,7 +41,7 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Null(job.LeasedByWorkerId);
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
+        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(JobEventReasonCode.JobHandlerFailed, finishedEvent.ReasonCode);
 
         // Did not return to user code, and the failed attempt persisted no result payload.
@@ -52,8 +52,8 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         // A handler fail is a failure: the finished event carries ExecutionStatusCode.Failed and there is
         // no separate cancel/pause lifecycle event.
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Failed, ct));
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobCancelled, ct));
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobPaused, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobPaused, ct));
     }
 
     [Fact(DisplayName = "A non-retryable exception lands terminal Failed without retries")]
@@ -68,7 +68,7 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(JobStatusCode.Failed, job.Status);
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobExecutionFinished, ct);
+        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(JobEventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
         Assert.NotNull(job.RetentionUntilUtc);
 
@@ -95,14 +95,14 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Null(job.LeasedByWorkerId);
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
-        var cancelEvent = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobCancelled, ct);
+        var cancelEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct);
         Assert.Equal(JobEventReasonCode.JobHandlerCancelled, cancelEvent.ReasonCode);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Null(await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct));
 
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Cancelled, ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobCancelled, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
     }
 
     [Fact(DisplayName = "Handler pause holds Paused with no next run, the matching reason, no result, and a JobPaused lifecycle event")]
@@ -118,14 +118,14 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Null(job.LeasedByWorkerId);
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
-        var pauseEvent = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobPaused, ct);
+        var pauseEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobPaused, ct);
         Assert.Equal(JobEventReasonCode.JobHandlerPaused, pauseEvent.ReasonCode);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Null(await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct));
 
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Paused, ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobPaused, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobPaused, ct));
 
         // A paused Job is not claimable: a second tick on its id finds nothing and leaves it Paused.
         // Target the job id: a namespace-wide tick can legitimately claim a manifest schedule slot

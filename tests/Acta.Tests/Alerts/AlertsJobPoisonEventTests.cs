@@ -122,7 +122,7 @@ public sealed class AlertsJobPoisonEventTests
                 jobId,
                 DefinitionId: 7,
                 JobName: "probe",
-                AlertProfile: JobAlertProfileCode.OnTerminal,
+                AlertProfile: AlertProfileCode.OnTerminal,
                 AlertChannelName: null,
                 ExecutionStatus: ExecutionStatusCode.Failed,
                 ToStatus: JobStatusCode.Failed,

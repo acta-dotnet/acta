@@ -152,10 +152,10 @@ BEGIN
                             reason_code, reason_message
                         )
                         SELECT
-                            102 /* JobEventCode.SchedulePauseExpired */,
+                            102 /* EventCode.SchedulePauseExpired */,
                             @now,
                             @c_ns,
-                            10 /* JobActorCode.Sys */,
+                            10 /* ActorCode.Sys */,
                             NULL,
                             @p_id,
                             @c_ref,
@@ -230,8 +230,8 @@ BEGIN
                             reason_code, reason_message
                         )
                         VALUES (
-                            41 /* JobEventCode.JobExecutionFinished */, @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            41 /* EventCode.JobExecutionFinished */, @now, @c_ns,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -269,11 +269,11 @@ BEGIN
                         )
                         VALUES (
                             CASE
-                                WHEN @p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* JobEventCode.JobRecurringRolledOver */
-                                ELSE 71 /* JobEventCode.JobPaused */
+                                WHEN @p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
+                                ELSE 71 /* EventCode.JobPaused */
                             END,
                             @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -301,11 +301,11 @@ BEGIN
                             CASE
                                 WHEN
                                     @p_reschedule_status_code = 151
-                                    /* ExecutionStatusCode.Suspended */ THEN 60 /* JobEventCode.JobSuspended */
-                                ELSE 61 /* JobEventCode.JobRescheduled */
+                                    /* ExecutionStatusCode.Suspended */ THEN 60 /* EventCode.JobSuspended */
+                                ELSE 61 /* EventCode.JobRescheduled */
                             END,
                             @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -331,11 +331,11 @@ BEGIN
                         )
                         VALUES (
                             CASE
-                                WHEN @p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* JobEventCode.JobCancelled */
-                                ELSE 71 /* JobEventCode.JobPaused */
+                                WHEN @p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                                ELSE 71 /* EventCode.JobPaused */
                             END,
                             @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -429,8 +429,8 @@ BEGIN
                                             reason_code, reason_message
                                         )
                                         VALUES (
-                                            80 /* JobEventCode.JobSignalRaised */, @now, @pns,
-                                            10 /* JobActorCode.Sys */, NULL,
+                                            80 /* EventCode.JobSignalRaised */, @now, @pns,
+                                            10 /* ActorCode.Sys */, NULL,
                                             @parent_id, @parent_ref, @pexec,
                                             COALESCE(@plineage, @parent_id), @pdef, @ptenant,
                                             NULL,
@@ -463,8 +463,8 @@ BEGIN
                                                     reason_code, reason_message
                                                 )
                                                 VALUES (
-                                                    72 /* JobEventCode.JobResumed */, @now, @pns,
-                                                    10 /* JobActorCode.Sys */, NULL,
+                                                    72 /* EventCode.JobResumed */, @now, @pns,
+                                                    10 /* ActorCode.Sys */, NULL,
                                                     @parent_id, @parent_ref, @pexec,
                                                     COALESCE(@plineage, @parent_id), @pdef, @ptenant,
                                                     NULL,

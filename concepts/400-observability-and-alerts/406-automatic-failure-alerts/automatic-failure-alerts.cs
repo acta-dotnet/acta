@@ -50,10 +50,10 @@ await jobs.CancelAsync(outcome, "demo cancelled after two failures");
 // Cron.EveryMinute sweep generates them. Wait up to ~75s for the row to appear.
 Console.WriteLine("waiting for the __alerts sweep...");
 var deadline = DateTime.UtcNow.AddSeconds(75);
-PagedResult<JobAlertListItem>? alertPage = null;
+PagedResult<AlertListItem>? alertPage = null;
 while (DateTime.UtcNow < deadline)
 {
-    alertPage = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: "automatic-failure-alerts"));
+    alertPage = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: "automatic-failure-alerts"));
     if (alertPage.Items.Count > 0)
         break;
     await Task.Delay(2000);
@@ -72,7 +72,7 @@ else
                 + $"occurrences={alert.OccurrenceCount} channel='{alert.ChannelName}' delivery={alert.DeliveryStatus}"
         );
         Console.WriteLine($"  title: {alert.Title}");
-        // RunbookUrl is not on JobAlertListItem (the query projection); it is resolved at delivery
+        // RunbookUrl is not on AlertListItem (the query projection); it is resolved at delivery
         // time onto AlertNotification.RunbookUrl. To see it, look at the delivered
         // "ACTA ALERT ... runbook=https://..." log line above, emitted by LogAlertTransport.
     }
@@ -93,7 +93,7 @@ namespace Acta.Concepts.AutomaticFailureAlerts
         // gives the driver a window to cancel during the third attempt.
         [Job(
             "process-report",
-            AlertProfile = JobAlertProfileCode.OnFailure,
+            AlertProfile = AlertProfileCode.OnFailure,
             AlertChannelName = "default",
             RunbookUrl = "https://runbooks.example.com/process-report",
             MaxAttempts = 10,

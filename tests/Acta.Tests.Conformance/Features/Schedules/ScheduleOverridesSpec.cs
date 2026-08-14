@@ -73,13 +73,13 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(expectedNext, slot.NextRunAtUtc); // the sole schedule, so the slot MIN follows it
 
-        var list = await Schedules.ListAsync(new ListJobSchedulesQuery(TestNamespace, jobName), ct);
+        var list = await Schedules.ListAsync(new ListSchedulesQuery(TestNamespace, jobName), ct);
         var item = Assert.Single(list.Items);
         Assert.Equal(DailyCron, item.Expression); // ListAsync/detail shows the overridden effective expression
 
         var slotId = await SlotIdAsync(jobName, ct);
         var events = await Db.From<JobEvent>()
-            .Where(e => e.JobId == slotId && e.EventCode == JobEventCode.ScheduleOverridesUpdated)
+            .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleOverridesUpdated)
             .ToListAsync(ct);
         var changed = Assert.Single(events);
         Assert.Equal("operator-1", changed.ActorKey);
@@ -243,7 +243,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-    private JobScheduleLookup Lookup(string jobName, string scheduleName) =>
+    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
         new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
 
     private static SlotSchedule Slot(string name, DateTime? cursor) =>

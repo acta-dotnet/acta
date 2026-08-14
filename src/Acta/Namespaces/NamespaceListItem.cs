@@ -14,7 +14,7 @@ namespace Acta;
 public sealed record NamespaceListItem(
     short Id,
     string Name,
-    JobNamespaceStatusCode Status,
+    NamespaceStatusCode Status,
     string? OwnerTeam,
     string? Description,
     int Version

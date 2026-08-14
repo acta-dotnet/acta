@@ -22,14 +22,14 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_status = 20 /* JobNamespaceStatusCode.Suspended */ THEN
+    IF v_status = 20 /* NamespaceStatusCode.Suspended */ THEN
         RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
 
     UPDATE {{schema}}.namespaces AS n
     SET
-        status_code = 20 /* JobNamespaceStatusCode.Suspended */,
+        status_code = 20 /* NamespaceStatusCode.Suspended */,
         modified_at_utc = now(),
         version = n.version + 1
     WHERE n.id = v_id
@@ -55,7 +55,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        20 /* JobEventCode.NamespaceSuspended */,
+        20 /* EventCode.NamespaceSuspended */,
         now(),
         v_id,
         p_actor_code,

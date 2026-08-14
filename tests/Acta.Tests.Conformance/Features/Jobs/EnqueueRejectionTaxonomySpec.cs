@@ -42,7 +42,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
         var ct = TestContext.Current.CancellationToken;
         await Services
             .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(JobActorCode.Operator, "op"), null), ct);
+            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(ActorCode.Operator, "op"), null), ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(), ct));
         Assert.Equal(EnqueueRejectionReasonCode.NamespaceSuspended, ex.Reason);
     }
@@ -74,7 +74,7 @@ public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBa
         var ct = TestContext.Current.CancellationToken;
         await Services
             .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(JobActorCode.Operator, "op"), null), ct);
+            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(ActorCode.Operator, "op"), null), ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueBatchAsync([Request(), Request()], ct));
         Assert.Equal(EnqueueRejectionReasonCode.NamespaceSuspended, ex.Reason);
     }

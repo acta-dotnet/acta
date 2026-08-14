@@ -31,7 +31,7 @@ internal interface INamespaceStore
 /// Status is honored only by the admin-row list (the name list projects no status).</summary>
 internal sealed record NamespacePageRequest(
     string? NameSearch,
-    JobNamespaceStatusCode? Status,
+    NamespaceStatusCode? Status,
     string? CursorName,
     int Take,
     bool IncludeTotal,

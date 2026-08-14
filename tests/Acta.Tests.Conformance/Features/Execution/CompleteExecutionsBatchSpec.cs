@@ -240,7 +240,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(failEnq.JobId, ct)).Status);
 
         var events = await GetEventsByJobId.Run(Services, failEnq.JobId, ct);
-        var finished = Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished));
+        var finished = Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionFinished));
         Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished.JobEventReasonCode);
         Assert.Equal(JobStatusCode.Failed, finished.ToStatus);
     }
@@ -281,7 +281,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         // Exactly one finished event for job A: the stale request must not fan out through the
         // ordinal correlation.
         var events = await GetEventsByJobId.Run(Services, aEnq.JobId, ct);
-        Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished));
+        Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionFinished));
     }
 
     [Fact(DisplayName = "Wrong-owner batch entry declines with false and scalar CompleteExecution returns NotOwner")]

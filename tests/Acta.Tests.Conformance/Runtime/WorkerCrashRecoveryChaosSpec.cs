@@ -54,7 +54,7 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         Assert.Equal((short)1, reclaimed.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.DoesNotContain(events, e => e.JobEventCode == JobEventCode.JobExecutionStarted);
+        Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobExecutionStarted);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Dispatched, JobStatusCode.Ready);
 
         // --- 3. A later tick completes the job exactly once.
@@ -87,13 +87,13 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         // --- 2. Reclaim orphans the started execution before retry.
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(events.Where(e => e.JobEventCode == JobEventCode.JobExecutionStarted));
+        Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionStarted));
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
 
         // --- 3. A later tick finishes the job with a single Succeeded execution.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         var finished = (await GetEventsByJobId.Run(Services, enqueued.JobId, ct))
-            .Where(e => e.JobEventCode == JobEventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded)
+            .Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded)
             .ToList();
         Assert.Single(finished);
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));

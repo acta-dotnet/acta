@@ -405,7 +405,7 @@ internal static class ActaApiEndpoints
                     if (
                         !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                         || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                        || !QueryBinding.TryEnum<JobNamespaceStatusCode>(http.Request.Query, "status", out var status, ref error)
+                        || !QueryBinding.TryEnum<NamespaceStatusCode>(http.Request.Query, "status", out var status, ref error)
                     )
                     {
                         return Task.FromResult(BadRequest(error));
@@ -492,10 +492,10 @@ internal static class ActaApiEndpoints
                         || !QueryBinding.TryLong(http.Request.Query, "jobId", out var jobId, ref error)
                         || !QueryBinding.TryInt(http.Request.Query, "tenantId", out var tenantId, ref error)
                         || !QueryBinding.TryInt(http.Request.Query, "workerId", out var workerId, ref error)
-                        || !QueryBinding.TryCode<JobActorCode>(
+                        || !QueryBinding.TryCode<ActorCode>(
                             http.Request.Query,
                             "actorCode",
-                            JobActorCodeExtensions.FromCode,
+                            ActorCodeExtensions.FromCode,
                             out var actorCode,
                             ref error
                         )
@@ -513,7 +513,7 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest(error));
                     }
 
-                    var query = new ListJobEventsQuery(
+                    var query = new ListEventsQuery(
                         JobId: jobId,
                         JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
                         EventCode: eventCode,
@@ -531,12 +531,12 @@ internal static class ActaApiEndpoints
                     return Guard(async () =>
                         Results.Json(
                             await operations.Ledger.ListEventsAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobEventListItem
+                            DashboardJsonContext.Default.PagedResultEventListItem
                         )
                     );
                 }
             )
-            .Produces<PagedResult<JobEventListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK);
 
         group
             .MapGet(
@@ -562,7 +562,7 @@ internal static class ActaApiEndpoints
                                 return NotFound();
                             }
 
-                            var query = new ListJobEventsQuery(
+                            var query = new ListEventsQuery(
                                 JobId: jobId,
                                 EventCode: eventCode,
                                 PageSize: pageSize,
@@ -571,12 +571,12 @@ internal static class ActaApiEndpoints
                             );
                             return Results.Json(
                                 await operations.Ledger.ListEventsAsync(query, ct),
-                                DashboardJsonContext.Default.PagedResultJobEventListItem
+                                DashboardJsonContext.Default.PagedResultEventListItem
                             );
                         });
                 }
             )
-            .Produces<PagedResult<JobEventListItem>>(StatusCodes.Status200OK)
+            .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
@@ -594,7 +594,7 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest(error));
                     }
 
-                    var query = new ListJobDefinitionsQuery(
+                    var query = new ListDefinitionsQuery(
                         JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
                         NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
                         Status: status,
@@ -642,7 +642,7 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest(error));
                     }
 
-                    var query = new ListJobEventsQuery(
+                    var query = new ListEventsQuery(
                         JobDefinitionId: defId,
                         EventCode: eventCode,
                         PageSize: pageSize,
@@ -651,12 +651,12 @@ internal static class ActaApiEndpoints
                     return Guard(async () =>
                         Results.Json(
                             await operations.Ledger.ListEventsAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobEventListItem
+                            DashboardJsonContext.Default.PagedResultEventListItem
                         )
                     );
                 }
             )
-            .Produces<PagedResult<JobEventListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK);
 
         group
             .MapGet(
@@ -674,7 +674,7 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest(error));
                     }
 
-                    var query = new ListJobSchedulesQuery(
+                    var query = new ListSchedulesQuery(
                         JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
                         JobName: QueryBinding.Text(http.Request.Query, "jobName"),
                         Origin: origin,
@@ -687,12 +687,12 @@ internal static class ActaApiEndpoints
                     return Guard(async () =>
                         Results.Json(
                             await operations.Schedules.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobScheduleListItem
+                            DashboardJsonContext.Default.PagedResultScheduleListItem
                         )
                     );
                 }
             )
-            .Produces<PagedResult<JobScheduleListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<ScheduleListItem>>(StatusCodes.Status200OK);
 
         group
             .MapGet(
@@ -745,7 +745,7 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest("jobNamespace, jobName, and scheduleName are required."));
                     }
 
-                    var lookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
+                    var lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
                     return Guard(async () =>
                     {
                         var preview = await operations.Schedules.PreviewAsync(lookup, count ?? 10, ct);
@@ -782,14 +782,11 @@ internal static class ActaApiEndpoints
                         Tags: QueryBinding.Tags(http.Request.Query)
                     );
                     return Guard(async () =>
-                        Results.Json(
-                            await operations.Workers.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobWorkerListItem
-                        )
+                        Results.Json(await operations.Workers.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultWorkerListItem)
                     );
                 }
             )
-            .Produces<PagedResult<JobWorkerListItem>>(StatusCodes.Status200OK);
+            .Produces<PagedResult<WorkerListItem>>(StatusCodes.Status200OK);
 
         group
             .MapGet(
@@ -800,10 +797,10 @@ internal static class ActaApiEndpoints
                         var worker = await operations.Workers.GetAsync(workerId, ct);
                         return worker is null
                             ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.")
-                            : Results.Json(worker, DashboardJsonContext.Default.JobWorkerDetail);
+                            : Results.Json(worker, DashboardJsonContext.Default.WorkerDetail);
                     })
             )
-            .Produces<JobWorkerDetail>(StatusCodes.Status200OK)
+            .Produces<WorkerDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
@@ -848,7 +845,7 @@ internal static class ActaApiEndpoints
                             }
                         }
 
-                        var query = new ListJobAlertsQuery(
+                        var query = new ListAlertsQuery(
                             JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
                             JobId: jobId,
                             UnresolvedOnly: unresolvedOnly,
@@ -862,12 +859,12 @@ internal static class ActaApiEndpoints
                         );
                         return Results.Json(
                             await operations.Alerts.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobAlertListItem
+                            DashboardJsonContext.Default.PagedResultAlertListItem
                         );
                     });
                 }
             )
-            .Produces<PagedResult<JobAlertListItem>>(StatusCodes.Status200OK)
+            .Produces<PagedResult<AlertListItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 

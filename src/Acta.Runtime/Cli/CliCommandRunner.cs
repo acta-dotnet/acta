@@ -207,7 +207,7 @@ internal sealed class CliCommandRunner(
             return ExitNotFound;
         }
 
-        var page = await operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: jobId, PageSize: take, Cursor: cursor), ct);
+        var page = await operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: take, Cursor: cursor), ct);
         CliOutput.WriteEvents(output, jobId.Value, page, json);
         return ExitOk;
     }

@@ -30,7 +30,7 @@ internal static class CancelDescendants
     )
     {
         var input = new JobControlInput(
-            new JobControlActor(JobActorCode.Sys),
+            new JobControlActor(ActorCode.Sys),
             JobEventReasonCode.JobParentCancelled,
             "Ancestor job cancelled."
         );

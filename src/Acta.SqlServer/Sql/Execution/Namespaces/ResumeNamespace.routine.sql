@@ -27,7 +27,7 @@ BEGIN
                 RETURN;
             END;
 
-        IF @status = 10 /* JobNamespaceStatusCode.Active */
+        IF @status = 10 /* NamespaceStatusCode.Active */
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
@@ -37,7 +37,7 @@ BEGIN
             END;
 
         UPDATE {{schema}}.namespaces
-        SET status_code = 10 /* JobNamespaceStatusCode.Active */, modified_at_utc = @now, version = version + 1
+        SET status_code = 10 /* NamespaceStatusCode.Active */, modified_at_utc = @now, version = version + 1
         WHERE id = @id;
         SET @version = @version + 1;
 
@@ -47,7 +47,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            21 /* JobEventCode.NamespaceResumed */, @now, @id, @p_actor_code, @p_actor_key,
+            21 /* EventCode.NamespaceResumed */, @now, @id, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );

@@ -118,7 +118,7 @@ public sealed class DashboardApiEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.NotNull(jobs.LastEventsQuery);
-        Assert.Equal(Acta.JobEventCode.NamespaceUpdated, jobs.LastEventsQuery!.EventCode);
+        Assert.Equal(Acta.EventCode.NamespaceUpdated, jobs.LastEventsQuery!.EventCode);
         Assert.Equal(7L, jobs.LastEventsQuery.JobId);
         Assert.Equal(3, jobs.LastEventsQuery.TenantId);
         Assert.Equal(9, jobs.LastEventsQuery.WorkerId);
@@ -129,7 +129,7 @@ public sealed class DashboardApiEndpointTests
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.OK, divergent.StatusCode);
-        Assert.Equal(Acta.JobEventCode.JobDefinitionOverridesUpdated, jobs.LastEventsQuery!.EventCode);
+        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, jobs.LastEventsQuery!.EventCode);
 
         var badCode = await client.GetAsync("/acta/api/v1/events?eventCode=nope", TestContext.Current.CancellationToken);
         var badJobId = await client.GetAsync("/acta/api/v1/events?jobId=abc", TestContext.Current.CancellationToken);

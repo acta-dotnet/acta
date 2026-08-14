@@ -21,7 +21,7 @@ await jobs.EnqueueAsync(new VerifyBackup("photos", Healthy: false));
 await Task.Delay(800);
 
 var queries = host.Services.GetRequiredService<IActaOperations>();
-var alerts = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: "alerts"));
+var alerts = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: "alerts"));
 foreach (var alert in alerts.Items)
 {
     Console.WriteLine($"alert [{alert.Severity}] {alert.Title} -> channel '{alert.ChannelName}', delivery {alert.DeliveryStatus}");

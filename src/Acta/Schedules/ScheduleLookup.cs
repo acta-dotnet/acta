@@ -6,4 +6,4 @@ namespace Acta;
 /// reach it by its public ref (dashboard), by its deduplication key which equals the job name
 /// (programmatic), or by internal id. There is no public numeric schedule id.
 /// </summary>
-public sealed record JobScheduleLookup(JobLookup Job, string ScheduleName);
+public sealed record ScheduleLookup(JobLookup Job, string ScheduleName);

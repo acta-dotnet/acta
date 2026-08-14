@@ -66,12 +66,12 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         Assert.Empty(await Db.From<JobAlert>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
 
         var evt = await Db.From<JobEvent>()
-            .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == JobEventCode.JobPurged)
+            .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.JobPurged)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
         Assert.Null(evt!.JobId);
         Assert.Null(evt.JobRef);
-        Assert.Equal(JobActorCode.Operator, evt.ActorCode);
+        Assert.Equal(ActorCode.Operator, evt.ActorCode);
         Assert.Equal("spec-actor", evt.ActorKey);
         Assert.Contains(completed.JobRef.Value.ToString(), evt.ReasonMessage);
     }

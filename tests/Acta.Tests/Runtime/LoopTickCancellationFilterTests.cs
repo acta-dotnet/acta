@@ -154,7 +154,7 @@ public sealed class LoopTickCancellationFilterTests
 
         public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
 
-        public ValueTask<JobWorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) => throw new NotSupportedException();
+        public ValueTask<WorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class ThrowingWorkerStore(Exception failure) : WorkerStoreStub

@@ -79,7 +79,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        75 /* JobEventCode.JobPurged */,
+        75 /* EventCode.JobPurged */,
         now(),
         v_namespace_id,
         p_actor_code,

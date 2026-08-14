@@ -61,8 +61,8 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal($"sys.child.{child.Id}", latch.Name);
         Assert.Equal(JobCheckpointStatusCode.Set, latch.Status);
-        Assert.Equal(1, await CountEventsAsync(parent.JobId, JobEventCode.JobSignalRaised, ct));
-        Assert.Equal(1, await CountEventsAsync(parent.JobId, JobEventCode.JobResumed, ct));
+        Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobSignalRaised, ct));
+        Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobResumed, ct));
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
@@ -169,16 +169,16 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var rootJob = await ReadJobAsync(root.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, rootJob.Status);
-        var rootCancelEvent = await ReadLatestEventAsync(root.JobId, JobEventCode.JobCancelled, ct);
+        var rootCancelEvent = await ReadLatestEventAsync(root.JobId, EventCode.JobCancelled, ct);
         Assert.Equal(JobEventReasonCode.JobControlManual, rootCancelEvent.ReasonCode);
 
         foreach (var descendantId in (long[])[child.JobId, grandchild.JobId, behindDone.JobId])
         {
             var descendant = await ReadJobAsync(descendantId, ct);
             Assert.Equal(JobStatusCode.Cancelled, descendant.Status);
-            var descendantCancelEvent = await ReadLatestEventAsync(descendantId, JobEventCode.JobCancelled, ct);
+            var descendantCancelEvent = await ReadLatestEventAsync(descendantId, EventCode.JobCancelled, ct);
             Assert.Equal(JobEventReasonCode.JobParentCancelled, descendantCancelEvent.ReasonCode);
-            Assert.Equal(1, await CountEventsAsync(descendantId, JobEventCode.JobCancelled, ct));
+            Assert.Equal(1, await CountEventsAsync(descendantId, EventCode.JobCancelled, ct));
         }
 
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(done.JobId, ct)).Status);
@@ -194,12 +194,12 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var parentJob = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, parentJob.Status);
-        var parentCancelEvent = await ReadLatestEventAsync(parent.JobId, JobEventCode.JobCancelled, ct);
+        var parentCancelEvent = await ReadLatestEventAsync(parent.JobId, EventCode.JobCancelled, ct);
         Assert.Equal(JobEventReasonCode.JobHandlerCancelled, parentCancelEvent.ReasonCode);
 
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(JobStatusCode.Cancelled, child.Status);
-        var childCancelEvent = await ReadLatestEventAsync(child.Id, JobEventCode.JobCancelled, ct);
+        var childCancelEvent = await ReadLatestEventAsync(child.Id, EventCode.JobCancelled, ct);
         Assert.Equal(JobEventReasonCode.JobParentCancelled, childCancelEvent.ReasonCode);
     }
 

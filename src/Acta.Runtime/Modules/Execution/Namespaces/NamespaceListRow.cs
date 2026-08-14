@@ -8,7 +8,7 @@ namespace Acta.Runtime.Modules.Execution.Namespaces;
 internal sealed record NamespaceListRow(
     short Id,
     string Name,
-    JobNamespaceStatusCode Status,
+    NamespaceStatusCode Status,
     string? OwnerTeam,
     string? Description,
     int Version

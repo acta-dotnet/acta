@@ -25,7 +25,7 @@ using var registrationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds
 while (
     (
         await schedules.ListAsync(
-            new ListJobSchedulesQuery(JobNamespace: "schedule-misfire", PageSize: 2, IncludeTotal: true),
+            new ListSchedulesQuery(JobNamespace: "schedule-misfire", PageSize: 2, IncludeTotal: true),
             registrationTimeout.Token
         )
     ).TotalCount < 2
@@ -34,8 +34,8 @@ while (
     await Task.Delay(50, registrationTimeout.Token);
 }
 
-var skipLookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey("schedule-misfire", "skip-report"), "every-2s-skip");
-var catchUpLookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey("schedule-misfire", "catch-up-report"), "every-2s-catchup");
+var skipLookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-misfire", "skip-report"), "every-2s-skip");
+var catchUpLookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-misfire", "catch-up-report"), "every-2s-catchup");
 
 // Pause both schedules indefinitely so no occurrences fire while we wait.
 Console.WriteLine("Pausing both schedules indefinitely...");
@@ -50,7 +50,7 @@ await ShowSchedulesAsync(lab, "Paused before an occurrence is missed");
 Console.WriteLine("Waiting one interval so a scheduled instant passes while paused...");
 await Task.Delay(2500);
 await ShowSchedulesAsync(lab, "Both cursors are overdue while the schedules remain paused");
-var overdue = await schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: "schedule-misfire", PageSize: 10, IncludeTotal: true));
+var overdue = await schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "schedule-misfire", PageSize: 10, IncludeTotal: true));
 var overdueSkip = overdue.Items.Single(item => item.JobName == "skip-report").NextRunAtUtc;
 var overdueCatchUp = overdue.Items.Single(item => item.JobName == "catch-up-report").NextRunAtUtc;
 

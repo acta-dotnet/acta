@@ -69,7 +69,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            73 /* JobEventCode.JobRestarted */,
+            73 /* EventCode.JobRestarted */,
             now(),
             v_namespace_id,
             p_actor_code,

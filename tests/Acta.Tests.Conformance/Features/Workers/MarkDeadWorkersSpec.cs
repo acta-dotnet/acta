@@ -91,14 +91,14 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         // Each worker.dead event lands in the dead worker's OWN namespace.
         var eventA = Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == workerA.Id && e.EventCode == JobEventCode.WorkerDead).ToListAsync(ct)
+            await Db.From<JobEvent>().Where(e => e.WorkerId == workerA.Id && e.EventCode == EventCode.WorkerDead).ToListAsync(ct)
         );
         var eventB = Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == workerBId && e.EventCode == JobEventCode.WorkerDead).ToListAsync(ct)
+            await Db.From<JobEvent>().Where(e => e.WorkerId == workerBId && e.EventCode == EventCode.WorkerDead).ToListAsync(ct)
         );
         Assert.Equal(nsA, eventA.NamespaceId);
         Assert.Equal(nsB, eventB.NamespaceId);
-        Assert.Equal(JobActorCode.Worker, eventA.ActorCode);
+        Assert.Equal(ActorCode.Worker, eventA.ActorCode);
         Assert.Equal(JobEventReasonCode.WorkerHeartbeatStale, eventA.ReasonCode);
     }
 }

@@ -174,7 +174,7 @@ internal static class ScheduleControlEndpoints
         string? jobNamespace,
         string? jobName,
         string? scheduleName,
-        out JobScheduleLookup lookup,
+        out ScheduleLookup lookup,
         out IResult badRequest
     )
     {
@@ -189,7 +189,7 @@ internal static class ScheduleControlEndpoints
             return false;
         }
 
-        lookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
+        lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
         badRequest = null!;
         return true;
     }

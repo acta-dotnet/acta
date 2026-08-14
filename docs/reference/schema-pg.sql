@@ -861,7 +861,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        140 /* JobEventCode.AlertAcknowledged */,
+        140 /* EventCode.AlertAcknowledged */,
         now(),
         v_namespace_id,
         p_actor_code,
@@ -1083,7 +1083,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        141 /* JobEventCode.AlertResolved */,
+        141 /* EventCode.AlertResolved */,
         now(),
         v_namespace_id,
         p_actor_code,
@@ -1364,10 +1364,10 @@ AS $$
             reason_code,
             reason_message)
         SELECT
-            40 /* JobEventCode.JobExecutionStarted */,
+            40 /* EventCode.JobExecutionStarted */,
             now(),
             u.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             u.id,
             u.job_ref,
@@ -1519,10 +1519,10 @@ AS $$
             reason_code,
             reason_message)
         SELECT
-            40 /* JobEventCode.JobExecutionStarted */,
+            40 /* EventCode.JobExecutionStarted */,
             now(),
             u.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             u.id,
             u.job_ref,
@@ -1723,10 +1723,10 @@ BEGIN
                     reason_code,
                     reason_message)
                 SELECT
-                    102 /* JobEventCode.SchedulePauseExpired */,
+                    102 /* EventCode.SchedulePauseExpired */,
                     now(),
                     v_ns,
-                    10 /* JobActorCode.Sys */,
+                    10 /* ActorCode.Sys */,
                     NULL,
                     p_id,
                     v_job_ref,
@@ -1803,10 +1803,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            41 /* JobEventCode.JobExecutionFinished */,
+            41 /* EventCode.JobExecutionFinished */,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -1851,12 +1851,12 @@ BEGIN
             reason_message)
         VALUES (
             CASE
-                WHEN p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* JobEventCode.JobRecurringRolledOver */
-                ELSE 71 /* JobEventCode.JobPaused */
+                WHEN p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
+                ELSE 71 /* EventCode.JobPaused */
             END,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -1894,10 +1894,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            CASE WHEN p_reschedule_status_code = 151 /* ExecutionStatusCode.Suspended */ THEN 60 /* JobEventCode.JobSuspended */ ELSE 61 /* JobEventCode.JobRescheduled */ END,
+            CASE WHEN p_reschedule_status_code = 151 /* ExecutionStatusCode.Suspended */ THEN 60 /* EventCode.JobSuspended */ ELSE 61 /* EventCode.JobRescheduled */ END,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -1935,10 +1935,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            CASE WHEN p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* JobEventCode.JobCancelled */ ELSE 71 /* JobEventCode.JobPaused */ END,
+            CASE WHEN p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */ ELSE 71 /* EventCode.JobPaused */ END,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -2012,10 +2012,10 @@ BEGIN
                     reason_code,
                     reason_message)
                 VALUES (
-                    80 /* JobEventCode.JobSignalRaised */,
+                    80 /* EventCode.JobSignalRaised */,
                     now(),
                     v_pns,
-                    10 /* JobActorCode.Sys */,
+                    10 /* ActorCode.Sys */,
                     NULL,
                     v_parent_id,
                     v_parent_ref,
@@ -2062,10 +2062,10 @@ BEGIN
                         reason_code,
                         reason_message)
                     VALUES (
-                        72 /* JobEventCode.JobResumed */,
+                        72 /* EventCode.JobResumed */,
                         now(),
                         v_pns,
-                        10 /* JobActorCode.Sys */,
+                        10 /* ActorCode.Sys */,
                         NULL,
                         v_parent_id,
                         v_parent_ref,
@@ -2182,10 +2182,10 @@ BEGIN
             reason_code,
             reason_message)
         SELECT
-            41 /* JobEventCode.JobExecutionFinished */,
+            41 /* EventCode.JobExecutionFinished */,
             now(),
             u.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             u.job_id,
             u.job_ref,
@@ -2496,10 +2496,10 @@ BEGIN
         reason_code,
         reason_message)
     SELECT
-        70 /* JobEventCode.JobCancelled */,
+        70 /* EventCode.JobCancelled */,
         now(),
         j.namespace_id,
-        10 /* JobActorCode.Sys */,
+        10 /* ActorCode.Sys */,
         'sys:register-definitions',
         j.id,
         j.job_ref,
@@ -2628,7 +2628,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        30 /* JobEventCode.JobDefinitionOverridesUpdated */,
+        30 /* EventCode.JobDefinitionOverridesUpdated */,
         now(),
         v_ns,
         p_actor_code,
@@ -2743,7 +2743,7 @@ BEGIN
                 reason_code,
                 reason_message)
             VALUES (
-                41 /* JobEventCode.JobExecutionFinished */,
+                41 /* EventCode.JobExecutionFinished */,
                 now(),
                 v_namespace_id,
                 p_actor_code,
@@ -2783,7 +2783,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            70 /* JobEventCode.JobCancelled */,
+            70 /* EventCode.JobCancelled */,
             now(),
             v_namespace_id,
             p_actor_code,
@@ -2857,7 +2857,7 @@ BEGIN
     SELECT COUNT(*)
     INTO ns_active_count
     FROM unnest(p_b_namespace_name, p_b_job_name) AS b(namespace_name, job_name)
-    INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* JobNamespaceStatusCode.Active */
+    INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN acta.definitions jd
         ON jd.namespace_id = ns.id
         AND jd.name = b.job_name;
@@ -3035,7 +3035,7 @@ BEGIN
         deduplication_key, correlation_key, priority_override,
         input_format_id, input, exclusive_key, next_run_at_utc,
         delay_seconds, parent_id, tenant_key)
-    INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* JobNamespaceStatusCode.Active */
+    INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
     LEFT JOIN acta.tenants t ON t.tenant_key = b.tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */
     LEFT JOIN acta.jobs pj ON pj.id = b.parent_id;
@@ -3252,7 +3252,7 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    IF v_ns_status <> 10 /* JobNamespaceStatusCode.Active */ THEN
+    IF v_ns_status <> 10 /* NamespaceStatusCode.Active */ THEN
         RAISE EXCEPTION 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -3502,7 +3502,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            71 /* JobEventCode.JobPaused */,
+            71 /* EventCode.JobPaused */,
             now(),
             v_namespace_id,
             p_actor_code,
@@ -3607,7 +3607,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        75 /* JobEventCode.JobPurged */,
+        75 /* EventCode.JobPurged */,
         now(),
         v_namespace_id,
         p_actor_code,
@@ -3696,7 +3696,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            74 /* JobEventCode.JobReprioritized */,
+            74 /* EventCode.JobReprioritized */,
             now(),
             v_namespace_id,
             p_actor_code,
@@ -3787,7 +3787,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            61 /* JobEventCode.JobRescheduled */,
+            61 /* EventCode.JobRescheduled */,
             now(),
             v_namespace_id,
             p_actor_code,
@@ -3863,10 +3863,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            81 /* JobEventCode.JobStateReset */,
+            81 /* EventCode.JobStateReset */,
             now(),
             v_namespace_id,
-            50 /* JobActorCode.Job */,
+            50 /* ActorCode.Job */,
             p_id::varchar,
             p_id,
             v_job_ref,
@@ -3958,7 +3958,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            73 /* JobEventCode.JobRestarted */,
+            73 /* EventCode.JobRestarted */,
             now(),
             v_namespace_id,
             p_actor_code,
@@ -4049,7 +4049,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            72 /* JobEventCode.JobResumed */,
+            72 /* EventCode.JobResumed */,
             now(),
             v_namespace_id,
             p_actor_code,
@@ -4171,7 +4171,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            76 /* JobEventCode.JobInputAmended */,
+            76 /* EventCode.JobInputAmended */,
             now(),
             v_namespace_id,
             p_actor_code,
@@ -4219,13 +4219,13 @@ BEGIN
         RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
-    IF v_status = 10 /* JobNamespaceStatusCode.Active */ THEN
+    IF v_status = 10 /* NamespaceStatusCode.Active */ THEN
         RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
     UPDATE acta.namespaces AS n
     SET
-        status_code = 10 /* JobNamespaceStatusCode.Active */,
+        status_code = 10 /* NamespaceStatusCode.Active */,
         modified_at_utc = now(),
         version = n.version + 1
     WHERE n.id = v_id
@@ -4250,7 +4250,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        21 /* JobEventCode.NamespaceResumed */,
+        21 /* EventCode.NamespaceResumed */,
         now(),
         v_id,
         p_actor_code,
@@ -4296,14 +4296,14 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_status = 20 /* JobNamespaceStatusCode.Suspended */ THEN
+    IF v_status = 20 /* NamespaceStatusCode.Suspended */ THEN
         RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
 
     UPDATE acta.namespaces AS n
     SET
-        status_code = 20 /* JobNamespaceStatusCode.Suspended */,
+        status_code = 20 /* NamespaceStatusCode.Suspended */,
         modified_at_utc = now(),
         version = n.version + 1
     WHERE n.id = v_id
@@ -4329,7 +4329,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        20 /* JobEventCode.NamespaceSuspended */,
+        20 /* EventCode.NamespaceSuspended */,
         now(),
         v_id,
         p_actor_code,
@@ -4412,7 +4412,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        22 /* JobEventCode.NamespaceUpdated */,
+        22 /* EventCode.NamespaceUpdated */,
         now(),
         v_id,
         p_actor_code,
@@ -4464,10 +4464,10 @@ BEGIN
         detail,
         reason_message)
     SELECT
-        90 /* JobEventCode.JobNoteRecorded */,
+        90 /* EventCode.JobNoteRecorded */,
         now(),
         j.namespace_id,
-        50 /* JobActorCode.Job */,
+        50 /* ActorCode.Job */,
         j.id,
         j.job_ref,
         r.execution_number,
@@ -4565,10 +4565,10 @@ BEGIN
             reason_code,
             reason_message)
         SELECT
-            41 /* JobEventCode.JobExecutionFinished */,
+            41 /* EventCode.JobExecutionFinished */,
             now(),
             r.namespace_id,
-            10 /* JobActorCode.Sys */,
+            10 /* ActorCode.Sys */,
             NULL,
             r.id,
             r.job_ref,
@@ -4688,7 +4688,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            100 /* JobEventCode.SchedulePaused */,
+            100 /* EventCode.SchedulePaused */,
             now(),
             v_ns,
             p_actor_code,
@@ -4994,7 +4994,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            101 /* JobEventCode.ScheduleResumed */,
+            101 /* EventCode.ScheduleResumed */,
             now(),
             v_ns,
             p_actor_code,
@@ -5123,7 +5123,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            103 /* JobEventCode.ScheduleOverridesUpdated */,
+            103 /* EventCode.ScheduleOverridesUpdated */,
             now(),
             v_ns,
             p_actor_code,
@@ -5245,7 +5245,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            104 /* JobEventCode.ScheduleTriggered */,
+            104 /* EventCode.ScheduleTriggered */,
             now(),
             v_ns,
             p_actor_code,
@@ -5412,7 +5412,7 @@ BEGIN
         detail_format_id,
         detail)
     VALUES (
-        160 /* JobEventCode.SettingUpdated */,
+        160 /* EventCode.SettingUpdated */,
         now(),
         COALESCE(v_namespace_id, 1),
         p_actor_code,
@@ -5545,7 +5545,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            80 /* JobEventCode.JobSignalRaised */,
+            80 /* EventCode.JobSignalRaised */,
             v_now,
             v_namespace_id,
             p_actor_code,
@@ -5595,7 +5595,7 @@ BEGIN
                 reason_code,
                 reason_message)
             VALUES (
-                72 /* JobEventCode.JobResumed */,
+                72 /* EventCode.JobResumed */,
                 v_now,
                 v_namespace_id,
                 p_actor_code,
@@ -5733,10 +5733,10 @@ AS $$
             reason_code,
             reason_message)
         SELECT
-            40 /* JobEventCode.JobExecutionStarted */,
+            40 /* EventCode.JobExecutionStarted */,
             now(),
             u.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             u.id,
             u.job_ref,
@@ -5983,7 +5983,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        11 /* JobEventCode.TenantResumed */,
+        11 /* EventCode.TenantResumed */,
         now(),
         1,
         p_actor_code,
@@ -6065,7 +6065,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        10 /* JobEventCode.TenantSuspended */,
+        10 /* EventCode.TenantSuspended */,
         now(),
         1,
         p_actor_code,
@@ -6149,7 +6149,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        12 /* JobEventCode.TenantUpdated */,
+        12 /* EventCode.TenantUpdated */,
         now(),
         1,
         p_actor_code,
@@ -6333,10 +6333,10 @@ BEGIN
             reason_code,
             reason_message)
         SELECT
-            122 /* JobEventCode.WorkerDead */,
+            122 /* EventCode.WorkerDead */,
             now(),
             d.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             d.id::VARCHAR,
             NULL,
             NULL,
@@ -6459,10 +6459,10 @@ AS $$
             reason_code,
             reason_message)
         SELECT
-            120 /* JobEventCode.WorkerStarted */,
+            120 /* EventCode.WorkerStarted */,
             now(),
             w.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             w.id::VARCHAR,
             NULL,
             NULL,
@@ -6517,10 +6517,10 @@ AS $$
         reason_code,
         reason_message)
     SELECT
-        121 /* JobEventCode.WorkerStopped */,
+        121 /* EventCode.WorkerStopped */,
         now(),
         p_namespace_id,
-        70 /* JobActorCode.Worker */,
+        70 /* ActorCode.Worker */,
         s.id::VARCHAR,
         NULL,
         NULL,

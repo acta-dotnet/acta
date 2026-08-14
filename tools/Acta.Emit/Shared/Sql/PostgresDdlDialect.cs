@@ -67,7 +67,7 @@ internal sealed class PostgresDdlDialect : SqlDdlDialect
         tableName == "namespaces"
             ? "-- Seed: reserved system namespace (id=1, 'sys') for cross-namespace audit events. Collation-neutral.\n"
                 + $"INSERT INTO {SchemaPlaceholder}.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)\n"
-                + $"VALUES (1, 'sys', {(byte)JobNamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', now(), now())\n"
+                + $"VALUES (1, 'sys', {(byte)NamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', now(), now())\n"
                 + "ON CONFLICT (id) DO NOTHING;\n"
                 + $"SELECT setval(pg_get_serial_sequence('{SchemaPlaceholder}.namespaces', 'id'), GREATEST(1, (SELECT MAX(id) FROM {SchemaPlaceholder}.namespaces)));"
             : null;

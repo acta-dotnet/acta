@@ -97,7 +97,7 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
         await Service.SetAsync(name, "on", null, TestNamespace, jobName: null, reason, "op-1", ct);
 
         var events = await Db.From<JobEvent>()
-            .Where(e => e.EventCode == JobEventCode.SettingUpdated && e.ReasonMessage == reason)
+            .Where(e => e.EventCode == EventCode.SettingUpdated && e.ReasonMessage == reason)
             .ToListAsync(ct);
         var evt = Assert.Single(events);
         Assert.Equal(TestNamespaceId, evt.NamespaceId);

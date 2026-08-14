@@ -29,50 +29,50 @@ public sealed class PersistedCodeContractTests
         AlertSeverityCode.Warning=20|warning
         AlertSeverityCode.Error=30|error
         AlertSeverityCode.Critical=40|critical
-        JobAlertProfileCode.None=0|none
-        JobAlertProfileCode.OnFailure=10|on-failure
-        JobAlertProfileCode.Info=20|info
-        JobAlertProfileCode.OnTerminal=30|on-terminal
-        JobAlertProfileCode.SysCritical=40|sys-critical
+        AlertProfileCode.None=0|none
+        AlertProfileCode.OnFailure=10|on-failure
+        AlertProfileCode.Info=20|info
+        AlertProfileCode.OnTerminal=30|on-terminal
+        AlertProfileCode.SysCritical=40|sys-critical
         SettingScopeCode.Global=10|global
         SettingScopeCode.Namespace=30|namespace
         SettingScopeCode.Definition=40|definition
         JobDefinitionStatusCode.Active=10|active
         JobDefinitionStatusCode.Retired=240|retired
-        JobEventCode.Unspecified=0|unspecified
-        JobEventCode.TenantSuspended=10|tenant.suspended
-        JobEventCode.TenantResumed=11|tenant.resumed
-        JobEventCode.TenantUpdated=12|tenant.updated
-        JobEventCode.NamespaceSuspended=20|namespace.suspended
-        JobEventCode.NamespaceResumed=21|namespace.resumed
-        JobEventCode.NamespaceUpdated=22|namespace.updated
-        JobEventCode.JobDefinitionOverridesUpdated=30|definition.overrides-updated
-        JobEventCode.JobExecutionStarted=40|job.execution-started
-        JobEventCode.JobExecutionFinished=41|job.execution-finished
-        JobEventCode.JobRecurringRolledOver=50|job.recurring-rolled-over
-        JobEventCode.JobSuspended=60|job.suspended
-        JobEventCode.JobRescheduled=61|job.rescheduled
-        JobEventCode.JobCancelled=70|job.cancelled
-        JobEventCode.JobPaused=71|job.paused
-        JobEventCode.JobResumed=72|job.resumed
-        JobEventCode.JobRestarted=73|job.restarted
-        JobEventCode.JobReprioritized=74|job.reprioritized
-        JobEventCode.JobPurged=75|job.purged
-        JobEventCode.JobInputAmended=76|job.input-amended
-        JobEventCode.JobSignalRaised=80|job.signal-raised
-        JobEventCode.JobStateReset=81|job.state-reset
-        JobEventCode.JobNoteRecorded=90|job.note
-        JobEventCode.SchedulePaused=100|schedule.paused
-        JobEventCode.ScheduleResumed=101|schedule.resumed
-        JobEventCode.SchedulePauseExpired=102|schedule.pause-expired
-        JobEventCode.ScheduleOverridesUpdated=103|schedule.overrides-updated
-        JobEventCode.ScheduleTriggered=104|schedule.triggered
-        JobEventCode.WorkerStarted=120|worker.started
-        JobEventCode.WorkerStopped=121|worker.stopped
-        JobEventCode.WorkerDead=122|worker.dead
-        JobEventCode.AlertAcknowledged=140|alert.acknowledged
-        JobEventCode.AlertResolved=141|alert.resolved
-        JobEventCode.SettingUpdated=160|setting.updated
+        EventCode.Unspecified=0|unspecified
+        EventCode.TenantSuspended=10|tenant.suspended
+        EventCode.TenantResumed=11|tenant.resumed
+        EventCode.TenantUpdated=12|tenant.updated
+        EventCode.NamespaceSuspended=20|namespace.suspended
+        EventCode.NamespaceResumed=21|namespace.resumed
+        EventCode.NamespaceUpdated=22|namespace.updated
+        EventCode.JobDefinitionOverridesUpdated=30|definition.overrides-updated
+        EventCode.JobExecutionStarted=40|job.execution-started
+        EventCode.JobExecutionFinished=41|job.execution-finished
+        EventCode.JobRecurringRolledOver=50|job.recurring-rolled-over
+        EventCode.JobSuspended=60|job.suspended
+        EventCode.JobRescheduled=61|job.rescheduled
+        EventCode.JobCancelled=70|job.cancelled
+        EventCode.JobPaused=71|job.paused
+        EventCode.JobResumed=72|job.resumed
+        EventCode.JobRestarted=73|job.restarted
+        EventCode.JobReprioritized=74|job.reprioritized
+        EventCode.JobPurged=75|job.purged
+        EventCode.JobInputAmended=76|job.input-amended
+        EventCode.JobSignalRaised=80|job.signal-raised
+        EventCode.JobStateReset=81|job.state-reset
+        EventCode.JobNoteRecorded=90|job.note
+        EventCode.SchedulePaused=100|schedule.paused
+        EventCode.ScheduleResumed=101|schedule.resumed
+        EventCode.SchedulePauseExpired=102|schedule.pause-expired
+        EventCode.ScheduleOverridesUpdated=103|schedule.overrides-updated
+        EventCode.ScheduleTriggered=104|schedule.triggered
+        EventCode.WorkerStarted=120|worker.started
+        EventCode.WorkerStopped=121|worker.stopped
+        EventCode.WorkerDead=122|worker.dead
+        EventCode.AlertAcknowledged=140|alert.acknowledged
+        EventCode.AlertResolved=141|alert.resolved
+        EventCode.SettingUpdated=160|setting.updated
         JobEventReasonCode.Unspecified=0|unspecified
         JobEventReasonCode.Unclassified=10|job.unclassified
         JobEventReasonCode.JobUnhandledException=20|job.unhandled-exception
@@ -120,10 +120,10 @@ public sealed class PersistedCodeContractTests
         LeaseKindCode.Lock=10|lock
         DeadlineBehaviorCode.Strict=10|strict
         DeadlineBehaviorCode.Advisory=20|advisory
-        JobActorCode.Sys=10|sys
-        JobActorCode.Operator=20|operator
-        JobActorCode.Job=50|job
-        JobActorCode.Worker=70|worker
+        ActorCode.Sys=10|sys
+        ActorCode.Operator=20|operator
+        ActorCode.Job=50|job
+        ActorCode.Worker=70|worker
         JobAuditLevelCode.Off=0|off
         JobAuditLevelCode.Failures=10|failures
         JobAuditLevelCode.Audit=20|audit
@@ -146,8 +146,8 @@ public sealed class PersistedCodeContractTests
         OutboxStatusCode.Pending=10|pending
         OutboxStatusCode.Claimed=20|claimed
         OutboxStatusCode.Quarantined=90|quarantined
-        JobNamespaceStatusCode.Active=10|active
-        JobNamespaceStatusCode.Suspended=20|suspended
+        NamespaceStatusCode.Active=10|active
+        NamespaceStatusCode.Suspended=20|suspended
         MisfireStrategyCode.FireOnceCatchUp=10|fire-once-catch-up
         MisfireStrategyCode.Skip=20|skip
         ScheduleExpressionKindCode.Cron=10|cron
@@ -173,7 +173,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "1F2919768B8A48A7DEBDA98D5EB925A85F81CBE73AC24D873F656A98C5C1E72C";
+    private const string ExpectedDescriptionHash = "264B6437140C254160ADAA6C272F77B14E34EDAFF77AF0146027AB5B31B9B90D";
 
     [Fact]
     public void Frozen_contract_covers_all_30_families_and_162_values()
@@ -198,7 +198,7 @@ public sealed class PersistedCodeContractTests
         }
 
         Assert.Equal(162, CodeManifests.All.Count);
-        Assert.Equal(34, Enum.GetValues<JobEventCode>().Length);
+        Assert.Equal(34, Enum.GetValues<EventCode>().Length);
         Assert.Equal(24, Enum.GetValues<JobEventReasonCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
@@ -272,8 +272,8 @@ public sealed class PersistedCodeContractTests
     [Fact]
     public void Capacity_and_payload_boundaries_are_enforced()
     {
-        Assert.Equal(31, JobEventCode.Capacity.HeldReserve);
-        Assert.Equal(34, JobEventCode.Capacity.Assigned);
+        Assert.Equal(31, EventCode.Capacity.HeldReserve);
+        Assert.Equal(34, EventCode.Capacity.Assigned);
         Assert.Equal(24, JobEventReasonCode.Capacity.Assigned);
         Assert.All(
             CodeFamilies(),

@@ -11,7 +11,7 @@ namespace Acta.Runtime.Modules.Operations.Events;
 /// </summary>
 internal sealed record EventListProjectionRow(
     long JobEventId,
-    JobEventCode EventCode,
+    EventCode EventCode,
     DateTime CreatedAtUtc,
     string JobNamespace,
     long? JobId,
@@ -19,7 +19,7 @@ internal sealed record EventListProjectionRow(
     int? DefinitionId,
     int? WorkerId,
     int? ExecutionNumber,
-    JobActorCode ActorCode,
+    ActorCode ActorCode,
     string? ActorKey,
     JobStatusCode? FromStatus,
     JobStatusCode? ToStatus,
@@ -35,7 +35,7 @@ internal sealed record EventListProjectionRow(
     string? JobName
 )
 {
-    public JobEventListItem ToListItem() =>
+    public EventListItem ToListItem() =>
         new(
             JobEventId,
             EventCode,

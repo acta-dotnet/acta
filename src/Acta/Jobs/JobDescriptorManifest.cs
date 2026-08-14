@@ -27,7 +27,7 @@ public sealed record JobDescriptor(
     JobPriorityCode Priority,
     short MaxAttempts,
     JobAuditLevelCode AuditLevel,
-    JobAlertProfileCode AlertProfile,
+    AlertProfileCode AlertProfile,
     JobHandlerInvokeDelegate Invoker,
     Func<IJobPayloadSerializer, JobPayload, object> DeserializeInput,
     Func<IJobPayloadSerializer, object?, JobPayload>? SerializeOutput
@@ -42,7 +42,7 @@ public sealed record JobDescriptor(
     /// <summary>
     /// Declared recurring schedules (one per <c>[JobSchedule]</c>). Empty for non-scheduled jobs.
     /// </summary>
-    public ImmutableArray<JobScheduleDescriptor> Schedules { get; init; } = [];
+    public ImmutableArray<ScheduleDescriptor> Schedules { get; init; } = [];
 
     /// <summary>
     /// Factory for a default input instance, used to seed the recurring slot's stored payload.
@@ -118,7 +118,7 @@ public sealed record JobDescriptor(
 /// Generator-emitted descriptor for one declared <c>[JobSchedule]</c>. Source-time facts only;
 /// next-occurrence instants are computed by the runtime, never here.
 /// </summary>
-public sealed record JobScheduleDescriptor(
+public sealed record ScheduleDescriptor(
     string JobName,
     string ScheduleName,
     string Expression,

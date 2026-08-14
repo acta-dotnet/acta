@@ -86,7 +86,7 @@ BEGIN
                 reason_code, reason_message
             )
             VALUES (
-                80 /* JobEventCode.JobSignalRaised */, @now, @namespace_id,
+                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
                 @p_actor_code, @p_actor_key,
                 @p_job_id, @job_ref, @execution_number,
                 COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
@@ -118,7 +118,7 @@ BEGIN
                         reason_code, reason_message
                     )
                     VALUES (
-                        72 /* JobEventCode.JobResumed */, @now, @namespace_id,
+                        72 /* EventCode.JobResumed */, @now, @namespace_id,
                         @p_actor_code, @p_actor_key,
                         @p_job_id, @job_ref, @execution_number,
                         COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,

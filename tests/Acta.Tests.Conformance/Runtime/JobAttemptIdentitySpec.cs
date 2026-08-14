@@ -41,7 +41,7 @@ public abstract class JobAttemptIdentitySpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         var notes = await Operations.Ledger.ListEventsAsync(
-            new ListJobEventsQuery(JobId: enqueued.JobId, EventCode: JobEventCode.JobNoteRecorded, PageSize: 50),
+            new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
             ct
         );
         Assert.Equal(2, notes.Items.Count);

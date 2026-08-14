@@ -10,13 +10,13 @@ internal sealed class WorkersApi(IWorkerStore store) : IWorkers
     private const string ListOperationName = "ListWorkers";
     private const string OrderWorkers = "last_seen_at_utc desc, id desc";
 
-    public ValueTask<JobWorkerDetail?> GetAsync(int workerId, CancellationToken ct = default)
+    public ValueTask<WorkerDetail?> GetAsync(int workerId, CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(workerId);
         return store.GetWorkerAsync(workerId, ct);
     }
 
-    public async ValueTask<PagedResult<JobWorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default)
+    public async ValueTask<PagedResult<WorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
@@ -62,7 +62,7 @@ internal sealed class WorkersApi(IWorkerStore store) : IWorkers
             ? PageCursorCodec.Encode(ListOperationName, OrderWorkers, filterHash, [items[^1].LastSeenAtUtc, items[^1].WorkerId])
             : null;
 
-        return new PagedResult<JobWorkerListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return new PagedResult<WorkerListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
     private static string? Num<T>(T? value)

@@ -155,7 +155,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<JobAlertListProjectionRow>();
-                var rows = new List<JobAlertListItem>(request.Take);
+                var rows = new List<AlertListItem>(request.Take);
                 while (await reader.ReadAsync(token))
                 {
                     rows.Add(read(reader).ToItem());

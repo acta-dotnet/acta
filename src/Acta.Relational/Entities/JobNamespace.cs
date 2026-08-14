@@ -46,7 +46,7 @@ internal sealed class JobNamespace : IEntity<short>
     /// with a distinguishable error when the resolved namespace is not Active.
     /// </summary>
     [DbColumn("status_code")]
-    public JobNamespaceStatusCode Status { get; internal set; }
+    public NamespaceStatusCode Status { get; internal set; }
 
     /// <summary>
     /// SHA-256 hex of the canonicalized assembly catalog. NULL means the namespace row was created

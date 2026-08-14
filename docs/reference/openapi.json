@@ -4786,7 +4786,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobEventListItem"
+                  "$ref": "#/components/schemas/PagedResultOfEventListItem"
                 }
               }
             }
@@ -4855,7 +4855,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobEventListItem"
+                  "$ref": "#/components/schemas/PagedResultOfEventListItem"
                 }
               }
             }
@@ -4995,7 +4995,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobEventListItem"
+                  "$ref": "#/components/schemas/PagedResultOfEventListItem"
                 }
               }
             }
@@ -5054,7 +5054,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobScheduleListItem"
+                  "$ref": "#/components/schemas/PagedResultOfScheduleListItem"
                 }
               }
             }
@@ -5241,7 +5241,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobWorkerListItem"
+                  "$ref": "#/components/schemas/PagedResultOfWorkerListItem"
                 }
               }
             }
@@ -5313,7 +5313,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobWorkerDetail"
+                  "$ref": "#/components/schemas/WorkerDetail"
                 }
               }
             }
@@ -5382,7 +5382,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobAlertListItem"
+                  "$ref": "#/components/schemas/PagedResultOfAlertListItem"
                 }
               }
             }
@@ -5403,6 +5403,7 @@
   },
   "components": {
     "schemas": {
+      "ActorCode": { },
       "AdminControlAction": {
         "enum": [
           "Applied",
@@ -5471,65 +5472,7 @@
       },
       "AlertDeliveryStatusCode": { },
       "AlertKindCode": { },
-      "AlertOriginCode": { },
-      "AlertSeverityCode": { },
-      "CapabilitiesResponse": {
-        "required": [
-          "controlsEnabled",
-          "version",
-          "provider",
-          "schema",
-          "confirmationHeader"
-        ],
-        "type": "object",
-        "properties": {
-          "controlsEnabled": {
-            "type": "boolean"
-          },
-          "version": {
-            "type": "string"
-          },
-          "provider": {
-            "type": "string"
-          },
-          "schema": {
-            "type": "string"
-          },
-          "confirmationHeader": {
-            "type": "string"
-          }
-        }
-      },
-      "DeadlineBehaviorCode": {
-        "description": "How the engine treats a job that has passed its deadline."
-      },
-      "DefinitionOverrideResponse": {
-        "required": [
-          "jobDefinitionId",
-          "action",
-          "message"
-        ],
-        "type": "object",
-        "properties": {
-          "jobDefinitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "action": {
-            "$ref": "#/components/schemas/JobControlAction"
-          },
-          "message": {
-            "type": "string"
-          }
-        }
-      },
-      "ExecutionStatusCode": { },
-      "JobActorCode": { },
-      "JobAlertListItem": {
+      "AlertListItem": {
         "required": [
           "jobAlertId",
           "jobNamespace",
@@ -5656,9 +5599,267 @@
             "format": "date-time"
           }
         },
-        "description": "One alert row in a ValueTask&lt;PagedResult&lt;JobAlertListItem&gt;&gt; IAlerts.ListAsync(ListJobAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration,\nendpoints, and deduplication keys are delivery internals and are never exposed by list reads. JSON\nserialization carries the public job ref and hides the numeric job id; the ref goes null once\nthe subject job row is purged (alerts outlive their job)."
+        "description": "One alert row in a ValueTask&lt;PagedResult&lt;AlertListItem&gt;&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration,\nendpoints, and deduplication keys are delivery internals and are never exposed by list reads. JSON\nserialization carries the public job ref and hides the numeric job id; the ref goes null once\nthe subject job row is purged (alerts outlive their job)."
       },
-      "JobAlertProfileCode": { },
+      "AlertOriginCode": { },
+      "AlertProfileCode": { },
+      "AlertSeverityCode": { },
+      "CapabilitiesResponse": {
+        "required": [
+          "controlsEnabled",
+          "version",
+          "provider",
+          "schema",
+          "confirmationHeader"
+        ],
+        "type": "object",
+        "properties": {
+          "controlsEnabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "schema": {
+            "type": "string"
+          },
+          "confirmationHeader": {
+            "type": "string"
+          }
+        }
+      },
+      "DeadlineBehaviorCode": {
+        "description": "How the engine treats a job that has passed its deadline."
+      },
+      "DefinitionOverrideResponse": {
+        "required": [
+          "jobDefinitionId",
+          "action",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "jobDefinitionId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "action": {
+            "$ref": "#/components/schemas/JobControlAction"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "EventCode": {
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
+      },
+      "EventListItem": {
+        "required": [
+          "jobEventId",
+          "eventCode",
+          "createdAtUtc",
+          "jobNamespace",
+          "jobName",
+          "jobRef",
+          "lineageRootJobRef",
+          "jobDefinitionId",
+          "tenantId",
+          "workerId",
+          "executionNumber",
+          "actorCode",
+          "actorKey",
+          "fromStatus",
+          "toStatus",
+          "executionStatus",
+          "durationMs",
+          "reasonCode",
+          "reasonMessage",
+          "detailText"
+        ],
+        "type": "object",
+        "properties": {
+          "jobEventId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Event row id.",
+            "format": "int64"
+          },
+          "eventCode": {
+            "description": "What happened.",
+            "$ref": "#/components/schemas/EventCode"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "description": "When it happened.",
+            "format": "date-time"
+          },
+          "jobNamespace": {
+            "type": "string",
+            "description": "Owning namespace name."
+          },
+          "jobName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Subject job's definition name resolved from the catalog (survives the purge), or null."
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Subject job's public ref, or null for namespace-level events; denormalized on the event row, so it survives the job's purge.",
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "lineageRootJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Lineage root's public ref, or null when there is no lineage or the root row was purged.",
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "jobDefinitionId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Catalog definition id, or null.",
+            "format": "int32"
+          },
+          "tenantId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Tenant id for job-scoped events, or null.",
+            "format": "int32"
+          },
+          "workerId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Acting worker id, or null.",
+            "format": "int32"
+          },
+          "executionNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Attempt the event belongs to, or null.",
+            "format": "int32"
+          },
+          "actorCode": {
+            "description": "Who initiated the transition.",
+            "$ref": "#/components/schemas/ActorCode"
+          },
+          "actorKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Actor identity text, or null."
+          },
+          "fromStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Status before the transition, or null.",
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "toStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Status after the transition, or null.",
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "executionStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Execution outcome attached to the event, or null.",
+                "$ref": "#/components/schemas/ExecutionStatusCode"
+              }
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Execution duration, or null.",
+            "format": "int32"
+          },
+          "reasonCode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Reason recorded with the event, or null.",
+                "$ref": "#/components/schemas/JobEventReasonCode"
+              }
+            ]
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Reason text, or null."
+          },
+          "detailText": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Free-form (text) or structured (json) detail decoded to text, or null when the event carries no detail or a non-text format."
+          }
+        },
+        "description": "One audit event row in a ValueTask&lt;PagedResult&lt;EventListItem&gt;&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\nref parameter documents whether it survives the purge."
+      },
+      "ExecutionStatusCode": { },
       "JobAuditLevelCode": { },
       "JobCheckpointKindCode": {
         "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
@@ -6032,7 +6233,7 @@
             "$ref": "#/components/schemas/JobAuditLevelCode"
           },
           "alertProfile": {
-            "$ref": "#/components/schemas/JobAlertProfileCode"
+            "$ref": "#/components/schemas/AlertProfileCode"
           },
           "alertProfileOverride": {
             "oneOf": [
@@ -6040,12 +6241,12 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobAlertProfileCode"
+                "$ref": "#/components/schemas/AlertProfileCode"
               }
             ]
           },
           "alertProfileEffective": {
-            "$ref": "#/components/schemas/JobAlertProfileCode"
+            "$ref": "#/components/schemas/AlertProfileCode"
           },
           "alertChannelName": {
             "type": [
@@ -6215,7 +6416,7 @@
             "format": "date-time"
           }
         },
-        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail)."
+        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail)."
       },
       "JobDefinitionStatusCode": { },
       "JobDetailResponse": {
@@ -6280,7 +6481,7 @@
           "schedules": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/JobScheduleListItem"
+              "$ref": "#/components/schemas/ScheduleListItem"
             }
           },
           "schedulesTotal": {
@@ -6313,7 +6514,7 @@
               "array"
             ],
             "items": {
-              "$ref": "#/components/schemas/JobWorkerListItem"
+              "$ref": "#/components/schemas/WorkerListItem"
             }
           },
           "workersTotal": {
@@ -6348,207 +6549,6 @@
             "$ref": "#/components/schemas/JobEnqueueAction"
           }
         }
-      },
-      "JobEventCode": {
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
-      },
-      "JobEventListItem": {
-        "required": [
-          "jobEventId",
-          "eventCode",
-          "createdAtUtc",
-          "jobNamespace",
-          "jobName",
-          "jobRef",
-          "lineageRootJobRef",
-          "jobDefinitionId",
-          "tenantId",
-          "workerId",
-          "executionNumber",
-          "actorCode",
-          "actorKey",
-          "fromStatus",
-          "toStatus",
-          "executionStatus",
-          "durationMs",
-          "reasonCode",
-          "reasonMessage",
-          "detailText"
-        ],
-        "type": "object",
-        "properties": {
-          "jobEventId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Event row id.",
-            "format": "int64"
-          },
-          "eventCode": {
-            "description": "What happened.",
-            "$ref": "#/components/schemas/JobEventCode"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "description": "When it happened.",
-            "format": "date-time"
-          },
-          "jobNamespace": {
-            "type": "string",
-            "description": "Owning namespace name."
-          },
-          "jobName": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Subject job's definition name resolved from the catalog (survives the purge), or null."
-          },
-          "jobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Subject job's public ref, or null for namespace-level events; denormalized on the event row, so it survives the job's purge.",
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "lineageRootJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Lineage root's public ref, or null when there is no lineage or the root row was purged.",
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "jobDefinitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Catalog definition id, or null.",
-            "format": "int32"
-          },
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Tenant id for job-scoped events, or null.",
-            "format": "int32"
-          },
-          "workerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Acting worker id, or null.",
-            "format": "int32"
-          },
-          "executionNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Attempt the event belongs to, or null.",
-            "format": "int32"
-          },
-          "actorCode": {
-            "description": "Who initiated the transition.",
-            "$ref": "#/components/schemas/JobActorCode"
-          },
-          "actorKey": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Actor identity text, or null."
-          },
-          "fromStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Status before the transition, or null.",
-                "$ref": "#/components/schemas/JobStatusCode"
-              }
-            ]
-          },
-          "toStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Status after the transition, or null.",
-                "$ref": "#/components/schemas/JobStatusCode"
-              }
-            ]
-          },
-          "executionStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Execution outcome attached to the event, or null.",
-                "$ref": "#/components/schemas/ExecutionStatusCode"
-              }
-            ]
-          },
-          "durationMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Execution duration, or null.",
-            "format": "int32"
-          },
-          "reasonCode": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Reason recorded with the event, or null.",
-                "$ref": "#/components/schemas/JobEventReasonCode"
-              }
-            ]
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Reason text, or null."
-          },
-          "detailText": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Free-form (text) or structured (json) detail decoded to text, or null when the event carries no detail or a non-text format."
-          }
-        },
-        "description": "One audit event row in a ValueTask&lt;PagedResult&lt;JobEventListItem&gt;&gt; ILedger.ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\nref parameter documents whether it survives the purge."
       },
       "JobEventReasonCode": { },
       "JobExplainAction": {
@@ -7107,9 +7107,6 @@
         },
         "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page. Carries identity, lifecycle, and\naudit-facing fields only; the input payload is never exposed by list reads. JSON serialization\ncarries the public refs and hides the numeric ids."
       },
-      "JobNamespaceStatusCode": {
-        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode. Id 90 is reserved for an Archived (hidden/historical)\nstatus, for symmetry with TenantStatusCode's reservation."
-      },
       "JobPayloadResponse": {
         "required": [
           "format",
@@ -7163,138 +7160,6 @@
       },
       "JobRef": {
         "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
-      },
-      "JobScheduleListItem": {
-        "required": [
-          "jobScheduleId",
-          "jobId",
-          "jobDefinitionId",
-          "jobNamespace",
-          "jobName",
-          "scheduleName",
-          "origin",
-          "expressionKind",
-          "expression",
-          "timeZone",
-          "misfireStrategy",
-          "nextRunAtUtc",
-          "lastOccurrenceAtUtc",
-          "status",
-          "pausedUntilUtc",
-          "createdAtUtc",
-          "modifiedAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "jobScheduleId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Schedule row id.",
-            "format": "int64"
-          },
-          "jobId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Recurring slot job id.",
-            "format": "int64"
-          },
-          "jobDefinitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Catalog definition id.",
-            "format": "int32"
-          },
-          "jobNamespace": {
-            "type": "string",
-            "description": "Owning namespace name."
-          },
-          "jobName": {
-            "type": "string",
-            "description": "Job definition name."
-          },
-          "scheduleName": {
-            "type": "string",
-            "description": "Schedule name within the job."
-          },
-          "origin": {
-            "description": "How the schedule was registered.",
-            "$ref": "#/components/schemas/ScheduleOriginCode"
-          },
-          "expressionKind": {
-            "description": "Expression syntax kind.",
-            "$ref": "#/components/schemas/ScheduleExpressionKindCode"
-          },
-          "expression": {
-            "type": "string",
-            "description": "Effective schedule expression."
-          },
-          "timeZone": {
-            "type": "string",
-            "description": "Effective IANA time zone id."
-          },
-          "misfireStrategy": {
-            "description": "Misfire handling.",
-            "$ref": "#/components/schemas/MisfireStrategyCode"
-          },
-          "nextRunAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Next computed fire instant, or null.",
-            "format": "date-time"
-          },
-          "lastOccurrenceAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Most recent occurrence this schedule was advanced past (including misfire skips), or null before the first advance.",
-            "format": "date-time"
-          },
-          "status": {
-            "description": "Lifecycle state (Active / Paused / Orphaned).",
-            "$ref": "#/components/schemas/ScheduleStatusCode"
-          },
-          "pausedUntilUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "When a timed pause expires, or null.",
-            "format": "date-time"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "description": "Row insert instant.",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "description": "Last row change instant.",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
-            "format": "int32"
-          }
-        },
-        "description": "One schedule row in a ValueTask&lt;PagedResult&lt;JobScheduleListItem&gt;&gt; ISchedules.ListAsync(ListJobSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\ntime zone are the effective values: the operator override when present, else the original."
       },
       "JobSnapshot": {
         "required": [
@@ -7468,180 +7333,6 @@
       "JobStepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
       },
-      "JobWorkerDetail": {
-        "required": [
-          "workerId",
-          "jobNamespace",
-          "status",
-          "host",
-          "deploymentVersion",
-          "engineVersion",
-          "dotnetVersion",
-          "processId",
-          "maxConcurrency",
-          "lastHeartbeatAtUtc",
-          "startedAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "workerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/WorkerStatusCode"
-          },
-          "host": {
-            "type": "string"
-          },
-          "deploymentVersion": {
-            "type": "string"
-          },
-          "engineVersion": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "dotnetVersion": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "processId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "maxConcurrency": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "lastHeartbeatAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "startedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "Durable operator detail for one worker process registration."
-      },
-      "JobWorkerListItem": {
-        "required": [
-          "workerId",
-          "jobNamespace",
-          "status",
-          "host",
-          "deploymentVersion",
-          "engineVersion",
-          "dotnetVersion",
-          "processId",
-          "maxConcurrency",
-          "lastSeenAtUtc",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "workerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Worker row id.",
-            "format": "int32"
-          },
-          "jobNamespace": {
-            "type": "string",
-            "description": "Namespace the worker executes for."
-          },
-          "status": {
-            "description": "Current worker status.",
-            "$ref": "#/components/schemas/WorkerStatusCode"
-          },
-          "host": {
-            "type": "string",
-            "description": "Machine name reported at start."
-          },
-          "deploymentVersion": {
-            "type": "string",
-            "description": "Deployment version reported at start."
-          },
-          "engineVersion": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Acta engine assembly version reported at start."
-          },
-          "dotnetVersion": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Runtime framework description reported at start (e.g. \".NET 10.0.0\")."
-          },
-          "processId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "OS process id of the worker process.",
-            "format": "int32"
-          },
-          "maxConcurrency": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Effective per-process executor cap reported at start.",
-            "format": "int32"
-          },
-          "lastSeenAtUtc": {
-            "type": "string",
-            "description": "Last heartbeat instant.",
-            "format": "date-time"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "description": "Worker start instant.",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "description": "Last row change instant.",
-            "format": "date-time"
-          }
-        },
-        "description": "One worker row in a ValueTask&lt;PagedResult&lt;JobWorkerListItem&gt;&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page."
-      },
       "JsonElement": { },
       "MisfireStrategyCode": { },
       "NamespaceListItem": {
@@ -7670,7 +7361,7 @@
           },
           "status": {
             "description": "Namespace lifecycle status (Active resolves at enqueue; Suspended rejects it).",
-            "$ref": "#/components/schemas/JobNamespaceStatusCode"
+            "$ref": "#/components/schemas/NamespaceStatusCode"
           },
           "ownerTeam": {
             "type": [
@@ -7697,6 +7388,9 @@
           }
         },
         "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListItemsAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\n`namespaces` table, and the one representation `GET /namespaces` answers with.\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
+      },
+      "NamespaceStatusCode": {
+        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode. Id 90 is reserved for an Archived (hidden/historical)\nstatus, for symmetry with TenantStatusCode's reservation."
       },
       "OverviewOutboxLine": {
         "required": [
@@ -7866,7 +7560,7 @@
         },
         "description": "One-shot health counters for the dashboard overview, computed on the database clock."
       },
-      "PagedResultOfJobAlertListItem": {
+      "PagedResultOfAlertListItem": {
         "required": [
           "items",
           "nextCursor",
@@ -7879,7 +7573,57 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/JobAlertListItem"
+              "$ref": "#/components/schemas/AlertListItem"
+            },
+            "description": "The page rows, at most PageSize of them."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether at least one more row exists beyond this page."
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The effective page size after defaulting and clamping.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
+            "format": "int64"
+          }
+        },
+        "description": "One page of a keyset-paginated list read."
+      },
+      "PagedResultOfEventListItem": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventListItem"
             },
             "description": "The page rows, at most PageSize of them."
           },
@@ -7966,56 +7710,6 @@
         },
         "description": "One page of a keyset-paginated list read."
       },
-      "PagedResultOfJobEventListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobEventListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
       "PagedResultOfJobListItem": {
         "required": [
           "items",
@@ -8030,106 +7724,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/JobListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfJobScheduleListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobScheduleListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfJobWorkerListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobWorkerListItem"
             },
             "description": "The page rows, at most PageSize of them."
           },
@@ -8216,6 +7810,56 @@
         },
         "description": "One page of a keyset-paginated list read."
       },
+      "PagedResultOfScheduleListItem": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleListItem"
+            },
+            "description": "The page rows, at most PageSize of them."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether at least one more row exists beyond this page."
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The effective page size after defaulting and clamping.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
+            "format": "int64"
+          }
+        },
+        "description": "One page of a keyset-paginated list read."
+      },
       "PagedResultOfTenantListItem": {
         "required": [
           "items",
@@ -8230,6 +7874,56 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TenantListItem"
+            },
+            "description": "The page rows, at most PageSize of them."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether at least one more row exists beyond this page."
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The effective page size after defaulting and clamping.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
+            "format": "int64"
+          }
+        },
+        "description": "One page of a keyset-paginated list read."
+      },
+      "PagedResultOfWorkerListItem": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerListItem"
             },
             "description": "The page rows, at most PageSize of them."
           },
@@ -8357,6 +8051,138 @@
         }
       },
       "ScheduleExpressionKindCode": { },
+      "ScheduleListItem": {
+        "required": [
+          "jobScheduleId",
+          "jobId",
+          "jobDefinitionId",
+          "jobNamespace",
+          "jobName",
+          "scheduleName",
+          "origin",
+          "expressionKind",
+          "expression",
+          "timeZone",
+          "misfireStrategy",
+          "nextRunAtUtc",
+          "lastOccurrenceAtUtc",
+          "status",
+          "pausedUntilUtc",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "jobScheduleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Schedule row id.",
+            "format": "int64"
+          },
+          "jobId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Recurring slot job id.",
+            "format": "int64"
+          },
+          "jobDefinitionId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Catalog definition id.",
+            "format": "int32"
+          },
+          "jobNamespace": {
+            "type": "string",
+            "description": "Owning namespace name."
+          },
+          "jobName": {
+            "type": "string",
+            "description": "Job definition name."
+          },
+          "scheduleName": {
+            "type": "string",
+            "description": "Schedule name within the job."
+          },
+          "origin": {
+            "description": "How the schedule was registered.",
+            "$ref": "#/components/schemas/ScheduleOriginCode"
+          },
+          "expressionKind": {
+            "description": "Expression syntax kind.",
+            "$ref": "#/components/schemas/ScheduleExpressionKindCode"
+          },
+          "expression": {
+            "type": "string",
+            "description": "Effective schedule expression."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "Effective IANA time zone id."
+          },
+          "misfireStrategy": {
+            "description": "Misfire handling.",
+            "$ref": "#/components/schemas/MisfireStrategyCode"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Next computed fire instant, or null.",
+            "format": "date-time"
+          },
+          "lastOccurrenceAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Most recent occurrence this schedule was advanced past (including misfire skips), or null before the first advance.",
+            "format": "date-time"
+          },
+          "status": {
+            "description": "Lifecycle state (Active / Paused / Orphaned).",
+            "$ref": "#/components/schemas/ScheduleStatusCode"
+          },
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When a timed pause expires, or null.",
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "description": "Row insert instant.",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "description": "Last row change instant.",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
+            "format": "int32"
+          }
+        },
+        "description": "One schedule row in a ValueTask&lt;PagedResult&lt;ScheduleListItem&gt;&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\ntime zone are the effective values: the operator override when present, else the original."
+      },
       "ScheduleOriginCode": { },
       "SchedulePreview": {
         "required": [
@@ -8489,6 +8315,180 @@
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80. Id 90 is reserved for an\nArchived (hidden/historical) status, to be added when the dashboard/API need historical tenant\ncleanup."
+      },
+      "WorkerDetail": {
+        "required": [
+          "workerId",
+          "jobNamespace",
+          "status",
+          "host",
+          "deploymentVersion",
+          "engineVersion",
+          "dotnetVersion",
+          "processId",
+          "maxConcurrency",
+          "lastHeartbeatAtUtc",
+          "startedAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "workerId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkerStatusCode"
+          },
+          "host": {
+            "type": "string"
+          },
+          "deploymentVersion": {
+            "type": "string"
+          },
+          "engineVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dotnetVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "processId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxConcurrency": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastHeartbeatAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Durable operator detail for one worker process registration."
+      },
+      "WorkerListItem": {
+        "required": [
+          "workerId",
+          "jobNamespace",
+          "status",
+          "host",
+          "deploymentVersion",
+          "engineVersion",
+          "dotnetVersion",
+          "processId",
+          "maxConcurrency",
+          "lastSeenAtUtc",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "workerId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Worker row id.",
+            "format": "int32"
+          },
+          "jobNamespace": {
+            "type": "string",
+            "description": "Namespace the worker executes for."
+          },
+          "status": {
+            "description": "Current worker status.",
+            "$ref": "#/components/schemas/WorkerStatusCode"
+          },
+          "host": {
+            "type": "string",
+            "description": "Machine name reported at start."
+          },
+          "deploymentVersion": {
+            "type": "string",
+            "description": "Deployment version reported at start."
+          },
+          "engineVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Acta engine assembly version reported at start."
+          },
+          "dotnetVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Runtime framework description reported at start (e.g. \".NET 10.0.0\")."
+          },
+          "processId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "OS process id of the worker process.",
+            "format": "int32"
+          },
+          "maxConcurrency": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Effective per-process executor cap reported at start.",
+            "format": "int32"
+          },
+          "lastSeenAtUtc": {
+            "type": "string",
+            "description": "Last heartbeat instant.",
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "description": "Worker start instant.",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "description": "Last row change instant.",
+            "format": "date-time"
+          }
+        },
+        "description": "One worker row in a ValueTask&lt;PagedResult&lt;WorkerListItem&gt;&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page."
       },
       "WorkerStatusCode": { }
     }

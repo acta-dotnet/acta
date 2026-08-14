@@ -48,7 +48,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            11 /* JobEventCode.TenantResumed */, @now, 1, @p_actor_code, @p_actor_key,
+            11 /* EventCode.TenantResumed */, @now, 1, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, @id, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );

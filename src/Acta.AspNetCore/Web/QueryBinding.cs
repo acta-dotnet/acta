@@ -51,12 +51,12 @@ internal static class QueryBinding
     }
 
     /// <summary>
-    /// Binds a <see cref="JobEventCode"/> from its exact dotted-kebab wire name: the <c>[Code]</c>
+    /// Binds a <see cref="EventCode"/> from its exact dotted-kebab wire name: the <c>[Code]</c>
     /// string the API emits and accepts (e.g. "definition.overrides-updated"), rather than the .NET
     /// member name that the generic <see cref="TryEnum{TEnum}"/> would try to parse. An unknown code is
     /// a caller error mapped to 400.
     /// </summary>
-    public static bool TryEventCode(IQueryCollection query, string name, out JobEventCode? value, ref string? error)
+    public static bool TryEventCode(IQueryCollection query, string name, out EventCode? value, ref string? error)
     {
         value = null;
         var raw = query[name];
@@ -67,19 +67,19 @@ internal static class QueryBinding
 
         try
         {
-            value = JobEventCode.FromCode(raw[0]!);
+            value = EventCode.FromCode(raw[0]!);
             return true;
         }
         catch (ArgumentOutOfRangeException)
         {
-            error = $"Query parameter '{name}' is not a valid JobEventCode value.";
+            error = $"Query parameter '{name}' is not a valid EventCode value.";
             return false;
         }
     }
 
     /// <summary>
     /// Binds a <c>[Code]</c>-family enum from its exact dotted-kebab wire name via the family's generated
-    /// <c>FromCode</c> parser (e.g. <c>JobActorCodeExtensions.FromCode</c>), rather than the .NET member
+    /// <c>FromCode</c> parser (e.g. <c>ActorCodeExtensions.FromCode</c>), rather than the .NET member
     /// name. An unknown code is a caller error mapped to 400.
     /// </summary>
     public static bool TryCode<TEnum>(

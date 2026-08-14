@@ -97,7 +97,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    101 /* JobEventCode.ScheduleResumed */, @now, @ns,
+                    101 /* EventCode.ScheduleResumed */, @now, @ns,
                     @p_actor_code, @p_actor_key,
                     @p_job_id, @job_ref, @en,
                     COALESCE(@lineage, @p_job_id), @def,

@@ -15,7 +15,7 @@
   import { routes } from '../routes.ts';
   import JobRef from '../components/JobRef.svelte';
 
-  // Kebab codes the backend's events filter accepts (JobEventCode / JobActorCode / JobEventReasonCode).
+  // Kebab codes the backend's events filter accepts (EventCode / ActorCode / JobEventReasonCode).
   // Hardcoded rather than fetched: the code families are compile-time enums with no list endpoint.
   const EVENT_CODES = [
     'tenant.suspended', 'tenant.resumed', 'tenant.updated',

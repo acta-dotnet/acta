@@ -35,7 +35,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    104 /* JobEventCode.ScheduleTriggered */,
+    104 /* EventCode.ScheduleTriggered */,
     {{now}},
     j.namespace_id,
     @p_actor_code,

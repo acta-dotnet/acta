@@ -14,7 +14,7 @@ namespace Acta;
 /// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
 /// <param name="IncludeTotal">Whether to also compute the filter-wide row count.</param>
 /// <param name="Tags">Restrict to alerts carrying every supplied exact tag filter.</param>
-public sealed record ListJobAlertsQuery(
+public sealed record ListAlertsQuery(
     string? JobNamespace = null,
     long? JobId = null,
     bool? UnresolvedOnly = null,

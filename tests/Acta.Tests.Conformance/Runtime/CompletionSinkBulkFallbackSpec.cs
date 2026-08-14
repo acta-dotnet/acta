@@ -113,7 +113,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
 
         // Exact lifecycle event: one JobExecutionFinished with ExecutionStatus Succeeded.
-        var evt = await ReadSingleEventAsync(child.Id, JobEventCode.JobExecutionFinished, ct);
+        var evt = await ReadSingleEventAsync(child.Id, EventCode.JobExecutionFinished, ct);
         Assert.Equal(ExecutionStatusCode.Succeeded, evt.ExecutionStatus);
     }
 

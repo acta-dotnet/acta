@@ -39,5 +39,5 @@ public interface IAlerts
     /// List alerts newest first, optionally filtered by namespace, job, resolution, acknowledgement,
     /// severity, and delivery status.
     /// </summary>
-    ValueTask<PagedResult<JobAlertListItem>> ListAsync(ListJobAlertsQuery query, CancellationToken ct = default);
+    ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default);
 }

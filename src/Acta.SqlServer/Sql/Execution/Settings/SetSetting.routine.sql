@@ -88,7 +88,7 @@ BEGIN
             detail_format_id, detail
         )
         VALUES (
-            160 /* JobEventCode.SettingUpdated */, @now, COALESCE(@namespace_id, 1), @p_actor_code, @p_actor_key,
+            160 /* EventCode.SettingUpdated */, @now, COALESCE(@namespace_id, 1), @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, @definition_id, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message,
             1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"name":"' + @p_name + '"}')

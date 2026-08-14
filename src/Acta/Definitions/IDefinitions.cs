@@ -20,5 +20,5 @@ public interface IDefinitions
     ValueTask<JobDefinitionDetail?> GetAsync(int jobDefinitionId, CancellationToken ct = default);
 
     /// <summary>List job definitions ordered by namespace then name, optionally filtered by namespace and status.</summary>
-    ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default);
+    ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
 }

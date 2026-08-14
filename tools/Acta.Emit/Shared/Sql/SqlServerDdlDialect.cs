@@ -66,7 +66,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 + "BEGIN\n"
                 + $"    SET IDENTITY_INSERT {SchemaPlaceholder}.namespaces ON;\n"
                 + $"    INSERT INTO {SchemaPlaceholder}.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)\n"
-                + $"    VALUES (1, N'sys', {(byte)JobNamespaceStatusCode.Active}, N'Reserved system namespace for cross-namespace audit events.', SYSUTCDATETIME(), SYSUTCDATETIME());\n"
+                + $"    VALUES (1, N'sys', {(byte)NamespaceStatusCode.Active}, N'Reserved system namespace for cross-namespace audit events.', SYSUTCDATETIME(), SYSUTCDATETIME());\n"
                 + $"    SET IDENTITY_INSERT {SchemaPlaceholder}.namespaces OFF;\n"
                 + "END"
             : null;

@@ -45,7 +45,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(newInput.Format.Id, job.InputFormatId);
         Assert.Equal(newInput.Data.ToArray(), job.Input);
 
-        var evt = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobInputAmended, ct);
+        var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);
         Assert.Equal("spec-actor", evt.ActorKey);
         Assert.Equal("corrected operands", evt.ReasonMessage);
         Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailFormatId);
@@ -91,7 +91,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         }
 
         // The amend event outlives the job (events carry no FK to jobs) with metadata only.
-        var evt = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobInputAmended, ct);
+        var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);
         Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailFormatId);
         using var doc = System.Text.Json.JsonDocument.Parse(evt.Detail!);
         Assert.Equal("json", doc.RootElement.GetProperty("format").GetString());
@@ -109,8 +109,8 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
             }
         }
 
-        var page = await Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
-        Assert.Contains(page.Items, i => i.EventCode == JobEventCode.JobInputAmended && i.DetailText is not null);
+        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
+        Assert.Contains(page.Items, i => i.EventCode == EventCode.JobInputAmended && i.DetailText is not null);
         foreach (var item in page.Items)
         {
             Assert.DoesNotContain(marker, item.DetailText ?? "");
@@ -137,7 +137,7 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
             var job = await ReadJobRowAsync(enqueued.JobId, ct);
             Assert.Equal(oldInput.Data.ToArray(), job.Input);
-            Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobInputAmended, ct));
+            Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobInputAmended, ct));
         }
     }
 

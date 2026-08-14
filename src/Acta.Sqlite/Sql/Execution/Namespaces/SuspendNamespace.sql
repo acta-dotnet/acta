@@ -25,7 +25,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    20 /* JobEventCode.NamespaceSuspended */,
+    20 /* EventCode.NamespaceSuspended */,
     {{now}},
     s.id,
     @p_actor_code,
@@ -44,23 +44,23 @@ SELECT
     NULL,
     @p_reason_message
 FROM temp._suspend_namespace s
-WHERE s.from_status <> 20 /* JobNamespaceStatusCode.Suspended */;
+WHERE s.from_status <> 20 /* NamespaceStatusCode.Suspended */;
 
 UPDATE {{schema}}.namespaces
-SET status_code = 20 /* JobNamespaceStatusCode.Suspended */, modified_at_utc = {{now}}, version = version + 1
+SET status_code = 20 /* NamespaceStatusCode.Suspended */, modified_at_utc = {{now}}, version = version + 1
 WHERE
     name = @p_namespace_name
-    AND status_code <> 20 /* JobNamespaceStatusCode.Suspended */;
+    AND status_code <> 20 /* NamespaceStatusCode.Suspended */;
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* AdminControlAction.NotFound */
-        WHEN s.from_status = 20 /* JobNamespaceStatusCode.Suspended */ THEN 3 /* AdminControlAction.AlreadyInState */
+        WHEN s.from_status = 20 /* NamespaceStatusCode.Suspended */ THEN 3 /* AdminControlAction.AlreadyInState */
         ELSE 1 /* AdminControlAction.Applied */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL
-        WHEN s.from_status = 20 /* JobNamespaceStatusCode.Suspended */ THEN s.from_version
+        WHEN s.from_status = 20 /* NamespaceStatusCode.Suspended */ THEN s.from_version
         ELSE s.from_version + 1
     END AS version
 FROM (SELECT 1) one

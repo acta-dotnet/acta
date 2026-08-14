@@ -74,7 +74,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    71 /* JobEventCode.JobPaused */, @now, @namespace_id,
+                    71 /* EventCode.JobPaused */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,

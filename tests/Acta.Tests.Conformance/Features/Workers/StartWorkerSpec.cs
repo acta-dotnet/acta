@@ -84,15 +84,15 @@ public abstract class StartWorkerSpec<TFixture> : ActaStorageTestBase<TFixture>
         var (nsId, wId1) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host1", "v1", null, null, 1001, 4, ct);
         var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct);
 
-        var events1 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId1 && e.EventCode == JobEventCode.WorkerStarted).ToListAsync(ct);
+        var events1 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId1 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e1 = Assert.Single(events1);
-        Assert.Equal(JobActorCode.Worker, e1.ActorCode);
+        Assert.Equal(ActorCode.Worker, e1.ActorCode);
         Assert.Equal(wId1.ToString(CultureInfo.InvariantCulture), e1.ActorKey);
         Assert.Equal(nsId, e1.NamespaceId);
 
-        var events2 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId2 && e.EventCode == JobEventCode.WorkerStarted).ToListAsync(ct);
+        var events2 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId2 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e2 = Assert.Single(events2);
-        Assert.Equal(JobActorCode.Worker, e2.ActorCode);
+        Assert.Equal(ActorCode.Worker, e2.ActorCode);
         Assert.Equal(wId2.ToString(CultureInfo.InvariantCulture), e2.ActorKey);
         Assert.Equal(nsId, e2.NamespaceId);
     }

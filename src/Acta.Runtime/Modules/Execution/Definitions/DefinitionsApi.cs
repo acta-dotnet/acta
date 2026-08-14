@@ -18,6 +18,6 @@ internal sealed class DefinitionsApi(DefinitionsService definitions) : IDefiniti
     public ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct = default) =>
         definitions.GetAsync(definitionId, ct);
 
-    public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default) =>
+    public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         definitions.ListAsync(query, ct);
 }

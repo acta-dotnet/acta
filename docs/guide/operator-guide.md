@@ -167,7 +167,7 @@ Address a schedule by its recurring slot job plus schedule name. Definition-back
 job name as their deduplication key.
 
 ```csharp
-var nightly = new JobScheduleLookup(
+var nightly = new ScheduleLookup(
     JobLookup.ByDeduplicationKey("billing", "reconcile-ledger"),
     "nightly");
 

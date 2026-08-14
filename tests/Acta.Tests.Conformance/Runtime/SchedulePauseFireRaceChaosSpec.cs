@@ -91,8 +91,8 @@ public abstract class SchedulePauseFireRaceChaosSpec<TFixture> : ActaRuntimeTest
 
         // And the timeline must not claim an expiry. Nothing expired: an operator paused it.
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        Assert.Contains(events, e => e.JobEventCode == JobEventCode.SchedulePaused);
-        Assert.DoesNotContain(events, e => e.JobEventCode == JobEventCode.SchedulePauseExpired);
+        Assert.Contains(events, e => e.EventCode == EventCode.SchedulePaused);
+        Assert.DoesNotContain(events, e => e.EventCode == EventCode.SchedulePauseExpired);
     }
 
     [Fact(DisplayName = "A timed pause that has elapsed is still auto-resumed by the advance")]
@@ -115,10 +115,10 @@ public abstract class SchedulePauseFireRaceChaosSpec<TFixture> : ActaRuntimeTest
         Assert.Null(after.PausedUntilUtc);
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        Assert.Contains(events, e => e.JobEventCode == JobEventCode.SchedulePauseExpired);
+        Assert.Contains(events, e => e.EventCode == EventCode.SchedulePauseExpired);
     }
 
-    private JobScheduleLookup Lookup() => new(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ScheduleName);
+    private ScheduleLookup Lookup() => new(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ScheduleName);
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {

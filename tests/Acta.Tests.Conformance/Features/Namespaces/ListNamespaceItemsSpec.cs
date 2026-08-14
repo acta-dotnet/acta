@@ -69,7 +69,7 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.NotNull(row);
         Assert.Equal(nsId, row.Id);
         Assert.Equal(TestNamespace, row.Name);
-        Assert.Equal(JobNamespaceStatusCode.Active, row.Status);
+        Assert.Equal(NamespaceStatusCode.Active, row.Status);
         Assert.Equal("platform-team", row.OwnerTeam);
         Assert.Equal("namespace admin description", row.Description);
         Assert.Equal(updated.Version, row.Version);
@@ -84,7 +84,7 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
         var page = await store.ListNamespaceItemsAsync(new NamespacePageRequest("sys", null, null, 50, true), ct);
         var sys = page.Rows.Single(r => r.Name == "sys");
         Assert.Equal((short)1, sys.Id);
-        Assert.Equal(JobNamespaceStatusCode.Active, sys.Status);
+        Assert.Equal(NamespaceStatusCode.Active, sys.Status);
         Assert.NotNull(page.Total);
         Assert.True(page.Total >= 1);
     }

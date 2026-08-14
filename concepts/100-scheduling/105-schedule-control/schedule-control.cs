@@ -22,7 +22,7 @@ var queries = host.Services.GetRequiredService<IActaOperations>();
 // The recurring slot registers on StartAsync; give the worker a moment to reconcile.
 await Task.Delay(500);
 
-var lookup = new JobScheduleLookup(JobLookup.ByDeduplicationKey("schedule-control", "hourly-report"), "every-hour");
+var lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-control", "hourly-report"), "every-hour");
 
 // Step 1: indefinite pause - the schedule does not fire until an operator explicitly resumes it.
 Console.WriteLine("Pausing schedule indefinitely...");
@@ -41,7 +41,7 @@ var r3 = await schedules.ResumeAsync(lookup, note: "drain complete");
 Console.WriteLine($"After resume: status={r3.Status} next-run={r3.NextRunAtUtc?.ToString("O") ?? "(none)"}");
 
 // Confirm via the query surface that the schedule is active again and has a next-run time.
-var page = await queries.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: "schedule-control"));
+var page = await queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "schedule-control"));
 var item = page.Items.FirstOrDefault(i => i.ScheduleName == "every-hour");
 Console.WriteLine($"Query confirms: status={item?.Status} next-run={item?.NextRunAtUtc?.ToString("O") ?? "(none)"}");
 

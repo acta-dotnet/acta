@@ -44,7 +44,7 @@ public sealed class IntervalPingManifest : IJobManifest
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
                 AuditLevel: JobAuditLevelCode.Audit,
-                AlertProfile: JobAlertProfileCode.OnFailure,
+                AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await IntervalPingHandler.Run(ctx, ct);
@@ -56,7 +56,7 @@ public sealed class IntervalPingManifest : IJobManifest
             {
                 Schedules =
                 [
-                    new JobScheduleDescriptor(
+                    new ScheduleDescriptor(
                         JobName: PingJobName,
                         ScheduleName: PingScheduleName,
                         Expression: "PT30S",
@@ -138,10 +138,10 @@ public abstract class IntervalScheduleFireSpec<TFixture> : ActaRuntimeTestBase<T
 
         // Audit events confirm a complete recurring lifecycle.
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        var codes = events.Select(e => e.JobEventCode).ToHashSet();
-        Assert.Contains(JobEventCode.JobExecutionStarted, codes);
-        Assert.Contains(JobEventCode.JobExecutionFinished, codes);
-        Assert.Contains(JobEventCode.JobRecurringRolledOver, codes);
+        var codes = events.Select(e => e.EventCode).ToHashSet();
+        Assert.Contains(EventCode.JobExecutionStarted, codes);
+        Assert.Contains(EventCode.JobExecutionFinished, codes);
+        Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
 
     [Fact(DisplayName = "Missed periods are coalesced into a single fire with Skip misfire")]

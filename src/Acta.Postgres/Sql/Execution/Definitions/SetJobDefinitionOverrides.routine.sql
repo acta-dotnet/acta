@@ -77,7 +77,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        30 /* JobEventCode.JobDefinitionOverridesUpdated */,
+        30 /* EventCode.JobDefinitionOverridesUpdated */,
         now(),
         v_ns,
         p_actor_code,

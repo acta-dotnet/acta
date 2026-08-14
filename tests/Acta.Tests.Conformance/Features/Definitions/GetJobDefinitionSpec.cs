@@ -79,7 +79,7 @@ public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
             definitionId,
             before!.Version,
             new JobDefinitionPolicyOverrides(DisplayName: displayName, Description: description),
-            new JobControlActor(JobActorCode.Operator, "tester"),
+            new JobControlActor(ActorCode.Operator, "tester"),
             "detail projection round-trip",
             ct
         );

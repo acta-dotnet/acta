@@ -44,12 +44,12 @@ public abstract class StopWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Assert.Equal(WorkerStatusCode.Stopped, after!.Status);
 
         var events = await Db.From<JobEvent>()
-            .Where(e => e.WorkerId == worker.Id && e.EventCode == JobEventCode.WorkerStopped)
+            .Where(e => e.WorkerId == worker.Id && e.EventCode == EventCode.WorkerStopped)
             .ToListAsync(ct);
         var stoppedEvent = Assert.Single(events);
         Assert.Null(stoppedEvent.JobId);
         Assert.Equal(ns, stoppedEvent.NamespaceId);
-        Assert.Equal(JobActorCode.Worker, stoppedEvent.ActorCode);
+        Assert.Equal(ActorCode.Worker, stoppedEvent.ActorCode);
         Assert.Equal(JobEventReasonCode.WorkerCleanShutdown, stoppedEvent.ReasonCode);
     }
 
@@ -67,7 +67,7 @@ public abstract class StopWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
 
         // The second stop is a no-op on the now-terminal worker: still exactly one worker.stopped event.
         var events = await Db.From<JobEvent>()
-            .Where(e => e.WorkerId == worker.Id && e.EventCode == JobEventCode.WorkerStopped)
+            .Where(e => e.WorkerId == worker.Id && e.EventCode == EventCode.WorkerStopped)
             .ToListAsync(ct);
         Assert.Single(events);
     }

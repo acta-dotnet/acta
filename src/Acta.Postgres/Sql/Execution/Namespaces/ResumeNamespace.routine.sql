@@ -20,13 +20,13 @@ BEGIN
         RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
-    IF v_status = 10 /* JobNamespaceStatusCode.Active */ THEN
+    IF v_status = 10 /* NamespaceStatusCode.Active */ THEN
         RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
     UPDATE {{schema}}.namespaces AS n
     SET
-        status_code = 10 /* JobNamespaceStatusCode.Active */,
+        status_code = 10 /* NamespaceStatusCode.Active */,
         modified_at_utc = now(),
         version = n.version + 1
     WHERE n.id = v_id
@@ -51,7 +51,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        21 /* JobEventCode.NamespaceResumed */,
+        21 /* EventCode.NamespaceResumed */,
         now(),
         v_id,
         p_actor_code,

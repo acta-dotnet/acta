@@ -40,7 +40,7 @@ internal static class CertifyRun
             using var scope = scopes.CreateScope();
             var operations = scope.ServiceProvider.GetRequiredService<IActaOperations>();
             var page = await operations.Schedules.ListAsync(
-                new ListJobSchedulesQuery(JobNamespace: jobNamespace, JobName: "sys.recovery", PageSize: 1),
+                new ListSchedulesQuery(JobNamespace: jobNamespace, JobName: "sys.recovery", PageSize: 1),
                 ct
             );
             if (page.Items is [{ Expression: { Length: > 0 } expression }, ..])

@@ -1063,7 +1063,7 @@ BEGIN
             reason_code, reason_message
         )
         VALUES (
-            140 /* JobEventCode.AlertAcknowledged */, @now, @namespace_id,
+            140 /* EventCode.AlertAcknowledged */, @now, @namespace_id,
             @p_actor_code, @p_actor_key,
             @job_id, @job_ref, @execution_number,
             COALESCE(@lineage_root_id, @job_id), @definition_id,
@@ -1279,7 +1279,7 @@ BEGIN
             reason_code, reason_message
         )
         VALUES (
-            141 /* JobEventCode.AlertResolved */, @now, @namespace_id,
+            141 /* EventCode.AlertResolved */, @now, @namespace_id,
             @p_actor_code, @p_actor_key,
             @job_id, @job_ref, @execution_number,
             COALESCE(@lineage_root_id, @job_id), @definition_id,
@@ -1621,10 +1621,10 @@ BEGIN
                     reason_code, reason_message
                 )
                 SELECT
-                    40 /* JobEventCode.JobExecutionStarted */,
+                    40 /* EventCode.JobExecutionStarted */,
                     @now,
                     c.namespace_id,
-                    70 /* JobActorCode.Worker */,
+                    70 /* ActorCode.Worker */,
                     NULL,
                     c.id,
                     c.job_ref,
@@ -1795,10 +1795,10 @@ BEGIN
                     reason_code, reason_message
                 )
                 SELECT
-                    40 /* JobEventCode.JobExecutionStarted */,
+                    40 /* EventCode.JobExecutionStarted */,
                     @now,
                     c.namespace_id,
-                    70 /* JobActorCode.Worker */,
+                    70 /* ActorCode.Worker */,
                     NULL,
                     c.id,
                     c.job_ref,
@@ -2004,10 +2004,10 @@ BEGIN
                             reason_code, reason_message
                         )
                         SELECT
-                            102 /* JobEventCode.SchedulePauseExpired */,
+                            102 /* EventCode.SchedulePauseExpired */,
                             @now,
                             @c_ns,
-                            10 /* JobActorCode.Sys */,
+                            10 /* ActorCode.Sys */,
                             NULL,
                             @p_id,
                             @c_ref,
@@ -2082,8 +2082,8 @@ BEGIN
                             reason_code, reason_message
                         )
                         VALUES (
-                            41 /* JobEventCode.JobExecutionFinished */, @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            41 /* EventCode.JobExecutionFinished */, @now, @c_ns,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -2121,11 +2121,11 @@ BEGIN
                         )
                         VALUES (
                             CASE
-                                WHEN @p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* JobEventCode.JobRecurringRolledOver */
-                                ELSE 71 /* JobEventCode.JobPaused */
+                                WHEN @p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
+                                ELSE 71 /* EventCode.JobPaused */
                             END,
                             @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -2153,11 +2153,11 @@ BEGIN
                             CASE
                                 WHEN
                                     @p_reschedule_status_code = 151
-                                    /* ExecutionStatusCode.Suspended */ THEN 60 /* JobEventCode.JobSuspended */
-                                ELSE 61 /* JobEventCode.JobRescheduled */
+                                    /* ExecutionStatusCode.Suspended */ THEN 60 /* EventCode.JobSuspended */
+                                ELSE 61 /* EventCode.JobRescheduled */
                             END,
                             @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -2183,11 +2183,11 @@ BEGIN
                         )
                         VALUES (
                             CASE
-                                WHEN @p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* JobEventCode.JobCancelled */
-                                ELSE 71 /* JobEventCode.JobPaused */
+                                WHEN @p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                                ELSE 71 /* EventCode.JobPaused */
                             END,
                             @now, @c_ns,
-                            70 /* JobActorCode.Worker */, NULL,
+                            70 /* ActorCode.Worker */, NULL,
                             @p_id, @c_ref, @c_exec,
                             COALESCE(@c_lineage, @p_id), @c_def, @c_tenant,
                             @p_leased_by_worker_id,
@@ -2281,8 +2281,8 @@ BEGIN
                                             reason_code, reason_message
                                         )
                                         VALUES (
-                                            80 /* JobEventCode.JobSignalRaised */, @now, @pns,
-                                            10 /* JobActorCode.Sys */, NULL,
+                                            80 /* EventCode.JobSignalRaised */, @now, @pns,
+                                            10 /* ActorCode.Sys */, NULL,
                                             @parent_id, @parent_ref, @pexec,
                                             COALESCE(@plineage, @parent_id), @pdef, @ptenant,
                                             NULL,
@@ -2315,8 +2315,8 @@ BEGIN
                                                     reason_code, reason_message
                                                 )
                                                 VALUES (
-                                                    72 /* JobEventCode.JobResumed */, @now, @pns,
-                                                    10 /* JobActorCode.Sys */, NULL,
+                                                    72 /* EventCode.JobResumed */, @now, @pns,
+                                                    10 /* ActorCode.Sys */, NULL,
                                                     @parent_id, @parent_ref, @pexec,
                                                     COALESCE(@plineage, @parent_id), @pdef, @ptenant,
                                                     NULL,
@@ -2447,10 +2447,10 @@ BEGIN
             reason_code, reason_message
         )
         SELECT
-            41 /* JobEventCode.JobExecutionFinished */,
+            41 /* EventCode.JobExecutionFinished */,
             @now,
             u.namespace_id,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             u.job_id,
             u.job_ref,
@@ -2739,10 +2739,10 @@ BEGIN
             reason_code, reason_message
         )
         SELECT
-            70 /* JobEventCode.JobCancelled */,
+            70 /* EventCode.JobCancelled */,
             @now,
             j.namespace_id,
-            10 /* JobActorCode.Sys */,
+            10 /* ActorCode.Sys */,
             'sys:register-definitions',
             j.id,
             j.job_ref,
@@ -2881,7 +2881,7 @@ BEGIN
             reason_code, reason_message
         )
         VALUES (
-            30 /* JobEventCode.JobDefinitionOverridesUpdated */, @now, @ns,
+            30 /* EventCode.JobDefinitionOverridesUpdated */, @now, @ns,
             @p_actor_code, @p_actor_key,
             NULL, NULL, NULL,
             NULL, @p_id,
@@ -2995,7 +2995,7 @@ BEGIN
                             reason_code, reason_message
                         )
                         VALUES (
-                            41 /* JobEventCode.JobExecutionFinished */, @now, @namespace_id,
+                            41 /* EventCode.JobExecutionFinished */, @now, @namespace_id,
                             @p_actor_code, @p_actor_key,
                             @p_id, @job_ref, @execution_number,
                             COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -3017,7 +3017,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    70 /* JobEventCode.JobCancelled */, @now, @namespace_id,
+                    70 /* EventCode.JobCancelled */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -3103,7 +3103,7 @@ BEGIN
         IF
             EXISTS (
                 SELECT 1 FROM @resolved
-                WHERE ns_status <> 10 /* JobNamespaceStatusCode.Active */
+                WHERE ns_status <> 10 /* NamespaceStatusCode.Active */
             )
             BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
@@ -3445,7 +3445,7 @@ BEGIN
                 THROW 50001, @route_msg, 1;
             END;
 
-        IF @ns_status <> 10 /* JobNamespaceStatusCode.Active */
+        IF @ns_status <> 10 /* NamespaceStatusCode.Active */
             BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
             END;
@@ -3686,7 +3686,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    71 /* JobEventCode.JobPaused */, @now, @namespace_id,
+                    71 /* EventCode.JobPaused */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -3819,7 +3819,7 @@ BEGIN
             reason_code, reason_message
         )
         VALUES (
-            75 /* JobEventCode.JobPurged */, @now, @namespace_id,
+            75 /* EventCode.JobPurged */, @now, @namespace_id,
             @p_actor_code, @p_actor_key,
             NULL, NULL, NULL,
             NULL, @definition_id, @tenant_id,
@@ -3921,7 +3921,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    74 /* JobEventCode.JobReprioritized */, @now, @namespace_id,
+                    74 /* EventCode.JobReprioritized */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -4025,7 +4025,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    61 /* JobEventCode.JobRescheduled */, @now, @namespace_id,
+                    61 /* EventCode.JobRescheduled */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -4106,8 +4106,8 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    81 /* JobEventCode.JobStateReset */, @now, @namespace_id,
-                    50 /* JobActorCode.Job */, CONVERT(VARCHAR(128), @p_id),
+                    81 /* EventCode.JobStateReset */, @now, @namespace_id,
+                    50 /* ActorCode.Job */, CONVERT(VARCHAR(128), @p_id),
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
                     NULL,
@@ -4206,7 +4206,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    73 /* JobEventCode.JobRestarted */, @now, @namespace_id,
+                    73 /* EventCode.JobRestarted */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -4305,7 +4305,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    72 /* JobEventCode.JobResumed */, @now, @namespace_id,
+                    72 /* EventCode.JobResumed */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -4430,7 +4430,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    76 /* JobEventCode.JobInputAmended */, @now, @namespace_id,
+                    76 /* EventCode.JobInputAmended */, @now, @namespace_id,
                     @p_actor_code, @p_actor_key,
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
@@ -4486,7 +4486,7 @@ BEGIN
                 RETURN;
             END;
 
-        IF @status = 10 /* JobNamespaceStatusCode.Active */
+        IF @status = 10 /* NamespaceStatusCode.Active */
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
@@ -4496,7 +4496,7 @@ BEGIN
             END;
 
         UPDATE acta.namespaces
-        SET status_code = 10 /* JobNamespaceStatusCode.Active */, modified_at_utc = @now, version = version + 1
+        SET status_code = 10 /* NamespaceStatusCode.Active */, modified_at_utc = @now, version = version + 1
         WHERE id = @id;
         SET @version = @version + 1;
 
@@ -4506,7 +4506,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            21 /* JobEventCode.NamespaceResumed */, @now, @id, @p_actor_code, @p_actor_key,
+            21 /* EventCode.NamespaceResumed */, @now, @id, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );
@@ -4551,7 +4551,7 @@ BEGIN
                 RETURN;
             END;
 
-        IF @status = 20 /* JobNamespaceStatusCode.Suspended */
+        IF @status = 20 /* NamespaceStatusCode.Suspended */
             BEGIN
                 COMMIT TRANSACTION;
                 SELECT
@@ -4561,7 +4561,7 @@ BEGIN
             END;
 
         UPDATE acta.namespaces
-        SET status_code = 20 /* JobNamespaceStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
+        SET status_code = 20 /* NamespaceStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
         WHERE id = @id;
         SET @version = @version + 1;
 
@@ -4571,7 +4571,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            20 /* JobEventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key,
+            20 /* EventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );
@@ -4638,7 +4638,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            22 /* JobEventCode.NamespaceUpdated */, @now, @id, @p_actor_code, @p_actor_key,
+            22 /* EventCode.NamespaceUpdated */, @now, @id, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );
@@ -4681,10 +4681,10 @@ BEGIN
         detail,
         reason_message)
     SELECT
-        90 /* JobEventCode.JobNoteRecorded */,
+        90 /* EventCode.JobNoteRecorded */,
         SYSUTCDATETIME(),
         j.namespace_id,
-        50 /* JobActorCode.Job */,
+        50 /* ActorCode.Job */,
         j.id,
         j.job_ref,
         r.execution_number,
@@ -4795,10 +4795,10 @@ BEGIN
             reason_code, reason_message
         )
         SELECT
-            41 /* JobEventCode.JobExecutionFinished */,
+            41 /* EventCode.JobExecutionFinished */,
             @now,
             namespace_id,
-            10 /* JobActorCode.Sys */,
+            10 /* ActorCode.Sys */,
             NULL,
             id,
             job_ref,
@@ -4932,7 +4932,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    100 /* JobEventCode.SchedulePaused */, @now, @ns,
+                    100 /* EventCode.SchedulePaused */, @now, @ns,
                     @p_actor_code, @p_actor_key,
                     @p_job_id, @job_ref, @en,
                     COALESCE(@lineage, @p_job_id), @def,
@@ -5283,7 +5283,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    101 /* JobEventCode.ScheduleResumed */, @now, @ns,
+                    101 /* EventCode.ScheduleResumed */, @now, @ns,
                     @p_actor_code, @p_actor_key,
                     @p_job_id, @job_ref, @en,
                     COALESCE(@lineage, @p_job_id), @def,
@@ -5432,7 +5432,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    103 /* JobEventCode.ScheduleOverridesUpdated */, @now, @ns,
+                    103 /* EventCode.ScheduleOverridesUpdated */, @now, @ns,
                     @p_actor_code, @p_actor_key,
                     @p_job_id, @job_ref, @en,
                     COALESCE(@lineage, @p_job_id), @def,
@@ -5581,7 +5581,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    104 /* JobEventCode.ScheduleTriggered */, @now, @ns,
+                    104 /* EventCode.ScheduleTriggered */, @now, @ns,
                     @p_actor_code, @p_actor_key,
                     @p_job_id, @job_ref, @en,
                     COALESCE(@lineage, @p_job_id), @def,
@@ -5700,7 +5700,7 @@ BEGIN
             detail_format_id, detail
         )
         VALUES (
-            160 /* JobEventCode.SettingUpdated */, @now, COALESCE(@namespace_id, 1), @p_actor_code, @p_actor_key,
+            160 /* EventCode.SettingUpdated */, @now, COALESCE(@namespace_id, 1), @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, @definition_id, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message,
             1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"name":"' + @p_name + '"}')
@@ -5805,7 +5805,7 @@ BEGIN
                 reason_code, reason_message
             )
             VALUES (
-                80 /* JobEventCode.JobSignalRaised */, @now, @namespace_id,
+                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
                 @p_actor_code, @p_actor_key,
                 @p_job_id, @job_ref, @execution_number,
                 COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
@@ -5837,7 +5837,7 @@ BEGIN
                         reason_code, reason_message
                     )
                     VALUES (
-                        72 /* JobEventCode.JobResumed */, @now, @namespace_id,
+                        72 /* EventCode.JobResumed */, @now, @namespace_id,
                         @p_actor_code, @p_actor_key,
                         @p_job_id, @job_ref, @execution_number,
                         COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
@@ -5999,10 +5999,10 @@ BEGIN
                     reason_code, reason_message
                 )
                 SELECT
-                    40 /* JobEventCode.JobExecutionStarted */,
+                    40 /* EventCode.JobExecutionStarted */,
                     @now,
                     st.namespace_id,
-                    70 /* JobActorCode.Worker */,
+                    70 /* ActorCode.Worker */,
                     NULL,
                     st.id,
                     st.job_ref,
@@ -6308,7 +6308,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            11 /* JobEventCode.TenantResumed */, @now, 1, @p_actor_code, @p_actor_key,
+            11 /* EventCode.TenantResumed */, @now, 1, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, @id, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );
@@ -6374,7 +6374,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            10 /* JobEventCode.TenantSuspended */, @now, 1, @p_actor_code, @p_actor_key,
+            10 /* EventCode.TenantSuspended */, @now, 1, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, @id, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );
@@ -6442,7 +6442,7 @@ BEGIN
             from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            12 /* JobEventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key,
+            12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key,
             NULL, NULL, NULL, NULL, NULL, @id, NULL,
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );
@@ -6626,10 +6626,10 @@ BEGIN
         execution_status_code, duration_ms, reason_code, reason_message
     )
     SELECT
-        122 /* JobEventCode.WorkerDead */,
+        122 /* EventCode.WorkerDead */,
         SYSUTCDATETIME(),
         m.namespace_id,
-        70 /* JobActorCode.Worker */,
+        70 /* ActorCode.Worker */,
         CAST(m.id AS VARCHAR(128)),
         NULL,
         NULL,
@@ -6739,7 +6739,7 @@ BEGIN
             execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            120 /* JobEventCode.WorkerStarted */, @now, @ns_id, 70 /* JobActorCode.Worker */, CAST(@worker_id AS VARCHAR(128)),
+            120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, CAST(@worker_id AS VARCHAR(128)),
             NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
         );
 
@@ -6786,10 +6786,10 @@ BEGIN
         execution_status_code, duration_ms, reason_code, reason_message
     )
     SELECT
-        121 /* JobEventCode.WorkerStopped */,
+        121 /* EventCode.WorkerStopped */,
         @now,
         @p_namespace_id,
-        70 /* JobActorCode.Worker */,
+        70 /* ActorCode.Worker */,
         CAST(s.id AS VARCHAR(128)),
         NULL,
         NULL,

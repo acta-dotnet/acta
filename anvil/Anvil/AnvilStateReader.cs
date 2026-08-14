@@ -48,9 +48,7 @@ public sealed class AnvilStateReader(
             .AsTask();
         var doneTask = CountAsync(JobStatusCode.Succeeded, ct).AsTask();
         var workerRowsTask = operations.Workers.ListAsync(new ListWorkersQuery(_namespaceName, PageSize: 50), ct).AsTask();
-        var eventsTask = operations
-            .Ledger.ListEventsAsync(new ListJobEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct)
-            .AsTask();
+        var eventsTask = operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct).AsTask();
         await Task.WhenAll(overviewTask, doneTask, workerRowsTask, eventsTask);
 
         var overview = await overviewTask;
@@ -139,7 +137,7 @@ public sealed class AnvilStateReader(
 
     private IReadOnlyList<AnvilWorker> MergeWorkers(
         IReadOnlyList<WorkerSnapshot> managedWorkers,
-        IReadOnlyList<JobWorkerListItem> rows,
+        IReadOnlyList<WorkerListItem> rows,
         DateTime utcNow,
         bool databaseAvailable = true
     )
@@ -169,9 +167,9 @@ public sealed class AnvilStateReader(
         return result;
     }
 
-    private JobWorkerListItem? NewestOwnRow(IReadOnlyList<JobWorkerListItem> rows, string deploymentVersion)
+    private WorkerListItem? NewestOwnRow(IReadOnlyList<WorkerListItem> rows, string deploymentVersion)
     {
-        JobWorkerListItem? newest = null;
+        WorkerListItem? newest = null;
         foreach (var row in rows)
         {
             if (
@@ -188,7 +186,7 @@ public sealed class AnvilStateReader(
 
     private static AnvilWorker InterpretWorker(
         WorkerSnapshot? process,
-        JobWorkerListItem? row,
+        WorkerListItem? row,
         DateTime utcNow,
         TimeSpan workerDeadAfter,
         bool databaseAvailable
@@ -304,10 +302,7 @@ public sealed class AnvilStateReader(
             External: workers.Count(worker => worker.DisplayState == "external")
         );
 
-    private static IReadOnlyList<AnvilEvent> MapEvents(
-        IReadOnlyList<JobEventListItem> rows,
-        IReadOnlyDictionary<int, string> workerNames
-    ) =>
+    private static IReadOnlyList<AnvilEvent> MapEvents(IReadOnlyList<EventListItem> rows, IReadOnlyDictionary<int, string> workerNames) =>
         rows.Select(row => new AnvilEvent(
                 TimeUtc: row.CreatedAtUtc,
                 EventCode: row.EventCode.ToString(),

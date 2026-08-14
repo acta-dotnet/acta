@@ -107,10 +107,10 @@ BEGIN
                     reason_code, reason_message
                 )
                 SELECT
-                    40 /* JobEventCode.JobExecutionStarted */,
+                    40 /* EventCode.JobExecutionStarted */,
                     @now,
                     c.namespace_id,
-                    70 /* JobActorCode.Worker */,
+                    70 /* ActorCode.Worker */,
                     NULL,
                     c.id,
                     c.job_ref,

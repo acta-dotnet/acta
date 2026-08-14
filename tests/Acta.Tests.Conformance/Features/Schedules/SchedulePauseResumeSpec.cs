@@ -311,8 +311,8 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
 
         var slotId = await SlotIdAsync(jobName, ct);
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        var paused = events.SingleOrDefault(e => e.JobEventCode == JobEventCode.SchedulePaused);
-        var resumed = events.SingleOrDefault(e => e.JobEventCode == JobEventCode.ScheduleResumed);
+        var paused = events.SingleOrDefault(e => e.EventCode == EventCode.SchedulePaused);
+        var resumed = events.SingleOrDefault(e => e.EventCode == EventCode.ScheduleResumed);
         Assert.NotNull(paused);
         Assert.NotNull(resumed);
         Assert.Equal("only", paused!.ReasonMessage); // the schedule name rides reason_message
@@ -323,7 +323,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-    private JobScheduleLookup Lookup(string jobName, string scheduleName) =>
+    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
         new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
 
     private static SlotSchedule Slot(
@@ -378,7 +378,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
         var declared = new[]
         {
-            new JobScheduleDescriptor(
+            new ScheduleDescriptor(
                 jobName,
                 "only",
                 Cron5,

@@ -27,7 +27,7 @@ public sealed class TagTarget
 
     public static TagTarget ForJob(JobLookup job) => new(TagScopeCode.Job, job);
 
-    public static TagTarget ForSchedule(JobScheduleLookup schedule)
+    public static TagTarget ForSchedule(ScheduleLookup schedule)
     {
         ArgumentNullException.ThrowIfNull(schedule);
         return new TagTarget(TagScopeCode.Schedule, schedule);

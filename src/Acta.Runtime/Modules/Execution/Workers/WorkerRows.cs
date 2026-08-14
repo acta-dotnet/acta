@@ -23,7 +23,7 @@ internal sealed record JobWorkerListRow(
     DateTime ModifiedAtUtc
 )
 {
-    public JobWorkerListItem ToItem() =>
+    public WorkerListItem ToItem() =>
         new(
             WorkerId,
             JobNamespace,
@@ -39,7 +39,7 @@ internal sealed record JobWorkerListRow(
             ModifiedAtUtc
         );
 
-    public JobWorkerDetail ToDetail() =>
+    public WorkerDetail ToDetail() =>
         new(
             WorkerId,
             JobNamespace,

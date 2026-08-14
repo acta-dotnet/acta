@@ -127,10 +127,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    70 /* JobEventCode.JobCancelled */,
+    70 /* EventCode.JobCancelled */,
     {{now}},
     j.namespace_id,
-    10 /* JobActorCode.Sys */,
+    10 /* ActorCode.Sys */,
     'sys:register-definitions',
     j.id,
     j.job_ref,

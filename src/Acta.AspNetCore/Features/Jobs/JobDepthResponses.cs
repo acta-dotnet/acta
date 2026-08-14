@@ -70,7 +70,7 @@ internal sealed record JobDetailResponse(
     IReadOnlyList<JobCheckpointResponse> Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobExplanation? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobLineageMap? Lineage,
-    IReadOnlyList<JobScheduleListItem> Schedules,
+    IReadOnlyList<ScheduleListItem> Schedules,
     // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
     long? SchedulesTotal,
     // Echo of the snapshot's tenant key at the top level so the summary link needs no snapshot dig.
@@ -79,7 +79,7 @@ internal sealed record JobDetailResponse(
     // Effective retry budget from the definition so the summary can render "n of m consecutive
     // failures" without a second read. Absent when the definition row is gone.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] short? MaxAttemptsEffective,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<JobWorkerListItem>? Workers,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WorkerListItem>? Workers,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal
 )
 {
@@ -108,7 +108,7 @@ internal sealed record JobDetailResponse(
         var explain = await jobs.ExplainAsync(byId, ct);
         var lineage = await jobs.GetLineageMapAsync(byId, new JobLineageMapOptions(ChildLimit), ct);
         var schedules = await operations.Schedules.ListAsync(
-            new ListJobSchedulesQuery(
+            new ListSchedulesQuery(
                 JobNamespace: snapshot.JobNamespace,
                 JobName: snapshot.JobName,
                 LiveOnly: false,

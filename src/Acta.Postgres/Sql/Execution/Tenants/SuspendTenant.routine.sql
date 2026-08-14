@@ -57,7 +57,7 @@ BEGIN
         reason_code,
         reason_message)
     VALUES (
-        10 /* JobEventCode.TenantSuspended */,
+        10 /* EventCode.TenantSuspended */,
         now(),
         1,
         p_actor_code,

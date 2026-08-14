@@ -6,10 +6,10 @@ namespace Acta;
 /// Stable family-local event identifiers. Nearby values improve catalog readability but carry no
 /// runtime subject, subgroup, or outcome semantics. Match events by enum member or textual code.
 /// </summary>
-[JsonConverter(typeof(JobEventCodeJsonConverter))]
+[JsonConverter(typeof(EventCodeJsonConverter))]
 [ReservedCodeRange(224, 254, "Architecture-controlled reserve")]
 [CodeKind("event", Extensible = true)]
-public enum JobEventCode : byte
+public enum EventCode : byte
 {
     /// <summary>
     /// The persisted id is not one this build knows: the row was written by a newer Acta that added an

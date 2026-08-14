@@ -152,13 +152,10 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             x => x.Name == TestNamespace
         );
 
-        var definitions = await Operations.Definitions.ListAsync(
-            new ListJobDefinitionsQuery(JobNamespace: TestNamespace, Tags: filters),
-            ct
-        );
+        var definitions = await Operations.Definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(definitions.Items, x => x.JobDefinitionId == targets.DefinitionId);
         Assert.DoesNotContain(
-            (await Operations.Definitions.ListAsync(new ListJobDefinitionsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobDefinitionId == targets.DefinitionId
         );
 
@@ -169,10 +166,10 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             x => x.JobId == targets.JobId
         );
 
-        var schedules = await Operations.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var schedules = await Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(schedules.Items, x => x.JobScheduleId == targets.ScheduleId);
         Assert.DoesNotContain(
-            (await Operations.Schedules.ListAsync(new ListJobSchedulesQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobScheduleId == targets.ScheduleId
         );
 
@@ -183,17 +180,17 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             x => x.WorkerId == targets.WorkerId
         );
 
-        var alerts = await Operations.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var alerts = await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(alerts.Items, x => x.JobAlertId == targets.AlertId);
         Assert.DoesNotContain(
-            (await Operations.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobAlertId == targets.AlertId
         );
 
-        var events = await Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
+        var events = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
         Assert.Contains(events.Items, x => x.JobEventId == targets.EventId);
         Assert.DoesNotContain(
-            (await Operations.Ledger.ListEventsAsync(new ListJobEventsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
+            (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobEventId == targets.EventId
         );
     }
@@ -282,7 +279,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         TagTarget[] targets =
         [
             TagTarget.ForJob(lookup),
-            TagTarget.ForSchedule(new JobScheduleLookup(lookup, schedule.Name)),
+            TagTarget.ForSchedule(new ScheduleLookup(lookup, schedule.Name)),
             TagTarget.ForAlert(alert.Id),
             TagTarget.ForEvent(eventId),
         ];
@@ -309,7 +306,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         );
 
         var purgeAudit = await Db.From<JobEvent>()
-            .Where(x => x.NamespaceId == namespaceId && x.EventCode == JobEventCode.JobPurged)
+            .Where(x => x.NamespaceId == namespaceId && x.EventCode == EventCode.JobPurged)
             .ToListAsync(ct);
         Assert.NotEmpty(purgeAudit);
     }
@@ -382,7 +379,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
                 TagTarget.ForNamespace(TestNamespace),
                 TagTarget.ForDefinition(definition.Id),
                 TagTarget.ForJob(job),
-                TagTarget.ForSchedule(new JobScheduleLookup(JobLookup.ById(schedule.JobId), schedule.Name)),
+                TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ById(schedule.JobId), schedule.Name)),
                 TagTarget.ForWorker(worker.Id),
                 TagTarget.ForAlert(alert.Id),
                 TagTarget.ForEvent(eventId),
@@ -396,7 +393,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             TagTarget.ForNamespace($"missing-{TestId}"),
             TagTarget.ForDefinition(int.MaxValue),
             TagTarget.ForJob(JobLookup.ById(long.MaxValue)),
-            TagTarget.ForSchedule(new JobScheduleLookup(JobLookup.ById(long.MaxValue), "missing")),
+            TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ById(long.MaxValue), "missing")),
             TagTarget.ForWorker(int.MaxValue),
             TagTarget.ForAlert(long.MaxValue),
             TagTarget.ForEvent(long.MaxValue),

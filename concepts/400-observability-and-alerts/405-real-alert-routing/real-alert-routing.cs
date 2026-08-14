@@ -42,7 +42,7 @@ await jobs.EnqueueAsync(new QueueDepthCheck("orders", Depth: 13_500));
 await Task.Delay(1000);
 
 var queries = host.Services.GetRequiredService<IActaOperations>();
-var alerts = await queries.Alerts.ListAsync(new ListJobAlertsQuery(JobNamespace: "real-alert-routing"));
+var alerts = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: "real-alert-routing"));
 foreach (var alert in alerts.Items)
 {
     Console.WriteLine(

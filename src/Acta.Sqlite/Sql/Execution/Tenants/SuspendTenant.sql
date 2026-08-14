@@ -26,7 +26,7 @@ INSERT INTO {{schema}}.events (
     reason_message)
 -- namespace_id 1 is the seeded sys namespace (M001).
 SELECT
-    10 /* JobEventCode.TenantSuspended */,
+    10 /* EventCode.TenantSuspended */,
     {{now}},
     1,
     @p_actor_code,

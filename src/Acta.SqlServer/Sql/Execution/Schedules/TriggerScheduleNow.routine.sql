@@ -118,7 +118,7 @@ BEGIN
                     reason_code, reason_message
                 )
                 VALUES (
-                    104 /* JobEventCode.ScheduleTriggered */, @now, @ns,
+                    104 /* EventCode.ScheduleTriggered */, @now, @ns,
                     @p_actor_code, @p_actor_key,
                     @p_job_id, @job_ref, @en,
                     COALESCE(@lineage, @p_job_id), @def,

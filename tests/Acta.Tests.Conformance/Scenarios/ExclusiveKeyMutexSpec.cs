@@ -173,7 +173,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.NotNull(row.NextRunAtUtc);
         Assert.Equal(0, row.FailureCount);
 
-        var bounce = await ReadLatestEventAsync(enqueued.JobId, JobEventCode.JobRescheduled, ct);
+        var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(JobEventReasonCode.JobExclusiveKeyHeld, bounce.ReasonCode);
 
         await lockStore.ReleaseAsync(held.Value, ct);

@@ -109,10 +109,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    102 /* JobEventCode.SchedulePauseExpired */,
+    102 /* EventCode.SchedulePauseExpired */,
     {{now}},
     d.namespace_id,
-    10 /* JobActorCode.Sys */,
+    10 /* ActorCode.Sys */,
     NULL,
     @p_id,
     d.job_ref,
@@ -189,10 +189,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    41 /* JobEventCode.JobExecutionFinished */,
+    41 /* EventCode.JobExecutionFinished */,
     {{now}},
     d.namespace_id,
-    70 /* JobActorCode.Worker */,
+    70 /* ActorCode.Worker */,
     NULL,
     @p_id,
     d.job_ref,
@@ -240,10 +240,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    CASE WHEN @p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* JobEventCode.JobRecurringRolledOver */ ELSE 71 /* JobEventCode.JobPaused */ END,
+    CASE WHEN @p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */ ELSE 71 /* EventCode.JobPaused */ END,
     {{now}},
     d.namespace_id,
-    70 /* JobActorCode.Worker */,
+    70 /* ActorCode.Worker */,
     NULL,
     @p_id,
     d.job_ref,
@@ -284,10 +284,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    CASE WHEN @p_reschedule_status_code = 151 /* ExecutionStatusCode.Suspended */ THEN 60 /* JobEventCode.JobSuspended */ ELSE 61 /* JobEventCode.JobRescheduled */ END,
+    CASE WHEN @p_reschedule_status_code = 151 /* ExecutionStatusCode.Suspended */ THEN 60 /* EventCode.JobSuspended */ ELSE 61 /* EventCode.JobRescheduled */ END,
     {{now}},
     d.namespace_id,
-    70 /* JobActorCode.Worker */,
+    70 /* ActorCode.Worker */,
     NULL,
     @p_id,
     d.job_ref,
@@ -328,10 +328,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    CASE WHEN @p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* JobEventCode.JobCancelled */ ELSE 71 /* JobEventCode.JobPaused */ END,
+    CASE WHEN @p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */ ELSE 71 /* EventCode.JobPaused */ END,
     {{now}},
     d.namespace_id,
-    70 /* JobActorCode.Worker */,
+    70 /* ActorCode.Worker */,
     NULL,
     @p_id,
     d.job_ref,
@@ -412,10 +412,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    80 /* JobEventCode.JobSignalRaised */,
+    80 /* EventCode.JobSignalRaised */,
     {{now}},
     p.parent_ns,
-    10 /* JobActorCode.Sys */,
+    10 /* ActorCode.Sys */,
     NULL,
     p.parent_id,
     p.parent_ref,
@@ -461,10 +461,10 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    72 /* JobEventCode.JobResumed */,
+    72 /* EventCode.JobResumed */,
     {{now}},
     p.parent_ns,
-    10 /* JobActorCode.Sys */,
+    10 /* ActorCode.Sys */,
     NULL,
     p.parent_id,
     p.parent_ref,

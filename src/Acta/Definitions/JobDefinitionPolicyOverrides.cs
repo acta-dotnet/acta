@@ -16,7 +16,7 @@ public sealed record JobDefinitionPolicyOverrides(
     DeadlineBehaviorCode? DeadlineBehavior = null,
     int? JobRetentionSeconds = null,
     JobAuditLevelCode? AuditLevel = null,
-    JobAlertProfileCode? AlertProfile = null,
+    AlertProfileCode? AlertProfile = null,
     string? AlertChannelName = null,
     string? RunbookUrl = null,
     string? DisplayName = null,

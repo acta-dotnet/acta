@@ -30,12 +30,12 @@ public abstract class JobNoteSpec<TFixture> : ActaRuntimeTestBase<TFixture, Test
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         var events = await Operations.Ledger.ListEventsAsync(
-            new ListJobEventsQuery(JobId: enqueued.JobId, EventCode: JobEventCode.JobNoteRecorded, PageSize: 50),
+            new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
             ct
         );
 
         Assert.Equal(2, events.Items.Count);
-        Assert.All(events.Items, e => Assert.Equal(JobActorCode.Job, e.ActorCode));
+        Assert.All(events.Items, e => Assert.Equal(ActorCode.Job, e.ActorCode));
 
         // The message rides reason_message; the typed overload additionally stores a JSON detail body,
         // and the bare overload leaves the pair encoded as "no detail" (format id 0, NULL body), which

@@ -158,10 +158,10 @@ BEGIN
                     reason_code,
                     reason_message)
                 SELECT
-                    102 /* JobEventCode.SchedulePauseExpired */,
+                    102 /* EventCode.SchedulePauseExpired */,
                     now(),
                     v_ns,
-                    10 /* JobActorCode.Sys */,
+                    10 /* ActorCode.Sys */,
                     NULL,
                     p_id,
                     v_job_ref,
@@ -238,10 +238,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            41 /* JobEventCode.JobExecutionFinished */,
+            41 /* EventCode.JobExecutionFinished */,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -286,12 +286,12 @@ BEGIN
             reason_message)
         VALUES (
             CASE
-                WHEN p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* JobEventCode.JobRecurringRolledOver */
-                ELSE 71 /* JobEventCode.JobPaused */
+                WHEN p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
+                ELSE 71 /* EventCode.JobPaused */
             END,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -329,10 +329,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            CASE WHEN p_reschedule_status_code = 151 /* ExecutionStatusCode.Suspended */ THEN 60 /* JobEventCode.JobSuspended */ ELSE 61 /* JobEventCode.JobRescheduled */ END,
+            CASE WHEN p_reschedule_status_code = 151 /* ExecutionStatusCode.Suspended */ THEN 60 /* EventCode.JobSuspended */ ELSE 61 /* EventCode.JobRescheduled */ END,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -370,10 +370,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            CASE WHEN p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* JobEventCode.JobCancelled */ ELSE 71 /* JobEventCode.JobPaused */ END,
+            CASE WHEN p_handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */ ELSE 71 /* EventCode.JobPaused */ END,
             now(),
             v_ns,
-            70 /* JobActorCode.Worker */,
+            70 /* ActorCode.Worker */,
             NULL,
             p_id,
             v_job_ref,
@@ -447,10 +447,10 @@ BEGIN
                     reason_code,
                     reason_message)
                 VALUES (
-                    80 /* JobEventCode.JobSignalRaised */,
+                    80 /* EventCode.JobSignalRaised */,
                     now(),
                     v_pns,
-                    10 /* JobActorCode.Sys */,
+                    10 /* ActorCode.Sys */,
                     NULL,
                     v_parent_id,
                     v_parent_ref,
@@ -497,10 +497,10 @@ BEGIN
                         reason_code,
                         reason_message)
                     VALUES (
-                        72 /* JobEventCode.JobResumed */,
+                        72 /* EventCode.JobResumed */,
                         now(),
                         v_pns,
-                        10 /* JobActorCode.Sys */,
+                        10 /* ActorCode.Sys */,
                         NULL,
                         v_parent_id,
                         v_parent_ref,

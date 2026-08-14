@@ -49,7 +49,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
 
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Rescheduled, ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobRescheduled, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
 
         // Acceptance invariant: a re-arm writes no result payload.
         var result = await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct);
@@ -67,7 +67,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Rescheduled, ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobRescheduled, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
     }
 
     [Fact(DisplayName = "Reschedule to an absolute past instant is immediately reclaimable")]
@@ -103,7 +103,7 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Suspended, ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, JobEventCode.JobSuspended, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
     [Fact(DisplayName = "Sleep rerun before due does not extend or duplicate the timer")]
@@ -209,8 +209,8 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, job.Status);
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobRescheduled, ct));
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, JobEventCode.JobSuspended, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
     // ---------- helpers ----------

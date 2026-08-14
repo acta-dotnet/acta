@@ -27,10 +27,10 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     // The control surface is operator/manual only: the actor (Operator) is stamped here, never accepted
     // from the caller, so a caller cannot forge the audit actor.
     private static JobControlActor Operator(string? actorKey) =>
-        new(JobActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
     public async ValueTask<ScheduleControlResult> PauseAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         DateTime? untilUtc = null,
         string? note = null,
         string? actorKey = null,
@@ -61,7 +61,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     }
 
     public async ValueTask<ScheduleControlResult> ResumeAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         string? note = null,
         string? actorKey = null,
         CancellationToken ct = default
@@ -99,7 +99,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     }
 
     public async ValueTask<ScheduleControlResult> UpdateOverridesAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         int expectedVersion,
         string? expression,
         string? timeZoneId,
@@ -158,7 +158,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     }
 
     public async ValueTask<ScheduleControlResult> TriggerNowAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         string? note = null,
         string? actorKey = null,
         CancellationToken ct = default
@@ -185,7 +185,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         return ToResult(outcome);
     }
 
-    public async ValueTask<SchedulePreview?> PreviewAsync(JobScheduleLookup schedule, int count = 10, CancellationToken ct = default)
+    public async ValueTask<SchedulePreview?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default)
     {
         if (await ResolveTargetAsync(schedule, ct) is not { } ctx)
         {
@@ -197,7 +197,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         return new SchedulePreview(t.Expression, t.TimeZone ?? "UTC", nextRuns);
     }
 
-    public async ValueTask<PagedResult<JobScheduleListItem>> ListAsync(ListJobSchedulesQuery query, CancellationToken ct = default)
+    public async ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
@@ -210,7 +210,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         QueryValidation.ValidateEnum(query.Origin, nameof(query.Origin));
 
         var liveOnly = query.LiveOnly ? true : (bool?)null;
-        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListJobSchedulesQuery));
+        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListSchedulesQuery));
         var filterHash = QueryFilterHash.Compute([
             ("ns", query.JobNamespace),
             ("name", query.JobName),
@@ -263,13 +263,13 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
             )
             : null;
 
-        return new PagedResult<JobScheduleListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return new PagedResult<ScheduleListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
     // Resolve the owning slot job and locate the named schedule among its live (non-orphaned) rows.
     // Null means either the job or the schedule was absent (both surface as NotFound).
     private async ValueTask<(long JobId, DateTime NowUtc, IReadOnlyList<LiveSchedule> Live, LiveSchedule Target)?> ResolveTargetAsync(
-        JobScheduleLookup schedule,
+        ScheduleLookup schedule,
         CancellationToken ct
     )
     {

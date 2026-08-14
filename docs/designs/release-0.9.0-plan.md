@@ -144,7 +144,7 @@ Full rename batch, one breaking pass, release notes carry the table:
   namespace paths, `NamespaceListItem.name` → `jobNamespace`, `id` → `namespaceId` (ids follow
   the route noun, like `alertId`/`definitionId`/`tenantId`/`workerId`; the `jobNamespace` name
   field is a domain term, not a resource qualifier).
-- `{defId}` → `{definitionId}`; `JobAlertListItem.jobAlertId` → `alertId` (route noun wins);
+- `{defId}` → `{definitionId}`; `AlertListItem.jobAlertId` → `alertId` (route noun wins);
   signal route `{name}` → `{signalName}`.
 - `note` → `reasonMessage` on the six request types; `version` → `expectedVersion` on the two
   override requests.

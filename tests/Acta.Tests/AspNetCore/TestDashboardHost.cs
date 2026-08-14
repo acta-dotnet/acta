@@ -226,12 +226,12 @@ internal static class TestDashboardHost
                 : new PagedResult<JobListItem>([Job], null, false, 50, null);
         }
 
-        public ListJobEventsQuery? LastEventsQuery { get; private set; }
+        public ListEventsQuery? LastEventsQuery { get; private set; }
 
-        public ValueTask<PagedResult<JobEventListItem>> ListEventsAsync(ListJobEventsQuery query, CancellationToken ct = default)
+        public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default)
         {
             LastEventsQuery = query;
-            return ValueTask.FromResult(new PagedResult<JobEventListItem>([], null, false, 50, query.IncludeTotal ? 0L : null));
+            return ValueTask.FromResult(new PagedResult<EventListItem>([], null, false, 50, query.IncludeTotal ? 0L : null));
         }
 
         public async ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default)
@@ -666,7 +666,7 @@ internal static class TestDashboardHost
         ) : ISchedules
         {
             public ValueTask<ScheduleControlResult> PauseAsync(
-                JobScheduleLookup schedule,
+                ScheduleLookup schedule,
                 DateTime? untilUtc = null,
                 string? note = null,
                 string? actorKey = null,
@@ -674,14 +674,14 @@ internal static class TestDashboardHost
             ) => ValueTask.FromResult(new ScheduleControlResult(JobControlAction.Applied, null, untilUtc, null, null));
 
             public ValueTask<ScheduleControlResult> ResumeAsync(
-                JobScheduleLookup schedule,
+                ScheduleLookup schedule,
                 string? note = null,
                 string? actorKey = null,
                 CancellationToken ct = default
             ) => ValueTask.FromResult(new ScheduleControlResult(JobControlAction.Applied, null, null, null, null));
 
             public ValueTask<ScheduleControlResult> UpdateOverridesAsync(
-                JobScheduleLookup schedule,
+                ScheduleLookup schedule,
                 int expectedVersion,
                 string? expression,
                 string? timeZoneId,
@@ -721,7 +721,7 @@ internal static class TestDashboardHost
             }
 
             public ValueTask<ScheduleControlResult> TriggerNowAsync(
-                JobScheduleLookup schedule,
+                ScheduleLookup schedule,
                 string? note = null,
                 string? actorKey = null,
                 CancellationToken ct = default
@@ -745,11 +745,11 @@ internal static class TestDashboardHost
                 );
             }
 
-            public ValueTask<PagedResult<JobScheduleListItem>> ListAsync(ListJobSchedulesQuery query, CancellationToken ct = default) =>
-                ValueTask.FromResult(new PagedResult<JobScheduleListItem>([], null, false, 50, null));
+            public ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default) =>
+                ValueTask.FromResult(new PagedResult<ScheduleListItem>([], null, false, 50, null));
 
             /// <summary>A schedule name of "missing" reports not found; others return a canned preview.</summary>
-            public ValueTask<SchedulePreview?> PreviewAsync(JobScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
+            public ValueTask<SchedulePreview?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
                 ValueTask.FromResult<SchedulePreview?>(
                     schedule.ScheduleName == "missing"
                         ? null
@@ -814,7 +814,7 @@ internal static class TestDashboardHost
 
             // The billing namespace carries one definition, id 5 - the same id the fake snapshot reports
             // as its JobDefinitionId, so the definition link on the job screen addresses a real row here.
-            public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListJobDefinitionsQuery query, CancellationToken ct = default) =>
+            public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(
                     query.JobNamespace == "billing"
                         ? new PagedResult<JobDefinitionListItem>(
@@ -844,10 +844,10 @@ internal static class TestDashboardHost
 
         private sealed class FakeWorkers : IWorkers
         {
-            public ValueTask<JobWorkerDetail?> GetAsync(int workerId, CancellationToken ct = default) =>
-                ValueTask.FromResult<JobWorkerDetail?>(
+            public ValueTask<WorkerDetail?> GetAsync(int workerId, CancellationToken ct = default) =>
+                ValueTask.FromResult<WorkerDetail?>(
                     workerId == 42
-                        ? new JobWorkerDetail(
+                        ? new WorkerDetail(
                             42,
                             "billing",
                             WorkerStatusCode.Active,
@@ -864,8 +864,8 @@ internal static class TestDashboardHost
                         : null
                 );
 
-            public ValueTask<PagedResult<JobWorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default) =>
-                ValueTask.FromResult(new PagedResult<JobWorkerListItem>([], null, false, 50, null));
+            public ValueTask<PagedResult<WorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default) =>
+                ValueTask.FromResult(new PagedResult<WorkerListItem>([], null, false, 50, null));
         }
 
         /// <summary>An alertId of 0 reports not found; every other alertId applies.</summary>
@@ -909,8 +909,8 @@ internal static class TestDashboardHost
                 return ValueTask.FromResult(new AlertControlResult(alertId, JobControlAction.Applied, null, ResolvedAt));
             }
 
-            public ValueTask<PagedResult<JobAlertListItem>> ListAsync(ListJobAlertsQuery query, CancellationToken ct = default) =>
-                ValueTask.FromResult(new PagedResult<JobAlertListItem>([], null, false, 50, null));
+            public ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
+                ValueTask.FromResult(new PagedResult<AlertListItem>([], null, false, 50, null));
         }
 
         private sealed class FakeTenants(
@@ -1026,8 +1026,8 @@ internal static class TestDashboardHost
                 ValueTask.FromResult(
                     new PagedResult<NamespaceListItem>(
                         [
-                            new NamespaceListItem(1, "sys", JobNamespaceStatusCode.Active, null, "system", 0),
-                            new NamespaceListItem(2, "billing", JobNamespaceStatusCode.Active, "payments", "billing jobs", 3),
+                            new NamespaceListItem(1, "sys", NamespaceStatusCode.Active, null, "system", 0),
+                            new NamespaceListItem(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", 3),
                         ],
                         null,
                         false,

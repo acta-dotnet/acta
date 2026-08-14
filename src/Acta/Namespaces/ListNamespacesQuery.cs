@@ -12,7 +12,7 @@ namespace Acta;
 /// <param name="Tags">Restrict to namespaces carrying every supplied exact tag filter.</param>
 public sealed record ListNamespacesQuery(
     string? NameContains = null,
-    JobNamespaceStatusCode? Status = null,
+    NamespaceStatusCode? Status = null,
     int? PageSize = null,
     string? Cursor = null,
     bool IncludeTotal = false,

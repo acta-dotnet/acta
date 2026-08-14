@@ -25,7 +25,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    21 /* JobEventCode.NamespaceResumed */,
+    21 /* EventCode.NamespaceResumed */,
     {{now}},
     s.id,
     @p_actor_code,
@@ -44,23 +44,23 @@ SELECT
     NULL,
     @p_reason_message
 FROM temp._resume_namespace s
-WHERE s.from_status <> 10 /* JobNamespaceStatusCode.Active */;
+WHERE s.from_status <> 10 /* NamespaceStatusCode.Active */;
 
 UPDATE {{schema}}.namespaces
-SET status_code = 10 /* JobNamespaceStatusCode.Active */, modified_at_utc = {{now}}, version = version + 1
+SET status_code = 10 /* NamespaceStatusCode.Active */, modified_at_utc = {{now}}, version = version + 1
 WHERE
     name = @p_namespace_name
-    AND status_code <> 10 /* JobNamespaceStatusCode.Active */;
+    AND status_code <> 10 /* NamespaceStatusCode.Active */;
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* AdminControlAction.NotFound */
-        WHEN s.from_status = 10 /* JobNamespaceStatusCode.Active */ THEN 3 /* AdminControlAction.AlreadyInState */
+        WHEN s.from_status = 10 /* NamespaceStatusCode.Active */ THEN 3 /* AdminControlAction.AlreadyInState */
         ELSE 1 /* AdminControlAction.Applied */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL
-        WHEN s.from_status = 10 /* JobNamespaceStatusCode.Active */ THEN s.from_version
+        WHEN s.from_status = 10 /* NamespaceStatusCode.Active */ THEN s.from_version
         ELSE s.from_version + 1
     END AS version
 FROM (SELECT 1) one

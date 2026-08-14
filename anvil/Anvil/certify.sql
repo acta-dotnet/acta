@@ -13,7 +13,7 @@
 --                        Succeeded=100 Failed=200 Cancelled=220
 --   ExecutionStatusCode  Executing=50 Succeeded=100 Rescheduled=150 Suspended=151 Paused=152
 --                        Failed=200 Cancelled=220 Orphaned=230
---   JobEventCode         40=job.execution-started 41=job.execution-finished 122=worker.dead
+--   EventCode         40=job.execution-started 41=job.execution-finished 122=worker.dead
 --
 -- TIMING - the seal MUST stamp LeaseTtlSeconds, HeartbeatInterval and WorkerDeadAfter, because every
 -- property here is timing-dependent. A shorter lease manufactures more handler overlap than

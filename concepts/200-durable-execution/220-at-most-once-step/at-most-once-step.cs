@@ -102,7 +102,7 @@ await lab.ShowAsync(
 
 Console.WriteLine("Waiting for the short lab lease to lapse, then triggering the normal sys.recovery job...");
 await Task.Delay(TimeSpan.FromSeconds(6));
-var recovery = new JobScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, "sys.recovery"), "default");
+var recovery = new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, "sys.recovery"), "default");
 await operations.Schedules.TriggerNowAsync(recovery, note: "at-most-once lab recovery");
 
 using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));

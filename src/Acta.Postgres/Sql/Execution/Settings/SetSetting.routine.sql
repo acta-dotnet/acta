@@ -142,7 +142,7 @@ BEGIN
         detail_format_id,
         detail)
     VALUES (
-        160 /* JobEventCode.SettingUpdated */,
+        160 /* EventCode.SettingUpdated */,
         now(),
         COALESCE(v_namespace_id, 1),
         p_actor_code,

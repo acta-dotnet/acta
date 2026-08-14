@@ -61,10 +61,10 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal((short)1, job.FailureCount);
 
         var events = await Db.From<JobEvent>()
-            .Where(e => e.JobId == enqueued.JobId && e.EventCode == JobEventCode.JobExecutionFinished)
+            .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
             .ToListAsync(ct);
         var reclaimEvent = Assert.Single(events);
-        Assert.Equal(JobActorCode.Sys, reclaimEvent.ActorCode);
+        Assert.Equal(ActorCode.Sys, reclaimEvent.ActorCode);
         Assert.Equal(ExecutionStatusCode.Orphaned, reclaimEvent.ExecutionStatus);
         Assert.Equal(JobStatusCode.Ready, reclaimEvent.ToStatus);
         Assert.Equal(JobEventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
@@ -145,7 +145,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal((short)1, job.FailureCount);
 
         var events = await Db.From<JobEvent>()
-            .Where(e => e.JobId == enqueued.JobId && e.EventCode == JobEventCode.JobExecutionFinished)
+            .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
             .ToListAsync(ct);
         var reclaimEvent = Assert.Single(events);
         Assert.Equal(ExecutionStatusCode.Orphaned, reclaimEvent.ExecutionStatus);
@@ -189,7 +189,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var leaseExpiredEvents = await Db.From<JobEvent>()
             .Where(e =>
                 e.JobId == enqueued.JobId
-                && e.EventCode == JobEventCode.JobExecutionFinished
+                && e.EventCode == EventCode.JobExecutionFinished
                 && e.ReasonCode == JobEventReasonCode.JobLeaseExpired
             )
             .ToListAsync(ct);

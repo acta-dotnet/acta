@@ -112,7 +112,7 @@ public abstract class StartExecutionStaleVersionSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(JobStatusCode.Dispatched, snapshot!.Status);
 
         var startedEvents = await Db.From<JobEvent>()
-            .Where(e => e.JobId == claimed.JobId && e.EventCode == JobEventCode.JobExecutionStarted)
+            .Where(e => e.JobId == claimed.JobId && e.EventCode == EventCode.JobExecutionStarted)
             .ToListAsync(ct);
         Assert.Empty(startedEvents);
     }

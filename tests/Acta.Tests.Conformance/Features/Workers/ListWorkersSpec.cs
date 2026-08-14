@@ -32,7 +32,7 @@ public abstract class ListWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-b", "v2", "engine-b", ".NET test", 1002, 8, ct);
         await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-c", "v3", "engine-c", ".NET test", 1003, 16, ct);
 
-        var seen = new List<JobWorkerListItem>();
+        var seen = new List<WorkerListItem>();
         string? cursor = null;
         var pages = 0;
         do

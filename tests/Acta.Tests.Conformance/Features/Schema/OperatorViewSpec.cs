@@ -230,8 +230,8 @@ public abstract partial class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<T
               FROM {Db.Schema}.jobs
              WHERE id = @p_job_id
             """;
-        Add(cmd, "@p_event_code", (short)JobEventCode.JobStateReset);
-        Add(cmd, "@p_actor_code", (byte)JobActorCode.Operator);
+        Add(cmd, "@p_event_code", (short)EventCode.JobStateReset);
+        Add(cmd, "@p_actor_code", (byte)ActorCode.Operator);
         Add(cmd, "@p_detail_format_id", JobPayloadFormat.Text.Id);
         Add(cmd, "@p_detail", Encoding.UTF8.GetBytes(detail));
         Add(cmd, "@p_job_id", jobId);

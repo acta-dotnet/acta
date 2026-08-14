@@ -25,7 +25,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    22 /* JobEventCode.NamespaceUpdated */,
+    22 /* EventCode.NamespaceUpdated */,
     {{now}},
     s.id,
     @p_actor_code,

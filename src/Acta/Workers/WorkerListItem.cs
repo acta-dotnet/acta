@@ -11,7 +11,7 @@ namespace Acta;
 /// <param name="ProcessId">OS process id of the worker process.</param>
 /// <param name="MaxConcurrency">Effective per-process executor cap reported at start.</param>
 /// <param name="LastSeenAtUtc">Last heartbeat instant.</param> <param name="CreatedAtUtc">Worker start instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
-public sealed record JobWorkerListItem(
+public sealed record WorkerListItem(
     int WorkerId,
     string JobNamespace,
     WorkerStatusCode Status,

@@ -9,10 +9,10 @@ INSERT INTO {{schema}}.events (
     reason_code, reason_message
 )
 SELECT
-    81 /* JobEventCode.JobStateReset */,
+    81 /* EventCode.JobStateReset */,
     {{now}},
     j.namespace_id,
-    50 /* JobActorCode.Job */,
+    50 /* ActorCode.Job */,
     CAST(j.id AS TEXT),
     j.id,
     j.job_ref,

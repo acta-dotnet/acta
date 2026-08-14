@@ -76,7 +76,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
 
         // Active filter: only def-b, exact set + total, def-a excluded
         var activePage = await queries.Definitions.ListAsync(
-            new ListJobDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Active, IncludeTotal: true),
+            new ListDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Active, IncludeTotal: true),
             ct
         );
         Assert.Equal(activeIds, [.. activePage.Items.Select(d => d.JobDefinitionId)]);
@@ -85,7 +85,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
 
         // Retired filter: only def-a, def-b excluded
         var retiredPage = await queries.Definitions.ListAsync(
-            new ListJobDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Retired),
+            new ListDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Retired),
             ct
         );
         Assert.Equal(retiredIds, [.. retiredPage.Items.Select(d => d.JobDefinitionId)]);
@@ -113,7 +113,7 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
         var matching = new HashSet<int> { map[invoiceSend], map[invoiceVoid] };
 
         var page = await queries.Definitions.ListAsync(
-            new ListJobDefinitionsQuery(JobNamespace: nsName, NameContains: "invoice", IncludeTotal: true),
+            new ListDefinitionsQuery(JobNamespace: nsName, NameContains: "invoice", IncludeTotal: true),
             ct
         );
 
@@ -151,11 +151,11 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
 
         // Read each namespace independently
         var ns1Page = await queries.Definitions.ListAsync(
-            new ListJobDefinitionsQuery(JobNamespace: ns1Name, PageSize: 100, IncludeTotal: true),
+            new ListDefinitionsQuery(JobNamespace: ns1Name, PageSize: 100, IncludeTotal: true),
             ct
         );
         var ns2Page = await queries.Definitions.ListAsync(
-            new ListJobDefinitionsQuery(JobNamespace: ns2Name, PageSize: 100, IncludeTotal: true),
+            new ListDefinitionsQuery(JobNamespace: ns2Name, PageSize: 100, IncludeTotal: true),
             ct
         );
 

@@ -48,8 +48,8 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         var paused = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Paused, paused.Status);
 
-        var pausedEvent = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobPaused, ct);
-        Assert.Equal(JobActorCode.Operator, pausedEvent.ActorCode);
+        var pausedEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobPaused, ct);
+        Assert.Equal(ActorCode.Operator, pausedEvent.ActorCode);
         Assert.Equal(JobStatusCode.Ready, pausedEvent.FromStatus);
         Assert.Equal(JobStatusCode.Paused, pausedEvent.ToStatus);
         Assert.Equal(JobEventReasonCode.JobControlManual, pausedEvent.ReasonCode);
@@ -63,8 +63,8 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal(JobStatusCode.Ready, resumed.Status);
 
         // The message survives on the audit event.
-        var resumedEvent = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobResumed, ct);
-        Assert.Equal(JobActorCode.Operator, resumedEvent.ActorCode);
+        var resumedEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobResumed, ct);
+        Assert.Equal(ActorCode.Operator, resumedEvent.ActorCode);
         Assert.Equal(JobStatusCode.Paused, resumedEvent.FromStatus);
         Assert.Equal(JobStatusCode.Ready, resumedEvent.ToStatus);
         Assert.Equal("all clear", resumedEvent.ReasonMessage);
@@ -85,8 +85,8 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Null(cancelled.LeasedByWorkerId);
         Assert.Null(cancelled.LeaseExpiresAtUtc);
 
-        var cancelEvent = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobCancelled, ct);
-        Assert.Equal(JobActorCode.Operator, cancelEvent.ActorCode);
+        var cancelEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobCancelled, ct);
+        Assert.Equal(ActorCode.Operator, cancelEvent.ActorCode);
         Assert.Equal(JobStatusCode.Ready, cancelEvent.FromStatus);
         Assert.Equal(JobStatusCode.Cancelled, cancelEvent.ToStatus);
         // Reason is always recorded on the event.
@@ -125,8 +125,8 @@ public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal(beforeRestart.ExecutionNumber, restarted.ExecutionNumber);
 
         // The message lives on the event.
-        var restartEvent = await ReadSingleEventAsync(enqueued.JobId, JobEventCode.JobRestarted, ct);
-        Assert.Equal(JobActorCode.Operator, restartEvent.ActorCode);
+        var restartEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobRestarted, ct);
+        Assert.Equal(ActorCode.Operator, restartEvent.ActorCode);
         Assert.Equal(JobStatusCode.Succeeded, restartEvent.FromStatus);
         Assert.Equal(JobStatusCode.Ready, restartEvent.ToStatus);
         Assert.Equal("retry from scratch", restartEvent.ReasonMessage);

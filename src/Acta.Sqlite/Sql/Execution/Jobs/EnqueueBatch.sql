@@ -16,7 +16,7 @@ SELECT ACTA_ERROR('ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows refe
 WHERE EXISTS (
     SELECT 1 FROM JSON_EACH(@p_rows) r
     JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
-    WHERE ns.status_code <> 10 /* JobNamespaceStatusCode.Active */
+    WHERE ns.status_code <> 10 /* NamespaceStatusCode.Active */
 );
 
 SELECT ACTA_ERROR('ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.')

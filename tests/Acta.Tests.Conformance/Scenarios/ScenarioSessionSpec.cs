@@ -39,10 +39,7 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
         var job = await session.JobAsync(ct);
         Assert.Equal(JobStatusCode.Succeeded, job.Status);
         var events = await session.EventsAsync(ct);
-        Assert.Contains(
-            events,
-            e => e.EventCode == JobEventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded
-        );
+        Assert.Contains(events, e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded);
 
         var contract = await Scenario.For(TestJobsManifest.AddNumbers, host).EnqueueAsync(new AddNumbers(4, 6), ct: ct);
         await contract.RunUntilDoneAsync(ct: ct);

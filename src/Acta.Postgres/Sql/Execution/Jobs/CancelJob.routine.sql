@@ -91,7 +91,7 @@ BEGIN
                 reason_code,
                 reason_message)
             VALUES (
-                41 /* JobEventCode.JobExecutionFinished */,
+                41 /* EventCode.JobExecutionFinished */,
                 now(),
                 v_namespace_id,
                 p_actor_code,
@@ -131,7 +131,7 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            70 /* JobEventCode.JobCancelled */,
+            70 /* EventCode.JobCancelled */,
             now(),
             v_namespace_id,
             p_actor_code,

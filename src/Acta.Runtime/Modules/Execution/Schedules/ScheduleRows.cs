@@ -62,7 +62,7 @@ internal sealed record JobScheduleListRow(
     int Version
 )
 {
-    public JobScheduleListItem ToItem() =>
+    public ScheduleListItem ToItem() =>
         new(
             JobScheduleId,
             JobId,

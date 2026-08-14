@@ -37,7 +37,7 @@ internal interface IWorkerStore
     Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct);
 
     /// <summary>Read one fully projected worker by id, or <see langword="null"/> when absent.</summary>
-    ValueTask<JobWorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct);
+    ValueTask<WorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct);
 
     /// <summary>
     /// One keyset page of <c>workers</c> rows ordered <c>last_seen_at_utc DESC, id DESC</c> plus the
@@ -100,4 +100,4 @@ internal sealed record WorkerPageRequest(
 );
 
 /// <summary>One page of mapped worker list items plus the opt-in filtered total.</summary>
-internal sealed record WorkerPage(IReadOnlyList<JobWorkerListItem> Rows, long? Total);
+internal sealed record WorkerPage(IReadOnlyList<WorkerListItem> Rows, long? Total);

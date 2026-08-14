@@ -14,7 +14,7 @@ internal sealed class EventsService(IEventStore store)
     private const string OrderCreatedDesc = "created_at_utc desc, id desc";
     private const string OperationName = "ListJobEvents";
 
-    public async ValueTask<PagedResult<JobEventListItem>> ListJobEventsAsync(ListJobEventsQuery query, CancellationToken ct)
+    public async ValueTask<PagedResult<EventListItem>> ListJobEventsAsync(ListEventsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
@@ -34,7 +34,7 @@ internal sealed class EventsService(IEventStore store)
             ? null
             : IdentifierSyntax.NormalizeKeyLookup(query.TenantKey, nameof(query.TenantKey));
         QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
-        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListJobEventsQuery));
+        var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListEventsQuery));
 
         var filterHash = QueryFilterHash.Compute([
             ("job", Num(query.JobId)),
@@ -98,7 +98,7 @@ internal sealed class EventsService(IEventStore store)
             ? PageCursorCodec.Encode(OperationName, OrderCreatedDesc, filterHash, [items[^1].CreatedAtUtc, items[^1].JobEventId])
             : null;
 
-        return new PagedResult<JobEventListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return new PagedResult<EventListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
     private static string? Num<T>(T? value)

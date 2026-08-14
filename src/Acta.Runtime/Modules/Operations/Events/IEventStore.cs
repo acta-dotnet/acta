@@ -22,12 +22,12 @@ internal sealed record EventPageRequest(
     long? JobId,
     long? LineageRootId,
     string? JobNamespace,
-    JobEventCode? EventCode,
+    EventCode? EventCode,
     int? JobDefinitionId,
     int? TenantId,
     string? TenantKey,
     int? WorkerId,
-    JobActorCode? ActorCode,
+    ActorCode? ActorCode,
     JobEventReasonCode? ReasonCode,
     DateTime? CreatedFromUtc,
     DateTime? CreatedToUtc,
@@ -39,4 +39,4 @@ internal sealed record EventPageRequest(
 );
 
 /// <summary>One page of mapped event rows plus the opt-in filtered total.</summary>
-internal sealed record EventPage(IReadOnlyList<JobEventListItem> Rows, long? Total);
+internal sealed record EventPage(IReadOnlyList<EventListItem> Rows, long? Total);

@@ -50,10 +50,10 @@ BEGIN
             reason_code,
             reason_message)
         VALUES (
-            81 /* JobEventCode.JobStateReset */,
+            81 /* EventCode.JobStateReset */,
             now(),
             v_namespace_id,
-            50 /* JobActorCode.Job */,
+            50 /* ActorCode.Job */,
             p_id::varchar,
             p_id,
             v_job_ref,

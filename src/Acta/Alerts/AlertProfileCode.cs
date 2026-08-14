@@ -2,9 +2,9 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-[JsonConverter(typeof(JobAlertProfileCodeJsonConverter))]
+[JsonConverter(typeof(AlertProfileCodeJsonConverter))]
 [CodeKind("job-alert-profile")]
-public enum JobAlertProfileCode : byte
+public enum AlertProfileCode : byte
 {
     [Code("none", "No automatic failure alerts. ctx.AlertAsync still creates rows.")]
     None = 0,

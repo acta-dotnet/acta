@@ -42,7 +42,7 @@ internal sealed class RecoveryJob(
         "sys.recovery",
         Priority = JobPriorityCode.Critical,
         AuditLevel = JobAuditLevelCode.Failures,
-        AlertProfile = JobAlertProfileCode.SysCritical
+        AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.EveryMinute)]
     public async Task Handle(JobContext ctx, CancellationToken ct)

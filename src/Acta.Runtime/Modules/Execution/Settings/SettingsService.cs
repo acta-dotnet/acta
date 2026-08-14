@@ -15,7 +15,7 @@ internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions>
 {
     // Operator/manual only: the actor is stamped here, never accepted from the caller.
     private static JobControlActor Operator(string? actorKey) =>
-        new(JobActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
     public async ValueTask<SettingSnapshot?> GetAsync(string name, string? namespaceName, string? jobName, CancellationToken ct)
     {

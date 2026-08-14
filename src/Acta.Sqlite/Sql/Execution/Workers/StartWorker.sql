@@ -29,9 +29,9 @@ INSERT INTO {{schema}}.events (
     execution_status_code, duration_ms, reason_code, reason_message
 )
 SELECT
-    120 /* JobEventCode.WorkerStarted */,
+    120 /* EventCode.WorkerStarted */,
     w.namespace_id,
-    70 /* JobActorCode.Worker */,
+    70 /* ActorCode.Worker */,
     CAST(w.id AS TEXT),
     NULL,
     NULL,
