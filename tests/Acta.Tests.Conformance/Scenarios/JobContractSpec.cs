@@ -10,15 +10,15 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for the explicit-target contract façade: <c>EnqueueAsync(JobContract&lt;T&gt;, input)</c>
 /// resolves namespace + format from the manifest binding (no input-type inference), the no-input and
-/// result-bearing overloads enqueue correctly, and a contract ExecuteAndWaitAsync round-trips the typed result.
+/// result-bearing overloads enqueue correctly, and a contract RunAndWaitAsync round-trips the typed result.
 /// </summary>
 [ConformanceSpec(
     "job-contract.facade",
     "Contract enqueue names the job explicitly and resolves its route",
     Area = "Enqueue",
-    Contract = "The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and ExecuteAndWaitAsync result paths.",
+    Contract = "The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths.",
     Arrange = "TestJobsManifest exposes typed JobContract members bound to namespace and payload format.",
-    Act = "Jobs are enqueued and executed through the typed overloads, including no-input, fire-and-forget, ExecuteAndWaitAsync, and a mismatched contract.",
+    Act = "Jobs are enqueued and executed through the typed overloads, including no-input, fire-and-forget, RunAndWaitAsync, and a mismatched contract.",
     Assert = "The contract façade resolves each route without input-type inference and round-trips the typed result."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
@@ -57,7 +57,7 @@ public abstract class JobContractSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal("cancellable", snapshot!.JobName);
     }
 
-    [Fact(DisplayName = "Contract ExecuteAndWaitAsync round-trips the typed result")]
+    [Fact(DisplayName = "Contract RunAndWaitAsync round-trips the typed result")]
     public async Task Contract_execute_round_trips_typed_result()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -84,7 +84,7 @@ public abstract class JobContractSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
 
         try
         {
-            var outcome = await Jobs.ExecuteAndWaitAsync(
+            var outcome = await Jobs.RunAndWaitAsync(
                 TestJobsManifest.AddNumbers,
                 new AddNumbers(4, 5),
                 new JobExecutionOptions { WaitTimeout = TimeSpan.FromSeconds(60), PollInterval = TimeSpan.FromMilliseconds(100) },
@@ -130,7 +130,7 @@ public abstract class JobContractSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         // add-numbers' registered result is AddNumbersResult; a hand-built TResult of int must throw.
         var bad = new JobContract<AddNumbers, int>(typeof(TestJobsManifest), "add-numbers");
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Jobs.ExecuteAndWaitAsync(
+            Jobs.RunAndWaitAsync(
                     bad,
                     new AddNumbers(1, 1),
                     new JobExecutionOptions { WaitTimeout = TimeSpan.FromSeconds(5), PollInterval = TimeSpan.FromMilliseconds(100) },

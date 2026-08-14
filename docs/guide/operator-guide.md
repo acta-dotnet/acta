@@ -478,7 +478,7 @@ for the read surface as authorization to read every payload the ledger holds. Se
 Every terminal landing stamps `retention_until_utc` from the definition's `JobRetention` policy
 (default 90 days); the framework `sys.retention` job purges terminal rows past that deadline in
 batches, along with `events` / `alerts` / dead-worker rows past their `JobsOptions` windows
-(`JobEventsRetentionDays`, `AlertRetentionDays`, `WorkerRetention`). A row with a NULL
+(`JobEventsRetention`, `AlertRetention`, `WorkerRetention`). A row with a NULL
 `retention_until_utc` is never purged; only terminal rows ever carry one. Substrate rows
 (checkpoints, steps, results) delete with their job.
 
@@ -491,7 +491,7 @@ parent would orphan the children's lineage: purge the children first), and alway
 Manual purge also explicitly deletes the job's `events` and `alerts` rows (both are FK-less, so
 nothing cascades), scrubbing the job completely. Retention purge is more conservative: it deletes
 only the terminal `jobs` row (S1) on its own deadline; settled alerts age out separately on
-`AlertRetentionDays` (S3), so an alert row (which keeps its own copy of the job ref) can outlive
+`AlertRetention` (S3), so an alert row (which keeps its own copy of the job ref) can outlive
 the job it was raised for.
 
 At a glance:

@@ -57,7 +57,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
             before.Version,
             DailyCron,
             null,
-            note: "widen",
+            reasonMessage: "widen",
             actorKey: "operator-1",
             ct: ct
         );
@@ -282,7 +282,7 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
     {
-        var id = await Jobs().ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
+        var id = await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
         Assert.NotNull(id);
         return id!.Value;
     }

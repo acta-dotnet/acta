@@ -333,10 +333,10 @@ public abstract class JobContext
     /// The <see cref="Task"/> return type mirrors <see cref="SleepAsync"/> for call-site symmetry; the
     /// throw is synchronous, so a forgotten <c>await</c> still stops the handler.
     /// </remarks>
-    public Task RescheduleAsync(TimeSpan delay, string? reason = null, CancellationToken ct = default)
+    public Task RescheduleAsync(TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        throw new RescheduleJobException(delay, reason);
+        throw new RescheduleJobException(delay, reasonMessage);
     }
 
     /// <summary>
@@ -344,10 +344,10 @@ public abstract class JobContext
     /// <paramref name="resumeAtUtc"/>. A past instant re-arms as immediately claimable; throw and
     /// budget semantics match <see cref="RescheduleAsync"/>.
     /// </summary>
-    public Task RescheduleUntilAsync(DateTimeOffset resumeAtUtc, string? reason = null, CancellationToken ct = default)
+    public Task RescheduleUntilAsync(DateTimeOffset resumeAtUtc, string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        throw new RescheduleJobException(resumeAtUtc, reason);
+        throw new RescheduleJobException(resumeAtUtc, reasonMessage);
     }
 
     // ---------- Handler-initiated control ----------
@@ -363,10 +363,10 @@ public abstract class JobContext
     /// The <see cref="Task"/> return type mirrors the other control verbs for call-site symmetry; the
     /// throw is synchronous, so a forgotten <c>await</c> still stops the handler.
     /// </remarks>
-    public Task FailAsync(string? reason = null, CancellationToken ct = default)
+    public Task FailAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        throw new HandlerFailException(reason);
+        throw new HandlerFailException(reasonMessage);
     }
 
     /// <summary>
@@ -376,10 +376,10 @@ public abstract class JobContext
     /// budget is untouched. The cancel cascades recursively to this Job's non-terminal descendant
     /// subtree (descendants land <c>Cancelled</c> with <c>reason = ParentCancelled</c>).
     /// </summary>
-    public Task CancelAsync(string? reason = null, CancellationToken ct = default)
+    public Task CancelAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        throw new HandlerCancelException(reason);
+        throw new HandlerCancelException(reasonMessage);
     }
 
     /// <summary>
@@ -390,10 +390,10 @@ public abstract class JobContext
     /// <c>IJobs.ResumeAsync</c>. This is operator-driven hold, not framework-managed
     /// <c>Suspended</c> (which <see cref="SleepAsync"/> / <see cref="WaitSignalAsync(string, CancellationToken)"/> produce).
     /// </summary>
-    public Task PauseAsync(string? reason = null, CancellationToken ct = default)
+    public Task PauseAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        throw new HandlerPauseException(reason);
+        throw new HandlerPauseException(reasonMessage);
     }
 
     /// <summary>
@@ -409,9 +409,9 @@ public abstract class JobContext
     /// </remarks>
     /// <param name="name">Dotted-kebab wait name, unique per Job; identifies the timer across replays.</param>
     /// <param name="delay">Wait length from DB now; whole-second precision (sub-second rounds up).</param>
-    /// <param name="reason">Operator-readable suspend reason.</param>
+    /// <param name="reasonMessage">Operator-readable suspend reason.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public async Task SleepAsync(string name, TimeSpan delay, string? reason = null, CancellationToken ct = default)
+    public async Task SleepAsync(string name, TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
         name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
         var seconds = DurationSyntax.ToWholeSeconds(delay, nameof(delay));
@@ -421,7 +421,7 @@ public abstract class JobContext
         }
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        await SleepCoreAsync(name, TimeSpan.FromSeconds(seconds), resumeAtUtc: null, reason, linked.Token);
+        await SleepCoreAsync(name, TimeSpan.FromSeconds(seconds), resumeAtUtc: null, reasonMessage, linked.Token);
     }
 
     /// <summary>
@@ -429,11 +429,11 @@ public abstract class JobContext
     /// Whether the instant is already due is decided by DB UTC time inside the timer routine, not the app
     /// clock, so a past instant consumes immediately and the handler proceeds.
     /// </summary>
-    public async Task SleepUntilAsync(string name, DateTimeOffset resumeAtUtc, string? reason = null, CancellationToken ct = default)
+    public async Task SleepUntilAsync(string name, DateTimeOffset resumeAtUtc, string? reasonMessage = null, CancellationToken ct = default)
     {
         name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        await SleepCoreAsync(name, delay: null, resumeAtUtc.UtcDateTime, reason, linked.Token);
+        await SleepCoreAsync(name, delay: null, resumeAtUtc.UtcDateTime, reasonMessage, linked.Token);
     }
 
     /// <summary>
@@ -441,7 +441,13 @@ public abstract class JobContext
     /// and <paramref name="resumeAtUtc"/> is non-null. Returns normally to continue the handler; throws
     /// the framework suspend signal to re-arm the Job for a subsequent claim.
     /// </summary>
-    protected abstract Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct);
+    protected abstract Task SleepCoreAsync(
+        string name,
+        TimeSpan? delay,
+        DateTime? resumeAtUtc,
+        string? reasonMessage,
+        CancellationToken ct
+    );
 
     // ---------- Signals ----------
 
@@ -602,7 +608,7 @@ public abstract class JobContext
 
     /// <summary>
     /// Starts the named child and durably waits for its terminal outcome in one call, the child-level
-    /// mirror of <c>IJobs.ExecuteAndWaitAsync</c>. Returned, never thrown; branch on the outcome or call
+    /// mirror of <c>IJobs.RunAndWaitAsync</c>. Returned, never thrown; branch on the outcome or call
     /// <see cref="JobOutcome.ThrowIfFailed"/>. Waits this one child before returning: to fan out, start
     /// every child first and join with <see cref="WaitChildrenAsync"/>.
     /// </summary>

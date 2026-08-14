@@ -28,9 +28,9 @@ internal sealed class NamespacesApi(NamespacesService namespaces) : INamespaces
 
     public ValueTask<AdminControlResult> UpdateAsync(
         string name,
+        int expectedVersion,
         string? ownerTeam,
         string? description,
-        int expectedVersion,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default

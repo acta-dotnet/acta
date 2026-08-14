@@ -60,7 +60,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         var loop = Runtime.RunLoopAsync(loopCts.Token);
         await _wakeup.Parked.WaitAsync(TimeSpan.FromSeconds(30), ct);
 
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
@@ -129,7 +129,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
@@ -152,7 +152,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         // Raise before the handler ever runs: the job is Ready, so the slot is created Set and the status is unchanged.
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
@@ -184,7 +184,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Action);
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(JobCheckpointStatusCode.Set, sig.Status);
@@ -218,7 +218,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(ControlAction.Applied, pause.Action);
         Assert.Equal(JobStatusCode.Paused, pause.Status);
 
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Paused, raise.Status);
 
@@ -234,7 +234,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
 
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(enqueued, ct: ct)).Action);
 
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Rejected, raise.Action);
         Assert.Equal(JobStatusCode.Cancelled, raise.Status);
         Assert.Empty(await ReadSignalsAsync(enqueued.JobId, ct));
@@ -244,7 +244,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
     public async Task Raise_signal_returns_not_found_for_unknown_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var raise = await Jobs.RaiseSignalAsync(JobLookup.ById(long.MaxValue), "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(JobLookup.ById(long.MaxValue), "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.NotFound, raise.Action);
         Assert.Null(raise.Status);
     }

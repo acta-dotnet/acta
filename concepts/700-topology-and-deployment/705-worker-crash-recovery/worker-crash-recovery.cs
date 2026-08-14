@@ -121,7 +121,7 @@ await ShowStateAsync(lab, probe.JobId, sessionId);
 Console.WriteLine("Worker B is live. Waiting for A's short lab lease to expire, then triggering leaderless sys.recovery...");
 await Task.Delay(TimeSpan.FromSeconds(6));
 var recovery = new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, "sys.recovery"), "default");
-await operations.Schedules.TriggerNowAsync(recovery, note: "worker crash lab");
+await operations.Schedules.TriggerNowAsync(recovery, reasonMessage: "worker crash lab");
 
 using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while ((await jobs.GetAsync(JobLookup.ById(probe.JobId), recoveryTimeout.Token))?.Status.IsTerminal != true)

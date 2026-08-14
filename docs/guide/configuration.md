@@ -67,8 +67,8 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
 | `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before `sys.recovery` marks a worker Dead. |
 | `WorkerRetention` | 90 days | cluster data | Dead worker row retention. Must be at least one day. |
-| `JobEventsRetentionDays` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
-| `AlertRetentionDays` | 90 | cluster data | Retention for settled alert rows. In-flight alert delivery rows are not purged by age. |
+| `JobEventsRetention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
+| `AlertRetention` | 90 | cluster data | Retention for settled alert rows. In-flight alert delivery rows are not purged by age. |
 | `RegisterSystemJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. **Setting this `false` disables crash recovery**: `sys.recovery` is the only thing that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay `Executing` behind a lapsed lease permanently. The runtime warns at startup when it is off. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling: caller-controlled inline writes (enqueue inputs, variables, progress, step results, signal values) throw past it, an oversize handler result is dropped, and it also caps the HTTP request body. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
@@ -93,7 +93,7 @@ exclusive-key bounce delay, alert dedupe window, alert delivery retries, and the
 completion-buffer thresholds are fixed. A value nobody can set correctly is a way to break a
 deployment, not a feature.
 
-`JobEventsRetentionDays` (365 days) intentionally outlives the per-definition `[Job(JobRetention =
+`JobEventsRetention` (365 days) intentionally outlives the per-definition `[Job(JobRetention =
 ...)]` default (90 days) that purges terminal job rows: events are the audit ledger, so the incident
 timeline survives well past the job row itself.
 

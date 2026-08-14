@@ -18,7 +18,7 @@ internal interface IRetentionStore
 internal sealed record PurgeExpiredDataCommand(
     short NamespaceId,
     int EventsRetentionDays,
-    int AlertRetentionDays,
+    int AlertRetention,
     int WorkerRetentionSeconds,
     int BatchSize,
     int MaxIterations

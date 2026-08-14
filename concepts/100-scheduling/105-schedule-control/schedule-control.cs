@@ -26,18 +26,18 @@ var lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-control",
 
 // Step 1: indefinite pause - the schedule does not fire until an operator explicitly resumes it.
 Console.WriteLine("Pausing schedule indefinitely...");
-var r1 = await schedules.PauseAsync(lookup, untilUtc: null, note: "maintenance window");
+var r1 = await schedules.PauseAsync(lookup, untilUtc: null, reasonMessage: "maintenance window");
 Console.WriteLine($"After indefinite pause: status={r1.Status} next-run={r1.NextRunAtUtc?.ToString("O") ?? "(none)"}");
 
 // Step 2: timed pause - the scheduler auto-resumes the schedule when the timestamp passes.
 var resumeAt = DateTime.UtcNow.AddHours(2);
 Console.WriteLine($"Replacing with timed pause until {resumeAt:O}...");
-var r2 = await schedules.PauseAsync(lookup, untilUtc: resumeAt, note: "drain window");
+var r2 = await schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: "drain window");
 Console.WriteLine($"After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString("O") ?? "(none)"}");
 
 // Step 3: resume - clears the pause, reconciles the cursor, recomputes the slot's next run.
 Console.WriteLine("Resuming schedule...");
-var r3 = await schedules.ResumeAsync(lookup, note: "drain complete");
+var r3 = await schedules.ResumeAsync(lookup, reasonMessage: "drain complete");
 Console.WriteLine($"After resume: status={r3.Status} next-run={r3.NextRunAtUtc?.ToString("O") ?? "(none)"}");
 
 // Confirm via the query surface that the schedule is active again and has a next-run time.

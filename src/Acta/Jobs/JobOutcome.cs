@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Await-to-completion outcome returned by <see cref="IJobs.ExecuteAndWaitAsync{TInput}"/>. Carries the
+/// Await-to-completion outcome returned by <see cref="IJobs.RunAndWaitAsync{TInput}"/>. Carries the
 /// terminal outcome (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; it is
 /// returned, never thrown.
 /// </summary>
@@ -58,7 +58,7 @@ public class JobOutcome
 }
 
 /// <summary>
-/// Await-to-completion outcome returned by <see cref="IJobs.ExecuteAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>. Extends
+/// Await-to-completion outcome returned by <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>. Extends
 /// <see cref="JobOutcome"/> with the handler's typed <typeparamref name="T"/> result on <c>Succeeded</c>;
 /// it is returned, never thrown.
 /// </summary>

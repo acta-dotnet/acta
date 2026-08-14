@@ -54,7 +54,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         var before = await ScheduleAsync(Db, jobName, "only", ct);
 
         var tBefore = await NowAsync(ct);
-        var result = await Schedules.TriggerNowAsync(Lookup(jobName, "only"), note: "fire now", ct: ct);
+        var result = await Schedules.TriggerNowAsync(Lookup(jobName, "only"), reasonMessage: "fire now", ct: ct);
         var tAfter = await NowAsync(ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
@@ -223,7 +223,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
     {
-        var id = await Jobs().ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
+        var id = await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
         Assert.NotNull(id);
         return id!.Value;
     }

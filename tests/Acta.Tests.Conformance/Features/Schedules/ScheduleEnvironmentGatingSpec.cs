@@ -43,7 +43,7 @@ public abstract class ScheduleEnvironmentGatingSpec<TFixture> : ActaRuntimeTestB
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var slotId = await Jobs.ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "env-gated-ping"), ct);
+        var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "env-gated-ping"), ct);
         Assert.NotNull(slotId);
 
         var rows = await Db.From<JobSchedule>().Where(s => s.JobId == slotId!.Value).ToListAsync(ct);
@@ -56,7 +56,7 @@ public abstract class ScheduleEnvironmentGatingSpec<TFixture> : ActaRuntimeTestB
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var slotId = await Jobs.ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "env-prod-only-ping"), ct);
+        var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "env-prod-only-ping"), ct);
         Assert.Null(slotId);
     }
 }

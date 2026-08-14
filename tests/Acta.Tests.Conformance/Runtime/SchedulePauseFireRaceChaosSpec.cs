@@ -72,7 +72,7 @@ public abstract class SchedulePauseFireRaceChaosSpec<TFixture> : ActaRuntimeTest
         // was already decided.
         _faults.RunBeforeCompleteOnce(async () =>
         {
-            var paused = await Schedules.PauseAsync(Lookup(), untilUtc: null, note: "operator drain", ct: ct);
+            var paused = await Schedules.PauseAsync(Lookup(), untilUtc: null, reasonMessage: "operator drain", ct: ct);
             Assert.Equal(ControlAction.Applied, paused.Action);
         });
 
@@ -105,7 +105,7 @@ public abstract class SchedulePauseFireRaceChaosSpec<TFixture> : ActaRuntimeTest
         // The guard must not break the case it was carved around: a pause whose expiry has passed is
         // due, is advanced, and returns to Active with the pause cleared.
         var until = await SlotNextRunAsync(slotId, ct);
-        Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), until, note: "window", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), until, reasonMessage: "window", ct: ct)).Action);
         Clock.AdvanceTo(until);
 
         Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
@@ -122,7 +122,7 @@ public abstract class SchedulePauseFireRaceChaosSpec<TFixture> : ActaRuntimeTest
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
-        var id = await Jobs.ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
+        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
         Assert.NotNull(id);
         return id!.Value;
     }

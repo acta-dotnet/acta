@@ -6,11 +6,11 @@ namespace Acta;
 /// </summary>
 public interface ISchedules
 {
-    /// <summary>Pause the schedule identified by <paramref name="schedule"/>. Null <paramref name="untilUtc"/> pauses indefinitely; a timestamp auto-resumes. Stamps actor=Operator and records <paramref name="note"/>. <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. Missing schedule is NotFound; orphaned or past untilUtc is Rejected.</summary>
+    /// <summary>Pause the schedule identified by <paramref name="schedule"/>. Null <paramref name="untilUtc"/> pauses indefinitely; a timestamp auto-resumes. Stamps actor=Operator and records <paramref name="reasonMessage"/>. <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. Missing schedule is NotFound; orphaned or past untilUtc is Rejected.</summary>
     ValueTask<ScheduleControlResult> PauseAsync(
         ScheduleLookup schedule,
         DateTime? untilUtc = null,
-        string? note = null,
+        string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
@@ -18,7 +18,7 @@ public interface ISchedules
     /// <summary>Resume the schedule identified by <paramref name="schedule"/>: clears the pause and reconciles the cursor by misfire policy. <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. Missing schedule is NotFound; orphaned is Rejected.</summary>
     ValueTask<ScheduleControlResult> ResumeAsync(
         ScheduleLookup schedule,
-        string? note = null,
+        string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
@@ -29,15 +29,15 @@ public interface ISchedules
         int expectedVersion,
         string? expression,
         string? timeZoneId,
-        string? note = null,
+        string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
 
-    /// <summary>Fires the schedule identified by <paramref name="schedule"/> right now: pulls the owning slot's cursor to the current instant so the next claim sweep picks it up immediately, leaving the schedule's own cursor (and cadence) untouched. <paramref name="actorKey"/> is recorded on the audit event as the operator identity; null when unknown. <paramref name="note"/> rides the audit event's reason message alongside the schedule name (this verb writes no schedule row, so the note is not persisted anywhere else). Missing/orphaned schedule is NotFound; a paused schedule is Rejected (resume first); a slot already Dispatched or Executing is Rejected (a fire is already in flight).</summary>
+    /// <summary>Fires the schedule identified by <paramref name="schedule"/> right now: pulls the owning slot's cursor to the current instant so the next claim sweep picks it up immediately, leaving the schedule's own cursor (and cadence) untouched. <paramref name="actorKey"/> is recorded on the audit event as the operator identity; null when unknown. <paramref name="reasonMessage"/> rides the audit event's reason message alongside the schedule name (this verb writes no schedule row, so the reasonMessage is not persisted anywhere else). Missing/orphaned schedule is NotFound; a paused schedule is Rejected (resume first); a slot already Dispatched or Executing is Rejected (a fire is already in flight).</summary>
     ValueTask<ScheduleControlResult> TriggerNowAsync(
         ScheduleLookup schedule,
-        string? note = null,
+        string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );

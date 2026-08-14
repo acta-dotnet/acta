@@ -59,7 +59,7 @@ public sealed class JobAttribute(string name) : Attribute
     public string? JobRetention { get; init; }
 
     // No per-definition ExecutionRetention: all JobEvent rows honor the single cluster knob
-    // JobsOptions.JobEventsRetentionDays.
+    // JobsOptions.JobEventsRetention.
 
     /// <summary>
     /// Audit emission level; gates audit-filtered per-job <c>JobEvent</c> writes but not the alert

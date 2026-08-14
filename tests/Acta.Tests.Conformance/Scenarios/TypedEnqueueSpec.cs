@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for the typed <see cref="IJobs"/> façade: <c>EnqueueAsync&lt;TInput&gt;</c> (route
 /// resolution + serialization), <see cref="JobEnqueueOptions"/> (deduplication key / delayed run),
-/// <c>ExecuteAndWaitAsync&lt;TInput, TResult&gt;</c> (enqueue + wait + typed result), and the delayed-enqueue
+/// <c>RunAndWaitAsync&lt;TInput, TResult&gt;</c> (enqueue + wait + typed result), and the delayed-enqueue
 /// claim gate (<c>next_run_at_utc</c>). Uses the <c>add-numbers</c> job (input <see cref="AddNumbers"/>,
 /// result <see cref="AddNumbersResult"/>) registered under the per-test namespace.
 /// </summary>
@@ -19,9 +19,9 @@ namespace Acta.Tests.Conformance.Scenarios;
     "typed-enqueue.facade",
     "Typed enqueue resolves the route and delayed jobs gate on next_run",
     Area = "Enqueue",
-    Contract = "The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and ExecuteAndWaitAsync waits.",
+    Contract = "The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits.",
     Arrange = "The add-numbers job and companion probe definitions are registered with typed inputs and results under the per-test namespace.",
-    Act = "Typed inputs including scalars are enqueued with deduplication-key and delayed options, and ExecuteAndWaitAsync is driven to completion.",
+    Act = "Typed inputs including scalars are enqueued with deduplication-key and delayed options, and RunAndWaitAsync is driven to completion.",
     Assert = "Each route is resolved from the input type and the typed result round-trips back to the caller."
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
@@ -129,12 +129,12 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Null(result);
     }
 
-    [Fact(DisplayName = "ExecuteAndWaitAsync enqueues, waits for completion and returns the typed result")]
+    [Fact(DisplayName = "RunAndWaitAsync enqueues, waits for completion and returns the typed result")]
     public async Task ExecuteAndWaitAsync_enqueues_waits_and_returns_typed_result()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // ExecuteAndWaitAsync polls for terminal status; drive worker ticks concurrently so the job runs.
+        // RunAndWaitAsync polls for terminal status; drive worker ticks concurrently so the job runs.
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var driver = Task.Run(async () =>
         {
@@ -157,7 +157,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
         try
         {
-            var outcome = await Jobs.ExecuteAndWaitAsync<AddNumbers, AddNumbersResult>(
+            var outcome = await Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
                 new AddNumbers(4, 5),
                 new JobExecutionOptions { WaitTimeout = TimeSpan.FromSeconds(60), PollInterval = TimeSpan.FromMilliseconds(100) },
                 ct
@@ -177,7 +177,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         }
     }
 
-    [Fact(DisplayName = "ExecuteAndWaitAsync throws when a Succeeded job stored no typed result")]
+    [Fact(DisplayName = "RunAndWaitAsync throws when a Succeeded job stored no typed result")]
     public async Task ExecuteAndWaitAsync_typed_result_against_result_less_job_throws()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -207,7 +207,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
             // policy-probe completes Succeeded but stores no result; requesting a typed result is a
             // caller contract mismatch, not a default(TResult).
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                Jobs.ExecuteAndWaitAsync<PolicyProbe, AddNumbersResult>(
+                Jobs.RunAndWaitAsync<PolicyProbe, AddNumbersResult>(
                         new PolicyProbe("no-result"),
                         new JobExecutionOptions { WaitTimeout = TimeSpan.FromSeconds(60), PollInterval = TimeSpan.FromMilliseconds(100) },
                         ct
@@ -227,7 +227,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         }
     }
 
-    [Fact(DisplayName = "ExecuteAndWaitAsync honors WaitTimeout when PollInterval exceeds it")]
+    [Fact(DisplayName = "RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it")]
     public async Task ExecuteAndWaitAsync_returns_at_wait_timeout_when_poll_interval_is_longer()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -235,7 +235,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         // No worker drives ticks, so the job never terminates; the wait must end at WaitTimeout even
         // though a full PollInterval sleep would overshoot it many times over.
         var start = Stopwatch.GetTimestamp();
-        var outcome = await Jobs.ExecuteAndWaitAsync<AddNumbers, AddNumbersResult>(
+        var outcome = await Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
             new AddNumbers(1, 2),
             new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(500), PollInterval = TimeSpan.FromSeconds(30) },
             ct
@@ -243,16 +243,16 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
         Assert.True(outcome.IsTimedOut);
         var elapsed = Stopwatch.GetElapsedTime(start);
-        Assert.True(elapsed < TimeSpan.FromSeconds(5), $"ExecuteAndWaitAsync took {elapsed} against a 500ms WaitTimeout");
+        Assert.True(elapsed < TimeSpan.FromSeconds(5), $"RunAndWaitAsync took {elapsed} against a 500ms WaitTimeout");
     }
 
-    [Fact(DisplayName = "ExecuteAndWaitAsync rejects non-positive wait options before enqueue")]
+    [Fact(DisplayName = "RunAndWaitAsync rejects non-positive wait options before enqueue")]
     public async Task ExecuteAndWaitAsync_rejects_non_positive_wait_options_before_enqueue()
     {
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            Jobs.ExecuteAndWaitAsync<AddNumbers, AddNumbersResult>(
+            Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
                     new AddNumbers(1, 1),
                     new JobExecutionOptions { WaitTimeout = TimeSpan.Zero },
                     ct
@@ -261,7 +261,7 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         );
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            Jobs.ExecuteAndWaitAsync<AddNumbers, AddNumbersResult>(
+            Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
                     new AddNumbers(1, 1),
                     new JobExecutionOptions { PollInterval = TimeSpan.FromMilliseconds(-1) },
                     ct

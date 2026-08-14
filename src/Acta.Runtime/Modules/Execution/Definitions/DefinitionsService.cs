@@ -94,7 +94,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         string? actorKey,
-        string? note,
+        string? reasonMessage,
         CancellationToken ct
     )
     {
@@ -152,7 +152,13 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         var actor = new JobControlActor(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
         var outcome = await store.SetDefinitionOverridesAsync(
-            new SetDefinitionOverridesCommand(definitionId, expectedVersion, overrides, actor, note.Truncate(ActaTextLimits.ReasonMessage)),
+            new SetDefinitionOverridesCommand(
+                definitionId,
+                expectedVersion,
+                overrides,
+                actor,
+                reasonMessage.Truncate(ActaTextLimits.ReasonMessage)
+            ),
             ct
         );
 

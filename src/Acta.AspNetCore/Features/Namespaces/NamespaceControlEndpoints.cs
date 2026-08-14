@@ -116,9 +116,9 @@ internal static class NamespaceControlEndpoints
                 {
                     var result = await operations.Namespaces.UpdateAsync(
                         name,
+                        expectedVersion,
                         body.OwnerTeam,
                         body.Description,
-                        expectedVersion,
                         reason,
                         http.User?.Identity?.Name,
                         ct

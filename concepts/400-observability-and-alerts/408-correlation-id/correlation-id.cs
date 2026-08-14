@@ -34,7 +34,7 @@ var correlationKey = $"trace-{Guid.NewGuid():N}";
 Console.WriteLine($"enqueueing parent with CorrelationKey={correlationKey}");
 
 // JobExecutionOptions extends JobEnqueueOptions, so CorrelationKey is an enqueue-time option here.
-var outcome = await jobs.ExecuteAndWaitAsync<RunPipeline>(
+var outcome = await jobs.RunAndWaitAsync<RunPipeline>(
     new RunPipeline("demo"),
     new JobExecutionOptions { CorrelationKey = correlationKey, PollInterval = TimeSpan.FromMilliseconds(200) }
 );

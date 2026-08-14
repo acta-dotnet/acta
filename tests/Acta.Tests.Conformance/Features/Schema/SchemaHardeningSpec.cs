@@ -248,7 +248,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
     public async Task Recurring_slot_schedule_agrees_with_its_job_namespace_and_definition()
     {
         var ct = TestContext.Current.CancellationToken;
-        var slotId = await Jobs.ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping"), ct);
+        var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping"), ct);
         Assert.NotNull(slotId);
 
         var job = await Db.From<Job>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct);

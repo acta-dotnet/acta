@@ -39,8 +39,8 @@ var catchUpLookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-mi
 
 // Pause both schedules indefinitely so no occurrences fire while we wait.
 Console.WriteLine("Pausing both schedules indefinitely...");
-var ps1 = await schedules.PauseAsync(skipLookup, untilUtc: null, note: "misfire demo");
-var ps2 = await schedules.PauseAsync(catchUpLookup, untilUtc: null, note: "misfire demo");
+var ps1 = await schedules.PauseAsync(skipLookup, untilUtc: null, reasonMessage: "misfire demo");
+var ps2 = await schedules.PauseAsync(catchUpLookup, untilUtc: null, reasonMessage: "misfire demo");
 Console.WriteLine($"skip-report paused: status={ps1.Status}");
 Console.WriteLine($"catch-up-report paused: status={ps2.Status}");
 await ShowSchedulesAsync(lab, "Paused before an occurrence is missed");
@@ -58,9 +58,9 @@ var overdueCatchUp = overdue.Items.Single(item => item.JobName == "catch-up-repo
 // Skip: first occurrence strictly after now - the missed instant is dropped.
 // FireOnceCatchUp: the missed past instant is kept so it fires once on recovery.
 Console.WriteLine("Resuming both schedules - each cursor is reconciled by its misfire policy...");
-var rs1 = await schedules.ResumeAsync(skipLookup, note: "misfire demo");
+var rs1 = await schedules.ResumeAsync(skipLookup, reasonMessage: "misfire demo");
 CatchUpReportJob.HoldNextExecution();
-var rs2 = await schedules.ResumeAsync(catchUpLookup, note: "misfire demo");
+var rs2 = await schedules.ResumeAsync(catchUpLookup, reasonMessage: "misfire demo");
 
 Console.WriteLine($"skip-report   overdue cursor: {overdueSkip?.ToString("O") ?? "(none)"}");
 Console.WriteLine($"skip-report   next-run (UTC): {rs1.NextRunAtUtc?.ToString("O") ?? "(none)"}");

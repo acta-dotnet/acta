@@ -164,7 +164,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Equal(WorkerWakeupWaitStatus.TimedOut, ParkedSleepOutcome());
     }
 
-    [Fact(DisplayName = "ExecuteAndWaitAsync observes a colocated completion at wake speed")]
+    [Fact(DisplayName = "RunAndWaitAsync observes a colocated completion at wake speed")]
     public async Task Execute_observes_a_colocated_completion_at_wake_speed()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -174,7 +174,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // PollInterval is deliberately huge so a poll-driven return is impossible inside the wait
         // timeout: the waiter either returns on its JobCompletion wake or times out.
-        var outcome = await Jobs.ExecuteAndWaitAsync(
+        var outcome = await Jobs.RunAndWaitAsync(
             new AddNumbers(2, 3),
             new JobExecutionOptions { PollInterval = TimeSpan.FromSeconds(15), WaitTimeout = TimeSpan.FromSeconds(20) },
             ct

@@ -80,7 +80,7 @@ public class ScenarioSession<TInput>
     }
 
     public ValueTask<JobControlResult> RaiseSignalAsync(string name, CancellationToken ct = default) =>
-        Host.Jobs.RaiseSignalAsync(Lookup, name, ct: ct);
+        Host.Jobs.RaiseSignalAsync(Lookup, name, JobPayload.None, ct: ct);
 
     public ValueTask<JobControlResult> RaiseSignalAsync<T>(string name, T value, CancellationToken ct = default) =>
         Host.Jobs.RaiseSignalAsync(Lookup, name, value, ct: ct);

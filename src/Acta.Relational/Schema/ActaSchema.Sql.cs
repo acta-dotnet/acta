@@ -352,7 +352,7 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        public static readonly DbValueSpec<int> AlertRetentionDays = new(
+        public static readonly DbValueSpec<int> AlertRetention = new(
             ParameterName: "p_alert_retention_days",
             Kind: DbKind.Int32,
             Size: null,

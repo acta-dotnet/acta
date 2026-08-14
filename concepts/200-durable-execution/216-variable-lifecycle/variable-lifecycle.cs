@@ -17,7 +17,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-await jobs.ExecuteAndWaitAsync(new InspectVariables());
+await jobs.RunAndWaitAsync(new InspectVariables());
 
 await host.StopAsync();
 

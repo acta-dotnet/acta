@@ -11,9 +11,9 @@ internal sealed class DefinitionsApi(DefinitionsService definitions) : IDefiniti
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         string? actorKey = null,
-        string? note = null,
+        string? reasonMessage = null,
         CancellationToken ct = default
-    ) => definitions.UpdateOverridesAsync(definitionId, expectedVersion, overrides, actorKey, note, ct);
+    ) => definitions.UpdateOverridesAsync(definitionId, expectedVersion, overrides, actorKey, reasonMessage, ct);
 
     public ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct = default) =>
         definitions.GetAsync(definitionId, ct);

@@ -203,7 +203,7 @@ internal sealed class CompletionSink
                 if (finalized[i])
                 {
                     // Finalized simple terminal: no parent latch by construction, so only the
-                    // job-finished wakeup applies (for a colocated ExecuteAndWaitAsync caller).
+                    // job-finished wakeup applies (for a colocated RunAndWaitAsync caller).
                     await _wakeupPublisher
                         .WakeAsync(
                             WorkerWakeupChannel.JobCompletion(batch[i].JobId),
@@ -246,7 +246,7 @@ internal sealed class CompletionSink
     }
 
     // Buffered completions are always plain terminal landings (Succeeded/Failed), never Ready: publish the
-    // job-finished wakeup so a colocated ExecuteAndWaitAsync caller observes the outcome, plus the
+    // job-finished wakeup so a colocated RunAndWaitAsync caller observes the outcome, plus the
     // parent-release wakeup the routine reports. Deferred to flush time (the small
     // extra latency is part of Bulk's relaxed contract).
     private async Task PublishWakeupsAsync(CompleteExecutionResult result, BufferedCompletion b)

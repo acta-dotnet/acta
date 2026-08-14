@@ -34,7 +34,7 @@ instead, set `ACTA_LOCAL_PROVIDER=postgres` (or `sqlserver`) with `ACTA_TEST_PG`
 
 Most rungs **enqueue work and then run the worker until you press Ctrl+C**: `EnqueueAsync` returns
 immediately and a background worker processes the job. The rungs whose lesson is reading a value
-back to the caller (003, 012, 013, 015, 016) use `ExecuteAndWaitAsync`/`GetResultAsync` and exit on their own.
+back to the caller (003, 012, 013, 015, 016) use `RunAndWaitAsync`/`GetResultAsync` and exit on their own.
 Engineering Labs also accept `--brief` to skip row output, `--all-columns` to explore complete curated-view
 records before the focused lesson, and (when phased) `--pause`. Their literal SQL is compiled by the
 SQLite, PostgreSQL, and SQL Server conformance suites so focused projections cannot drift unnoticed.

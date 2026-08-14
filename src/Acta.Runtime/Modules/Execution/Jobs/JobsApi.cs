@@ -88,7 +88,7 @@ internal sealed class JobsApi(
         CancellationToken ct = default
     ) => EnqueueAsync(transaction, BuildContractRequest(job, default, options), ct);
 
-    public async ValueTask<JobOutcome> ExecuteAndWaitAsync<TInput>(
+    public async ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
         TInput input,
         JobExecutionOptions? options = null,
         CancellationToken ct = default
@@ -111,7 +111,7 @@ internal sealed class JobsApi(
             };
     }
 
-    public async ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
+    public async ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
         TInput input,
         JobExecutionOptions? options = null,
         CancellationToken ct = default
@@ -203,7 +203,7 @@ internal sealed class JobsApi(
         CancellationToken ct = default
     ) => EnqueueAsync(BuildContractRequest(job, default, options), ct);
 
-    public async ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
+    public async ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
         TInput input,
         JobExecutionOptions? options = null,
@@ -282,7 +282,7 @@ internal sealed class JobsApi(
     }
 
     // Wait for terminal status then materialize the typed result. Shared by the type-inference and
-    // contract ExecuteAndWaitAsync overloads. A Succeeded job that stored no result is a caller contract
+    // contract RunAndWaitAsync overloads. A Succeeded job that stored no result is a caller contract
     // mismatch (throws), never a default(TResult).
     private async ValueTask<JobOutcome<TResult>> AwaitTypedResultAsync<TResult>(
         long jobId,
@@ -291,7 +291,7 @@ internal sealed class JobsApi(
     )
         where TResult : notnull
     {
-        var lookup = JobLookup.ById(jobId);
+        var job = JobLookup.ById(jobId);
         var (snapshot, timedOut) = await AwaitTerminalAsync(jobId, options, ct);
 
         if (timedOut)
@@ -307,10 +307,10 @@ internal sealed class JobsApi(
                 // or its result was dropped for exceeding MaxInlinePayloadBytes (the events timeline
                 // carries job.result-oversized when that is what happened).
                 var payload =
-                    await GetResultAsync(lookup, ct)
+                    await GetResultAsync(job, ct)
                     ?? throw new InvalidOperationException(
                         $"Job {jobId} ('{snapshot.JobName}') succeeded but stored no result. Either it is "
-                            + "result-less, in which case use the non-result ExecuteAndWaitAsync overload, or its "
+                            + "result-less, in which case use the non-result RunAndWaitAsync overload, or its "
                             + "result exceeded MaxInlinePayloadBytes and was dropped; the job's events say which."
                     );
                 var value = serializers.Resolve(payload.Format.Id).Deserialize<TResult>(payload);
@@ -335,14 +335,14 @@ internal sealed class JobsApi(
         CancellationToken ct
     )
     {
-        var lookup = JobLookup.ById(jobId);
+        var job = JobLookup.ById(jobId);
         var channel = WorkerWakeupChannel.JobCompletion(jobId);
         var start = Stopwatch.GetTimestamp();
         JobDetail? last = null;
 
         while (true)
         {
-            if (await GetAsync(lookup, ct) is { } snapshot)
+            if (await GetAsync(job, ct) is { } snapshot)
             {
                 last = snapshot;
                 if (snapshot.Status.IsTerminal)
@@ -361,88 +361,84 @@ internal sealed class JobsApi(
         }
     }
 
-    public ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct = default) =>
-        jobsService.ResolveJobIdAsync(lookup, ct);
+    public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) => jobsService.GetJobIdAsync(job, ct);
 
-    public ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct = default) => jobsService.GetAsync(lookup, ct);
+    public ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default) => jobsService.GetAsync(job, ct);
 
-    public ValueTask<JobExplanation?> ExplainAsync(JobLookup lookup, CancellationToken ct = default) =>
-        jobsService.ExplainAsync(lookup, ct);
+    public ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct = default) => jobsService.ExplainAsync(job, ct);
 
     public ValueTask<JobLineageMap?> GetLineageMapAsync(
-        JobLookup lookup,
+        JobLookup job,
         JobLineageMapOptions? options = null,
         CancellationToken ct = default
-    ) => jobsService.GetLineageMapAsync(lookup, options, ct);
+    ) => jobsService.GetLineageMapAsync(job, options, ct);
 
-    public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default) =>
-        jobsService.GetStatusAsync(lookup, ct);
+    public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default) => jobsService.GetStatusAsync(job, ct);
 
-    public ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct = default) => jobsService.GetInputAsync(lookup, ct);
+    public ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct = default) => jobsService.GetInputAsync(job, ct);
 
-    public ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default) =>
-        jobsService.GetResultAsync(lookup, ct);
+    public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) => jobsService.GetResultAsync(job, ct);
 
-    public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct = default) =>
-        jobsService.GetCheckpointsAsync(lookup, ct);
+    public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
+        jobsService.GetCheckpointsAsync(job, ct);
 
-    public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct = default) =>
-        jobsService.GetResultAsync<TResult>(lookup, ct);
+    public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
+        jobsService.GetResultAsync<TResult>(job, ct);
 
     public ValueTask<JobControlResult> CancelAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => jobsService.CancelAsync(lookup, reasonMessage, actorKey, ct);
+    ) => jobsService.CancelAsync(job, reasonMessage, actorKey, ct);
 
     public ValueTask<JobControlResult> PauseAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => jobsService.PauseAsync(lookup, reasonMessage, actorKey, ct);
+    ) => jobsService.PauseAsync(job, reasonMessage, actorKey, ct);
 
     public ValueTask<JobControlResult> ResumeAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => jobsService.ResumeAsync(lookup, reasonMessage, actorKey, ct);
+    ) => jobsService.ResumeAsync(job, reasonMessage, actorKey, ct);
 
     public ValueTask<JobControlResult> RestartAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => jobsService.RestartAsync(lookup, reasonMessage, actorKey, ct);
+    ) => jobsService.RestartAsync(job, reasonMessage, actorKey, ct);
 
     public ValueTask<JobControlResult> RescheduleAsync(
-        JobLookup lookup,
+        JobLookup job,
         DateTime nextRunAtUtc,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => jobsService.RescheduleAsync(lookup, nextRunAtUtc, reasonMessage, actorKey, ct);
+    ) => jobsService.RescheduleAsync(job, nextRunAtUtc, reasonMessage, actorKey, ct);
 
     public ValueTask<JobControlResult> ReprioritizeAsync(
-        JobLookup lookup,
+        JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => jobsService.ReprioritizeAsync(lookup, priority, reasonMessage, actorKey, ct);
+    ) => jobsService.ReprioritizeAsync(job, priority, reasonMessage, actorKey, ct);
 
     public ValueTask<JobControlResult> UpdateJobInputAsync(
-        JobLookup lookup,
+        JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => jobsService.UpdateJobInputAsync(lookup, input, reasonMessage, actorKey, ct);
+    ) => jobsService.UpdateJobInputAsync(job, input, reasonMessage, actorKey, ct);
 
-    public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default) =>
-        jobsService.PurgeAsync(lookup, actorKey, ct);
+    public ValueTask<JobControlResult> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default) =>
+        jobsService.PurgeAsync(job, actorKey, ct);
 
     public ValueTask<JobControlResult> RaiseSignalAsync(
         JobLookup job,

@@ -42,9 +42,9 @@ public interface ITenants
     /// <summary>Update a tenant display name / description with a version CAS. Null clears the field. Emits tenant.updated.</summary>
     ValueTask<AdminControlResult> UpdateAsync(
         string tenantKey,
+        int expectedVersion,
         string? displayName,
         string? description,
-        int expectedVersion,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default

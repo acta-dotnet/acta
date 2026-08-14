@@ -20,14 +20,14 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         var failures = new List<string>();
 
         // Retention windows are destructive: a value below one unit purges live data.
-        if (options.JobEventsRetentionDays < 1)
+        if (options.JobEventsRetention < TimeSpan.FromDays(1))
         {
-            failures.Add("JobsOptions.JobEventsRetentionDays must be >= 1: retention is destructive.");
+            failures.Add("JobsOptions.JobEventsRetention must be >= 1 day: retention is destructive.");
         }
 
-        if (options.AlertRetentionDays < 1)
+        if (options.AlertRetention < TimeSpan.FromDays(1))
         {
-            failures.Add("JobsOptions.AlertRetentionDays must be >= 1: retention is destructive.");
+            failures.Add("JobsOptions.AlertRetention must be >= 1 day: retention is destructive.");
         }
 
         if (options.WorkerRetention < TimeSpan.FromDays(1))
@@ -166,14 +166,14 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         // Upper bounds. Generous plausibility ceilings, not policy: they catch unit mistakes
         // (milliseconds bound where seconds were meant, ticks, ms-vs-days) before a huge value
         // overflows an int-second conversion or parks data for decades.
-        if (options.JobEventsRetentionDays > 3650)
+        if (options.JobEventsRetention > TimeSpan.FromDays(3650))
         {
-            failures.Add("JobsOptions.JobEventsRetentionDays must be <= 3650 (10 years).");
+            failures.Add("JobsOptions.JobEventsRetention must be <= 3650 days (10 years).");
         }
 
-        if (options.AlertRetentionDays > 3650)
+        if (options.AlertRetention > TimeSpan.FromDays(3650))
         {
-            failures.Add("JobsOptions.AlertRetentionDays must be <= 3650 (10 years).");
+            failures.Add("JobsOptions.AlertRetention must be <= 3650 days (10 years).");
         }
 
         if (options.WorkerRetention > TimeSpan.FromDays(3650))

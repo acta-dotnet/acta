@@ -124,9 +124,9 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
         // First run: suspends waiting for signal "go"
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.RaiseSignalAsync(enqueued, "GO", ct: ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.RaiseSignalAsync(enqueued, "GO", JobPayload.None, ct: ct));
 
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
 
         // Second run: signal is Set, job completes

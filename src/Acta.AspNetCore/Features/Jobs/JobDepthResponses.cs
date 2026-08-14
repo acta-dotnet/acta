@@ -57,7 +57,7 @@ internal sealed record JobPayloadResponse(
 /// <summary>
 /// The whole job screen composed into one response so a lightweight job renders from a single request
 /// (its only unbounded part, the event history, keeps its own paged endpoint). Built from the existing
-/// <see cref="IJobs"/> reads after one <c>ResolveJobIdAsync</c>: the snapshot (the <c>GET /jobs/{ref}</c>
+/// <see cref="IJobs"/> reads after one <c>GetJobIdAsync</c>: the snapshot (the <c>GET /jobs/{ref}</c>
 /// shape), the size-capped input/result/checkpoint payloads, the explain and lineage projections, the
 /// schedules bound to its slot, and the eligible workers (only while the job is claimable). An absent
 /// result, empty schedule set, or empty worker set is a null/empty field, not an error. The two
@@ -89,7 +89,7 @@ internal sealed record JobDetailResponse(
     /// <summary>
     /// Compose the detail from the individual reads. The reads are independent but cheap and awaited in
     /// sequence (v1); every read is addressed by the already-resolved id so the whole screen costs one
-    /// ResolveJobIdAsync. Eligible workers are fetched only while the job is claimable, matching the
+    /// GetJobIdAsync. Eligible workers are fetched only while the job is claimable, matching the
     /// dashboard's own <c>status === 'ready'</c> gate.
     /// </summary>
     public static async Task<JobDetailResponse> ComposeAsync(

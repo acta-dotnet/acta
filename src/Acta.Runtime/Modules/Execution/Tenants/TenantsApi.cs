@@ -34,9 +34,9 @@ internal sealed class TenantsApi(TenantsService tenants) : ITenants
 
     public ValueTask<AdminControlResult> UpdateAsync(
         string tenantKey,
+        int expectedVersion,
         string? displayName,
         string? description,
-        int expectedVersion,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default

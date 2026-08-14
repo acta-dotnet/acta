@@ -630,7 +630,7 @@ internal sealed class JobExecution(
         // the namespace's claim loops: due-now (immediate retry, signal release) is WorkAvailable, a
         // run time ahead of db_now (backoff retry, recurring roll-over) is HorizonChanged so sleeping
         // loops re-read their horizon. A final TERMINAL status wakes the job's completion channel so
-        // an ExecuteAndWaitAsync caller colocated with this worker observes the outcome without waiting out
+        // an RunAndWaitAsync caller colocated with this worker observes the outcome without waiting out
         // its poll interval.
         if (complete.FinalStatusCode == (byte)JobStatusCode.Ready)
         {

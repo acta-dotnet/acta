@@ -79,7 +79,7 @@ internal static class ActaControlEndpoints
 
                     // Resolve the job's current stored format before building the payload so every format
                     // round-trips as itself; a job with no stored input (none) has nothing to amend.
-                    var jobId = await jobs.ResolveJobIdAsync(JobLookup.ByRef(parsed), ct);
+                    var jobId = await jobs.GetJobIdAsync(JobLookup.ByRef(parsed), ct);
                     if (jobId is null)
                     {
                         return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");

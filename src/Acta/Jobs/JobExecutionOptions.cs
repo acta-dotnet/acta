@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Options for the typed enqueue-and-wait facade (<see cref="IJobs.ExecuteAndWaitAsync{TInput}"/> /
-/// <see cref="IJobs.ExecuteAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>): the enqueue choices of
+/// Options for the typed enqueue-and-wait facade (<see cref="IJobs.RunAndWaitAsync{TInput}"/> /
+/// <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>): the enqueue choices of
 /// <see cref="JobEnqueueOptions"/> plus the local wait budget.
 /// </summary>
 /// <remarks>

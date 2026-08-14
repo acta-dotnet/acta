@@ -492,7 +492,7 @@ public sealed class BenchHost : IAsyncDisposable
                 }
                 if (opt.JobEventsRetentionDays is { } days)
                 {
-                    o.JobEventsRetentionDays = days;
+                    o.JobEventsRetention = TimeSpan.FromDays(days);
                 }
             });
 

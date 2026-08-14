@@ -11,10 +11,10 @@ public class JobLookupTests
     public void ByRef_carries_kind_and_value()
     {
         var jobRef = JobRef.New();
-        var lookup = JobLookup.ByRef(jobRef);
+        var job = JobLookup.ByRef(jobRef);
 
-        Assert.Equal(JobLookupKind.JobRef, lookup.Kind);
-        Assert.Equal(jobRef, lookup.JobRef);
+        Assert.Equal(JobLookupKind.JobRef, job.Kind);
+        Assert.Equal(jobRef, job.JobRef);
     }
 
     [Fact]
@@ -27,37 +27,37 @@ public class JobLookupTests
     public void JobRef_converts_implicitly()
     {
         var jobRef = JobRef.New();
-        JobLookup lookup = jobRef;
+        JobLookup job = jobRef;
 
-        Assert.Equal(JobLookupKind.JobRef, lookup.Kind);
-        Assert.Equal(jobRef, lookup.JobRef);
+        Assert.Equal(JobLookupKind.JobRef, job.Kind);
+        Assert.Equal(jobRef, job.JobRef);
     }
 
     [Fact]
     public void ById_carries_kind_and_value()
     {
-        var lookup = JobLookup.ById(42);
+        var job = JobLookup.ById(42);
 
-        Assert.Equal(JobLookupKind.JobId, lookup.Kind);
-        Assert.Equal(42, lookup.JobId);
+        Assert.Equal(JobLookupKind.JobId, job.Kind);
+        Assert.Equal(42, job.JobId);
     }
 
     [Fact]
     public void ByDeduplicationKey_carries_kind_and_values()
     {
-        var lookup = JobLookup.ByDeduplicationKey("billing", "order:7");
+        var job = JobLookup.ByDeduplicationKey("billing", "order:7");
 
-        Assert.Equal(JobLookupKind.DeduplicationKey, lookup.Kind);
-        Assert.Equal("billing", lookup.JobNamespace);
-        Assert.Equal("order:7", lookup.DeduplicationKey);
+        Assert.Equal(JobLookupKind.DeduplicationKey, job.Kind);
+        Assert.Equal("billing", job.JobNamespace);
+        Assert.Equal("order:7", job.DeduplicationKey);
     }
 
     [Fact]
     public void ByDeduplicationKey_allows_stored_system_keys()
     {
-        var lookup = JobLookup.ByDeduplicationKey("system", " SYS.Retention ");
+        var job = JobLookup.ByDeduplicationKey("system", " SYS.Retention ");
 
-        Assert.Equal("sys.retention", lookup.DeduplicationKey);
+        Assert.Equal("sys.retention", job.DeduplicationKey);
     }
 
     [Fact]

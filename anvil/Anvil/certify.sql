@@ -149,7 +149,7 @@ WHERE  r.status_code IN (100, 200, 220)
 -- `modified_at_utc` and read "note after success" as a replay. That is wrong under load: every
 -- routine captures its clock at entry, so a write blocked on locks lands with a stale stamp, and a
 -- million-job SQL Server run produced 2,208 rows where `modified_at_utc` preceded the row's own
--- `created_at_utc`. Every one of them had attempt_number = 1 and exactly one note: nothing had
+-- `created_at_utc`. Every one of them had attempt_number = 1 and exactly one reasonMessage: nothing had
 -- re-run. One note per admitted attempt is the same claim with no clock in it.
 --
 -- A second note is NOT a violation by itself: at-least-once means a body interrupted before its

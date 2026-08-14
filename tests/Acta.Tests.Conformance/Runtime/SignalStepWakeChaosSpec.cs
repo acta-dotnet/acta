@@ -40,7 +40,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-wait-signal", ct);
 
         // --- 1. Raise the signal before any waiter exists; the job stays Ready.
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
@@ -69,7 +69,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Equal(JobStatusCode.Suspended, await Jobs.GetStatusAsync(enqueued, ct));
 
         // --- 2. Raising the signal resumes the job; the next tick completes it.
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));

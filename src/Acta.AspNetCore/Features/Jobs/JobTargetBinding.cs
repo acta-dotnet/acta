@@ -10,11 +10,11 @@ internal static class JobTargetBinding
 {
     public const string IdPrefix = "id:";
 
-    public static bool TryParseTarget(string target, ActaEndpointOptions options, out JobLookup lookup)
+    public static bool TryParseTarget(string target, ActaEndpointOptions options, out JobLookup job)
     {
         if (JobRef.TryParse(target, out var jobRef))
         {
-            lookup = JobLookup.ByRef(jobRef);
+            job = JobLookup.ByRef(jobRef);
             return true;
         }
 
@@ -25,11 +25,11 @@ internal static class JobTargetBinding
             && id > 0
         )
         {
-            lookup = JobLookup.ById(id);
+            job = JobLookup.ById(id);
             return true;
         }
 
-        lookup = default;
+        job = default;
         return false;
     }
 }

@@ -62,14 +62,14 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
 
             case TagScopeCode.Job:
             {
-                var id = await jobs.ResolveJobIdAsync((JobLookup)target.Lookup, ct);
+                var id = await jobs.GetJobIdAsync((JobLookup)target.Lookup, ct);
                 return id is null ? null : new ResolvedTagTarget(TagScopeCode.Job, id, null);
             }
 
             case TagScopeCode.Schedule:
             {
                 var schedule = (ScheduleLookup)target.Lookup;
-                var jobId = await jobs.ResolveJobIdAsync(schedule.Job, ct);
+                var jobId = await jobs.GetJobIdAsync(schedule.Job, ct);
                 if (jobId is null)
                 {
                     return null;

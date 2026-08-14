@@ -197,7 +197,7 @@ public abstract class MultiScheduleSlotSpec<TFixture> : ActaRuntimeTestBase<TFix
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
-        var id = await Jobs.ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
+        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
         Assert.NotNull(id);
         return id!.Value;
     }

@@ -187,9 +187,9 @@ internal static class TenantControlEndpoints
                     {
                         var result = await operations.Tenants.UpdateAsync(
                             tenantKey,
+                            expectedVersion,
                             body.DisplayName,
                             body.Description,
-                            expectedVersion,
                             reason,
                             http.User?.Identity?.Name,
                             ct

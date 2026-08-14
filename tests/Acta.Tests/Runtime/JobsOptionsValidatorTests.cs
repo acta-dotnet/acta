@@ -201,12 +201,12 @@ public sealed class JobsOptionsValidatorTests
     {
         var result = Validate(o =>
         {
-            o.JobEventsRetentionDays = 40_000;
-            o.AlertRetentionDays = 40_000;
+            o.JobEventsRetention = TimeSpan.FromDays(40_000);
+            o.AlertRetention = TimeSpan.FromDays(40_000);
         });
         Assert.True(result.Failed);
-        Assert.Contains("JobEventsRetentionDays", result.FailureMessage);
-        Assert.Contains("AlertRetentionDays", result.FailureMessage);
+        Assert.Contains("JobEventsRetention", result.FailureMessage);
+        Assert.Contains("AlertRetention", result.FailureMessage);
     }
 
     [Fact]

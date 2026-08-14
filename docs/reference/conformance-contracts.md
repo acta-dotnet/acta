@@ -781,14 +781,14 @@
   - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.RegisterTenantAsync`
 
 ### Contract enqueue names the job explicitly and resolves its route
-- **Contract:** The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and ExecuteAndWaitAsync result paths.
+- **Contract:** The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths.
 - **Arrange:** TestJobsManifest exposes typed JobContract members bound to namespace and payload format.
-- **Act:** Jobs are enqueued and executed through the typed overloads, including no-input, fire-and-forget, ExecuteAndWaitAsync, and a mismatched contract.
+- **Act:** Jobs are enqueued and executed through the typed overloads, including no-input, fire-and-forget, RunAndWaitAsync, and a mismatched contract.
 - **Assert:** The contract façade resolves each route without input-type inference and round-trips the typed result.
 - **Guarantees:**
   - Contract enqueue resolves the route without input-type inference and round-trips the typed result
   - No-input contract enqueues a None-format row
-  - Contract ExecuteAndWaitAsync round-trips the typed result
+  - Contract RunAndWaitAsync round-trips the typed result
   - A result job's fire-and-forget overload binds and enqueues, dropping the result
   - A wrong input type on a hand-built contract throws before enqueue
   - A wrong result type on a hand-built contract throws
@@ -835,9 +835,9 @@
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResolveJobIdByRefAsync`
 
 ### Typed enqueue resolves the route and delayed jobs gate on next_run
-- **Contract:** The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and ExecuteAndWaitAsync waits.
+- **Contract:** The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits.
 - **Arrange:** The add-numbers job and companion probe definitions are registered with typed inputs and results under the per-test namespace.
-- **Act:** Typed inputs including scalars are enqueued with deduplication-key and delayed options, and ExecuteAndWaitAsync is driven to completion.
+- **Act:** Typed inputs including scalars are enqueued with deduplication-key and delayed options, and RunAndWaitAsync is driven to completion.
 - **Assert:** Each route is resolved from the input type and the typed result round-trips back to the caller.
 - **Guarantees:**
   - Typed enqueue resolves the route, serializes the input and round-trips the result
@@ -845,10 +845,10 @@
   - Typed enqueue applies the deduplication key and a repeat deduplicates onto one row
   - A delayed job is not claimable before due but runs once due
   - A handler returning a null result fails the job and stores no result
-  - ExecuteAndWaitAsync enqueues, waits for completion and returns the typed result
-  - ExecuteAndWaitAsync throws when a Succeeded job stored no typed result
-  - ExecuteAndWaitAsync honors WaitTimeout when PollInterval exceeds it
-  - ExecuteAndWaitAsync rejects non-positive wait options before enqueue
+  - RunAndWaitAsync enqueues, waits for completion and returns the typed result
+  - RunAndWaitAsync throws when a Succeeded job stored no typed result
+  - RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it
+  - RunAndWaitAsync rejects non-positive wait options before enqueue
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
@@ -1072,7 +1072,7 @@
   - A due-now enqueue wake interrupts the idle sleep
   - A delayed enqueue refreshes the sleeping loop's horizon
   - An unpublished Ready row is discovered by the safety poll
-  - ExecuteAndWaitAsync observes a colocated completion at wake speed
+  - RunAndWaitAsync observes a colocated completion at wake speed
   - A re-arming completion wakes the loop for its own retry
 
 ## Locks

@@ -34,7 +34,7 @@ internal sealed class SignalService(
             throw new PayloadTooLargeException($"signal '{name}' value", valueLength, _maxInlinePayloadBytes);
         }
 
-        var jobId = await jobs.ResolveJobIdAsync(job, ct);
+        var jobId = await jobs.GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             return new JobControlResult(0, ControlAction.NotFound, null);

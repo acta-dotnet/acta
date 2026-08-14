@@ -20,9 +20,9 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 var enqueued = await jobs.EnqueueAsync(new AddNumbers(1, 1));
 Console.WriteLine($"EnqueueAsync returned right away: job {enqueued.JobRef}, status {await jobs.GetStatusAsync(enqueued)}");
 
-// ExecuteAndWaitAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
-var executed = await jobs.ExecuteAndWaitAsync<AddNumbers, AddNumbersResult>(new AddNumbers(2, 2));
-Console.WriteLine($"ExecuteAndWaitAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}");
+// RunAndWaitAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
+var executed = await jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(new AddNumbers(2, 2));
+Console.WriteLine($"RunAndWaitAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}");
 
 await host.StopAsync();
 

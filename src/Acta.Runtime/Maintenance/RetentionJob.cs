@@ -11,8 +11,8 @@ namespace Acta.Runtime.Maintenance;
 /// <remarks>
 /// One pass deletes, in bounded batches: terminal <c>job</c> rows past their <c>retention_until_utc</c>
 /// (cascading the per-job child tables), <c>events</c> rows older than
-/// <c>JobsOptions.JobEventsRetentionDays</c>, settled <c>alerts</c> rows older than
-/// <c>JobsOptions.AlertRetentionDays</c>, and Dead <c>workers</c> rows older than
+/// <c>JobsOptions.JobEventsRetention</c>, settled <c>alerts</c> rows older than
+/// <c>JobsOptions.AlertRetention</c>, and Dead <c>workers</c> rows older than
 /// <c>JobsOptions.WorkerRetention</c>, then reaps expired <c>leases</c> lock rows globally. The batch
 /// and iteration caps bound each tick; the next hourly fire continues any backlog. <c>AuditLevel.Failures</c>
 /// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
@@ -24,8 +24,8 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
     private const int BatchSize = 1000;
     private const int MaxIterations = 50;
 
-    private readonly int _eventsRetentionDays = options.Value.JobEventsRetentionDays;
-    private readonly int _alertRetentionDays = options.Value.AlertRetentionDays;
+    private readonly int _eventsRetentionDays = (int)options.Value.JobEventsRetention.TotalDays;
+    private readonly int _alertRetentionDays = (int)options.Value.AlertRetention.TotalDays;
     private readonly int _workerRetentionSeconds = (int)options.Value.WorkerRetention.TotalSeconds;
 
     /// <summary>

@@ -99,7 +99,7 @@ internal sealed class Job : IEntity<long>
     // ---------- Caller keys ----------
 
     /// <summary>
-    /// Deduplication key on enqueue and operator-facing stable address for <c>IJobs.ResolveJobIdAsync</c>.
+    /// Deduplication key on enqueue and operator-facing stable address for <c>IJobs.GetJobIdAsync</c>.
     /// User keys cannot start with <c>"sys."</c> (system-reserved prefix). Uniqueness scope differs by
     /// row kind: root jobs are unique per <c>JobNamespace</c> (<c>ux_jobs_deduplication_key_root</c>, filtered to
     /// <c>parent_id IS NULL</c>); child jobs are unique per direct parent (<c>ux_jobs_deduplication_key_child</c>,

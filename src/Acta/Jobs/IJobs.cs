@@ -55,15 +55,15 @@ public interface IJobs
     /// <see cref="JobOutcome.ThrowIfFailed"/> for the throwing path). A wait timeout stops the caller
     /// awaiting; the Job keeps running on its worker.
     /// </summary>
-    ValueTask<JobOutcome> ExecuteAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
+    ValueTask<JobOutcome> RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
-    /// Typed enqueue-and-wait with a result. Like <see cref="ExecuteAndWaitAsync{TInput}"/>, and on terminal
+    /// Typed enqueue-and-wait with a result. Like <see cref="RunAndWaitAsync{TInput}"/>, and on terminal
     /// <c>Succeeded</c> deserializes the handler's result to <typeparamref name="TResult"/>. The result is
     /// non-null by contract (Acta has no durable null payload); a handler returning null fails the Job.
     /// </summary>
-    ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
+    ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
         TInput input,
         JobExecutionOptions? options = null,
         CancellationToken ct = default
@@ -87,7 +87,7 @@ public interface IJobs
 
     /// <summary>
     /// Fire-and-forget enqueue of a result-bearing job by contract; the result is dropped (read it
-    /// from the JobRef once terminal, or call the contract ExecuteAndWaitAsync to wait). Explicit overload so
+    /// from the JobRef once terminal, or call the contract RunAndWaitAsync to wait). Explicit overload so
     /// the path is discoverable rather than relying on the implicit two-arg to one-arg conversion.
     /// </summary>
     ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
@@ -105,10 +105,10 @@ public interface IJobs
 
     /// <summary>
     /// Enqueue-and-wait against an explicit result-bearing contract. Same waiting semantics as the
-    /// typed <see cref="ExecuteAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>,
+    /// typed <see cref="RunAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>,
     /// with the target named rather than inferred.
     /// </summary>
-    ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
+    ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
         TInput input,
         JobExecutionOptions? options = null,
@@ -137,7 +137,7 @@ public interface IJobs
     // since Acta cannot know whether or when the caller commits. The returned <see cref="JobEnqueueOutcome"/>
     // (its <c>JobId</c>/<c>JobRef</c>) is provisional until the caller commits; a rollback means that
     // identity never became durable. Any transactional-enqueue exception requires the caller to roll back
-    // the complete business transaction. There is deliberately no transactional <c>ExecuteAndWaitAsync</c>:
+    // the complete business transaction. There is deliberately no transactional <c>RunAndWaitAsync</c>:
     // the job is invisible to other connections until commit, so waiting inside would be misleading.
 
     /// <summary>
@@ -224,80 +224,80 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Resolve <paramref name="lookup"/> to the internal <c>JobId</c>, or <c>null</c> when no row
+    /// Resolve <paramref name="job"/> to the internal <c>JobId</c>, or <c>null</c> when no row
     /// matches. A <see cref="JobLookupKind.JobId"/> lookup returns the id directly with no DB
     /// round-trip; a <see cref="JobLookupKind.JobRef"/> lookup resolves over the unique
     /// <c>job_ref</c> index; a <see cref="JobLookupKind.DeduplicationKey"/> lookup matches root jobs only
     /// (<c>parent_id IS NULL</c>). Pin the returned id and reuse it across polls and mutations.
     /// </summary>
-    ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Read the full <see cref="JobDetail"/> for the job identified by <paramref name="lookup"/>.
-    /// Returns <c>null</c> when no row matches. Resolves <paramref name="lookup"/> to a
+    /// Read the full <see cref="JobDetail"/> for the job identified by <paramref name="job"/>.
+    /// Returns <c>null</c> when no row matches. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Explain the durable state of the job identified by <paramref name="lookup"/> in plain English:
+    /// Explain the durable state of the job identified by <paramref name="job"/> in plain English:
     /// its status and what it means, the signal or timer it waits on, which steps ran, its execution
     /// lease and the owning worker's liveness, what <c>sys.recovery</c> will do, and the operator's
     /// next move. Returns <c>null</c> when no row matches. Composed from the same durable rows an
-    /// operator could read directly - SQL is the operational interface. Resolves <paramref name="lookup"/> to a
+    /// operator could read directly - SQL is the operational interface. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobExplanation?> ExplainAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Read a compact lineage map for the job identified by <paramref name="lookup"/>: its ancestor
+    /// Read a compact lineage map for the job identified by <paramref name="job"/>: its ancestor
     /// context up to the lineage root, the job itself with its steps and the durable wait it is blocked
     /// on, and its direct children (capped at <see cref="JobLineageMapOptions.ChildLimit"/>, with
     /// <see cref="JobLineageMap.ChildrenHasMore"/> flagging a truncated set). Returns <c>null</c> when no
     /// row matches. V1 is shallow: ancestors are context only and children are not expanded recursively.
-    /// Resolves <paramref name="lookup"/> to a <c>JobId</c> first; pin the resolved id when polling.
+    /// Resolves <paramref name="job"/> to a <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobLineageMap?> GetLineageMapAsync(JobLookup lookup, JobLineageMapOptions? options = null, CancellationToken ct = default);
+    ValueTask<JobLineageMap?> GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options = null, CancellationToken ct = default);
 
     /// <summary>
     /// Cheap status probe. Returns the current <see cref="JobStatusCode"/> for the job identified
-    /// by <paramref name="lookup"/>, or <c>null</c> when no row matches. Resolves
-    /// <paramref name="lookup"/> to a <c>JobId</c> first; pin the resolved id when polling.
+    /// by <paramref name="job"/>, or <c>null</c> when no row matches. Resolves
+    /// <paramref name="job"/> to a <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Fetch the stored input payload the job identified by <paramref name="lookup"/> was enqueued with,
+    /// Fetch the stored input payload the job identified by <paramref name="job"/> was enqueued with,
     /// or <c>null</c> when no row matches or the job carries no input (a no-input job). Non-blocking
     /// point-in-time read: it does not wait for completion and reflects any <see cref="UpdateJobInputAsync"/>
     /// amendment already applied.
     /// </summary>
-    ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Fetch the latest result payload the job identified by <paramref name="lookup"/> has produced, or
+    /// Fetch the latest result payload the job identified by <paramref name="job"/> has produced, or
     /// <c>null</c> when it has produced none (still running, failed, or a handler with no return value).
     /// Non-blocking point-in-time read: it does not wait for completion. To await the answer, poll
     /// <see cref="GetStatusAsync"/> until terminal and then read here.
     /// </summary>
-    ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// List the durable checkpoint slots (variables, signals, sleep timers, the progress slot, child
-    /// latches) recorded for the job identified by <paramref name="lookup"/>, ordered by kind then name.
+    /// latches) recorded for the job identified by <paramref name="job"/>, ordered by kind then name.
     /// Returns an empty list when the job has no slots or no row matches. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Typed variant of <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
     /// latest result payload to <typeparamref name="TResult"/> via the registered serializer, or returns
     /// <c>default</c> when the job has produced no result. Non-blocking (does not wait for completion).
     /// </summary>
-    ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct = default);
+    ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Cancel the job identified by <paramref name="lookup"/>: any non-terminal status moves to
+    /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to
     /// <c>Cancelled</c>, and the cancel cascades recursively to the job's non-terminal descendant
     /// subtree (descendants land <c>Cancelled</c> with <c>reason = ParentCancelled</c>). Stamps
     /// <c>actor = Operator</c>, <c>reason = ControlManual</c> on the target;
@@ -307,14 +307,14 @@ public interface IJobs
     /// <see cref="ControlAction.NotFound"/>.
     /// </summary>
     ValueTask<JobControlResult> CancelAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
 
     /// <summary>
-    /// Pause the job identified by <paramref name="lookup"/>: a job at or before <c>Ready</c> moves to
+    /// Pause the job identified by <paramref name="job"/>: a job at or before <c>Ready</c> moves to
     /// <c>Paused</c>. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
     /// <paramref name="reasonMessage"/> is persisted on the row and the audit event. <paramref name="actorKey"/> is
     /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
@@ -323,28 +323,28 @@ public interface IJobs
     /// <c>Paused</c>.
     /// </summary>
     ValueTask<JobControlResult> PauseAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
 
     /// <summary>
-    /// Resume the job identified by <paramref name="lookup"/>: a <c>Paused</c> job moves to <c>Ready</c>
+    /// Resume the job identified by <paramref name="job"/>: a <c>Paused</c> job moves to <c>Ready</c>
     /// to run now. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
     /// <paramref name="reasonMessage"/> is recorded on the audit event only (the row's reason is
     /// cleared). <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown. A non-paused job is <see cref="ControlAction.Rejected"/>.
     /// </summary>
     ValueTask<JobControlResult> ResumeAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
 
     /// <summary>
-    /// Restart the job identified by <paramref name="lookup"/>: any status except <c>Executing</c> moves
+    /// Restart the job identified by <paramref name="job"/>: any status except <c>Executing</c> moves
     /// to <c>Ready</c> to run now. Resets the failure budget and clears the retention deadline; the
     /// attempt counter is unchanged. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
     /// <paramref name="reasonMessage"/> is recorded on the audit event only. <paramref name="actorKey"/> is
@@ -352,14 +352,14 @@ public interface IJobs
     /// unknown. An executing job is <see cref="ControlAction.Rejected"/>.
     /// </summary>
     ValueTask<JobControlResult> RestartAsync(
-        JobLookup lookup,
+        JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
 
     /// <summary>
-    /// Move the job identified by <paramref name="lookup"/>'s next-run instant to
+    /// Move the job identified by <paramref name="job"/>'s next-run instant to
     /// <paramref name="nextRunAtUtc"/>. Applies to Paused/Suspended/Ready rows (a paused or suspended
     /// row is re-armed Ready so the new instant actually fires); an in-flight or terminal row is
     /// rejected. The transition is audited (job.rescheduled); <paramref name="reasonMessage"/> is
@@ -367,7 +367,7 @@ public interface IJobs
     /// the operator identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
     ValueTask<JobControlResult> RescheduleAsync(
-        JobLookup lookup,
+        JobLookup job,
         DateTime nextRunAtUtc,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -375,7 +375,7 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Change the claim priority of the job identified by <paramref name="lookup"/>: any non-terminal
+    /// Change the claim priority of the job identified by <paramref name="job"/>: any non-terminal
     /// row (including in-flight) accepts <paramref name="priority"/>, which affects only its next
     /// claim; status and cursor are unchanged. A terminal job is <see cref="ControlAction.Rejected"/>.
     /// The transition is audited (job.reprioritized); <paramref name="reasonMessage"/> is persisted on
@@ -383,7 +383,7 @@ public interface IJobs
     /// identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
     ValueTask<JobControlResult> ReprioritizeAsync(
-        JobLookup lookup,
+        JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -391,7 +391,7 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Amend the stored input payload of the job identified by <paramref name="lookup"/>. Allowed in any
+    /// Amend the stored input payload of the job identified by <paramref name="job"/>. Allowed in any
     /// status except <c>Dispatched</c>/<c>Executing</c> (a mid-flight handler may already have read the
     /// input); an in-flight job is <see cref="ControlAction.Rejected"/> and a missing job is
     /// <see cref="ControlAction.NotFound"/>. On success the job's input and format are replaced and
@@ -402,7 +402,7 @@ public interface IJobs
     /// identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
     ValueTask<JobControlResult> UpdateJobInputAsync(
-        JobLookup lookup,
+        JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -410,7 +410,7 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Hard-delete the terminal job identified by <paramref name="lookup"/>: deletes its <c>events</c>
+    /// Hard-delete the terminal job identified by <paramref name="job"/>: deletes its <c>events</c>
     /// and <c>alerts</c> rows, then the job row itself (CASCADEs to its
     /// runtime/schedule/step/result/checkpoint/tag rows). Only a terminal job (<c>Succeeded</c>/<c>Failed</c>/
     /// <c>Cancelled</c>) may be purged; a non-terminal job is <see cref="ControlAction.Rejected"/>, and
@@ -421,26 +421,11 @@ public interface IJobs
     /// authenticated principal name); null when unknown. Unlike the other control verbs there is no
     /// caller reason message: purge carries no context beyond the audit trail itself.
     /// </summary>
-    ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default);
-
-    /// <summary>
-    /// Raise the presence-only signal <paramref name="name"/> on the job identified by
-    /// <paramref name="job"/>. Sets the <c>(job_id, name)</c> slot to <c>Set</c> (last-writer-wins) and,
-    /// when the job is <c>Suspended</c> on a matching <c>ctx.WaitSignalAsync</c>, moves it to
-    /// <c>Ready</c> to run now. A <c>Paused</c> job stays paused (the signal is still recorded). A
-    /// terminal job is <see cref="ControlAction.Rejected"/> and no slot is written; a missing job is
-    /// <see cref="ControlAction.NotFound"/>. <paramref name="actorKey"/> is recorded on the audit event
-    /// as the operator identity (e.g. the authenticated principal name); null when unknown. Unlike the
-    /// other control verbs, <paramref name="actorKey"/> trails <paramref name="ct"/> here: this overload
-    /// shares an argument count with <see cref="RaiseSignalAsync{T}"/> once <c>T</c> is inferred as
-    /// <c>string</c>, and putting a same-typed <c>string?</c> parameter in the same slot as the other
-    /// overload's <c>value</c> would make ordinary 3-argument calls bind to the wrong overload.
-    /// </summary>
-    ValueTask<JobControlResult> RaiseSignalAsync(JobLookup job, string name, CancellationToken ct = default, string? actorKey = null);
+    ValueTask<JobControlResult> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default);
 
     /// <summary>
     /// Typed-payload variant of
-    /// <see cref="RaiseSignalAsync(JobLookup, string, CancellationToken, string?)"/>. <paramref name="value"/> is
+    /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>. <paramref name="value"/> is
     /// JSON-serialized and stored on the slot; a handler reads it via
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>. <paramref name="actorKey"/> is recorded on the audit event
     /// as the operator identity (e.g. the authenticated principal name); null when unknown.
@@ -455,7 +440,7 @@ public interface IJobs
 
     /// <summary>
     /// Pre-formed-payload variant of
-    /// <see cref="RaiseSignalAsync(JobLookup, string, CancellationToken, string?)"/>. Stores
+    /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>. Stores
     /// <paramref name="value"/> on the slot verbatim under its <c>Format</c>; a handler reads it via
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>. <see cref="JobPayload.None"/> raises a presence-only
     /// signal. The HTTP signal endpoint uses this overload to pass a request body through as a JSON

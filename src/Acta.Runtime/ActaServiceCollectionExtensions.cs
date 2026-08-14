@@ -68,7 +68,7 @@ public static class ActaServiceCollectionExtensions
         // or a deterministic test IActaClock can replace them via a prior registration.
 
         // Swappable wake transport. InProcessWakeup is the default: same-process enqueues, control
-        // verbs, and completions wake local waiters (claim loops, ExecuteAndWaitAsync completion waits)
+        // verbs, and completions wake local waiters (claim loops, RunAndWaitAsync completion waits)
         // instantly; a transport package replaces the IWorkerWakeup registration for cross-process
         // reach. Publishes always go through WorkerWakeupPublisher (never breaks the caller, consistent
         // metrics); registered unconditionally so enqueue-only processes publish too.
@@ -174,7 +174,7 @@ public static class ActaServiceCollectionExtensions
             sp.GetService<ILogger<AlertRoutingCheck>>()
         ));
 
-        // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and ExecuteAndWaitAsync facade.
+        // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and RunAndWaitAsync facade.
         // Built from the declared catalogs: Reference contributes routes without a worker, Run contributes
         // its worker's modules. The raw JobEnqueueRequest path needs no index. Captured here because the
         // namespace is assigned per Reference/Run call, not on the namespace-neutral manifest.

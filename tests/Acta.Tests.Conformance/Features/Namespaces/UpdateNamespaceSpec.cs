@@ -85,7 +85,7 @@ public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var before = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Operations.Namespaces.UpdateAsync("sys", "x", null, 0, null, null, ct)
+            await Operations.Namespaces.UpdateAsync("sys", 0, "x", null, null, null, ct)
         );
 
         var after = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
@@ -104,9 +104,9 @@ public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         await Assert.ThrowsAsync<ArgumentException>(async () =>
             await Operations.Namespaces.UpdateAsync(
                 TestNamespace,
+                0,
                 new string('x', AdminTextLimits.NamespaceOwnerTeam + 1),
                 null,
-                0,
                 null,
                 null,
                 ct

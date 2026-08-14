@@ -150,7 +150,7 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
   Inspect, requeue, or delete it with the
   [quarantine SQL recipes](./sql-recipes.md#quarantined-outbox-rows). Recoverable rejections (for example
   an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once.
-- Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.ResolveJobIdAsync`; a null
+- Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.GetJobIdAsync`; a null
   result means the request has not been relayed yet, not that it was lost.
 
 Background: [Transactional enqueue and the external outbox](./transactional-enqueue-and-outbox.md).

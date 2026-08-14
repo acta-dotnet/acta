@@ -16,7 +16,7 @@ internal readonly record struct JobContractRoute(
 
 /// <summary>
 /// Maps a (manifest type, job name) pair to its enqueue route, backing the contract
-/// <c>IJobs.EnqueueAsync(JobContract&lt;TInput&gt;, ...)</c> / <c>ExecuteAndWaitAsync</c> overloads. Built
+/// <c>IJobs.EnqueueAsync(JobContract&lt;TInput&gt;, ...)</c> / <c>RunAndWaitAsync</c> overloads. Built
 /// once at <see cref="ActaServiceCollectionExtensions.UseActa"/> from the declared catalogs
 /// (Reference and Run alike), the sibling of <see cref="JobTypeIndex"/> for the explicit-target path.
 /// </summary>

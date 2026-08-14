@@ -152,13 +152,13 @@ public class CliRunnerClipboardTests
 
     private sealed class NothingJobs : IJobs, IActaOperations, ILedger
     {
-        public ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct = default) => ValueTask.FromResult<JobDetail?>(null);
+        public ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default) => ValueTask.FromResult<JobDetail?>(null);
 
-        public ValueTask<JobExplanation?> ExplainAsync(JobLookup lookup, CancellationToken ct = default) =>
+        public ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
             ValueTask.FromResult<JobExplanation?>(null);
 
         public ValueTask<JobLineageMap?> GetLineageMapAsync(
-            JobLookup lookup,
+            JobLookup job,
             JobLineageMapOptions? options = null,
             CancellationToken ct = default
         ) => ValueTask.FromResult<JobLineageMap?>(null);
@@ -195,14 +195,14 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobOutcome> ExecuteAndWaitAsync<TInput>(
+        public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
             TInput input,
             JobExecutionOptions? options = null,
             CancellationToken ct = default
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
+        public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
             TInput input,
             JobExecutionOptions? options = null,
             CancellationToken ct = default
@@ -232,7 +232,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobOutcome<TResult>> ExecuteAndWaitAsync<TInput, TResult>(
+        public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
             JobContract<TInput, TResult> job,
             TInput input,
             JobExecutionOptions? options = null,
@@ -291,51 +291,50 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
 
-        public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct = default) =>
+        public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct = default) => throw new NotSupportedException();
-
-        public ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct = default) => throw new NotSupportedException();
-
-        public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct = default) =>
+        public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<JobControlResult> CancelAsync(
-            JobLookup lookup,
+            JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
         public ValueTask<JobControlResult> PauseAsync(
-            JobLookup lookup,
+            JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
         public ValueTask<JobControlResult> ResumeAsync(
-            JobLookup lookup,
+            JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
         public ValueTask<JobControlResult> RestartAsync(
-            JobLookup lookup,
+            JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
         public ValueTask<JobControlResult> RescheduleAsync(
-            JobLookup lookup,
+            JobLookup job,
             DateTime nextRunAtUtc,
             string? reasonMessage = null,
             string? actorKey = null,
@@ -343,7 +342,7 @@ public class CliRunnerClipboardTests
         ) => throw new NotSupportedException();
 
         public ValueTask<JobControlResult> ReprioritizeAsync(
-            JobLookup lookup,
+            JobLookup job,
             JobPriorityCode priority,
             string? reasonMessage = null,
             string? actorKey = null,
@@ -351,14 +350,14 @@ public class CliRunnerClipboardTests
         ) => throw new NotSupportedException();
 
         public ValueTask<JobControlResult> UpdateJobInputAsync(
-            JobLookup lookup,
+            JobLookup job,
             JobPayload input,
             string? reasonMessage = null,
             string? actorKey = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey = null, CancellationToken ct = default) =>
+        public ValueTask<JobControlResult> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<JobControlResult> RaiseSignalAsync(

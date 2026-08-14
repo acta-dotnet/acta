@@ -32,10 +32,10 @@ internal static class DefinitionTestOps
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         JobControlActor actor,
-        string? note,
+        string? reasonMessage,
         CancellationToken ct
     ) =>
         await services
             .GetRequiredService<DefinitionsService>()
-            .UpdateOverridesAsync(definitionId, expectedVersion, overrides, actor.ActorKey, note, ct);
+            .UpdateOverridesAsync(definitionId, expectedVersion, overrides, actor.ActorKey, reasonMessage, ct);
 }

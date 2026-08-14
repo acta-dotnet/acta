@@ -20,7 +20,7 @@ internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect d
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, command.NamespaceId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventsRetentionDays, command.EventsRetentionDays));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertRetentionDays, command.AlertRetentionDays));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertRetention, command.AlertRetention));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WorkerRetentionSeconds, command.WorkerRetentionSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeBatchSize, command.BatchSize));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeMaxIterations, command.MaxIterations));

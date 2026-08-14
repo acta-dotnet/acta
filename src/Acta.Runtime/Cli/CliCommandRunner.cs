@@ -44,7 +44,7 @@ internal sealed class CliCommandRunner(
             command = command with { Target = fromClipboard };
         }
 
-        if (!TryBuildLookup(command, out var lookup, out var usageError))
+        if (!TryBuildLookup(command, out var job, out var usageError))
         {
             await error.WriteLineAsync(usageError);
             return ExitUsage;
@@ -52,52 +52,52 @@ internal sealed class CliCommandRunner(
 
         return command.Verb switch
         {
-            CliVerb.Info => await InfoAsync(lookup, command.Json, ct),
-            CliVerb.Status => await StatusAsync(lookup, command.Json, ct),
-            CliVerb.Result => await ResultAsync(lookup, ct),
-            CliVerb.Cancel => Control("cancel", await jobs.CancelAsync(lookup, command.Reason, ct: ct), command.Json),
-            CliVerb.Pause => Control("pause", await jobs.PauseAsync(lookup, command.Reason, ct: ct), command.Json),
-            CliVerb.Resume => Control("resume", await jobs.ResumeAsync(lookup, command.Reason, ct: ct), command.Json),
-            CliVerb.Restart => Control("restart", await jobs.RestartAsync(lookup, command.Reason, ct: ct), command.Json),
+            CliVerb.Info => await InfoAsync(job, command.Json, ct),
+            CliVerb.Status => await StatusAsync(job, command.Json, ct),
+            CliVerb.Result => await ResultAsync(job, ct),
+            CliVerb.Cancel => Control("cancel", await jobs.CancelAsync(job, command.Reason, ct: ct), command.Json),
+            CliVerb.Pause => Control("pause", await jobs.PauseAsync(job, command.Reason, ct: ct), command.Json),
+            CliVerb.Resume => Control("resume", await jobs.ResumeAsync(job, command.Reason, ct: ct), command.Json),
+            CliVerb.Restart => Control("restart", await jobs.RestartAsync(job, command.Reason, ct: ct), command.Json),
             CliVerb.Signal => Control(
                 "signal",
-                await jobs.RaiseSignalAsync(lookup, command.SignalName!, SignalPayload(command.SignalValue), ct: ct),
+                await jobs.RaiseSignalAsync(job, command.SignalName!, SignalPayload(command.SignalValue), ct: ct),
                 command.Json
             ),
-            CliVerb.Debug => await DebugAsync(lookup, command.Json, command.Break, ct),
-            CliVerb.Events => await EventsAsync(lookup, command.Take, command.Cursor, command.Json, ct),
-            CliVerb.Explain => await ExplainAsync(lookup, command.Json, ct),
+            CliVerb.Debug => await DebugAsync(job, command.Json, command.Break, ct),
+            CliVerb.Events => await EventsAsync(job, command.Take, command.Cursor, command.Json, ct),
+            CliVerb.Explain => await ExplainAsync(job, command.Json, ct),
             _ => ExitUsage,
         };
     }
 
-    private bool TryBuildLookup(CliCommand command, out JobLookup lookup, out string? usageError)
+    private bool TryBuildLookup(CliCommand command, out JobLookup job, out string? usageError)
     {
         usageError = null;
         if (JobRef.TryParse(command.Target, out var jobRef))
         {
-            lookup = JobLookup.ByRef(jobRef);
+            job = JobLookup.ByRef(jobRef);
             return true;
         }
 
         if (long.TryParse(command.Target, out var id) && id > 0)
         {
-            lookup = JobLookup.ById(id);
+            job = JobLookup.ById(id);
             return true;
         }
 
         var ns = command.Namespace ?? (namespaces.Count == 1 ? namespaces[0] : null);
         if (ns is null)
         {
-            lookup = default;
+            job = default;
             usageError =
                 namespaces.Count == 0
-                    ? "Deduplication-key lookup needs --ns; this process registers no namespaces."
+                    ? "Deduplication-key job needs --ns; this process registers no namespaces."
                     : $"--ns is required for deduplication-key lookups; registered namespaces: {string.Join(", ", namespaces)}.";
             return false;
         }
 
-        lookup = JobLookup.ByDeduplicationKey(ns, command.Target!);
+        job = JobLookup.ByDeduplicationKey(ns, command.Target!);
         return true;
     }
 
@@ -117,9 +117,9 @@ internal sealed class CliCommandRunner(
         };
     }
 
-    private async Task<int> InfoAsync(JobLookup lookup, bool json, CancellationToken ct)
+    private async Task<int> InfoAsync(JobLookup job, bool json, CancellationToken ct)
     {
-        var snapshot = await jobs.GetAsync(lookup, ct);
+        var snapshot = await jobs.GetAsync(job, ct);
         if (snapshot is null)
         {
             await error.WriteLineAsync("job not found");
@@ -135,9 +135,9 @@ internal sealed class CliCommandRunner(
     /// recommended next actions. The read-only companion to <c>info</c> (the raw row) and <c>events</c>
     /// (the timeline).
     /// </summary>
-    private async Task<int> ExplainAsync(JobLookup lookup, bool json, CancellationToken ct)
+    private async Task<int> ExplainAsync(JobLookup job, bool json, CancellationToken ct)
     {
-        var explanation = await jobs.ExplainAsync(lookup, ct);
+        var explanation = await jobs.ExplainAsync(job, ct);
         if (explanation is null)
         {
             await error.WriteLineAsync("job not found");
@@ -147,9 +147,9 @@ internal sealed class CliCommandRunner(
         return ExitOk;
     }
 
-    private async Task<int> StatusAsync(JobLookup lookup, bool json, CancellationToken ct)
+    private async Task<int> StatusAsync(JobLookup job, bool json, CancellationToken ct)
     {
-        var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
+        var jobId = await jobs.GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             await error.WriteLineAsync("job not found");
@@ -165,9 +165,9 @@ internal sealed class CliCommandRunner(
         return ExitOk;
     }
 
-    private async Task<int> ResultAsync(JobLookup lookup, CancellationToken ct)
+    private async Task<int> ResultAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
+        var jobId = await jobs.GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             await error.WriteLineAsync("job not found");
@@ -198,9 +198,9 @@ internal sealed class CliCommandRunner(
     /// page of ILedger.ListEventsAsync scoped to that id. This is the operator path to the "why" behind a
     /// terminal status, which the job snapshot no longer carries.
     /// </summary>
-    private async Task<int> EventsAsync(JobLookup lookup, int? take, string? cursor, bool json, CancellationToken ct)
+    private async Task<int> EventsAsync(JobLookup job, int? take, string? cursor, bool json, CancellationToken ct)
     {
-        var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
+        var jobId = await jobs.GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             await error.WriteLineAsync("job not found");
@@ -221,9 +221,9 @@ internal sealed class CliCommandRunner(
     /// claimable; the race is accepted. The exit code reflects the attempt: a thrown handler counts
     /// as failed even when the retry budget re-arms the job.
     /// </summary>
-    private async Task<int> DebugAsync(JobLookup lookup, bool json, bool breakAtHandler, CancellationToken ct)
+    private async Task<int> DebugAsync(JobLookup job, bool json, bool breakAtHandler, CancellationToken ct)
     {
-        var snapshot = await jobs.GetAsync(lookup, ct);
+        var snapshot = await jobs.GetAsync(job, ct);
         if (snapshot is null)
         {
             await error.WriteLineAsync("job not found");

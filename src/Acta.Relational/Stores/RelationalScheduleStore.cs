@@ -168,11 +168,11 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
     }
 
-    private void AddControlTailParameters(DbCommand cmd, DateTime? jobNextRunAtUtc, JobControlActor actor, string? note)
+    private void AddControlTailParameters(DbCommand cmd, DateTime? jobNextRunAtUtc, JobControlActor actor, string? reasonMessage)
     {
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRunAtUtc));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Note, note));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Note, reasonMessage));
     }
 }

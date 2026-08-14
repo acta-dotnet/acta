@@ -218,7 +218,7 @@ internal static class ActaApiEndpoints
                         long? parentJobId = null;
                         if (parentFilter is { } filter)
                         {
-                            parentJobId = await jobs.ResolveJobIdAsync(filter, ct);
+                            parentJobId = await jobs.GetJobIdAsync(filter, ct);
                             if (parentJobId is null)
                             {
                                 return NotFound();
@@ -556,7 +556,7 @@ internal static class ActaApiEndpoints
                         ? Task.FromResult(BadRequest(error))
                         : Guard(async () =>
                         {
-                            var jobId = await jobs.ResolveJobIdAsync(lookup, ct);
+                            var jobId = await jobs.GetJobIdAsync(lookup, ct);
                             if (jobId is null)
                             {
                                 return NotFound();
@@ -838,7 +838,7 @@ internal static class ActaApiEndpoints
                         long? jobId = null;
                         if (jobFilter is { } filter)
                         {
-                            jobId = await jobs.ResolveJobIdAsync(filter, ct);
+                            jobId = await jobs.GetJobIdAsync(filter, ct);
                             if (jobId is null)
                             {
                                 return NotFound();

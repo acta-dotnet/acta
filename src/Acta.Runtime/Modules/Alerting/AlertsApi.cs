@@ -18,24 +18,27 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
 
     public async ValueTask<AlertControlResult> AcknowledgeAsync(
         long alertId,
-        string? note = null,
+        string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     )
     {
-        var outcome = await store.AcknowledgeJobAlertAsync(new AlertControlCommand(alertId, Operator(actorKey), Reason(alertId, note)), ct);
+        var outcome = await store.AcknowledgeJobAlertAsync(
+            new AlertControlCommand(alertId, Operator(actorKey), Reason(alertId, reasonMessage)),
+            ct
+        );
         return ToResult(alertId, outcome);
     }
 
     public async ValueTask<AlertControlResult> ResolveAsync(
         long alertId,
-        string? note = null,
+        string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     )
     {
         var outcome = await store.ResolveJobAlertManualAsync(
-            new AlertControlCommand(alertId, Operator(actorKey), Reason(alertId, note)),
+            new AlertControlCommand(alertId, Operator(actorKey), Reason(alertId, reasonMessage)),
             ct
         );
         return ToResult(alertId, outcome);
@@ -111,8 +114,8 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
 
     private static string? Num(long? value) => value?.ToString(CultureInfo.InvariantCulture);
 
-    private static string Reason(long alertId, string? note) =>
-        (note is null ? $"alert {alertId}" : $"alert {alertId}: {note}").Truncate(ActaTextLimits.ReasonMessage)!;
+    private static string Reason(long alertId, string? reasonMessage) =>
+        (reasonMessage is null ? $"alert {alertId}" : $"alert {alertId}: {reasonMessage}").Truncate(ActaTextLimits.ReasonMessage)!;
 
     private static AlertControlResult ToResult(long alertId, AlertControlOutcome o) =>
         new(alertId, (ControlAction)(byte)o.Action, o.AcknowledgedAtUtc, o.ResolvedAtUtc);

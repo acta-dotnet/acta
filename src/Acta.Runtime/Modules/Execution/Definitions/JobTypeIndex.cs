@@ -9,7 +9,7 @@ internal readonly record struct JobRoute(string Namespace, string JobName, JobPa
 /// <summary>
 /// Maps a job input CLR type to its enqueue route, backing the typed
 /// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> /
-/// <see cref="IJobs.ExecuteAndWaitAsync{TInput}"/> facade. Built once
+/// <see cref="IJobs.RunAndWaitAsync{TInput}"/> facade. Built once
 /// at <see cref="ActaServiceCollectionExtensions.UseActa"/> from the declared catalogs (Reference
 /// and Run); the raw <see cref="JobEnqueueRequest"/> path needs no index (it carries the namespace + name
 /// directly).

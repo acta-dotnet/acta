@@ -21,20 +21,20 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // --- Scenario 1: MapAsync, soft handling ---
 // The handler inspects MapOutcome.Failed and returns a partial result; the parent lands Done.
 Console.WriteLine("--- scenario 1: map with one failing item, soft handling ---");
-var mapOutcome = await jobs.ExecuteAndWaitAsync<RunMapSoft, MapReport>(new RunMapSoft());
+var mapOutcome = await jobs.RunAndWaitAsync<RunMapSoft, MapReport>(new RunMapSoft());
 Console.WriteLine($"parent: {mapOutcome.TerminalStatus}, report: {mapOutcome.Value!.Summary}");
 
 // --- Scenario 2: ParallelAsync, ThrowIfAnyFailed escalation ---
 // The handler calls ThrowIfAnyFailed after a branch fails; ChildGroupException makes the parent
 // land Failed. The driver sees IsFailed without the exception propagating here.
 Console.WriteLine("--- scenario 2: parallel with one failing branch, ThrowIfAnyFailed ---");
-var parallelOutcome = await jobs.ExecuteAndWaitAsync<RunParallelEscalated>(new RunParallelEscalated());
+var parallelOutcome = await jobs.RunAndWaitAsync<RunParallelEscalated>(new RunParallelEscalated());
 Console.WriteLine($"parent: {parallelOutcome.TerminalStatus} (expected Failed)");
 
 // --- Scenario 3: JoinAsync, ThrowIfAnyFailed escalation ---
 // Same pattern for JoinOutcome: the handler escalates, parent lands Failed.
 Console.WriteLine("--- scenario 3: join with one failing child, ThrowIfAnyFailed ---");
-var joinOutcome = await jobs.ExecuteAndWaitAsync<RunJoinEscalated>(new RunJoinEscalated());
+var joinOutcome = await jobs.RunAndWaitAsync<RunJoinEscalated>(new RunJoinEscalated());
 Console.WriteLine($"parent: {joinOutcome.TerminalStatus} (expected Failed)");
 
 await host.StopAsync();

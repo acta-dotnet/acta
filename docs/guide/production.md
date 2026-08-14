@@ -219,8 +219,8 @@ Terminal jobs receive `retention_until_utc` from the job definition's `JobRetent
 system `sys.retention` job purges terminal rows past that deadline and also purges old event,
 alert, and dead-worker rows according to:
 
-- `JobEventsRetentionDays`
-- `AlertRetentionDays`
+- `JobEventsRetention`
+- `AlertRetention`
 - `WorkerRetention`
 
 Set retention long enough for audit, incident response, delayed restarts, and operational analysis.

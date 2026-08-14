@@ -12,7 +12,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime.Modules.Execution.Jobs;
 
 /// <summary>
-/// Jobs feature read behavior: lookup dispatch (id passthrough, ref and deduplication-key resolves
+/// Jobs feature read behavior: job dispatch (id passthrough, ref and deduplication-key resolves
 /// with canonicalization), the read projections (explanation narrative against the database clock,
 /// lineage truncation, result payload decode), and the job-list validation and cursor math.
 /// </summary>
@@ -35,34 +35,34 @@ internal sealed class JobsService(
     private const string OrderCreatedDesc = "created_at_utc desc, id desc";
     private const string ListOperationName = "ListJobs";
 
-    public ValueTask<long?> ResolveJobIdAsync(JobLookup lookup, CancellationToken ct) =>
-        lookup.Kind switch
+    public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct) =>
+        job.Kind switch
         {
-            JobLookupKind.JobId => ValueTask.FromResult<long?>(lookup.JobId),
-            JobLookupKind.JobRef => store.ResolveJobIdByRefAsync(lookup.JobRef!.Value, ct),
+            JobLookupKind.JobId => ValueTask.FromResult<long?>(job.JobId),
+            JobLookupKind.JobRef => store.ResolveJobIdByRefAsync(job.JobRef!.Value, ct),
             JobLookupKind.DeduplicationKey => store.ResolveJobIdByDeduplicationKeyAsync(
-                IdentifierSyntax.CanonicalizeKebab(lookup.JobNamespace!, nameof(lookup.JobNamespace)),
-                IdentifierSyntax.NormalizeKeyLookup(lookup.DeduplicationKey!, nameof(lookup.DeduplicationKey)),
+                IdentifierSyntax.CanonicalizeKebab(job.JobNamespace!, nameof(job.JobNamespace)),
+                IdentifierSyntax.NormalizeKeyLookup(job.DeduplicationKey!, nameof(job.DeduplicationKey)),
                 ct
             ),
-            _ => throw new ArgumentOutOfRangeException(nameof(lookup), lookup.Kind, "Unsupported job lookup kind."),
+            _ => throw new ArgumentOutOfRangeException(nameof(job), job.Kind, "Unsupported job job kind."),
         };
 
-    public async ValueTask<JobDetail?> GetAsync(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         return jobId is null ? null : await store.GetJobAsync(jobId.Value, ct);
     }
 
-    public async ValueTask<JobStatusCode?> GetStatusAsync(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         return jobId is null ? null : await store.GetJobStatusAsync(jobId.Value, ct);
     }
 
-    public async ValueTask<JobExplanation?> ExplainAsync(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             return null;
@@ -80,9 +80,9 @@ internal sealed class JobsService(
         return JobExplainer.Explain(data, nowUtc);
     }
 
-    public async ValueTask<JobLineageMap?> GetLineageMapAsync(JobLookup lookup, JobLineageMapOptions? options, CancellationToken ct)
+    public async ValueTask<JobLineageMap?> GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             return null;
@@ -94,9 +94,9 @@ internal sealed class JobsService(
         return data is null ? null : JobLineageMapper.Map(data, childLimit);
     }
 
-    public async ValueTask<JobPayload?> GetInputAsync(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             return null;
@@ -109,9 +109,9 @@ internal sealed class JobsService(
             : JobPayload.FromBytes(JobPayloadFormat.ForId(record.FormatId), record.Data.ToArray());
     }
 
-    public async ValueTask<JobPayload?> GetResultAsync(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             return null;
@@ -121,15 +121,15 @@ internal sealed class JobsService(
         return record is null ? null : JobPayload.FromBytes(record.Format, record.Data.ToArray());
     }
 
-    public async ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         return jobId is null ? [] : await store.GetJobCheckpointsAsync(jobId.Value, ct);
     }
 
-    public async ValueTask<TResult?> GetResultAsync<TResult>(JobLookup lookup, CancellationToken ct)
+    public async ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct)
     {
-        var payload = await GetResultAsync(lookup, ct);
+        var payload = await GetResultAsync(job, ct);
         return payload is { } p ? serializers.Resolve(p.Format.Id).Deserialize<TResult>(p) : default;
     }
 
@@ -433,9 +433,9 @@ internal sealed class JobsService(
         return outcomes;
     }
 
-    public async ValueTask<JobControlResult> CancelAsync(JobLookup lookup, string? reasonMessage, string? actorKey, CancellationToken ct)
+    public async ValueTask<JobControlResult> CancelAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct)
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             return new JobControlResult(0, ControlAction.NotFound, null);
@@ -467,16 +467,16 @@ internal sealed class JobsService(
         return result;
     }
 
-    public ValueTask<JobControlResult> PauseAsync(JobLookup lookup, string? reasonMessage, string? actorKey, CancellationToken ct) =>
-        ApplyControlAsync(lookup, (id, c) => store.PauseJobAsync(id, Input(reasonMessage, actorKey), c), ct);
+    public ValueTask<JobControlResult> PauseAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct) =>
+        ApplyControlAsync(job, (id, c) => store.PauseJobAsync(id, Input(reasonMessage, actorKey), c), ct);
 
     // Resume and restart are recurring-aware: a recurring slot recomputes its misfire-aware slot MIN
     // (run-now for non-recurring jobs). A recurring slot whose schedules all yield no upcoming run is
     // rejected rather than resumed/restarted to run-now; restart must not resurrect a removed slot.
-    public async ValueTask<JobControlResult> ResumeAsync(JobLookup lookup, string? reasonMessage, string? actorKey, CancellationToken ct)
+    public async ValueTask<JobControlResult> ResumeAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct)
     {
         var result = await ApplyControlAsync(
-            lookup,
+            job,
             async (id, c) =>
             {
                 var (reject, nextRun) = await ResolveRecurringNextRunAsync(id, c);
@@ -490,10 +490,10 @@ internal sealed class JobsService(
         return result;
     }
 
-    public async ValueTask<JobControlResult> RestartAsync(JobLookup lookup, string? reasonMessage, string? actorKey, CancellationToken ct)
+    public async ValueTask<JobControlResult> RestartAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct)
     {
         var result = await ApplyControlAsync(
-            lookup,
+            job,
             async (id, c) =>
             {
                 var (reject, nextRun) = await ResolveRecurringNextRunAsync(id, c);
@@ -508,7 +508,7 @@ internal sealed class JobsService(
     }
 
     public async ValueTask<JobControlResult> RescheduleAsync(
-        JobLookup lookup,
+        JobLookup job,
         DateTime nextRunAtUtc,
         string? reasonMessage,
         string? actorKey,
@@ -517,7 +517,7 @@ internal sealed class JobsService(
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(nextRunAtUtc, DateTime.MinValue, nameof(nextRunAtUtc));
         var result = await ApplyControlAsync(
-            lookup,
+            job,
             (id, c) => store.RescheduleJobAsync(id, nextRunAtUtc, Input(reasonMessage, actorKey), c),
             ct
         );
@@ -526,7 +526,7 @@ internal sealed class JobsService(
     }
 
     public async ValueTask<JobControlResult> ReprioritizeAsync(
-        JobLookup lookup,
+        JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage,
         string? actorKey,
@@ -539,7 +539,7 @@ internal sealed class JobsService(
         }
 
         var result = await ApplyControlAsync(
-            lookup,
+            job,
             (id, c) => store.ReprioritizeJobAsync(id, priority, Input(reasonMessage, actorKey), c),
             ct
         );
@@ -548,7 +548,7 @@ internal sealed class JobsService(
     }
 
     public ValueTask<JobControlResult> UpdateJobInputAsync(
-        JobLookup lookup,
+        JobLookup job,
         JobPayload input,
         string? reasonMessage,
         string? actorKey,
@@ -556,11 +556,11 @@ internal sealed class JobsService(
     )
     {
         EnsureInlineSize("update input", input);
-        return ApplyControlAsync(lookup, (id, c) => store.UpdateJobInputAsync(id, input, Input(reasonMessage, actorKey), c), ct);
+        return ApplyControlAsync(job, (id, c) => store.UpdateJobInputAsync(id, input, Input(reasonMessage, actorKey), c), ct);
     }
 
-    public ValueTask<JobControlResult> PurgeAsync(JobLookup lookup, string? actorKey, CancellationToken ct) =>
-        ApplyControlAsync(lookup, (id, c) => store.PurgeJobAsync(id, Input(null, actorKey), c), ct);
+    public ValueTask<JobControlResult> PurgeAsync(JobLookup job, string? actorKey, CancellationToken ct) =>
+        ApplyControlAsync(job, (id, c) => store.PurgeJobAsync(id, Input(null, actorKey), c), ct);
 
     public Task ResetJobStateAsync(long jobId, CancellationToken ct) => store.ResetJobStateAsync(jobId, ct);
 
@@ -682,12 +682,12 @@ internal sealed class JobsService(
         new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
     private async ValueTask<JobControlResult> ApplyControlAsync(
-        JobLookup lookup,
+        JobLookup job,
         Func<long, CancellationToken, Task<JobControlOutcome>> invoke,
         CancellationToken ct
     )
     {
-        var jobId = await ResolveJobIdAsync(lookup, ct);
+        var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
             return new JobControlResult(0, ControlAction.NotFound, null);

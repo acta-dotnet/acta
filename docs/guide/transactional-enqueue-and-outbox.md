@@ -69,7 +69,7 @@ Acta validates structure before executing: a null, detached, disposed, closed-co
 wrong-provider transaction fails before any command runs. It does not probe database identity, so you are
 responsible for pointing the transaction at the database that holds the Acta schema.
 
-There is deliberately no transactional `ExecuteAndWaitAsync`: the job is invisible to other connections
+There is deliberately no transactional `RunAndWaitAsync`: the job is invisible to other connections
 until you commit, so waiting inside the transaction would be a misleading timeout-shaped API.
 
 ## The external outbox
@@ -342,7 +342,7 @@ Staging returns no identity, so the producer's durable lookup handle is `(JobNam
 After relay, resolve the public job identity by that key:
 
 ```csharp
-var jobId = await jobs.ResolveJobIdAsync(
+var jobId = await jobs.GetJobIdAsync(
     JobLookup.ByDeduplicationKey("orders", orderId), ct);
 ```
 

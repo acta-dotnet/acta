@@ -12,7 +12,7 @@ namespace Acta.Relational.Entities;
 /// logs at the emission site, and the canonical durable state is the entity row the event references.
 /// </summary>
 /// <remarks>
-/// Every row honors <c>JobsOptions.JobEventsRetentionDays</c> (default 365); the
+/// Every row honors <c>JobsOptions.JobEventsRetention</c> (default 365); the
 /// <c>sys.retention</c> sweep applies one predicate against <see cref="CreatedAtUtc"/>.
 /// There is no enforced <c>Job</c> FK because events outlive Job retention; integrity is maintained at
 /// write time by the operations that emit events.

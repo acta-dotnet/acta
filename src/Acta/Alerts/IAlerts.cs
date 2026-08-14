@@ -12,13 +12,13 @@ public interface IAlerts
     /// since this is low-volume operator activity. Re-acknowledging an already-acknowledged alert is
     /// <see cref="ControlAction.Applied"/> without mutation: the existing timestamp is returned and
     /// no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
-    /// <paramref name="note"/> is folded into the audit event's reason message alongside the alert id;
+    /// <paramref name="reasonMessage"/> is folded into the audit event's reason message alongside the alert id;
     /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown.
     /// </summary>
     ValueTask<AlertControlResult> AcknowledgeAsync(
         long alertId,
-        string? note = null,
+        string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
@@ -29,11 +29,16 @@ public interface IAlerts
     /// job's audit level. Does not require a prior acknowledge. Re-resolving an already-resolved alert
     /// is <see cref="ControlAction.Applied"/> without mutation: the existing timestamp is returned
     /// and no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
-    /// <paramref name="note"/> is folded into the audit event's reason message alongside the alert id;
+    /// <paramref name="reasonMessage"/> is folded into the audit event's reason message alongside the alert id;
     /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<AlertControlResult> ResolveAsync(long alertId, string? note = null, string? actorKey = null, CancellationToken ct = default);
+    ValueTask<AlertControlResult> ResolveAsync(
+        long alertId,
+        string? reasonMessage = null,
+        string? actorKey = null,
+        CancellationToken ct = default
+    );
 
     /// <summary>
     /// List alerts newest first, optionally filtered by namespace, job, resolution, acknowledgement,

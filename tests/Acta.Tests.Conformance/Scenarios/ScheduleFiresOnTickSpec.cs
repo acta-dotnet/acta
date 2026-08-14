@@ -234,7 +234,7 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
         // The recurring slot's deduplication_key is the definition's job name.
-        var id = await Jobs.ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
+        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
         Assert.NotNull(id);
         return id!.Value;
     }

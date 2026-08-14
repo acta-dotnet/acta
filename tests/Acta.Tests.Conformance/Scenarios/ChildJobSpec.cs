@@ -243,7 +243,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.RaiseSignalAsync(job, "sys.child.1", ct: ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.RaiseSignalAsync(job, "sys.child.1", JobPayload.None, ct: ct));
     }
 
     [Fact(DisplayName = "Reclaim exhausting a child's budget reports the pair whose latch raise releases the waiting parent")]

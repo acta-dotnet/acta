@@ -64,7 +64,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
             ct
         );
 
-        var result = await Schedules.PauseAsync(Lookup(jobName, "late"), untilUtc: null, note: "drain", ct: ct);
+        var result = await Schedules.PauseAsync(Lookup(jobName, "late"), untilUtc: null, reasonMessage: "drain", ct: ct);
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(ScheduleStatusCode.Paused, result.Status);
 
@@ -285,7 +285,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         Assert.Equal(description, seeded.Description);
         Assert.Null(seeded.Note);
 
-        await Schedules.PauseAsync(Lookup(jobName, "only"), note: "operator drain", ct: ct);
+        await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "operator drain", ct: ct);
 
         // Re-run the startup catalog reconcile carrying the same declared description, exactly as
         // WorkerRuntimeInitializer.ReconcileSchedulesAsync does on every worker start.
@@ -306,7 +306,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
-        await Schedules.PauseAsync(Lookup(jobName, "only"), note: "maintenance", ct: ct);
+        await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "maintenance", ct: ct);
         await Schedules.ResumeAsync(Lookup(jobName, "only"), ct: ct);
 
         var slotId = await SlotIdAsync(jobName, ct);
@@ -404,7 +404,7 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
     {
-        var id = await Jobs().ResolveJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
+        var id = await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
         Assert.NotNull(id);
         return id!.Value;
     }

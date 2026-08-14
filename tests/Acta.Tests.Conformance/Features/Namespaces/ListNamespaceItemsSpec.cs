@@ -56,9 +56,9 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
         var current = (await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct))!;
         var updated = await Operations.Namespaces.UpdateAsync(
             TestNamespace,
+            current.Version,
             "platform-team",
             "namespace admin description",
-            current.Version,
             null,
             null,
             ct

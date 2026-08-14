@@ -18,15 +18,15 @@ public sealed class JobsOptions
     /// Retention window in days for every <c>JobEvent</c> row, audit timeline and execution ledger
     /// alike.
     /// </summary>
-    public int JobEventsRetentionDays { get; set; } = 365;
+    public TimeSpan JobEventsRetention { get; set; } = TimeSpan.FromDays(365);
 
     /// <summary>
     /// Retention window in days for settled <c>JobAlert</c> rows (Suppressed, Delivered, or Failed);
     /// in-flight deliveries are never purged regardless of age. Default 90 days, shorter than
-    /// <see cref="JobEventsRetentionDays"/> because an alert is a projection of the <c>events</c>
+    /// <see cref="JobEventsRetention"/> because an alert is a projection of the <c>events</c>
     /// ledger, which keeps the incident timeline for the full event window.
     /// </summary>
-    public int AlertRetentionDays { get; set; } = 90;
+    public TimeSpan AlertRetention { get; set; } = TimeSpan.FromDays(90);
 
     /// <summary>
     /// How long Dead <c>JobWorker</c> rows are retained past <c>LastHeartbeatAtUtc</c> before

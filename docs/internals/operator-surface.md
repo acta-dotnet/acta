@@ -20,7 +20,7 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Job detail | (composition over `IJobs` reads) | `GET /jobs/{jobRef}/detail` | | one aggregate: snapshot + input/result/checkpoints + tags + explain + lineage + schedules + eligible workers |
 | Explain | `IJobs.ExplainAsync` | (in detail) | `explain` | Explain AI core input |
 | Lineage map | `IJobs.GetLineageMapAsync` | (in detail) | | cost joins (demo) |
-| Resolve by key | `IJobs.ResolveJobIdAsync` | `GET /jobs/by-key` | target syntax | |
+| Resolve by key | `IJobs.GetJobIdAsync` | `GET /jobs/by-key` | target syntax | |
 | List jobs | `ILedger.ListJobsAsync` | `GET /jobs` | | |
 | List events | `ILedger.ListEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{id}/events` | `events` | Explain bundle |
 | Overview | `ILedger.GetOverviewAsync` | `GET /overview` | | |
@@ -48,7 +48,7 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Raise signal | `RaiseSignalAsync` | `POST .../signals/{name}` | `signal` | |
 | Amend input | `UpdateJobInputAsync` | `POST .../input` | | format-faithful (one of input/text/base64 vs stored format, json fallback, none rejected); event carries old-payload metadata (format + byte count), not the payload |
 | Enqueue | `EnqueueAsync` / `EnqueueBatchAsync` | `POST /jobs` | | single enqueue (clone UI); batch has no HTTP surface |
-| Execute and wait | `ExecuteAndWaitAsync` | | | client-side wait loop |
+| Execute and wait | `RunAndWaitAsync` | | | client-side wait loop |
 | Debug run | (CLI-only composition) | | `debug` | claims + executes in-process |
 
 ## Admin controls (sub-facades)

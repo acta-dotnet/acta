@@ -12,7 +12,7 @@ public interface IDefinitions
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         string? actorKey = null,
-        string? note = null,
+        string? reasonMessage = null,
         CancellationToken ct = default
     );
 
