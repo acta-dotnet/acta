@@ -61,10 +61,10 @@ internal static class OutboxStaging
             );
         }
 
-        return normalized.ParentId is not null
+        return normalized.ParentJobId is not null
             ? throw new ArgumentException(
-                "An outbox record cannot carry a ParentId; external records request root jobs only.",
-                $"{nameof(request)}.{nameof(JobEnqueueRequest.ParentId)}"
+                "An outbox record cannot carry a ParentJobId; external records request root jobs only.",
+                $"{nameof(request)}.{nameof(JobEnqueueRequest.ParentJobId)}"
             )
             : new OutboxStagingRow(
                 OutboxId: Guid.NewGuid(),

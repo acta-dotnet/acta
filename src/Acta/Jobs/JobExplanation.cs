@@ -45,7 +45,7 @@ public sealed record JobExplainLease(
     string? WorkerName,
     DateTime? ExpiresAtUtc,
     bool Expired,
-    DateTime? WorkerLastSeenAtUtc,
+    DateTime? WorkerLastHeartbeatAtUtc,
     bool WorkerStale,
     string RecoveryExpectation
 );

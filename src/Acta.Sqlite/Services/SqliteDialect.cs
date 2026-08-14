@@ -317,9 +317,9 @@ internal sealed class SqliteDialect : ISqlDialect
                 writer.WriteNumber("definition_id", item.DefinitionId);
                 writer.WriteString("name", item.Schedule.Name);
                 writer.WriteString("expression", item.Schedule.Expression);
-                writer.WriteString("time_zone_id", string.IsNullOrWhiteSpace(item.Schedule.TimeZone) ? "UTC" : item.Schedule.TimeZone);
+                writer.WriteString("time_zone_id", string.IsNullOrWhiteSpace(item.Schedule.TimeZoneId) ? "UTC" : item.Schedule.TimeZoneId);
                 writer.WriteNumber("expression_kind_code", (short)item.Schedule.ExpressionKind);
-                writer.WriteNumber("misfire_strategy_code", (short)item.Schedule.Misfire);
+                writer.WriteNumber("misfire_strategy_code", (short)item.Schedule.MisfireStrategy);
                 WriteUtcOrNull(writer, "next_run_at_utc", item.Schedule.NextRunAtUtc);
                 WriteStringOrNull(writer, "description", item.Schedule.Description);
             }

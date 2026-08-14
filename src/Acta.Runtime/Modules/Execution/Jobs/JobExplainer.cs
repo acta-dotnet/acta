@@ -198,7 +198,7 @@ internal static class JobExplainer
             Blank(h.WorkerDeploymentVersion),
             h.LeaseExpiresAtUtc,
             expired,
-            h.WorkerLastSeenAtUtc,
+            h.WorkerLastHeartbeatAtUtc,
             stale,
             recovery
         );

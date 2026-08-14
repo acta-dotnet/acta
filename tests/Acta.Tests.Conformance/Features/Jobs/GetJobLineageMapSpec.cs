@@ -29,7 +29,7 @@ public abstract class GetJobLineageMapSpec<TFixture> : ActaRuntimeTestBase<TFixt
     private async Task<long> EnqueueAsync(long? parentId, CancellationToken ct)
     {
         var outcome = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentId: parentId),
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentJobId: parentId),
             ct
         );
         return outcome.JobId;

@@ -366,9 +366,9 @@ internal sealed class PostgresDialect : ISqlDialect
                 scheduleDefinitionIds[scheduleIndex] = definition.DefinitionId;
                 scheduleNames[scheduleIndex] = schedule.Name;
                 expressions[scheduleIndex] = schedule.Expression;
-                timeZones[scheduleIndex] = string.IsNullOrWhiteSpace(schedule.TimeZone) ? "UTC" : schedule.TimeZone;
+                timeZones[scheduleIndex] = string.IsNullOrWhiteSpace(schedule.TimeZoneId) ? "UTC" : schedule.TimeZoneId;
                 expressionKinds[scheduleIndex] = (short)schedule.ExpressionKind;
-                misfires[scheduleIndex] = (short)schedule.Misfire;
+                misfires[scheduleIndex] = (short)schedule.MisfireStrategy;
                 nextRuns[scheduleIndex] = schedule.NextRunAtUtc;
                 descriptions[scheduleIndex] = schedule.Description;
                 scheduleIndex++;

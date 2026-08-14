@@ -42,8 +42,8 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var workerA = await Db.From<JobWorker>().Where(w => w.NamespaceId == nsA).SingleOrDefaultAsync(ct);
         Assert.NotNull(workerA);
         Assert.Equal(WorkerStatusCode.Active, workerA!.Status);
-        var agedAtA = workerA.LastSeenAtUtc.AddHours(-1);
-        await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).UpdateOnlyAsync(() => new JobWorker { LastSeenAtUtc = agedAtA }, ct);
+        var agedAtA = workerA.LastHeartbeatAtUtc.AddHours(-1);
+        await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAtA }, ct);
 
         // A worker in a SECOND namespace: StartWorker upserts the namespace and registers the worker.
         var nsBName = TestKey("mark-dead-ns-b");
@@ -61,7 +61,7 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             ct
         );
         var agedAtB = DateTime.UtcNow.AddHours(-1);
-        await Db.From<JobWorker>().Where(w => w.Id == workerBId).UpdateOnlyAsync(() => new JobWorker { LastSeenAtUtc = agedAtB }, ct);
+        await Db.From<JobWorker>().Where(w => w.Id == workerBId).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAtB }, ct);
 
         // A fresh worker that must SURVIVE: seed one in namespace A with a current last_seen.
         var (_, freshWorkerId) = await WorkerTestOps.StartAsync(

@@ -83,7 +83,7 @@ internal sealed record ExplainHeaderRow(
     DateTime? LeaseExpiresAtUtc,
     string? WorkerDeploymentVersion,
     WorkerStatusCode? WorkerStatus,
-    DateTime? WorkerLastSeenAtUtc,
+    DateTime? WorkerLastHeartbeatAtUtc,
     JobEventReasonCode? LatestReasonCode,
     string? LatestReasonMessage,
     int? LastExecutedByWorkerId,

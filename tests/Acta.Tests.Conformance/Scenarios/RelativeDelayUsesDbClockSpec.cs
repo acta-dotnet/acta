@@ -11,14 +11,14 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for the two delayed-enqueue channels: a relative <c>Delayed</c> delay is resolved on
 /// the database clock (<c>db_now + delay</c>) so the caller's clock never reaches the wire, while an
-/// absolute <c>NextExecutionAt</c> persists the caller-supplied instant verbatim. The two are mutually
+/// absolute <c>NextRunAt</c> persists the caller-supplied instant verbatim. The two are mutually
 /// exclusive and enqueue rejects a row that sets both.
 /// </summary>
 [ConformanceSpec(
     "relative-delay.db-clock",
     "Relative delay resolves on the DB clock; absolute run-at is preserved",
     Area = "Enqueue",
-    Contract = "Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextExecutionAt persists the absolute caller instant.",
+    Contract = "Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant.",
     Arrange = "The add-numbers job definition is registered in the test namespace.",
     Act = "Jobs are enqueued with a relative delay, an absolute run-at, a Local-kind run-at, and with both delay channels set at once.",
     Assert = "The relative delay resolves to the database clock plus the delay, absolute instants persist verbatim, and setting both channels is rejected."
@@ -48,7 +48,7 @@ public abstract class RelativeDelayUsesDbClockSpec<TFixture> : ActaRuntimeTestBa
         Assert.InRange(job.NextRunAtUtc!.Value, before.AddSeconds(59), after.AddSeconds(61));
     }
 
-    [Fact(DisplayName = "Absolute NextExecutionAt persists the caller instant verbatim")]
+    [Fact(DisplayName = "Absolute NextRunAt persists the caller instant verbatim")]
     public async Task Absolute_run_at_is_persisted_verbatim()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -106,7 +106,7 @@ public abstract class RelativeDelayUsesDbClockSpec<TFixture> : ActaRuntimeTestBa
         Assert.Equal(1, rounded.DelaySeconds);
 
         // The two channels are last-write-wins: each setter clears the other.
-        var absolute = new JobEnqueueOptionsBuilder().Delayed(TimeSpan.FromSeconds(5)).NextExecutionAt(DateTimeOffset.UnixEpoch).Build();
+        var absolute = new JobEnqueueOptionsBuilder().Delayed(TimeSpan.FromSeconds(5)).NextRunAt(DateTimeOffset.UnixEpoch).Build();
         Assert.Null(absolute.DelaySeconds);
         Assert.NotNull(absolute.NextRunAtUtc);
     }

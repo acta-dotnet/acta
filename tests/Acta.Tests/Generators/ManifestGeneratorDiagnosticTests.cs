@@ -1317,7 +1317,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     // ----------------------------------------------------------------------------------------
-    // Misfire default: an unset [JobSchedule] misfire emits Skip (forward-only, drop missed),
+    // MisfireStrategy default: an unset [JobSchedule] misfire emits Skip (forward-only, drop missed),
     // matching the production scheduler's default; FireOnceCatchUp is opt-in.
     // ----------------------------------------------------------------------------------------
 
@@ -1339,7 +1339,7 @@ public class ManifestGeneratorDiagnosticTests
         );
 
         var manifest = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("Misfire: MisfireStrategyCode.Skip", manifest);
+        Assert.Contains("MisfireStrategy: MisfireStrategyCode.Skip", manifest);
         Assert.DoesNotContain("MisfireStrategyCode.FireOnceCatchUp", manifest);
     }
 
@@ -1361,7 +1361,7 @@ public class ManifestGeneratorDiagnosticTests
         );
 
         var manifest = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("TimeZone: \"UTC\"", manifest);
+        Assert.Contains("TimeZoneId: \"UTC\"", manifest);
     }
 
     [Fact]
@@ -1375,14 +1375,14 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("catch-up-job")]
-                [JobSchedule("nightly", Cron.Daily, Misfire = MisfireStrategyCode.FireOnceCatchUp)]
+                [JobSchedule("nightly", Cron.Daily, MisfireStrategy = MisfireStrategyCode.FireOnceCatchUp)]
                 public static void Run() { }
             }
             """
         );
 
         var manifest = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("Misfire: MisfireStrategyCode.FireOnceCatchUp", manifest);
+        Assert.Contains("MisfireStrategy: MisfireStrategyCode.FireOnceCatchUp", manifest);
     }
 
     // ----------------------------------------------------------------------------------------

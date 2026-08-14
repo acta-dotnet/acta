@@ -378,7 +378,7 @@ export interface JobScheduleView {
   scheduleName: string;
   expressionKind: string;
   expression: string;
-  timeZone: string;
+  timeZoneId: string;
   nextRunAtUtc: string | null;
   status: string;
   pausedUntilUtc: string | null;

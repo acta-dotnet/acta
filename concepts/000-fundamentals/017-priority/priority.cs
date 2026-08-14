@@ -29,9 +29,9 @@ await jobs.EnqueueAsync(new GenerateReport("bulk-1"), o => o.Priority(JobPriorit
 var together = DateTimeOffset.UtcNow.AddSeconds(1.5);
 foreach (var n in new[] { 2, 3, 4, 5 })
 {
-    await jobs.EnqueueAsync(new GenerateReport($"bulk-{n}"), o => o.Priority(JobPriorityCode.Bulk).NextExecutionAt(together));
+    await jobs.EnqueueAsync(new GenerateReport($"bulk-{n}"), o => o.Priority(JobPriorityCode.Bulk).NextRunAt(together));
 }
-await jobs.EnqueueAsync(new GenerateReport("URGENT"), o => o.Priority(JobPriorityCode.High).NextExecutionAt(together));
+await jobs.EnqueueAsync(new GenerateReport("URGENT"), o => o.Priority(JobPriorityCode.High).NextRunAt(together));
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

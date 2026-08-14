@@ -419,9 +419,9 @@ internal sealed class SqlServerDialect : ISqlDialect
                     record.SetInt32(0, definition.DefinitionId);
                     record.SetString(1, schedule.Name);
                     record.SetString(2, schedule.Expression);
-                    record.SetString(3, string.IsNullOrWhiteSpace(schedule.TimeZone) ? "UTC" : schedule.TimeZone);
+                    record.SetString(3, string.IsNullOrWhiteSpace(schedule.TimeZoneId) ? "UTC" : schedule.TimeZoneId);
                     record.SetByte(4, (byte)schedule.ExpressionKind);
-                    record.SetByte(5, (byte)schedule.Misfire);
+                    record.SetByte(5, (byte)schedule.MisfireStrategy);
                     SetNullableDateTime(record, 6, schedule.NextRunAtUtc);
                     SetNullableString(record, 7, schedule.Description);
                     yield return record;

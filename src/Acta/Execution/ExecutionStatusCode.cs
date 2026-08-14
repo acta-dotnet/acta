@@ -38,9 +38,9 @@ public enum ExecutionStatusCode : byte
 public enum ExecutionBehavior : byte
 {
     Live = 1,
-    Success = 2,
+    Succeeded = 2,
     Controlled = 3,
-    Failure = 4,
+    Failed = 4,
     Cancelled = 5,
     Indeterminate = 6,
 }
@@ -65,10 +65,10 @@ public static partial class ExecutionStatusExtensions
             value switch
             {
                 ExecutionStatusCode.Executing => ExecutionBehavior.Live,
-                ExecutionStatusCode.Succeeded => ExecutionBehavior.Success,
+                ExecutionStatusCode.Succeeded => ExecutionBehavior.Succeeded,
                 ExecutionStatusCode.Rescheduled or ExecutionStatusCode.Suspended or ExecutionStatusCode.Paused =>
                     ExecutionBehavior.Controlled,
-                ExecutionStatusCode.Failed => ExecutionBehavior.Failure,
+                ExecutionStatusCode.Failed => ExecutionBehavior.Failed,
                 ExecutionStatusCode.Cancelled => ExecutionBehavior.Cancelled,
                 ExecutionStatusCode.Orphaned => ExecutionBehavior.Indeterminate,
                 _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),

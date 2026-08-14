@@ -34,7 +34,7 @@ internal static class ScheduleWalker
                 s.Id,
                 NextOccurrenceCalculator.FirstAfter(
                     s.Expression,
-                    s.TimeZone,
+                    s.TimeZoneId,
                     s.ExpressionKind,
                     (s.NextRunAtUtc ?? s.PausedUntilUtc)!.Value,
                     nowUtc
@@ -67,7 +67,14 @@ internal static class ScheduleWalker
             live.Select(s =>
                 s.Status == ScheduleStatusCode.Paused
                     ? s.PausedUntilUtc
-                    : NextOccurrenceCalculator.Reconcile(s.Expression, s.TimeZone, s.ExpressionKind, s.Misfire, s.NextRunAtUtc, nowUtc)
+                    : NextOccurrenceCalculator.Reconcile(
+                        s.Expression,
+                        s.TimeZoneId,
+                        s.ExpressionKind,
+                        s.MisfireStrategy,
+                        s.NextRunAtUtc,
+                        nowUtc
+                    )
             )
         );
 
@@ -90,7 +97,7 @@ internal static class ScheduleWalker
 
         foreach (var d in declared)
         {
-            var timeZone = string.IsNullOrWhiteSpace(d.TimeZone) ? "UTC" : d.TimeZone;
+            var timeZone = string.IsNullOrWhiteSpace(d.TimeZoneId) ? "UTC" : d.TimeZoneId;
             var stored = storedByName.TryGetValue(d.ScheduleName, out var s) ? s : null;
 
             DateTime? cursor;
@@ -106,14 +113,16 @@ internal static class ScheduleWalker
                     d.Expression,
                     timeZone,
                     d.ExpressionKind,
-                    d.Misfire,
+                    d.MisfireStrategy,
                     stored?.NextRunAtUtc,
                     nowUtc
                 );
                 contribution = cursor;
             }
 
-            schedules.Add(new SlotSchedule(d.ScheduleName, d.Expression, timeZone, d.Misfire, d.ExpressionKind, d.Description, cursor));
+            schedules.Add(
+                new SlotSchedule(d.ScheduleName, d.Expression, timeZone, d.MisfireStrategy, d.ExpressionKind, d.Description, cursor)
+            );
             contributions.Add(contribution);
         }
 

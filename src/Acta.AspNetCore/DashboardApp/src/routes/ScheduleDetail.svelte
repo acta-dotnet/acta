@@ -27,7 +27,7 @@
     origin: string;
     expressionKind: string;
     expression: string;
-    timeZone: string;
+    timeZoneId: string;
     misfireStrategy: string;
     nextRunAtUtc: string | null;
     orphanedAtUtc: string | null;
@@ -135,7 +135,7 @@
 
           <dl class="detail-readonly detail-readonly-grid">
             <div><dt>Expression</dt><dd><span class="mono">{schedule.expression}</span> <CopyButton value={schedule.expression} label="Copy expression" /></dd></div>
-            <div><dt>Time zone</dt><dd>{schedule.timeZone} <CopyButton value={schedule.timeZone} label="Copy time zone" /></dd></div>
+            <div><dt>Time zone</dt><dd>{schedule.timeZoneId} <CopyButton value={schedule.timeZoneId} label="Copy time zone" /></dd></div>
             <div><dt>Expression kind</dt><dd>{schedule.expressionKind}</dd></div>
             <div><dt>Misfire strategy</dt><dd>{schedule.misfireStrategy}</dd></div>
             <div><dt>Origin</dt><dd>{schedule.origin}</dd></div>
@@ -154,7 +154,7 @@
             status={schedule.status}
             version={schedule.version}
             expression={schedule.expression}
-            timeZone={schedule.timeZone}
+            timeZoneId={schedule.timeZoneId}
             onChanged={() => { void detail.refetch(); void history.refetch(); }} />
         </section>
 
@@ -176,7 +176,7 @@
             status={schedule.status}
             version={schedule.version}
             expression={schedule.expression}
-            timeZone={schedule.timeZone}
+            timeZoneId={schedule.timeZoneId}
             onChanged={() => { void detail.refetch(); void history.refetch(); }} />
         </section>
 

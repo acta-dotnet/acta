@@ -54,7 +54,7 @@ export interface JobExplanation {
     workerName: string | null;
     expiresAtUtc: string | null;
     expired: boolean;
-    workerLastSeenAtUtc: string | null;
+    workerLastHeartbeatAtUtc: string | null;
     workerStale: boolean;
     recoveryExpectation: string;
   } | null;
@@ -91,7 +91,7 @@ export interface JobWorker {
   dotnetVersion: string | null;
   processId: number | null;
   maxConcurrency: number;
-  lastSeenAtUtc: string;
+  lastHeartbeatAtUtc: string;
   createdAtUtc: string;
   modifiedAtUtc: string;
 }

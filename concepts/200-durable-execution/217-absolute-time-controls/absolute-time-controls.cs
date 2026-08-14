@@ -1,5 +1,5 @@
 // Concept: enqueue, sleep, and reschedule pinned to absolute DateTimeOffset instants
-// rather than relative delays. Uses NextExecutionAt, context.SleepUntilAsync, and context.RescheduleUntilAsync.
+// rather than relative delays. Uses NextRunAt, context.SleepUntilAsync, and context.RescheduleUntilAsync.
 using Acta;
 using Acta.Concepts.AbsoluteTimeControls;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,12 +19,12 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var now = DateTimeOffset.UtcNow;
 
-// --- Part 1: NextExecutionAt ---
+// --- Part 1: NextRunAt ---
 // Pin the earliest claim to an absolute wall-clock instant rather than a relative delay.
 // This demo uses a two-second offset so the run stays fast.
 var runAt = now.AddSeconds(2);
-Console.WriteLine($"Part 1 - NextExecutionAt: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC");
-var report = await jobs.EnqueueAsync(new GenerateReport("q1", SleepUntil: now.AddSeconds(4)), o => o.NextExecutionAt(runAt));
+Console.WriteLine($"Part 1 - NextRunAt: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC");
+var report = await jobs.EnqueueAsync(new GenerateReport("q1", SleepUntil: now.AddSeconds(4)), o => o.NextRunAt(runAt));
 Console.WriteLine($"  job {report.JobRef} is Pending; worker will not claim it before {runAt:HH:mm:ss.fff}");
 
 // --- Part 2: RescheduleUntilAsync ---

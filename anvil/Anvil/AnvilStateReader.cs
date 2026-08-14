@@ -174,8 +174,8 @@ public sealed class AnvilStateReader(
         {
             if (
                 row.DeploymentVersion == deploymentVersion
-                && row.CreatedAtUtc >= _processStartUtc
-                && (newest is null || row.CreatedAtUtc > newest.CreatedAtUtc)
+                && row.StartedAtUtc >= _processStartUtc
+                && (newest is null || row.StartedAtUtc > newest.StartedAtUtc)
             )
             {
                 newest = row;
@@ -203,7 +203,7 @@ public sealed class AnvilStateReader(
                 DisplayMessage: "This database worker was not started by the current Anvil process.",
                 ProcessStatus: "external",
                 DatabaseStatus: row.Status.ToString().ToLowerInvariant(),
-                LastSeenAtUtc: row.LastSeenAtUtc,
+                LastHeartbeatAtUtc: row.LastHeartbeatAtUtc,
                 ProcessExitedAtUtc: null,
                 ExitCode: null,
                 ApproximateRecoveryRemainingSeconds: null,
@@ -249,7 +249,7 @@ public sealed class AnvilStateReader(
             displayState = "crashed";
             title = "CRASHED";
             message = "The process has stopped, but Acta is still honoring its current leases.";
-            var expectedRecoveryAt = row!.LastSeenAtUtc + workerDeadAfter;
+            var expectedRecoveryAt = row!.LastHeartbeatAtUtc + workerDeadAfter;
             recoveryRemaining = Math.Max(0, (int)Math.Ceiling((expectedRecoveryAt - utcNow).TotalSeconds));
         }
         else if (unexpectedExit && dbStatus == WorkerStatusCode.Dead)
@@ -280,7 +280,7 @@ public sealed class AnvilStateReader(
             DisplayMessage: message,
             ProcessStatus: process.ProcessStatus,
             DatabaseStatus: row?.Status.ToString().ToLowerInvariant() ?? (databaseAvailable ? "unregistered" : "unavailable"),
-            LastSeenAtUtc: row?.LastSeenAtUtc,
+            LastHeartbeatAtUtc: row?.LastHeartbeatAtUtc,
             ProcessExitedAtUtc: process.ExitedAtUtc,
             ExitCode: process.ExitCode,
             ApproximateRecoveryRemainingSeconds: recoveryRemaining,
@@ -368,7 +368,7 @@ public sealed record AnvilWorker(
     string DisplayMessage,
     string ProcessStatus,
     string DatabaseStatus,
-    DateTime? LastSeenAtUtc,
+    DateTime? LastHeartbeatAtUtc,
     DateTime? ProcessExitedAtUtc,
     int? ExitCode,
     int? ApproximateRecoveryRemainingSeconds,

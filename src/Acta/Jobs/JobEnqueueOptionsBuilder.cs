@@ -23,7 +23,7 @@ public sealed class JobEnqueueOptionsBuilder
     /// Namespace to resolve the input type within; only needed when the type is registered under
     /// more than one namespace.
     /// </summary>
-    public JobEnqueueOptionsBuilder Namespace(string namespaceName)
+    public JobEnqueueOptionsBuilder JobNamespace(string namespaceName)
     {
         namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
         _namespace = namespaceName;
@@ -77,7 +77,7 @@ public sealed class JobEnqueueOptionsBuilder
     /// the explicit fixed-wall-clock-time path. Normalized to UTC. Last-call-wins with
     /// <see cref="Delayed"/>, which it clears.
     /// </summary>
-    public JobEnqueueOptionsBuilder NextExecutionAt(DateTimeOffset utc)
+    public JobEnqueueOptionsBuilder NextRunAt(DateTimeOffset utc)
     {
         _nextRunAtUtc = utc.UtcDateTime;
         _delaySeconds = null;
@@ -87,7 +87,7 @@ public sealed class JobEnqueueOptionsBuilder
     /// <summary>
     /// Delay the earliest claim by <paramref name="delay"/>, resolved against the database clock
     /// (<c>db_now + delay</c>) at enqueue so the caller's clock never affects scheduling. Must be
-    /// non-negative; rounded up to whole seconds. Last-call-wins with <see cref="NextExecutionAt"/>,
+    /// non-negative; rounded up to whole seconds. Last-call-wins with <see cref="NextRunAt"/>,
     /// which it clears.
     /// </summary>
     public JobEnqueueOptionsBuilder Delayed(TimeSpan delay)
@@ -105,7 +105,7 @@ public sealed class JobEnqueueOptionsBuilder
     /// Enqueue as a child of the given Job. The parent must exist and be non-terminal; deduplication-key
     /// dedup becomes sibling-unique per parent.
     /// </summary>
-    public JobEnqueueOptionsBuilder ParentId(long parentJobId)
+    public JobEnqueueOptionsBuilder ParentJobId(long parentJobId)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(parentJobId);
         _parentId = parentJobId;
@@ -149,7 +149,7 @@ public sealed class JobEnqueueOptionsBuilder
     public JobEnqueueOptions Build() =>
         new()
         {
-            Namespace = _namespace,
+            JobNamespace = _namespace,
             DeduplicationKey = _deduplicationKey,
             CorrelationKey = _correlationKey,
             ExclusiveKey = _exclusiveKey,
@@ -157,7 +157,7 @@ public sealed class JobEnqueueOptionsBuilder
             Tags = _tags.Count == 0 ? null : [.. _tags.Values],
             NextRunAtUtc = _nextRunAtUtc,
             DelaySeconds = _delaySeconds,
-            ParentId = _parentId,
+            ParentJobId = _parentId,
             TenantKey = _tenantKey,
             OverrideParentTenant = _overrideParentTenant,
         };

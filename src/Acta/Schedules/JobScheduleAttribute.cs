@@ -40,7 +40,7 @@ public sealed class JobScheduleAttribute(string name, string expression) : Attri
     /// IANA or Windows time-zone id resolved via <c>TimeZoneInfo.FindSystemTimeZoneById</c>. Defaults
     /// to UTC. Null or empty is also normalized to UTC. Ignored for ISO 8601 interval expressions.
     /// </summary>
-    public string? TimeZone { get; init; } = "UTC";
+    public string? TimeZoneId { get; init; } = "UTC";
 
     /// <summary>
     /// Environment names this schedule is active in (e.g. <c>"production"</c>). Empty or null means all
@@ -54,5 +54,5 @@ public sealed class JobScheduleAttribute(string name, string expression) : Attri
     /// the first occurrence after now). Set <see cref="MisfireStrategyCode.FireOnceCatchUp"/> to fire
     /// one coalesced catch-up occurrence on recovery.
     /// </summary>
-    public MisfireStrategyCode Misfire { get; init; } = MisfireStrategyCode.Skip;
+    public MisfireStrategyCode MisfireStrategy { get; init; } = MisfireStrategyCode.Skip;
 }

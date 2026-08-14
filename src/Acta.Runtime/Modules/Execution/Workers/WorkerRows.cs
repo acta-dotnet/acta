@@ -18,7 +18,7 @@ internal sealed record JobWorkerListRow(
     string? DotnetVersion,
     int? ProcessId,
     int MaxConcurrency,
-    DateTime LastSeenAtUtc,
+    DateTime LastHeartbeatAtUtc,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc
 )
@@ -34,7 +34,7 @@ internal sealed record JobWorkerListRow(
             DotnetVersion,
             ProcessId,
             MaxConcurrency,
-            LastSeenAtUtc,
+            LastHeartbeatAtUtc,
             CreatedAtUtc,
             ModifiedAtUtc
         );
@@ -50,7 +50,7 @@ internal sealed record JobWorkerListRow(
             DotnetVersion,
             ProcessId,
             MaxConcurrency,
-            LastSeenAtUtc,
+            LastHeartbeatAtUtc,
             CreatedAtUtc,
             ModifiedAtUtc
         );

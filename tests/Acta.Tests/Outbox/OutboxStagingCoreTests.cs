@@ -27,7 +27,7 @@ public sealed class OutboxStagingCoreTests
             NextRunAtUtc: null,
             DelaySeconds: 45,
             Tags: [new TagInput("env", "prod"), new TagInput("flag", null)],
-            ParentId: null,
+            ParentJobId: null,
             TenantKey: "tenant-9"
         );
 
@@ -46,7 +46,7 @@ public sealed class OutboxStagingCoreTests
             row.NextRunAtUtc,
             row.DelaySeconds,
             OutboxMetaReader.Parse(row.Meta),
-            ParentId: null,
+            ParentJobId: null,
             row.TenantKey
         );
     }
@@ -69,7 +69,7 @@ public sealed class OutboxStagingCoreTests
         Assert.Equal(request.NextRunAtUtc, rebuilt.NextRunAtUtc);
         Assert.Equal(request.DelaySeconds, rebuilt.DelaySeconds);
         Assert.Equal(request.TenantKey, rebuilt.TenantKey);
-        Assert.Null(rebuilt.ParentId);
+        Assert.Null(rebuilt.ParentJobId);
         Assert.Collection(
             rebuilt.Tags!,
             t => Assert.Equal(("env", "prod"), (t.Name, t.Value)),
@@ -112,10 +112,13 @@ public sealed class OutboxStagingCoreTests
     [Fact]
     public void Stage_rejects_a_parent_id()
     {
-        var request = new JobEnqueueRequest("orders", "send-receipt", JobPayload.Text("hi"), DeduplicationKey: "k") with { ParentId = 42 };
+        var request = new JobEnqueueRequest("orders", "send-receipt", JobPayload.Text("hi"), DeduplicationKey: "k") with
+        {
+            ParentJobId = 42,
+        };
 
         var ex = Assert.Throws<ArgumentException>(() => OutboxStaging.Stage(request));
-        Assert.Contains("ParentId", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("ParentJobId", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

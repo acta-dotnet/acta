@@ -147,7 +147,7 @@ independent jobs through enqueue operations.
 | 101 | [recurring-job](../../concepts/100-scheduling/101-recurring-job/) | `[JobSchedule]` cron recurring slot - fires itself, no enqueue |
 | 102 | [interval-schedule](../../concepts/100-scheduling/102-interval-schedule/) | Replace a simple `PeriodicTimer` cleanup with an interval schedule (`10s`) |
 | 103 | [multiple-schedules](../../concepts/100-scheduling/103-multiple-schedules/) | **Engineering Lab.** One recurring job row, several moving schedule cursors, event-backed occurrence history |
-| 104 | [timezone-schedule](../../concepts/100-scheduling/104-timezone-schedule/) | A cron schedule pinned to a wall clock (`TimeZone = "Europe/Ljubljana"`), DST-safe |
+| 104 | [timezone-schedule](../../concepts/100-scheduling/104-timezone-schedule/) | A cron schedule pinned to a wall clock (`TimeZoneId = "Europe/Ljubljana"`), DST-safe |
 | 105 | [schedule-control](../../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `operations.Schedules` |
 | 106 | [schedule-misfire](../../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip` and `FireOnceCatchUp` move overdue cursor rows differently |
 | 201 | [durable-checkout](../../concepts/200-durable-execution/201-durable-checkout/) | **Engineering Lab flagship.** Durable orchestration as inspectable jobs, steps, checkpoints, events, and results |
@@ -166,7 +166,7 @@ independent jobs through enqueue operations.
 | 214 | [reset-state](../../concepts/200-durable-execution/214-reset-state/) | A recurring monitor uses durable state, then `ctx.ResetStateAsync` so the next fire starts blank |
 | 215 | [map-parallel-join](../../concepts/200-durable-execution/215-map-parallel-join/) | `ParallelAsync`, `MapAsync`, and `JoinAsync` fan out child jobs and wait, all over the same latches |
 | 216 | [variable-lifecycle](../../concepts/200-durable-execution/216-variable-lifecycle/) | Durable-variable lifecycle: `GetOrSet` (compute-once), `Exists`, `Delete`, defaults, raw `JobPayload` |
-| 217 | [absolute-time-controls](../../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `NextExecutionAt`, `SleepUntilAsync`, `RescheduleUntilAsync` |
+| 217 | [absolute-time-controls](../../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `NextRunAt`, `SleepUntilAsync`, `RescheduleUntilAsync` |
 | 218 | [global-lock](../../concepts/200-durable-execution/218-global-lock/) | A `LockScope.Global` lock serializes jobs across namespaces (vs 207's namespace scope) |
 | 219 | [child-failure-outcomes](../../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `JoinOutcome`/`MapOutcome` and `ThrowIfAnyFailed` |
 | 220 | [at-most-once-step](../../concepts/200-durable-execution/220-at-most-once-step/) | **Engineering Lab.** Real process loss after a side effect: refuse body replay, surface ambiguity, reconcile |

@@ -14,16 +14,16 @@ public sealed class JobEnqueueOptionsBuilderTests
         var when = DateTimeOffset.UtcNow.AddHours(1);
 
         var options = new JobEnqueueOptionsBuilder()
-            .Namespace("payments")
+            .JobNamespace("payments")
             .DeduplicationKey("invoice-1")
             .CorrelationKey("corr-1")
             .ExclusiveKey("acct-7")
             .Priority(JobPriorityCode.High)
-            .NextExecutionAt(when)
+            .NextRunAt(when)
             .Tag("team", "payments")
             .Build();
 
-        Assert.Equal("payments", options.Namespace);
+        Assert.Equal("payments", options.JobNamespace);
         Assert.Equal("invoice-1", options.DeduplicationKey);
         Assert.Equal("corr-1", options.CorrelationKey);
         Assert.Equal("acct-7", options.ExclusiveKey);
@@ -39,7 +39,7 @@ public sealed class JobEnqueueOptionsBuilderTests
     {
         var options = new JobEnqueueOptionsBuilder().Build();
 
-        Assert.Null(options.Namespace);
+        Assert.Null(options.JobNamespace);
         Assert.Null(options.DeduplicationKey);
         Assert.Null(options.Tags);
         Assert.Null(options.NextRunAtUtc);
@@ -74,10 +74,7 @@ public sealed class JobEnqueueOptionsBuilderTests
     [Fact]
     public void Delayed_sets_relative_delay_seconds_and_clears_absolute_instant()
     {
-        var options = new JobEnqueueOptionsBuilder()
-            .NextExecutionAt(DateTimeOffset.UtcNow.AddHours(1))
-            .Delayed(TimeSpan.FromMinutes(2))
-            .Build();
+        var options = new JobEnqueueOptionsBuilder().NextRunAt(DateTimeOffset.UtcNow.AddHours(1)).Delayed(TimeSpan.FromMinutes(2)).Build();
 
         Assert.Equal(120, options.DelaySeconds);
         Assert.Null(options.NextRunAtUtc);
@@ -93,6 +90,6 @@ public sealed class JobEnqueueOptionsBuilderTests
     [Fact]
     public void Namespace_rejects_non_kebab()
     {
-        Assert.ThrowsAny<ArgumentException>(() => new JobEnqueueOptionsBuilder().Namespace("Not Kebab"));
+        Assert.ThrowsAny<ArgumentException>(() => new JobEnqueueOptionsBuilder().JobNamespace("Not Kebab"));
     }
 }

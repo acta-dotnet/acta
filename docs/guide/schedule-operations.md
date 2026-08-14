@@ -16,7 +16,7 @@ runs when the earliest active cursor is due.
 | --- | --- | --- | --- |
 | Normal recurring fire | Yes, after the firing is handled | No | The schedule reaches its next due instant normally. |
 | Trigger now | No | No | An operator wants one immediate run without changing cadence. |
-| Misfire reconciliation | Yes | At most one coalesced catch-up run | A schedule returns after downtime or resumes after a pause. |
+| MisfireStrategy reconciliation | Yes | At most one coalesced catch-up run | A schedule returns after downtime or resumes after a pause. |
 | Backfill | Not automatically | Yes, explicitly | The application must process named historical periods as separate business work. |
 
 ## Normal recurring cursor
@@ -47,7 +47,7 @@ paused, missing/orphaned, or its slot already has a firing in flight.
 
 ## Catch-up and misfire
 
-Misfire policy answers one narrow question: what should the cursor do when its stored occurrence is
+MisfireStrategy policy answers one narrow question: what should the cursor do when its stored occurrence is
 already in the past?
 
 - `Skip` advances to the first occurrence strictly after now. This is the default.
@@ -58,7 +58,7 @@ already in the past?
 still produce one catch-up execution. The handler can inspect its current data and the triggering
 schedule names, but it does not receive ten synthetic occurrence rows.
 
-Misfire reconciliation occurs when schedules are registered/reloaded and when a paused schedule is
+MisfireStrategy reconciliation occurs when schedules are registered/reloaded and when a paused schedule is
 resumed. A timed pause uses the same policy when it expires.
 
 ## Backfill

@@ -37,7 +37,7 @@ public class JobExplainerTests
             LeaseExpiresAtUtc: leaseExpiresAtUtc,
             WorkerDeploymentVersion: workerDeploymentVersion,
             WorkerStatus: workerStatus,
-            WorkerLastSeenAtUtc: workerLastSeenAtUtc,
+            WorkerLastHeartbeatAtUtc: workerLastSeenAtUtc,
             LatestReasonCode: latestReasonCode,
             LatestReasonMessage: latestReasonMessage,
             LastExecutedByWorkerId: lastExecutedByWorkerId,

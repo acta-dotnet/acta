@@ -77,7 +77,7 @@ internal static class NextOccurrenceCalculator
     }
 
     /// <summary>
-    /// Misfire-aware reconciliation for startup / resume / restart. New schedules (null stored
+    /// MisfireStrategy-aware reconciliation for startup / resume / restart. New schedules (null stored
     /// cursor) seed from the first occurrence after now. An un-missed stored cursor (still ahead of
     /// now) is kept. A missed cursor either fires once now (<see cref="MisfireStrategyCode.FireOnceCatchUp"/>,
     /// keep the past instant so the next fire coalesces all misses) or skips to the first occurrence

@@ -103,7 +103,7 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         // behind as the live descendant the purge guard must see.
         var parentId = await EnqueueAsync(ct);
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentId: parentId),
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentJobId: parentId),
             ct
         );
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parentId, ct));

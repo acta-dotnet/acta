@@ -60,8 +60,8 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                         JobName: PingJobName,
                         ScheduleName: FastScheduleName,
                         Expression: "PT30S",
-                        TimeZone: null,
-                        Misfire: MisfireStrategyCode.Skip,
+                        TimeZoneId: null,
+                        MisfireStrategy: MisfireStrategyCode.Skip,
                         ExpressionKind: ScheduleExpressionKindCode.Interval,
                         Description: null,
                         Environments: []
@@ -70,8 +70,8 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                         JobName: PingJobName,
                         ScheduleName: SlowScheduleName,
                         Expression: "PT50S",
-                        TimeZone: null,
-                        Misfire: MisfireStrategyCode.Skip,
+                        TimeZoneId: null,
+                        MisfireStrategy: MisfireStrategyCode.Skip,
                         ExpressionKind: ScheduleExpressionKindCode.Interval,
                         Description: null,
                         Environments: []

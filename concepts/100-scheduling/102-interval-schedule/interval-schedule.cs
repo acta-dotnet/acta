@@ -20,7 +20,7 @@ namespace Acta.Concepts.IntervalSchedule
     public sealed class HeartbeatJob
     {
         // A schedule can be cron or an interval duration - the human form ("10s") or ISO 8601 ("PT10S",
-        // and calendar forms like "P1D"). An interval has no wall-clock anchor, so it ignores TimeZone.
+        // and calendar forms like "P1D"). An interval has no wall-clock anchor, so it ignores TimeZoneId.
         [Job("heartbeat")]
         [JobSchedule("every-10-seconds", "10s")]
         public void Handle(Heartbeat input) => Console.WriteLine($"{DateTime.Now:HH:mm:ss} heartbeat");

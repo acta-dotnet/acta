@@ -798,13 +798,13 @@
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobResultAsync`
 
 ### Relative delay resolves on the DB clock; absolute run-at is preserved
-- **Contract:** Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextExecutionAt persists the absolute caller instant.
+- **Contract:** Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant.
 - **Arrange:** The add-numbers job definition is registered in the test namespace.
 - **Act:** Jobs are enqueued with a relative delay, an absolute run-at, a Local-kind run-at, and with both delay channels set at once.
 - **Assert:** The relative delay resolves to the database clock plus the delay, absolute instants persist verbatim, and setting both channels is rejected.
 - **Guarantees:**
   - Relative delay resolves next_run_at_utc to db_now plus the delay, not the caller clock
-  - Absolute NextExecutionAt persists the caller instant verbatim
+  - Absolute NextRunAt persists the caller instant verbatim
   - Local-kind run-at is converted to UTC, not relabeled
   - Setting both delay channels is rejected before any SQL
   - Builders map relative delay to an integer, round sub-second up, and clear the other channel last-write-wins

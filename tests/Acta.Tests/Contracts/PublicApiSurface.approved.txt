@@ -713,10 +713,10 @@ sealed class Acta.EventListItem
 enum Acta.ExecutionBehavior
     Cancelled = 5
     Controlled = 3
-    Failure = 4
+    Failed = 4
     Indeterminate = 6
     Live = 1
-    Success = 2
+    Succeeded = 2
 enum Acta.ExecutionProfile
     Buffered = 0
     Bulk = 2
@@ -1283,11 +1283,11 @@ class Acta.JobEnqueueOptions
     System.Nullable<Acta.JobPriorityCode> Priority { get;init; }
     System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
     System.Nullable<System.Int32> DelaySeconds { get;init; }
-    System.Nullable<System.Int64> ParentId { get;init; }
+    System.Nullable<System.Int64> ParentJobId { get;init; }
     System.String CorrelationKey { get;init; }
     System.String DeduplicationKey { get;init; }
     System.String ExclusiveKey { get;init; }
-    System.String Namespace { get;init; }
+    System.String JobNamespace { get;init; }
     System.String TenantKey { get;init; }
 sealed class Acta.JobEnqueueOptionsBuilder
     .ctor()
@@ -1296,9 +1296,9 @@ sealed class Acta.JobEnqueueOptionsBuilder
     Acta.JobEnqueueOptionsBuilder DeduplicationKey(System.String deduplicationKey)
     Acta.JobEnqueueOptionsBuilder Delayed(System.TimeSpan delay)
     Acta.JobEnqueueOptionsBuilder ExclusiveKey(System.String exclusiveKey)
-    Acta.JobEnqueueOptionsBuilder Namespace(System.String namespaceName)
-    Acta.JobEnqueueOptionsBuilder NextExecutionAt(System.DateTimeOffset utc)
-    Acta.JobEnqueueOptionsBuilder ParentId(System.Int64 parentJobId)
+    Acta.JobEnqueueOptionsBuilder JobNamespace(System.String namespaceName)
+    Acta.JobEnqueueOptionsBuilder NextRunAt(System.DateTimeOffset utc)
+    Acta.JobEnqueueOptionsBuilder ParentJobId(System.Int64 parentJobId)
     Acta.JobEnqueueOptionsBuilder Priority(Acta.JobPriorityCode priority)
     Acta.JobEnqueueOptionsBuilder Tag(System.String name, System.String value = default)
     Acta.JobEnqueueOptionsBuilder TenantKey(System.String tenantKey, System.Boolean overrideParent = default)
@@ -1308,14 +1308,14 @@ sealed class Acta.JobEnqueueOutcome
     Acta.JobRef JobRef { get;init; }
     System.Int64 JobId { get;init; }
 sealed class Acta.JobEnqueueRequest
-    .ctor(System.String JobNamespace, System.String JobName, Acta.JobPayload Input = default, System.String DeduplicationKey = default, System.String CorrelationKey = default, System.String ExclusiveKey = default, System.Nullable<Acta.JobPriorityCode> Priority = default, System.Nullable<System.DateTime> NextRunAtUtc = default, System.Nullable<System.Int32> DelaySeconds = default, System.Collections.Generic.IReadOnlyList<Acta.TagInput> Tags = default, System.Nullable<System.Int64> ParentId = default, System.String TenantKey = default, System.Boolean OverrideParentTenant = default)
+    .ctor(System.String JobNamespace, System.String JobName, Acta.JobPayload Input = default, System.String DeduplicationKey = default, System.String CorrelationKey = default, System.String ExclusiveKey = default, System.Nullable<Acta.JobPriorityCode> Priority = default, System.Nullable<System.DateTime> NextRunAtUtc = default, System.Nullable<System.Int32> DelaySeconds = default, System.Collections.Generic.IReadOnlyList<Acta.TagInput> Tags = default, System.Nullable<System.Int64> ParentJobId = default, System.String TenantKey = default, System.Boolean OverrideParentTenant = default)
     Acta.JobPayload Input { get;init; }
     System.Boolean OverrideParentTenant { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagInput> Tags { get;init; }
     System.Nullable<Acta.JobPriorityCode> Priority { get;init; }
     System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
     System.Nullable<System.Int32> DelaySeconds { get;init; }
-    System.Nullable<System.Int64> ParentId { get;init; }
+    System.Nullable<System.Int64> ParentJobId { get;init; }
     System.String CorrelationKey { get;init; }
     System.String DeduplicationKey { get;init; }
     System.String ExclusiveKey { get;init; }
@@ -1371,12 +1371,12 @@ sealed class Acta.JobExplainAction
     System.String Description { get;init; }
     System.String Kind { get;init; }
 sealed class Acta.JobExplainLease
-    .ctor(System.Int32 WorkerId, System.String WorkerName, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastSeenAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation)
+    .ctor(System.Int32 WorkerId, System.String WorkerName, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastHeartbeatAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation)
     System.Boolean Expired { get;init; }
     System.Boolean WorkerStale { get;init; }
     System.Int32 WorkerId { get;init; }
     System.Nullable<System.DateTime> ExpiresAtUtc { get;init; }
-    System.Nullable<System.DateTime> WorkerLastSeenAtUtc { get;init; }
+    System.Nullable<System.DateTime> WorkerLastHeartbeatAtUtc { get;init; }
     System.String RecoveryExpectation { get;init; }
     System.String WorkerName { get;init; }
 sealed class Acta.JobExplainStep
@@ -1599,9 +1599,9 @@ sealed class Acta.JobRequestBuilder
     Acta.JobRequestBuilder Delayed(System.TimeSpan delay)
     Acta.JobRequestBuilder ExclusiveKey(System.String exclusiveKey)
     Acta.JobRequestBuilder Json<T>(T value)
-    Acta.JobRequestBuilder NextExecutionAt(System.DateTimeOffset utc)
+    Acta.JobRequestBuilder NextRunAt(System.DateTimeOffset utc)
     Acta.JobRequestBuilder NoPayload()
-    Acta.JobRequestBuilder ParentId(System.Int64 parentJobId)
+    Acta.JobRequestBuilder ParentJobId(System.Int64 parentJobId)
     Acta.JobRequestBuilder Payload(Acta.JobPayload payload)
     Acta.JobRequestBuilder Priority(Acta.JobPriorityCode priority)
     Acta.JobRequestBuilder Tag(System.String name, System.String value = default)
@@ -1610,11 +1610,11 @@ sealed class Acta.JobRequestBuilder
     Acta.JobRequestBuilder Text(System.String value)
 sealed class Acta.JobScheduleAttribute
     .ctor(System.String name, System.String expression)
-    Acta.MisfireStrategyCode Misfire { get;init; }
+    Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     System.String Description { get;init; }
     System.String Expression { get; }
     System.String Name { get; }
-    System.String TimeZone { get;init; }
+    System.String TimeZoneId { get;init; }
     System.String[] Environments { get;init; }
 enum Acta.JobStatusCode
     Cancelled = 220
@@ -1981,15 +1981,15 @@ sealed class Acta.ScheduleControlResult
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.ScheduleDescriptor
-    .ctor(System.String JobName, System.String ScheduleName, System.String Expression, System.String TimeZone, Acta.MisfireStrategyCode Misfire, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Description, System.Collections.Immutable.ImmutableArray<System.String> Environments)
-    Acta.MisfireStrategyCode Misfire { get;init; }
+    .ctor(System.String JobName, System.String ScheduleName, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Description, System.Collections.Immutable.ImmutableArray<System.String> Environments)
+    Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
     System.Collections.Immutable.ImmutableArray<System.String> Environments { get;init; }
     System.String Description { get;init; }
     System.String Expression { get;init; }
     System.String JobName { get;init; }
     System.String ScheduleName { get;init; }
-    System.String TimeZone { get;init; }
+    System.String TimeZoneId { get;init; }
 enum Acta.ScheduleExpressionKindCode
     Cron = 10
     Interval = 20
@@ -2009,7 +2009,7 @@ sealed class Acta.ScheduleExpressionKindCodeJsonConverter
     Acta.ScheduleExpressionKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleExpressionKindCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.ScheduleListItem
-    .ctor(System.Int64 JobScheduleId, System.Int64 JobId, System.Int32 JobDefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZone, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastOccurrenceAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    .ctor(System.Int64 JobScheduleId, System.Int64 JobId, System.Int32 JobDefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastRunAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
     Acta.ScheduleOriginCode Origin { get;init; }
@@ -2020,14 +2020,14 @@ sealed class Acta.ScheduleListItem
     System.Int32 Version { get;init; }
     System.Int64 JobId { get;init; }
     System.Int64 JobScheduleId { get;init; }
-    System.Nullable<System.DateTime> LastOccurrenceAtUtc { get;init; }
+    System.Nullable<System.DateTime> LastRunAtUtc { get;init; }
     System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
     System.String Expression { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String ScheduleName { get;init; }
-    System.String TimeZone { get;init; }
+    System.String TimeZoneId { get;init; }
 sealed class Acta.ScheduleLookup
     .ctor(Acta.JobLookup Job, System.String ScheduleName)
     Acta.JobLookup Job { get;init; }
@@ -2190,7 +2190,6 @@ sealed class Acta.TagSet
     Acta.TagItem this[System.Int32] { get; }
     System.Collections.Generic.IEnumerator<Acta.TagItem> GetEnumerator()
     System.Collections.Generic.IReadOnlyList<Acta.TagItem> Items { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.TagItem> Tags { get; }
     System.Int32 Count { get; }
 sealed class Acta.TagTarget
     Acta.TagTarget ForAlert(System.Int64 alertId)
@@ -2250,11 +2249,11 @@ sealed class Acta.WorkerDetail
     System.String Host { get;init; }
     System.String JobNamespace { get;init; }
 sealed class Acta.WorkerListItem
-    .ctor(System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastSeenAtUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
+    .ctor(System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastHeartbeatAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.WorkerStatusCode Status { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime LastSeenAtUtc { get;init; }
+    System.DateTime LastHeartbeatAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
+    System.DateTime StartedAtUtc { get;init; }
     System.Int32 MaxConcurrency { get;init; }
     System.Int32 WorkerId { get;init; }
     System.Nullable<System.Int32> ProcessId { get;init; }

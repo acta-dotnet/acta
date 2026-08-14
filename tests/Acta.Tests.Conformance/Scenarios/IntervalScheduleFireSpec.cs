@@ -60,8 +60,8 @@ public sealed class IntervalPingManifest : IJobManifest
                         JobName: PingJobName,
                         ScheduleName: PingScheduleName,
                         Expression: "PT30S",
-                        TimeZone: null,
-                        Misfire: MisfireStrategyCode.Skip,
+                        TimeZoneId: null,
+                        MisfireStrategy: MisfireStrategyCode.Skip,
                         ExpressionKind: ScheduleExpressionKindCode.Interval,
                         Description: null,
                         Environments: []

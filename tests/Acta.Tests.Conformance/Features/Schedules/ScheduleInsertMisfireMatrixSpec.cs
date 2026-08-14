@@ -76,7 +76,7 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
 
         var row = await ScheduleRowAsync(slotId, ct);
         Assert.Equal(At(expectedOffset), row.NextRunAtUtc);
-        Assert.Equal(misfire, row.Misfire);
+        Assert.Equal(misfire, row.MisfireStrategy);
     }
 
     [Fact(DisplayName = "Re-registration upserts the single schedule row and its misfire code rather than duplicating it")]

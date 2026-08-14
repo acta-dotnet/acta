@@ -18,7 +18,7 @@
     status,
     version,
     expression = '',
-    timeZone = '',
+    timeZoneId = '',
     mode = 'all',
     onChanged = () => {}
   }: {
@@ -28,7 +28,7 @@
     status: string;
     version: number;
     expression?: string;
-    timeZone?: string;
+    timeZoneId?: string;
     mode?: 'all' | 'editor' | 'actions';
     onChanged?: () => void;
   } = $props();
@@ -151,7 +151,7 @@
   $effect(() => {
     if (overridesOpen) return;
     expressionInput = expression;
-    timeZoneInput = timeZone;
+    timeZoneInput = timeZoneId;
   });
 
   function toggleOverrides() {

@@ -4,7 +4,7 @@ namespace Acta;
 /// Ready-made cron expressions for <see cref="JobScheduleAttribute"/>. Cronos dialect: five fields
 /// (<c>minute hour day-of-month month day-of-week</c>), with a six-field <c>second ...</c> variant for
 /// sub-minute cadence. Day-of-week is <c>0 = Sunday</c> through <c>6 = Saturday</c>. Clock-time
-/// entries fire in the schedule's <see cref="JobScheduleAttribute.TimeZone"/> (default UTC).
+/// entries fire in the schedule's <see cref="JobScheduleAttribute.TimeZoneId"/> (default UTC).
 /// Interval entries (<c>*/N</c>) align to the clock, not to schedule registration:
 /// <see cref="Every5Minutes"/> fires at minutes 0, 5, 10, ... of each hour.
 /// </summary>

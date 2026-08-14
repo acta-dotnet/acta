@@ -267,20 +267,20 @@ internal sealed class WorkerRuntimeInitializer(
 
             foreach (var schedule in descriptor.Schedules)
             {
-                if (schedule.ExpressionKind != ScheduleExpressionKindCode.Cron || string.IsNullOrWhiteSpace(schedule.TimeZone))
+                if (schedule.ExpressionKind != ScheduleExpressionKindCode.Cron || string.IsNullOrWhiteSpace(schedule.TimeZoneId))
                 {
                     continue;
                 }
 
                 try
                 {
-                    _ = TimeZoneInfo.FindSystemTimeZoneById(schedule.TimeZone);
+                    _ = TimeZoneInfo.FindSystemTimeZoneById(schedule.TimeZoneId);
                 }
                 catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
                 {
                     throw new InvalidOperationException(
-                        $"Job '{descriptor.JobName}' schedule '{schedule.ScheduleName}' declares TimeZone "
-                            + $"'{schedule.TimeZone}', which does not resolve on this host. Use an IANA id "
+                        $"Job '{descriptor.JobName}' schedule '{schedule.ScheduleName}' declares TimeZoneId "
+                            + $"'{schedule.TimeZoneId}', which does not resolve on this host. Use an IANA id "
                             + "(e.g. \"Europe/Ljubljana\") or a Windows id known to the OS timezone database.",
                         ex
                     );

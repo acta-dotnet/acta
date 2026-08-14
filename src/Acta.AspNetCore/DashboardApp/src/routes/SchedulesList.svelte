@@ -25,7 +25,7 @@
     scheduleName: string;
     status: string;
     expression: string;
-    timeZone: string;
+    timeZoneId: string;
     misfireStrategy: string;
     nextRunAtUtc: string | null;
     pausedUntilUtc: string | null;
@@ -63,7 +63,7 @@
     { key: 'status', header: 'Status' },
     { key: 'job', header: 'Job' },
     { key: 'expression', header: 'Expression', class: 'mono' },
-    { key: 'timeZone', header: 'Time zone', class: 'mobile-hide' },
+    { key: 'timeZoneId', header: 'Time zone', class: 'mobile-hide' },
     { key: 'misfireStrategy', header: 'Misfire', class: 'mobile-hide' },
     { key: 'nextRunAtUtc', header: 'Next run' },
     { key: 'actions', header: '', class: 'col-open' }

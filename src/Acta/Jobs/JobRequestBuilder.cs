@@ -151,7 +151,7 @@ public sealed class JobRequestBuilder
     /// enqueue), the explicit fixed-wall-clock-time path. Normalized to UTC. Not calling this leaves
     /// the Job claimable immediately. Last-call-wins with <see cref="Delayed"/>, which it clears.
     /// </summary>
-    public JobRequestBuilder NextExecutionAt(DateTimeOffset utc)
+    public JobRequestBuilder NextRunAt(DateTimeOffset utc)
     {
         _nextRunAtUtc = utc.UtcDateTime;
         _delaySeconds = null;
@@ -162,7 +162,7 @@ public sealed class JobRequestBuilder
     /// Delay the earliest claim of the Job by <paramref name="delay"/>, resolved against the database
     /// clock (<c>db_now + delay</c>) at enqueue so the caller's clock never affects scheduling.
     /// <paramref name="delay"/> must be non-negative; rounded up to whole seconds. Last-call-wins with
-    /// <see cref="NextExecutionAt"/>, which it clears.
+    /// <see cref="NextRunAt"/>, which it clears.
     /// </summary>
     public JobRequestBuilder Delayed(TimeSpan delay)
     {
@@ -180,7 +180,7 @@ public sealed class JobRequestBuilder
     /// inherits the parent's lineage root and (when unset) its correlation id and tenant, and
     /// <c>DeduplicationKey</c> dedup becomes sibling-unique per parent.
     /// </summary>
-    public JobRequestBuilder ParentId(long parentJobId)
+    public JobRequestBuilder ParentJobId(long parentJobId)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(parentJobId);
         _parentId = parentJobId;
@@ -260,7 +260,7 @@ public sealed class JobRequestBuilder
             ExclusiveKey = _exclusiveKey,
             NextRunAtUtc = _nextRunAtUtc,
             DelaySeconds = _delaySeconds,
-            ParentId = _parentId,
+            ParentJobId = _parentId,
             TenantKey = _tenantKey,
             OverrideParentTenant = _overrideParentTenant,
         };

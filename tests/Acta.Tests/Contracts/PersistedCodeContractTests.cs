@@ -295,11 +295,11 @@ public sealed class PersistedCodeContractTests
         var expected = new Dictionary<ExecutionStatusCode, ExecutionBehavior>
         {
             [ExecutionStatusCode.Executing] = ExecutionBehavior.Live,
-            [ExecutionStatusCode.Succeeded] = ExecutionBehavior.Success,
+            [ExecutionStatusCode.Succeeded] = ExecutionBehavior.Succeeded,
             [ExecutionStatusCode.Rescheduled] = ExecutionBehavior.Controlled,
             [ExecutionStatusCode.Suspended] = ExecutionBehavior.Controlled,
             [ExecutionStatusCode.Paused] = ExecutionBehavior.Controlled,
-            [ExecutionStatusCode.Failed] = ExecutionBehavior.Failure,
+            [ExecutionStatusCode.Failed] = ExecutionBehavior.Failed,
             [ExecutionStatusCode.Cancelled] = ExecutionBehavior.Cancelled,
             [ExecutionStatusCode.Orphaned] = ExecutionBehavior.Indeterminate,
         };

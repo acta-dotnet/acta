@@ -53,8 +53,8 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                         JobName: JobName,
                         ScheduleName: ScheduleName,
                         Expression: "PT30S",
-                        TimeZone: null,
-                        Misfire: MisfireStrategyCode.Skip,
+                        TimeZoneId: null,
+                        MisfireStrategy: MisfireStrategyCode.Skip,
                         ExpressionKind: ScheduleExpressionKindCode.Interval,
                         Description: null,
                         Environments: []
@@ -141,7 +141,15 @@ public abstract class ScheduledSlotPrioritySpec<TFixture> : ActaRuntimeTestBase<
         var schedules = await Db.From<JobSchedule>().Where(s => s.DefinitionId == definitionId).ToListAsync(ct);
 
         var slotSchedules = schedules
-            .Select(s => new SlotSchedule(s.Name, s.Expression, s.TimeZoneId, s.Misfire, s.ExpressionKind, s.Description, s.NextRunAtUtc))
+            .Select(s => new SlotSchedule(
+                s.Name,
+                s.Expression,
+                s.TimeZoneId,
+                s.MisfireStrategy,
+                s.ExpressionKind,
+                s.Description,
+                s.NextRunAtUtc
+            ))
             .ToList();
 
         var command = new DefinitionSchedules(

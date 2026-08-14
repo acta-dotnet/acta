@@ -8,20 +8,17 @@ public sealed class TagSet : IReadOnlyList<TagItem>
     public TagSet(IReadOnlyList<TagItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
-        Tags = items.OrderBy(static item => item.Name, StringComparer.Ordinal).ToArray();
+        Items = items.OrderBy(static item => item.Name, StringComparer.Ordinal).ToArray();
     }
 
     /// <summary>The tags, ordered by normalized name using ordinal comparison.</summary>
-    public IReadOnlyList<TagItem> Items => Tags;
+    public IReadOnlyList<TagItem> Items { get; }
 
-    /// <summary>Alias for <see cref="Items"/> for object-style serialization and binding.</summary>
-    public IReadOnlyList<TagItem> Tags { get; }
+    public int Count => Items.Count;
 
-    public int Count => Tags.Count;
+    public TagItem this[int index] => Items[index];
 
-    public TagItem this[int index] => Tags[index];
-
-    public IEnumerator<TagItem> GetEnumerator() => Tags.GetEnumerator();
+    public IEnumerator<TagItem> GetEnumerator() => Items.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

@@ -59,7 +59,7 @@ internal sealed class WorkersApi(IWorkerStore store) : IWorkers
         var items = hasMore ? rows.Take(pageSize).ToList() : rows;
 
         var nextCursor = hasMore
-            ? PageCursorCodec.Encode(ListOperationName, OrderWorkers, filterHash, [items[^1].LastSeenAtUtc, items[^1].WorkerId])
+            ? PageCursorCodec.Encode(ListOperationName, OrderWorkers, filterHash, [items[^1].LastHeartbeatAtUtc, items[^1].WorkerId])
             : null;
 
         return new PagedResult<WorkerListItem>(items, nextCursor, hasMore, pageSize, page.Total);

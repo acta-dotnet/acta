@@ -44,7 +44,7 @@ internal sealed class JobWorker : IEntity<int>
 
     /// <summary>
     /// Worker lifecycle status, written by the <c>StartWorker</c> handler at startup. <c>sys.recovery</c>
-    /// flips stale rows to <c>Dead</c> when <see cref="LastSeenAtUtc"/> falls past
+    /// flips stale rows to <c>Dead</c> when <see cref="LastHeartbeatAtUtc"/> falls past
     /// <c>JobsOptions.WorkerDeadAfter</c>, alongside its stuck-job lease reclaim.
     /// </summary>
     [DbColumn("status_code")]
@@ -96,7 +96,7 @@ internal sealed class JobWorker : IEntity<int>
     /// <c>JobsOptions.HeartbeatInterval</c> by <c>WorkerHeartbeat</c> while the worker runs.
     /// </summary>
     [DbColumn("last_seen_at_utc", DbKind.UtcInstant)]
-    public DateTime LastSeenAtUtc { get; set; }
+    public DateTime LastHeartbeatAtUtc { get; set; }
 
     /// <summary>
     /// Process start time.

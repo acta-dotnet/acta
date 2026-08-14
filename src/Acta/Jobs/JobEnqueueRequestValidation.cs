@@ -96,21 +96,21 @@ internal static class JobEnqueueRequestValidation
 
     private static void ValidateParentId(JobEnqueueRequest request, string paramName)
     {
-        if (request.ParentId is <= 0)
+        if (request.ParentJobId is <= 0)
         {
             throw new ArgumentOutOfRangeException(
-                Field(paramName, nameof(JobEnqueueRequest.ParentId)),
-                request.ParentId,
-                "ParentId must be positive."
+                Field(paramName, nameof(JobEnqueueRequest.ParentJobId)),
+                request.ParentJobId,
+                "ParentJobId must be positive."
             );
         }
 
         // The override is a cross-tenant CHILD opt-in: without a parent there is no tenant to cross,
         // and without an explicit key there is nothing to override with.
-        if (request.OverrideParentTenant && (request.ParentId is null || request.TenantKey is null))
+        if (request.OverrideParentTenant && (request.ParentJobId is null || request.TenantKey is null))
         {
             throw new ArgumentException(
-                "OverrideParentTenant requires both a ParentId and an explicit TenantKey.",
+                "OverrideParentTenant requires both a ParentJobId and an explicit TenantKey.",
                 Field(paramName, nameof(JobEnqueueRequest.OverrideParentTenant))
             );
         }

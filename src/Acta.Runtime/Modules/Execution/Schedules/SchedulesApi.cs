@@ -77,9 +77,9 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         var t = ctx.Target;
         var reconciled = NextOccurrenceCalculator.Reconcile(
             t.Expression,
-            t.TimeZone,
+            t.TimeZoneId,
             t.ExpressionKind,
-            t.Misfire,
+            t.MisfireStrategy,
             t.NextRunAtUtc,
             ctx.NowUtc
         );
@@ -133,7 +133,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         var simulated = Simulate(
             ctx.Live,
             t.Id,
-            s => s with { Expression = effectiveExpression, TimeZone = effectiveTimeZone, NextRunAtUtc = scheduleNextRun }
+            s => s with { Expression = effectiveExpression, TimeZoneId = effectiveTimeZone, NextRunAtUtc = scheduleNextRun }
         );
         var jobNextRun = ScheduleWalker.RecomputeSlotMin(simulated, ctx.NowUtc);
 
@@ -193,8 +193,8 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         }
 
         var t = ctx.Target;
-        var nextRuns = NextOccurrenceCalculator.Walk(t.Expression, t.TimeZone, t.ExpressionKind, ctx.NowUtc, count);
-        return new SchedulePreview(t.Expression, t.TimeZone ?? "UTC", nextRuns);
+        var nextRuns = NextOccurrenceCalculator.Walk(t.Expression, t.TimeZoneId, t.ExpressionKind, ctx.NowUtc, count);
+        return new SchedulePreview(t.Expression, t.TimeZoneId ?? "UTC", nextRuns);
     }
 
     public async ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default)
@@ -342,12 +342,12 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         {
             parts.Add($"expression {t.Expression} -> {newExpression}");
         }
-        if (t.TimeZone != newTimeZone)
+        if (t.TimeZoneId != newTimeZone)
         {
             parts.Add(
                 newTimeZone is null ? "tz cleared"
-                : t.TimeZone is null ? $"tz set to {newTimeZone}"
-                : $"tz {t.TimeZone} -> {newTimeZone}"
+                : t.TimeZoneId is null ? $"tz set to {newTimeZone}"
+                : $"tz {t.TimeZoneId} -> {newTimeZone}"
             );
         }
         return parts.Count == 0 ? $"{t.Name}: overrides unchanged" : $"{t.Name}: {string.Join("; ", parts)}";

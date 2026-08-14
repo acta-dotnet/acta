@@ -6741,7 +6741,7 @@
           "workerName",
           "expiresAtUtc",
           "expired",
-          "workerLastSeenAtUtc",
+          "workerLastHeartbeatAtUtc",
           "workerStale",
           "recoveryExpectation"
         ],
@@ -6771,7 +6771,7 @@
           "expired": {
             "type": "boolean"
           },
-          "workerLastSeenAtUtc": {
+          "workerLastHeartbeatAtUtc": {
             "type": [
               "null",
               "string"
@@ -8062,10 +8062,10 @@
           "origin",
           "expressionKind",
           "expression",
-          "timeZone",
+          "timeZoneId",
           "misfireStrategy",
           "nextRunAtUtc",
-          "lastOccurrenceAtUtc",
+          "lastRunAtUtc",
           "status",
           "pausedUntilUtc",
           "createdAtUtc",
@@ -8125,12 +8125,12 @@
             "type": "string",
             "description": "Effective schedule expression."
           },
-          "timeZone": {
+          "timeZoneId": {
             "type": "string",
             "description": "Effective IANA time zone id."
           },
           "misfireStrategy": {
-            "description": "Misfire handling.",
+            "description": "MisfireStrategy handling.",
             "$ref": "#/components/schemas/MisfireStrategyCode"
           },
           "nextRunAtUtc": {
@@ -8141,7 +8141,7 @@
             "description": "Next computed fire instant, or null.",
             "format": "date-time"
           },
-          "lastOccurrenceAtUtc": {
+          "lastRunAtUtc": {
             "type": [
               "null",
               "string"
@@ -8408,8 +8408,8 @@
           "dotnetVersion",
           "processId",
           "maxConcurrency",
-          "lastSeenAtUtc",
-          "createdAtUtc",
+          "lastHeartbeatAtUtc",
+          "startedAtUtc",
           "modifiedAtUtc"
         ],
         "type": "object",
@@ -8472,12 +8472,12 @@
             "description": "Effective per-process executor cap reported at start.",
             "format": "int32"
           },
-          "lastSeenAtUtc": {
+          "lastHeartbeatAtUtc": {
             "type": "string",
             "description": "Last heartbeat instant.",
             "format": "date-time"
           },
-          "createdAtUtc": {
+          "startedAtUtc": {
             "type": "string",
             "description": "Worker start instant.",
             "format": "date-time"

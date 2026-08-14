@@ -29,7 +29,7 @@ public sealed class JobsOptions
     public int AlertRetentionDays { get; set; } = 90;
 
     /// <summary>
-    /// How long Dead <c>JobWorker</c> rows are retained past <c>LastSeenAtUtc</c> before
+    /// How long Dead <c>JobWorker</c> rows are retained past <c>LastHeartbeatAtUtc</c> before
     /// <c>sys.retention</c> sweeps them. Default 90 days.
     /// </summary>
     public TimeSpan WorkerRetention { get; set; } = TimeSpan.FromDays(90);

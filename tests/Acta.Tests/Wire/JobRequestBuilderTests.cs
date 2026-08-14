@@ -119,15 +119,15 @@ public class JobRequestBuilderTests
     [Fact]
     public void ParentId_assigns_field()
     {
-        var built = JobRequestBuilder.Create(Ns, Name).ParentId(42).Build();
-        Assert.Equal(42, built.ParentId);
+        var built = JobRequestBuilder.Create(Ns, Name).ParentJobId(42).Build();
+        Assert.Equal(42, built.ParentJobId);
     }
 
     [Fact]
     public void Default_ParentId_is_null()
     {
         var built = JobRequestBuilder.Create(Ns, Name).Build();
-        Assert.Null(built.ParentId);
+        Assert.Null(built.ParentJobId);
     }
 
     [Theory]
@@ -135,7 +135,7 @@ public class JobRequestBuilderTests
     [InlineData(-1)]
     public void ParentId_rejects_non_positive(long parentJobId)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => JobRequestBuilder.Create(Ns, Name).ParentId(parentJobId));
+        Assert.Throws<ArgumentOutOfRangeException>(() => JobRequestBuilder.Create(Ns, Name).ParentJobId(parentJobId));
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class JobRequestBuilderTests
     public void NextExecutionAt_normalizes_to_UTC()
     {
         var local = new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.FromHours(2));
-        var built = JobRequestBuilder.Create(Ns, Name).NextExecutionAt(local).Build();
+        var built = JobRequestBuilder.Create(Ns, Name).NextRunAt(local).Build();
         Assert.Equal(local.UtcDateTime, built.NextRunAtUtc);
         Assert.Equal(DateTimeKind.Utc, built.NextRunAtUtc!.Value.Kind);
     }
@@ -214,11 +214,11 @@ public class JobRequestBuilderTests
     {
         var at = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
-        var absoluteWins = JobRequestBuilder.Create(Ns, Name).Delayed(TimeSpan.FromHours(1)).NextExecutionAt(at).Build();
+        var absoluteWins = JobRequestBuilder.Create(Ns, Name).Delayed(TimeSpan.FromHours(1)).NextRunAt(at).Build();
         Assert.Equal(at.UtcDateTime, absoluteWins.NextRunAtUtc);
         Assert.Null(absoluteWins.DelaySeconds);
 
-        var relativeWins = JobRequestBuilder.Create(Ns, Name).NextExecutionAt(at).Delayed(TimeSpan.FromHours(1)).Build();
+        var relativeWins = JobRequestBuilder.Create(Ns, Name).NextRunAt(at).Delayed(TimeSpan.FromHours(1)).Build();
         Assert.Equal(3600, relativeWins.DelaySeconds);
         Assert.Null(relativeWins.NextRunAtUtc);
     }

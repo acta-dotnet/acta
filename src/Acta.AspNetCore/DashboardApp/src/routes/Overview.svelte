@@ -262,7 +262,7 @@
                 <td class="mono"><a href={routes.worker(worker.workerId, { namespace: worker.jobNamespace })}>{worker.workerId}</a></td>
                 <td><StatusBadge status={worker.status} /></td>
                 <td>{worker.jobNamespace}</td>
-                <td><RelativeTime value={worker.lastSeenAtUtc} /></td>
+                <td><RelativeTime value={worker.lastHeartbeatAtUtc} /></td>
               </tr>
             {/each}
           </tbody>

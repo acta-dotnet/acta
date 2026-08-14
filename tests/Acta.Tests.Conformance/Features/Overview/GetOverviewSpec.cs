@@ -242,7 +242,10 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         // flip it Dead and inflate DeadWorkerCount (the off-by-one flake).
         await Db.From<JobWorker>()
             .Where(w => w.Id == w2Id)
-            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Draining, LastSeenAtUtc = DateTime.UtcNow.AddHours(-3) }, ct);
+            .UpdateOnlyAsync(
+                () => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-3) },
+                ct
+            );
 
         // ── Narrow-threshold assertion (staleAfterSeconds = 1 h) ─────────────────────────────────
         var ovNarrow = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);

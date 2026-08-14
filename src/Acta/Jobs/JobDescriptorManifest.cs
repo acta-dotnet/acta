@@ -122,8 +122,8 @@ public sealed record ScheduleDescriptor(
     string JobName,
     string ScheduleName,
     string Expression,
-    string? TimeZone,
-    MisfireStrategyCode Misfire,
+    string? TimeZoneId,
+    MisfireStrategyCode MisfireStrategy,
     ScheduleExpressionKindCode ExpressionKind,
     string? Description,
     ImmutableArray<string> Environments

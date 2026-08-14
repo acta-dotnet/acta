@@ -969,7 +969,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             {
                 switch (named.Key)
                 {
-                    case "TimeZone" when named.Value.Value is string tz && !string.IsNullOrWhiteSpace(tz):
+                    case "TimeZoneId" when named.Value.Value is string tz && !string.IsNullOrWhiteSpace(tz):
                         timeZone = tz;
                         break;
                     case "Description" when named.Value.Value is string d && !string.IsNullOrWhiteSpace(d):
@@ -977,7 +977,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                         break;
                     // MisfireStrategyCode is byte-backed; read it through TryGetEnumByte rather than an
                     // `is int` pattern that never matches a boxed byte and silently drops the value.
-                    case "Misfire" when TryGetEnumByte(named.Value, out var mf):
+                    case "MisfireStrategy" when TryGetEnumByte(named.Value, out var mf):
                         misfireName = mf == 20 ? "Skip" : "FireOnceCatchUp";
                         break;
                     case "Environments" when !named.Value.IsNull:
@@ -1580,8 +1580,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             sb.AppendLine($"                            JobName: {Lit(s.JobName)},");
             sb.AppendLine($"                            ScheduleName: {Lit(s.ScheduleName)},");
             sb.AppendLine($"                            Expression: {Lit(s.Expression)},");
-            sb.AppendLine($"                            TimeZone: {LitOrNull(s.TimeZone)},");
-            sb.AppendLine($"                            Misfire: MisfireStrategyCode.{s.MisfireName},");
+            sb.AppendLine($"                            TimeZoneId: {LitOrNull(s.TimeZoneId)},");
+            sb.AppendLine($"                            MisfireStrategy: MisfireStrategyCode.{s.MisfireName},");
             sb.AppendLine($"                            ExpressionKind: ScheduleExpressionKindCode.{s.ExpressionKindName},");
             sb.AppendLine($"                            Description: {LitOrNull(s.Description)},");
             sb.AppendLine($"                            Environments: {envExpr}){trailing}");
@@ -2193,7 +2193,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string JobName,
         string ScheduleName,
         string Expression,
-        string? TimeZone,
+        string? TimeZoneId,
         string MisfireName,
         string ExpressionKindName,
         string? Description,

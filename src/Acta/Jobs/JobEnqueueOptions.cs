@@ -13,7 +13,7 @@ public class JobEnqueueOptions
     /// registered under more than one namespace; when <c>null</c> the type is resolved globally and
     /// resolution throws if it is ambiguous.
     /// </summary>
-    public string? Namespace { get; init; }
+    public string? JobNamespace { get; init; }
 
     /// <summary>
     /// Exact final deduplication key, unique per namespace for root jobs. A second enqueue with the
@@ -62,7 +62,7 @@ public class JobEnqueueOptions
     /// <see cref="DeduplicationKey"/> dedup is scoped to the direct parent (sibling-unique) instead of the
     /// namespace. <c>null</c> = root job.
     /// </summary>
-    public long? ParentId { get; init; }
+    public long? ParentJobId { get; init; }
 
     /// <summary>
     /// Registered tenant this Job is <em>about</em> (the customer / business entity), resolved to a tenant

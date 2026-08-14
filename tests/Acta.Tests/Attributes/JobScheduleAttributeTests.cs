@@ -13,13 +13,13 @@ public sealed class JobScheduleAttributeTests
     public void Misfire_defaults_to_skip_when_unset()
     {
         var attr = new JobScheduleAttribute("nightly", "PT5M");
-        Assert.Equal(MisfireStrategyCode.Skip, attr.Misfire);
+        Assert.Equal(MisfireStrategyCode.Skip, attr.MisfireStrategy);
     }
 
     [Fact]
     public void Time_zone_defaults_to_UTC_when_unset()
     {
         var attr = new JobScheduleAttribute("nightly", "0 0 * * *");
-        Assert.Equal("UTC", attr.TimeZone);
+        Assert.Equal("UTC", attr.TimeZoneId);
     }
 }

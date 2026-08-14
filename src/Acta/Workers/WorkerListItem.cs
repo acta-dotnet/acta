@@ -10,7 +10,7 @@ namespace Acta;
 /// <param name="DotnetVersion">Runtime framework description reported at start (e.g. ".NET 10.0.0").</param>
 /// <param name="ProcessId">OS process id of the worker process.</param>
 /// <param name="MaxConcurrency">Effective per-process executor cap reported at start.</param>
-/// <param name="LastSeenAtUtc">Last heartbeat instant.</param> <param name="CreatedAtUtc">Worker start instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
+/// <param name="LastHeartbeatAtUtc">Last heartbeat instant.</param> <param name="StartedAtUtc">Worker start instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 public sealed record WorkerListItem(
     int WorkerId,
     string JobNamespace,
@@ -21,7 +21,7 @@ public sealed record WorkerListItem(
     string? DotnetVersion,
     int? ProcessId,
     int MaxConcurrency,
-    DateTime LastSeenAtUtc,
-    DateTime CreatedAtUtc,
+    DateTime LastHeartbeatAtUtc,
+    DateTime StartedAtUtc,
     DateTime ModifiedAtUtc
 );

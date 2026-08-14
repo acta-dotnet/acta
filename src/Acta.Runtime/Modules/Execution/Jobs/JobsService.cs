@@ -618,7 +618,7 @@ internal sealed class JobsService(
             ExclusiveKey: request.ExclusiveKey,
             NextRunAtUtc: request.NextRunAtUtc,
             DelaySeconds: request.DelaySeconds,
-            ParentId: request.ParentId,
+            ParentId: request.ParentJobId,
             TenantKey: request.TenantKey,
             OverrideParentTenant: request.OverrideParentTenant
         );

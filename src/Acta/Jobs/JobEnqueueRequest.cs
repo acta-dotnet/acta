@@ -10,7 +10,7 @@ namespace Acta;
 /// <see cref="DelaySeconds"/> a relative delay resolved on the database clock at insert
 /// (<c>db_now + delay</c>), so an enqueue-only frontend's clock never affects scheduling. Both
 /// <c>null</c> means claimable immediately; an instant ahead of now holds the Job at <c>Ready</c>.
-/// A non-null <paramref name="ParentId"/> enqueues the row as a child of that Job: the parent must
+/// A non-null <paramref name="ParentJobId"/> enqueues the row as a child of that Job: the parent must
 /// exist and be non-terminal, the child inherits the parent's lineage root and (when unset) its
 /// correlation id and tenant, and <paramref name="DeduplicationKey"/> dedup becomes sibling-unique.
 /// A non-null <paramref name="TenantKey"/> scopes the Job to that registered tenant; an unknown or
@@ -27,7 +27,7 @@ public sealed record JobEnqueueRequest(
     DateTime? NextRunAtUtc = null,
     int? DelaySeconds = null,
     IReadOnlyList<TagInput>? Tags = null,
-    long? ParentId = null,
+    long? ParentJobId = null,
     string? TenantKey = null,
     bool OverrideParentTenant = false
 );

@@ -197,7 +197,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
                 DeploymentVersion = "test",
                 Host = "test-host",
                 MaxConcurrency = maxConcurrency,
-                LastSeenAtUtc = DateTime.UtcNow,
+                LastHeartbeatAtUtc = DateTime.UtcNow,
             };
 
         Assert.True(await Db.From<JobWorker>().InsertAsync<int>(NewWorker(4), ct) > 0);
@@ -227,7 +227,13 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             ct
         );
         var child = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(7, 8)), Tags: tags, ParentId: parent.JobId),
+            new JobEnqueueRequest(
+                TestNamespace,
+                "add-numbers",
+                JobPayload.Json(new AddNumbers(7, 8)),
+                Tags: tags,
+                ParentJobId: parent.JobId
+            ),
             ct
         );
         await AssertNamespaceAgreementAsync(child.JobId, ct);

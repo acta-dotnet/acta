@@ -120,10 +120,10 @@ internal sealed class JobSchedule : IEntity<long>
     public ScheduleExpressionKindCode ExpressionKind { get; init; }
 
     /// <summary>
-    /// Misfire policy when occurrences are missed during downtime (catch-up once vs. skip).
+    /// MisfireStrategy policy when occurrences are missed during downtime (catch-up once vs. skip).
     /// </summary>
     [DbColumn("misfire_strategy_code")]
-    public MisfireStrategyCode Misfire { get; init; }
+    public MisfireStrategyCode MisfireStrategy { get; init; }
 
     // ---------- Cursor ----------
 
@@ -145,7 +145,7 @@ internal sealed class JobSchedule : IEntity<long>
     /// several schedules share one recurring slot Job.
     /// </summary>
     [DbColumn("last_occurrence_at_utc", DbKind.UtcInstant)]
-    public DateTime? LastOccurrenceAtUtc { get; set; }
+    public DateTime? LastRunAtUtc { get; set; }
 
     // ---------- Operator lifecycle ----------
 

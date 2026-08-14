@@ -72,7 +72,7 @@ public abstract class ListWorkersFilterMatrixSpec<TFixture> : ActaRuntimeTestBas
         // makes the Active partition deterministic.
         await Db.From<JobWorker>()
             .Where(w => w.Id == wRuntimeId)
-            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Active, LastSeenAtUtc = DateTime.UtcNow }, ct);
+            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Active, LastHeartbeatAtUtc = DateTime.UtcNow }, ct);
 
         // Active filter: exact set + total, Stopped and Dead excluded
         var activePage = await queries.Workers.ListAsync(

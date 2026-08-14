@@ -546,7 +546,7 @@ public abstract class JobContext
             NextRunAtUtc: options.NextRunAtUtc,
             DelaySeconds: options.DelaySeconds,
             Tags: options.Tags,
-            ParentId: JobId,
+            ParentJobId: JobId,
             TenantKey: options.TenantKey,
             OverrideParentTenant: options.OverrideParentTenant
         );
@@ -669,7 +669,7 @@ public abstract class JobContext
 
         return new JobEnqueueOptions
         {
-            Namespace = configured?.Namespace,
+            JobNamespace = configured?.JobNamespace,
             DeduplicationKey = name,
             CorrelationKey = configured?.CorrelationKey,
             ExclusiveKey = configured?.ExclusiveKey,
@@ -677,7 +677,7 @@ public abstract class JobContext
             Tags = configured?.Tags,
             NextRunAtUtc = configured?.NextRunAtUtc,
             DelaySeconds = configured?.DelaySeconds,
-            ParentId = JobId,
+            ParentJobId = JobId,
             TenantKey = configured?.TenantKey,
             OverrideParentTenant = configured?.OverrideParentTenant ?? false,
         };

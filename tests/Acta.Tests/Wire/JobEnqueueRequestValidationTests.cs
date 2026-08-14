@@ -56,7 +56,7 @@ public sealed class JobEnqueueRequestValidationTests
             new JobEnqueueRequest(Ns, Name, Tags: [null!]),
             new JobEnqueueRequest(Ns, Name, NextRunAtUtc: DateTime.UtcNow, DelaySeconds: 1),
             new JobEnqueueRequest(Ns, Name, DelaySeconds: -1),
-            new JobEnqueueRequest(Ns, Name, ParentId: 0),
+            new JobEnqueueRequest(Ns, Name, ParentJobId: 0),
             new JobEnqueueRequest(Ns, Name, Priority: (JobPriorityCode)255),
         ];
 }

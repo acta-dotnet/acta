@@ -178,7 +178,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         // Retire it: age last_seen past a positive window, then the global sweep flips it to Dead.
         var agedAt = DateTime.UtcNow.AddHours(-1);
-        await Db.From<JobWorker>().Where(w => w.Id == worker.Id).UpdateOnlyAsync(() => new JobWorker { LastSeenAtUtc = agedAt }, ct);
+        await Db.From<JobWorker>().Where(w => w.Id == worker.Id).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAt }, ct);
         await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(30, ct);
         var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, -1, 1000, 50, ct);
         Assert.Equal(1, purged.Workers);
@@ -353,7 +353,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
                 null,
                 null,
                 null,
-                ParentId: parent.JobId
+                ParentJobId: parent.JobId
             ),
             ct
         );

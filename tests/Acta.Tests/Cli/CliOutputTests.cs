@@ -324,7 +324,7 @@ public class CliOutputTests
                 WorkerName: "payments-v42",
                 ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
                 Expired: true,
-                WorkerLastSeenAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
+                WorkerLastHeartbeatAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
                 WorkerStale: true,
                 RecoveryExpectation: "Recovery should return it to Ready on the next maintenance tick."
             ),

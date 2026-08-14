@@ -141,11 +141,11 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         // Attach descendants through the public ParentId wire: a 3-level chain, plus a finished child
         // that itself has a live grandchild, so the walk must pass through the terminal node.
         var child = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentId: root.JobId),
+            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: root.JobId),
             ct
         );
         var grandchild = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentId: child.JobId),
+            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: child.JobId),
             ct
         );
         var done = await Jobs.EnqueueAsync(
@@ -154,12 +154,12 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),
                 DeduplicationKey: "done",
-                ParentId: root.JobId
+                ParentJobId: root.JobId
             ),
             ct
         );
         var behindDone = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentId: done.JobId),
+            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: done.JobId),
             ct
         );
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(done, ct));
@@ -231,7 +231,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         await Assert.ThrowsAnyAsync<DbException>(async () =>
             await Jobs.EnqueueAsync(
-                new JobEnqueueRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(2)), ParentId: done.JobId),
+                new JobEnqueueRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(2)), ParentJobId: done.JobId),
                 ct
             )
         );
@@ -338,7 +338,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
                     "job-child-echo",
                     JobPayload.Json(new ChildEcho(i)),
                     DeduplicationKey: $"c{i}",
-                    ParentId: root.JobId
+                    ParentJobId: root.JobId
                 ),
                 ct
             );

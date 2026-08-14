@@ -15,7 +15,7 @@ public sealed class ChildJobOptionsTests
 
         var options = Assert.Single(ctx.StartOptions);
         Assert.Equal("tenant-a", options.TenantKey);
-        Assert.Equal(ctx.JobId, options.ParentId);
+        Assert.Equal(ctx.JobId, options.ParentJobId);
         Assert.Equal("send-email", options.DeduplicationKey);
     }
 
@@ -34,7 +34,7 @@ public sealed class ChildJobOptionsTests
 
         var request = Assert.Single(ctx.RawStarted);
         Assert.Equal("tenant-a", request.TenantKey);
-        Assert.Equal(ctx.JobId, request.ParentId);
+        Assert.Equal(ctx.JobId, request.ParentJobId);
         Assert.Equal("send-email", request.DeduplicationKey);
     }
 }

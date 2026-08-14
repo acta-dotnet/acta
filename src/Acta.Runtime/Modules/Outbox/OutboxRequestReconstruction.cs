@@ -3,7 +3,7 @@ namespace Acta.Runtime.Modules.Outbox;
 /// <summary>
 /// Rebuilds the canonical <see cref="JobEnqueueRequest"/> from a claimed <see cref="OutboxRow"/> using
 /// the raw enqueue vocabulary. A null <c>priority_code</c> stays null in the request (no override); the
-/// external table's <c>ParentId</c>-less contract means the reconstructed request is always a root job.
+/// external table's <c>ParentJobId</c>-less contract means the reconstructed request is always a root job.
 /// A malformed <c>meta</c>, missing tag name, an over-cap payload, or an unsupported <c>input_format_id</c>
 /// throws <see cref="OutboxContractException"/> for immediate quarantine.
 /// </summary>
@@ -49,7 +49,7 @@ internal static class OutboxRequestReconstruction
             NextRunAtUtc: row.NextRunAtUtc,
             DelaySeconds: row.DelaySeconds,
             Tags: tags,
-            ParentId: null,
+            ParentJobId: null,
             TenantKey: row.TenantKey
         );
     }

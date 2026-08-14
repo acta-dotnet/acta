@@ -49,8 +49,8 @@ public abstract class ListWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         for (var i = 1; i < seen.Count; i++)
         {
             var ordered =
-                seen[i].LastSeenAtUtc < seen[i - 1].LastSeenAtUtc
-                || (seen[i].LastSeenAtUtc == seen[i - 1].LastSeenAtUtc && seen[i].WorkerId < seen[i - 1].WorkerId);
+                seen[i].LastHeartbeatAtUtc < seen[i - 1].LastHeartbeatAtUtc
+                || (seen[i].LastHeartbeatAtUtc == seen[i - 1].LastHeartbeatAtUtc && seen[i].WorkerId < seen[i - 1].WorkerId);
             Assert.True(ordered, "rows are not in last_seen DESC, id DESC order");
         }
 
@@ -88,8 +88,8 @@ public abstract class ListWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
             var earlier = rows[i - 1];
             var current = rows[i];
             Assert.True(
-                current.LastSeenAtUtc < earlier.LastSeenAtUtc
-                    || (current.LastSeenAtUtc == earlier.LastSeenAtUtc && current.WorkerId < earlier.WorkerId),
+                current.LastHeartbeatAtUtc < earlier.LastHeartbeatAtUtc
+                    || (current.LastHeartbeatAtUtc == earlier.LastHeartbeatAtUtc && current.WorkerId < earlier.WorkerId),
                 "combined page rows are not in last_seen_at_utc DESC, id DESC order"
             );
         }

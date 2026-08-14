@@ -146,7 +146,7 @@ internal sealed class JobsApi(
     private JobEnqueueRequest BuildTypedRequest<TInput>(TInput input, JobEnqueueOptions? options)
         where TInput : notnull
     {
-        var route = typeIndex.Resolve(typeof(TInput), options?.Namespace);
+        var route = typeIndex.Resolve(typeof(TInput), options?.JobNamespace);
         var payload = route.InputFormat.IsNone ? JobPayload.None : serializers.Resolve(route.InputFormat.Id).Serialize(input);
 
         return new JobEnqueueRequest(
@@ -160,7 +160,7 @@ internal sealed class JobsApi(
             Tags: options?.Tags,
             NextRunAtUtc: options?.NextRunAtUtc,
             DelaySeconds: options?.DelaySeconds,
-            ParentId: options?.ParentId,
+            ParentJobId: options?.ParentJobId,
             TenantKey: options?.TenantKey,
             OverrideParentTenant: options?.OverrideParentTenant ?? false
         );
@@ -230,7 +230,7 @@ internal sealed class JobsApi(
     )
     {
         var manifestType = ValidateContract(job);
-        var route = contractIndex.Resolve(manifestType, job.JobName, options?.Namespace);
+        var route = contractIndex.Resolve(manifestType, job.JobName, options?.JobNamespace);
 
         if (route.InputType != typeof(TInput))
         {
@@ -262,7 +262,7 @@ internal sealed class JobsApi(
             NextRunAtUtc: options?.NextRunAtUtc,
             DelaySeconds: options?.DelaySeconds,
             Tags: options?.Tags,
-            ParentId: options?.ParentId,
+            ParentJobId: options?.ParentJobId,
             TenantKey: options?.TenantKey,
             OverrideParentTenant: options?.OverrideParentTenant ?? false
         );
