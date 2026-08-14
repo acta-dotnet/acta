@@ -31,6 +31,7 @@ public sealed class PublicApiContractTests
         "Acta.SqlServer.dll",
         "Acta.Sqlite.dll",
         "Acta.Redis.dll",
+        "Acta.Testing.dll",
     ];
 
     private const string BaselineFile = "tests/Acta.Tests/Contracts/PublicApiSurface.approved.txt";
@@ -63,7 +64,18 @@ public sealed class PublicApiContractTests
             var assembly = Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory, file));
             sb.Append('\n').Append("## ").Append(assembly.GetName().Name).Append('\n');
 
-            foreach (var type in assembly.GetExportedTypes().OrderBy(t => t.FullName, StringComparer.Ordinal))
+            // Types with unspeakable metadata names (they contain '<': the compiler's string-switch
+            // hash-lookup classes nested in the generated *CodeExtensions) are exported but not API:
+            // no consumer can reference them, they carry no [CompilerGenerated] marker, and their
+            // names are content hashes - so without this filter an edit to a [Code] description
+            // string moves this baseline and trains a reflexive re-approve on the one gate whose
+            // whole value is a human reading the diff.
+            foreach (
+                var type in assembly
+                    .GetExportedTypes()
+                    .Where(t => !t.Name.Contains('<', StringComparison.Ordinal))
+                    .OrderBy(t => t.FullName, StringComparer.Ordinal)
+            )
             {
                 sb.Append(Describe(type)).Append('\n');
                 foreach (var member in Members(type))

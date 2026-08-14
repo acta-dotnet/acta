@@ -105,6 +105,155 @@ static class Acta.Sqlite.SqliteOutboxRelayExtensions
 static class Acta.Sqlite.SqliteOutboxStagingExtensions
     System.Threading.Tasks.Task AddToActaOutboxAsync(Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.JobEnqueueRequest request, System.String table = default, System.String schema = default, System.Threading.CancellationToken cancellationToken = default)
 
+## Acta.Testing
+sealed class Acta.Testing.Diagnostics.ScenarioAssertionException
+    .ctor(System.String message)
+sealed class Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot
+    .ctor(System.Int64 JobId, Acta.JobCheckpointKindCode Kind, System.String Name, System.Nullable<Acta.JobCheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Nullable<Acta.JobPayload> Value, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    Acta.JobCheckpointKindCode Kind { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 Version { get;init; }
+    System.Int64 JobId { get;init; }
+    System.Nullable<Acta.JobCheckpointStatusCode> Status { get;init; }
+    System.Nullable<Acta.JobPayload> Value { get;init; }
+    System.Nullable<System.DateTime> DueAtUtc { get;init; }
+    System.String Name { get;init; }
+sealed class Acta.Testing.Diagnostics.ScenarioEventSnapshot
+    .ctor(System.Int64 EventId, Acta.JobEventCode EventCode, System.DateTime CreatedAtUtc, System.String Namespace, System.Nullable<System.Int64> JobId, System.Nullable<System.Int32> ExecutionNumber, Acta.JobActorCode ActorCode, System.String ActorKey, System.Nullable<Acta.JobStatusCode> FromStatus, System.Nullable<Acta.JobStatusCode> ToStatus, System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus, System.Nullable<System.Int32> DurationMs, System.Nullable<Acta.JobEventReasonCode> ReasonCode, System.String ReasonMessage, System.String DetailText)
+    Acta.JobActorCode ActorCode { get;init; }
+    Acta.JobEventCode EventCode { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.Int64 EventId { get;init; }
+    System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus { get;init; }
+    System.Nullable<Acta.JobEventReasonCode> ReasonCode { get;init; }
+    System.Nullable<Acta.JobStatusCode> FromStatus { get;init; }
+    System.Nullable<Acta.JobStatusCode> ToStatus { get;init; }
+    System.Nullable<System.Int32> DurationMs { get;init; }
+    System.Nullable<System.Int32> ExecutionNumber { get;init; }
+    System.Nullable<System.Int64> JobId { get;init; }
+    System.String ActorKey { get;init; }
+    System.String DetailText { get;init; }
+    System.String Namespace { get;init; }
+    System.String ReasonMessage { get;init; }
+sealed class Acta.Testing.Diagnostics.ScenarioJobSnapshot
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String Namespace, System.String JobName, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.Int32 ExecutionNumber, System.Int16 FailureCount, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.Int64> ParentJobId, System.Nullable<System.Int64> LineageRootId, System.String DeduplicationKey, System.String CorrelationKey, System.String ExclusiveKey)
+    Acta.JobPriorityCode Priority { get;init; }
+    Acta.JobRef JobRef { get;init; }
+    Acta.JobStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int16 FailureCount { get;init; }
+    System.Int32 ExecutionNumber { get;init; }
+    System.Int64 JobId { get;init; }
+    System.Nullable<System.DateTime> LeaseExpiresAtUtc { get;init; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
+    System.Nullable<System.Int32> LeasedByWorkerId { get;init; }
+    System.Nullable<System.Int64> LineageRootId { get;init; }
+    System.Nullable<System.Int64> ParentJobId { get;init; }
+    System.String CorrelationKey { get;init; }
+    System.String DeduplicationKey { get;init; }
+    System.String ExclusiveKey { get;init; }
+    System.String JobName { get;init; }
+    System.String Namespace { get;init; }
+sealed class Acta.Testing.Diagnostics.ScenarioStepSnapshot
+    .ctor(System.Int64 StepId, System.Int64 JobId, System.String Name, Acta.JobStepStatusCode Status, System.Int16 AttemptNumber, System.Nullable<System.DateTime> NextRetryAtUtc, System.Nullable<Acta.JobEventReasonCode> ReasonCode, System.String ReasonMessage, System.Nullable<Acta.JobPayload> Result, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    Acta.JobStepStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int16 AttemptNumber { get;init; }
+    System.Int32 Version { get;init; }
+    System.Int64 JobId { get;init; }
+    System.Int64 StepId { get;init; }
+    System.Nullable<Acta.JobEventReasonCode> ReasonCode { get;init; }
+    System.Nullable<Acta.JobPayload> Result { get;init; }
+    System.Nullable<System.DateTime> NextRetryAtUtc { get;init; }
+    System.String Name { get;init; }
+    System.String ReasonMessage { get;init; }
+sealed class Acta.Testing.Hosting.ActaRecoveryOutcome
+    .ctor(System.Int32 DeadWorkersMarked, System.Int32 ReclaimedJobs, System.Int32 ReleasedChildLatches)
+    System.Int32 DeadWorkersMarked { get;init; }
+    System.Int32 ReclaimedJobs { get;init; }
+    System.Int32 ReleasedChildLatches { get;init; }
+enum Acta.Testing.Hosting.ActaRunOutcome
+    Completed = 2
+    Failed = 3
+    NothingClaimed = 1
+    Rearmed = 4
+static class Acta.Testing.Hosting.ActaTestHost
+    System.Threading.Tasks.Task<Acta.Testing.Hosting.IActaTestHost> StartAsync(System.Action<Acta.IActaBuilder, System.String> configureJobs, Acta.Testing.Hosting.ActaTestHostOptions options = default, System.Threading.CancellationToken ct = default)
+sealed class Acta.Testing.Hosting.ActaTestHostOptions
+    .ctor()
+    System.Action<Microsoft.Extensions.DependencyInjection.IServiceCollection> ConfigureServices { get;set; }
+    System.String Schema { get;set; }
+interface Acta.Testing.Hosting.IActaTestHost
+    Acta.IActaOperations Operations { get; }
+    Acta.IJobs Jobs { get; }
+    System.IServiceProvider Services { get; }
+    System.String Schema { get; }
+    System.Threading.Tasks.Task ExpireExecutionLeaseAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceJobDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceStepRetryDueAsync(System.Int64 jobId, System.String name = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceTimerDueAsync(System.Int64 jobId, System.String name = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRecoveryOutcome> RunRecoveryOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(Acta.JobEnqueueOutcome enqueued, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
+static class Acta.Testing.Scenarios.Scenario
+    Acta.Testing.Scenarios.ScenarioContractBuilder<TInput, TResult> For<TInput, TResult>(Acta.JobContract<TInput, TResult> contract, Acta.Testing.Hosting.IActaTestHost host)
+    Acta.Testing.Scenarios.ScenarioContractBuilder<TInput> For<TInput>(Acta.JobContract<TInput> contract, Acta.Testing.Hosting.IActaTestHost host)
+    Acta.Testing.Scenarios.ScenarioNoInputBuilder For(Acta.JobContract<Acta.NoInput> contract, Acta.Testing.Hosting.IActaTestHost host)
+    Acta.Testing.Scenarios.ScenarioNoInputBuilder<TResult> For<TResult>(Acta.JobContract<Acta.NoInput, TResult> contract, Acta.Testing.Hosting.IActaTestHost host)
+    Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput, TResult> For<TInput, TResult>(Acta.Testing.Hosting.IActaTestHost host)
+    Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput> For<TInput>(Acta.Testing.Hosting.IActaTestHost host)
+sealed class Acta.Testing.Scenarios.ScenarioContractBuilder<TInput>
+    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
+sealed class Acta.Testing.Scenarios.ScenarioContractBuilder<TInput, TResult>
+    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput, TResult>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
+sealed class Acta.Testing.Scenarios.ScenarioNoInputBuilder
+    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<Acta.NoInput>> EnqueueAsync(Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
+sealed class Acta.Testing.Scenarios.ScenarioNoInputBuilder<TResult>
+    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<Acta.NoInput, TResult>> EnqueueAsync(Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
+class Acta.Testing.Scenarios.ScenarioSession<TInput>
+    Acta.JobEnqueueOutcome EnqueueOutcome { get; }
+    Acta.JobLookup Lookup { get; }
+    Acta.JobRef JobRef { get; }
+    Acta.Testing.Hosting.IActaTestHost Host { get; }
+    System.Int64 JobId { get; }
+    System.String JobName { get; }
+    System.String Namespace { get; }
+    System.Threading.Tasks.Task ExpireLeaseAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task FastForwardToNextTimerAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task FastForwardToNextTimerAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task FastForwardToStepRetryAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task FastForwardToStepRetryAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task RunUntilDoneAsync(System.Int32 maxTicks = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task RunUntilFailedAsync(System.Int32 maxTicks = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task RunUntilSignalAsync(System.String name = default, System.Int32 maxTicks = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.JobStatusCode> StatusAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioAssertionException> AssertionFailureAsync(System.String summary, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot> SignalAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot> TimerAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioJobSnapshot> JobAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioStepSnapshot> StepAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRecoveryOutcome> RecoverAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot>> CheckpointsAsync(Acta.JobCheckpointKindCode kind, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot>> SignalsAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot>> TimersAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioEventSnapshot>> EventsAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioStepSnapshot>> StepsAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.JobControlResult> RaiseSignalAsync(System.String name, Acta.JobPayload value, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.JobControlResult> RaiseSignalAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.JobControlResult> RaiseSignalAsync<T>(System.String name, T value, System.Threading.CancellationToken ct = default)
+sealed class Acta.Testing.Scenarios.ScenarioSession<TInput, TResult>
+    System.Threading.Tasks.Task AssertResultAsync(TResult expected, System.Collections.Generic.IEqualityComparer<TResult> comparer = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<TResult> ResultAsync(System.Threading.CancellationToken ct = default)
+sealed class Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput>
+    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
+sealed class Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput, TResult>
+    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput, TResult>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
+
 ## Acta
 enum Acta.AdminControlAction
     AlreadyInState = 3
@@ -134,19 +283,6 @@ static class Acta.AlertChannelStatusCodeExtensions
     System.String get_Code(Acta.AlertChannelStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.AlertChannelStatusCode value)
-sealed class Acta.AlertChannelStatusCodeExtensions+<G>$2FA7329C1CA9D0E4B5B267D9D3A1B8CA
-    Acta.AlertChannelStatusCode FromCode(System.String code)
-    Acta.AlertChannelStatusCode FromId(System.Byte id)
-    Acta.CodeCapacityReport Capacity { get; }
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.AlertChannelStatusCodeExtensions+<G>$2FA7329C1CA9D0E4B5B267D9D3A1B8CA+<M>$2FA7329C1CA9D0E4B5B267D9D3A1B8CA
-static class Acta.AlertChannelStatusCodeExtensions+<G>$2FA7329C1CA9D0E4B5B267D9D3A1B8CA+<M>$A3CA978DEF92C3C2A995E12345068CC6
 sealed class Acta.AlertChannelStatusCodeJsonConverter
     .ctor()
     Acta.AlertChannelStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -182,19 +318,6 @@ static class Acta.AlertDeliveryStatusCodeExtensions
     System.String get_Code(Acta.AlertDeliveryStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.AlertDeliveryStatusCode value)
-sealed class Acta.AlertDeliveryStatusCodeExtensions+<G>$DB5613AFEF18FE19B89AAE74B9AA394D
-    Acta.AlertDeliveryStatusCode FromCode(System.String code)
-    Acta.AlertDeliveryStatusCode FromId(System.Byte id)
-    Acta.CodeCapacityReport Capacity { get; }
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.AlertDeliveryStatusCodeExtensions+<G>$DB5613AFEF18FE19B89AAE74B9AA394D+<M>$40DFA2FA65B0623E6E87A1CB3B2BF2BA
-static class Acta.AlertDeliveryStatusCodeExtensions+<G>$DB5613AFEF18FE19B89AAE74B9AA394D+<M>$DB5613AFEF18FE19B89AAE74B9AA394D
 sealed class Acta.AlertDeliveryStatusCodeJsonConverter
     .ctor()
     Acta.AlertDeliveryStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -217,19 +340,6 @@ static class Acta.AlertKindCodeExtensions
     System.String get_Code(Acta.AlertKindCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.AlertKindCode value)
-sealed class Acta.AlertKindCodeExtensions+<G>$D1D89B11E1AC7BEFA0CFA15D20591D8F
-    Acta.AlertKindCode FromCode(System.String code)
-    Acta.AlertKindCode FromId(System.Byte id)
-    Acta.CodeCapacityReport Capacity { get; }
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.AlertKindCodeExtensions+<G>$D1D89B11E1AC7BEFA0CFA15D20591D8F+<M>$3943938773390608EEFA2A8A44A952A2
-static class Acta.AlertKindCodeExtensions+<G>$D1D89B11E1AC7BEFA0CFA15D20591D8F+<M>$D1D89B11E1AC7BEFA0CFA15D20591D8F
 sealed class Acta.AlertKindCodeJsonConverter
     .ctor()
     Acta.AlertKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -260,19 +370,6 @@ static class Acta.AlertOriginCodeExtensions
     System.String get_Code(Acta.AlertOriginCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.AlertOriginCode value)
-sealed class Acta.AlertOriginCodeExtensions+<G>$62AB5BBC23BDCC0EC5D2423E6B473255
-    Acta.AlertOriginCode FromCode(System.String code)
-    Acta.AlertOriginCode FromId(System.Byte id)
-    Acta.CodeCapacityReport Capacity { get; }
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.AlertOriginCodeExtensions+<G>$62AB5BBC23BDCC0EC5D2423E6B473255+<M>$62AB5BBC23BDCC0EC5D2423E6B473255
-static class Acta.AlertOriginCodeExtensions+<G>$62AB5BBC23BDCC0EC5D2423E6B473255+<M>$9CEC56313E51C84804A97E990AECD6C0
 sealed class Acta.AlertOriginCodeJsonConverter
     .ctor()
     Acta.AlertOriginCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -293,19 +390,6 @@ static class Acta.AlertSeverityCodeExtensions
     System.String get_Code(Acta.AlertSeverityCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.AlertSeverityCode value)
-sealed class Acta.AlertSeverityCodeExtensions+<G>$CF15B6D1085360D37C3582C08A87FB3E
-    Acta.AlertSeverityCode FromCode(System.String code)
-    Acta.AlertSeverityCode FromId(System.Byte id)
-    Acta.CodeCapacityReport Capacity { get; }
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.AlertSeverityCodeExtensions+<G>$CF15B6D1085360D37C3582C08A87FB3E+<M>$B87149787152D82802099040543F3511
-static class Acta.AlertSeverityCodeExtensions+<G>$CF15B6D1085360D37C3582C08A87FB3E+<M>$CF15B6D1085360D37C3582C08A87FB3E
 sealed class Acta.AlertSeverityCodeJsonConverter
     .ctor()
     Acta.AlertSeverityCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -447,19 +531,6 @@ static class Acta.DeadlineBehaviorCodeExtensions
     System.String get_Code(Acta.DeadlineBehaviorCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.DeadlineBehaviorCode value)
-sealed class Acta.DeadlineBehaviorCodeExtensions+<G>$EED75ED7EB88FF174637F68D884C41A9
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.DeadlineBehaviorCode FromCode(System.String code)
-    Acta.DeadlineBehaviorCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.DeadlineBehaviorCodeExtensions+<G>$EED75ED7EB88FF174637F68D884C41A9+<M>$B1767FE63BB8CAAAA594841954A12325
-static class Acta.DeadlineBehaviorCodeExtensions+<G>$EED75ED7EB88FF174637F68D884C41A9+<M>$EED75ED7EB88FF174637F68D884C41A9
 sealed class Acta.DeadlineBehaviorCodeJsonConverter
     .ctor()
     Acta.DeadlineBehaviorCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -529,19 +600,6 @@ static class Acta.ExecutionStatusCodeExtensions
     System.String get_Code(Acta.ExecutionStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.ExecutionStatusCode value)
-sealed class Acta.ExecutionStatusCodeExtensions+<G>$BCCD6B0D65E0D0C67EC66EADA65068F5
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.ExecutionStatusCode FromCode(System.String code)
-    Acta.ExecutionStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.ExecutionStatusCodeExtensions+<G>$BCCD6B0D65E0D0C67EC66EADA65068F5+<M>$BCCD6B0D65E0D0C67EC66EADA65068F5
-static class Acta.ExecutionStatusCodeExtensions+<G>$BCCD6B0D65E0D0C67EC66EADA65068F5+<M>$C926097E75FAAC7B358399ECC73F255D
 sealed class Acta.ExecutionStatusCodeJsonConverter
     .ctor()
     Acta.ExecutionStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -550,11 +608,6 @@ static class Acta.ExecutionStatusExtensions
     Acta.ExecutionBehavior GetBehavior(Acta.ExecutionStatusCode value)
     System.Boolean get_ChargesFailureBudget(Acta.ExecutionStatusCode value)
     System.Boolean get_IsTerminal(Acta.ExecutionStatusCode value)
-sealed class Acta.ExecutionStatusExtensions+<G>$BCCD6B0D65E0D0C67EC66EADA65068F5
-    Acta.ExecutionBehavior GetBehavior()
-    System.Boolean ChargesFailureBudget { get; }
-    System.Boolean IsTerminal { get; }
-static class Acta.ExecutionStatusExtensions+<G>$BCCD6B0D65E0D0C67EC66EADA65068F5+<M>$C926097E75FAAC7B358399ECC73F255D
 sealed class Acta.HandlerCancelException
     .ctor(System.String reason = default)
 abstract class Acta.HandlerControlException
@@ -745,19 +798,6 @@ static class Acta.JobActorCodeExtensions
     System.String get_Code(Acta.JobActorCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobActorCode value)
-sealed class Acta.JobActorCodeExtensions+<G>$B0DCA97DFFAF287B366A85499908CACB
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobActorCode FromCode(System.String code)
-    Acta.JobActorCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobActorCodeExtensions+<G>$B0DCA97DFFAF287B366A85499908CACB+<M>$B0DCA97DFFAF287B366A85499908CACB
-static class Acta.JobActorCodeExtensions+<G>$B0DCA97DFFAF287B366A85499908CACB+<M>$CE326A64CE9FF43523D7E874FE943974
 sealed class Acta.JobActorCodeJsonConverter
     .ctor()
     Acta.JobActorCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -799,19 +839,6 @@ static class Acta.JobAlertProfileCodeExtensions
     System.String get_Code(Acta.JobAlertProfileCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobAlertProfileCode value)
-sealed class Acta.JobAlertProfileCodeExtensions+<G>$FF418AE5020D6BAE7B78008495DA21E5
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobAlertProfileCode FromCode(System.String code)
-    Acta.JobAlertProfileCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobAlertProfileCodeExtensions+<G>$FF418AE5020D6BAE7B78008495DA21E5+<M>$803BAD4F0B6BAEA7B22FA93466BD790C
-static class Acta.JobAlertProfileCodeExtensions+<G>$FF418AE5020D6BAE7B78008495DA21E5+<M>$FF418AE5020D6BAE7B78008495DA21E5
 sealed class Acta.JobAlertProfileCodeJsonConverter
     .ctor()
     Acta.JobAlertProfileCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -853,19 +880,6 @@ static class Acta.JobAuditLevelCodeExtensions
     System.String get_Code(Acta.JobAuditLevelCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobAuditLevelCode value)
-sealed class Acta.JobAuditLevelCodeExtensions+<G>$ECA242301364BD70469A62BCA4021254
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobAuditLevelCode FromCode(System.String code)
-    Acta.JobAuditLevelCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobAuditLevelCodeExtensions+<G>$ECA242301364BD70469A62BCA4021254+<M>$1396DDED76D425E80E7FD635ECA05AF3
-static class Acta.JobAuditLevelCodeExtensions+<G>$ECA242301364BD70469A62BCA4021254+<M>$ECA242301364BD70469A62BCA4021254
 sealed class Acta.JobAuditLevelCodeJsonConverter
     .ctor()
     Acta.JobAuditLevelCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -901,19 +915,6 @@ static class Acta.JobCheckpointKindCodeExtensions
     System.String get_Code(Acta.JobCheckpointKindCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobCheckpointKindCode value)
-sealed class Acta.JobCheckpointKindCodeExtensions+<G>$613D1A514C39A102CDD9A058F4A04E1F
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobCheckpointKindCode FromCode(System.String code)
-    Acta.JobCheckpointKindCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobCheckpointKindCodeExtensions+<G>$613D1A514C39A102CDD9A058F4A04E1F+<M>$613D1A514C39A102CDD9A058F4A04E1F
-static class Acta.JobCheckpointKindCodeExtensions+<G>$613D1A514C39A102CDD9A058F4A04E1F+<M>$CAE52A08F4B6874B35994D9B97EDEE56
 sealed class Acta.JobCheckpointKindCodeJsonConverter
     .ctor()
     Acta.JobCheckpointKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -933,19 +934,6 @@ static class Acta.JobCheckpointStatusCodeExtensions
     System.String get_Code(Acta.JobCheckpointStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobCheckpointStatusCode value)
-sealed class Acta.JobCheckpointStatusCodeExtensions+<G>$1E872AAE3D05725D939CE7AAA89ED435
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobCheckpointStatusCode FromCode(System.String code)
-    Acta.JobCheckpointStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobCheckpointStatusCodeExtensions+<G>$1E872AAE3D05725D939CE7AAA89ED435+<M>$1E872AAE3D05725D939CE7AAA89ED435
-static class Acta.JobCheckpointStatusCodeExtensions+<G>$1E872AAE3D05725D939CE7AAA89ED435+<M>$35ED84DF92C095674973E317FF37B70F
 sealed class Acta.JobCheckpointStatusCodeJsonConverter
     .ctor()
     Acta.JobCheckpointStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1141,19 +1129,6 @@ static class Acta.JobDefinitionStatusCodeExtensions
     System.String get_Code(Acta.JobDefinitionStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobDefinitionStatusCode value)
-sealed class Acta.JobDefinitionStatusCodeExtensions+<G>$D9EF69947D5BFF16833CAE31A98BC2E5
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobDefinitionStatusCode FromCode(System.String code)
-    Acta.JobDefinitionStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobDefinitionStatusCodeExtensions+<G>$D9EF69947D5BFF16833CAE31A98BC2E5+<M>$28C28202E1A5505CA0107756CC4DCB70
-static class Acta.JobDefinitionStatusCodeExtensions+<G>$D9EF69947D5BFF16833CAE31A98BC2E5+<M>$D9EF69947D5BFF16833CAE31A98BC2E5
 sealed class Acta.JobDefinitionStatusCodeJsonConverter
     .ctor()
     Acta.JobDefinitionStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1290,19 +1265,6 @@ static class Acta.JobEventCodeExtensions
     System.String get_Code(Acta.JobEventCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobEventCode value)
-sealed class Acta.JobEventCodeExtensions+<G>$0BAC51A4F22528E9EA4EEAE2266C01CD
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobEventCode FromCode(System.String code)
-    Acta.JobEventCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobEventCodeExtensions+<G>$0BAC51A4F22528E9EA4EEAE2266C01CD+<M>$0BAC51A4F22528E9EA4EEAE2266C01CD
-static class Acta.JobEventCodeExtensions+<G>$0BAC51A4F22528E9EA4EEAE2266C01CD+<M>$F920D1C3C17CDAAEB5905FBD9491175C
 sealed class Acta.JobEventCodeJsonConverter
     .ctor()
     Acta.JobEventCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1367,19 +1329,6 @@ static class Acta.JobEventReasonCodeExtensions
     System.String get_Code(Acta.JobEventReasonCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobEventReasonCode value)
-sealed class Acta.JobEventReasonCodeExtensions+<G>$AFD45E9E4F5FD126CC8D67A81241C3DB
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobEventReasonCode FromCode(System.String code)
-    Acta.JobEventReasonCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobEventReasonCodeExtensions+<G>$AFD45E9E4F5FD126CC8D67A81241C3DB+<M>$08A3CAEC2626F7C4ADE8BAB0947BCEF9
-static class Acta.JobEventReasonCodeExtensions+<G>$AFD45E9E4F5FD126CC8D67A81241C3DB+<M>$AFD45E9E4F5FD126CC8D67A81241C3DB
 sealed class Acta.JobEventReasonCodeJsonConverter
     .ctor()
     Acta.JobEventReasonCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1548,19 +1497,6 @@ static class Acta.JobNamespaceStatusCodeExtensions
     System.String get_Code(Acta.JobNamespaceStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobNamespaceStatusCode value)
-sealed class Acta.JobNamespaceStatusCodeExtensions+<G>$07AB434512E48CF37F3B985B870C817A
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobNamespaceStatusCode FromCode(System.String code)
-    Acta.JobNamespaceStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobNamespaceStatusCodeExtensions+<G>$07AB434512E48CF37F3B985B870C817A+<M>$07AB434512E48CF37F3B985B870C817A
-static class Acta.JobNamespaceStatusCodeExtensions+<G>$07AB434512E48CF37F3B985B870C817A+<M>$98CA9C6DDE86381BAB9B47F18F574660
 sealed class Acta.JobNamespaceStatusCodeJsonConverter
     .ctor()
     Acta.JobNamespaceStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1626,19 +1562,6 @@ static class Acta.JobPriorityCodeExtensions
     System.String get_Code(Acta.JobPriorityCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobPriorityCode value)
-sealed class Acta.JobPriorityCodeExtensions+<G>$E270911954307A6506337E458A7762B4
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobPriorityCode FromCode(System.String code)
-    Acta.JobPriorityCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobPriorityCodeExtensions+<G>$E270911954307A6506337E458A7762B4+<M>$D1357E5DF94E4AD07AE414DEEE3BC6AB
-static class Acta.JobPriorityCodeExtensions+<G>$E270911954307A6506337E458A7762B4+<M>$E270911954307A6506337E458A7762B4
 sealed class Acta.JobPriorityCodeJsonConverter
     .ctor()
     Acta.JobPriorityCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1763,19 +1686,6 @@ static class Acta.JobStatusCodeExtensions
     System.String get_Code(Acta.JobStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobStatusCode value)
-sealed class Acta.JobStatusCodeExtensions+<G>$913F9E7E497C304A184668F87DBE3AAC
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobStatusCode FromCode(System.String code)
-    Acta.JobStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobStatusCodeExtensions+<G>$913F9E7E497C304A184668F87DBE3AAC+<M>$913F9E7E497C304A184668F87DBE3AAC
-static class Acta.JobStatusCodeExtensions+<G>$913F9E7E497C304A184668F87DBE3AAC+<M>$B47209FB5F4C6A8D2AF8F187973B40A6
 sealed class Acta.JobStatusCodeJsonConverter
     .ctor()
     Acta.JobStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1784,16 +1694,8 @@ static class Acta.JobStatusExtensions
     System.Boolean get_IsActiveExecution(Acta.JobStatusCode value)
     System.Boolean get_IsClaimable(Acta.JobStatusCode value)
     System.Boolean get_IsTerminal(Acta.JobStatusCode value)
-sealed class Acta.JobStatusExtensions+<G>$913F9E7E497C304A184668F87DBE3AAC
-    System.Boolean IsActiveExecution { get; }
-    System.Boolean IsClaimable { get; }
-    System.Boolean IsTerminal { get; }
-static class Acta.JobStatusExtensions+<G>$913F9E7E497C304A184668F87DBE3AAC+<M>$B47209FB5F4C6A8D2AF8F187973B40A6
 static class Acta.JobStepStateExtensions
     System.Boolean get_IsTerminal(Acta.JobStepStatusCode value)
-sealed class Acta.JobStepStateExtensions+<G>$88D8EB09CA4013523D2A00A3AAD60279
-    System.Boolean IsTerminal { get; }
-static class Acta.JobStepStateExtensions+<G>$88D8EB09CA4013523D2A00A3AAD60279+<M>$4F7ADEEE7C635CBDEEFA1DE0EC94C2F4
 enum Acta.JobStepStatusCode
     Exhausted = 200
     Interrupted = 230
@@ -1810,19 +1712,6 @@ static class Acta.JobStepStatusCodeExtensions
     System.String get_Code(Acta.JobStepStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobStepStatusCode value)
-sealed class Acta.JobStepStatusCodeExtensions+<G>$88D8EB09CA4013523D2A00A3AAD60279
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobStepStatusCode FromCode(System.String code)
-    Acta.JobStepStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobStepStatusCodeExtensions+<G>$88D8EB09CA4013523D2A00A3AAD60279+<M>$4F7ADEEE7C635CBDEEFA1DE0EC94C2F4
-static class Acta.JobStepStatusCodeExtensions+<G>$88D8EB09CA4013523D2A00A3AAD60279+<M>$88D8EB09CA4013523D2A00A3AAD60279
 sealed class Acta.JobStepStatusCodeJsonConverter
     .ctor()
     Acta.JobStepStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1842,19 +1731,6 @@ static class Acta.JobTenantRequirementCodeExtensions
     System.String get_Code(Acta.JobTenantRequirementCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.JobTenantRequirementCode value)
-sealed class Acta.JobTenantRequirementCodeExtensions+<G>$FCEED6439C029E026ADB7A94A32CDAEB
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.JobTenantRequirementCode FromCode(System.String code)
-    Acta.JobTenantRequirementCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.JobTenantRequirementCodeExtensions+<G>$FCEED6439C029E026ADB7A94A32CDAEB+<M>$BCD853459037F5295279960A805D784F
-static class Acta.JobTenantRequirementCodeExtensions+<G>$FCEED6439C029E026ADB7A94A32CDAEB+<M>$FCEED6439C029E026ADB7A94A32CDAEB
 sealed class Acta.JobTenantRequirementCodeJsonConverter
     .ctor()
     Acta.JobTenantRequirementCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -1936,19 +1812,6 @@ static class Acta.LeaseKindCodeExtensions
     System.String get_Code(Acta.LeaseKindCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.LeaseKindCode value)
-sealed class Acta.LeaseKindCodeExtensions+<G>$8EA94570E397680E0ADA04AC64EC39E5
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.LeaseKindCode FromCode(System.String code)
-    Acta.LeaseKindCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.LeaseKindCodeExtensions+<G>$8EA94570E397680E0ADA04AC64EC39E5+<M>$8EA94570E397680E0ADA04AC64EC39E5
-static class Acta.LeaseKindCodeExtensions+<G>$8EA94570E397680E0ADA04AC64EC39E5+<M>$F43DEA3159462DC6C9D49C70AB12B00F
 sealed class Acta.LeaseKindCodeJsonConverter
     .ctor()
     Acta.LeaseKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2074,19 +1937,6 @@ static class Acta.MisfireStrategyCodeExtensions
     System.String get_Code(Acta.MisfireStrategyCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.MisfireStrategyCode value)
-sealed class Acta.MisfireStrategyCodeExtensions+<G>$23FC15D3E3FA527A411982D99BD42283
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.MisfireStrategyCode FromCode(System.String code)
-    Acta.MisfireStrategyCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.MisfireStrategyCodeExtensions+<G>$23FC15D3E3FA527A411982D99BD42283+<M>$23FC15D3E3FA527A411982D99BD42283
-static class Acta.MisfireStrategyCodeExtensions+<G>$23FC15D3E3FA527A411982D99BD42283+<M>$508C269B50B1186D7527D90041924749
 sealed class Acta.MisfireStrategyCodeJsonConverter
     .ctor()
     Acta.MisfireStrategyCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2115,19 +1965,6 @@ static class Acta.OutboxStatusCodeExtensions
     System.String get_Code(Acta.OutboxStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.OutboxStatusCode value)
-sealed class Acta.OutboxStatusCodeExtensions+<G>$0D0116F20986778B5BA0F89F7C1261D6
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.OutboxStatusCode FromCode(System.String code)
-    Acta.OutboxStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.OutboxStatusCodeExtensions+<G>$0D0116F20986778B5BA0F89F7C1261D6+<M>$0D0116F20986778B5BA0F89F7C1261D6
-static class Acta.OutboxStatusCodeExtensions+<G>$0D0116F20986778B5BA0F89F7C1261D6+<M>$344C70CAF76DE81C57C98CEA335DAA47
 sealed class Acta.OutboxStatusCodeJsonConverter
     .ctor()
     Acta.OutboxStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2217,19 +2054,6 @@ static class Acta.ScheduleExpressionKindCodeExtensions
     System.String get_Code(Acta.ScheduleExpressionKindCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.ScheduleExpressionKindCode value)
-sealed class Acta.ScheduleExpressionKindCodeExtensions+<G>$CA126F02B175EBF09D8B2A458E1E8903
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.ScheduleExpressionKindCode FromCode(System.String code)
-    Acta.ScheduleExpressionKindCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.ScheduleExpressionKindCodeExtensions+<G>$CA126F02B175EBF09D8B2A458E1E8903+<M>$7A639A018A3B176EAE56385650B18C2E
-static class Acta.ScheduleExpressionKindCodeExtensions+<G>$CA126F02B175EBF09D8B2A458E1E8903+<M>$CA126F02B175EBF09D8B2A458E1E8903
 sealed class Acta.ScheduleExpressionKindCodeJsonConverter
     .ctor()
     Acta.ScheduleExpressionKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2248,19 +2072,6 @@ static class Acta.ScheduleOriginCodeExtensions
     System.String get_Code(Acta.ScheduleOriginCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.ScheduleOriginCode value)
-sealed class Acta.ScheduleOriginCodeExtensions+<G>$4816839071E8E1CCA6F7695A918C2D1D
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.ScheduleOriginCode FromCode(System.String code)
-    Acta.ScheduleOriginCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.ScheduleOriginCodeExtensions+<G>$4816839071E8E1CCA6F7695A918C2D1D+<M>$44E33D524DC45AC316086AEE7BED0450
-static class Acta.ScheduleOriginCodeExtensions+<G>$4816839071E8E1CCA6F7695A918C2D1D+<M>$4816839071E8E1CCA6F7695A918C2D1D
 sealed class Acta.ScheduleOriginCodeJsonConverter
     .ctor()
     Acta.ScheduleOriginCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2285,19 +2096,6 @@ static class Acta.ScheduleStatusCodeExtensions
     System.String get_Code(Acta.ScheduleStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.ScheduleStatusCode value)
-sealed class Acta.ScheduleStatusCodeExtensions+<G>$DACAD52D7E7C3E214EA89EFF7BA23F79
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.ScheduleStatusCode FromCode(System.String code)
-    Acta.ScheduleStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.ScheduleStatusCodeExtensions+<G>$DACAD52D7E7C3E214EA89EFF7BA23F79+<M>$A68FB9BB6FB700FD54E65A232659392B
-static class Acta.ScheduleStatusCodeExtensions+<G>$DACAD52D7E7C3E214EA89EFF7BA23F79+<M>$DACAD52D7E7C3E214EA89EFF7BA23F79
 sealed class Acta.ScheduleStatusCodeJsonConverter
     .ctor()
     Acta.ScheduleStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2317,19 +2115,6 @@ static class Acta.SettingScopeCodeExtensions
     System.String get_Code(Acta.SettingScopeCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.SettingScopeCode value)
-sealed class Acta.SettingScopeCodeExtensions+<G>$C66EE8619A1D325AB7259D472E4013C4
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.SettingScopeCode FromCode(System.String code)
-    Acta.SettingScopeCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.SettingScopeCodeExtensions+<G>$C66EE8619A1D325AB7259D472E4013C4+<M>$8984A58CC1C7F3B498263C9AF39D52B1
-static class Acta.SettingScopeCodeExtensions+<G>$C66EE8619A1D325AB7259D472E4013C4+<M>$C66EE8619A1D325AB7259D472E4013C4
 sealed class Acta.SettingScopeCodeJsonConverter
     .ctor()
     Acta.SettingScopeCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2422,19 +2207,6 @@ static class Acta.TagScopeCodeExtensions
     System.String get_Code(Acta.TagScopeCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.TagScopeCode value)
-sealed class Acta.TagScopeCodeExtensions+<G>$CDAE0DC0835787B0FFBF8F30EE25BA33
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.TagScopeCode FromCode(System.String code)
-    Acta.TagScopeCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.TagScopeCodeExtensions+<G>$CDAE0DC0835787B0FFBF8F30EE25BA33+<M>$CDAE0DC0835787B0FFBF8F30EE25BA33
-static class Acta.TagScopeCodeExtensions+<G>$CDAE0DC0835787B0FFBF8F30EE25BA33+<M>$E5F2C5F58CF4A61AC87C449E334A6FBF
 sealed class Acta.TagScopeCodeJsonConverter
     .ctor()
     Acta.TagScopeCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2479,19 +2251,6 @@ static class Acta.TenantStatusCodeExtensions
     System.String get_Code(Acta.TenantStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.TenantStatusCode value)
-sealed class Acta.TenantStatusCodeExtensions+<G>$2531460DF15857C6B3A8D3A77D44CE06
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.TenantStatusCode FromCode(System.String code)
-    Acta.TenantStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.TenantStatusCodeExtensions+<G>$2531460DF15857C6B3A8D3A77D44CE06+<M>$2531460DF15857C6B3A8D3A77D44CE06
-static class Acta.TenantStatusCodeExtensions+<G>$2531460DF15857C6B3A8D3A77D44CE06+<M>$B1CD5BF9B2D386DB78BAC274330858FC
 sealed class Acta.TenantStatusCodeJsonConverter
     .ctor()
     Acta.TenantStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
@@ -2518,19 +2277,6 @@ static class Acta.WorkerStatusCodeExtensions
     System.String get_Code(Acta.WorkerStatusCode value)
     System.String get_CodeKind()
     System.String get_Description(Acta.WorkerStatusCode value)
-sealed class Acta.WorkerStatusCodeExtensions+<G>$C54066A03CC2E35AA43B68CA63FA536C
-    Acta.CodeCapacityReport Capacity { get; }
-    Acta.WorkerStatusCode FromCode(System.String code)
-    Acta.WorkerStatusCode FromId(System.Byte id)
-    System.Boolean IsKnownId(System.Byte id)
-    System.Boolean IsWritableId(System.Byte id)
-    System.Byte ToId { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> Manifest { get; }
-    System.String Code { get; }
-    System.String CodeKind { get; }
-    System.String Description { get; }
-static class Acta.WorkerStatusCodeExtensions+<G>$C54066A03CC2E35AA43B68CA63FA536C+<M>$61C3FFBC9D53548CA8F9E80307C4AB48
-static class Acta.WorkerStatusCodeExtensions+<G>$C54066A03CC2E35AA43B68CA63FA536C+<M>$C54066A03CC2E35AA43B68CA63FA536C
 sealed class Acta.WorkerStatusCodeJsonConverter
     .ctor()
     Acta.WorkerStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
