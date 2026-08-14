@@ -142,7 +142,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === `jobs/${jobRef}/detail`) {
       return json({
         snapshot: job,
-        input: { format: 'json', formatId: 1, json: { invoiceId: 42 }, byteLength: 18, truncated: false },
+        input: { formatName: 'json', formatId: 1, json: { invoiceId: 42 }, byteLength: 18, truncated: false },
         result: null,
         checkpoints: [],
         explain: {

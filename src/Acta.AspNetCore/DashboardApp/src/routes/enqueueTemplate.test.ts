@@ -41,7 +41,7 @@ test('templateSeed: no template leaves the editor alone', () => {
 });
 
 test('cloneInputState: a json clone seeds the json editor', () => {
-  assert.deepEqual(cloneInputState({ format: 'json', formatId: 1, json: { a: 1 } }), {
+  assert.deepEqual(cloneInputState({ formatName: 'json', formatId: 1, json: { a: 1 } }), {
     inputFormatName: 'json',
     json: { a: 1 },
     text: ''
@@ -49,7 +49,7 @@ test('cloneInputState: a json clone seeds the json editor', () => {
 });
 
 test('cloneInputState: a text clone seeds text mode, not a quoted json string', () => {
-  assert.deepEqual(cloneInputState({ format: 'text', formatId: 3, text: 'order-42' }), {
+  assert.deepEqual(cloneInputState({ formatName: 'text', formatId: 3, text: 'order-42' }), {
     inputFormatName: 'text',
     json: {},
     text: 'order-42'
@@ -57,7 +57,7 @@ test('cloneInputState: a text clone seeds text mode, not a quoted json string', 
 });
 
 test('cloneInputState: a binary or none clone leaves the form untouched (out of scope for v1)', () => {
-  assert.equal(cloneInputState({ format: 'bytes', formatId: 2, base64: 'AQI=' }), null);
+  assert.equal(cloneInputState({ formatName: 'bytes', formatId: 2, base64: 'AQI=' }), null);
   assert.equal(cloneInputState({ formatName: 'none', formatId: 0 }), null);
   assert.equal(cloneInputState(null), null);
 });
