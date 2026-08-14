@@ -42,7 +42,7 @@ test('templateSeed: no template leaves the editor alone', () => {
 
 test('cloneInputState: a json clone seeds the json editor', () => {
   assert.deepEqual(cloneInputState({ formatName: 'json', formatId: 1, json: { a: 1 } }), {
-    inputFormatName: 'json',
+    format: 'json',
     json: { a: 1 },
     text: ''
   });
@@ -50,7 +50,7 @@ test('cloneInputState: a json clone seeds the json editor', () => {
 
 test('cloneInputState: a text clone seeds text mode, not a quoted json string', () => {
   assert.deepEqual(cloneInputState({ formatName: 'text', formatId: 3, text: 'order-42' }), {
-    inputFormatName: 'text',
+    format: 'text',
     json: {},
     text: 'order-42'
   });
