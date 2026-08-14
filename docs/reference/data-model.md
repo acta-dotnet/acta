@@ -490,7 +490,7 @@ One durable configuration value in the central `settings` table, addressed by `(
 | `scope_id`<a id="column-acta-settings--scope-id"></a> | `Int32` | · | yes | · | · | Target catalog row for narrowed scopes (`namespaces.id` / `definitions.id`); NULL for `Global`. No FK: the referenced catalog differs per `ScopeCode`. |
 | `name`<a id="column-acta-settings--name"></a> | `AsciiString` | 128 | no | · | · | Lowercase dotted-kebab setting name (for example `sys.claim.batch-size`). ASCII Acta name. |
 | `value_format_id`<a id="column-acta-settings--value-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Value`; same payload-format convention as job input and variables. `ck_settings_value_pair` enforces `(value_format_id = 0) = (value IS NULL)`. |
-| `value`<a id="column-acta-settings--value"></a> | `BinaryPayload` | max | yes | · | · | Encoded setting value; opaque bytes governed by `ValueFormatCode`. |
+| `value`<a id="column-acta-settings--value"></a> | `BinaryPayload` | max | yes | · | · | Encoded setting value; opaque bytes governed by `ValueFormatId`. |
 | `description`<a id="column-acta-settings--description"></a> | `UnicodeString` | 512 | yes | · | · | Operator-readable description of what the setting controls. |
 | `created_at_utc`<a id="column-acta-settings--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the setting row was first inserted. Set server-side. |
 | `modified_at_utc`<a id="column-acta-settings--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | Last-write instant. Rendered server-side on INSERT; operations bump it on UPDATE. |

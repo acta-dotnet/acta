@@ -30,7 +30,7 @@ public abstract class SettingsUniqueKeySpec<TFixture> : ActaStorageTestBase<TFix
             ScopeCode = scope,
             ScopeId = scopeId,
             Name = name,
-            ValueFormatCode = JobPayloadFormat.Text.Id,
+            ValueFormatId = JobPayloadFormat.Text.Id,
             Value = "on"u8.ToArray(),
             ModifiedAtUtc = DateTime.UtcNow,
         };

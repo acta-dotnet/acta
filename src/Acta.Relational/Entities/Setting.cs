@@ -53,9 +53,9 @@ internal sealed class Setting : IEntity<int>
     /// variables. <c>ck_settings_value_pair</c> enforces <c>(value_format_id = 0) = (value IS NULL)</c>.
     /// </summary>
     [DbColumn("value_format_id", DbKind.Byte)]
-    public byte ValueFormatCode { get; set; }
+    public byte ValueFormatId { get; set; }
 
-    /// <summary>Encoded setting value; opaque bytes governed by <see cref="ValueFormatCode"/>.</summary>
+    /// <summary>Encoded setting value; opaque bytes governed by <see cref="ValueFormatId"/>.</summary>
     [DbColumn("value", DbKind.BinaryPayload)]
     public byte[]? Value { get; set; }
 
