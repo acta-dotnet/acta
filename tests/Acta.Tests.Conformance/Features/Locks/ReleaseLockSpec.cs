@@ -12,6 +12,17 @@ namespace Acta.Tests.Conformance.Features.Locks;
 /// <c>ILockStore.ReleaseAsync</c>. Releasing a held lock removes the lease row and makes the key
 /// re-acquirable; releasing an already-released token is a version-CAS miss that returns false.
 /// </summary>
+/// <remarks>
+/// The row-absence assert is load-bearing: release must DELETE, not expire the row in place.
+/// Exclusive-key mutexes put arbitrary per-job user strings into <c>lease_key</c>, so a release
+/// that keeps the row turns this table from O(currently held) into O(keys used per retention
+/// window) - the order of the jobs table itself under an exclusive-key workload, bloating a
+/// claim-path table until the reap catches up. Near-emptiness by construction is the table's
+/// design property, and deletion is what provides it. The accepted cost: the row's version
+/// restarts on re-acquire after a delete, so version-CAS alone cannot fence a stale holder
+/// across a full steal, release, re-acquire cycle - closing that window is the hold token's
+/// job, never a reason to stop deleting.
+/// </remarks>
 [ConformanceSpec(
     "release-lock.cas-delete",
     "Release removes the lease row and a stale token misses on version CAS",
@@ -40,6 +51,9 @@ public abstract class ReleaseLockSpec<TFixture> : ActaStorageTestBase<TFixture>
 
         Assert.True(await lockStore.ReleaseAsync(token!.Value, ct));
 
+        // Gone, not expired in place: the query carries no expiry filter, so an expire-style
+        // release would still return the row and fail here. See the class remarks for why
+        // absence (table stays O(currently held)) is the contract.
         var lease = await Db.From<Lease>().Where(l => l.LeaseKey == key).SingleOrDefaultAsync(ct);
         Assert.Null(lease);
 
