@@ -754,6 +754,18 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
+        // park_outbox_signal supersede guard: a pending command whose park instant is at or before
+        // this cutoff (now minus WorkerDeadAfter) has had no live consumer for the whole dead window,
+        // so a new command may overwrite it; anything younger rejects instead.
+        public static readonly DbValueSpec<DateTime> StaleBefore = new(
+            ParameterName: "p_stale_before_utc",
+            Kind: DbKind.UtcInstant,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
         // set_schedule_overrides audit text: the rendered what-changed summary written to
         // events.reason_message. A separate parameter from p_reason_message, which carries the
         // operator's justification into schedules.reason_message on the same command.

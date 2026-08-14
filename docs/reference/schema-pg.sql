@@ -741,7 +741,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     e.definition_id,
     d.name AS job_name,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
     e.actor_code,
@@ -5452,6 +5452,87 @@ BEGIN
 END;
 $$;
 
+-- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
+-- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
+CREATE OR REPLACE FUNCTION acta.consume_outbox_signal(p_job_id BIGINT, p_name VARCHAR, p_expected_version INT)
+RETURNS TABLE (out_consumed BIGINT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_count BIGINT;
+BEGIN
+    DELETE FROM acta.checkpoints c
+    WHERE
+        c.job_id = p_job_id
+        AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */
+        AND c.name = p_name
+        AND c.version = p_expected_version;
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN QUERY SELECT v_count;
+END;
+$$;
+
+-- The applying tick's read of one pending operator command; empty when the inbox slot is free.
+CREATE OR REPLACE FUNCTION acta.get_outbox_signal(p_job_id BIGINT, p_name VARCHAR)
+RETURNS TABLE (out_value_format_id SMALLINT, out_value BYTEA, out_version INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT c.value_format_id::SMALLINT, c.value, c.version
+    FROM acta.checkpoints c
+    WHERE
+        c.job_id = p_job_id
+        AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */
+        AND c.name = p_name
+        AND c.status_code = 20 /* JobCheckpointStatusCode.Set */;
+END;
+$$;
+
+-- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
+-- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
+CREATE OR REPLACE FUNCTION acta.park_outbox_signal(
+    p_job_id BIGINT,
+    p_name VARCHAR,
+    p_value_format_id SMALLINT,
+    p_value BYTEA,
+    p_stale_before_utc TIMESTAMPTZ
+)
+RETURNS TABLE (out_action SMALLINT, out_pending_since_utc TIMESTAMPTZ)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO acta.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
+    VALUES (
+        p_job_id,
+        20 /* JobCheckpointKindCode.Signal */,
+        p_name,
+        20 /* JobCheckpointStatusCode.Set */,
+        p_value_format_id,
+        p_value,
+        now(),
+        0
+    )
+    ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
+        value_format_id = EXCLUDED.value_format_id,
+        value = EXCLUDED.value,
+        status_code = 20 /* JobCheckpointStatusCode.Set */,
+        modified_at_utc = now(),
+        version = checkpoints.version + 1
+    WHERE checkpoints.modified_at_utc <= p_stale_before_utc;
+
+    /* The minted command id inside p_value makes the payload unique, so value equality is the
+       "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
+    RETURN QUERY
+    SELECT
+        (CASE WHEN c.value = p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END)::SMALLINT,
+        c.modified_at_utc
+    FROM acta.checkpoints c
+    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = p_name;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION acta.raise_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -5635,6 +5716,51 @@ BEGIN
     END IF;
 
     RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
+END;
+$$;
+
+-- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
+-- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
+CREATE OR REPLACE FUNCTION acta.record_outbox_event(
+    p_job_id BIGINT,
+    p_event_code SMALLINT,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        reason_message)
+    SELECT
+        p_event_code,
+        now(),
+        j.namespace_id,
+        p_actor_code,
+        p_actor_key,
+        j.id,
+        j.job_ref,
+        r.execution_number,
+        COALESCE(j.lineage_root_id, j.id),
+        j.definition_id,
+        j.tenant_id,
+        p_reason_message
+    FROM acta.jobs j
+    JOIN acta.runtimes r ON r.job_id = j.id
+    WHERE j.id = p_job_id;
 END;
 $$;
 

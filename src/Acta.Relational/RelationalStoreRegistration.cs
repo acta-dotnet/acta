@@ -13,6 +13,7 @@ using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Modules.Operations.Events;
 using Acta.Runtime.Modules.Operations.Overview;
 using Acta.Runtime.Modules.Operations.Tags;
+using Acta.Runtime.Modules.Outbox;
 using Acta.Runtime.Services.Locks;
 using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,7 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IJobStore, RelationalJobStore>();
         services.AddSingleton<ITagStore, RelationalTagStore>();
         services.AddSingleton<ISignalStore, RelationalSignalStore>();
+        services.AddSingleton<IOutboxSignalStore, RelationalOutboxSignalStore>();
         services.AddSingleton<IScheduleStore, RelationalScheduleStore>();
         services.AddSingleton<IWorkerStore, RelationalWorkerStore>();
         services.AddSingleton<IAlertStore, RelationalAlertStore>();

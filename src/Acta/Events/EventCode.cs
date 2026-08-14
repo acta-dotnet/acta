@@ -171,4 +171,21 @@ public enum EventCode : byte
 
     [Code("setting.updated", "A durable setting was written (created or overwritten); Detail carries the setting name.")]
     SettingUpdated = 160,
+
+    // ---------- Outbox operator path ----------
+    // Written against the namespace's sys.outbox slot job by the tick that applies a parked operator
+    // command. Always emitted regardless of audit level: this is the evidence trail for actions whose
+    // subject rows live (or lived) in the producer's database, outside the ledger's reach.
+
+    [Code(
+        "outbox.requeued",
+        "An operator command returned quarantined outbox rows to Pending; ReasonMessage carries the justification and the row ids."
+    )]
+    OutboxRequeued = 180,
+
+    [Code(
+        "outbox.discarded",
+        "An operator command deleted quarantined outbox rows; ReasonMessage carries the justification and the deleted row ids."
+    )]
+    OutboxDiscarded = 181,
 }

@@ -551,7 +551,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <24203 chars, sha256:190FC8E5>
+    System.String MarkdownReport = <24524 chars, sha256:2775D4BE>
 enum Acta.ControlAction
     Applied = 1
     NotFound = 2
@@ -677,6 +677,8 @@ enum Acta.EventCode
     NamespaceResumed = 21
     NamespaceSuspended = 20
     NamespaceUpdated = 22
+    OutboxDiscarded = 181
+    OutboxRequeued = 180
     ScheduleOverridesUpdated = 103
     SchedulePauseExpired = 102
     SchedulePaused = 100

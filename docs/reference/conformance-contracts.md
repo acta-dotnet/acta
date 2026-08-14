@@ -1235,6 +1235,36 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.RescheduleAsync`
 
+### A parked requeue is applied, evidenced, consumed, and the freed row relays
+- **Contract:** The relay pass applies a parked requeue before draining: the row returns to Pending, the evidence event lands, the signal is consumed, and the freed row relays.
+- **Arrange:** A source row sits Quarantined and a requeue command is parked on the slot job's signal inbox.
+- **Act:** One operator-signal apply runs, then one relay tick.
+- **Assert:** The apply reports one requeued row and consumes the signal, the evidence event carries actor and ids, and the tick relays the freed row into a ledger job.
+- **Guarantees:**
+  - Requeue applies before the drain: row freed, evidence written, signal consumed, job relayed
+
+### An applied operator command leaves an always-emitted evidence event
+- **Contract:** RecordApplied appends the outbox event against the slot job with the operator actor and reason evidence, even when the job's audit level records nothing else.
+- **Arrange:** A ledger job with audit level Off stands in for the sys.outbox slot.
+- **Act:** A discard evidence event is recorded with an actor key and reason message.
+- **Assert:** Exactly one outbox.discarded event exists on the job, stamped Operator with the actor key and reason intact.
+- **Guarantees:**
+  - The evidence event lands on the slot job with the operator actor and reason intact
+- **Store methods:**
+  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.RecordAppliedAsync`
+
+### Park admission and version-CAS consume bound the operator inbox
+- **Contract:** Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one bumping the version consume must match to delete.
+- **Arrange:** A ledger job stands in for the sys.outbox slot.
+- **Act:** Commands are parked against a free, a pending, and a stale slot, then consumed with a stale and a live version.
+- **Assert:** Free and stale parks apply, the younger pending park rejects with its incumbent's instant, the stale consume misses, and the live consume empties the slot.
+- **Guarantees:**
+  - Free and stale slots admit, a pending slot rejects with its age, and consume is version-CAS
+- **Store methods:**
+  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.ConsumeAsync`
+  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.GetAsync`
+  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.ParkAsync`
+
 ### The source store round-trips with no Acta ledger configured
 - **Contract:** The external-outbox source store claims and deletes purely against its source database, needing no Acta ledger IJobs or session.
 - **Arrange:** A source outbox table holds a due row and the container has no Acta ledger registered.
@@ -2308,6 +2338,10 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IOutboxRelayStore.ReleaseClaimedAsync` | Relay crash windows never lose a row or duplicate a target job<br>Release returns a claimed row to Pending, attempt unchanged, reclaimable |
 | `IOutboxRelayStore.RequeueQuarantinedAsync` | Requeue returns quarantined rows to Pending, budget reset, evidence kept |
 | `IOutboxRelayStore.RescheduleAsync` | Reschedule returns a claimed row to Pending with backoff, only under its token |
+| `IOutboxSignalStore.ConsumeAsync` | Park admission and version-CAS consume bound the operator inbox |
+| `IOutboxSignalStore.GetAsync` | Park admission and version-CAS consume bound the operator inbox |
+| `IOutboxSignalStore.ParkAsync` | Park admission and version-CAS consume bound the operator inbox |
+| `IOutboxSignalStore.RecordAppliedAsync` | An applied operator command leaves an always-emitted evidence event |
 | `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
 | `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
 | `ILockStore.TryAcquireAsync` | Acquire lands a lease row and blocks a competing acquire on a live key |
@@ -2381,7 +2415,11 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Schedules/TriggerScheduleNow` | yes | yes | yes |
 | `Execution/Settings/GetSetting` | yes | yes | yes |
 | `Execution/Settings/SetSetting` | yes | yes | yes |
+| `Execution/Signals/ConsumeOutboxSignal` | yes | yes | yes |
+| `Execution/Signals/GetOutboxSignal` | yes | yes | yes |
+| `Execution/Signals/ParkOutboxSignal` | yes | yes | yes |
 | `Execution/Signals/RaiseSignal` | yes | yes | yes |
+| `Execution/Signals/RecordOutboxEvent` | yes | yes | yes |
 | `Execution/Signals/WaitSignal` | yes | yes | yes |
 | `Execution/StartExecution` | yes | yes | yes |
 | `Execution/StartStep` | yes | yes | yes |

@@ -23,6 +23,12 @@ public sealed class PgOutboxRequeueSpec : OutboxRequeueSpec<PgConformanceFixture
 
 public sealed class PgOutboxDiscardSpec : OutboxDiscardSpec<PgConformanceFixture>;
 
+public sealed class PgOutboxSignalInboxSpec : OutboxSignalInboxSpec<PgConformanceFixture>;
+
+public sealed class PgOutboxSignalEvidenceSpec : OutboxSignalEvidenceSpec<PgConformanceFixture>;
+
+public sealed class PgOutboxRelaySignalApplySpec : OutboxRelaySignalApplySpec<PgConformanceFixture>;
+
 public sealed class PgOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<PgConformanceFixture>;
 
 public sealed class PgOutboxStagingSpec : OutboxStagingSpec<PgConformanceFixture>;

@@ -23,6 +23,12 @@ public sealed class SqlServerOutboxRequeueSpec : OutboxRequeueSpec<SqlServerConf
 
 public sealed class SqlServerOutboxDiscardSpec : OutboxDiscardSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerOutboxSignalInboxSpec : OutboxSignalInboxSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerOutboxSignalEvidenceSpec : OutboxSignalEvidenceSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerOutboxRelaySignalApplySpec : OutboxRelaySignalApplySpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerOutboxStagingSpec : OutboxStagingSpec<SqlServerConformanceFixture>;

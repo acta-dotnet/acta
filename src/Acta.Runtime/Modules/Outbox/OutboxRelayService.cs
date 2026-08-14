@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,85 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
     // Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.
     private const int MaxBatches = 20;
     private const int BatchSize = 256;
+
+    /// <summary>
+    /// The bound source store, exposed so operator surfaces resolve reads (quarantine listing) against
+    /// the same source the tick drains - the registry's 1:1 namespace-to-source invariant is what makes
+    /// this the right store for the slot's parked commands.
+    /// </summary>
+    internal IOutboxRelayStore Store => store;
+
+    /// <summary>
+    /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the
+    /// same tick, then discard. Per command: apply against the source, write the evidence event, then
+    /// version-CAS consume. Crash-safe in that order - a reapplied command finds nothing left to touch
+    /// (both verbs only match Quarantined rows), and a consume miss means a newer command superseded
+    /// this one mid-apply and simply applies next tick.
+    /// </summary>
+    public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(
+        long slotJobId,
+        IOutboxSignalStore signals,
+        CancellationToken ct
+    )
+    {
+        var requeued = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Requeue, signals, ct);
+        var discarded = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Discard, signals, ct);
+        return (requeued, discarded);
+    }
+
+    private async Task<int> ApplyOneSignalAsync(long slotJobId, string name, IOutboxSignalStore signals, CancellationToken ct)
+    {
+        var row = await signals.GetAsync(slotJobId, name, ct);
+        if (row is null)
+        {
+            return 0;
+        }
+
+        OutboxSignalPayload? payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize(row.Value, OutboxSignalJsonContext.Default.OutboxSignalPayload);
+        }
+        catch (JsonException)
+        {
+            payload = null;
+        }
+
+        if (payload is null)
+        {
+            // A malformed command must not wedge the two-name inbox: consume it, leave the trail.
+            await signals.RecordAppliedAsync(
+                new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), null, "Malformed operator command discarded unapplied."),
+                ct
+            );
+            await signals.ConsumeAsync(slotJobId, name, row.Version, ct);
+            return 0;
+        }
+
+        var affected =
+            name == OutboxSignalNames.Requeue
+                ? await store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(payload.OutboxIds), ct)
+                : await store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct);
+
+        await signals.RecordAppliedAsync(
+            new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.ActorKey, Evidence(payload.ReasonMessage, affected)),
+            ct
+        );
+        await signals.ConsumeAsync(slotJobId, name, row.Version, ct);
+        return affected.Count;
+    }
+
+    private static EventCode EventCodeFor(string name) =>
+        name == OutboxSignalNames.Requeue ? EventCode.OutboxRequeued : EventCode.OutboxDiscarded;
+
+    // The evidence line: operator justification first, then the applied count and the bounded id sample
+    // (the same 10-id bound the quarantine alert uses), truncated to the events column width.
+    private static string Evidence(string? reasonMessage, IReadOnlyList<Guid> affected)
+    {
+        var applied = $"{affected.Count} row(s): [{OutboxQuarantineTickException.FormatSample(affected)}]";
+        var text = string.IsNullOrEmpty(reasonMessage) ? applied : $"{reasonMessage} - {applied}";
+        return text.Truncate(ActaTextLimits.ReasonMessage)!;
+    }
 
     // One shared per-tick work budget, measured in target-enqueue attempts. Both source claims (each of
     // which makes at least one attempt) and the per-group retries of a rejected batch draw it down, so
@@ -429,8 +509,19 @@ internal sealed record OutboxRelayTickOptions(string SourceName, int QuarantineT
 /// without this source registration parse <c>backlog=</c> and <c>quarantine=</c> out of the slot's
 /// persisted result.
 /// </summary>
-internal sealed record OutboxTickSummary(int Claimed, int Relayed, int Deduplicated, int Quarantined, long Backlog, long QuarantineTotal)
+internal sealed record OutboxTickSummary(
+    int Claimed,
+    int Relayed,
+    int Deduplicated,
+    int Quarantined,
+    long Backlog,
+    long QuarantineTotal,
+    int Requeued = 0,
+    int Discarded = 0
+)
 {
     public override string ToString() =>
-        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} quarantined={Quarantined} backlog={Backlog} quarantine={QuarantineTotal}";
+        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} quarantined={Quarantined} backlog={Backlog} quarantine={QuarantineTotal}"
+        + (Requeued > 0 ? $" requeued={Requeued}" : "")
+        + (Discarded > 0 ? $" discarded={Discarded}" : "");
 }

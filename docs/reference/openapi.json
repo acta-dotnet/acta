@@ -5074,7 +5074,9 @@
                 "worker.died",
                 "alert.acknowledged",
                 "alert.resolved",
-                "setting.updated"
+                "setting.updated",
+                "outbox.requeued",
+                "outbox.discarded"
               ],
               "type": "string"
             }
@@ -5315,7 +5317,9 @@
                 "worker.died",
                 "alert.acknowledged",
                 "alert.resolved",
-                "setting.updated"
+                "setting.updated",
+                "outbox.requeued",
+                "outbox.discarded"
               ],
               "type": "string"
             }
@@ -5590,7 +5594,9 @@
                 "worker.died",
                 "alert.acknowledged",
                 "alert.resolved",
-                "setting.updated"
+                "setting.updated",
+                "outbox.requeued",
+                "outbox.discarded"
               ],
               "type": "string"
             }

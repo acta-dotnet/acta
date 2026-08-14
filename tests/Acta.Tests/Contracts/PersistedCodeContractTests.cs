@@ -73,6 +73,8 @@ public sealed class PersistedCodeContractTests
         EventCode.AlertAcknowledged=140|alert.acknowledged
         EventCode.AlertResolved=141|alert.resolved
         EventCode.SettingUpdated=160|setting.updated
+        EventCode.OutboxRequeued=180|outbox.requeued
+        EventCode.OutboxDiscarded=181|outbox.discarded
         JobEventReasonCode.Unspecified=0|unspecified
         JobEventReasonCode.Unclassified=10|job.unclassified
         JobEventReasonCode.JobUnhandledException=20|job.unhandled-exception
@@ -172,10 +174,10 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "9C70DD3C4B7076806CE15D0C5A6D3B06492FF2759831D87DC300A0801F0B6689";
+    private const string ExpectedDescriptionHash = "9014D10D8659D75803543272916AA5AD7D8525B092C131CA80BAC8C554A6BED5";
 
     [Fact]
-    public void Frozen_contract_covers_all_29_families_and_161_values()
+    public void Frozen_contract_covers_all_29_families_and_163_values()
     {
         var expected = ExpectedContract
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -185,7 +187,7 @@ public sealed class PersistedCodeContractTests
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
         Assert.Equal(29, families.Length);
-        Assert.Equal(161, expected.Count);
+        Assert.Equal(163, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -196,8 +198,8 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(161, CodeManifests.All.Count);
-        Assert.Equal(34, Enum.GetValues<EventCode>().Length);
+        Assert.Equal(163, CodeManifests.All.Count);
+        Assert.Equal(36, Enum.GetValues<EventCode>().Length);
         Assert.Equal(24, Enum.GetValues<JobEventReasonCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
@@ -207,7 +209,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes, JobPayloadFormat.Text };
-        Assert.Equal(165, actual.Count + payloads.Length);
+        Assert.Equal(167, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2, 3], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(
@@ -272,7 +274,7 @@ public sealed class PersistedCodeContractTests
     public void Capacity_and_payload_boundaries_are_enforced()
     {
         Assert.Equal(31, EventCode.Capacity.HeldReserve);
-        Assert.Equal(34, EventCode.Capacity.Assigned);
+        Assert.Equal(36, EventCode.Capacity.Assigned);
         Assert.Equal(24, JobEventReasonCode.Capacity.Assigned);
         Assert.All(
             CodeFamilies(),

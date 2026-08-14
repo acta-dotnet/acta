@@ -23,6 +23,12 @@ public sealed class SqliteOutboxRequeueSpec : OutboxRequeueSpec<SqliteConformanc
 
 public sealed class SqliteOutboxDiscardSpec : OutboxDiscardSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteOutboxSignalInboxSpec : OutboxSignalInboxSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteOutboxSignalEvidenceSpec : OutboxSignalEvidenceSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteOutboxRelaySignalApplySpec : OutboxRelaySignalApplySpec<SqliteConformanceFixture>;
+
 public sealed class SqliteOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteOutboxStagingSpec : OutboxStagingSpec<SqliteConformanceFixture>;

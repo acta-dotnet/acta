@@ -934,7 +934,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     e.definition_id,
     d.name AS job_name,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
     e.actor_code,
@@ -5734,6 +5734,96 @@ BEGIN
     END CATCH;
 END;
 GO
+-- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
+-- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
+CREATE OR ALTER PROCEDURE acta.consume_outbox_signal
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_expected_version INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DELETE FROM acta.checkpoints
+    WHERE
+        job_id = @p_job_id
+        AND kind_code = 20 /* JobCheckpointKindCode.Signal */
+        AND name = @p_name
+        AND version = @p_expected_version;
+
+    SELECT CAST(@@ROWCOUNT AS BIGINT) AS consumed;
+END
+GO
+-- The applying tick's read of one pending operator command; empty when the inbox slot is free.
+CREATE OR ALTER PROCEDURE acta.get_outbox_signal
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT c.value_format_id, c.value, c.version
+    FROM acta.checkpoints c
+    WHERE
+        c.job_id = @p_job_id
+        AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */
+        AND c.name = @p_name
+        AND c.status_code = 20 /* JobCheckpointStatusCode.Set */;
+END
+GO
+-- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
+-- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
+CREATE OR ALTER PROCEDURE acta.park_outbox_signal
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_value_format_id TINYINT,
+    @p_value VARBINARY(MAX),
+    @p_stale_before_utc DATETIME2(7)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+    DECLARE @modified DATETIME2(7);
+
+    BEGIN TRANSACTION;
+
+    SELECT @modified = modified_at_utc
+    FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
+    WHERE job_id = @p_job_id AND kind_code = 20 /* JobCheckpointKindCode.Signal */ AND name = @p_name;
+
+    IF @modified IS NULL
+        INSERT INTO acta.checkpoints (
+            job_id, kind_code, name, status_code, value_format_id, value,
+            created_at_utc, modified_at_utc, version
+        )
+        VALUES (
+            @p_job_id, 20 /* JobCheckpointKindCode.Signal */, @p_name, 20 /* JobCheckpointStatusCode.Set */,
+            @p_value_format_id, @p_value, @now, @now, 0
+        );
+    ELSE IF @modified <= @p_stale_before_utc
+        UPDATE acta.checkpoints
+        SET
+            status_code = 20 /* JobCheckpointStatusCode.Set */,
+            value_format_id = @p_value_format_id,
+            value = @p_value,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE job_id = @p_job_id AND kind_code = 20 /* JobCheckpointKindCode.Signal */ AND name = @p_name;
+
+    COMMIT TRANSACTION;
+
+    /* The minted command id inside @p_value makes the payload unique, so value equality is the
+       "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
+    SELECT
+        CAST(CASE WHEN c.value = @p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END AS SMALLINT)
+            AS action,
+        c.modified_at_utc AS pending_since_utc
+    FROM acta.checkpoints c
+    WHERE c.job_id = @p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = @p_name;
+END
+GO
 CREATE OR ALTER PROCEDURE acta.raise_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,
@@ -5885,6 +5975,50 @@ BEGIN
         THROW;
     END CATCH;
 END;
+GO
+-- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
+-- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
+CREATE OR ALTER PROCEDURE acta.record_outbox_event
+    @p_job_id BIGINT,
+    @p_event_code SMALLINT,
+    @p_actor_code TINYINT,
+    @p_actor_key VARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        reason_message)
+    SELECT
+        @p_event_code,
+        SYSUTCDATETIME(),
+        j.namespace_id,
+        @p_actor_code,
+        @p_actor_key,
+        j.id,
+        j.job_ref,
+        r.execution_number,
+        COALESCE(j.lineage_root_id, j.id),
+        j.definition_id,
+        j.tenant_id,
+        @p_reason_message
+    FROM acta.jobs j
+    JOIN acta.runtimes r ON r.job_id = j.id
+    WHERE j.id = @p_job_id;
+END
 GO
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
