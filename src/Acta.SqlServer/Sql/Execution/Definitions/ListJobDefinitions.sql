@@ -9,7 +9,7 @@ SELECT TOP (@p_take)
     jd.priority_code_effective,
     jd.max_attempts_override,
     jd.max_attempts_effective,
-    jd.modified_at_utc
+    jd.modified_at_utc, jd.version
 FROM {{schema}}.definitions jd
 JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id
 WHERE

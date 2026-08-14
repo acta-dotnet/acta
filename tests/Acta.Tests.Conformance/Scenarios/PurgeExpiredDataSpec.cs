@@ -68,9 +68,9 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             ct
         );
         var alertRow = Assert.Single(await Db.From<JobAlert>().Where(a => a.JobId == jobId).ToListAsync(ct));
-        await Operations.Tags.UpsertAsync(TagTarget.ForJob(JobLookup.ById(jobId)), new TagInput("retention", "job"), ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForEvent(eventRow.Id), new TagInput("retention", "event"), ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(alertRow.Id), new TagInput("retention", "alert"), ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForJob(JobLookup.ById(jobId)), new TagInput("retention", "job"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForEvent(eventRow.Id), new TagInput("retention", "event"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(alertRow.Id), new TagInput("retention", "alert"), ct: ct);
 
         // Drain rather than assert a single call deletes it: the sweep selects WITH (UPDLOCK, READPAST),
         // so a row contended by the live claim loop is skipped rather than waited for. The count still
@@ -144,7 +144,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var before = await Db.From<JobEvent>().Where(e => e.NamespaceId == ns).ToListAsync(ct);
         Assert.NotEmpty(before);
         var taggedEvent = before.MaxBy(e => e.Id)!;
-        await Operations.Tags.UpsertAsync(TagTarget.ForEvent(taggedEvent.Id), new TagInput("retention"), ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForEvent(taggedEvent.Id), new TagInput("retention"), ct: ct);
 
         // A wide retention window leaves recent events untouched.
         var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
@@ -168,7 +168,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         Assert.Equal(WorkerStatusCode.Active, worker!.Status);
-        await Operations.Tags.UpsertAsync(TagTarget.ForWorker(worker.Id), new TagInput("retention"), ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForWorker(worker.Id), new TagInput("retention"), ct: ct);
 
         // Active workers are never purged, even with the cutoff in the future.
         var active = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, -1, 1000, 50, ct);
@@ -199,8 +199,8 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var seeded = await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct);
         var settled = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Delivered);
         var inFlight = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Pending);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(settled.Id), new TagInput("retention", "delete"), ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(inFlight.Id), new TagInput("retention", "keep"), ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(settled.Id), new TagInput("retention", "delete"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(inFlight.Id), new TagInput("retention", "keep"), ct: ct);
 
         // A wide window leaves both rows untouched.
         var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);

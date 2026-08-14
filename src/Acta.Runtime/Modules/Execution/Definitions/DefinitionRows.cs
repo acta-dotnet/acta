@@ -171,7 +171,8 @@ internal sealed record JobDefinitionListRow(
     JobPriorityCode PriorityEffective,
     short? MaxAttemptsOverride,
     short MaxAttemptsEffective,
-    DateTime ModifiedAtUtc
+    DateTime ModifiedAtUtc,
+    int Version
 );
 
 /// <summary>
@@ -252,7 +253,8 @@ internal static class DefinitionRowMapping
             row.PriorityEffective,
             row.MaxAttemptsOverride,
             row.MaxAttemptsEffective,
-            row.ModifiedAtUtc
+            row.ModifiedAtUtc,
+            row.Version
         );
 
     public static JobDefinitionDetail ToDetail(this JobDefinitionDetailRow row) =>

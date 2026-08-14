@@ -37,9 +37,9 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         foreach (var target in MissingTargets())
         {
             Assert.Null(await Operations.Tags.GetAsync(target, ct));
-            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.UpsertAsync(target, new TagInput("missing"), ct)).Action);
-            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.RemoveAsync(target, "missing", ct)).Action);
-            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.ReplaceAsync(target, [], ct)).Action);
+            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.UpsertAsync(target, new TagInput("missing"), ct: ct)).Action);
+            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.RemoveAsync(target, "missing", ct: ct)).Action);
+            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
         }
     }
 
@@ -53,13 +53,16 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         Assert.NotNull(await Operations.Tags.GetAsync(target, ct));
         try
         {
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput(name, "value"), ct)).Action);
+            Assert.Equal(
+                TagMutationAction.Applied,
+                (await Operations.Tags.UpsertAsync(target, new TagInput(name, "value"), ct: ct)).Action
+            );
             var tags = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
             Assert.Contains(new TagItem(name, "value"), tags.Items);
         }
         finally
         {
-            await Operations.Tags.RemoveAsync(target, name, CancellationToken.None);
+            await Operations.Tags.RemoveAsync(target, name, ct: CancellationToken.None);
         }
     }
 
@@ -77,7 +80,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
                     await Operations.Tags.ReplaceAsync(
                         target,
                         [new TagInput("z-last"), new TagInput("a0"), new TagInput("a-a"), new TagInput("a-first", "One")],
-                        ct
+                        ct: ct
                     )
                 ).Action
             );
@@ -85,20 +88,23 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             var ordered = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
             Assert.Equal([new TagItem("a-a"), new TagItem("a-first", "One"), new TagItem("a0"), new TagItem("z-last")], ordered.Items);
 
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "a-a", ct)).Action);
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "a0", ct)).Action);
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput("a-first", "Two"), ct)).Action);
+            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "a-a", ct: ct)).Action);
+            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "a0", ct: ct)).Action);
             Assert.Equal(
                 TagMutationAction.Applied,
-                (await Operations.Tags.UpsertAsync(target, new TagInput("middle", "Value"), ct)).Action
+                (await Operations.Tags.UpsertAsync(target, new TagInput("a-first", "Two"), ct: ct)).Action
             );
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "does-not-exist", ct)).Action);
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "z-last", ct)).Action);
+            Assert.Equal(
+                TagMutationAction.Applied,
+                (await Operations.Tags.UpsertAsync(target, new TagInput("middle", "Value"), ct: ct)).Action
+            );
+            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "does-not-exist", ct: ct)).Action);
+            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "z-last", ct: ct)).Action);
 
             var converged = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
             Assert.Equal([new TagItem("a-first", "Two"), new TagItem("middle", "Value")], converged.Items);
 
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.ReplaceAsync(target, [], ct)).Action);
+            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
             Assert.Empty(Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct)));
         }
     }
@@ -108,22 +114,22 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var target = (await CreateTargetsAsync(ct)).Job;
-        await Operations.Tags.ReplaceAsync(target, [new TagInput("kept", "value")], ct);
+        await Operations.Tags.ReplaceAsync(target, [new TagInput("kept", "value")], ct: ct);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Operations.Tags.ReplaceAsync(target, [new TagInput("duplicate"), new TagInput("duplicate", "two")], ct).AsTask()
+            Operations.Tags.ReplaceAsync(target, [new TagInput("duplicate"), new TagInput("duplicate", "two")], ct: ct).AsTask()
         );
         await Assert.ThrowsAsync<ArgumentException>(() =>
             Operations
                 .Tags.ReplaceAsync(
                     target,
                     Enumerable.Range(0, TagLimits.MaxTagsPerTarget + 1).Select(i => new TagInput($"tag-{i}")).ToArray(),
-                    ct
+                    ct: ct
                 )
                 .AsTask()
         );
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            Operations.Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct).AsTask()
+            Operations.Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct: ct).AsTask()
         );
 
         var unchanged = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
@@ -137,7 +143,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         var targets = await CreateTargetsAsync(ct);
         foreach (var target in targets.All)
         {
-            await Operations.Tags.ReplaceAsync(target, [new TagInput("facet", "Blue"), new TagInput("release", "stable")], ct);
+            await Operations.Tags.ReplaceAsync(target, [new TagInput("facet", "Blue"), new TagInput("release", "stable")], ct: ct);
         }
 
         TagFilter[] filters = [new("facet", "blue"), new("release", "STABLE")];
@@ -243,7 +249,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
 
         Assert.Equal(
             TagMutationAction.Applied,
-            (await Operations.Tags.UpsertAsync(TagTarget.ForEvent(targets.EventId), new TagInput("triage", "reviewed"), ct)).Action
+            (await Operations.Tags.UpsertAsync(TagTarget.ForEvent(targets.EventId), new TagInput("triage", "reviewed"), ct: ct)).Action
         );
 
         Assert.Equal(before, await Db.From<JobEvent>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct));
@@ -290,7 +296,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         ];
         foreach (var target in targets)
         {
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput("purge-me"), ct)).Action);
+            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput("purge-me"), ct: ct)).Action);
         }
 
         Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(lookup, ct: ct)).Action);
@@ -324,7 +330,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         var jobId = Assert.IsType<long>(await Jobs.GetJobIdAsync(lookup, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
 
-        var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct).AsTask();
+        var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct: ct).AsTask();
         var purgeTask = Jobs.PurgeAsync(lookup, ct: ct).AsTask();
         await Task.WhenAll(mutationTask, purgeTask);
 

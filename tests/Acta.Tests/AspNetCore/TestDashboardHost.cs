@@ -767,19 +767,37 @@ internal static class TestDashboardHost
 
             public ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default) => ValueTask.FromResult(Current);
 
-            public ValueTask<TagMutationResult> ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct = default)
+            public ValueTask<TagMutationResult> ReplaceAsync(
+                TagTarget target,
+                IReadOnlyList<TagInput> tags,
+                string? reasonMessage = null,
+                string? actorKey = null,
+                CancellationToken ct = default
+            )
             {
                 ReplaceCalls.Add(tags);
                 return ValueTask.FromResult(MutationResult);
             }
 
-            public ValueTask<TagMutationResult> UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct = default)
+            public ValueTask<TagMutationResult> UpsertAsync(
+                TagTarget target,
+                TagInput tag,
+                string? reasonMessage = null,
+                string? actorKey = null,
+                CancellationToken ct = default
+            )
             {
                 UpsertCalls.Add(tag);
                 return ValueTask.FromResult(MutationResult);
             }
 
-            public ValueTask<TagMutationResult> RemoveAsync(TagTarget target, string name, CancellationToken ct = default)
+            public ValueTask<TagMutationResult> RemoveAsync(
+                TagTarget target,
+                string name,
+                string? reasonMessage = null,
+                string? actorKey = null,
+                CancellationToken ct = default
+            )
             {
                 RemoveCalls.Add(name);
                 return ValueTask.FromResult(MutationResult);
@@ -824,7 +842,8 @@ internal static class TestDashboardHost
                                     JobPriorityCode.Normal,
                                     null,
                                     3,
-                                    new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
+                                    new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                                    2
                                 ),
                             ],
                             null,

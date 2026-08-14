@@ -11,7 +11,13 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
         return resolved is null ? null : await store.GetAsync(resolved, ct);
     }
 
-    public async ValueTask<TagMutationResult> ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct = default)
+    public async ValueTask<TagMutationResult> ReplaceAsync(
+        TagTarget target,
+        IReadOnlyList<TagInput> tags,
+        string? reasonMessage = null,
+        string? actorKey = null,
+        CancellationToken ct = default
+    )
     {
         ArgumentNullException.ThrowIfNull(target);
         var normalized = NormalizeTags(tags, nameof(tags));
@@ -24,7 +30,13 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
         );
     }
 
-    public async ValueTask<TagMutationResult> UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct = default)
+    public async ValueTask<TagMutationResult> UpsertAsync(
+        TagTarget target,
+        TagInput tag,
+        string? reasonMessage = null,
+        string? actorKey = null,
+        CancellationToken ct = default
+    )
     {
         ArgumentNullException.ThrowIfNull(target);
         var normalized = TagInput.Normalize(tag, nameof(tag));
@@ -37,7 +49,13 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
         );
     }
 
-    public async ValueTask<TagMutationResult> RemoveAsync(TagTarget target, string name, CancellationToken ct = default)
+    public async ValueTask<TagMutationResult> RemoveAsync(
+        TagTarget target,
+        string name,
+        string? reasonMessage = null,
+        string? actorKey = null,
+        CancellationToken ct = default
+    )
     {
         ArgumentNullException.ThrowIfNull(target);
         name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), TagLimits.MaxNameLength);

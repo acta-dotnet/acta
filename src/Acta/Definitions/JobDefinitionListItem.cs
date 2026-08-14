@@ -18,5 +18,6 @@ public sealed record JobDefinitionListItem(
     JobPriorityCode PriorityEffective,
     short? MaxAttemptsOverride,
     short MaxAttemptsEffective,
-    DateTime ModifiedAtUtc
+    DateTime ModifiedAtUtc,
+    int Version
 );

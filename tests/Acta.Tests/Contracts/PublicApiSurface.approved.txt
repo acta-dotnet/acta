@@ -869,9 +869,9 @@ interface Acta.ISettings
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SetAsync(System.String name, System.String value, System.String description = default, System.String namespaceName = default, System.String jobName = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SettingDetail> GetAsync(System.String name, System.String namespaceName = default, System.String jobName = default, System.Threading.CancellationToken ct = default)
 interface Acta.ITags
-    System.Threading.Tasks.ValueTask<Acta.TagMutationResult> RemoveAsync(Acta.TagTarget target, System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.TagMutationResult> ReplaceAsync(Acta.TagTarget target, System.Collections.Generic.IReadOnlyList<Acta.TagInput> tags, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.TagMutationResult> UpsertAsync(Acta.TagTarget target, Acta.TagInput tag, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.TagMutationResult> RemoveAsync(Acta.TagTarget target, System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.TagMutationResult> ReplaceAsync(Acta.TagTarget target, System.Collections.Generic.IReadOnlyList<Acta.TagInput> tags, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.TagMutationResult> UpsertAsync(Acta.TagTarget target, Acta.TagInput tag, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.TagSet> GetAsync(Acta.TagTarget target, System.Threading.CancellationToken ct = default)
 interface Acta.ITenants
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> ResumeAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
@@ -1163,12 +1163,13 @@ sealed class Acta.JobDefinitionDetail
     System.String RunbookUrlEffective { get;init; }
     System.String RunbookUrlOverride { get;init; }
 sealed class Acta.JobDefinitionListItem
-    .ctor(System.Int32 JobDefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.DateTime ModifiedAtUtc)
+    .ctor(System.Int32 JobDefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.JobDefinitionStatusCode Status { get;init; }
     Acta.JobPriorityCode PriorityEffective { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.Int16 MaxAttemptsEffective { get;init; }
     System.Int32 JobDefinitionId { get;init; }
+    System.Int32 Version { get;init; }
     System.Nullable<Acta.JobPriorityCode> PriorityOverride { get;init; }
     System.Nullable<System.Int16> MaxAttemptsOverride { get;init; }
     System.String InputTypeName { get;init; }

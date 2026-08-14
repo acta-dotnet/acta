@@ -186,7 +186,7 @@ internal static class TagEndpoints
 
         return string.IsNullOrWhiteSpace(body!.Name)
             ? ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag.", "name is required.")
-            : await Mutate(resolve, target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct));
+            : await Mutate(resolve, target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct: ct));
     }
 
     private static async Task<IResult> Remove(
@@ -200,7 +200,7 @@ internal static class TagEndpoints
     {
         return ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError
             ? confirmationError
-            : await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct));
+            : await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct));
     }
 
     private static async Task<IResult> Mutate(Func<TagTarget?> resolve, Func<TagTarget, ValueTask<TagMutationResult>> apply)

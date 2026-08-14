@@ -149,7 +149,7 @@ public abstract partial class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<T
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForJob(enqueued), new TagInput("operator-view", "visible"), ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForJob(enqueued), new TagInput("operator-view", "visible"), ct: ct);
 
         await using var conn = await Db.GetConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
