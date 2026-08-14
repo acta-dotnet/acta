@@ -437,6 +437,25 @@ public sealed class DashboardApiEndpointTests
         Assert.Contains("\"ownerTeam\":\"payments\"", body);
     }
 
+    /// <summary>
+    /// The 200 path serializes through the source-generated context, so the response type must be
+    /// registered there: an unregistered type fails only at runtime, which is exactly how the
+    /// TenantDetail introduction shipped a 500 no test saw.
+    /// </summary>
+    [Fact]
+    public async Task Tenant_point_read_serializes_the_detail()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/tenants/cust-001", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"tenantKey\":\"cust-001\"", body);
+        Assert.Contains("\"displayName\":\"Acme\"", body);
+    }
+
     [Fact]
     public async Task Tenants_returns_page_with_no_store()
     {

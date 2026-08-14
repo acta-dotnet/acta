@@ -1100,6 +1100,16 @@
             "in": "query",
             "description": "Exact job status as a kebab code.",
             "schema": {
+              "enum": [
+                "ready",
+                "suspended",
+                "paused",
+                "dispatched",
+                "executing",
+                "succeeded",
+                "failed",
+                "cancelled"
+              ],
               "type": "string"
             }
           },
@@ -1501,6 +1511,10 @@
             "in": "query",
             "description": "Exact tenant status as a kebab code.",
             "schema": {
+              "enum": [
+                "active",
+                "suspended"
+              ],
               "type": "string"
             }
           },
@@ -4660,7 +4674,8 @@
           {
             "name": "jobNamespace",
             "in": "query",
-            "description": "The deduplication key's namespace scope (required).",
+            "description": "The deduplication key's namespace scope.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -4668,7 +4683,8 @@
           {
             "name": "deduplicationKey",
             "in": "query",
-            "description": "The caller-supplied deduplication key to resolve (required).",
+            "description": "The caller-supplied deduplication key to resolve.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -4890,6 +4906,10 @@
             "in": "query",
             "description": "Exact namespace status as a kebab code.",
             "schema": {
+              "enum": [
+                "active",
+                "suspended"
+              ],
               "type": "string"
             }
           },
@@ -5012,7 +5032,7 @@
             "description": "Only events for this job id.",
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int64"
             }
           },
           {
@@ -5020,6 +5040,42 @@
             "in": "query",
             "description": "Exact event code as its kebab string.",
             "schema": {
+              "enum": [
+                "unspecified",
+                "tenant.suspended",
+                "tenant.resumed",
+                "tenant.updated",
+                "namespace.suspended",
+                "namespace.resumed",
+                "namespace.updated",
+                "definition.overrides-updated",
+                "job.execution-started",
+                "job.execution-finished",
+                "job.recurring-rolled-over",
+                "job.suspended",
+                "job.rescheduled",
+                "job.cancelled",
+                "job.paused",
+                "job.resumed",
+                "job.restarted",
+                "job.reprioritized",
+                "job.purged",
+                "job.input-amended",
+                "job.signal-raised",
+                "job.state-reset",
+                "job.note-recorded",
+                "schedule.paused",
+                "schedule.resumed",
+                "schedule.pause-expired",
+                "schedule.overrides-updated",
+                "schedule.triggered",
+                "worker.started",
+                "worker.stopped",
+                "worker.died",
+                "alert.acknowledged",
+                "alert.resolved",
+                "setting.updated"
+              ],
               "type": "string"
             }
           },
@@ -5028,6 +5084,12 @@
             "in": "query",
             "description": "Exact actor as its kebab code.",
             "schema": {
+              "enum": [
+                "sys",
+                "operator",
+                "job",
+                "worker"
+              ],
               "type": "string"
             }
           },
@@ -5036,6 +5098,32 @@
             "in": "query",
             "description": "Exact reason as its kebab code.",
             "schema": {
+              "enum": [
+                "unspecified",
+                "job.unclassified",
+                "job.unhandled-exception",
+                "job.lease-expired",
+                "job.execution-timeout",
+                "job.non-retryable-exception",
+                "job.deadline-exceeded",
+                "job.attempt-aborted",
+                "job.schedules-exhausted",
+                "job.control-manual",
+                "job.parent-cancelled",
+                "job.definition-retired",
+                "job.handler-rescheduled",
+                "job.handler-suspended",
+                "job.handler-failed",
+                "job.handler-cancelled",
+                "job.handler-paused",
+                "job.signal-released",
+                "job.step-retry-scheduled",
+                "job.exclusive-key-held",
+                "job.step-interrupted",
+                "job.result-oversized",
+                "worker.clean-shutdown",
+                "worker.heartbeat-stale"
+              ],
               "type": "string"
             }
           },
@@ -5103,7 +5191,7 @@
           {
             "name": "includeTotal",
             "in": "query",
-            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "description": "Also compute the row count; this endpoint accepts it only together with jobId.",
             "schema": {
               "type": "boolean"
             }
@@ -5193,6 +5281,42 @@
             "in": "query",
             "description": "Exact event code as its kebab string.",
             "schema": {
+              "enum": [
+                "unspecified",
+                "tenant.suspended",
+                "tenant.resumed",
+                "tenant.updated",
+                "namespace.suspended",
+                "namespace.resumed",
+                "namespace.updated",
+                "definition.overrides-updated",
+                "job.execution-started",
+                "job.execution-finished",
+                "job.recurring-rolled-over",
+                "job.suspended",
+                "job.rescheduled",
+                "job.cancelled",
+                "job.paused",
+                "job.resumed",
+                "job.restarted",
+                "job.reprioritized",
+                "job.purged",
+                "job.input-amended",
+                "job.signal-raised",
+                "job.state-reset",
+                "job.note-recorded",
+                "schedule.paused",
+                "schedule.resumed",
+                "schedule.pause-expired",
+                "schedule.overrides-updated",
+                "schedule.triggered",
+                "worker.started",
+                "worker.stopped",
+                "worker.died",
+                "alert.acknowledged",
+                "alert.resolved",
+                "setting.updated"
+              ],
               "type": "string"
             }
           },
@@ -5301,14 +5425,6 @@
             }
           },
           {
-            "name": "jobName",
-            "in": "query",
-            "description": "Exact job name.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "nameContains",
             "in": "query",
             "description": "Case-insensitive substring match on the job name.",
@@ -5321,6 +5437,10 @@
             "in": "query",
             "description": "Exact definition status as a kebab code.",
             "schema": {
+              "enum": [
+                "active",
+                "retired"
+              ],
               "type": "string"
             }
           },
@@ -5436,6 +5556,42 @@
             "in": "query",
             "description": "Exact event code as its kebab string.",
             "schema": {
+              "enum": [
+                "unspecified",
+                "tenant.suspended",
+                "tenant.resumed",
+                "tenant.updated",
+                "namespace.suspended",
+                "namespace.resumed",
+                "namespace.updated",
+                "definition.overrides-updated",
+                "job.execution-started",
+                "job.execution-finished",
+                "job.recurring-rolled-over",
+                "job.suspended",
+                "job.rescheduled",
+                "job.cancelled",
+                "job.paused",
+                "job.resumed",
+                "job.restarted",
+                "job.reprioritized",
+                "job.purged",
+                "job.input-amended",
+                "job.signal-raised",
+                "job.state-reset",
+                "job.note-recorded",
+                "schedule.paused",
+                "schedule.resumed",
+                "schedule.pause-expired",
+                "schedule.overrides-updated",
+                "schedule.triggered",
+                "worker.started",
+                "worker.stopped",
+                "worker.died",
+                "alert.acknowledged",
+                "alert.resolved",
+                "setting.updated"
+              ],
               "type": "string"
             }
           },
@@ -5538,6 +5694,10 @@
             "in": "query",
             "description": "Exact schedule origin as a kebab code.",
             "schema": {
+              "enum": [
+                "operator",
+                "definition"
+              ],
               "type": "string"
             }
           },
@@ -5708,7 +5868,8 @@
           {
             "name": "jobNamespace",
             "in": "query",
-            "description": "The schedule's namespace (required).",
+            "description": "The schedule's namespace.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5716,7 +5877,8 @@
           {
             "name": "jobName",
             "in": "query",
-            "description": "The schedule's job name (required).",
+            "description": "The schedule's job name.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5724,7 +5886,8 @@
           {
             "name": "scheduleName",
             "in": "query",
-            "description": "The schedule name (required).",
+            "description": "The schedule name.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5822,6 +5985,12 @@
             "in": "query",
             "description": "Exact worker status as a kebab code.",
             "schema": {
+              "enum": [
+                "active",
+                "draining",
+                "stopped",
+                "dead"
+              ],
               "type": "string"
             }
           },
@@ -6049,6 +6218,13 @@
             "in": "query",
             "description": "Exact delivery status as a kebab code.",
             "schema": {
+              "enum": [
+                "pending",
+                "retry-after",
+                "suppressed",
+                "delivered",
+                "failed"
+              ],
               "type": "string"
             }
           },

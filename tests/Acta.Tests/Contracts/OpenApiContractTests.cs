@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -81,17 +82,32 @@ public sealed class OpenApiContractTests
                         var schema = doc.Kind switch
                         {
                             QueryParameterKind.Int => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+                            QueryParameterKind.Long => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64" },
                             QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
                             QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
                             _ => new OpenApiSchema { Type = JsonSchemaType.String },
                         };
+                        if (doc.CodeKind is { } kind)
+                        {
+                            // The accepted values are the family's kebab codes, resolved from the
+                            // model itself so the documented vocabulary cannot drift from it - a
+                            // renamed member shows up as an openapi.json diff the gate makes a
+                            // human read.
+                            schema.Enum =
+                            [
+                                .. CodeManifests
+                                    .All.Where(e => string.Equals(e.CodeKind, kind, StringComparison.Ordinal))
+                                    .OrderBy(e => e.Id)
+                                    .Select(e => (JsonNode)e.Code),
+                            ];
+                        }
                         operation.Parameters ??= [];
                         operation.Parameters.Add(
                             new OpenApiParameter
                             {
                                 Name = doc.Name,
                                 In = ParameterLocation.Query,
-                                Required = false,
+                                Required = doc.Required,
                                 Description = doc.Description,
                                 Schema = doc.Repeatable ? new OpenApiSchema { Type = JsonSchemaType.Array, Items = schema } : schema,
                             }

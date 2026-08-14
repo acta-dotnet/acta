@@ -28,6 +28,7 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(PagedResult<AlertListItem>))]
 [JsonSerializable(typeof(PagedResult<string>))]
 [JsonSerializable(typeof(PagedResult<TenantListItem>))]
+[JsonSerializable(typeof(TenantDetail))]
 [JsonSerializable(typeof(PagedResult<NamespaceListItem>))]
 [JsonSerializable(typeof(JobDetail))]
 [JsonSerializable(typeof(JobExplanation))]
