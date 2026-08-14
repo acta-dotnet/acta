@@ -45,7 +45,7 @@ public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFi
         } while (cursor is not null);
 
         Assert.NotEmpty(seen);
-        Assert.Equal(seen.Count, seen.Select(static i => i.JobDefinitionId).Distinct().Count());
+        Assert.Equal(seen.Count, seen.Select(static i => i.DefinitionId).Distinct().Count());
 
         // Collation-agnostic ordering check. The keyset walk must return the same rows in the same
         // order as a single un-paged read of the catalog. Asserting a fixed ordinal order here would
@@ -56,7 +56,7 @@ public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFi
             new ListDefinitionsQuery(JobNamespace: TestNamespace, PageSize: seen.Count, IncludeTotal: true),
             ct
         );
-        Assert.Equal(seen.Select(static i => i.JobDefinitionId), single.Items.Select(static i => i.JobDefinitionId));
+        Assert.Equal(seen.Select(static i => i.DefinitionId), single.Items.Select(static i => i.DefinitionId));
         Assert.Equal(seen.Count, single.TotalCount);
     }
 

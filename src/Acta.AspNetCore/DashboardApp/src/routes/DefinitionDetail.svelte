@@ -42,7 +42,7 @@
       const def = await api('definitions/' + encodeURIComponent(defId), {}, { signal });
       let history = [];
       try {
-        history = (await api('definitions/' + def.jobDefinitionId + '/events', { pageSize: 20 }, { signal })).items;
+        history = (await api('definitions/' + def.definitionId + '/events', { pageSize: 20 }, { signal })).items;
       } catch (e) {
         if (e?.name === 'AbortError') throw e;
         // history is best-effort; the editor still works without it
@@ -108,7 +108,7 @@
       overrides[f.key] = parse(f.kind, inputs[f.key] ?? '');
     }
     try {
-      const res = await setDefinitionOverrides(def.jobDefinitionId, def.version, overrides, note);
+      const res = await setDefinitionOverrides(def.definitionId, def.version, overrides, note);
       message = res.message;
       messageKind = res.action === 'applied' ? 'ok' : 'warn';
       if (res.action === 'applied') {
@@ -150,7 +150,7 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Definition identity">
-      <div class="entity-meta mono">definition #{def.jobDefinitionId} · {def.jobNamespace} / {def.jobName} · version {def.version}</div>
+      <div class="entity-meta mono">definition #{def.definitionId} · {def.jobNamespace} / {def.jobName} · version {def.version}</div>
       <StatusBadge status={def.status} />
     </section>
 
@@ -208,7 +208,7 @@
           </nav>
         </section>
 
-        <TagEditor path={`definitions/${def.jobDefinitionId}/tags`} />
+        <TagEditor path={`definitions/${def.definitionId}/tags`} />
 
         <section class="detail-panel">
           <h2>Contract</h2>

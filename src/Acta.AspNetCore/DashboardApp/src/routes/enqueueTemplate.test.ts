@@ -7,7 +7,7 @@ const addNumbers = {
   jobNamespace: 'testjobs',
   jobName: 'add-numbers',
   inputTypeName: 'TestJobs.AddNumbers',
-  format: 'json',
+  inputFormatName: 'json',
   template: { left: 0, right: 0 }
 };
 
@@ -17,7 +17,7 @@ test('inputContractLabel: names the input type and its wire format', () => {
 
 test('inputContractLabel: a job this host does not know has no label', () => {
   assert.equal(inputContractLabel(null), null);
-  assert.equal(inputContractLabel({ ...addNumbers, inputTypeName: null, format: 'none', template: null }), null);
+  assert.equal(inputContractLabel({ ...addNumbers, inputTypeName: null, inputFormatName: 'none', template: null }), null);
 });
 
 test('templateSeed: an untouched editor with no clone prefill takes the template', () => {
@@ -42,7 +42,7 @@ test('templateSeed: no template leaves the editor alone', () => {
 
 test('cloneInputState: a json clone seeds the json editor', () => {
   assert.deepEqual(cloneInputState({ format: 'json', formatId: 1, json: { a: 1 } }), {
-    format: 'json',
+    inputFormatName: 'json',
     json: { a: 1 },
     text: ''
   });
@@ -50,7 +50,7 @@ test('cloneInputState: a json clone seeds the json editor', () => {
 
 test('cloneInputState: a text clone seeds text mode, not a quoted json string', () => {
   assert.deepEqual(cloneInputState({ format: 'text', formatId: 3, text: 'order-42' }), {
-    format: 'text',
+    inputFormatName: 'text',
     json: {},
     text: 'order-42'
   });
@@ -58,12 +58,12 @@ test('cloneInputState: a text clone seeds text mode, not a quoted json string', 
 
 test('cloneInputState: a binary or none clone leaves the form untouched (out of scope for v1)', () => {
   assert.equal(cloneInputState({ format: 'bytes', formatId: 2, base64: 'AQI=' }), null);
-  assert.equal(cloneInputState({ format: 'none', formatId: 0 }), null);
+  assert.equal(cloneInputState({ formatName: 'none', formatId: 0 }), null);
   assert.equal(cloneInputState(null), null);
 });
 
 test('cloneInputState: a truncated clone seeds nothing (no body to copy)', () => {
-  assert.equal(cloneInputState({ format: 'json', formatId: 1, byteLength: 512 * 1024, truncated: true }), null);
+  assert.equal(cloneInputState({ formatName: 'json', formatId: 1, byteLength: 512 * 1024, truncated: true }), null);
 });
 
 const jsonState = { format: 'json' as const, json: { a: 1 }, text: '' };

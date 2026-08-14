@@ -201,13 +201,13 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest(error));
                     }
 
-                    var parentRefText = QueryBinding.Text(http.Request.Query, "parentRef");
+                    var parentJobRefText = QueryBinding.Text(http.Request.Query, "parentJobRef");
                     JobLookup? parentFilter = null;
-                    if (parentRefText is not null)
+                    if (parentJobRefText is not null)
                     {
-                        if (!JobTargetBinding.TryParseTarget(parentRefText, options, out var parsed))
+                        if (!JobTargetBinding.TryParseTarget(parentJobRefText, options, out var parsed))
                         {
-                            return Task.FromResult(BadRequest("parentRef is not a valid job ref."));
+                            return Task.FromResult(BadRequest("parentJobRef is not a valid job ref."));
                         }
 
                         parentFilter = parsed;
@@ -445,7 +445,7 @@ internal static class ActaApiEndpoints
                     }
 
                     var query = new ListTenantsQuery(
-                        Search: QueryBinding.Text(http.Request.Query, "search"),
+                        NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
                         Status: status,
                         PageSize: pageSize,
                         Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
@@ -615,11 +615,11 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/definitions/{defId:int}",
-                static (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/definitions/{definitionId:int}",
+                static (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     Guard(async () =>
                     {
-                        var def = await operations.Definitions.GetAsync(defId, ct);
+                        var def = await operations.Definitions.GetAsync(definitionId, ct);
                         return def is null
                             ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Definition not found.")
                             : Results.Json(def, DashboardJsonContext.Default.JobDefinitionDetail);
@@ -630,8 +630,8 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/definitions/{defId:int}/events",
-                static (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/definitions/{definitionId:int}/events",
+                static (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
                     string? error = null;
                     if (
@@ -643,7 +643,7 @@ internal static class ActaApiEndpoints
                     }
 
                     var query = new ListEventsQuery(
-                        JobDefinitionId: defId,
+                        DefinitionId: definitionId,
                         EventCode: eventCode,
                         PageSize: pageSize,
                         Cursor: QueryBinding.Text(http.Request.Query, "cursor")
@@ -732,7 +732,7 @@ internal static class ActaApiEndpoints
                 static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
                     string? error = null;
-                    if (!QueryBinding.TryInt(http.Request.Query, "count", out var count, ref error))
+                    if (!QueryBinding.TryInt(http.Request.Query, "limit", out var count, ref error))
                     {
                         return Task.FromResult(BadRequest(error));
                     }
@@ -813,7 +813,7 @@ internal static class ActaApiEndpoints
                         !QueryBinding.TryEnum<AlertSeverityCode>(http.Request.Query, "severityAtLeast", out var severity, ref error)
                         || !QueryBinding.TryBool(http.Request.Query, "unresolvedOnly", out var unresolvedOnly, ref error)
                         || !QueryBinding.TryEnum<AlertDeliveryStatusCode>(http.Request.Query, "deliveryStatus", out var delivery, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "acknowledged", out var acknowledged, ref error)
+                        || !QueryBinding.TryBool(http.Request.Query, "acknowledgedOnly", out var acknowledged, ref error)
                         || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                         || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
                     )
@@ -851,7 +851,7 @@ internal static class ActaApiEndpoints
                             UnresolvedOnly: unresolvedOnly,
                             SeverityAtLeast: severity,
                             DeliveryStatus: delivery,
-                            Acknowledged: acknowledged,
+                            AcknowledgedOnly: acknowledged,
                             PageSize: pageSize,
                             Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
                             IncludeTotal: includeTotal ?? false,

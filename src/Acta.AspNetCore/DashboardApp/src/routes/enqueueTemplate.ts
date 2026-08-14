@@ -7,7 +7,7 @@ import type { JobInputTemplate, JobPayloadView } from '../api.ts';
 // the form shows nothing rather than an empty hint.
 export function inputContractLabel(template: JobInputTemplate | null | undefined): string | null {
   if (!template?.inputTypeName) return null;
-  return `Input: ${template.inputTypeName} (${template.format})`;
+  return `Input: ${template.inputTypeName} (${template.inputFormatName})`;
 }
 
 // The template is a starting point, never an override: it seeds only an editor the operator has not
@@ -36,10 +36,10 @@ export interface EnqueueInputState {
 // source with no body, or a clone that could not be read); v1 does not seed binary clones.
 export function cloneInputState(payload: JobPayloadView | null | undefined): EnqueueInputState | null {
   if (payload?.truncated) return null;
-  if (payload?.format === 'json' && payload.json !== undefined) {
+  if (payload?.formatName === 'json' && payload.json !== undefined) {
     return { format: 'json', json: payload.json, text: '' };
   }
-  if (payload?.format === 'text' && payload.text !== undefined) {
+  if (payload?.formatName === 'text' && payload.text !== undefined) {
     return { format: 'text', json: {}, text: payload.text };
   }
   return null;

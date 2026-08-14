@@ -879,7 +879,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/signals/{name}": {
+    "/acta/api/v1/jobs/{jobRef}/signals/{signalName}": {
       "post": {
         "tags": [
           "Jobs"
@@ -894,7 +894,7 @@
             }
           },
           {
-            "name": "name",
+            "name": "signalName",
             "in": "path",
             "required": true,
             "schema": {
@@ -1142,14 +1142,14 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{defId}": {
+    "/acta/api/v1/definitions/{definitionId}": {
       "patch": {
         "tags": [
           "Definitions"
         ],
         "parameters": [
           {
-            "name": "defId",
+            "name": "definitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1215,7 +1215,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionOverrideResponse"
+                  "$ref": "#/components/schemas/DefinitionControlResponse"
                 }
               }
             }
@@ -1238,7 +1238,7 @@
         ],
         "parameters": [
           {
-            "name": "defId",
+            "name": "definitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -2290,14 +2290,14 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{name}/suspend": {
+    "/acta/api/v1/namespaces/{jobNamespace}/suspend": {
       "post": {
         "tags": [
           "Namespaces"
         ],
         "parameters": [
           {
-            "name": "name",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
@@ -2389,14 +2389,14 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{name}/resume": {
+    "/acta/api/v1/namespaces/{jobNamespace}/resume": {
       "post": {
         "tags": [
           "Namespaces"
         ],
         "parameters": [
           {
-            "name": "name",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
@@ -2488,14 +2488,14 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{name}": {
+    "/acta/api/v1/namespaces/{jobNamespace}": {
       "patch": {
         "tags": [
           "Namespaces"
         ],
         "parameters": [
           {
-            "name": "name",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
@@ -2853,14 +2853,14 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{defId}/tags": {
+    "/acta/api/v1/definitions/{definitionId}/tags": {
       "post": {
         "tags": [
           "Definitions"
         ],
         "parameters": [
           {
-            "name": "defId",
+            "name": "definitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -2949,7 +2949,7 @@
         ],
         "parameters": [
           {
-            "name": "defId",
+            "name": "definitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -3026,14 +3026,14 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{defId}/tags/{tagName}": {
+    "/acta/api/v1/definitions/{definitionId}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Definitions"
         ],
         "parameters": [
           {
-            "name": "defId",
+            "name": "definitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -3711,14 +3711,14 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{name}/tags": {
+    "/acta/api/v1/namespaces/{jobNamespace}/tags": {
       "post": {
         "tags": [
           "Namespaces"
         ],
         "parameters": [
           {
-            "name": "name",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
@@ -3805,7 +3805,7 @@
         ],
         "parameters": [
           {
-            "name": "name",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
@@ -3880,14 +3880,14 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{name}/tags/{tagName}": {
+    "/acta/api/v1/namespaces/{jobNamespace}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Namespaces"
         ],
         "parameters": [
           {
-            "name": "name",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
@@ -4932,14 +4932,14 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{defId}/events": {
+    "/acta/api/v1/definitions/{definitionId}/events": {
       "get": {
         "tags": [
           "Definitions"
         ],
         "parameters": [
           {
-            "name": "defId",
+            "name": "definitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -5474,7 +5474,7 @@
       "AlertKindCode": { },
       "AlertListItem": {
         "required": [
-          "jobAlertId",
+          "alertId",
           "jobNamespace",
           "jobRef",
           "origin",
@@ -5494,7 +5494,7 @@
         ],
         "type": "object",
         "properties": {
-          "jobAlertId": {
+          "alertId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -5642,15 +5642,15 @@
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
       },
-      "DefinitionOverrideResponse": {
+      "DefinitionControlResponse": {
         "required": [
-          "jobDefinitionId",
+          "definitionId",
           "action",
           "message"
         ],
         "type": "object",
         "properties": {
-          "jobDefinitionId": {
+          "definitionId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -5678,7 +5678,7 @@
           "jobName",
           "jobRef",
           "lineageRootJobRef",
-          "jobDefinitionId",
+          "definitionId",
           "tenantId",
           "workerId",
           "executionNumber",
@@ -5745,7 +5745,7 @@
               }
             ]
           },
-          "jobDefinitionId": {
+          "definitionId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
@@ -5960,7 +5960,7 @@
       },
       "JobDefinitionDetail": {
         "required": [
-          "jobDefinitionId",
+          "definitionId",
           "jobNamespace",
           "jobName",
           "status",
@@ -6017,7 +6017,7 @@
         ],
         "type": "object",
         "properties": {
-          "jobDefinitionId": {
+          "definitionId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -6341,7 +6341,7 @@
       },
       "JobDefinitionListItem": {
         "required": [
-          "jobDefinitionId",
+          "definitionId",
           "jobNamespace",
           "jobName",
           "status",
@@ -6356,7 +6356,7 @@
         ],
         "type": "object",
         "properties": {
-          "jobDefinitionId": {
+          "definitionId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -6432,7 +6432,7 @@
         "required": [
           "jobRef",
           "jobNamespace",
-          "jobDefinitionId",
+          "definitionId",
           "jobName",
           "lineageRootJobRef",
           "parentJobRef",
@@ -6461,7 +6461,7 @@
           "jobNamespace": {
             "type": "string"
           },
-          "jobDefinitionId": {
+          "definitionId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -6927,7 +6927,7 @@
           "jobNamespace",
           "jobName",
           "inputTypeName",
-          "format",
+          "inputFormatName",
           "template"
         ],
         "type": "object",
@@ -6944,7 +6944,7 @@
               "string"
             ]
           },
-          "format": {
+          "inputFormatName": {
             "type": "string"
           },
           "template": {
@@ -7228,12 +7228,12 @@
       },
       "JobPayloadResponse": {
         "required": [
-          "format",
+          "formatName",
           "formatId"
         ],
         "type": "object",
         "properties": {
-          "format": {
+          "formatName": {
             "type": "string"
           },
           "formatId": {
@@ -7288,8 +7288,8 @@
       "MisfireStrategyCode": { },
       "NamespaceListItem": {
         "required": [
-          "id",
-          "name",
+          "namespaceId",
+          "jobNamespace",
           "status",
           "ownerTeam",
           "description",
@@ -7297,7 +7297,7 @@
         ],
         "type": "object",
         "properties": {
-          "id": {
+          "namespaceId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -7306,7 +7306,7 @@
             "description": "DB-assigned namespace id, referenced by `job.namespace_id`. The seeded sys namespace is id 1.",
             "format": "int16"
           },
-          "name": {
+          "jobNamespace": {
             "type": "string",
             "description": "Operator-readable kebab-case namespace name. Unique."
           },
@@ -8006,7 +8006,7 @@
         "required": [
           "jobScheduleId",
           "jobId",
-          "jobDefinitionId",
+          "definitionId",
           "jobNamespace",
           "jobName",
           "scheduleName",
@@ -8043,7 +8043,7 @@
             "description": "Recurring slot job id.",
             "format": "int64"
           },
-          "jobDefinitionId": {
+          "definitionId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",

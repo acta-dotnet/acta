@@ -267,7 +267,7 @@ internal static class ActaControlEndpoints
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
-    // POST /jobs/{jobRef}/signals/{name}: raise a named signal on a job. This is operator control, so it
+    // POST /jobs/{jobRef}/signals/{signalName}: raise a named signal on a job. This is operator control, so it
     // sits behind EnableControls (only mapped when controls are on) and the confirmation header, like the
     // destructive verbs. The name is validated as user-kebab at the edge: underscores are not valid kebab,
     // so the reserved child-latch "__" names are rejected as malformed, and the sys. reservation is
@@ -278,8 +278,15 @@ internal static class ActaControlEndpoints
     {
         group
             .MapPost(
-                "/jobs/{jobRef}/signals/{name}",
-                async (string jobRef, string name, HttpContext http, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
+                "/jobs/{jobRef}/signals/{signalName}",
+                async (
+                    string jobRef,
+                    string signalName,
+                    HttpContext http,
+                    IJobs jobs,
+                    IOptions<JobsOptions> jobsOptions,
+                    CancellationToken ct
+                ) =>
                 {
                     if (!JobRef.TryParse(jobRef, out var parsed))
                     {
@@ -293,7 +300,7 @@ internal static class ActaControlEndpoints
 
                     try
                     {
-                        IdentifierSyntax.ValidateUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+                        IdentifierSyntax.ValidateUserKebab(signalName, nameof(signalName), IdentifierSyntax.ExtendedMaxLength);
                     }
                     catch (ArgumentException ex)
                     {
@@ -319,7 +326,7 @@ internal static class ActaControlEndpoints
 
                     try
                     {
-                        var result = await jobs.RaiseSignalAsync(JobLookup.ByRef(parsed), name, payload, actorKey, ct);
+                        var result = await jobs.RaiseSignalAsync(JobLookup.ByRef(parsed), signalName, payload, actorKey, ct);
                         return ToResult("signal", parsed, result);
                     }
                     catch (PayloadTooLargeException ex)

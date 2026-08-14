@@ -92,7 +92,9 @@ internal sealed class NamespacesService(INamespaceStore store)
         var rows = page.Rows;
         var hasMore = rows.Count > pageSize;
         var items = hasMore ? rows.Take(pageSize).ToList() : rows;
-        var nextCursor = hasMore ? PageCursorCodec.Encode(ListItemsOperationName, OrderNamespaces, filterHash, [items[^1].Name]) : null;
+        var nextCursor = hasMore
+            ? PageCursorCodec.Encode(ListItemsOperationName, OrderNamespaces, filterHash, [items[^1].JobNamespace])
+            : null;
 
         return new PagedResult<NamespaceListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }

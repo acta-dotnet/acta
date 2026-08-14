@@ -24,7 +24,7 @@
   let draft = $state('');
   let saving = $state(false);
 
-  let format = $derived(payload.format);
+  let format = $derived(payload.formatName);
   let isJson = $derived(format === 'json');
   let isText = $derived(format === 'text');
   let isNone = $derived(format === 'none');

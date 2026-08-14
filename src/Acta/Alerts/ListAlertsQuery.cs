@@ -9,7 +9,7 @@ namespace Acta;
 /// <param name="UnresolvedOnly">When true only unresolved alerts are returned.</param>
 /// <param name="SeverityAtLeast">Minimum severity floor.</param>
 /// <param name="DeliveryStatus">Restrict to one delivery status.</param>
-/// <param name="Acknowledged">Null returns every alert; true restricts to acknowledged alerts; false restricts to unacknowledged ones.</param>
+/// <param name="AcknowledgedOnly">Null returns every alert; true restricts to acknowledged alerts; false restricts to unacknowledged ones.</param>
 /// <param name="PageSize">Rows per page; null defaults to 50, values above 100 clamp to 100.</param>
 /// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
 /// <param name="IncludeTotal">Whether to also compute the filter-wide row count.</param>
@@ -20,7 +20,7 @@ public sealed record ListAlertsQuery(
     bool? UnresolvedOnly = null,
     AlertSeverityCode? SeverityAtLeast = null,
     AlertDeliveryStatusCode? DeliveryStatus = null,
-    bool? Acknowledged = null,
+    bool? AcknowledgedOnly = null,
     int? PageSize = null,
     string? Cursor = null,
     bool IncludeTotal = false,

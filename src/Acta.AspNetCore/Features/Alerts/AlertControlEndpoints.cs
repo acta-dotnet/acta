@@ -44,7 +44,7 @@ internal static class AlertControlEndpoints
                         http,
                         options,
                         DashboardJsonContext.Default.AlertControlRequest,
-                        static r => r.Note,
+                        static r => r.ReasonMessage,
                         ct
                     );
                     if (error is not null)

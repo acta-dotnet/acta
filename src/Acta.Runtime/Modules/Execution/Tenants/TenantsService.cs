@@ -54,7 +54,7 @@ internal sealed class TenantsService(ITenantStore store)
 
         // The providers perform a literal substring search against LOWER()ed columns. Keep the
         // normalized term free of LIKE metacharacters so %, _, and [ retain their literal meaning.
-        var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim().ToLowerInvariant();
+        var search = string.IsNullOrWhiteSpace(query.NameContains) ? null : query.NameContains.Trim().ToLowerInvariant();
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListTenantsQuery));
         var filterHash = QueryFilterHash.Compute([
             ("search", search),

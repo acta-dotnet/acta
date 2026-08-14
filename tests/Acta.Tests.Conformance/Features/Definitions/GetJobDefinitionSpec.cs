@@ -36,10 +36,10 @@ public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.NotEmpty(all);
         var expected = all[0];
 
-        var def = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionAsync(expected.JobDefinitionId, ct);
+        var def = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionAsync(expected.DefinitionId, ct);
 
         Assert.NotNull(def);
-        Assert.Equal(expected.JobDefinitionId, def!.JobDefinitionId);
+        Assert.Equal(expected.DefinitionId, def!.DefinitionId);
         Assert.Equal(expected.JobName, def.JobName);
         Assert.Equal(expected.JobNamespace, def.JobNamespace);
         // The detail row carries the full projection the grid omits (definition hash, formats, every
@@ -67,7 +67,7 @@ public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
             .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, null, 1, false), ct);
         var (all, _) = (page_all.Rows, page_all.Total);
         Assert.NotEmpty(all);
-        var definitionId = all[0].JobDefinitionId;
+        var definitionId = all[0].DefinitionId;
 
         var before = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionAsync(definitionId, ct);
         Assert.NotNull(before);

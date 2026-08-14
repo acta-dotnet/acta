@@ -6,10 +6,14 @@ namespace Acta.AspNetCore.Features.Definitions;
 /// optional note. The actor is stamped server-side from the authenticated principal; the body never
 /// carries it.
 /// </summary>
-internal sealed record SetDefinitionOverridesRequest(int Version = 0, JobDefinitionPolicyOverrides? Overrides = null, string? Note = null);
+internal sealed record SetDefinitionOverridesRequest(
+    int ExpectedVersion = 0,
+    JobDefinitionPolicyOverrides? Overrides = null,
+    string? ReasonMessage = null
+);
 
 /// <summary>
 /// Response of a definition override write: the targeted definition id, the coarse outcome, and a
 /// human-readable message.
 /// </summary>
-internal sealed record DefinitionOverrideResponse(int JobDefinitionId, ControlAction Action, string Message);
+internal sealed record DefinitionControlResponse(int DefinitionId, ControlAction Action, string Message);

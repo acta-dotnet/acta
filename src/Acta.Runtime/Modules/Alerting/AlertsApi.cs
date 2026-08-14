@@ -50,7 +50,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         return row is null
             ? null
             : new AlertDetail(
-                row.JobAlertId,
+                row.AlertId,
                 row.JobNamespace,
                 row.JobId,
                 row.JobRef,
@@ -88,7 +88,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
             ("open", unresolvedOnly?.ToString()),
             ("sev", Num(query.SeverityAtLeast)),
             ("delivery", Num(query.DeliveryStatus)),
-            ("ack", query.Acknowledged?.ToString()),
+            ("ack", query.AcknowledgedOnly?.ToString()),
             ("tags", tagFilters),
         ]);
 
@@ -114,7 +114,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
                 unresolvedOnly,
                 query.SeverityAtLeast,
                 query.DeliveryStatus,
-                query.Acknowledged,
+                query.AcknowledgedOnly,
                 cursorCreatedAtUtc,
                 cursorId,
                 pageSize + 1,
@@ -129,7 +129,7 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         var items = hasMore ? rows.Take(pageSize).ToList() : rows;
 
         var nextCursor = hasMore
-            ? PageCursorCodec.Encode(ListOperationName, OrderCreatedDesc, filterHash, [items[^1].CreatedAtUtc, items[^1].JobAlertId])
+            ? PageCursorCodec.Encode(ListOperationName, OrderCreatedDesc, filterHash, [items[^1].CreatedAtUtc, items[^1].AlertId])
             : null;
 
         return new PagedResult<AlertListItem>(items, nextCursor, hasMore, pageSize, page.Total);

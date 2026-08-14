@@ -17,7 +17,7 @@ public sealed record JobDetail(
     // Scope / routing.
     string JobNamespace,
     // Surrogate for the namespace+name pair; non-null because the job row's definition_id is NOT NULL.
-    int JobDefinitionId,
+    int DefinitionId,
     string JobName,
     [property: JsonIgnore] long? LineageRootId,
     JobRef? LineageRootJobRef,

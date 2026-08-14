@@ -77,7 +77,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
       return json({ controlsEnabled: options.controls, version: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
     }
     if (path === 'namespaces') {
-      return json(paged([{ id: 2, name: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]));
+      return json(paged([{ namespaceId: 2, jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]));
     }
     if (path === 'overview') {
       return json({
@@ -105,7 +105,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === 'schedules') return json(paged([]));
     if (path === 'definitions') {
       return json(paged([{
-        jobDefinitionId: 7,
+        definitionId: 7,
         jobNamespace: 'billing',
         jobName: 'send-invoice',
         status: 'active',

@@ -1463,7 +1463,7 @@
   - LineageRootId filter returns all lineage events and excludes unrelated jobs
   - JobNamespace filter scopes events to exactly one namespace
   - EventCode filter returns only events of that code and excludes all other codes
-  - JobDefinitionId filter partitions events and applies uniformly to the row count
+  - DefinitionId filter partitions events and applies uniformly to the row count
   - TenantId filter returns only events for that tenant and excludes other tenants
   - ActorCode filter partitions the timeline by each actor present on it
   - ReasonCode filter returns only events carrying that reason and excludes reasonless ones

@@ -33,9 +33,9 @@
         if (!page.hasMore || !page.nextCursor) break;
         cursor = page.nextCursor;
       }
-      const system = all.find((item) => isSysNamespace(item.id));
-      if (system && get(scope) === system.name) setScope('');
-      namespaces = all.filter((item) => !isSysNamespace(item.id)).map((item) => item.name);
+      const system = all.find((item) => isSysNamespace(item.namespaceId));
+      if (system && get(scope) === system.jobNamespace) setScope('');
+      namespaces = all.filter((item) => !isSysNamespace(item.namespaceId)).map((item) => item.jobNamespace);
     } catch {
       namespaces = [];
     }

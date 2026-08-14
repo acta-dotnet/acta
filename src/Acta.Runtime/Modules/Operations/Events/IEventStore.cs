@@ -23,7 +23,7 @@ internal sealed record EventPageRequest(
     long? LineageRootId,
     string? JobNamespace,
     EventCode? EventCode,
-    int? JobDefinitionId,
+    int? DefinitionId,
     int? TenantId,
     string? TenantKey,
     int? WorkerId,

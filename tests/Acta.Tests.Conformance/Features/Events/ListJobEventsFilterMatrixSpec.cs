@@ -183,7 +183,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         Assert.Equal(allEvents, [.. startedIds.Union(finishedIds)]);
     }
 
-    [Fact(DisplayName = "JobDefinitionId filter partitions events and applies uniformly to the row count")]
+    [Fact(DisplayName = "DefinitionId filter partitions events and applies uniformly to the row count")]
     public async Task JobDefinitionId_filter_partitions_events_and_count_is_definition_scoped()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -208,22 +208,22 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         // Resolve definition ids from the events
         var j1EventPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 1), ct);
-        var j1DefId = j1EventPage.Items[0].JobDefinitionId;
+        var j1DefId = j1EventPage.Items[0].DefinitionId;
         var j2EventPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j2, PageSize: 1), ct);
-        var j2DefId = j2EventPage.Items[0].JobDefinitionId;
+        var j2DefId = j2EventPage.Items[0].DefinitionId;
         Assert.NotNull(j1DefId);
         Assert.NotNull(j2DefId);
         Assert.NotEqual(j1DefId, j2DefId);
 
         // Definition filter partitions: j1DefId → j1 events; j2DefId → j2 events
         var def1Page = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobNamespace: TestNamespace, JobDefinitionId: j1DefId, PageSize: 100),
+            new ListEventsQuery(JobNamespace: TestNamespace, DefinitionId: j1DefId, PageSize: 100),
             ct
         );
         Assert.Equal(j1Events, [.. def1Page.Items.Select(e => e.JobEventId)]);
 
         var def2Page = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobNamespace: TestNamespace, JobDefinitionId: j2DefId, PageSize: 100),
+            new ListEventsQuery(JobNamespace: TestNamespace, DefinitionId: j2DefId, PageSize: 100),
             ct
         );
         Assert.Equal(j2Events, [.. def2Page.Items.Select(e => e.JobEventId)]);
@@ -232,7 +232,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         // The COUNT query applies all filters uniformly: definition filter affects the total as it does rows.
         var j1Count = (long)j1Events.Count;
         var withCountPage = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: j1, JobDefinitionId: j1DefId, IncludeTotal: true, PageSize: 100),
+            new ListEventsQuery(JobId: j1, DefinitionId: j1DefId, IncludeTotal: true, PageSize: 100),
             ct
         );
         Assert.Equal(j1Count, withCountPage.TotalCount);
@@ -240,7 +240,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         // Mismatched definition: both rows and count reflect the filter (0), not a job-wide total.
         // This pins the actual SQL behavior where COUNT applies the definition filter like SELECT does.
         var mismatchPage = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: j1, JobDefinitionId: j2DefId, IncludeTotal: true, PageSize: 100),
+            new ListEventsQuery(JobId: j1, DefinitionId: j2DefId, IncludeTotal: true, PageSize: 100),
             ct
         );
         Assert.Equal([], mismatchPage.Items.Select(e => e.JobEventId).ToHashSet());

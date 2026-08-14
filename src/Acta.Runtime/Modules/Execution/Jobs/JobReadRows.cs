@@ -28,7 +28,7 @@ internal sealed record JobSnapshotRow(
     DateTime ModifiedAtUtc,
     int? TenantId,
     string? TenantKey,
-    int JobDefinitionId
+    int DefinitionId
 )
 {
     // Named, not positional: this row is in SELECT order and the snapshot in entity order, and both
@@ -38,7 +38,7 @@ internal sealed record JobSnapshotRow(
             JobId: JobId,
             JobRef: new JobRef(JobRef),
             JobNamespace: JobNamespace,
-            JobDefinitionId: JobDefinitionId,
+            DefinitionId: DefinitionId,
             JobName: JobName,
             LineageRootId: LineageRootId,
             LineageRootJobRef: LineageRootJobRef is { } rootRef ? new JobRef(rootRef) : null,

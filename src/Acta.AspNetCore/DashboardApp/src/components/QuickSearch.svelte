@@ -11,7 +11,7 @@
   import Icon from './Icon.svelte';
 
   interface DefinitionHit {
-    jobDefinitionId: number;
+    definitionId: number;
     jobNamespace: string;
     jobName: string;
   }
@@ -171,24 +171,24 @@
     }
     for (const hit of definitions.data?.items ?? []) {
       out.push({
-        id: 'def:' + hit.jobDefinitionId,
+        id: 'def:' + hit.definitionId,
         group: 'Definitions',
         icon: 'reader',
         label: hit.jobName,
         hint: hit.jobNamespace,
-        href: routes.definition(hit.jobDefinitionId, { namespace: ns })
+        href: routes.definition(hit.definitionId, { namespace: ns })
       });
     }
     for (const hit of namespaces.data?.items ?? []) {
       // Switching the working scope is the operator's common case; the admin detail stays a click
       // away through the namespaces page (the More row below).
       out.push({
-        id: 'ns:' + hit.name,
+        id: 'ns:' + hit.jobNamespace,
         group: 'Namespaces',
         icon: 'layers',
-        label: hit.name,
+        label: hit.jobNamespace,
         hint: 'set scope',
-        run: () => switchScope(hit.name)
+        run: () => switchScope(hit.jobNamespace)
       });
     }
     for (const hit of tenants.data?.items ?? []) {

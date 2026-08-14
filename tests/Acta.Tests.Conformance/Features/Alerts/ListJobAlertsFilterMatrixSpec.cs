@@ -72,21 +72,21 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         // Capture IDs via namespace-only read (independent of jobId filter)
         var all = await AllAlertsAsync(ct);
-        var aIds = all.Where(a => a.JobId == j1).Select(a => a.JobAlertId).ToHashSet();
-        var bIds = all.Where(a => a.JobId == j2).Select(a => a.JobAlertId).ToHashSet();
+        var aIds = all.Where(a => a.JobId == j1).Select(a => a.AlertId).ToHashSet();
+        var bIds = all.Where(a => a.JobId == j2).Select(a => a.AlertId).ToHashSet();
         Assert.Equal(2, aIds.Count);
         Assert.Equal(1, bIds.Count);
 
         // Filter by j1: exact set + total, j2 excluded
         var j1Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, JobId: j1, IncludeTotal: true), ct);
-        Assert.Equal(aIds, [.. j1Page.Items.Select(a => a.JobAlertId)]);
+        Assert.Equal(aIds, [.. j1Page.Items.Select(a => a.AlertId)]);
         Assert.Equal(2L, j1Page.TotalCount);
-        Assert.Empty(j1Page.Items.Select(a => a.JobAlertId).Intersect(bIds));
+        Assert.Empty(j1Page.Items.Select(a => a.AlertId).Intersect(bIds));
 
         // Filter by j2: exact set, j1 excluded
         var j2Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, JobId: j2), ct);
-        Assert.Equal(bIds, [.. j2Page.Items.Select(a => a.JobAlertId)]);
-        Assert.Empty(j2Page.Items.Select(a => a.JobAlertId).Intersect(aIds));
+        Assert.Equal(bIds, [.. j2Page.Items.Select(a => a.AlertId)]);
+        Assert.Empty(j2Page.Items.Select(a => a.AlertId).Intersect(aIds));
     }
 
     [Fact(DisplayName = "DeliveryStatus filter partitions alerts by status and the total matches the filtered count")]
@@ -102,8 +102,8 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         // Capture IDs via namespace-only read (independent of delivery-status filter)
         var all = await AllAlertsAsync(ct);
-        var pendingIds = all.Where(a => a.DeliveryStatus == AlertDeliveryStatusCode.Pending).Select(a => a.JobAlertId).ToHashSet();
-        var failedIds = all.Where(a => a.DeliveryStatus == AlertDeliveryStatusCode.Failed).Select(a => a.JobAlertId).ToHashSet();
+        var pendingIds = all.Where(a => a.DeliveryStatus == AlertDeliveryStatusCode.Pending).Select(a => a.AlertId).ToHashSet();
+        var failedIds = all.Where(a => a.DeliveryStatus == AlertDeliveryStatusCode.Failed).Select(a => a.AlertId).ToHashSet();
         Assert.Equal(2, pendingIds.Count);
         Assert.Equal(1, failedIds.Count);
 
@@ -112,17 +112,17 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             new ListAlertsQuery(JobNamespace: TestNamespace, DeliveryStatus: AlertDeliveryStatusCode.Pending, IncludeTotal: true),
             ct
         );
-        Assert.Equal(pendingIds, [.. pPage.Items.Select(a => a.JobAlertId)]);
+        Assert.Equal(pendingIds, [.. pPage.Items.Select(a => a.AlertId)]);
         Assert.Equal(2L, pPage.TotalCount);
-        Assert.Empty(pPage.Items.Select(a => a.JobAlertId).Intersect(failedIds));
+        Assert.Empty(pPage.Items.Select(a => a.AlertId).Intersect(failedIds));
 
         // Filter by Failed
         var fPage = await queries.Alerts.ListAsync(
             new ListAlertsQuery(JobNamespace: TestNamespace, DeliveryStatus: AlertDeliveryStatusCode.Failed),
             ct
         );
-        Assert.Equal(failedIds, [.. fPage.Items.Select(a => a.JobAlertId)]);
-        Assert.Empty(fPage.Items.Select(a => a.JobAlertId).Intersect(pendingIds));
+        Assert.Equal(failedIds, [.. fPage.Items.Select(a => a.AlertId)]);
+        Assert.Empty(fPage.Items.Select(a => a.AlertId).Intersect(pendingIds));
     }
 
     [Fact(DisplayName = "SeverityAtLeast floor returns only alerts at or above the threshold and excludes lower ones")]
@@ -139,8 +139,8 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         // Capture IDs via namespace-only read (independent of severity floor filter)
         var all = await AllAlertsAsync(ct);
-        var lowIds = all.Where(a => a.Severity < AlertSeverityCode.Error).Select(a => a.JobAlertId).ToHashSet(); // Info + Warning
-        var highIds = all.Where(a => a.Severity >= AlertSeverityCode.Error).Select(a => a.JobAlertId).ToHashSet(); // Error + Critical
+        var lowIds = all.Where(a => a.Severity < AlertSeverityCode.Error).Select(a => a.AlertId).ToHashSet(); // Info + Warning
+        var highIds = all.Where(a => a.Severity >= AlertSeverityCode.Error).Select(a => a.AlertId).ToHashSet(); // Error + Critical
         Assert.Equal(2, lowIds.Count);
         Assert.Equal(2, highIds.Count);
 
@@ -149,9 +149,9 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             new ListAlertsQuery(JobNamespace: TestNamespace, SeverityAtLeast: AlertSeverityCode.Error, IncludeTotal: true),
             ct
         );
-        Assert.Equal(highIds, [.. floorPage.Items.Select(a => a.JobAlertId)]);
+        Assert.Equal(highIds, [.. floorPage.Items.Select(a => a.AlertId)]);
         Assert.Equal(2L, floorPage.TotalCount);
-        Assert.Empty(floorPage.Items.Select(a => a.JobAlertId).Intersect(lowIds));
+        Assert.Empty(floorPage.Items.Select(a => a.AlertId).Intersect(lowIds));
     }
 
     [Fact(DisplayName = "UnresolvedOnly filter excludes resolved alerts and includes them when filter is null")]
@@ -177,8 +177,8 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         // Capture IDs before resolving (via origin discrimination, independent of unresolvedOnly filter)
         var all = await AllAlertsAsync(ct);
-        var aId = all.Single(a => a.Origin == AlertOriginCode.Automatic).JobAlertId;
-        var bId = all.Single(a => a.Origin == AlertOriginCode.Manual).JobAlertId;
+        var aId = all.Single(a => a.Origin == AlertOriginCode.Automatic).AlertId;
+        var bId = all.Single(a => a.Origin == AlertOriginCode.Manual).AlertId;
 
         // Resolve alert A
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -189,13 +189,13 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             new ListAlertsQuery(JobNamespace: TestNamespace, UnresolvedOnly: true, IncludeTotal: true),
             ct
         );
-        Assert.Equal([bId], unresolvedPage.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal([bId], unresolvedPage.Items.Select(a => a.AlertId).ToHashSet());
         Assert.Equal(1L, unresolvedPage.TotalCount);
-        Assert.Empty(unresolvedPage.Items.Select(a => a.JobAlertId).Intersect([aId]));
+        Assert.Empty(unresolvedPage.Items.Select(a => a.AlertId).Intersect([aId]));
 
         // unresolvedOnly=null: both A (resolved) and B (open)
         var allPage = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace), ct);
-        Assert.Equal([aId, bId], allPage.Items.Select(a => a.JobAlertId).ToHashSet());
+        Assert.Equal([aId, bId], allPage.Items.Select(a => a.AlertId).ToHashSet());
     }
 
     [Fact(DisplayName = "JobNamespace filter scopes alerts to exactly one namespace and excludes all other namespaces")]
@@ -218,8 +218,8 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         var ns1Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, IncludeTotal: true), ct);
         var ns2Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: ns2Name, IncludeTotal: true), ct);
 
-        var ns1Ids = ns1Page.Items.Select(a => a.JobAlertId).ToHashSet();
-        var ns2Ids = ns2Page.Items.Select(a => a.JobAlertId).ToHashSet();
+        var ns1Ids = ns1Page.Items.Select(a => a.AlertId).ToHashSet();
+        var ns2Ids = ns2Page.Items.Select(a => a.AlertId).ToHashSet();
 
         // Pin counts to the number we seeded
         Assert.Equal(2L, ns1Page.TotalCount);

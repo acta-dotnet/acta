@@ -30,16 +30,16 @@
   );
 
   const columns = [
-    { key: 'name', header: 'Name', class: 'mono' },
+    { key: 'jobNamespace', header: 'Name', class: 'mono' },
     { key: 'status', header: 'Status' },
     { key: 'ownerTeam', header: 'Owner team' },
     { key: 'description', header: 'Description' },
     { key: 'actions', header: '', class: 'col-open' }
   ];
 
-  function detailHref(namespace: { name: string }): string {
+  function detailHref(namespace: { jobNamespace: string }): string {
     const selected = get(scope);
-    return routes.namespace(namespace.name, { namespace: selected });
+    return routes.namespace(namespace.jobNamespace, { namespace: selected });
   }
 </script>
 
@@ -65,20 +65,20 @@
     <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
 
     {#snippet nameCell(namespace: NamespaceListItem)}
-      <a href={detailHref(namespace)}>{namespace.name}</a>
-      {#if isSysNamespace(namespace.id)}<span class="badge held ns-sys-badge" title="Seeded system namespace">sys</span>{/if}
+      <a href={detailHref(namespace)}>{namespace.jobNamespace}</a>
+      {#if isSysNamespace(namespace.namespaceId)}<span class="badge held ns-sys-badge" title="Seeded system namespace">sys</span>{/if}
     {/snippet}
     {#snippet statusCell(namespace: NamespaceListItem)}<StatusBadge status={namespace.status} />{/snippet}
     {#snippet actionsCell(namespace: NamespaceListItem)}
       <a
         class="icon-action"
         href={detailHref(namespace)}
-        title={'Open namespace ' + namespace.name}
-        aria-label={'Open namespace ' + namespace.name}><Icon name="chevron-right" /></a>
+        title={'Open namespace ' + namespace.jobNamespace}
+        aria-label={'Open namespace ' + namespace.jobNamespace}><Icon name="chevron-right" /></a>
     {/snippet}
 
     <ActaGrid
-      rowKey={(namespace: NamespaceListItem) => namespace.id}
+      rowKey={(namespace: NamespaceListItem) => namespace.namespaceId}
       endpoint="namespaces"
       mobileCards={true}
       {columns}
@@ -86,7 +86,7 @@
       includeTotal={true}
       loadingText="Loading namespaces..."
       emptyText="No namespaces match the filters."
-      cells={{ name: nameCell, status: statusCell, actions: actionsCell }} />
+      cells={{ jobNamespace: nameCell, status: statusCell, actions: actionsCell }} />
   </div>
 </Page>
 

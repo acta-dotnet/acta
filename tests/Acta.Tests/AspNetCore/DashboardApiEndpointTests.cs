@@ -432,7 +432,7 @@ public sealed class DashboardApiEndpointTests
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("\"name\":\"billing\"", body);
+        Assert.Contains("\"jobNamespace\":\"billing\"", body);
         Assert.Contains("\"status\":\"active\"", body);
         Assert.Contains("\"ownerTeam\":\"payments\"", body);
     }

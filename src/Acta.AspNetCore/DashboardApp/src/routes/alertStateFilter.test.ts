@@ -29,11 +29,11 @@ test('alertStateMatches: a row matches only its own bucket', () => {
   assert.equal(alertStateMatches('resolved', open), false);
 });
 
-test('alertStateQuery: unacknowledged/acknowledged filter server-side via unresolvedOnly+acknowledged', () => {
-  assert.deepEqual(alertStateQuery('unacknowledged'), { unresolvedOnly: true, acknowledged: false });
-  assert.deepEqual(alertStateQuery('acknowledged'), { unresolvedOnly: true, acknowledged: true });
+test('alertStateQuery: unacknowledged/acknowledged filter server-side via unresolvedOnly+acknowledgedOnly', () => {
+  assert.deepEqual(alertStateQuery('unacknowledged'), { unresolvedOnly: true, acknowledgedOnly: false });
+  assert.deepEqual(alertStateQuery('acknowledged'), { unresolvedOnly: true, acknowledgedOnly: true });
 });
 
 test('alertStateQuery: resolved has no server-side "resolved only" filter, so both params are unset', () => {
-  assert.deepEqual(alertStateQuery('resolved'), { unresolvedOnly: '', acknowledged: '' });
+  assert.deepEqual(alertStateQuery('resolved'), { unresolvedOnly: '', acknowledgedOnly: '' });
 });

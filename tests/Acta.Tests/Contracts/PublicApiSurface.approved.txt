@@ -393,7 +393,7 @@ sealed class Acta.AlertKindCodeJsonConverter
     Acta.AlertKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertKindCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.AlertListItem
-    .ctor(System.Int64 JobAlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Byte RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
+    .ctor(System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Byte RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
     Acta.AlertDeliveryStatusCode DeliveryStatus { get;init; }
     Acta.AlertKindCode Kind { get;init; }
     Acta.AlertOriginCode Origin { get;init; }
@@ -402,7 +402,7 @@ sealed class Acta.AlertListItem
     System.DateTime CreatedAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.Int32 OccurrenceCount { get;init; }
-    System.Int64 JobAlertId { get;init; }
+    System.Int64 AlertId { get;init; }
     System.Nullable<Acta.JobRef> JobRef { get;init; }
     System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
     System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
@@ -706,7 +706,7 @@ sealed class Acta.EventCodeJsonConverter
     Acta.EventCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.EventCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.EventListItem
-    .ctor(System.Int64 JobEventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, System.String JobName, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> JobDefinitionId, System.Nullable<System.Int32> TenantId, System.Nullable<System.Int32> WorkerId, System.Nullable<System.Int32> ExecutionNumber, Acta.ActorCode ActorCode, System.String ActorKey, System.Nullable<Acta.JobStatusCode> FromStatus, System.Nullable<Acta.JobStatusCode> ToStatus, System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus, System.Nullable<System.Int32> DurationMs, System.Nullable<Acta.JobEventReasonCode> ReasonCode, System.String ReasonMessage, System.String DetailText)
+    .ctor(System.Int64 JobEventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, System.String JobName, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.Nullable<System.Int32> WorkerId, System.Nullable<System.Int32> ExecutionNumber, Acta.ActorCode ActorCode, System.String ActorKey, System.Nullable<Acta.JobStatusCode> FromStatus, System.Nullable<Acta.JobStatusCode> ToStatus, System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus, System.Nullable<System.Int32> DurationMs, System.Nullable<Acta.JobEventReasonCode> ReasonCode, System.String ReasonMessage, System.String DetailText)
     Acta.ActorCode ActorCode { get;init; }
     Acta.EventCode EventCode { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
@@ -717,9 +717,9 @@ sealed class Acta.EventListItem
     System.Nullable<Acta.JobRef> LineageRootJobRef { get;init; }
     System.Nullable<Acta.JobStatusCode> FromStatus { get;init; }
     System.Nullable<Acta.JobStatusCode> ToStatus { get;init; }
+    System.Nullable<System.Int32> DefinitionId { get;init; }
     System.Nullable<System.Int32> DurationMs { get;init; }
     System.Nullable<System.Int32> ExecutionNumber { get;init; }
-    System.Nullable<System.Int32> JobDefinitionId { get;init; }
     System.Nullable<System.Int32> TenantId { get;init; }
     System.Nullable<System.Int32> WorkerId { get;init; }
     System.Nullable<System.Int64> JobId { get;init; }
@@ -1127,7 +1127,7 @@ sealed class Acta.JobControlResult
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
 sealed class Acta.JobDefinitionDetail
-    .ctor(System.Int32 JobDefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String DefinitionHash, System.DateTime ManifestGenerationAtUtc, System.String InputTypeName, System.Byte InputFormatId, System.String InputFormatName, System.String OutputTypeName, System.Byte OutputFormatId, System.String OutputFormatName, Acta.JobPriorityCode Priority, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Int16 MaxAttempts, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.String Backoff, System.String BackoffOverride, System.String BackoffEffective, System.Int32 ExecutionTimeoutSeconds, System.Nullable<System.Int32> ExecutionTimeoutSecondsOverride, System.Int32 ExecutionTimeoutSecondsEffective, System.Int32 DeadlineSeconds, System.Nullable<System.Int32> DeadlineSecondsOverride, System.Int32 DeadlineSecondsEffective, Acta.DeadlineBehaviorCode DeadlineBehavior, System.Nullable<Acta.DeadlineBehaviorCode> DeadlineBehaviorOverride, Acta.DeadlineBehaviorCode DeadlineBehaviorEffective, System.Int32 JobRetentionSeconds, System.Nullable<System.Int32> JobRetentionSecondsOverride, System.Int32 JobRetentionSecondsEffective, Acta.JobAuditLevelCode AuditLevel, System.Nullable<Acta.JobAuditLevelCode> AuditLevelOverride, Acta.JobAuditLevelCode AuditLevelEffective, Acta.AlertProfileCode AlertProfile, System.Nullable<Acta.AlertProfileCode> AlertProfileOverride, Acta.AlertProfileCode AlertProfileEffective, System.String AlertChannelName, System.String AlertChannelNameOverride, System.String AlertChannelNameEffective, System.String RunbookUrl, System.String RunbookUrlOverride, System.String RunbookUrlEffective, System.String DisplayName, System.String DisplayNameOverride, System.String DisplayNameEffective, System.String Description, System.String DescriptionOverride, System.String DescriptionEffective, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String DefinitionHash, System.DateTime ManifestGenerationAtUtc, System.String InputTypeName, System.Byte InputFormatId, System.String InputFormatName, System.String OutputTypeName, System.Byte OutputFormatId, System.String OutputFormatName, Acta.JobPriorityCode Priority, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Int16 MaxAttempts, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.String Backoff, System.String BackoffOverride, System.String BackoffEffective, System.Int32 ExecutionTimeoutSeconds, System.Nullable<System.Int32> ExecutionTimeoutSecondsOverride, System.Int32 ExecutionTimeoutSecondsEffective, System.Int32 DeadlineSeconds, System.Nullable<System.Int32> DeadlineSecondsOverride, System.Int32 DeadlineSecondsEffective, Acta.DeadlineBehaviorCode DeadlineBehavior, System.Nullable<Acta.DeadlineBehaviorCode> DeadlineBehaviorOverride, Acta.DeadlineBehaviorCode DeadlineBehaviorEffective, System.Int32 JobRetentionSeconds, System.Nullable<System.Int32> JobRetentionSecondsOverride, System.Int32 JobRetentionSecondsEffective, Acta.JobAuditLevelCode AuditLevel, System.Nullable<Acta.JobAuditLevelCode> AuditLevelOverride, Acta.JobAuditLevelCode AuditLevelEffective, Acta.AlertProfileCode AlertProfile, System.Nullable<Acta.AlertProfileCode> AlertProfileOverride, Acta.AlertProfileCode AlertProfileEffective, System.String AlertChannelName, System.String AlertChannelNameOverride, System.String AlertChannelNameEffective, System.String RunbookUrl, System.String RunbookUrlOverride, System.String RunbookUrlEffective, System.String DisplayName, System.String DisplayNameOverride, System.String DisplayNameEffective, System.String Description, System.String DescriptionOverride, System.String DescriptionEffective, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.AlertProfileCode AlertProfile { get;init; }
     Acta.AlertProfileCode AlertProfileEffective { get;init; }
     Acta.DeadlineBehaviorCode DeadlineBehavior { get;init; }
@@ -1146,9 +1146,9 @@ sealed class Acta.JobDefinitionDetail
     System.Int16 MaxAttemptsEffective { get;init; }
     System.Int32 DeadlineSeconds { get;init; }
     System.Int32 DeadlineSecondsEffective { get;init; }
+    System.Int32 DefinitionId { get;init; }
     System.Int32 ExecutionTimeoutSeconds { get;init; }
     System.Int32 ExecutionTimeoutSecondsEffective { get;init; }
-    System.Int32 JobDefinitionId { get;init; }
     System.Int32 JobRetentionSeconds { get;init; }
     System.Int32 JobRetentionSecondsEffective { get;init; }
     System.Int32 Version { get;init; }
@@ -1183,12 +1183,12 @@ sealed class Acta.JobDefinitionDetail
     System.String RunbookUrlEffective { get;init; }
     System.String RunbookUrlOverride { get;init; }
 sealed class Acta.JobDefinitionListItem
-    .ctor(System.Int32 JobDefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.JobDefinitionStatusCode Status { get;init; }
     Acta.JobPriorityCode PriorityEffective { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.Int16 MaxAttemptsEffective { get;init; }
-    System.Int32 JobDefinitionId { get;init; }
+    System.Int32 DefinitionId { get;init; }
     System.Int32 Version { get;init; }
     System.Nullable<Acta.JobPriorityCode> PriorityOverride { get;init; }
     System.Nullable<System.Int16> MaxAttemptsOverride { get;init; }
@@ -1267,7 +1267,7 @@ sealed class Acta.JobDescriptorManifest
     .ctor(System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors)
     System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors { get;init; }
 sealed class Acta.JobDetail
-    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.Int32 JobDefinitionId, System.String JobName, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int32> TenantId, System.String TenantKey, System.String DeduplicationKey, System.String CorrelationKey, System.String ExclusiveKey, System.Byte InputFormatId, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.Nullable<System.DateTime> NextRunAtUtc, System.Int32 ExecutionNumber, System.Int16 FailureCount, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.Nullable<System.DateTime> RetentionUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.Int32 DefinitionId, System.String JobName, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int32> TenantId, System.String TenantKey, System.String DeduplicationKey, System.String CorrelationKey, System.String ExclusiveKey, System.Byte InputFormatId, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.Nullable<System.DateTime> NextRunAtUtc, System.Int32 ExecutionNumber, System.Int16 FailureCount, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.Nullable<System.DateTime> RetentionUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.JobPriorityCode Priority { get;init; }
     Acta.JobRef JobRef { get;init; }
     Acta.JobStatusCode Status { get;init; }
@@ -1275,8 +1275,8 @@ sealed class Acta.JobDetail
     System.DateTime CreatedAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.Int16 FailureCount { get;init; }
+    System.Int32 DefinitionId { get;init; }
     System.Int32 ExecutionNumber { get;init; }
-    System.Int32 JobDefinitionId { get;init; }
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobRef> LineageRootJobRef { get;init; }
     System.Nullable<Acta.JobRef> ParentJobRef { get;init; }
@@ -1743,12 +1743,12 @@ sealed class Acta.LeaseKindCodeJsonConverter
     Acta.LeaseKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.LeaseKindCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.ListAlertsQuery
-    .ctor(System.String JobNamespace = default, System.Nullable<System.Int64> JobId = default, System.Nullable<System.Boolean> UnresolvedOnly = default, System.Nullable<Acta.AlertSeverityCode> SeverityAtLeast = default, System.Nullable<Acta.AlertDeliveryStatusCode> DeliveryStatus = default, System.Nullable<System.Boolean> Acknowledged = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
+    .ctor(System.String JobNamespace = default, System.Nullable<System.Int64> JobId = default, System.Nullable<System.Boolean> UnresolvedOnly = default, System.Nullable<Acta.AlertSeverityCode> SeverityAtLeast = default, System.Nullable<Acta.AlertDeliveryStatusCode> DeliveryStatus = default, System.Nullable<System.Boolean> AcknowledgedOnly = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
     System.Nullable<Acta.AlertDeliveryStatusCode> DeliveryStatus { get;init; }
     System.Nullable<Acta.AlertSeverityCode> SeverityAtLeast { get;init; }
-    System.Nullable<System.Boolean> Acknowledged { get;init; }
+    System.Nullable<System.Boolean> AcknowledgedOnly { get;init; }
     System.Nullable<System.Boolean> UnresolvedOnly { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.Nullable<System.Int64> JobId { get;init; }
@@ -1764,7 +1764,7 @@ sealed class Acta.ListDefinitionsQuery
     System.String JobNamespace { get;init; }
     System.String NameContains { get;init; }
 sealed class Acta.ListEventsQuery
-    .ctor(System.Nullable<System.Int64> JobId = default, System.Nullable<System.Int64> LineageRootId = default, System.String JobNamespace = default, System.Nullable<Acta.EventCode> EventCode = default, System.Nullable<System.Int32> JobDefinitionId = default, System.Nullable<System.Int32> TenantId = default, System.String TenantKey = default, System.Nullable<System.Int32> WorkerId = default, System.Nullable<Acta.ActorCode> ActorCode = default, System.Nullable<Acta.JobEventReasonCode> ReasonCode = default, System.Nullable<System.DateTime> CreatedFromUtc = default, System.Nullable<System.DateTime> CreatedToUtc = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
+    .ctor(System.Nullable<System.Int64> JobId = default, System.Nullable<System.Int64> LineageRootId = default, System.String JobNamespace = default, System.Nullable<Acta.EventCode> EventCode = default, System.Nullable<System.Int32> DefinitionId = default, System.Nullable<System.Int32> TenantId = default, System.String TenantKey = default, System.Nullable<System.Int32> WorkerId = default, System.Nullable<Acta.ActorCode> ActorCode = default, System.Nullable<Acta.JobEventReasonCode> ReasonCode = default, System.Nullable<System.DateTime> CreatedFromUtc = default, System.Nullable<System.DateTime> CreatedToUtc = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
     System.Nullable<Acta.ActorCode> ActorCode { get;init; }
@@ -1772,7 +1772,7 @@ sealed class Acta.ListEventsQuery
     System.Nullable<Acta.JobEventReasonCode> ReasonCode { get;init; }
     System.Nullable<System.DateTime> CreatedFromUtc { get;init; }
     System.Nullable<System.DateTime> CreatedToUtc { get;init; }
-    System.Nullable<System.Int32> JobDefinitionId { get;init; }
+    System.Nullable<System.Int32> DefinitionId { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.Nullable<System.Int32> TenantId { get;init; }
     System.Nullable<System.Int32> WorkerId { get;init; }
@@ -1805,23 +1805,23 @@ sealed class Acta.ListNamespacesQuery
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }
 sealed class Acta.ListSchedulesQuery
-    .ctor(System.String JobNamespace = default, System.String JobName = default, System.Nullable<Acta.ScheduleOriginCode> Origin = default, System.Boolean LiveOnly = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
+    .ctor(System.String JobNamespace = default, System.String JobName = default, System.Nullable<Acta.ScheduleOriginCode> Origin = default, System.Nullable<System.Boolean> LiveOnly = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
-    System.Boolean LiveOnly { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
     System.Nullable<Acta.ScheduleOriginCode> Origin { get;init; }
+    System.Nullable<System.Boolean> LiveOnly { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
 sealed class Acta.ListTenantsQuery
-    .ctor(System.String Search = default, System.Nullable<Acta.TenantStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
+    .ctor(System.String NameContains = default, System.Nullable<Acta.TenantStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
     System.Nullable<Acta.TenantStatusCode> Status { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
-    System.String Search { get;init; }
+    System.String NameContains { get;init; }
 sealed class Acta.ListWorkersQuery
     .ctor(System.String JobNamespace = default, System.Nullable<Acta.WorkerStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1868,12 +1868,12 @@ sealed class Acta.MisfireStrategyCodeJsonConverter
     Acta.MisfireStrategyCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.MisfireStrategyCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.NamespaceListItem
-    .ctor(System.Int16 Id, System.String Name, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
+    .ctor(System.Int16 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
     Acta.NamespaceStatusCode Status { get;init; }
-    System.Int16 Id { get;init; }
+    System.Int16 NamespaceId { get;init; }
     System.Int32 Version { get;init; }
     System.String Description { get;init; }
-    System.String Name { get;init; }
+    System.String JobNamespace { get;init; }
     System.String OwnerTeam { get;init; }
 enum Acta.NamespaceStatusCode
     Active = 10
@@ -2013,14 +2013,14 @@ sealed class Acta.ScheduleExpressionKindCodeJsonConverter
     Acta.ScheduleExpressionKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleExpressionKindCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.ScheduleListItem
-    .ctor(System.Int64 JobScheduleId, System.Int64 JobId, System.Int32 JobDefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastRunAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    .ctor(System.Int64 JobScheduleId, System.Int64 JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastRunAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
     Acta.ScheduleOriginCode Origin { get;init; }
     Acta.ScheduleStatusCode Status { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 JobDefinitionId { get;init; }
+    System.Int32 DefinitionId { get;init; }
     System.Int32 Version { get;init; }
     System.Int64 JobId { get;init; }
     System.Int64 JobScheduleId { get;init; }

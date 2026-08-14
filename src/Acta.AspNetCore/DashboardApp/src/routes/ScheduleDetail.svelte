@@ -20,7 +20,7 @@
   interface ScheduleItem {
     jobScheduleId: number;
     jobId: number;
-    jobDefinitionId: number;
+    definitionId: number;
     jobNamespace: string;
     jobName: string;
     scheduleName: string;
@@ -102,7 +102,7 @@
       : routes.jobs()
   );
   let definitionHref = $derived(
-    schedule ? routes.definition(schedule.jobDefinitionId, { namespace: schedule.jobNamespace }) : routes.definitions()
+    schedule ? routes.definition(schedule.definitionId, { namespace: schedule.jobNamespace }) : routes.definitions()
   );
 </script>
 

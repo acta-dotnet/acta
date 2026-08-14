@@ -123,7 +123,7 @@ public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
             await tenants.RegisterAsync(matchingKey, $"{token}{special}suffix", null, ct);
             await tenants.RegisterAsync(controlKey, $"{token}{replacement}suffix", null, ct);
 
-            var page = await tenants.ListAsync(new ListTenantsQuery(Search: token + special, PageSize: 100), ct);
+            var page = await tenants.ListAsync(new ListTenantsQuery(NameContains: token + special, PageSize: 100), ct);
 
             Assert.Contains(page.Items, row => row.TenantKey == matchingKey);
             Assert.DoesNotContain(page.Items, row => row.TenantKey == controlKey);

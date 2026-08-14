@@ -423,7 +423,7 @@ public sealed class ControlEndpointTests
                     jobNamespace = "billing",
                     jobName = "send-invoice",
                     scheduleName,
-                    note = reason,
+                    reasonMessage = reason,
                 }
             );
         return request;
@@ -507,10 +507,10 @@ public sealed class ControlEndpointTests
                     jobNamespace = "billing",
                     jobName = "send-invoice",
                     scheduleName,
-                    version,
+                    expectedVersion = version,
                     expression,
                     timeZoneId,
-                    note = reason,
+                    reasonMessage = reason,
                 }
             );
         return request;
@@ -669,7 +669,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains("\"format\":\"text\"", body);
+        Assert.Contains("\"formatName\":\"text\"", body);
         Assert.Contains("\"formatId\":3", body);
         Assert.Contains("\"text\":\"new body\"", body);
     }
@@ -708,7 +708,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains("\"format\":\"json\"", body);
+        Assert.Contains("\"formatName\":\"json\"", body);
     }
 
     [Fact]
@@ -724,7 +724,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains("\"format\":\"json\"", body);
+        Assert.Contains("\"formatName\":\"json\"", body);
     }
 
     [Fact]
@@ -842,7 +842,7 @@ public sealed class ControlEndpointTests
 
         var jobRef = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct)).RootElement.GetProperty("jobRef").GetString();
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
-        Assert.Contains("\"format\":\"text\"", body);
+        Assert.Contains("\"formatName\":\"text\"", body);
         Assert.Contains("\"text\":\"hello\"", body);
     }
 
@@ -1044,7 +1044,7 @@ public sealed class ControlEndpointTests
 
         var request = new HttpRequestMessage(HttpMethod.Patch, "/acta/api/v1/definitions/1")
         {
-            Content = JsonContent.Create(new { version = 1, overrides = new { maxAttempts = 0 } }),
+            Content = JsonContent.Create(new { expectedVersion = 1, overrides = new { maxAttempts = 0 } }),
         };
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -1063,7 +1063,7 @@ public sealed class ControlEndpointTests
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/alerts/7/" + verb)
         {
-            Content = JsonContent.Create(new { note = "because" }),
+            Content = JsonContent.Create(new { reasonMessage = "because" }),
         };
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -1128,7 +1128,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("\"inputTypeName\":\"Billing.SendInvoice\"", body);
-        Assert.Contains("\"format\":\"json\"", body);
+        Assert.Contains("\"inputFormatName\":\"json\"", body);
         Assert.Contains("\"template\":{\"invoiceId\":0,\"note\":null}", body);
     }
 
@@ -1148,7 +1148,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("\"template\":null", body);
-        Assert.Contains("\"format\":\"none\"", body);
+        Assert.Contains("\"inputFormatName\":\"none\"", body);
     }
 
     [Fact]

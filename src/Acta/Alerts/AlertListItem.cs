@@ -8,7 +8,7 @@ namespace Acta;
 /// serialization carries the public job ref and hides the numeric job id; the ref goes null once
 /// the subject job row is purged (alerts outlive their job).
 /// </summary>
-/// <param name="JobAlertId">Alert row id.</param> <param name="JobNamespace">Owning namespace name.</param> <param name="JobId">Subject job id, or null.</param>
+/// <param name="AlertId">Alert row id.</param> <param name="JobNamespace">Owning namespace name.</param> <param name="JobId">Subject job id, or null.</param>
 /// <param name="JobRef">Subject job's public ref, or null when job-less or purged.</param>
 /// <param name="Origin">What raised the alert.</param> <param name="Severity">Alert severity.</param> <param name="Kind">Alert kind.</param>
 /// <param name="Title">Alert title.</param> <param name="Message">Alert message.</param>
@@ -18,7 +18,7 @@ namespace Acta;
 /// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 /// <param name="AcknowledgedAtUtc">When the alert was acknowledged, or null while open.</param>
 public sealed record AlertListItem(
-    long JobAlertId,
+    long AlertId,
     string JobNamespace,
     [property: JsonIgnore] long? JobId,
     JobRef? JobRef,

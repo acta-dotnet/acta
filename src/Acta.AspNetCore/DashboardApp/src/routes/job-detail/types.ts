@@ -3,7 +3,7 @@
 export interface JobDetail {
   jobRef: string;
   jobNamespace: string;
-  jobDefinitionId: number;
+  definitionId: number;
   jobName: string;
   lineageRootJobRef: string | null;
   parentJobRef: string | null;

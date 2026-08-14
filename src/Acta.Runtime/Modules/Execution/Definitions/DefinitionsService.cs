@@ -82,7 +82,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
                 ListOperationName,
                 OrderDefinitions,
                 filterHash,
-                [items[^1].JobNamespace, items[^1].JobName, items[^1].JobDefinitionId]
+                [items[^1].JobNamespace, items[^1].JobName, items[^1].DefinitionId]
             )
             : null;
 

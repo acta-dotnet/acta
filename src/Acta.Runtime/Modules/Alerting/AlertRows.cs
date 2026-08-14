@@ -49,7 +49,7 @@ internal sealed record AlertControlOutcome(JobControlActionInternal Action, Date
 /// Flat alert list row in SELECT order; dedupe and channel-config columns are never selected.
 /// </summary>
 internal sealed record JobAlertListProjectionRow(
-    long JobAlertId,
+    long AlertId,
     string JobNamespace,
     long? JobId,
     AlertOriginCode Origin,
@@ -71,7 +71,7 @@ internal sealed record JobAlertListProjectionRow(
 {
     public AlertListItem ToItem() =>
         new(
-            JobAlertId,
+            AlertId,
             JobNamespace,
             JobId,
             JobRef is { } jobRef ? new JobRef(jobRef) : null,

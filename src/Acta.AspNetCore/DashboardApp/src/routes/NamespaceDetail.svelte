@@ -81,7 +81,7 @@
   let loading = $derived(detail.isPending);
   let error = $derived(detail.error instanceof Error ? detail.error.message : detail.error ? String(detail.error) : '');
   let canControlNow = $derived(canControl(capabilities.data));
-  let systemNamespace = $derived(namespace ? isSysNamespace(namespace.id) : false);
+  let systemNamespace = $derived(namespace ? isSysNamespace(namespace.namespaceId) : false);
 
   const detailsMutation = useControlMutation<
     { name: string; ownerTeam: string; description: string; expectedVersion: number; reason?: string },
@@ -104,7 +104,7 @@
     detailsNeedsReload = false;
     try {
       const result = await detailsMutation.mutateAsync({
-        name: namespace.name,
+        name: namespace.jobNamespace,
         ownerTeam: ownerTeamInput,
         description: descriptionInput,
         expectedVersion: namespace.version,
@@ -153,7 +153,7 @@
     confirming = null;
     statusMessage = '';
     try {
-      const result = await statusMutation.mutateAsync({ name: namespace.name, action, reason });
+      const result = await statusMutation.mutateAsync({ name: namespace.jobNamespace, action, reason });
       if (namespaceAdminNeedsReload(result.action)) {
         statusMessage = result.action === 'notFound' ? 'Namespace not found.' : 'Namespace changed; reload before trying again.';
         statusMessageKind = 'warn';
@@ -200,7 +200,7 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Namespace identity">
-      <div class="entity-meta mono">namespace #{namespace.id} · version {namespace.version}</div>
+      <div class="entity-meta mono">namespace #{namespace.namespaceId} · version {namespace.version}</div>
       <StatusBadge status={namespace.status} />
     </section>
 
@@ -266,12 +266,12 @@
           <p class="detail-kicker">Go to</p>
           <nav>
             <a href={jobsHref}>Jobs</a>
-            <a href={routes.workers({ namespace: namespace.name })}>Workers</a>
-            <a href={routes.alerts({ namespace: namespace.name })}>Alerts</a>
+            <a href={routes.workers({ namespace: namespace.jobNamespace })}>Workers</a>
+            <a href={routes.alerts({ namespace: namespace.jobNamespace })}>Alerts</a>
           </nav>
         </section>
 
-        <TagEditor path={`namespaces/${encodeURIComponent(namespace.name)}/tags`} />
+        <TagEditor path={`namespaces/${encodeURIComponent(namespace.jobNamespace)}/tags`} />
       </aside>
     </div>
   {/if}
@@ -279,7 +279,7 @@
 
 {#if confirming && namespace}
   <ConfirmAction
-    title={(confirming === 'suspend' ? 'Suspend' : 'Resume') + ' namespace ' + namespace.name + '?'}
+    title={(confirming === 'suspend' ? 'Suspend' : 'Resume') + ' namespace ' + namespace.jobNamespace + '?'}
     body={confirming === 'suspend'
       ? 'New enqueue requests will be rejected until the namespace is resumed. Existing jobs are unaffected.'
       : 'The namespace becomes eligible to enqueue jobs again immediately.'}

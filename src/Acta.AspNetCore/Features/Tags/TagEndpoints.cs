@@ -30,9 +30,9 @@ internal static class TagEndpoints
             (string jobRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, JobTarget(jobRef, options), ct)
         );
         group.MapGet(
-            "/definitions/{defId:int}/tags",
-            (int defId, IActaOperations operations, CancellationToken ct) =>
-                ReadTags(operations, ResolveOrNull(() => TagTarget.ForDefinition(defId)), ct)
+            "/definitions/{definitionId:int}/tags",
+            (int definitionId, IActaOperations operations, CancellationToken ct) =>
+                ReadTags(operations, ResolveOrNull(() => TagTarget.ForDefinition(definitionId)), ct)
         );
         group.MapGet(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
@@ -45,9 +45,9 @@ internal static class TagEndpoints
                 ReadTags(operations, ResolveOrNull(() => TagTarget.ForWorker(workerId)), ct)
         );
         group.MapGet(
-            "/namespaces/{name}/tags",
-            (string name, IActaOperations operations, CancellationToken ct) =>
-                ReadTags(operations, ResolveOrNull(() => TagTarget.ForNamespace(name)), ct)
+            "/namespaces/{jobNamespace}/tags",
+            (string jobNamespace, IActaOperations operations, CancellationToken ct) =>
+                ReadTags(operations, ResolveOrNull(() => TagTarget.ForNamespace(jobNamespace)), ct)
         );
         group.MapGet(
             "/tenants/{tenantKey}/tags",
@@ -76,14 +76,14 @@ internal static class TagEndpoints
         );
 
         group.MapPost(
-            "/definitions/{defId:int}/tags",
-            (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                Upsert(http, operations, options, () => TagTarget.ForDefinition(defId), ct)
+            "/definitions/{definitionId:int}/tags",
+            (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Upsert(http, operations, options, () => TagTarget.ForDefinition(definitionId), ct)
         );
         group.MapDelete(
-            "/definitions/{defId:int}/tags/{tagName}",
-            (int defId, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                Remove(http, operations, options, () => TagTarget.ForDefinition(defId), tagName, ct)
+            "/definitions/{definitionId:int}/tags/{tagName}",
+            (int definitionId, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Remove(http, operations, options, () => TagTarget.ForDefinition(definitionId), tagName, ct)
         );
 
         group.MapPost(
@@ -122,14 +122,14 @@ internal static class TagEndpoints
         );
 
         group.MapPost(
-            "/namespaces/{name}/tags",
-            (string name, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                Upsert(http, operations, options, () => TagTarget.ForNamespace(name), ct)
+            "/namespaces/{jobNamespace}/tags",
+            (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Upsert(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), ct)
         );
         group.MapDelete(
-            "/namespaces/{name}/tags/{tagName}",
-            (string name, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                Remove(http, operations, options, () => TagTarget.ForNamespace(name), tagName, ct)
+            "/namespaces/{jobNamespace}/tags/{tagName}",
+            (string jobNamespace, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                Remove(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), tagName, ct)
         );
 
         group.MapPost(

@@ -34,12 +34,12 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
         do
         {
             var page = await store.ListNamespaceItemsAsync(new NamespacePageRequest(null, null, cursor, 50, false), ct);
-            var hit = page.Rows.FirstOrDefault(r => r.Name == name);
+            var hit = page.Rows.FirstOrDefault(r => r.JobNamespace == name);
             if (hit is not null)
             {
                 return hit;
             }
-            cursor = page.Rows.Count == 50 ? page.Rows[^1].Name : null;
+            cursor = page.Rows.Count == 50 ? page.Rows[^1].JobNamespace : null;
             Assert.True(++pages < 100_000, "pagination did not terminate");
         } while (cursor is not null);
         return null;
@@ -67,8 +67,8 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         var row = await FindAsync(TestNamespace, ct);
         Assert.NotNull(row);
-        Assert.Equal(nsId, row.Id);
-        Assert.Equal(TestNamespace, row.Name);
+        Assert.Equal(nsId, row.NamespaceId);
+        Assert.Equal(TestNamespace, row.JobNamespace);
         Assert.Equal(NamespaceStatusCode.Active, row.Status);
         Assert.Equal("platform-team", row.OwnerTeam);
         Assert.Equal("namespace admin description", row.Description);
@@ -82,8 +82,8 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
         var store = Services.GetRequiredService<INamespaceStore>();
 
         var page = await store.ListNamespaceItemsAsync(new NamespacePageRequest("sys", null, null, 50, true), ct);
-        var sys = page.Rows.Single(r => r.Name == "sys");
-        Assert.Equal((short)1, sys.Id);
+        var sys = page.Rows.Single(r => r.JobNamespace == "sys");
+        Assert.Equal((short)1, sys.NamespaceId);
         Assert.Equal(NamespaceStatusCode.Active, sys.Status);
         Assert.NotNull(page.Total);
         Assert.True(page.Total >= 1);

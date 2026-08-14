@@ -8,7 +8,7 @@ namespace Acta;
 /// demand via <see cref="IDefinitions.GetAsync"/> (<see cref="JobDefinitionDetail"/>).
 /// </summary>
 public sealed record JobDefinitionListItem(
-    int JobDefinitionId,
+    int DefinitionId,
     string JobNamespace,
     string JobName,
     JobDefinitionStatusCode Status,

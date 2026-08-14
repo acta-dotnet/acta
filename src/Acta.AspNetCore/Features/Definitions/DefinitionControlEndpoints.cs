@@ -19,8 +19,8 @@ internal static class DefinitionControlEndpoints
     {
         group
             .MapPatch(
-                "/definitions/{defId:int}",
-                async Task<IResult> (int defId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/definitions/{definitionId:int}",
+                async Task<IResult> (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
                     if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                     {
@@ -43,14 +43,14 @@ internal static class DefinitionControlEndpoints
                     try
                     {
                         var result = await operations.Definitions.UpdateOverridesAsync(
-                            defId,
-                            body!.Version,
+                            definitionId,
+                            body!.ExpectedVersion,
                             body.Overrides ?? new JobDefinitionPolicyOverrides(),
                             actorKey,
-                            body.Note,
+                            body.ReasonMessage,
                             ct
                         );
-                        return ToResult(defId, result);
+                        return ToResult(definitionId, result);
                     }
                     catch (ArgumentException ex)
                     {
@@ -62,11 +62,11 @@ internal static class DefinitionControlEndpoints
                     }
                 }
             )
-            .Produces<DefinitionOverrideResponse>(StatusCodes.Status200OK)
+            .Produces<DefinitionControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
-    private static IResult ToResult(int defId, DefinitionControlResult result)
+    private static IResult ToResult(int definitionId, DefinitionControlResult result)
     {
         var (statusCode, message) = result.Action switch
         {
@@ -79,8 +79,8 @@ internal static class DefinitionControlEndpoints
         };
 
         return Results.Json(
-            new DefinitionOverrideResponse(defId, result.Action, message),
-            DashboardJsonContext.Default.DefinitionOverrideResponse,
+            new DefinitionControlResponse(definitionId, result.Action, message),
+            DashboardJsonContext.Default.DefinitionControlResponse,
             statusCode: statusCode
         );
     }

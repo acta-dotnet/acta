@@ -17,13 +17,13 @@ function stubApi(): void {
     }
     if (path === 'definitions') {
       const items = 'mica-settle'.includes(url.searchParams.get('nameContains') ?? '')
-        ? [{ jobDefinitionId: 7, jobNamespace: 'billing', jobName: 'mica-settle' }]
+        ? [{ definitionId: 7, jobNamespace: 'billing', jobName: 'mica-settle' }]
         : [];
       return jsonResponse({ items, hasMore: false, nextCursor: null });
     }
     if (path === 'namespaces') {
       const items = 'billing'.includes(url.searchParams.get('nameContains') ?? '')
-        ? [{ id: 2, name: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]
+        ? [{ namespaceId: 2, jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]
         : [];
       return jsonResponse({ items, hasMore: false, nextCursor: null });
     }

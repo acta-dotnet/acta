@@ -6,7 +6,7 @@ namespace Acta.AspNetCore.Features.Jobs;
 
 /// <summary>
 /// Format-dispatched HTTP projection of a <see cref="JobPayload"/>: the frontend dispatches on
-/// <see cref="Format"/> (the payload format's wire name) and reads whichever body field is present.
+/// <see cref="FormatName"/> (the payload format's wire name) and reads whichever body field is present.
 /// A <c>none</c> format carries no body field; built-in formats surface as raw JSON, decoded text, or
 /// base64 (the fallback for bytes and consumer-defined formats). <see cref="FormatId"/> is always
 /// emitted (0 for none) so a clone can round-trip a custom format whose name alone cannot. Acta
@@ -16,7 +16,7 @@ namespace Acta.AspNetCore.Features.Jobs;
 /// outsized blob (a handler result may have been warned-and-persisted past the cap).
 /// </summary>
 internal sealed record JobPayloadResponse(
-    string Format,
+    string FormatName,
     byte FormatId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? Json = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Text = null,
@@ -117,7 +117,7 @@ internal sealed record JobDetailResponse(
             ),
             ct
         );
-        var definition = await operations.Definitions.GetAsync(snapshot.JobDefinitionId, ct);
+        var definition = await operations.Definitions.GetAsync(snapshot.DefinitionId, ct);
         // Every worker in the namespace, not just the live ones: the "why isn't this running?" panel
         // needs the whole set to tell "no workers at all" from "workers, none of them active".
         var workers =
@@ -200,6 +200,6 @@ internal sealed record JobInputTemplateResponse(
     string JobNamespace,
     string JobName,
     string? InputTypeName,
-    string Format,
+    string InputFormatName,
     JsonElement? Template
 );

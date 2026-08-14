@@ -38,7 +38,7 @@ internal static class GetEventsByJobId
                     LineageRootId: null,
                     JobNamespace: null,
                     EventCode: null,
-                    JobDefinitionId: null,
+                    DefinitionId: null,
                     TenantId: null,
                     TenantKey: null,
                     WorkerId: null,

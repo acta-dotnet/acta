@@ -23,7 +23,7 @@
   import { displayFormatter } from '../format.ts';
 
   interface AlertRow {
-    jobAlertId: number;
+    alertId: number;
     severity: string;
     title: string;
     message: string;
@@ -83,14 +83,14 @@
     setScope('');
   }
 
-  // Both verbs live at alerts/{jobAlertId}/{action} and return AlertControlResponse; invalidating
+  // Both verbs live at alerts/{alertId}/{action} and return AlertControlResponse; invalidating
   // the 'alerts' key prefix refreshes every cached alerts list/page.
   const mutation = useControlMutation<
     { alertId: number; action: 'acknowledge' | 'resolve'; note?: string },
     AlertControlResponse
   >({
     path: (vars) => `alerts/${vars.alertId}/${vars.action}`,
-    body: (vars) => ({ note: vars.note?.trim() || null }),
+    body: (vars) => ({ reasonMessage: vars.note?.trim() || null }),
     notFound: (vars) => ({ alertId: vars.alertId, action: 'notFound', acknowledgedAtUtc: null, resolvedAtUtc: null }),
     invalidateKeys: () => [['alerts']] as const
   });
@@ -163,16 +163,16 @@
     {#snippet actionsCell(alert: AlertRow)}
       {#if canControlNow}
         {#if !alert.acknowledgedAtUtc}
-          <button disabled={busy} onclick={() => (confirming = { alertId: alert.jobAlertId, action: 'acknowledge', title: alert.title })}><Icon name="check-circle" />Acknowledge</button>
+          <button disabled={busy} onclick={() => (confirming = { alertId: alert.alertId, action: 'acknowledge', title: alert.title })}><Icon name="check-circle" />Acknowledge</button>
         {/if}
         {#if !alert.resolvedAtUtc}
-          <button disabled={busy} onclick={() => (confirming = { alertId: alert.jobAlertId, action: 'resolve', title: alert.title })}><Icon name="check-circle" />Resolve</button>
+          <button disabled={busy} onclick={() => (confirming = { alertId: alert.alertId, action: 'resolve', title: alert.title })}><Icon name="check-circle" />Resolve</button>
         {/if}
       {/if}
     {/snippet}
 
     <ActaGrid
-      rowKey={(alert: AlertRow) => alert.jobAlertId}
+      rowKey={(alert: AlertRow) => alert.alertId}
       endpoint="alerts"
       mobileCards={true}
       {columns}

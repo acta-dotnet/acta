@@ -211,7 +211,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         };
         QueryValidation.ValidateEnum(query.Origin, nameof(query.Origin));
 
-        var liveOnly = query.LiveOnly ? true : (bool?)null;
+        var liveOnly = query.LiveOnly is null or true ? true : (bool?)null;
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListSchedulesQuery));
         var filterHash = QueryFilterHash.Compute([
             ("ns", query.JobNamespace),

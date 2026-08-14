@@ -4,7 +4,7 @@ namespace Acta;
 /// One schedule row in a <see cref="ISchedules.ListAsync"/> page. Expression and
 /// time zone are the effective values: the operator override when present, else the original.
 /// </summary>
-/// <param name="JobScheduleId">Schedule row id.</param> <param name="JobId">Recurring slot job id.</param> <param name="JobDefinitionId">Catalog definition id.</param>
+/// <param name="JobScheduleId">Schedule row id.</param> <param name="JobId">Recurring slot job id.</param> <param name="DefinitionId">Catalog definition id.</param>
 /// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Job definition name.</param> <param name="ScheduleName">Schedule name within the job.</param>
 /// <param name="Origin">How the schedule was registered.</param> <param name="ExpressionKind">Expression syntax kind.</param>
 /// <param name="Expression">Effective schedule expression.</param> <param name="TimeZoneId">Effective IANA time zone id.</param> <param name="MisfireStrategy">MisfireStrategy handling.</param>
@@ -15,7 +15,7 @@ namespace Acta;
 public sealed record ScheduleListItem(
     long JobScheduleId,
     long JobId,
-    int JobDefinitionId,
+    int DefinitionId,
     string JobNamespace,
     string JobName,
     string ScheduleName,

@@ -21,7 +21,7 @@ internal sealed class RelationalEventStore(IDbSession session, ISqlDialect diale
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.LineageRootId, request.LineageRootId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.EventCode, request.EventCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.DefinitionId, request.JobDefinitionId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.DefinitionId, request.DefinitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.TenantId, request.TenantId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantKeyFilter, request.TenantKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.WorkerId, request.WorkerId));

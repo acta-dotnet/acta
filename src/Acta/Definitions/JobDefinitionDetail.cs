@@ -9,7 +9,7 @@ namespace Acta;
 /// <see cref="JobDefinitionListItem"/>.
 /// </summary>
 public sealed record JobDefinitionDetail(
-    int JobDefinitionId,
+    int DefinitionId,
     string JobNamespace,
     string JobName,
     JobDefinitionStatusCode Status,

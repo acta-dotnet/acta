@@ -84,7 +84,7 @@
       endpoint="tenants"
       mobileCards={true}
       {columns}
-      filters={() => ({ search: $filters.search.trim(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
+      filters={() => ({ nameContains: $filters.search.trim(), status: $filters.status, tag: parseTagTokens($filters.tags) })}
       includeTotal={true}
       loadingText="Loading tenants..."
       emptyText="No tenants match the filters."

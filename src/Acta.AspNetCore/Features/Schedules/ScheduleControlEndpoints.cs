@@ -48,7 +48,7 @@ internal static class ScheduleControlEndpoints
                 // Operator identity for the audit trail comes from the authenticated principal, never the
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
-                var result = await operations.Schedules.PauseAsync(lookup, body.PausedUntilUtc, body.Note, actorKey, ct);
+                var result = await operations.Schedules.PauseAsync(lookup, body.PausedUntilUtc, body.ReasonMessage, actorKey, ct);
                 return ToResult("pause", result);
             }
         );
@@ -80,7 +80,7 @@ internal static class ScheduleControlEndpoints
                 // Operator identity for the audit trail comes from the authenticated principal, never the
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
-                var result = await operations.Schedules.ResumeAsync(lookup, body.Note, actorKey, ct);
+                var result = await operations.Schedules.ResumeAsync(lookup, body.ReasonMessage, actorKey, ct);
                 return ToResult("resume", result);
             }
         );
@@ -112,7 +112,7 @@ internal static class ScheduleControlEndpoints
                 // Operator identity for the audit trail comes from the authenticated principal, never the
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
-                var result = await operations.Schedules.TriggerNowAsync(lookup, body.Note, actorKey, ct);
+                var result = await operations.Schedules.TriggerNowAsync(lookup, body.ReasonMessage, actorKey, ct);
                 return ToResult("trigger", result);
             }
         );
@@ -141,7 +141,7 @@ internal static class ScheduleControlEndpoints
                     return badRequest;
                 }
 
-                if (body.Version is not { } version)
+                if (body.ExpectedVersion is not { } version)
                 {
                     return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", "version is required.");
                 }
@@ -156,7 +156,7 @@ internal static class ScheduleControlEndpoints
                         version,
                         body.Expression,
                         body.TimeZoneId,
-                        body.Note,
+                        body.ReasonMessage,
                         actorKey,
                         ct
                     );

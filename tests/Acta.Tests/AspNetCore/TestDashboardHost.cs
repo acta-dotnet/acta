@@ -312,7 +312,7 @@ internal static class TestDashboardHost
                 CorrelationKey: null,
                 JobNamespace: jobNamespace,
                 JobName: jobName,
-                JobDefinitionId: 5,
+                DefinitionId: 5,
                 TenantId: tenantId,
                 TenantKey: tenantId == 1 ? "cust-001" : null,
                 Status: JobStatusCode.Ready,
@@ -825,7 +825,7 @@ internal static class TestDashboardHost
                 ValueTask.FromResult<JobDefinitionDetail?>(null);
 
             // The billing namespace carries one definition, id 5 - the same id the fake snapshot reports
-            // as its JobDefinitionId, so the definition link on the job screen addresses a real row here.
+            // as its DefinitionId, so the definition link on the job screen addresses a real row here.
             public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(
                     query.JobNamespace == "billing"

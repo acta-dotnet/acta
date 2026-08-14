@@ -72,8 +72,8 @@ public sealed class JobDetailEndpointTests
 
         // Schedules for this job, the definition link, and the eligible workers.
         Assert.Equal(JsonValueKind.Array, root.GetProperty("schedules").ValueKind);
-        Assert.Equal(5, root.GetProperty("snapshot").GetProperty("jobDefinitionId").GetInt32());
-        Assert.False(root.TryGetProperty("jobDefinitionId", out _));
+        Assert.Equal(5, root.GetProperty("snapshot").GetProperty("definitionId").GetInt32());
+        Assert.False(root.TryGetProperty("definitionId", out _));
         Assert.Equal(JsonValueKind.Array, root.GetProperty("workers").ValueKind);
     }
 
@@ -168,7 +168,7 @@ public sealed class JobDetailEndpointTests
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
         // Absent input is a "none" envelope; absent result is a null field.
-        Assert.Equal("none", root.GetProperty("input").GetProperty("format").GetString());
+        Assert.Equal("none", root.GetProperty("input").GetProperty("formatName").GetString());
         Assert.False(root.TryGetProperty("result", out var result) && result.ValueKind != JsonValueKind.Null);
     }
 
@@ -192,7 +192,7 @@ public sealed class JobDetailEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var doc = JsonDocument.Parse(body);
         var input = doc.RootElement.GetProperty("input");
-        Assert.Equal("text", input.GetProperty("format").GetString());
+        Assert.Equal("text", input.GetProperty("formatName").GetString());
         Assert.Equal(100, input.GetProperty("byteLength").GetInt64());
         Assert.True(input.GetProperty("truncated").GetBoolean());
         Assert.False(input.TryGetProperty("text", out _));
@@ -218,7 +218,7 @@ public sealed class JobDetailEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var doc = JsonDocument.Parse(body);
         var input = doc.RootElement.GetProperty("input");
-        Assert.Equal("text", input.GetProperty("format").GetString());
+        Assert.Equal("text", input.GetProperty("formatName").GetString());
         Assert.Equal(new string('x', 64), input.GetProperty("text").GetString());
         Assert.False(input.TryGetProperty("truncated", out _));
         Assert.False(input.TryGetProperty("byteLength", out _));

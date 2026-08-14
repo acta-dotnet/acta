@@ -241,8 +241,8 @@ export interface AdminControlResult {
 }
 
 export interface NamespaceListItem {
-  id: number;
-  name: string;
+  namespaceId: number;
+  jobNamespace: string;
   status: string;
   ownerTeam: string | null;
   description: string | null;
@@ -280,36 +280,36 @@ export async function registerTenant(
   throw new ApiError(response.status, 'Invalid response.', null, null);
 }
 
-export interface DefinitionOverrideResponse {
-  jobDefinitionId: number;
+export interface DefinitionControlResponse {
+  definitionId: number;
   action: ControlAction;
   message: string;
 }
 
 // PATCH a definition's operator overrides. The body carries the version (optimistic concurrency), the
 // full override set (null/absent field = clear), and a note. Applied (200), rejected/version-conflict
-// (409), and not-found (404) all return a DefinitionOverrideResponse; anything else throws.
+// (409), and not-found (404) all return a DefinitionControlResponse; anything else throws.
 export async function setDefinitionOverrides(
   id: number,
   version: number,
   overrides: Record<string, unknown>,
   note?: string
-): Promise<DefinitionOverrideResponse> {
+): Promise<DefinitionControlResponse> {
   const { response, body } = await request<unknown>({
     path: `definitions/${id}`,
     method: 'PATCH',
     headers: controlHeaders(),
-    body: { version, overrides, note: note?.trim() || null },
+    body: { version, overrides, reasonMessage: note?.trim() || null },
     acceptedStatuses: [404, 409]
   });
 
   if (response.ok || response.status === 404 || response.status === 409) {
     if (body && typeof body === 'object' && 'action' in (body as object)) {
-      return body as DefinitionOverrideResponse;
+      return body as DefinitionControlResponse;
     }
     if (response.status === 404) {
       return {
-        jobDefinitionId: id,
+        definitionId: id,
         action: 'notFound',
         message: problemValue(body, 'detail') ?? problemValue(body, 'title') ?? 'Definition not found.'
       };
@@ -351,16 +351,16 @@ export async function previewSchedule(
   scheduleName: string,
   count = 10
 ): Promise<SchedulePreview> {
-  return api<SchedulePreview>('schedules/preview', { jobNamespace, jobName, scheduleName, count });
+  return api<SchedulePreview>('schedules/preview', { jobNamespace, jobName, scheduleName, limit: count });
 }
 
 // Format-dispatched payload projection served by the input/result/checkpoint reads (part of the
 // always-on read surface). The consumer reads whichever body field the `format` names: json -> parsed
 // JSON, text -> decoded string, none -> no body field, any other format (bytes or a consumer-defined
 // id) -> base64. A payload past the server's size cap ships no body field: `truncated` is true and
-// `byteLength` carries its stored size. PayloadView.svelte dispatches on `format` and renders the match.
+// `byteLength` carries its stored size. PayloadView.svelte dispatches on `formatName` and renders the match.
 export interface JobPayloadView {
-  format: string;
+  formatName: string;
   formatId: number;
   json?: unknown;
   text?: string;
@@ -426,7 +426,7 @@ export interface JobInputTemplate {
   jobNamespace: string;
   jobName: string;
   inputTypeName: string | null;
-  format: string;
+  inputFormatName: string;
   template: unknown;
 }
 

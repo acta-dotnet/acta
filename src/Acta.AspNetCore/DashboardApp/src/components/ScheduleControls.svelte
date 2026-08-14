@@ -59,7 +59,7 @@
       jobNamespace,
       jobName,
       scheduleName,
-      note: vars.reason?.trim() || null,
+      reasonMessage: vars.reason?.trim() || null,
       ...(vars.extra ?? {})
     }),
     notFound: () => ({

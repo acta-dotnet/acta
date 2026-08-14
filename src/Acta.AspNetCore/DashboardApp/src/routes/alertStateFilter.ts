@@ -25,7 +25,7 @@ export function alertStateMatches(bucket: AlertStateBucket, row: AlertStateRow):
 // unacknowledged/acknowledged narrow the fetch server-side; resolved has no "resolved only" server
 // param (UnresolvedOnly only ever restricts to unresolved, never to resolved), so it fetches
 // unfiltered and relies on alertStateMatches (via ActaGrid's rowFilter) as the client-side backstop.
-export function alertStateQuery(bucket: AlertStateBucket): { unresolvedOnly: boolean | ''; acknowledged: boolean | '' } {
-  if (bucket === 'resolved') return { unresolvedOnly: '', acknowledged: '' };
-  return { unresolvedOnly: true, acknowledged: bucket === 'acknowledged' };
+export function alertStateQuery(bucket: AlertStateBucket): { unresolvedOnly: boolean | ''; acknowledgedOnly: boolean | '' } {
+  if (bucket === 'resolved') return { unresolvedOnly: '', acknowledgedOnly: '' };
+  return { unresolvedOnly: true, acknowledgedOnly: bucket === 'acknowledged' };
 }

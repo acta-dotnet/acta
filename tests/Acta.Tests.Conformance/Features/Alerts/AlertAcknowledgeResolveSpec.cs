@@ -47,14 +47,17 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Contains($"alert {alertId}", evt.ReasonMessage);
         Assert.Contains("looks fine", evt.ReasonMessage);
 
-        var acknowledgedOnly = await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Acknowledged: true), ct);
-        Assert.Contains(acknowledgedOnly.Items, a => a.JobAlertId == alertId);
-
-        var unacknowledgedOnly = await Operations.Alerts.ListAsync(
-            new ListAlertsQuery(JobNamespace: TestNamespace, Acknowledged: false),
+        var acknowledgedOnly = await Operations.Alerts.ListAsync(
+            new ListAlertsQuery(JobNamespace: TestNamespace, AcknowledgedOnly: true),
             ct
         );
-        Assert.DoesNotContain(unacknowledgedOnly.Items, a => a.JobAlertId == alertId);
+        Assert.Contains(acknowledgedOnly.Items, a => a.AlertId == alertId);
+
+        var unacknowledgedOnly = await Operations.Alerts.ListAsync(
+            new ListAlertsQuery(JobNamespace: TestNamespace, AcknowledgedOnly: false),
+            ct
+        );
+        Assert.DoesNotContain(unacknowledgedOnly.Items, a => a.AlertId == alertId);
     }
 
     [Fact(DisplayName = "Re-acknowledging an already-acknowledged alert is Applied without mutation and emits no second event")]

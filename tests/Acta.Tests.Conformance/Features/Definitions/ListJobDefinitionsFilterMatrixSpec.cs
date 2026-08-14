@@ -79,17 +79,17 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
             new ListDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Active, IncludeTotal: true),
             ct
         );
-        Assert.Equal(activeIds, [.. activePage.Items.Select(d => d.JobDefinitionId)]);
+        Assert.Equal(activeIds, [.. activePage.Items.Select(d => d.DefinitionId)]);
         Assert.Equal(1L, activePage.TotalCount);
-        Assert.Empty(activePage.Items.Select(d => d.JobDefinitionId).Intersect(retiredIds));
+        Assert.Empty(activePage.Items.Select(d => d.DefinitionId).Intersect(retiredIds));
 
         // Retired filter: only def-a, def-b excluded
         var retiredPage = await queries.Definitions.ListAsync(
             new ListDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Retired),
             ct
         );
-        Assert.Equal(retiredIds, [.. retiredPage.Items.Select(d => d.JobDefinitionId)]);
-        Assert.Empty(retiredPage.Items.Select(d => d.JobDefinitionId).Intersect(activeIds));
+        Assert.Equal(retiredIds, [.. retiredPage.Items.Select(d => d.DefinitionId)]);
+        Assert.Empty(retiredPage.Items.Select(d => d.DefinitionId).Intersect(activeIds));
     }
 
     [Fact(DisplayName = "NameContains filter selects definitions whose name carries the term anywhere, not only as a prefix")]
@@ -117,8 +117,8 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
             ct
         );
 
-        Assert.Equal(matching, [.. page.Items.Select(d => d.JobDefinitionId)]);
-        Assert.DoesNotContain(map[receiptSend], page.Items.Select(d => d.JobDefinitionId));
+        Assert.Equal(matching, [.. page.Items.Select(d => d.DefinitionId)]);
+        Assert.DoesNotContain(map[receiptSend], page.Items.Select(d => d.DefinitionId));
         // The opt-in total must apply the same predicate as the row query.
         Assert.Equal((long)matching.Count, page.TotalCount);
     }
@@ -159,8 +159,8 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
             ct
         );
 
-        var ns1Ids = ns1Page.Items.Select(d => d.JobDefinitionId).ToHashSet();
-        var ns2Ids = ns2Page.Items.Select(d => d.JobDefinitionId).ToHashSet();
+        var ns1Ids = ns1Page.Items.Select(d => d.DefinitionId).ToHashSet();
+        var ns2Ids = ns2Page.Items.Select(d => d.DefinitionId).ToHashSet();
 
         // ns1 has exactly the 2 we seeded
         Assert.Equal([defA1Id, defB1Id], ns1Ids);

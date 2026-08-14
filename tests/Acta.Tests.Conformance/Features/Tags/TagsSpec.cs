@@ -157,17 +157,17 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         );
 
         var namespaces = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: filters), ct);
-        Assert.Contains(namespaces.Items, x => x.Name == TestNamespace);
+        Assert.Contains(namespaces.Items, x => x.JobNamespace == TestNamespace);
         Assert.DoesNotContain(
             (await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: mismatch), ct)).Items,
-            x => x.Name == TestNamespace
+            x => x.JobNamespace == TestNamespace
         );
 
         var definitions = await Operations.Definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
-        Assert.Contains(definitions.Items, x => x.JobDefinitionId == targets.DefinitionId);
+        Assert.Contains(definitions.Items, x => x.DefinitionId == targets.DefinitionId);
         Assert.DoesNotContain(
             (await Operations.Definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
-            x => x.JobDefinitionId == targets.DefinitionId
+            x => x.DefinitionId == targets.DefinitionId
         );
 
         var jobs = await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
@@ -192,10 +192,10 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         );
 
         var alerts = await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
-        Assert.Contains(alerts.Items, x => x.JobAlertId == targets.AlertId);
+        Assert.Contains(alerts.Items, x => x.AlertId == targets.AlertId);
         Assert.DoesNotContain(
             (await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
-            x => x.JobAlertId == targets.AlertId
+            x => x.AlertId == targets.AlertId
         );
 
         var events = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: TestNamespace, Tags: filters), ct);

@@ -63,7 +63,7 @@
     return {
       queryKey: keys.list('enqueue-definitions', { jobNamespace }),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
-        api<Paged<{ jobDefinitionId: number; jobName: string }>>(
+        api<Paged<{ definitionId: number; jobName: string }>>(
           'definitions',
           { jobNamespace, status: 'active', pageSize: 200 },
           { signal }

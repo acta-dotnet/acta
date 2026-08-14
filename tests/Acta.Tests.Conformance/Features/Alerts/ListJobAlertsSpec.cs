@@ -61,7 +61,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         {
             var ordered =
                 all.Items[i].CreatedAtUtc < all.Items[i - 1].CreatedAtUtc
-                || (all.Items[i].CreatedAtUtc == all.Items[i - 1].CreatedAtUtc && all.Items[i].JobAlertId < all.Items[i - 1].JobAlertId);
+                || (all.Items[i].CreatedAtUtc == all.Items[i - 1].CreatedAtUtc && all.Items[i].AlertId < all.Items[i - 1].AlertId);
             Assert.True(ordered, "rows are not in created_at DESC, id DESC order");
         }
 
@@ -149,7 +149,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             var current = rows[i];
             Assert.True(
                 current.CreatedAtUtc < earlier.CreatedAtUtc
-                    || (current.CreatedAtUtc == earlier.CreatedAtUtc && current.JobAlertId < earlier.JobAlertId),
+                    || (current.CreatedAtUtc == earlier.CreatedAtUtc && current.AlertId < earlier.AlertId),
                 "combined page rows are not in created_at_utc DESC, id DESC order"
             );
         }
@@ -203,7 +203,7 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             );
 
         var page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, PageSize: 50), ct);
-        var acked = page.Items.Single(a => a.JobAlertId == ackedId);
+        var acked = page.Items.Single(a => a.AlertId == ackedId);
         Assert.NotNull(acked.AcknowledgedAtUtc);
         Assert.Contains(page.Items, a => a.AcknowledgedAtUtc is null);
     }
@@ -235,9 +235,9 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             a => a.Title == "get-spec title"
         );
 
-        var detail = await queries.Alerts.GetAsync(listed.JobAlertId, ct);
+        var detail = await queries.Alerts.GetAsync(listed.AlertId, ct);
         Assert.NotNull(detail);
-        Assert.Equal(listed.JobAlertId, detail.AlertId);
+        Assert.Equal(listed.AlertId, detail.AlertId);
         Assert.Equal(listed.JobNamespace, detail.JobNamespace);
         Assert.Equal("get-spec message", detail.Message);
         Assert.Equal(listed.CreatedAtUtc, detail.CreatedAtUtc);
