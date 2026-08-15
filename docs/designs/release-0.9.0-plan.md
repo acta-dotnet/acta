@@ -203,7 +203,13 @@ Full rename batch, one breaking pass, release notes carry the table:
   /outbox/{jobNamespace}/quarantined`, `POST .../requeue`, `POST .../discard`. **Subsumes
   `GET /overview/outbox`, which is removed** (it was also the API's only unpaged collection).
   Bodies use `reasonMessage`; ids are resource-qualified; responses match `ScheduleControlResponse`
-  in shape.
+  in shape. *Shipped shape (route delta only, semantics as planned)*: `GET /outbox/sources` and
+  `GET /outbox/quarantined?jobNamespace=` (the sources read needed a non-colliding segment beside
+  the verbs, and the quarantined read follows the query-parameter addressing every other list
+  uses), with `POST /outbox/requeue` / `POST /outbox/discard` body-addressed by `jobNamespace` —
+  the exact addressing convention `schedules/*` set. Verbs answer **202** on Accepted (parked, the
+  next relay pass applies), 409 with `pendingSinceUtc` on Rejected, 404 without a slot; the
+  non-local quarantined read is 409 with the placement explanation.
 - **Dashboard**: relay-status card on Overview reading the new resource, with requeue/discard
   controls if the cost stays reasonable; the pre-agreed fallback is a read-only card with controls
   in 1.x.
@@ -221,7 +227,9 @@ Full rename batch, one breaking pass, release notes carry the table:
 ## 6. Conventions doc
 
 A short naming-rules section (likely in `contract-evolution.md` or beside it), written before the
-freeze because both audits found drift that a stated rule would have prevented:
+freeze because both audits found drift that a stated rule would have prevented. *Shipped as
+[`docs/internals/naming-conventions.md`](../internals/naming-conventions.md)* (contributor-facing:
+the rules govern Acta's own frozen surface, while `contract-evolution.md` stays the consumer guide):
 
 - `reasonMessage` is the operator-authored justification on control verbs; **`note` is the
   application-authored annotation** (`ctx.NoteAsync`, `job.note-recorded`). One word, one meaning.

@@ -54,7 +54,8 @@ arrange/act/assert that proves it.
 
 Contributor-facing; not needed to use Acta: [design principles and settled decisions](./internals/design.md),
 [architecture diagrams](./technical/architecture-diagrams.md), [migration tooling](./internals/migrations.md),
-[releasing](./internals/releasing.md), [benchmarks](./benchmarks/stress-tests.md),
+[releasing](./internals/releasing.md), [naming conventions](./internals/naming-conventions.md),
+[benchmarks](./benchmarks/stress-tests.md),
 [modular architecture](./internals/modular-architecture.md),
 [operator surface](./internals/operator-surface.md), and
 design decisions: [incident response](./designs/incident-response.md).
