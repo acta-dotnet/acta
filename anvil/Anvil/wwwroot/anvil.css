@@ -250,7 +250,13 @@ main { grid-area: main; min-width: 0; padding: 20px; background: var(--bg); }
 .rack-actions button:hover:not(:disabled),
 .worker-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-text); }
 button.go:not(:disabled) { border-color: var(--ok-text); background: var(--ok-text); color: var(--panel); font-weight: 700; }
-button.go:hover:not(:disabled) { background: color-mix(in srgb, var(--ok-text) 82%, #000); }
+/* Restate color and border on hover: the .setup-actions hover rule ties on specificity and would
+   otherwise paint accent text over the green fill, which is unreadable. */
+button.go:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ok-text) 82%, #000);
+  border-color: color-mix(in srgb, var(--ok-text) 82%, #000);
+  color: var(--panel);
+}
 button.danger { color: var(--bad-text); }
 button.danger:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-bg); }
 .flashline { min-height: 18px; }

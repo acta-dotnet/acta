@@ -63,6 +63,17 @@ public sealed class OpenApiContractTests
         // the field is "whatever JSON the caller sends" - so they are dropped rather than paid for
         // by weakening the request types to keep a generator happy.
         {
+            // Without this the generator defaults info.title to "{entry assembly} | {document}",
+            // which stamped this test host's name into the committed contract ("Acta.Tests | v1")
+            // and onto every Scalar page serving it. The contract names the product, not whichever
+            // host generated or serves it.
+            o.AddDocumentTransformer(
+                (document, _, _) =>
+                {
+                    document.Info.Title = "Acta API";
+                    return Task.CompletedTask;
+                }
+            );
             o.AddSchemaTransformer(
                 (schema, _, _) =>
                 {
