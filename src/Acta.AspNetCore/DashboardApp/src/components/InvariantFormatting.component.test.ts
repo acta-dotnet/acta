@@ -129,12 +129,9 @@ describe('invariant dashboard formatting', () => {
     await user.click(applyButton);
 
     await waitFor(() => expect(requests).toHaveLength(1));
-    expect(requests[0].url).toMatch(/\/api\/v1\/schedules\/pause$/);
+    expect(requests[0].url).toMatch(/\/api\/v1\/schedules\/billing\/invoice\/daily\/pause$/);
     expect(requests[0].init?.method).toBe('POST');
     expect(requestBody(requests[0])).toEqual({
-      jobNamespace: 'billing',
-      jobName: 'invoice',
-      scheduleName: 'daily',
       reasonMessage: null,
       pausedUntilUtc: '2026-07-15T08:26:00.000Z'
     });
