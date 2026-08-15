@@ -6,9 +6,11 @@ namespace Acta.AspNetCore.Features.Outbox;
 
 /// <summary>
 /// POST outbox-control endpoints: thin HTTP wrappers over the <see cref="IOutbox"/> requeue/discard
-/// verbs. The source is addressed by namespace in the JSON body; the verbs park a durable command the
-/// next relay pass applies, so this layer maps <see cref="ControlAction"/> to 202 (accepted), 409
-/// (rejected: a pending command occupies the inbox), and 404 (no relay slot for the namespace).
+/// verbs. The source is addressed by its namespace in the route
+/// (<c>/outbox/{jobNamespace}/…</c>) like every other namespace verb; the verbs park a durable
+/// command the next relay pass applies, so this layer maps <see cref="ControlAction"/> to 202
+/// (accepted), 409 (rejected: a pending command occupies the inbox), and 404 (no relay slot for the
+/// namespace).
 /// </summary>
 internal static class OutboxControlEndpoints
 {
@@ -22,17 +24,17 @@ internal static class OutboxControlEndpoints
 
         group
             .MapPost(
-                "/outbox/requeue",
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    HandleAsync(http, operations, options, "requeue", ct)
+                "/outbox/{jobNamespace}/requeue",
+                (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    HandleAsync(http, operations, options, "requeue", jobNamespace, ct)
             )
             .WithSummary("Return quarantined outbox rows to pending; the next relay pass applies it.");
 
         group
             .MapPost(
-                "/outbox/discard",
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    HandleAsync(http, operations, options, "discard", ct)
+                "/outbox/{jobNamespace}/discard",
+                (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    HandleAsync(http, operations, options, "discard", jobNamespace, ct)
             )
             .WithSummary("Delete quarantined outbox rows, keeping the ids as audit evidence.");
     }
@@ -42,26 +44,23 @@ internal static class OutboxControlEndpoints
         IActaOperations operations,
         ActaEndpointOptions options,
         string verb,
+        string jobNamespace,
         CancellationToken ct
     )
     {
-        if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-        {
-            return confirmationError;
-        }
-
-        var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(http, DashboardJsonContext.Default.OutboxControlRequest, ct);
+        // The body is optional: a bare POST targets every quarantined row with no reason.
+        var (body, error) = await ControlEndpointValidation.ReadOptionalJsonBodyAsync(
+            http,
+            options,
+            DashboardJsonContext.Default.OutboxControlRequest,
+            ct
+        );
         if (error is not null)
         {
             return error;
         }
 
-        if (string.IsNullOrWhiteSpace(body!.JobNamespace))
-        {
-            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", "jobNamespace is required.");
-        }
-
-        var reasonMessage = body.ReasonMessage?.Trim() is { Length: > 0 } trimmed ? trimmed : null;
+        var reasonMessage = body?.ReasonMessage?.Trim() is { Length: > 0 } trimmed ? trimmed : null;
         if (reasonMessage is not null && ControlEndpointValidation.ValidateReasonLength(reasonMessage, options) is { } lengthError)
         {
             return lengthError;
@@ -74,8 +73,8 @@ internal static class OutboxControlEndpoints
         {
             var result =
                 verb == "requeue"
-                    ? await operations.Outbox.RequeueAsync(body.JobNamespace, body.OutboxIds, reasonMessage, actorKey, ct)
-                    : await operations.Outbox.DiscardAsync(body.JobNamespace, body.OutboxIds, reasonMessage, actorKey, ct);
+                    ? await operations.Outbox.RequeueAsync(jobNamespace, body?.OutboxIds, reasonMessage, actorKey, ct)
+                    : await operations.Outbox.DiscardAsync(jobNamespace, body?.OutboxIds, reasonMessage, actorKey, ct);
             return ToResult(verb, result);
         }
         catch (ArgumentException ex)

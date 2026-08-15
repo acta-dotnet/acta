@@ -2175,12 +2175,38 @@
         }
       }
     },
-    "/acta/api/v1/schedules/pause": {
+    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause": {
       "post": {
         "tags": [
           "Schedules"
         ],
         "summary": "Pause a recurring schedule, indefinitely or until an instant.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2255,12 +2281,38 @@
         }
       }
     },
-    "/acta/api/v1/schedules/resume": {
+    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume": {
       "post": {
         "tags": [
           "Schedules"
         ],
         "summary": "Resume a paused schedule, reconciled by its misfire policy.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2335,12 +2387,38 @@
         }
       }
     },
-    "/acta/api/v1/schedules/trigger": {
+    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger": {
       "post": {
         "tags": [
           "Schedules"
         ],
         "summary": "Fire the schedule now, without moving its cadence.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2415,12 +2493,38 @@
         }
       }
     },
-    "/acta/api/v1/schedules/overrides": {
+    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides": {
       "post": {
         "tags": [
           "Schedules"
         ],
         "summary": "Set or clear the schedule's expression and time-zone overrides.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2795,12 +2899,22 @@
         }
       }
     },
-    "/acta/api/v1/outbox/requeue": {
+    "/acta/api/v1/outbox/{jobNamespace}/requeue": {
       "post": {
         "tags": [
           "Outbox"
         ],
         "summary": "Return quarantined outbox rows to pending; the next relay pass applies it.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2885,12 +2999,22 @@
         }
       }
     },
-    "/acta/api/v1/outbox/discard": {
+    "/acta/api/v1/outbox/{jobNamespace}/discard": {
       "post": {
         "tags": [
           "Outbox"
         ],
         "summary": "Delete quarantined outbox rows, keeping the ids as audit evidence.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -5142,7 +5266,7 @@
         }
       }
     },
-    "/acta/api/v1/outbox/quarantined": {
+    "/acta/api/v1/outbox/{jobNamespace}/quarantined": {
       "get": {
         "tags": [
           "Outbox"
@@ -5151,8 +5275,7 @@
         "parameters": [
           {
             "name": "jobNamespace",
-            "in": "query",
-            "description": "The namespace whose registered source to read.",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string"
@@ -6225,7 +6348,7 @@
         }
       }
     },
-    "/acta/api/v1/schedules/preview": {
+    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview": {
       "get": {
         "tags": [
           "Schedules"
@@ -6234,8 +6357,7 @@
         "parameters": [
           {
             "name": "jobNamespace",
-            "in": "query",
-            "description": "The schedule's namespace.",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string"
@@ -6243,8 +6365,7 @@
           },
           {
             "name": "jobName",
-            "in": "query",
-            "description": "The schedule's job name.",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string"
@@ -6252,8 +6373,7 @@
           },
           {
             "name": "scheduleName",
-            "in": "query",
-            "description": "The schedule name.",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string"

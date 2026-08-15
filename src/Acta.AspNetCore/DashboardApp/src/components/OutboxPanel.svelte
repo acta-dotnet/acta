@@ -42,8 +42,8 @@
   // relay pass applies it", so success invalidates the overview snapshot rather than expecting the
   // counters to have moved already.
   const mutation = useControlMutation<{ verb: 'requeue' | 'discard'; jobNamespace: string; reason?: string }, OutboxControlResponse>({
-    path: (vars) => `outbox/${vars.verb}`,
-    rawBody: (vars) => ({ jobNamespace: vars.jobNamespace, reasonMessage: vars.reason?.trim() || null }),
+    path: (vars) => `outbox/${vars.jobNamespace}/${vars.verb}`,
+    rawBody: (vars) => ({ reasonMessage: vars.reason?.trim() || null }),
     notFound: () => ({ action: 'notFound', pendingSinceUtc: null, message: 'No outbox relay slot exists for that namespace.' }),
     invalidateKeys: () => [['overview']] as const
   });

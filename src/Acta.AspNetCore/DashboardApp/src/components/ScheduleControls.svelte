@@ -47,18 +47,15 @@
   let showEditor = $derived(mode !== 'actions');
   let showActions = $derived(mode !== 'editor');
 
-  // pause/resume/trigger/overrides all live at schedules/{action}, share the natural-key + note
-  // body shape (overrides layers version/expression/timeZoneId on top via `extra`), and return
-  // ScheduleControlResponse; invalidating the 'schedules' key prefix refreshes every cached list.
+  // pause/resume/trigger/overrides all live at schedules/{ns}/{job}/{schedule}/{action}, share the
+  // note-only body shape (overrides layers version/expression/timeZoneId on top via `extra`), and
+  // return ScheduleControlResponse; invalidating the 'schedules' key prefix refreshes every cached list.
   const mutation = useControlMutation<
     { action: string; reason?: string; extra?: Record<string, unknown> },
     ScheduleControlResponse
   >({
-    path: (vars) => `schedules/${vars.action}`,
+    path: (vars) => `schedules/${jobNamespace}/${jobName}/${scheduleName}/${vars.action}`,
     rawBody: (vars) => ({
-      jobNamespace,
-      jobName,
-      scheduleName,
       reasonMessage: vars.reason?.trim() || null,
       ...(vars.extra ?? {})
     }),

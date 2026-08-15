@@ -19,14 +19,17 @@ public sealed class OutboxControlEndpointTests
     private static Task<(WebApplication App, HttpClient Client)> StartWithControlsAsync(TestDashboardHost.FakeJobs? jobs = null) =>
         TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
 
-    private static HttpRequestMessage Post(string verb, object body, bool confirm = true)
+    private static HttpRequestMessage Post(string verb, string jobNamespace = "billing", object? body = null, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/outbox/{verb}");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/outbox/{jobNamespace}/{verb}");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
         }
-        request.Content = JsonContent.Create(body);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
         return request;
     }
 
@@ -41,15 +44,7 @@ public sealed class OutboxControlEndpointTests
 
         var ids = new[] { TestDashboardHost.FakeJobs.FakeOutbox.QuarantinedId };
         var response = await client.SendAsync(
-            Post(
-                verb,
-                new
-                {
-                    jobNamespace = "billing",
-                    outboxIds = ids,
-                    reasonMessage = "fixed the route",
-                }
-            ),
+            Post(verb, body: new { outboxIds = ids, reasonMessage = "fixed the route" }),
             TestContext.Current.CancellationToken
         );
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -64,12 +59,27 @@ public sealed class OutboxControlEndpointTests
     }
 
     [Fact]
+    public async Task A_bare_post_targets_every_quarantined_row_with_no_reason()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        var response = await client.SendAsync(Post("requeue"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var call = Assert.Single(jobs.OutboxFake.ControlCalls);
+        Assert.Null(call.OutboxIds);
+        Assert.Null(call.Reason);
+    }
+
+    [Fact]
     public async Task Rejection_answers_409_and_carries_the_pending_park_instant()
     {
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(Post("requeue", new { jobNamespace = "rejected" }), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post("requeue", jobNamespace: "rejected"), TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -83,25 +93,20 @@ public sealed class OutboxControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(Post("discard", new { jobNamespace = "missing" }), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post("discard", jobNamespace: "missing"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
-    public async Task Missing_namespace_or_confirmation_is_400_and_nothing_dispatches()
+    public async Task Missing_confirmation_is_400_and_nothing_dispatches()
     {
         var jobs = new TestDashboardHost.FakeJobs();
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var noNamespace = await client.SendAsync(Post("requeue", new { }), TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.BadRequest, noNamespace.StatusCode);
+        var noConfirm = await client.SendAsync(Post("requeue", confirm: false), TestContext.Current.CancellationToken);
 
-        var noConfirm = await client.SendAsync(
-            Post("requeue", new { jobNamespace = "billing" }, confirm: false),
-            TestContext.Current.CancellationToken
-        );
         Assert.Equal(HttpStatusCode.BadRequest, noConfirm.StatusCode);
         Assert.Empty(jobs.OutboxFake.ControlCalls);
     }
@@ -113,10 +118,7 @@ public sealed class OutboxControlEndpointTests
         var (app, client) = await TestDashboardHost.StartAuthenticatedAsync("marko", options => options.EnableControls = true, jobs: jobs);
         await using var _ = app;
 
-        var response = await client.SendAsync(
-            Post("requeue", new { jobNamespace = "billing", actorKey = "spoofed" }),
-            TestContext.Current.CancellationToken
-        );
+        var response = await client.SendAsync(Post("requeue", body: new { actorKey = "spoofed" }), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         Assert.Equal("marko", Assert.Single(jobs.OutboxFake.ControlCalls).ActorKey);
@@ -128,7 +130,7 @@ public sealed class OutboxControlEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(Post("requeue", new { jobNamespace = "billing" }), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(Post("requeue"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -139,9 +141,9 @@ public sealed class OutboxControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/outbox/requeue")
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/outbox/billing/requeue")
         {
-            Content = new StringContent("jobNamespace=billing", Encoding.UTF8, "text/plain"),
+            Content = new StringContent("reason=fixed", Encoding.UTF8, "text/plain"),
         };
         request.Headers.Add(Confirm, "true");
 

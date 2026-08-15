@@ -45,9 +45,10 @@ lives in the producer's database, which most operator hosts cannot reach.
   version-CAS keeping the overwrite race safe. `ControlAction` gains `Accepted` for exactly this
   shape. Requeue resets the failure budget and keeps `last_error` as evidence; discard deletes the
   rows with the ids preserved in the event, so proof outlives the payload.
-- **HTTP**: `GET /v1/outbox/sources`, `GET /v1/outbox/quarantined?jobNamespace=`, and
-  `POST /v1/outbox/{requeue,discard}` (202 accepted / 409 pending / 404 no slot). They subsume
-  `GET /overview/outbox`, which is removed — it was also the API's only unpaged collection.
+- **HTTP**: `GET /v1/outbox/sources`, `GET /v1/outbox/{jobNamespace}/quarantined`, and
+  `POST /v1/outbox/{jobNamespace}/{requeue,discard}` (202 accepted / 409 pending / 404 no slot).
+  They subsume `GET /overview/outbox`, which is removed — it was also the API's only unpaged
+  collection.
 - **Dashboard**: the Overview gains an outbox relays panel — backlog, quarantine, last tick per
   source — with requeue-all/discard-all behind the confirmation dialog (discard types the
   namespace). The health verdict now flags standing quarantined rows beside backlog lag.
@@ -113,6 +114,14 @@ Same destructive-class precedent as 0.7.0:
 
 - Namespace identity unified on `jobNamespace` (routes, fields); ids follow the route noun
   (`namespaceId`, `alertId`, `{definitionId}`, `{signalName}`).
+- **Every control verb now names its target in the route.** The schedule verbs move from
+  body-addressed `POST /schedules/{action}` to
+  `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/{action}` (and the preview follows:
+  `GET .../preview?limit=`) — the same natural-key triple the schedule tag routes already used, so
+  a reader of the contract sees what an operation targets instead of an opaque verb. Resume,
+  trigger, and the outbox verbs now take an optional body (a bare POST acts with defaults).
+- The `/jobs/{jobRef}/detail` aggregate's job row rides as `job` (was `snapshot` — `Snapshot` is
+  reserved for point-in-time aggregates, and `OverviewSnapshot` is the only one).
 - `note` → `reasonMessage` on the six control request types; `version` → `expectedVersion` on the
   two override requests; `lastSeenAtUtc` → `lastHeartbeatAtUtc`; `search` → `nameContains`;
   `parentRef` → `parentJobRef`; preview `count` → `limit`; `format` → `formatName` where the value

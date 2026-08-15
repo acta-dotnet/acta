@@ -333,9 +333,10 @@ export interface ScheduleControlResponse {
   message: string;
 }
 
-// Schedule pause/resume/trigger/overrides all live at schedules/{action}, addressed by natural key
-// in the body, and return ScheduleControlResponse - ScheduleControls.svelte drives all four through
-// useControlMutation (controlRequest, above) rather than a per-verb fetch function.
+// Schedule pause/resume/trigger/overrides live at schedules/{ns}/{job}/{schedule}/{action} - the
+// same natural-key triple the tag routes use - and return ScheduleControlResponse;
+// ScheduleControls.svelte drives all four through useControlMutation (controlRequest, above)
+// rather than a per-verb fetch function.
 
 // Read-only forecast of a schedule's upcoming fire instants (effective expression/timezone plus the
 // next N run instants); not a control endpoint, so no confirmation header and always available.
@@ -351,7 +352,7 @@ export async function previewSchedule(
   scheduleName: string,
   count = 10
 ): Promise<SchedulePreview> {
-  return api<SchedulePreview>('schedules/preview', { jobNamespace, jobName, scheduleName, limit: count });
+  return api<SchedulePreview>(`schedules/${jobNamespace}/${jobName}/${scheduleName}/preview`, { limit: count });
 }
 
 // Format-dispatched payload projection served by the input/result/checkpoint reads (part of the

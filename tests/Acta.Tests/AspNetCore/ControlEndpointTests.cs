@@ -410,22 +410,14 @@ public sealed class ControlEndpointTests
         string? rawBody = null
     )
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/schedules/trigger");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/schedules/billing/send-invoice/{scheduleName}/trigger");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
         }
         request.Content = rawBody is not null
             ? new StringContent(rawBody, Encoding.UTF8, "application/json")
-            : JsonContent.Create(
-                new
-                {
-                    jobNamespace = "billing",
-                    jobName = "send-invoice",
-                    scheduleName,
-                    reasonMessage = reason,
-                }
-            );
+            : JsonContent.Create(new { reasonMessage = reason });
         return request;
     }
 
@@ -494,7 +486,7 @@ public sealed class ControlEndpointTests
         string? rawBody = null
     )
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/schedules/overrides");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/schedules/billing/send-invoice/{scheduleName}/overrides");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -504,9 +496,6 @@ public sealed class ControlEndpointTests
             : JsonContent.Create(
                 new
                 {
-                    jobNamespace = "billing",
-                    jobName = "send-invoice",
-                    scheduleName,
                     expectedVersion = version,
                     expression,
                     timeZoneId,

@@ -6,10 +6,11 @@ namespace Acta.AspNetCore.Features.Schedules;
 
 /// <summary>
 /// POST schedule-control endpoints: thin HTTP wrappers over the <see cref="ISchedules"/> verbs. A
-/// schedule is addressed by natural key in the JSON body (namespace, job name, schedule name) rather
-/// than a route id. The verbs own transition legality and audit stamping; this layer validates the
-/// request shape and maps <see cref="ControlAction"/> to 200 (applied), 409 (rejected), and 404
-/// (not found).
+/// schedule is addressed by its natural key in the route
+/// (<c>/schedules/{jobNamespace}/{jobName}/{scheduleName}/…</c>), the same triple the tag routes
+/// already use, so the target is visible in the path like every other control family. The verbs own
+/// transition legality and audit stamping; this layer validates the request shape and maps
+/// <see cref="ControlAction"/> to 200 (applied), 409 (rejected), and 404 (not found).
 /// </summary>
 internal static class ScheduleControlEndpoints
 {
@@ -23,16 +24,20 @@ internal static class ScheduleControlEndpoints
 
         group
             .MapPost(
-                "/schedules/pause",
-                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause",
+                async Task<IResult> (
+                    string jobNamespace,
+                    string jobName,
+                    string scheduleName,
+                    HttpContext http,
+                    IActaOperations operations,
+                    CancellationToken ct
+                ) =>
                 {
-                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                    {
-                        return confirmationError;
-                    }
-
-                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                    // The body is optional: a bare POST pauses indefinitely with no reason.
+                    var (body, error) = await ControlEndpointValidation.ReadOptionalJsonBodyAsync(
                         http,
+                        options,
                         DashboardJsonContext.Default.SchedulePauseRequest,
                         ct
                     );
@@ -41,98 +46,108 @@ internal static class ScheduleControlEndpoints
                         return error;
                     }
 
-                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
+                    var reason = body?.ReasonMessage?.Trim() is { Length: > 0 } trimmed ? trimmed : null;
+                    if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
                     {
-                        return badRequest;
+                        return reasonError;
                     }
 
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
                     var actorKey = http.User?.Identity?.Name;
-                    var result = await operations.Schedules.PauseAsync(lookup, body.PausedUntilUtc, body.ReasonMessage, actorKey, ct);
-                    return ToResult("pause", result);
+                    return await Invoke(
+                        "pause",
+                        async () =>
+                            await operations.Schedules.PauseAsync(
+                                Lookup(jobNamespace, jobName, scheduleName),
+                                body?.PausedUntilUtc,
+                                reason,
+                                actorKey,
+                                ct
+                            )
+                    );
                 }
             )
             .WithSummary("Pause a recurring schedule, indefinitely or until an instant.");
 
         group
             .MapPost(
-                "/schedules/resume",
-                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume",
+                async Task<IResult> (
+                    string jobNamespace,
+                    string jobName,
+                    string scheduleName,
+                    HttpContext http,
+                    IActaOperations operations,
+                    CancellationToken ct
+                ) =>
                 {
-                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                    {
-                        return confirmationError;
-                    }
-
-                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                        http,
-                        DashboardJsonContext.Default.ScheduleResumeRequest,
-                        ct
-                    );
+                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                     if (error is not null)
                     {
                         return error;
                     }
 
-                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
-                    {
-                        return badRequest;
-                    }
-
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
                     var actorKey = http.User?.Identity?.Name;
-                    var result = await operations.Schedules.ResumeAsync(lookup, body.ReasonMessage, actorKey, ct);
-                    return ToResult("resume", result);
+                    return await Invoke(
+                        "resume",
+                        async () =>
+                            await operations.Schedules.ResumeAsync(Lookup(jobNamespace, jobName, scheduleName), reason, actorKey, ct)
+                    );
                 }
             )
             .WithSummary("Resume a paused schedule, reconciled by its misfire policy.");
 
         group
             .MapPost(
-                "/schedules/trigger",
-                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger",
+                async Task<IResult> (
+                    string jobNamespace,
+                    string jobName,
+                    string scheduleName,
+                    HttpContext http,
+                    IActaOperations operations,
+                    CancellationToken ct
+                ) =>
                 {
-                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                    {
-                        return confirmationError;
-                    }
-
-                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                        http,
-                        DashboardJsonContext.Default.ScheduleTriggerRequest,
-                        ct
-                    );
+                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
                     if (error is not null)
                     {
                         return error;
                     }
 
-                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
-                    {
-                        return badRequest;
-                    }
-
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
                     var actorKey = http.User?.Identity?.Name;
-                    var result = await operations.Schedules.TriggerNowAsync(lookup, body.ReasonMessage, actorKey, ct);
-                    return ToResult("trigger", result);
+                    return await Invoke(
+                        "trigger",
+                        async () =>
+                            await operations.Schedules.TriggerNowAsync(Lookup(jobNamespace, jobName, scheduleName), reason, actorKey, ct)
+                    );
                 }
             )
             .WithSummary("Fire the schedule now, without moving its cadence.");
 
         group
             .MapPost(
-                "/schedules/overrides",
-                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides",
+                async Task<IResult> (
+                    string jobNamespace,
+                    string jobName,
+                    string scheduleName,
+                    HttpContext http,
+                    IActaOperations operations,
+                    CancellationToken ct
+                ) =>
                 {
                     if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                     {
                         return confirmationError;
                     }
 
+                    // Mandatory body: expectedVersion is the CAS token and cannot default.
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
                         DashboardJsonContext.Default.SetScheduleOverridesRequest,
@@ -143,71 +158,51 @@ internal static class ScheduleControlEndpoints
                         return error;
                     }
 
-                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
-                    {
-                        return badRequest;
-                    }
-
-                    if (body.ExpectedVersion is not { } version)
+                    if (body!.ExpectedVersion is not { } version)
                     {
                         return ControlEndpointValidation.Problem(
                             StatusCodes.Status400BadRequest,
                             "Invalid request.",
-                            "version is required."
+                            "expectedVersion is required."
                         );
                     }
 
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
                     var actorKey = http.User?.Identity?.Name;
-                    try
-                    {
-                        var result = await operations.Schedules.UpdateOverridesAsync(
-                            lookup,
-                            version,
-                            body.Expression,
-                            body.TimeZoneId,
-                            body.ReasonMessage,
-                            actorKey,
-                            ct
-                        );
-                        return ToResult("overrides", result);
-                    }
-                    catch (ArgumentException ex)
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid schedule overrides.",
-                            ex.Message
-                        );
-                    }
+                    return await Invoke(
+                        "overrides",
+                        async () =>
+                            await operations.Schedules.UpdateOverridesAsync(
+                                Lookup(jobNamespace, jobName, scheduleName),
+                                version,
+                                body.Expression,
+                                body.TimeZoneId,
+                                body.ReasonMessage,
+                                actorKey,
+                                ct
+                            )
+                    );
                 }
             )
             .WithSummary("Set or clear the schedule's expression and time-zone overrides.");
     }
 
-    private static bool TryLookup(
-        string? jobNamespace,
-        string? jobName,
-        string? scheduleName,
-        out ScheduleLookup lookup,
-        out IResult badRequest
-    )
-    {
-        if (string.IsNullOrWhiteSpace(jobNamespace) || string.IsNullOrWhiteSpace(jobName) || string.IsNullOrWhiteSpace(scheduleName))
-        {
-            lookup = default!;
-            badRequest = ControlEndpointValidation.Problem(
-                StatusCodes.Status400BadRequest,
-                "Invalid request.",
-                "jobNamespace, jobName, and scheduleName are required."
-            );
-            return false;
-        }
+    private static ScheduleLookup Lookup(string jobNamespace, string jobName, string scheduleName) =>
+        new(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
 
-        lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
-        badRequest = null!;
-        return true;
+    // A malformed identifier or an invalid override value surfaces from the facade as
+    // ArgumentException: caller input, so 400 rather than the sanitized 500 backstop.
+    private static async Task<IResult> Invoke(string verb, Func<ValueTask<ScheduleControlResult>> action)
+    {
+        try
+        {
+            return ToResult(verb, await action());
+        }
+        catch (ArgumentException ex)
+        {
+            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid schedule request.", ex.Message);
+        }
     }
 
     private static IResult ToResult(string verb, ScheduleControlResult result)

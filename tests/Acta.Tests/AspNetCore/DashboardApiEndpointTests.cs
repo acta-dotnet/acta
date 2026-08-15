@@ -289,7 +289,7 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
 
         var body = await client.GetStringAsync(
-            "/acta/api/v1/outbox/quarantined?jobNamespace=billing&includeTotal=true",
+            "/acta/api/v1/outbox/billing/quarantined?includeTotal=true",
             TestContext.Current.CancellationToken
         );
 
@@ -299,15 +299,12 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Outbox_quarantined_requires_a_namespace_and_answers_409_where_the_source_is_not_registered()
+    public async Task Outbox_quarantined_answers_409_where_the_source_is_not_registered()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var missing = await client.GetAsync("/acta/api/v1/outbox/quarantined", TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
-
-        var nonLocal = await client.GetAsync("/acta/api/v1/outbox/quarantined?jobNamespace=reports", TestContext.Current.CancellationToken);
+        var nonLocal = await client.GetAsync("/acta/api/v1/outbox/reports/quarantined", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Conflict, nonLocal.StatusCode);
         Assert.Contains("no outbox relay registered", await nonLocal.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
@@ -561,14 +558,8 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync(
-            "/acta/api/v1/schedules/preview?jobNamespace=billing&jobName=send-invoice&scheduleName=daily",
-            ct
-        );
-        var missing = await client.GetAsync(
-            "/acta/api/v1/schedules/preview?jobNamespace=billing&jobName=send-invoice&scheduleName=missing",
-            ct
-        );
+        var known = await client.GetAsync("/acta/api/v1/schedules/billing/send-invoice/daily/preview", ct);
+        var missing = await client.GetAsync("/acta/api/v1/schedules/billing/send-invoice/missing/preview", ct);
         var body = await known.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);

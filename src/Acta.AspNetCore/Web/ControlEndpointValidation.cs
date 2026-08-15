@@ -101,10 +101,56 @@ internal static class ControlEndpointValidation
             : null;
 
     /// <summary>
+    /// Reads an optional JSON request body: no body at all is a no-op (null, null), a present body is
+    /// parsed and shape-validated (415/400 on malformed input). For route-addressed control verbs
+    /// whose body carries only optional extras (a reason, a scope), so "act with defaults" needs no
+    /// body. Includes the confirmation-header guard; field validation stays with the caller.
+    /// </summary>
+    public static async Task<(T? Body, IResult? Error)> ReadOptionalJsonBodyAsync<T>(
+        HttpContext http,
+        ActaEndpointOptions options,
+        JsonTypeInfo<T> typeInfo,
+        CancellationToken ct
+    )
+        where T : class
+    {
+        if (CheckConfirmation(http, options) is { } confirmationError)
+        {
+            return (null, confirmationError);
+        }
+
+        if (http.Request.ContentLength is not > 0 && string.IsNullOrEmpty(http.Request.ContentType))
+        {
+            return (null, null);
+        }
+
+        if (!http.Request.HasJsonContentType())
+        {
+            return (
+                null,
+                Problem(
+                    StatusCodes.Status415UnsupportedMediaType,
+                    "Unsupported content type.",
+                    "Control requests with a body must send application/json."
+                )
+            );
+        }
+
+        try
+        {
+            return (await http.Request.ReadFromJsonAsync(typeInfo, ct), null);
+        }
+        catch (JsonException)
+        {
+            return (null, Problem(StatusCodes.Status400BadRequest, "Invalid request body.", "The control request body is not valid JSON."));
+        }
+    }
+
+    /// <summary>
     /// Reads a mandatory JSON request body: 415 when the content type isn't application/json, 400 when
     /// the body is malformed JSON, and 400 when the body is absent altogether. Shared by every control
-    /// endpoint that addresses its target via the body rather than the route (schedules, definitions,
-    /// tenants). The confirmation-header guard is a separate, prior step the caller runs itself.
+    /// endpoint whose body carries required fields (definition and admin patches, the schedule
+    /// overrides). The confirmation-header guard is a separate, prior step the caller runs itself.
     /// </summary>
     public static async Task<(T? Body, IResult? Error)> ReadJsonBodyAsync<T>(
         HttpContext http,

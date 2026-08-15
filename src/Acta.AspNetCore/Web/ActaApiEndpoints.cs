@@ -453,8 +453,8 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/outbox/quarantined",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/outbox/{jobNamespace}/quarantined",
+                static (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
                     string? error = null;
                     if (
@@ -463,11 +463,6 @@ internal static class ActaApiEndpoints
                     )
                     {
                         return Task.FromResult(BadRequest(error));
-                    }
-
-                    if (QueryBinding.Text(http.Request.Query, "jobNamespace") is not { } jobNamespace)
-                    {
-                        return Task.FromResult(BadRequest("jobNamespace is required."));
                     }
 
                     var query = new ListOutboxQuarantinedQuery(
@@ -501,16 +496,7 @@ internal static class ActaApiEndpoints
             .WithSummary("List a relay source's quarantined staging rows.")
             .Produces<PagedResult<OutboxQuarantinedItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .WithQueryParameters([
-                new QueryParameterDoc(
-                    "jobNamespace",
-                    QueryParameterKind.String,
-                    "The namespace whose registered source to read.",
-                    Required: true
-                ),
-                .. QueryParameterDocExtensions.PagingCore,
-                .. QueryParameterDocExtensions.IncludeTotal,
-            ]);
+            .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
 
         group
             .MapGet(
@@ -953,21 +939,20 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/schedules/preview",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview",
+                static (
+                    string jobNamespace,
+                    string jobName,
+                    string scheduleName,
+                    HttpContext http,
+                    IActaOperations operations,
+                    CancellationToken ct
+                ) =>
                 {
                     string? error = null;
                     if (!QueryBinding.TryInt(http.Request.Query, "limit", out var count, ref error))
                     {
                         return Task.FromResult(BadRequest(error));
-                    }
-
-                    var jobNamespace = QueryBinding.Text(http.Request.Query, "jobNamespace");
-                    var jobName = QueryBinding.Text(http.Request.Query, "jobName");
-                    var scheduleName = QueryBinding.Text(http.Request.Query, "scheduleName");
-                    if (jobNamespace is null || jobName is null || scheduleName is null)
-                    {
-                        return Task.FromResult(BadRequest("jobNamespace, jobName, and scheduleName are required."));
                     }
 
                     var lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
@@ -982,12 +967,7 @@ internal static class ActaApiEndpoints
             )
             .WithSummary("Preview a schedule's upcoming fire instants.")
             .Produces<SchedulePreview>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "The schedule's namespace.", Required: true),
-                new QueryParameterDoc("jobName", QueryParameterKind.String, "The schedule's job name.", Required: true),
-                new QueryParameterDoc("scheduleName", QueryParameterKind.String, "The schedule name.", Required: true),
-                new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast."),
-            ])
+            .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")])
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group

@@ -26,7 +26,7 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Overview | `ILedger.GetOverviewAsync` | `GET /overview` | | |
 | Namespaces | `Namespaces.ListItemsAsync` | `GET /namespaces` | | one representation, the row; `ListAsync` stays for name-only callers |
 | Definitions | `Definitions.ListAsync` / `GetAsync` | `GET /definitions`, `GET /definitions/{id}` | | |
-| Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/preview` | | |
+| Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | | |
 | Workers | `Workers.ListAsync` / `GetAsync` | `GET /workers`, `GET /workers/{id}` | | |
 | Alerts | `Alerts.ListAsync` | `GET /alerts` | | |
 | Tenants | `Tenants.ListAsync` | `GET /tenants` | | |

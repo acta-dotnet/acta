@@ -203,11 +203,11 @@ Full rename batch, one breaking pass, release notes carry the table:
   /outbox/{jobNamespace}/quarantined`, `POST .../requeue`, `POST .../discard`. **Subsumes
   `GET /overview/outbox`, which is removed** (it was also the API's only unpaged collection).
   Bodies use `reasonMessage`; ids are resource-qualified; responses match `ScheduleControlResponse`
-  in shape. *Shipped shape (route delta only, semantics as planned)*: `GET /outbox/sources` and
-  `GET /outbox/quarantined?jobNamespace=` (the sources read needed a non-colliding segment beside
-  the verbs, and the quarantined read follows the query-parameter addressing every other list
-  uses), with `POST /outbox/requeue` / `POST /outbox/discard` body-addressed by `jobNamespace` —
-  the exact addressing convention `schedules/*` set. Verbs answer **202** on Accepted (parked, the
+  in shape. *Shipped shape*: `GET /outbox/sources` plus route-addressed
+  `GET /outbox/{jobNamespace}/quarantined` and `POST /outbox/{jobNamespace}/{requeue,discard}` —
+  the plan's original addressing, restored by the 0.9.0 route review that also moved the schedule
+  verbs onto their natural-key triple (body-addressing had copied the one wrong precedent, and the
+  target was invisible in the OpenAPI). Verbs answer **202** on Accepted (parked, the
   next relay pass applies), 409 with `pendingSinceUtc` on Rejected, 404 without a slot; the
   non-local quarantined read is 409 with the placement explanation.
 - **Dashboard**: relay-status card on Overview reading the new resource, with requeue/discard
