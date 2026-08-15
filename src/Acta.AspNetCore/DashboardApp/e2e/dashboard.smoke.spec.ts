@@ -97,9 +97,9 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
       });
     }
     if (path === 'jobs' && request.method() === 'GET') return json(paged([job]));
-    // The Overview's outbox panel had no fixture, so every test that lands on the Overview
+    // The Overview's outbox sources read had no fixture, so every test that lands on the Overview
     // failed at its first assertion rather than on anything it was written to check.
-    if (path === 'overview/outbox') return json([]);
+    if (path === 'outbox/sources') return json(paged([]));
     if (path === 'alerts') return json(paged([]));
     if (path === 'workers') return json(paged([]));
     if (path === 'schedules') return json(paged([]));

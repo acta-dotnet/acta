@@ -2766,6 +2766,184 @@
         }
       }
     },
+    "/acta/api/v1/outbox/requeue": {
+      "post": {
+        "tags": [
+          "Outbox"
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboxControlResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboxControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/outbox/discard": {
+      "post": {
+        "tags": [
+          "Outbox"
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboxControlResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboxControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/acta/api/v1/jobs/{jobRef}/tags": {
       "post": {
         "tags": [
@@ -4823,16 +5001,33 @@
         }
       }
     },
-    "/acta/api/v1/overview/outbox": {
+    "/acta/api/v1/outbox/sources": {
       "get": {
         "tags": [
-          "Overview"
+          "Outbox"
         ],
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "query",
-            "description": "Scope the outbox lens to one namespace; omit for all.",
+            "description": "Scope to one relay source's namespace; omit for all.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
             "schema": {
               "type": "string"
             }
@@ -4884,10 +5079,112 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/OverviewOutboxLine"
-                  }
+                  "$ref": "#/components/schemas/PagedResultOfOutboxSourceListItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/outbox/quarantined": {
+      "get": {
+        "tags": [
+          "Outbox"
+        ],
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "The namespace whose registered source to read.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfOutboxQuarantinedItem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -8279,33 +8576,150 @@
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode. Id 90 is reserved for an Archived (hidden/historical)\nstatus, for symmetry with TenantStatusCode's reservation."
       },
-      "OverviewOutboxLine": {
+      "OutboxControlResponse": {
         "required": [
-          "jobNamespace",
-          "jobRef",
-          "tick",
-          "backlog"
+          "action",
+          "pendingSinceUtc",
+          "message"
         ],
         "type": "object",
         "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "pendingSinceUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "OutboxQuarantinedItem": {
+        "required": [
+          "outboxId",
+          "jobNamespace",
+          "jobName",
+          "deduplicationKey",
+          "correlationKey",
+          "tenantKey",
+          "failureCount",
+          "lastError",
+          "createdAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "outboxId": {
+            "type": "string",
+            "description": "The staging row's producer-minted id; the target of a scoped requeue/discard.",
+            "format": "uuid"
+          },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The route's target namespace carried on the row."
           },
-          "jobRef": {
-            "type": "string"
+          "jobName": {
+            "type": "string",
+            "description": "The route's target job name carried on the row."
           },
-          "tick": {
-            "type": "string"
+          "deduplicationKey": {
+            "type": "string",
+            "description": "The row's ledger deduplication key."
           },
-          "backlog": {
+          "correlationKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The producer's correlation key; null when none was set."
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The row's tenant key; null for a tenant-less row."
+          },
+          "failureCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
-            "format": "int64"
+            "description": "Delivery attempts consumed before quarantine.",
+            "format": "int32"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The bounded last delivery error, kept as evidence."
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "description": "When the producer staged the row.",
+            "format": "date-time"
           }
-        }
+        },
+        "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields plus\nthe failure evidence. The payload never leaves the producer's database."
+      },
+      "OutboxSourceListItem": {
+        "required": [
+          "jobNamespace",
+          "slotJobRef",
+          "lastTickSummary",
+          "backlog",
+          "quarantineTotal",
+          "isLocal"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string",
+            "description": "The worker namespace whose relay drains this source."
+          },
+          "slotJobRef": {
+            "description": "The `sys.outbox` slot job's public ref (its audit trail holds the operator evidence).",
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "lastTickSummary": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last successful tick's rendered accounting, verbatim; null before the first success."
+          },
+          "backlog": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Pending rows still awaiting relay after the last tick; null when unknown.",
+            "format": "int64"
+          },
+          "quarantineTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Quarantined rows at the last tick; null when unknown.",
+            "format": "int64"
+          },
+          "isLocal": {
+            "type": "boolean",
+            "description": "Whether this process registered the source, so ValueTask&lt;PagedResult&lt;OutboxQuarantinedItem&gt;&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
+          }
+        },
+        "description": "One relay source as ValueTask&lt;PagedResult&lt;OutboxSourceListItem&gt;&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's\n`sys.outbox` slot plus the accounting parsed from the slot's persisted tick summary. The\nsummary (and the counters parsed from it) is null until the slot's first successful tick."
       },
       "OverviewSnapshot": {
         "required": [
@@ -8661,6 +9075,106 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NamespaceListItem"
+            },
+            "description": "The page rows, at most PageSize of them."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether at least one more row exists beyond this page."
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The effective page size after defaulting and clamping.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
+            "format": "int64"
+          }
+        },
+        "description": "One page of a keyset-paginated list read."
+      },
+      "PagedResultOfOutboxQuarantinedItem": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutboxQuarantinedItem"
+            },
+            "description": "The page rows, at most PageSize of them."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether at least one more row exists beyond this page."
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The effective page size after defaulting and clamping.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
+            "format": "int64"
+          }
+        },
+        "description": "One page of a keyset-paginated list read."
+      },
+      "PagedResultOfOutboxSourceListItem": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutboxSourceListItem"
             },
             "description": "The page rows, at most PageSize of them."
           },
@@ -9464,6 +9978,9 @@
     },
     {
       "name": "Namespaces"
+    },
+    {
+      "name": "Outbox"
     },
     {
       "name": "Workers"

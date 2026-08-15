@@ -16,6 +16,7 @@
   import RelativeTime from '../components/RelativeTime.svelte';
   import { routes } from '../routes';
   import JobRef from '../components/JobRef.svelte';
+  import OutboxPanel from '../components/OutboxPanel.svelte';
 
   // One composite snapshot query: the five reads land together so the verdict, metric cards, and
   // panels always describe the same instant. Scope changes swap the key, so caching is per-scope.
@@ -30,7 +31,7 @@
           api('alerts', { unresolvedOnly: true, severityAtLeast: 'Critical', pageSize: 10, jobNamespace: ns }, { signal }),
           api('workers', { pageSize: 10, jobNamespace: ns }, { signal }),
           api('schedules', { pageSize: 10, jobNamespace: ns }, { signal }),
-          api('overview/outbox', { jobNamespace: ns }, { signal })
+          api('outbox/sources', { jobNamespace: ns }, { signal })
         ]);
         return { overview, failedJobs, criticalAlerts, workers, schedules, outbox };
       },
@@ -44,11 +45,11 @@
   let criticalAlerts = $derived(snapshot.data?.criticalAlerts ?? null);
   let workers = $derived(snapshot.data?.workers ?? null);
   let schedules = $derived(snapshot.data?.schedules ?? null);
-  let outbox = $derived(snapshot.data?.outbox ?? []);
+  let outboxSources = $derived(snapshot.data?.outbox?.items ?? []);
   let error = $derived(snapshot.error ? snapshot.error.message : null);
   let loading = $derived(snapshot.isPending);
 
-  let verdict = $derived(buildVerdict(overview, outbox, $scope));
+  let verdict = $derived(buildVerdict(overview, outboxSources, $scope));
 
   // Triage verdict from the overview snapshot. Workers are ephemeral, so a dead/stale worker is only a
   // soft signal; the real "act now" worker problem is no capacity - due jobs sitting with nothing
@@ -102,8 +103,13 @@
       soft.push({ text: plural(o.unresolvedAlertCount, 'unresolved alert'), href: routes.alerts({ namespace: ns }) });
     }
     for (const line of outboxLines ?? []) {
-      if (line.backlog > OUTBOX_TICK_ENVELOPE) {
+      if ((line.backlog ?? 0) > OUTBOX_TICK_ENVELOPE) {
         soft.push({ text: 'outbox lagging ' + displayFormatter.number(line.backlog) + ' rows' + (ns ? '' : ' in ' + line.jobNamespace) });
+      }
+      // Quarantined rows never clear themselves: they sit in the producer's staging table until an
+      // operator requeues or discards them, so any nonzero count is a standing operator task.
+      if ((line.quarantineTotal ?? 0) > 0) {
+        soft.push({ text: plural(line.quarantineTotal, 'quarantined outbox row') + (ns ? '' : ' in ' + line.jobNamespace) });
       }
     }
 
@@ -247,6 +253,11 @@
         </DataTable>
       {/if}
     </div>
+
+    <!-- Only deployments that declared a relay have sources; everyone else never sees the panel. -->
+    {#if outboxSources.length > 0}
+      <OutboxPanel sources={outboxSources} onChanged={() => snapshot.refetch()} />
+    {/if}
 
     <div class="panel">
       <h2>Workers</h2>

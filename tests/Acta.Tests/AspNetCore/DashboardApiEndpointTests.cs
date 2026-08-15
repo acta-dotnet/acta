@@ -257,32 +257,59 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Overview_outbox_reports_the_relay_tick_line_with_parsed_backlog()
-    {
-        var jobs = new TestDashboardHost.FakeJobs
-        {
-            HasOutboxSlot = true,
-            StoredResult = JobPayload.Text("claimed=5120 relayed=5100 dedup=20 quarantined=0 backlog=46032"),
-        };
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
-        await using var _ = app;
-
-        var body = await client.GetStringAsync("/acta/api/v1/overview/outbox", TestContext.Current.CancellationToken);
-
-        Assert.Contains("\"jobNamespace\":\"billing\"", body);
-        Assert.Contains("claimed=5120", body);
-        Assert.Contains("\"backlog\":46032", body);
-    }
-
-    [Fact]
-    public async Task Overview_outbox_is_empty_without_a_relay_slot()
+    public async Task Outbox_sources_report_the_relay_line_with_parsed_counters()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var body = await client.GetStringAsync("/acta/api/v1/overview/outbox", TestContext.Current.CancellationToken);
+        var body = await client.GetStringAsync("/acta/api/v1/outbox/sources", TestContext.Current.CancellationToken);
 
-        Assert.Equal("[]", body);
+        Assert.Contains("\"jobNamespace\":\"billing\"", body);
+        Assert.Contains("claimed=2", body);
+        Assert.Contains("\"backlog\":5", body);
+        Assert.Contains("\"quarantineTotal\":1", body);
+        Assert.Contains("\"isLocal\":true", body);
+    }
+
+    [Fact]
+    public async Task Outbox_sources_scope_to_a_namespace_without_a_relay_as_an_empty_page()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var body = await client.GetStringAsync("/acta/api/v1/outbox/sources?jobNamespace=reports", TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"items\":[]", body);
+    }
+
+    [Fact]
+    public async Task Outbox_quarantined_lists_the_local_source_rows()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var body = await client.GetStringAsync(
+            "/acta/api/v1/outbox/quarantined?jobNamespace=billing&includeTotal=true",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Contains($"\"outboxId\":\"{TestDashboardHost.FakeJobs.FakeOutbox.QuarantinedId}\"", body);
+        Assert.Contains("\"lastError\":\"route rejected: unknown job\"", body);
+        Assert.Contains("\"totalCount\":1", body);
+    }
+
+    [Fact]
+    public async Task Outbox_quarantined_requires_a_namespace_and_answers_409_where_the_source_is_not_registered()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var missing = await client.GetAsync("/acta/api/v1/outbox/quarantined", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+
+        var nonLocal = await client.GetAsync("/acta/api/v1/outbox/quarantined?jobNamespace=reports", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Conflict, nonLocal.StatusCode);
+        Assert.Contains("no outbox relay registered", await nonLocal.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

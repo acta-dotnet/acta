@@ -174,6 +174,7 @@ internal static class ActaApiEndpoints
             TenantControlEndpoints.Map(controls, options);
             NamespaceControlEndpoints.Map(controls, options);
             AlertControlEndpoints.Map(controls, options);
+            OutboxControlEndpoints.Map(controls, options);
             Features.Tags.TagEndpoints.MapControls(controls, options);
         }
 
@@ -409,25 +410,98 @@ internal static class ActaApiEndpoints
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the overview to one namespace; omit for all."),
             ]);
 
-        // The overview's outbox lens: each namespace's sys.outbox slot result (the relay's persisted
-        // tick summary) so the health verdict can show source lag from ledger reads alone.
+        // The outbox operator surface's read half. Sources compose cross-peer from each namespace's
+        // sys.outbox slot result (the relay's persisted tick summary), so any host with ledger access
+        // answers; the quarantine listing opens the producer's source database and therefore answers
+        // only where the namespace's relay is registered (sources report isLocal for discovery).
         group
             .MapGet(
-                "/overview/outbox",
-                static (HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
+                "/outbox/sources",
+                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    var jobNamespace = QueryBinding.Text(http.Request.Query, "jobNamespace");
+                    string? error = null;
+                    if (!QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error))
+                    {
+                        return Task.FromResult(BadRequest(error));
+                    }
+
+                    var query = new ListOutboxSourcesQuery(
+                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
+                        PageSize: pageSize,
+                        Cursor: QueryBinding.Text(http.Request.Query, "cursor")
+                    );
                     return Guard(async () =>
                         Results.Json(
-                            await ComposeOutboxLinesAsync(jobs, operations, jobNamespace, ct),
-                            DashboardJsonContext.Default.IReadOnlyListOverviewOutboxLine
+                            await operations.Outbox.ListSourcesAsync(query, ct),
+                            DashboardJsonContext.Default.PagedResultOutboxSourceListItem
                         )
                     );
                 }
             )
-            .Produces<IReadOnlyList<OverviewOutboxLine>>(StatusCodes.Status200OK)
+            .Produces<PagedResult<OutboxSourceListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
-                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the outbox lens to one namespace; omit for all."),
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope to one relay source's namespace; omit for all."),
+                .. QueryParameterDocExtensions.PagingCore,
+            ]);
+
+        group
+            .MapGet(
+                "/outbox/quarantined",
+                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                {
+                    string? error = null;
+                    if (
+                        !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
+                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
+                    )
+                    {
+                        return Task.FromResult(BadRequest(error));
+                    }
+
+                    if (QueryBinding.Text(http.Request.Query, "jobNamespace") is not { } jobNamespace)
+                    {
+                        return Task.FromResult(BadRequest("jobNamespace is required."));
+                    }
+
+                    var query = new ListOutboxQuarantinedQuery(
+                        jobNamespace,
+                        PageSize: pageSize,
+                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
+                        IncludeTotal: includeTotal ?? false
+                    );
+                    return Guard(async () =>
+                    {
+                        try
+                        {
+                            return Results.Json(
+                                await operations.Outbox.ListQuarantinedAsync(query, ct),
+                                DashboardJsonContext.Default.PagedResultOutboxQuarantinedItem
+                            );
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            // The source is not registered on this host: a placement constraint, not a
+                            // fault, so it answers 409 with the verbatim explanation.
+                            return Results.Problem(
+                                statusCode: StatusCodes.Status409Conflict,
+                                title: "Quarantine listing unavailable on this host.",
+                                detail: ex.Message
+                            );
+                        }
+                    });
+                }
+            )
+            .Produces<PagedResult<OutboxQuarantinedItem>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithQueryParameters([
+                new QueryParameterDoc(
+                    "jobNamespace",
+                    QueryParameterKind.String,
+                    "The namespace whose registered source to read.",
+                    Required: true
+                ),
+                .. QueryParameterDocExtensions.PagingCore,
+                .. QueryParameterDocExtensions.IncludeTotal,
             ]);
 
         group
@@ -1055,58 +1129,6 @@ internal static class ActaApiEndpoints
         {
             return BadRequest(ex.Message);
         }
-    }
-
-    // One line per namespace whose sys.outbox slot has produced a tick summary. A namespace with no
-    // relay, no successful tick yet, or a non-text result contributes no line; the dedup-key hit is
-    // additionally gated on the sys.outbox job name so a user job reusing the key cannot spoof a line.
-    private static async Task<IReadOnlyList<OverviewOutboxLine>> ComposeOutboxLinesAsync(
-        IJobs jobs,
-        IActaOperations operations,
-        string? jobNamespace,
-        CancellationToken ct
-    )
-    {
-        IReadOnlyList<string> namespaces = jobNamespace is not null
-            ? [jobNamespace]
-            : (await operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(PageSize: 100), ct)).Items;
-
-        var lines = new List<OverviewOutboxLine>();
-        foreach (var ns in namespaces)
-        {
-            var slot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(ns, "sys.outbox"), ct);
-            if (slot is not { JobName: "sys.outbox" })
-            {
-                continue;
-            }
-
-            var result = await jobs.GetResultAsync(JobLookup.ById(slot.JobId), ct);
-            if (result is not { } payload || payload.Format.Id != JobPayloadFormat.Text.Id)
-            {
-                continue;
-            }
-
-            var tick = System.Text.Encoding.UTF8.GetString(payload.Data.Span);
-            lines.Add(new OverviewOutboxLine(ns, slot.JobRef.ToString(), tick, ParseBacklog(tick)));
-        }
-
-        return lines;
-    }
-
-    // The backlog is the summary's last "backlog=N" token, read up to the next space so trailing
-    // tokens (quarantine=) don't spoil the parse; an unparseable result reads as zero so a format
-    // drift degrades the lens rather than failing the overview.
-    private static long ParseBacklog(string tick)
-    {
-        var index = tick.LastIndexOf("backlog=", StringComparison.Ordinal);
-        if (index < 0)
-        {
-            return 0;
-        }
-
-        var span = tick.AsSpan(index + "backlog=".Length);
-        var end = span.IndexOf(' ');
-        return long.TryParse(end >= 0 ? span[..end] : span, out var value) ? value : 0;
     }
 
     private static IResult BadRequest(string? detail) =>

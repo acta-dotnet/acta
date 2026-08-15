@@ -1,0 +1,100 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+
+namespace Acta.AspNetCore.Features.Outbox;
+
+/// <summary>
+/// POST outbox-control endpoints: thin HTTP wrappers over the <see cref="IOutbox"/> requeue/discard
+/// verbs. The source is addressed by namespace in the JSON body; the verbs park a durable command the
+/// next relay pass applies, so this layer maps <see cref="ControlAction"/> to 202 (accepted), 409
+/// (rejected: a pending command occupies the inbox), and 404 (no relay slot for the namespace).
+/// </summary>
+internal static class OutboxControlEndpoints
+{
+    public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
+    {
+        // The two verbs share one response shape across their three outcomes, so declare it once.
+        var group = outer.MapGroup("");
+        group.ProducesJson<OutboxControlResponse>(StatusCodes.Status202Accepted);
+        group.ProducesJson<OutboxControlResponse>(StatusCodes.Status409Conflict);
+        group.ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost(
+            "/outbox/requeue",
+            (HttpContext http, IActaOperations operations, CancellationToken ct) => HandleAsync(http, operations, options, "requeue", ct)
+        );
+
+        group.MapPost(
+            "/outbox/discard",
+            (HttpContext http, IActaOperations operations, CancellationToken ct) => HandleAsync(http, operations, options, "discard", ct)
+        );
+    }
+
+    private static async Task<IResult> HandleAsync(
+        HttpContext http,
+        IActaOperations operations,
+        ActaEndpointOptions options,
+        string verb,
+        CancellationToken ct
+    )
+    {
+        if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+        {
+            return confirmationError;
+        }
+
+        var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(http, DashboardJsonContext.Default.OutboxControlRequest, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        if (string.IsNullOrWhiteSpace(body!.JobNamespace))
+        {
+            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", "jobNamespace is required.");
+        }
+
+        var reasonMessage = body.ReasonMessage?.Trim() is { Length: > 0 } trimmed ? trimmed : null;
+        if (reasonMessage is not null && ControlEndpointValidation.ValidateReasonLength(reasonMessage, options) is { } lengthError)
+        {
+            return lengthError;
+        }
+
+        // Operator identity for the audit trail comes from the authenticated principal, never the
+        // body; the applying tick stamps actor = Operator with this key.
+        var actorKey = http.User?.Identity?.Name;
+        try
+        {
+            var result =
+                verb == "requeue"
+                    ? await operations.Outbox.RequeueAsync(body.JobNamespace, body.OutboxIds, reasonMessage, actorKey, ct)
+                    : await operations.Outbox.DiscardAsync(body.JobNamespace, body.OutboxIds, reasonMessage, actorKey, ct);
+            return ToResult(verb, result);
+        }
+        catch (ArgumentException ex)
+        {
+            // Malformed namespace or an explicit empty id list; both are caller errors, not faults.
+            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid outbox command.", ex.Message);
+        }
+    }
+
+    private static IResult ToResult(string verb, OutboxControlResult result)
+    {
+        var (statusCode, message) = result.Action switch
+        {
+            ControlAction.Accepted => (StatusCodes.Status202Accepted, $"Outbox {verb} accepted; the next relay pass applies it."),
+            ControlAction.Rejected => (
+                StatusCodes.Status409Conflict,
+                $"Outbox {verb} rejected: a pending {verb} command is already parked for this source."
+            ),
+            _ => (StatusCodes.Status404NotFound, "No outbox relay slot exists for that namespace."),
+        };
+
+        return Results.Json(
+            new OutboxControlResponse(result.Action, result.PendingSinceUtc, message),
+            DashboardJsonContext.Default.OutboxControlResponse,
+            statusCode: statusCode
+        );
+    }
+}
