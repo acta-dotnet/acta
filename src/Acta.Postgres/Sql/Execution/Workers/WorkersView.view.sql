@@ -1,5 +1,6 @@
 SELECT
     w.id AS worker_id,
+    w.worker_ref,
     ns.name AS namespace,
     {{decode:worker-status:w.status_code}} AS status,
     w.status_code,

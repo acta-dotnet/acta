@@ -20,12 +20,7 @@ public readonly record struct JobRef(Guid Value)
     /// </summary>
     public static JobRef New() => new(Guid.CreateVersion7());
 
-    public override string ToString()
-    {
-        Span<byte> bytes = stackalloc byte[16];
-        Value.TryWriteBytes(bytes, bigEndian: true, out _);
-        return Prefix + CrockfordBase32.EncodeLower(bytes);
-    }
+    public override string ToString() => EntityRefCodec.Render(Prefix, Value);
 
     /// <summary>
     /// Parse a job ref, throwing <see cref="FormatException"/> on malformed input.
@@ -35,29 +30,18 @@ public readonly record struct JobRef(Guid Value)
 
     /// <summary>
     /// Parse a job ref. Accepts any input casing and the Crockford o/i/l aliases; rejects
-    /// malformed values after normalization.
+    /// malformed values (another entity's prefix included) after normalization.
     /// </summary>
     public static bool TryParse(string? value, out JobRef jobRef)
     {
+        if (EntityRefCodec.TryParse(Prefix, value, out var parsed))
+        {
+            jobRef = new JobRef(parsed);
+            return true;
+        }
+
         jobRef = default;
-        if (value is null || value.Length != Prefix.Length + CrockfordBase32.EncodedLength)
-        {
-            return false;
-        }
-
-        if (!value.AsSpan(0, Prefix.Length).Equals(Prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        Span<byte> bytes = stackalloc byte[16];
-        if (!CrockfordBase32.TryDecode(value.AsSpan(Prefix.Length), bytes))
-        {
-            return false;
-        }
-
-        jobRef = new JobRef(new Guid(bytes, bigEndian: true));
-        return true;
+        return false;
     }
 }
 

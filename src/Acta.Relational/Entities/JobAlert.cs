@@ -12,6 +12,7 @@ namespace Acta.Relational.Entities;
 /// </summary>
 [DbTable("alerts")]
 [DbPrimaryKey(Name = "pk_alerts", Columns = ["id"])]
+[DbUniqueIndex(Name = "ux_alerts_ref", Columns = ["alert_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(
     Name = "ux_alerts_dedupe",
     Columns = ["namespace_id", "dedupe_key", "dedupe_window_start_utc"],
@@ -49,6 +50,16 @@ internal sealed class JobAlert : IEntity<long>
     /// </summary>
     [DbColumn("id", DbKind.Int64)]
     public long Id { get; init; }
+
+    /// <summary>
+    /// Public stable reference exposed to dashboards, HTTP APIs, and alert transports in place of the
+    /// numeric id; rendered externally as "alr_" plus 26 lowercase Crockford Base32 characters.
+    /// Allocated in C# (a UUIDv7 via <see cref="Acta.AlertRef.New"/>) and passed into the raising
+    /// routine, never defaulted by the database. The upsert applies it on the INSERT arm only, so a
+    /// deduplicated repeat keeps the ref its first firing minted.
+    /// </summary>
+    [DbColumn("alert_ref", DbKind.Guid)]
+    public Guid AlertRef { get; init; }
 
     /// <summary>
     /// Scope of the dedupe window; alerts collapse onto one row per

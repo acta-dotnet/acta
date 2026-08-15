@@ -10,6 +10,10 @@
             "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
+            "Name": "alert_ref",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
             "Name": "namespace_id",
             "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
           },
@@ -106,6 +110,10 @@
           {
             "Name": "ux_alerts_dedupe",
             "Signature": "U|cols=namespace_id,dedupe_key,dedupe_window_start_utc|inc=|desc=|filter=dedupe_key IS NOT NULL"
+          },
+          {
+            "Name": "ux_alerts_ref",
+            "Signature": "U|cols=alert_ref|inc=|desc=|filter="
           }
         ],
         "Checks": [
@@ -1240,6 +1248,10 @@
             "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
+            "Name": "worker_ref",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
             "Name": "namespace_id",
             "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
           },
@@ -1300,6 +1312,10 @@
           {
             "Name": "ix_workers_status_last_seen",
             "Signature": "I|cols=status_code,last_seen_at_utc|inc=|desc=|filter="
+          },
+          {
+            "Name": "ux_workers_ref",
+            "Signature": "U|cols=worker_ref|inc=|desc=|filter="
           }
         ],
         "Checks": [

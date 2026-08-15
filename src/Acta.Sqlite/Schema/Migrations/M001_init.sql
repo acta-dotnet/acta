@@ -10,6 +10,7 @@
 -- JobAlert
 CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
+    alert_ref text NOT NULL,
     namespace_id integer NOT NULL,
     job_id integer NULL,
     job_ref text NULL,
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_delivery_due ON alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_created ON alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_unresolved ON alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_ref ON alerts (alert_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_dedupe ON alerts (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL;
 
 -- JobDefinition
@@ -364,6 +366,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_tenants_key ON tenants (tenant_k
 -- JobWorker
 CREATE TABLE IF NOT EXISTS {{schema}}.workers (
     id integer PRIMARY KEY AUTOINCREMENT,
+    worker_ref text NOT NULL,
     namespace_id integer NOT NULL,
     status_code integer NOT NULL,
     deployment_version text NOT NULL,
@@ -383,6 +386,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.workers (
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_status_last_seen ON workers (namespace_id, status_code, last_seen_at_utc);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_status_last_seen ON workers (status_code, last_seen_at_utc);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_last_seen ON workers (namespace_id, last_seen_at_utc DESC, id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_workers_ref ON workers (worker_ref);
 
 -- JobCheckpoint
 CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
@@ -406,7 +410,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'init-locks-hold-token-v1', '{{schema}}')
+VALUES (0, 'init-entity-refs-v1', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

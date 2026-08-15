@@ -8,7 +8,7 @@ schema, and persisted codes are additive-only. Everything here is here because i
 with no exit, and now it has one — surrounded by the rename settlement three naming audits of the
 frozen surfaces produced.
 
-> **Schema note:** the `M001` baseline was re-cut (stamp `init-locks-hold-token-v1`). Preview
+> **Schema note:** the `M001` baseline was re-cut (stamp `init-entity-refs-v1`). Preview
 > policy applies: drop and reprovision the Acta database; the bootstrap refuses any history that
 > does not carry this build's stamp row. The external-outbox staging table changed too
 > (`input_data` → `input`, `job_namespace` widened to 128): producers re-run

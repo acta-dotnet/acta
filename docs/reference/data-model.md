@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **224 columns**, **29 indexes**, **27 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **226 columns**, **31 indexes**, **27 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -37,6 +37,7 @@ One materialized alert. Rows carrying a non-null `DedupeKey` collapse repeats in
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
 | `id`<a id="column-acta-alerts--id"></a> | `Int64` | · | no | `Identity` | PK | Alert row identifier. |
+| `alert_ref`<a id="column-acta-alerts--alert-ref"></a> | `Guid` | · | no | · | · | Public stable reference exposed to dashboards, HTTP APIs, and alert transports in place of the numeric id; rendered externally as "alr_" plus 26 lowercase Crockford Base32 characters. Allocated in C# (a UUIDv7 via `New`) and passed into the raising routine, never defaulted by the database. The upsert applies it on the INSERT arm only, so a deduplicated repeat keeps the ref its first firing minted. |
 | `namespace_id`<a id="column-acta-alerts--namespace-id"></a> | `Int16` | · | no | · | · | Scope of the dedupe window; alerts collapse onto one row per `(namespace_id, dedupe_key, dedupe_window_start_utc)`. |
 | `job_id`<a id="column-acta-alerts--job-id"></a> | `Int64` | · | yes | · | · | Job that triggered the alert. No FK; SP-side validation. Operators reach the definition via `job.definition_id`. |
 | `job_ref`<a id="column-acta-alerts--job-ref"></a> | `Guid` | · | yes | · | · | Public ref of the Job that triggered the alert, denormalized at write so the alert stays publicly addressable after Job purge. NULL when `JobId` is null. |
@@ -65,6 +66,7 @@ One materialized alert. Rows carrying a non-null `DedupeKey` collapse repeats in
 | `ix_alerts_delivery_due` | `namespace_id`, `delivery_status_code`, `retry_after_utc`, `id` | not unique | none | `maintenance` |
 | `ix_alerts_namespace_created` | `namespace_id`, `created_at_utc` DESC, `id` DESC | not unique | none | `dashboard_grid` |
 | `ix_alerts_namespace_unresolved` | `namespace_id`, `created_at_utc` DESC, `id` DESC | not unique | `resolved_at_utc IS NULL` | `dashboard_grid` |
+| `ux_alerts_ref` | `alert_ref` | unique | none | `uniqueness` |
 | `ux_alerts_dedupe` | `namespace_id`, `dedupe_key`, `dedupe_window_start_utc` | unique | `dedupe_key IS NOT NULL` | `uniqueness` |
 
 **Check constraints**
@@ -628,6 +630,7 @@ Worker registration and liveness row. One row per worker process; every `WorkerR
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
 | `id`<a id="column-acta-workers--id"></a> | `Int32` | · | no | `Identity` | PK | Worker process identifier; never reused. |
+| `worker_ref`<a id="column-acta-workers--worker-ref"></a> | `Guid` | · | no | · | · | Public stable reference exposed to dashboards, HTTP APIs, and event projections in place of the numeric id; rendered externally as "wrk_" plus 26 lowercase Crockford Base32 characters. Allocated in C# (a UUIDv7 via `New`) and passed into the registering routine, never defaulted by the database. The events timeline stores this value as its worker actor key, so an event stays attributable after the retention sweep deletes the worker row. |
 | `namespace_id`<a id="column-acta-workers--namespace-id"></a> | `Int16` | · | no | · | · | Namespace this worker claims within. Enforced by `fk_workers_namespaces`. |
 | `status_code`<a id="column-acta-workers--status-code"></a> | `Byte` | · | no | · | [`WorkerStatusCode`](./code-families.md#code-family-workerstatuscode) (`worker-status`) | Worker lifecycle status, written by the `StartWorker` handler at startup. `sys.recovery` flips stale rows to `Dead` when `LastHeartbeatAtUtc` falls past `JobsOptions.WorkerDeadAfter`, alongside its stuck-job lease reclaim. |
 | `deployment_version`<a id="column-acta-workers--deployment-version"></a> | `AsciiString` | 128 | no | · | · | Opaque deployment version (git SHA, build number) for triage. |
@@ -648,6 +651,7 @@ Worker registration and liveness row. One row per worker process; every `WorkerR
 | `ix_workers_namespace_status_last_seen` | `namespace_id`, `status_code`, `last_seen_at_utc` | not unique | none | `dashboard` |
 | `ix_workers_status_last_seen` | `status_code`, `last_seen_at_utc` | not unique | none | `maintenance` |
 | `ix_workers_namespace_last_seen` | `namespace_id`, `last_seen_at_utc` DESC, `id` DESC | not unique | none | `dashboard_grid` |
+| `ux_workers_ref` | `worker_ref` | unique | none | `uniqueness` |
 
 **Check constraints**
 

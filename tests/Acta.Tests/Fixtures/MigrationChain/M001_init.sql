@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.gadgets (
 ) STRICT;
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'init-locks-hold-token-v1', '{{schema}}')
+VALUES (0, 'init-entity-refs-v1', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

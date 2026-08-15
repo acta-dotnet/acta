@@ -12,6 +12,7 @@ namespace Acta.Relational.Entities;
 /// </summary>
 [DbTable("workers")]
 [DbPrimaryKey(Name = "pk_workers", Columns = ["id"])]
+[DbUniqueIndex(Name = "ux_workers_ref", Columns = ["worker_ref"], Usage = "uniqueness")]
 [DbIndex(
     Name = "ix_workers_namespace_status_last_seen",
     Columns = ["namespace_id", "status_code", "last_seen_at_utc"],
@@ -39,6 +40,16 @@ internal sealed class JobWorker : IEntity<int>
     /// </summary>
     [DbColumn("id", DbKind.Int32)]
     public int Id { get; init; }
+
+    /// <summary>
+    /// Public stable reference exposed to dashboards, HTTP APIs, and event projections in place of the
+    /// numeric id; rendered externally as "wrk_" plus 26 lowercase Crockford Base32 characters.
+    /// Allocated in C# (a UUIDv7 via <see cref="Acta.WorkerRef.New"/>) and passed into the registering
+    /// routine, never defaulted by the database. The events timeline stores this value as its worker
+    /// actor key, so an event stays attributable after the retention sweep deletes the worker row.
+    /// </summary>
+    [DbColumn("worker_ref", DbKind.Guid)]
+    public Guid WorkerRef { get; init; }
 
     /// <summary>
     /// Namespace this worker claims within. Enforced by <c>fk_workers_namespaces</c>.

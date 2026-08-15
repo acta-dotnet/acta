@@ -1,5 +1,6 @@
 SELECT
     a.id AS alert_id,
+    a.alert_ref,
     ns.name AS namespace,
     a.job_id,
     a.job_ref,

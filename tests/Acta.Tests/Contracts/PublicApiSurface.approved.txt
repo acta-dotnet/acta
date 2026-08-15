@@ -463,6 +463,17 @@ sealed class Acta.AlertProfileCodeJsonConverter
     .ctor()
     Acta.AlertProfileCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertProfileCode value, System.Text.Json.JsonSerializerOptions options)
+struct Acta.AlertRef
+    .ctor(System.Guid Value)
+    Acta.AlertRef New()
+    Acta.AlertRef Parse(System.String value)
+    System.Boolean TryParse(System.String value, ref Acta.AlertRef alertRef)
+    System.Guid Value { get;init; }
+    System.String Prefix = alr_
+sealed class Acta.AlertRefJsonConverter
+    .ctor()
+    Acta.AlertRef Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertRef value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.AlertSeverityCode
     Critical = 40
     Error = 30
@@ -2306,6 +2317,17 @@ sealed class Acta.WorkerListItem
     System.String EngineVersion { get;init; }
     System.String Host { get;init; }
     System.String JobNamespace { get;init; }
+struct Acta.WorkerRef
+    .ctor(System.Guid Value)
+    Acta.WorkerRef New()
+    Acta.WorkerRef Parse(System.String value)
+    System.Boolean TryParse(System.String value, ref Acta.WorkerRef workerRef)
+    System.Guid Value { get;init; }
+    System.String Prefix = wrk_
+sealed class Acta.WorkerRefJsonConverter
+    .ctor()
+    Acta.WorkerRef Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.WorkerRef value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.WorkerStatusCode
     Active = 10
     Dead = 200

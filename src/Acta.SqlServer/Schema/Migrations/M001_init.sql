@@ -10,6 +10,7 @@ IF OBJECT_ID(N'{{schema}}.alerts', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.alerts (
     id bigint IDENTITY(1,1) NOT NULL,
+    alert_ref uniqueidentifier NOT NULL,
     namespace_id smallint NOT NULL,
     job_id bigint NULL,
     job_ref uniqueidentifier NULL,
@@ -41,6 +42,7 @@ CREATE TABLE {{schema}}.alerts (
 CREATE INDEX ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX ix_alerts_namespace_created ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX ix_alerts_namespace_unresolved ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
+CREATE UNIQUE INDEX ux_alerts_ref ON {{schema}}.alerts (alert_ref);
 CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL;
 END
 GO
@@ -423,6 +425,7 @@ IF OBJECT_ID(N'{{schema}}.workers', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.workers (
     id int IDENTITY(1,1) NOT NULL,
+    worker_ref uniqueidentifier NOT NULL,
     namespace_id smallint NOT NULL,
     status_code tinyint NOT NULL,
     deployment_version varchar(128) NOT NULL,
@@ -443,6 +446,7 @@ CREATE TABLE {{schema}}.workers (
 CREATE INDEX ix_workers_namespace_status_last_seen ON {{schema}}.workers (namespace_id, status_code, last_seen_at_utc);
 CREATE INDEX ix_workers_status_last_seen ON {{schema}}.workers (status_code, last_seen_at_utc);
 CREATE INDEX ix_workers_namespace_last_seen ON {{schema}}.workers (namespace_id, last_seen_at_utc DESC, id DESC);
+CREATE UNIQUE INDEX ux_workers_ref ON {{schema}}.workers (worker_ref);
 END
 GO
 
@@ -601,7 +605,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'init-locks-hold-token-v1', '{{schema}}');
+VALUES (0, 'init-entity-refs-v1', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');
