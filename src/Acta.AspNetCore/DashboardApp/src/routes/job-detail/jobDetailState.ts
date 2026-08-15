@@ -31,17 +31,17 @@ export function payloadFormatLabel(id: number): string {
 }
 
 export function buildIncidentSummary(
-  snapshot: JobDetail,
+  job: JobDetail,
   explanation: JobExplanation | null,
   events: readonly JobEvent[],
   dashboardUrl: string
 ): string {
   const lines = [
-    `Acta incident: ${snapshot.jobRef}`,
-    `Job: ${snapshot.jobNamespace} / ${snapshot.jobName}`,
-    `Status: ${snapshot.status}`,
-    `Created: ${snapshot.createdAtUtc}`,
-    `Modified: ${snapshot.modifiedAtUtc}`
+    `Acta incident: ${job.jobRef}`,
+    `Job: ${job.jobNamespace} / ${job.jobName}`,
+    `Status: ${job.status}`,
+    `Created: ${job.createdAtUtc}`,
+    `Modified: ${job.modifiedAtUtc}`
   ];
   if (explanation?.headline) lines.push(`Explain: ${explanation.headline}`);
   if (explanation?.reason) lines.push(`Reason: ${explanation.reason}`);

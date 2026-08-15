@@ -54,14 +54,14 @@
         }
       },
       refetchInterval: (query) => {
-        const snapshot = query.state.data?.snapshot;
-        return detailRefetchInterval(!!snapshot && !TERMINAL_STATUSES.includes(snapshot.status), paused);
+        const row = query.state.data?.job;
+        return detailRefetchInterval(!!row && !TERMINAL_STATUSES.includes(row.status), paused);
       }
     };
   });
 
   let detail = $derived(detailQuery.data ?? null);
-  let job = $derived(detail?.snapshot ?? null);
+  let job = $derived(detail?.job ?? null);
 
   // canControl gates only the mutating affordances (Clone/enqueue and the input amend edit); the
   // payload panels themselves render for everyone, since the detail read is on the open read surface.
@@ -222,7 +222,7 @@
           <JobExecutionsPanel
             bind:this={executionsPanel}
             {jobRef}
-            snapshot={job}
+            {job}
             polling={!TERMINAL_STATUSES.includes(job.status)}
             {focusExecution}
             onViewInTimeline={viewInTimeline} />

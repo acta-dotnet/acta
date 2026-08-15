@@ -4740,7 +4740,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Read one job's snapshot.",
+        "summary": "Read one job.",
         "parameters": [
           {
             "name": "jobRef",
@@ -7898,7 +7898,7 @@
       },
       "JobDetailResponse": {
         "required": [
-          "snapshot",
+          "job",
           "input",
           "result",
           "checkpoints",
@@ -7913,7 +7913,7 @@
         ],
         "type": "object",
         "properties": {
-          "snapshot": {
+          "job": {
             "$ref": "#/components/schemas/JobDetail"
           },
           "input": {

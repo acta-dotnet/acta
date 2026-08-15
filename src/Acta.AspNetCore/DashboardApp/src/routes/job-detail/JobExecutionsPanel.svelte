@@ -16,13 +16,13 @@
 
   let {
     jobRef,
-    snapshot,
+    job,
     polling = true,
     focusExecution = null,
     onViewInTimeline = () => {}
   }: {
     jobRef: string;
-    snapshot: JobDetail;
+    job: JobDetail;
     polling?: boolean;
     focusExecution?: number | null;
     onViewInTimeline?: (executionNumber: number) => void;
@@ -48,7 +48,7 @@
   let historyPages = $derived(history.data?.pages.map((page) => page.items) ?? []);
   let events: JobEvent[] = $derived(mergeJobEvents(head.data?.items ?? [], historyPages));
   let executions = $derived(deriveExecutions(events));
-  let gap = $derived(executionGapSummary(snapshot.executionNumber, executions));
+  let gap = $derived(executionGapSummary(job.executionNumber, executions));
 
   // Deep link (?execution=N): scroll to the row once present, paging older history until the
   // target appears or the history is exhausted.
@@ -134,7 +134,7 @@
             <td class="col-num">{execution.durationMs != null ? (execution.durationMs === 0 ? '<1 ms' : displayFormatter.milliseconds(execution.durationMs)) : '·'}</td>
             <td>
               {#if execution.workerId != null}
-                <a class="mono" href={routes.worker(execution.workerId, { namespace: snapshot.jobNamespace })}>worker-{execution.workerId}</a>
+                <a class="mono" href={routes.worker(execution.workerId, { namespace: job.jobNamespace })}>worker-{execution.workerId}</a>
               {:else}<span class="dim">·</span>{/if}
             </td>
             <td class="wrap" class:cell-repeat={repeatReason}>

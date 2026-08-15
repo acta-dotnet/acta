@@ -53,10 +53,10 @@ public sealed class JobDetailEndpointTests
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
 
-        // Snapshot: the /jobs/{ref} shape, internal ids withheld.
-        Assert.Equal(Found, root.GetProperty("snapshot").GetProperty("jobRef").GetString());
-        Assert.Equal("ready", root.GetProperty("snapshot").GetProperty("status").GetString());
-        Assert.False(root.GetProperty("snapshot").TryGetProperty("jobId", out _));
+        // The job row: the /jobs/{ref} shape, internal ids withheld.
+        Assert.Equal(Found, root.GetProperty("job").GetProperty("jobRef").GetString());
+        Assert.Equal("ready", root.GetProperty("job").GetProperty("status").GetString());
+        Assert.False(root.GetProperty("job").TryGetProperty("jobId", out _));
 
         // Depth payloads (input/result/checkpoints).
         Assert.Equal(7, root.GetProperty("input").GetProperty("json").GetProperty("invoiceId").GetInt32());
@@ -72,7 +72,7 @@ public sealed class JobDetailEndpointTests
 
         // Schedules for this job, the definition link, and the eligible workers.
         Assert.Equal(JsonValueKind.Array, root.GetProperty("schedules").ValueKind);
-        Assert.Equal(5, root.GetProperty("snapshot").GetProperty("definitionId").GetInt32());
+        Assert.Equal(5, root.GetProperty("job").GetProperty("definitionId").GetInt32());
         Assert.False(root.TryGetProperty("definitionId", out _));
         Assert.Equal(JsonValueKind.Array, root.GetProperty("workers").ValueKind);
     }

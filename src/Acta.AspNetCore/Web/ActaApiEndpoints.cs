@@ -280,7 +280,7 @@ internal static class ActaApiEndpoints
                     return snapshot is null ? NotFound() : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
                 }
             )
-            .WithSummary("Read one job's snapshot.")
+            .WithSummary("Read one job.")
             .Produces<JobDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -313,9 +313,9 @@ internal static class ActaApiEndpoints
             .Produces<Features.Jobs.JobPayloadResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // One aggregate that renders the whole job screen: the snapshot plus every depth read a
+        // One aggregate that renders the whole job screen: the job row plus every depth read a
         // lightweight job needs (input/result/checkpoints/explain/lineage/schedules/eligible
-        // workers), composed from the IJobs reads off one snapshot GET. The unbounded event history
+        // workers), composed from the IJobs reads off one row GET. The unbounded event history
         // keeps its own paged endpoint below.
         group
             .MapGet(

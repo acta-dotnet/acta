@@ -57,14 +57,14 @@ internal sealed record JobPayloadResponse(
 /// <summary>
 /// The whole job screen composed into one response so a lightweight job renders from a single request
 /// (its only unbounded part, the event history, keeps its own paged endpoint). Built from the existing
-/// <see cref="IJobs"/> reads after one <c>GetJobIdAsync</c>: the snapshot (the <c>GET /jobs/{ref}</c>
+/// <see cref="IJobs"/> reads after one <c>GetJobIdAsync</c>: the job row (the <c>GET /jobs/{ref}</c>
 /// shape), the size-capped input/result/checkpoint payloads, the explain and lineage projections, the
 /// schedules bound to its slot, and the eligible workers (only while the job is claimable). An absent
 /// result, empty schedule set, or empty worker set is a null/empty field, not an error. The two
 /// related collections are capped pages, so each ships its filter-wide count alongside.
 /// </summary>
 internal sealed record JobDetailResponse(
-    JobDetail Snapshot,
+    JobDetail Job,
     JobPayloadResponse Input,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadResponse? Result,
     IReadOnlyList<JobCheckpointResponse> Checkpoints,
@@ -73,7 +73,7 @@ internal sealed record JobDetailResponse(
     IReadOnlyList<ScheduleListItem> Schedules,
     // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
     long? SchedulesTotal,
-    // Echo of the snapshot's tenant key at the top level so the summary link needs no snapshot dig.
+    // Echo of the job row's tenant key at the top level so the summary link needs no nested dig.
     // Absent when the job has no tenant.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TenantKey,
     // Effective retry budget from the definition so the summary can render "n of m consecutive
@@ -95,12 +95,12 @@ internal sealed record JobDetailResponse(
     public static async Task<JobDetailResponse> ComposeAsync(
         IJobs jobs,
         IActaOperations operations,
-        JobDetail snapshot,
+        JobDetail job,
         int maxInlineBytes,
         CancellationToken ct
     )
     {
-        var byId = JobLookup.ById(snapshot.JobId);
+        var byId = JobLookup.ById(job.JobId);
 
         var input = await jobs.GetInputAsync(byId, ct);
         var result = await jobs.GetResultAsync(byId, ct);
@@ -109,27 +109,27 @@ internal sealed record JobDetailResponse(
         var lineage = await jobs.GetLineageMapAsync(byId, new JobLineageMapOptions(ChildLimit), ct);
         var schedules = await operations.Schedules.ListAsync(
             new ListSchedulesQuery(
-                JobNamespace: snapshot.JobNamespace,
-                JobName: snapshot.JobName,
+                JobNamespace: job.JobNamespace,
+                JobName: job.JobName,
                 LiveOnly: false,
                 PageSize: 100,
                 IncludeTotal: true
             ),
             ct
         );
-        var definition = await operations.Definitions.GetAsync(snapshot.DefinitionId, ct);
+        var definition = await operations.Definitions.GetAsync(job.DefinitionId, ct);
         // Every worker in the namespace, not just the live ones: the "why isn't this running?" panel
         // needs the whole set to tell "no workers at all" from "workers, none of them active".
         var workers =
-            snapshot.Status == JobStatusCode.Ready
+            job.Status == JobStatusCode.Ready
                 ? await operations.Workers.ListAsync(
-                    new ListWorkersQuery(JobNamespace: snapshot.JobNamespace, PageSize: 50, IncludeTotal: true),
+                    new ListWorkersQuery(JobNamespace: job.JobNamespace, PageSize: 50, IncludeTotal: true),
                     ct
                 )
                 : null;
 
         return new JobDetailResponse(
-            snapshot,
+            job,
             JobPayloadResponse.From(input ?? JobPayload.None, maxInlineBytes),
             result is { } produced ? JobPayloadResponse.From(produced, maxInlineBytes) : null,
             checkpoints.Select(item => JobCheckpointResponse.From(item, maxInlineBytes)).ToList(),
@@ -137,7 +137,7 @@ internal sealed record JobDetailResponse(
             lineage,
             schedules.Items,
             schedules.TotalCount,
-            snapshot.TenantKey,
+            job.TenantKey,
             definition?.MaxAttemptsEffective,
             workers?.Items,
             workers?.TotalCount

@@ -391,7 +391,7 @@ export interface JobScheduleView {
 // schedule/worker set is a null/empty field. The unbounded event history keeps its own paged
 // endpoint (JobEventsPanel), so it is not part of this shape.
 export interface JobDetailView {
-  snapshot: JobDetail;
+  job: JobDetail;
   input: JobPayloadView;
   result: JobPayloadView | null;
   checkpoints: JobCheckpoint[];
