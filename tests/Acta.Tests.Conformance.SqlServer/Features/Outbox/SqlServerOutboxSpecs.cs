@@ -29,6 +29,8 @@ public sealed class SqlServerOutboxSignalEvidenceSpec : OutboxSignalEvidenceSpec
 
 public sealed class SqlServerOutboxRelaySignalApplySpec : OutboxRelaySignalApplySpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerOutboxOperatorFacadeSpec : OutboxOperatorFacadeSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerOutboxStagingSpec : OutboxStagingSpec<SqlServerConformanceFixture>;

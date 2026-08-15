@@ -29,6 +29,8 @@ public sealed class SqliteOutboxSignalEvidenceSpec : OutboxSignalEvidenceSpec<Sq
 
 public sealed class SqliteOutboxRelaySignalApplySpec : OutboxRelaySignalApplySpec<SqliteConformanceFixture>;
 
+public sealed class SqliteOutboxOperatorFacadeSpec : OutboxOperatorFacadeSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteOutboxStagingSpec : OutboxStagingSpec<SqliteConformanceFixture>;

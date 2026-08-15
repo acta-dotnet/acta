@@ -29,6 +29,8 @@ public sealed class PgOutboxSignalEvidenceSpec : OutboxSignalEvidenceSpec<PgConf
 
 public sealed class PgOutboxRelaySignalApplySpec : OutboxRelaySignalApplySpec<PgConformanceFixture>;
 
+public sealed class PgOutboxOperatorFacadeSpec : OutboxOperatorFacadeSpec<PgConformanceFixture>;
+
 public sealed class PgOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpec<PgConformanceFixture>;
 
 public sealed class PgOutboxStagingSpec : OutboxStagingSpec<PgConformanceFixture>;

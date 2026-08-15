@@ -220,7 +220,7 @@ internal sealed class OutboxApi(
 
     // Reads the summary's last "<token>N" value up to the next space, so trailing tokens don't spoil
     // the parse. Null means the token is absent (an older summary format): unknown, not zero.
-    private static long? ParseToken(string? tick, string token)
+    internal static long? ParseToken(string? tick, string token)
     {
         var index = tick?.LastIndexOf(token, StringComparison.Ordinal) ?? -1;
         if (index < 0)

@@ -1183,6 +1183,16 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.DiscardQuarantinedAsync`
 
+### IOutbox parks accepted-then-applied commands against the namespace's relay slot
+- **Contract:** IOutbox resolves the sys.outbox slot by fixed key and name, parks commands the tick applies, and reports accepted, rejected, or not-found admission.
+- **Arrange:** A quarantined source row and a stand-in sys.outbox slot job exist in the test namespace.
+- **Act:** Operator verbs run through IActaOperations.Outbox and one operator-signal apply runs.
+- **Assert:** Requeue is accepted then rejected while pending, the apply frees the row and empties the inbox, and lookups without a proper slot report not found.
+- **Guarantees:**
+  - Requeue parks once, rejects while pending, and the tick applies and frees the inbox
+  - A namespace without a slot, and a user job squatting on the key, both report not found
+  - Sources compose from the slot job; the quarantine listing requires the local source
+
 ### Quarantined rows list in keyset pages with their failure evidence
 - **Contract:** ListQuarantined pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.
 - **Arrange:** Three claimed rows are quarantined with distinct errors.
