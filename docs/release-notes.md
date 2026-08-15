@@ -120,6 +120,24 @@ Same destructive-class precedent as 0.7.0:
 - **The ~45 query parameters that were absent from `openapi.json` are now documented and
   drift-checked**, so the frozen contract actually protects the filter surface.
 
+### Certification: four gates, four seals
+
+All four run on the release commit and file under `docs/certification/`:
+
+- **PostgreSQL and SQL Server standard runs** (10,000 jobs, 64 slots, 7-minute kill window each) —
+  PASS, and the first seals to certify the outbox handoff: 5,000 producer rows staged during the
+  chaos on each engine, every one drained and delivered. The two ledgers converged to within a few
+  rows of scheduling luck, again.
+- **The first SQLite seal** — same shape at 48 slots on one WAL file, PASS, reduced scope stated on
+  its face (single machine is the engine's deployment model; multi-machine claims are permanently
+  out of scope there). This ends the standing contradiction with releasing.md's "one run per
+  provider".
+- **The 3-participant / 2-namespace ensemble** both 0.8.0 ensemble seals named as "one flag away
+  and unrun" — PASS. `namespace-isolation` was falsifiable for the first time (a second namespace
+  live and being killed beside the first) and held with zero rows, and the run carries the
+  release's non-vacuous `AtMostOnce` evidence: 38 of 400 charges interrupted mid-body, none ever
+  run twice.
+
 ## 0.8.0-beta.1
 
 Hardening. An operator can see saturation before it becomes an incident, a pause survives a fire that
