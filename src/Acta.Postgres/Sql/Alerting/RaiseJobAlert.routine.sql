@@ -9,7 +9,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.raise_job_alert(
     p_channel_name VARCHAR,
     p_delivery_status_code SMALLINT,
     p_dedupe_key VARCHAR,
-    p_dedupe_window_start_utc TIMESTAMPTZ
+    p_dedupe_window_start_utc TIMESTAMPTZ,
+    p_alert_ref UUID
 )
 RETURNS INT
 LANGUAGE plpgsql
@@ -35,6 +36,7 @@ BEGIN
     IF p_dedupe_key IS NULL THEN
         INSERT INTO {{schema}}.alerts (
             namespace_id,
+            alert_ref,
             job_id,
             job_ref,
             origin_code,
@@ -53,6 +55,7 @@ BEGIN
             version)
         VALUES (
             v_ns,
+            p_alert_ref,
             p_job_id,
             v_job_ref,
             p_origin_code,
@@ -74,6 +77,7 @@ BEGIN
 
     INSERT INTO {{schema}}.alerts (
         namespace_id,
+        alert_ref,
         job_id,
         job_ref,
         origin_code,
@@ -92,6 +96,7 @@ BEGIN
         version)
     VALUES (
         v_ns,
+        p_alert_ref,
         p_job_id,
         v_job_ref,
         p_origin_code,

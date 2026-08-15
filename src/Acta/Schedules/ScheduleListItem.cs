@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Acta;
 
 /// <summary>
@@ -12,10 +14,11 @@ namespace Acta;
 /// <param name="Status">Lifecycle state (Active / Paused / Orphaned).</param> <param name="PausedUntilUtc">When a timed pause expires, or null.</param>
 /// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 /// <param name="Version">Optimistic-concurrency row version; pass as the expected version to a CAS control verb.</param>
+/// <param name="JobRef">Recurring slot job's public ref, or null when the slot row was purged.</param>
 public sealed record ScheduleListItem(
-    long JobScheduleId,
-    long JobId,
-    int DefinitionId,
+    [property: JsonIgnore] long JobScheduleId,
+    [property: JsonIgnore] long JobId,
+    [property: JsonIgnore] int DefinitionId,
     string JobNamespace,
     string JobName,
     string ScheduleName,
@@ -30,5 +33,6 @@ public sealed record ScheduleListItem(
     DateTime? PausedUntilUtc,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    int Version
+    int Version,
+    JobRef? JobRef
 );

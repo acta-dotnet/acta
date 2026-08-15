@@ -69,7 +69,9 @@ public sealed class AlertChannelDecisionTests
             OccurrenceCount: 1,
             CreatedAtUtc: DateTime.UnixEpoch,
             RetryCount: 0,
-            ChannelName: "ops"
+            ChannelName: "ops",
+            AlertRef: new Guid("019826f0-0000-7000-8000-000000000001"),
+            JobRef: null
         );
 
     private static AlertChannelDeclaration Channel(

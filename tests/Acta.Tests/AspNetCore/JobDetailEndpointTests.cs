@@ -72,7 +72,8 @@ public sealed class JobDetailEndpointTests
 
         // Schedules for this job, the definition link, and the eligible workers.
         Assert.Equal(JsonValueKind.Array, root.GetProperty("schedules").ValueKind);
-        Assert.Equal(5, root.GetProperty("job").GetProperty("definitionId").GetInt32());
+        // The definition surrogate is an internal id: neither the snapshot nor the aggregate wire it.
+        Assert.False(root.GetProperty("job").TryGetProperty("definitionId", out _));
         Assert.False(root.TryGetProperty("definitionId", out _));
         Assert.Equal(JsonValueKind.Array, root.GetProperty("workers").ValueKind);
     }

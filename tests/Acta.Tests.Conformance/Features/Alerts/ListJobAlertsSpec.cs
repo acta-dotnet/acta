@@ -193,18 +193,19 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         );
 
         var alerts = await Db.From<JobAlert>().OrderByDescending(a => a.Id).ToListAsync(ct);
-        var ackedId = alerts.First(a => a.Title == "ack-me").Id;
+        var acked = alerts.First(a => a.Title == "ack-me");
+        var ackedRef = new AlertRef(acked.AlertRef);
 
         await Services
             .GetRequiredService<IAlertStore>()
             .AcknowledgeJobAlertAsync(
-                new AlertControlCommand(ackedId, new JobControlActor(ActorCode.Operator, "op"), $"alert {ackedId}"),
+                new AlertControlCommand(acked.AlertRef, new JobControlActor(ActorCode.Operator, "op"), $"alert {ackedRef}"),
                 ct
             );
 
         var page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, PageSize: 50), ct);
-        var acked = page.Items.Single(a => a.AlertId == ackedId);
-        Assert.NotNull(acked.AcknowledgedAtUtc);
+        var ackedItem = page.Items.Single(a => a.AlertRef == ackedRef);
+        Assert.NotNull(ackedItem.AcknowledgedAtUtc);
         Assert.Contains(page.Items, a => a.AcknowledgedAtUtc is null);
     }
 
@@ -235,13 +236,13 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             a => a.Title == "get-spec title"
         );
 
-        var detail = await queries.Alerts.GetAsync(listed.AlertId, ct);
+        var detail = await queries.Alerts.GetAsync(listed.AlertRef, ct);
         Assert.NotNull(detail);
-        Assert.Equal(listed.AlertId, detail.AlertId);
+        Assert.Equal(listed.AlertRef, detail.AlertRef);
         Assert.Equal(listed.JobNamespace, detail.JobNamespace);
         Assert.Equal("get-spec message", detail.Message);
         Assert.Equal(listed.CreatedAtUtc, detail.CreatedAtUtc);
 
-        Assert.Null(await queries.Alerts.GetAsync(long.MaxValue, ct));
+        Assert.Null(await queries.Alerts.GetAsync(AlertRef.New(), ct));
     }
 }

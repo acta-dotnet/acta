@@ -967,6 +967,7 @@ SELECT
             THEN CAST(e.detail AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS detail_text,
     e.worker_id,
+    wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
     e.tenant_id
@@ -974,6 +975,7 @@ FROM acta.events AS e
 JOIN acta.namespaces AS ns ON ns.id = e.namespace_id
 LEFT JOIN acta.definitions AS d ON d.id = e.definition_id
 LEFT JOIN acta.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN acta.workers AS wkr ON wkr.id = e.worker_id
 GO
 CREATE OR ALTER VIEW acta.tags_view AS
 SELECT
@@ -991,7 +993,7 @@ GO
 -- ===== routines (versionless; always rewritten to this file's definitions) =====
 GO
 CREATE OR ALTER PROCEDURE acta.acknowledge_job_alert
-    @p_id BIGINT,
+    @p_alert_ref UNIQUEIDENTIFIER,
     @p_actor_code TINYINT,
     @p_actor_key VARCHAR(128),
     @p_reason_message NVARCHAR(512)
@@ -1016,7 +1018,7 @@ BEGIN
             @ack = a.acknowledged_at_utc,
             @resolved = a.resolved_at_utc
         FROM acta.alerts a WITH (UPDLOCK, ROWLOCK)
-        WHERE a.id = @p_id;
+        WHERE a.alert_ref = @p_alert_ref;
 
         IF @namespace_id IS NULL
             BEGIN
@@ -1054,7 +1056,7 @@ BEGIN
             acknowledged_at_utc = @ack,
             modified_at_utc = @now,
             version = version + 1
-        WHERE id = @p_id;
+        WHERE alert_ref = @p_alert_ref;
 
         INSERT INTO acta.events (
             event_code, created_at_utc, namespace_id,
@@ -1104,7 +1106,8 @@ CREATE OR ALTER PROCEDURE acta.raise_job_alert
     @p_channel_name VARCHAR(128),
     @p_delivery_status_code TINYINT,
     @p_dedupe_key VARCHAR(512),
-    @p_dedupe_window_start_utc DATETIME2(3)
+    @p_dedupe_window_start_utc DATETIME2(3),
+    @p_alert_ref UNIQUEIDENTIFIER
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1130,14 +1133,14 @@ BEGIN
     IF @p_dedupe_key IS NULL
         BEGIN
             INSERT INTO acta.alerts (
-                namespace_id, job_id, job_ref,
+                namespace_id, alert_ref, job_id, job_ref,
                 origin_code, severity_code, kind_code, title, message, channel_name,
                 dedupe_key, dedupe_window_start_utc, occurrence_count,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
             )
             VALUES (
-                @v_ns, @p_job_id, @v_job_ref,
+                @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                 @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
                 NULL, NULL, 1,
                 @p_delivery_status_code, 0,
@@ -1176,7 +1179,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM @updated)
             BEGIN
                 INSERT INTO acta.alerts (
-                    namespace_id, job_id, job_ref,
+                    namespace_id, alert_ref, job_id, job_ref,
                     origin_code, severity_code, kind_code, title, message, channel_name,
                     dedupe_key, dedupe_window_start_utc, occurrence_count,
                     delivery_status_code, retry_count,
@@ -1184,7 +1187,7 @@ BEGIN
                 )
                 OUTPUT INSERTED.occurrence_count INTO @updated
                 VALUES (
-                    @v_ns, @p_job_id, @v_job_ref,
+                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                     @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
                     @p_dedupe_key, @p_dedupe_window_start_utc, 1,
                     @p_delivery_status_code, 0,
@@ -1207,7 +1210,7 @@ BEGIN
 END;
 GO
 CREATE OR ALTER PROCEDURE acta.resolve_job_alert_manual
-    @p_id BIGINT,
+    @p_alert_ref UNIQUEIDENTIFIER,
     @p_actor_code TINYINT,
     @p_actor_key VARCHAR(128),
     @p_reason_message NVARCHAR(512)
@@ -1232,7 +1235,7 @@ BEGIN
             @ack = a.acknowledged_at_utc,
             @resolved = a.resolved_at_utc
         FROM acta.alerts a WITH (UPDLOCK, ROWLOCK)
-        WHERE a.id = @p_id;
+        WHERE a.alert_ref = @p_alert_ref;
 
         IF @namespace_id IS NULL
             BEGIN
@@ -1270,7 +1273,7 @@ BEGIN
             resolved_at_utc = @resolved,
             modified_at_utc = @now,
             version = version + 1
-        WHERE id = @p_id;
+        WHERE alert_ref = @p_alert_ref;
 
         INSERT INTO acta.events (
             event_code, created_at_utc, namespace_id,
@@ -6765,14 +6768,14 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id SMALLINT NOT NULL);
+    DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id SMALLINT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
 
     UPDATE acta.workers WITH (ROWLOCK, READPAST)
     SET
         status_code = 200 /* WorkerStatusCode.Dead */,
         modified_at_utc = SYSUTCDATETIME(),
         version = version + 1
-    OUTPUT INSERTED.id, INSERTED.namespace_id INTO @marked (id, namespace_id)
+    OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
     WHERE
         status_code = 10 /* WorkerStatusCode.Active */
         AND last_seen_at_utc < DATEADD(SECOND, -@p_dead_after_seconds, SYSUTCDATETIME());
@@ -6787,7 +6790,7 @@ BEGIN
         SYSUTCDATETIME(),
         m.namespace_id,
         70 /* ActorCode.Worker */,
-        CAST(m.id AS VARCHAR(128)),
+        LOWER(CONVERT(varchar(36), m.worker_ref)),
         NULL,
         NULL,
         NULL,
@@ -6815,7 +6818,8 @@ CREATE OR ALTER PROCEDURE acta.start_worker
     @p_engine_version VARCHAR(128),
     @p_dotnet_version VARCHAR(64),
     @p_process_id INT,
-    @p_max_concurrency INT
+    @p_max_concurrency INT,
+    @p_worker_ref UNIQUEIDENTIFIER
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -6861,6 +6865,7 @@ BEGIN
         INSERT INTO acta.workers
         (
             namespace_id,
+            worker_ref,
             status_code,
             deployment_version,
             host,
@@ -6876,6 +6881,7 @@ BEGIN
         VALUES
         (
             @ns_id,
+            @p_worker_ref,
             10 /* WorkerStatusCode.Active */,
             @p_deployment_version,
             @p_host,
@@ -6896,7 +6902,7 @@ BEGIN
             execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, CAST(@worker_id AS VARCHAR(128)),
+            120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, LOWER(CONVERT(varchar(36), @p_worker_ref)),
             NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
         );
 
@@ -6925,14 +6931,14 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @stopped TABLE (id INT NOT NULL PRIMARY KEY);
+    DECLARE @stopped TABLE (id INT NOT NULL PRIMARY KEY, worker_ref UNIQUEIDENTIFIER NOT NULL);
 
     UPDATE acta.workers
     SET
         status_code = 100 /* WorkerStatusCode.Stopped */,
         modified_at_utc = @now,
         version = version + 1
-    OUTPUT INSERTED.id INTO @stopped (id)
+    OUTPUT INSERTED.id, INSERTED.worker_ref INTO @stopped (id, worker_ref)
     WHERE
         id = @p_worker_id
         AND status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */);
@@ -6947,7 +6953,7 @@ BEGIN
         @now,
         @p_namespace_id,
         70 /* ActorCode.Worker */,
-        CAST(s.id AS VARCHAR(128)),
+        LOWER(CONVERT(varchar(36), s.worker_ref)),
         NULL,
         NULL,
         NULL,

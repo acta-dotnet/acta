@@ -1,5 +1,5 @@
--- Point-read of one alert row by id, projecting the same columns as ListJobAlerts so both share
--- the row shape. Missing id returns no rows (the caller answers null).
+-- Point-read of one alert row by ref, projecting the same columns as ListJobAlerts so both share
+-- the row shape. Missing ref returns no rows (the caller answers null).
 SELECT
     a.id,
     ns.name,
@@ -18,7 +18,8 @@ SELECT
     a.created_at_utc,
     a.modified_at_utc,
     a.job_ref,
-    a.acknowledged_at_utc
+    a.acknowledged_at_utc,
+    a.alert_ref
 FROM {{schema}}.alerts a
 JOIN {{schema}}.namespaces ns ON ns.id = a.namespace_id
-WHERE a.id = @p_id;
+WHERE a.alert_ref = @p_alert_ref;

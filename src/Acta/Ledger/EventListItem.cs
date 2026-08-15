@@ -11,9 +11,9 @@ namespace Acta;
 /// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Subject job's definition name resolved from the catalog (survives the purge), or null.</param> <param name="JobId">Subject job id, or null for namespace-level events.</param>
 /// <param name="JobRef">Subject job's public ref, or null for namespace-level events; denormalized on the event row, so it survives the job's purge.</param>
 /// <param name="LineageRootId">Root id of the subject's lineage tree, or null.</param> <param name="LineageRootJobRef">Lineage root's public ref, or null when there is no lineage or the root row was purged.</param>
-/// <param name="DefinitionId">Catalog definition id, or null.</param> <param name="TenantId">Tenant id for job-scoped events, or null.</param>
-/// <param name="WorkerId">Acting worker id, or null.</param> <param name="ExecutionNumber">Attempt the event belongs to, or null.</param>
-/// <param name="ActorCode">Who initiated the transition.</param> <param name="ActorKey">Actor identity text, or null.</param>
+/// <param name="DefinitionId">Catalog definition id, or null.</param> <param name="TenantId">Tenant id for job-scoped events, or null.</param> <param name="TenantKey">Tenant key for job-scoped events, or null.</param>
+/// <param name="WorkerId">Acting worker's internal id, or null.</param> <param name="WorkerRef">Acting worker's public ref, or null when no worker acted or its row was purged.</param> <param name="ExecutionNumber">Attempt the event belongs to, or null.</param>
+/// <param name="ActorCode">Who initiated the transition.</param> <param name="ActorKey">Actor identity text, or null; a worker actor's key is its public ref.</param>
 /// <param name="FromStatus">Status before the transition, or null.</param> <param name="ToStatus">Status after the transition, or null.</param>
 /// <param name="ExecutionStatus">Execution outcome attached to the event, or null.</param> <param name="DurationMs">Execution duration, or null.</param>
 /// <param name="ReasonCode">Reason recorded with the event, or null.</param> <param name="ReasonMessage">Reason text, or null.</param>
@@ -29,8 +29,8 @@ public sealed record EventListItem(
     [property: JsonIgnore] long? LineageRootId,
     JobRef? LineageRootJobRef,
     int? DefinitionId,
-    int? TenantId,
-    int? WorkerId,
+    [property: JsonIgnore] int? TenantId,
+    [property: JsonIgnore] int? WorkerId,
     int? ExecutionNumber,
     ActorCode ActorCode,
     string? ActorKey,
@@ -40,5 +40,7 @@ public sealed record EventListItem(
     int? DurationMs,
     JobEventReasonCode? ReasonCode,
     string? ReasonMessage,
-    string? DetailText
+    string? DetailText,
+    WorkerRef? WorkerRef,
+    string? TenantKey
 );

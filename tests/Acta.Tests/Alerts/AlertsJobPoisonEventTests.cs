@@ -116,7 +116,7 @@ public sealed class AlertsJobPoisonEventTests
 
         public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<AlertListItem?> GetJobAlertAsync(long alertId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => throw new NotSupportedException();
 
         private static AlertableEvent Event(long eventId, long jobId) =>
             new(

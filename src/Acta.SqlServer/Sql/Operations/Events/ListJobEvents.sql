@@ -21,12 +21,15 @@ SELECT TOP (@p_take)
     e.tenant_id,
     e.detail_format_id,
     e.detail,
-    jd.name AS job_name
+    jd.name AS job_name,
+    wkr.worker_ref,
+    t.tenant_key
 FROM {{schema}}.events e
 JOIN {{schema}}.namespaces ns ON ns.id = e.namespace_id
 LEFT JOIN {{schema}}.jobs rjob ON rjob.id = e.lineage_root_id
 LEFT JOIN {{schema}}.definitions jd ON jd.id = e.definition_id
 LEFT JOIN {{schema}}.tenants t ON t.id = e.tenant_id
+LEFT JOIN {{schema}}.workers wkr ON wkr.id = e.worker_id
 WHERE
     (@p_job_id IS NULL OR e.job_id = @p_job_id)
     AND (@p_lineage_root_id IS NULL OR e.lineage_root_id = @p_lineage_root_id)

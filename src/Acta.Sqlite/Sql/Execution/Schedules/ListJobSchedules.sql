@@ -16,10 +16,12 @@ SELECT
     s.paused_until_utc,
     s.created_at_utc,
     s.modified_at_utc,
-    s.version
+    s.version,
+    sj.job_ref
 FROM {{schema}}.schedules s
 JOIN {{schema}}.namespaces ns ON ns.id = s.namespace_id
 JOIN {{schema}}.definitions jd ON jd.id = s.definition_id
+LEFT JOIN {{schema}}.jobs sj ON sj.id = s.job_id
 WHERE
     s.next_run_at_utc IS NOT NULL
     AND (@p_live_only IS NULL OR s.status_code <> 230 /* ScheduleStatusCode.Orphaned */)

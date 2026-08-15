@@ -17,39 +17,40 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
     public async ValueTask<AlertControlResult> AcknowledgeAsync(
-        long alertId,
+        AlertRef alertRef,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     )
     {
         var outcome = await store.AcknowledgeJobAlertAsync(
-            new AlertControlCommand(alertId, Operator(actorKey), Reason(alertId, reasonMessage)),
+            new AlertControlCommand(alertRef.Value, Operator(actorKey), Reason(alertRef, reasonMessage)),
             ct
         );
-        return ToResult(alertId, outcome);
+        return ToResult(alertRef, outcome);
     }
 
     public async ValueTask<AlertControlResult> ResolveAsync(
-        long alertId,
+        AlertRef alertRef,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     )
     {
         var outcome = await store.ResolveJobAlertManualAsync(
-            new AlertControlCommand(alertId, Operator(actorKey), Reason(alertId, reasonMessage)),
+            new AlertControlCommand(alertRef.Value, Operator(actorKey), Reason(alertRef, reasonMessage)),
             ct
         );
-        return ToResult(alertId, outcome);
+        return ToResult(alertRef, outcome);
     }
 
-    public async ValueTask<AlertDetail?> GetAsync(long alertId, CancellationToken ct = default)
+    public async ValueTask<AlertDetail?> GetAsync(AlertRef alertRef, CancellationToken ct = default)
     {
-        var row = await store.GetJobAlertAsync(alertId, ct);
+        var row = await store.GetJobAlertAsync(alertRef.Value, ct);
         return row is null
             ? null
             : new AlertDetail(
+                row.AlertRef,
                 row.AlertId,
                 row.JobNamespace,
                 row.JobId,
@@ -141,9 +142,9 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
 
     private static string? Num(long? value) => value?.ToString(CultureInfo.InvariantCulture);
 
-    private static string Reason(long alertId, string? reasonMessage) =>
-        (reasonMessage is null ? $"alert {alertId}" : $"alert {alertId}: {reasonMessage}").Truncate(ActaTextLimits.ReasonMessage)!;
+    private static string Reason(AlertRef alertRef, string? reasonMessage) =>
+        (reasonMessage is null ? $"alert {alertRef}" : $"alert {alertRef}: {reasonMessage}").Truncate(ActaTextLimits.ReasonMessage)!;
 
-    private static AlertControlResult ToResult(long alertId, AlertControlOutcome o) =>
-        new(alertId, (ControlAction)(byte)o.Action, o.AcknowledgedAtUtc, o.ResolvedAtUtc);
+    private static AlertControlResult ToResult(AlertRef alertRef, AlertControlOutcome o) =>
+        new(alertRef, (ControlAction)(byte)o.Action, o.AcknowledgedAtUtc, o.ResolvedAtUtc);
 }

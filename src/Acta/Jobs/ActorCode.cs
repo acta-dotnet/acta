@@ -23,7 +23,7 @@ public enum ActorCode : byte
 
     [Code(
         "worker",
-        "Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey = \"{workerId}\"."
+        "Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey stores the acting worker's public ref as canonical lowercase uuid text; read projections render it as wrk_...."
     )]
     Worker = 70,
 }

@@ -31,6 +31,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.DotnetVersion, command.DotnetVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.ProcessId, command.ProcessId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.MaxConcurrency, command.MaxConcurrency));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.WorkerRef, command.WorkerRef));
             },
             DbProjectionResolver.Resolve<StartWorkerRow>(),
             ct
@@ -77,10 +78,10 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
             : throw new InvalidOperationException("mark_dead_workers returned no count.");
     }
 
-    public async ValueTask<WorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) =>
+    public async ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) =>
         await session.QueryAsync<WorkerDetail?>(
             "Sql/Execution/Workers/GetWorker.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.Id, workerId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.WorkerRef, workerRef)),
             async (reader, token) =>
                 await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobWorkerListRow>()(reader).ToDetail() : null,
             ct

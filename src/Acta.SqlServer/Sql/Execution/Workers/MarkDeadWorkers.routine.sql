@@ -5,14 +5,14 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id SMALLINT NOT NULL);
+    DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id SMALLINT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
 
     UPDATE {{schema}}.workers WITH (ROWLOCK, READPAST)
     SET
         status_code = 200 /* WorkerStatusCode.Dead */,
         modified_at_utc = SYSUTCDATETIME(),
         version = version + 1
-    OUTPUT INSERTED.id, INSERTED.namespace_id INTO @marked (id, namespace_id)
+    OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
     WHERE
         status_code = 10 /* WorkerStatusCode.Active */
         AND last_seen_at_utc < DATEADD(SECOND, -@p_dead_after_seconds, SYSUTCDATETIME());
@@ -27,7 +27,7 @@ BEGIN
         SYSUTCDATETIME(),
         m.namespace_id,
         70 /* ActorCode.Worker */,
-        CAST(m.id AS VARCHAR(128)),
+        LOWER(CONVERT(varchar(36), m.worker_ref)),
         NULL,
         NULL,
         NULL,

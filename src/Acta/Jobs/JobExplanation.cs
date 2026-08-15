@@ -38,16 +38,19 @@ public sealed record JobExplainWait(JobCheckpointKindCode Kind, string Name, Dat
 /// When <see cref="Expired"/> is true the lease has lapsed and <c>sys.recovery</c> reclaims the Job on
 /// its next maintenance tick; <see cref="RecoveryExpectation"/> states that in prose.
 /// <see cref="WorkerName"/> is the worker's deployment version; <see cref="WorkerStale"/> is true once
-/// the worker has missed heartbeats past <c>JobsOptions.WorkerDeadAfter</c>.
+/// the worker has missed heartbeats past <c>JobsOptions.WorkerDeadAfter</c>. Both
+/// <see cref="WorkerRef"/> and <see cref="WorkerName"/> go null when the lease owner's row is gone
+/// (retention purged it): the lease timings still describe the Job, but the holder is unidentifiable.
 /// </summary>
 public sealed record JobExplainLease(
-    int WorkerId,
+    [property: JsonIgnore] int WorkerId,
     string? WorkerName,
     DateTime? ExpiresAtUtc,
     bool Expired,
     DateTime? WorkerLastHeartbeatAtUtc,
     bool WorkerStale,
-    string RecoveryExpectation
+    string RecoveryExpectation,
+    WorkerRef? WorkerRef
 );
 
 /// <summary>One step slot's state, with <see cref="Explanation"/> rendering it as a plain-English clause.</summary>

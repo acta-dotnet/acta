@@ -135,17 +135,10 @@ internal static class JobExplainer
         );
     }
 
-    // The worker that last ran the job, as "name (id)" (or the bare id). Distinct from Lease: it is set
-    // even for states with no live lease (Suspended, Failed), so the operator sees who last touched it.
-    private static string? LastExecutedByLabel(ExplainHeaderRow h)
-    {
-        if (h.LastExecutedByWorkerId is not { } id)
-        {
-            return null;
-        }
-        var name = Blank(h.LastExecutedByWorkerName);
-        return name is not null ? $"{name} ({id})" : id.ToString(System.Globalization.CultureInfo.InvariantCulture);
-    }
+    // The worker that last ran the job, under the same identity rule as the lease label. Distinct from
+    // Lease: it is set even for states with no live lease (Suspended, Failed), so the operator sees who
+    // last touched it; null once that worker's row is gone.
+    private static string? LastExecutedByLabel(ExplainHeaderRow h) => WorkerIdentity(h.LastExecutedByWorkerName, h.LastExecutedByWorkerRef);
 
     // A Suspended job is blocked on a pending signal or a pending timer checkpoint; a signal wins when
     // both are present (a job awaits one primitive at a time, and the signal is the operator-actionable one).
@@ -193,6 +186,9 @@ internal static class JobExplainer
             recovery = "The lease is valid; the worker holds it and heartbeats keep it extended.";
         }
 
+        // The lease is reported whenever runtimes still names a holder, because its timings describe the
+        // Job. The ref and the name both come from the LEFT JOIN on that holder, so both go null together
+        // once retention purges the workers row - the lease stands, its holder is simply unidentifiable.
         return new JobExplainLease(
             workerId,
             Blank(h.WorkerDeploymentVersion),
@@ -200,7 +196,8 @@ internal static class JobExplainer
             expired,
             h.WorkerLastHeartbeatAtUtc,
             stale,
-            recovery
+            recovery,
+            h.LeasedByWorkerRef is { } leaseRef ? new WorkerRef(leaseRef) : null
         );
     }
 
@@ -238,18 +235,21 @@ internal static class JobExplainer
 
     private static string Attempts(short count) => count == 1 ? "1 attempt" : $"{count} attempts";
 
-    // A worker's deployment version reads as its name (e.g. "payments-v42 (17)"); fall back to the bare
-    // id when no version was recorded.
-    private static string WorkerLabel(ExplainHeaderRow h)
-    {
-        var name = Blank(h.WorkerDeploymentVersion);
-        return (name, h.LeasedByWorkerId) switch
+    // The one rule every worker mention in the prose follows: the deployment version reads as the
+    // worker's name (e.g. "payments-v42"); with no version recorded, its public ref; with the workers
+    // row itself gone (retention purges workers, so a lease or an execution can outlive its holder),
+    // nothing at all. The internal worker id is never prose, and a missing row never fabricates a ref.
+    private static string? WorkerIdentity(string? deploymentVersion, Guid? workerRef) =>
+        (Blank(deploymentVersion), workerRef) switch
         {
-            ({ } n, { } id) => $"worker {n} ({id})",
-            (null, { } id) => $"worker {id}",
-            _ => "an unknown worker",
+            (string name, Guid) => name,
+            (string name, null) => name,
+            (null, Guid reference) => new WorkerRef(reference).ToString(),
+            (null, null) => null,
         };
-    }
+
+    private static string WorkerLabel(ExplainHeaderRow h) =>
+        WorkerIdentity(h.WorkerDeploymentVersion, h.LeasedByWorkerRef) is { } identity ? $"worker {identity}" : "an unknown worker";
 
     private static string DuePhrase(DateTime due, DateTime now) => due > now ? $"due in {Humanize(due - now)}" : $"due {Ago(due, now)}";
 

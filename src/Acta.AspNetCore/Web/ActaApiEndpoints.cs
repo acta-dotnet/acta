@@ -1015,11 +1015,16 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/workers/{workerId:int:min(1)}",
-                static (int workerId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/workers/{workerRef}",
+                static (string workerRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     Guard(async () =>
                     {
-                        var worker = await operations.Workers.GetAsync(workerId, ct);
+                        if (!WorkerRef.TryParse(workerRef, out var parsed))
+                        {
+                            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.");
+                        }
+
+                        var worker = await operations.Workers.GetAsync(parsed, ct);
                         return worker is null
                             ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.")
                             : Results.Json(worker, DashboardJsonContext.Default.WorkerDetail);

@@ -8,7 +8,8 @@ namespace Acta;
 /// history, the alerting event's detail) without the list row paying for it.
 /// </summary>
 public sealed record AlertDetail(
-    long AlertId,
+    AlertRef AlertRef,
+    [property: JsonIgnore] long AlertId,
     string JobNamespace,
     [property: JsonIgnore] long? JobId,
     JobRef? JobRef,

@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION {{schema}}.resolve_job_alert_manual(
-    p_id BIGINT,
+    p_alert_ref UUID,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
     p_reason_message VARCHAR
@@ -20,7 +20,7 @@ BEGIN
     SELECT a.namespace_id, a.job_id, a.job_ref, a.acknowledged_at_utc, a.resolved_at_utc
     INTO v_namespace_id, v_job_id, v_job_ref, v_ack, v_resolved
     FROM {{schema}}.alerts a
-    WHERE a.id = p_id
+    WHERE a.alert_ref = p_alert_ref
     FOR UPDATE;
 
     IF NOT FOUND THEN
@@ -47,7 +47,7 @@ BEGIN
         resolved_at_utc = v_resolved,
         modified_at_utc = now(),
         version = version + 1
-    WHERE id = p_id;
+    WHERE alert_ref = p_alert_ref;
 
     INSERT INTO {{schema}}.events (
         event_code,

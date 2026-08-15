@@ -461,14 +461,14 @@
 ### Operator acknowledge/resolve verbs on IAlerts.
 - **Contract:** AcknowledgeAsync/ResolveAsync set their timestamp and emit their event once, are idempotent on reapplication, and return NotFound for an unknown id.
 - **Arrange:** One open alert raised in the test namespace.
-- **Act:** AcknowledgeAsync/ResolveAsync are invoked once, then invoked again, then invoked against an unknown alert id.
+- **Act:** AcknowledgeAsync/ResolveAsync are invoked once, then invoked again, then invoked against an unknown alert ref.
 - **Assert:** The first call is Applied with the timestamp set and one audit event, the second is Applied unchanged with the same event count, and the unknown id is NotFound.
 - **Guarantees:**
   - AcknowledgeAsync sets the timestamp, audits alert.acknowledged, and updates the acknowledged list filter
   - Re-acknowledging an already-acknowledged alert is Applied without mutation and emits no second event
   - ResolveAsync sets resolved_at_utc and audits alert.resolved without requiring a prior acknowledge
   - Re-resolving an already-resolved alert is Applied without mutation and emits no second event
-  - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert id
+  - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.AcknowledgeJobAlertAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertManualAsync`
@@ -2240,7 +2240,7 @@
 - **Guarantees:**
   - Namespace version is unchanged on same-metadata call and bumped on metadata change
   - Each StartWorker call returns a distinct worker id and leaves a distinct row in the namespace
-  - Each worker has exactly one WorkerStarted event with actor worker and actor_key equal to the worker id
+  - Each worker has exactly one WorkerStarted event with actor worker and actor_key equal to the worker ref
   - Same host and process_id on two calls yields two distinct worker ids and two rows (no dedup)
   - Registering a worker/namespace named 'sys' is rejected while the seeded sys namespace remains intact
 - **Store methods:**

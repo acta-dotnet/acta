@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace Acta;
 
 /// <summary>Durable operator detail for one worker process registration.</summary>
 public sealed record WorkerDetail(
-    int WorkerId,
+    WorkerRef WorkerRef,
+    [property: JsonIgnore] int WorkerId,
     string JobNamespace,
     WorkerStatusCode Status,
     string Host,

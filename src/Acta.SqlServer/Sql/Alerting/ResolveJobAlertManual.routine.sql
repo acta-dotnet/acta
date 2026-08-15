@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE {{schema}}.resolve_job_alert_manual
-    @p_id BIGINT,
+    @p_alert_ref UNIQUEIDENTIFIER,
     @p_actor_code TINYINT,
     @p_actor_key VARCHAR(128),
     @p_reason_message NVARCHAR(512)
@@ -24,7 +24,7 @@ BEGIN
             @ack = a.acknowledged_at_utc,
             @resolved = a.resolved_at_utc
         FROM {{schema}}.alerts a WITH (UPDLOCK, ROWLOCK)
-        WHERE a.id = @p_id;
+        WHERE a.alert_ref = @p_alert_ref;
 
         IF @namespace_id IS NULL
             BEGIN
@@ -62,7 +62,7 @@ BEGIN
             resolved_at_utc = @resolved,
             modified_at_utc = @now,
             version = version + 1
-        WHERE id = @p_id;
+        WHERE alert_ref = @p_alert_ref;
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,

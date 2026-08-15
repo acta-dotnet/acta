@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS temp._ack_job_alert;
 CREATE TEMP TABLE _ack_job_alert AS
 SELECT
     a.id,
+    a.alert_ref,
     a.namespace_id,
     a.job_id,
     a.job_ref,
@@ -11,7 +12,7 @@ SELECT
     CASE WHEN a.acknowledged_at_utc IS NOT NULL THEN 1 ELSE 0 END AS already_ack,
     {{now}} AS now_utc
 FROM {{schema}}.alerts a
-WHERE a.id = @p_id;
+WHERE a.alert_ref = @p_alert_ref;
 
 INSERT INTO {{schema}}.events (
     event_code,
@@ -60,7 +61,7 @@ SET
     modified_at_utc = (SELECT now_utc FROM temp._ack_job_alert),
     version = version + 1
 WHERE
-    id = @p_id
+    alert_ref = @p_alert_ref
     AND EXISTS (SELECT 1 FROM temp._ack_job_alert t WHERE t.already_ack = 0);
 
 SELECT
@@ -74,5 +75,5 @@ SELECT
         ELSE t.now_utc
     END AS acknowledged_at_utc,
     t.resolved_at_utc AS resolved_at_utc
-FROM (SELECT @p_id AS qid) q
-LEFT JOIN temp._ack_job_alert t ON t.id = q.qid;
+FROM (SELECT @p_alert_ref AS qref) q
+LEFT JOIN temp._ack_job_alert t ON t.alert_ref = q.qref;

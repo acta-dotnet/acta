@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Control",
     Contract = "AcknowledgeAsync/ResolveAsync set their timestamp and emit their event once, are idempotent on reapplication, and return NotFound for an unknown id.",
     Arrange = "One open alert raised in the test namespace.",
-    Act = "AcknowledgeAsync/ResolveAsync are invoked once, then invoked again, then invoked against an unknown alert id.",
+    Act = "AcknowledgeAsync/ResolveAsync are invoked once, then invoked again, then invoked against an unknown alert ref.",
     Assert = "The first call is Applied with the timestamp set and one audit event, the second is Applied unchanged with the same event count, and the unknown id is NotFound."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.AcknowledgeJobAlertAsync))]
@@ -30,9 +30,9 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
     public async Task Acknowledge_applies_and_audits()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (alertId, jobId) = await RaiseAlertAsync(ct);
+        var (alertRef, jobId) = await RaiseAlertAsync(ct);
 
-        var result = await Operations.Alerts.AcknowledgeAsync(alertId, "looks fine", "spec-actor", ct);
+        var result = await Operations.Alerts.AcknowledgeAsync(alertRef, "looks fine", "spec-actor", ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.NotNull(result.AcknowledgedAtUtc);
@@ -44,30 +44,30 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.NotNull(evt);
         Assert.Equal(ActorCode.Operator, evt!.ActorCode);
         Assert.Equal("spec-actor", evt.ActorKey);
-        Assert.Contains($"alert {alertId}", evt.ReasonMessage);
+        Assert.Contains($"alert {alertRef}", evt.ReasonMessage);
         Assert.Contains("looks fine", evt.ReasonMessage);
 
         var acknowledgedOnly = await Operations.Alerts.ListAsync(
             new ListAlertsQuery(JobNamespace: TestNamespace, AcknowledgedOnly: true),
             ct
         );
-        Assert.Contains(acknowledgedOnly.Items, a => a.AlertId == alertId);
+        Assert.Contains(acknowledgedOnly.Items, a => a.AlertRef == alertRef);
 
         var unacknowledgedOnly = await Operations.Alerts.ListAsync(
             new ListAlertsQuery(JobNamespace: TestNamespace, AcknowledgedOnly: false),
             ct
         );
-        Assert.DoesNotContain(unacknowledgedOnly.Items, a => a.AlertId == alertId);
+        Assert.DoesNotContain(unacknowledgedOnly.Items, a => a.AlertRef == alertRef);
     }
 
     [Fact(DisplayName = "Re-acknowledging an already-acknowledged alert is Applied without mutation and emits no second event")]
     public async Task Reacknowledge_is_idempotent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (alertId, jobId) = await RaiseAlertAsync(ct);
+        var (alertRef, jobId) = await RaiseAlertAsync(ct);
 
-        var first = await Operations.Alerts.AcknowledgeAsync(alertId, ct: ct);
-        var second = await Operations.Alerts.AcknowledgeAsync(alertId, ct: ct);
+        var first = await Operations.Alerts.AcknowledgeAsync(alertRef, ct: ct);
+        var second = await Operations.Alerts.AcknowledgeAsync(alertRef, ct: ct);
 
         Assert.Equal(ControlAction.Applied, second.Action);
         Assert.Equal(first.AcknowledgedAtUtc, second.AcknowledgedAtUtc);
@@ -82,9 +82,9 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
     public async Task Resolve_applies_and_audits_without_prior_acknowledge()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (alertId, jobId) = await RaiseAlertAsync(ct);
+        var (alertRef, jobId) = await RaiseAlertAsync(ct);
 
-        var result = await Operations.Alerts.ResolveAsync(alertId, "handled", "spec-actor", ct);
+        var result = await Operations.Alerts.ResolveAsync(alertRef, "handled", "spec-actor", ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Null(result.AcknowledgedAtUtc);
@@ -93,17 +93,17 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var evt = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
         Assert.Equal(ActorCode.Operator, evt!.ActorCode);
-        Assert.Contains($"alert {alertId}", evt.ReasonMessage);
+        Assert.Contains($"alert {alertRef}", evt.ReasonMessage);
     }
 
     [Fact(DisplayName = "Re-resolving an already-resolved alert is Applied without mutation and emits no second event")]
     public async Task Reresolve_is_idempotent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (alertId, jobId) = await RaiseAlertAsync(ct);
+        var (alertRef, jobId) = await RaiseAlertAsync(ct);
 
-        var first = await Operations.Alerts.ResolveAsync(alertId, ct: ct);
-        var second = await Operations.Alerts.ResolveAsync(alertId, ct: ct);
+        var first = await Operations.Alerts.ResolveAsync(alertRef, ct: ct);
+        var second = await Operations.Alerts.ResolveAsync(alertRef, ct: ct);
 
         Assert.Equal(ControlAction.Applied, second.Action);
         Assert.Equal(first.ResolvedAtUtc, second.ResolvedAtUtc);
@@ -112,17 +112,17 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(1, eventCount);
     }
 
-    [Fact(DisplayName = "AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert id")]
+    [Fact(DisplayName = "AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref")]
     public async Task Unknown_alert_is_notfound()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var ack = await Operations.Alerts.AcknowledgeAsync(999_999_999_999L, ct: ct);
+        var ack = await Operations.Alerts.AcknowledgeAsync(AlertRef.New(), ct: ct);
         Assert.Equal(ControlAction.NotFound, ack.Action);
         Assert.Null(ack.AcknowledgedAtUtc);
         Assert.Null(ack.ResolvedAtUtc);
 
-        var resolve = await Operations.Alerts.ResolveAsync(999_999_999_999L, ct: ct);
+        var resolve = await Operations.Alerts.ResolveAsync(AlertRef.New(), ct: ct);
         Assert.Equal(ControlAction.NotFound, resolve.Action);
         Assert.Null(resolve.AcknowledgedAtUtc);
         Assert.Null(resolve.ResolvedAtUtc);
@@ -131,7 +131,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
     // Raises an alert against a freshly-enqueued job, so its auto-increment JobId is guaranteed unique
     // (unlike a fabricated constant) and scopes the alert's audit events precisely even across repeated
     // runs against a persistent live database.
-    private async Task<(long AlertId, long JobId)> RaiseAlertAsync(CancellationToken ct)
+    private async Task<(AlertRef AlertRef, long JobId)> RaiseAlertAsync(CancellationToken ct)
     {
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
@@ -156,6 +156,6 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
 
         var alert = await Db.From<JobAlert>().Where(a => a.JobId == enqueued.JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(alert);
-        return (alert!.Id, enqueued.JobId);
+        return (new AlertRef(alert!.AlertRef), enqueued.JobId);
     }
 }

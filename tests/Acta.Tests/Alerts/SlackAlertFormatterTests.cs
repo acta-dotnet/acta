@@ -11,16 +11,19 @@ namespace Acta.Tests.Alerts;
 /// </summary>
 public sealed class SlackAlertFormatterTests
 {
+    private static readonly AlertRef TestAlertRef = new(new Guid("019826f0-0000-7000-8000-000000000001"));
+    private static readonly JobRef TestJobRef = new(new Guid("019826f0-0000-7000-8000-00000000002a"));
+
     private static AlertNotification Notification(
         AlertSeverityCode severity = AlertSeverityCode.Error,
-        long? jobId = 42,
+        bool withJob = true,
         int occurrenceCount = 1,
         string? runbookUrl = null
     ) =>
         new(
-            AlertId: 1,
+            AlertRef: TestAlertRef,
             JobNamespace: "orders",
-            JobId: jobId,
+            JobRef: withJob ? TestJobRef : null,
             Severity: severity,
             Kind: AlertKindCode.FinalFailure,
             Title: "Job 'charge' failed",
@@ -60,13 +63,13 @@ public sealed class SlackAlertFormatterTests
 
         Assert.Contains(fields, f => f.Title == "Kind" && f.Value == nameof(AlertKindCode.FinalFailure));
         Assert.Contains(fields, f => f.Title == "Namespace" && f.Value == "orders");
-        Assert.Contains(fields, f => f.Title == "Job" && f.Value == "42");
+        Assert.Contains(fields, f => f.Title == "Job" && f.Value == TestJobRef.ToString());
     }
 
     [Fact]
     public void Optional_fields_appear_only_when_present()
     {
-        var bare = SlackAlertFormatter.Build(Notification(jobId: null, occurrenceCount: 1));
+        var bare = SlackAlertFormatter.Build(Notification(withJob: false, occurrenceCount: 1));
         var bareFields = Assert.Single(bare.Attachments).Fields;
         Assert.DoesNotContain(bareFields, f => f.Title == "Job");
         Assert.DoesNotContain(bareFields, f => f.Title == "Occurrences");

@@ -36,8 +36,10 @@ internal interface IWorkerStore
     /// </summary>
     Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct);
 
-    /// <summary>Read one fully projected worker by id, or <see langword="null"/> when absent.</summary>
-    ValueTask<WorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct);
+    /// <summary>
+    /// Read one fully projected worker by its public ref, or <see langword="null"/> when absent.
+    /// </summary>
+    ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct);
 
     /// <summary>
     /// One keyset page of <c>workers</c> rows ordered <c>last_seen_at_utc DESC, id DESC</c> plus the
@@ -60,7 +62,8 @@ internal sealed record StartWorkerCommand(
     string? EngineVersion,
     string? DotnetVersion,
     int ProcessId,
-    int MaxConcurrency
+    int MaxConcurrency,
+    Guid WorkerRef
 )
 {
     public static StartWorkerCommand Create(
@@ -72,7 +75,8 @@ internal sealed record StartWorkerCommand(
         string? engineVersion,
         string? dotnetVersion,
         int processId,
-        int maxConcurrency
+        int maxConcurrency,
+        Guid workerRef
     ) =>
         new(
             IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName)),
@@ -84,7 +88,8 @@ internal sealed record StartWorkerCommand(
             engineVersion,
             dotnetVersion,
             processId,
-            maxConcurrency
+            maxConcurrency,
+            workerRef
         );
 }
 

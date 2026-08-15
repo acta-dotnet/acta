@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._dead_workers;
 
 CREATE TEMP TABLE _dead_workers AS
-SELECT id, namespace_id
+SELECT id, namespace_id, worker_ref
 FROM {{schema}}.workers
 WHERE
     status_code = 10 /* WorkerStatusCode.Active */
@@ -27,7 +27,7 @@ SELECT
     122 /* EventCode.WorkerDied */,
     d.namespace_id,
     70 /* ActorCode.Worker */,
-    CAST(d.id AS TEXT),
+    d.worker_ref,
     NULL,
     NULL,
     NULL,

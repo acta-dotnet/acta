@@ -2,13 +2,14 @@
 -- reads only the first result set with columns, and a standalone guard SELECT would itself become that
 -- (empty on the common path) result set.
 INSERT INTO {{schema}}.alerts (
-    namespace_id, job_id, job_ref,
+    namespace_id, alert_ref, job_id, job_ref,
     origin_code, severity_code, kind_code, title, message, channel_name,
     dedupe_key, dedupe_window_start_utc, occurrence_count,
     delivery_status_code, retry_count
 )
 SELECT
     ns.id,
+    @p_alert_ref,
     @p_job_id,
     CASE
         WHEN @p_job_id IS NOT NULL AND jr.job_ref IS NULL

@@ -5,6 +5,8 @@ namespace Acta.Tests.Cli;
 
 public class CliOutputTests
 {
+    private static readonly WorkerRef ExplainWorkerRef = new(new Guid("019826f0-0000-7000-8000-000000000011"));
+
     [Fact]
     public void Control_plain_writes_key_value_lines()
     {
@@ -56,7 +58,8 @@ public class CliOutputTests
             ExclusiveKey: null,
             RetentionUntilUtc: null,
             CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-            ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc)
+            ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
+            LeasedByWorkerRef: null
         );
         CliOutput.WriteSnapshot(w, s, json: false);
         var text = w.ToString();
@@ -114,7 +117,8 @@ public class CliOutputTests
             ExclusiveKey: null,
             RetentionUntilUtc: null,
             CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-            ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc)
+            ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
+            LeasedByWorkerRef: null
         );
 
     [Fact]
@@ -159,7 +163,9 @@ public class CliOutputTests
             DurationMs: null,
             ReasonCode: reason,
             ReasonMessage: message,
-            DetailText: detail
+            DetailText: detail,
+            WorkerRef: WorkerRef.New(),
+            TenantKey: null
         );
 
     [Fact]
@@ -261,7 +267,8 @@ public class CliOutputTests
             ExclusiveKey: null,
             RetentionUntilUtc: null,
             CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-            ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc)
+            ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
+            LeasedByWorkerRef: null
         );
         CliOutput.WriteSnapshot(w, s, json: false);
         Assert.Contains("events: run 'jobs events", w.ToString());
@@ -326,7 +333,8 @@ public class CliOutputTests
                 Expired: true,
                 WorkerLastHeartbeatAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
                 WorkerStale: true,
-                RecoveryExpectation: "Recovery should return it to Ready on the next maintenance tick."
+                RecoveryExpectation: "Recovery should return it to Ready on the next maintenance tick.",
+                WorkerRef: ExplainWorkerRef
             ),
             LastExecutedBy: null,
             Steps: [],
@@ -344,7 +352,7 @@ public class CliOutputTests
         Assert.Contains("Reason:", text);
         Assert.Contains("- Worker shutdown.", text);
         Assert.Contains("Worker:", text);
-        Assert.Contains("- Worker payments-v42 (17), lease expired at 2026-07-04T11:58:00.0000000Z.", text);
+        Assert.Contains($"- Worker payments-v42 ({ExplainWorkerRef}), lease expired at 2026-07-04T11:58:00.0000000Z.", text);
         Assert.Contains("- Last heartbeat at 2026-07-04T11:56:00.0000000Z.", text);
         Assert.Contains("- Worker is marked Dead.", text);
         Assert.Contains("Next actions:", text);

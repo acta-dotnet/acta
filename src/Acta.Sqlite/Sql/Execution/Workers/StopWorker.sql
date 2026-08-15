@@ -16,16 +16,17 @@ SELECT
     121 /* EventCode.WorkerStopped */,
     @p_namespace_id,
     70 /* ActorCode.Worker */,
-    CAST(@p_worker_id AS TEXT),
+    w.worker_ref,
     NULL,
     NULL,
     NULL,
     NULL,
-    @p_worker_id,
+    w.id,
     NULL,
     NULL,
     NULL,
     NULL,
     100 /* JobEventReasonCode.WorkerCleanShutdown */,
     NULL
-WHERE CHANGES() > 0;
+FROM {{schema}}.workers w
+WHERE w.id = @p_worker_id AND CHANGES() > 0;

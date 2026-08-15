@@ -1991,7 +1991,7 @@
         }
       }
     },
-    "/acta/api/v1/alerts/{alertId}/acknowledge": {
+    "/acta/api/v1/alerts/{alertRef}/acknowledge": {
       "post": {
         "tags": [
           "Alerts"
@@ -1999,13 +1999,11 @@
         "summary": "Acknowledge the alert: an operator has seen it.",
         "parameters": [
           {
-            "name": "alertId",
+            "name": "alertRef",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int64"
+              "type": "string"
             }
           }
         ],
@@ -2083,7 +2081,7 @@
         }
       }
     },
-    "/acta/api/v1/alerts/{alertId}/resolve": {
+    "/acta/api/v1/alerts/{alertRef}/resolve": {
       "post": {
         "tags": [
           "Alerts"
@@ -2091,13 +2089,11 @@
         "summary": "Resolve the alert: its cause is handled.",
         "parameters": [
           {
-            "name": "alertId",
+            "name": "alertRef",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int64"
+              "type": "string"
             }
           }
         ],
@@ -6573,7 +6569,7 @@
         }
       }
     },
-    "/acta/api/v1/workers/{workerId}": {
+    "/acta/api/v1/workers/{workerRef}": {
       "get": {
         "tags": [
           "Workers"
@@ -6581,14 +6577,11 @@
         "summary": "Read one worker.",
         "parameters": [
           {
-            "name": "workerId",
+            "name": "workerRef",
             "in": "path",
             "required": true,
             "schema": {
-              "minimum": 1,
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -6855,20 +6848,15 @@
       },
       "AlertControlResponse": {
         "required": [
-          "alertId",
+          "alertRef",
           "action",
           "acknowledgedAtUtc",
           "resolvedAtUtc"
         ],
         "type": "object",
         "properties": {
-          "alertId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
+          "alertRef": {
+            "$ref": "#/components/schemas/AlertRef"
           },
           "action": {
             "$ref": "#/components/schemas/ControlAction"
@@ -6893,7 +6881,7 @@
       "AlertKindCode": { },
       "AlertListItem": {
         "required": [
-          "alertId",
+          "alertRef",
           "jobNamespace",
           "jobRef",
           "origin",
@@ -6913,14 +6901,9 @@
         ],
         "type": "object",
         "properties": {
-          "alertId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Alert row id.",
-            "format": "int64"
+          "alertRef": {
+            "description": "This alert's public ref.",
+            "$ref": "#/components/schemas/AlertRef"
           },
           "jobNamespace": {
             "type": "string",
@@ -7022,6 +7005,9 @@
       },
       "AlertOriginCode": { },
       "AlertProfileCode": { },
+      "AlertRef": {
+        "description": "Public stable reference for one alert row: \"alr_\" plus 26 lowercase Crockford Base32\ncharacters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert\ntransports address alerts by this value; the numeric alert id stays the internal engine\nidentity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication\nnever re-mints it: an alert that re-fires inside its dedupe window keeps its first ref."
+      },
       "AlertSeverityCode": { },
       "CapabilitiesResponse": {
         "required": [
@@ -7099,8 +7085,6 @@
           "jobRef",
           "lineageRootJobRef",
           "definitionId",
-          "tenantId",
-          "workerId",
           "executionNumber",
           "actorCode",
           "actorKey",
@@ -7110,7 +7094,9 @@
           "durationMs",
           "reasonCode",
           "reasonMessage",
-          "detailText"
+          "detailText",
+          "workerRef",
+          "tenantKey"
         ],
         "type": "object",
         "properties": {
@@ -7175,26 +7161,6 @@
             "description": "Catalog definition id, or null.",
             "format": "int32"
           },
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Tenant id for job-scoped events, or null.",
-            "format": "int32"
-          },
-          "workerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Acting worker id, or null.",
-            "format": "int32"
-          },
           "executionNumber": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -7214,7 +7180,7 @@
               "null",
               "string"
             ],
-            "description": "Actor identity text, or null."
+            "description": "Actor identity text, or null; a worker actor's key is its public ref."
           },
           "fromStatus": {
             "oneOf": [
@@ -7283,6 +7249,24 @@
               "string"
             ],
             "description": "Free-form (text) or structured (json) detail decoded to text, or null when the event carries no detail or a non-text format."
+          },
+          "workerRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Acting worker's public ref, or null when no worker acted or its row was purged.",
+                "$ref": "#/components/schemas/WorkerRef"
+              }
+            ]
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Tenant key for job-scoped events, or null."
           }
         },
         "description": "One audit event row in a ValueTask&lt;PagedResult&lt;EventListItem&gt;&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\nref parameter documents whether it survives the purge."
@@ -7852,11 +7836,9 @@
         "required": [
           "jobRef",
           "jobNamespace",
-          "definitionId",
           "jobName",
           "lineageRootJobRef",
           "parentJobRef",
-          "tenantId",
           "tenantKey",
           "deduplicationKey",
           "correlationKey",
@@ -7867,11 +7849,11 @@
           "nextRunAtUtc",
           "executionNumber",
           "failureCount",
-          "leasedByWorkerId",
           "leaseExpiresAtUtc",
           "retentionUntilUtc",
           "createdAtUtc",
-          "modifiedAtUtc"
+          "modifiedAtUtc",
+          "leasedByWorkerRef"
         ],
         "type": "object",
         "properties": {
@@ -7880,14 +7862,6 @@
           },
           "jobNamespace": {
             "type": "string"
-          },
-          "definitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
           },
           "jobName": {
             "type": "string"
@@ -7911,15 +7885,6 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
-          },
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
           },
           "tenantKey": {
             "type": [
@@ -7982,15 +7947,6 @@
             ],
             "format": "int16"
           },
-          "leasedByWorkerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "leaseExpiresAtUtc": {
             "type": [
               "null",
@@ -8012,6 +7968,16 @@
           "modifiedAtUtc": {
             "type": "string",
             "format": "date-time"
+          },
+          "leasedByWorkerRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkerRef"
+              }
+            ]
           }
         },
         "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids."
@@ -8166,24 +8132,16 @@
       },
       "JobExplainLease": {
         "required": [
-          "workerId",
           "workerName",
           "expiresAtUtc",
           "expired",
           "workerLastHeartbeatAtUtc",
           "workerStale",
-          "recoveryExpectation"
+          "recoveryExpectation",
+          "workerRef"
         ],
         "type": "object",
         "properties": {
-          "workerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "workerName": {
             "type": [
               "null",
@@ -8212,9 +8170,19 @@
           },
           "recoveryExpectation": {
             "type": "string"
+          },
+          "workerRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkerRef"
+              }
+            ]
           }
         },
-        "description": "The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.\nWhen bool JobExplainLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on\nits next maintenance tick; string JobExplainLease.RecoveryExpectation states that in prose.\nstring? JobExplainLease.WorkerName is the worker's deployment version; bool JobExplainLease.WorkerStale is true once\nthe worker has missed heartbeats past `JobsOptions.WorkerDeadAfter`."
+        "description": "The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.\nWhen bool JobExplainLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on\nits next maintenance tick; string JobExplainLease.RecoveryExpectation states that in prose.\nstring? JobExplainLease.WorkerName is the worker's deployment version; bool JobExplainLease.WorkerStale is true once\nthe worker has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? JobExplainLease.WorkerRef and string? JobExplainLease.WorkerName go null when the lease owner's row is gone\n(retention purged it): the lease timings still describe the Job, but the holder is unidentifiable."
       },
       "JobExplainStep": {
         "required": [
@@ -9641,9 +9609,6 @@
       "ScheduleExpressionKindCode": { },
       "ScheduleListItem": {
         "required": [
-          "jobScheduleId",
-          "jobId",
-          "definitionId",
           "jobNamespace",
           "jobName",
           "scheduleName",
@@ -9658,37 +9623,11 @@
           "pausedUntilUtc",
           "createdAtUtc",
           "modifiedAtUtc",
-          "version"
+          "version",
+          "jobRef"
         ],
         "type": "object",
         "properties": {
-          "jobScheduleId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Schedule row id.",
-            "format": "int64"
-          },
-          "jobId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Recurring slot job id.",
-            "format": "int64"
-          },
-          "definitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Catalog definition id.",
-            "format": "int32"
-          },
           "jobNamespace": {
             "type": "string",
             "description": "Owning namespace name."
@@ -9767,6 +9706,17 @@
             ],
             "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
             "format": "int32"
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Recurring slot job's public ref, or null when the slot row was purged.",
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
           }
         },
         "description": "One schedule row in a ValueTask&lt;PagedResult&lt;ScheduleListItem&gt;&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\ntime zone are the effective values: the operator override when present, else the original."
@@ -9972,7 +9922,7 @@
       },
       "WorkerDetail": {
         "required": [
-          "workerId",
+          "workerRef",
           "jobNamespace",
           "status",
           "host",
@@ -9987,13 +9937,8 @@
         ],
         "type": "object",
         "properties": {
-          "workerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+          "workerRef": {
+            "$ref": "#/components/schemas/WorkerRef"
           },
           "jobNamespace": {
             "type": "string"
@@ -10053,7 +9998,7 @@
       },
       "WorkerListItem": {
         "required": [
-          "workerId",
+          "workerRef",
           "jobNamespace",
           "status",
           "host",
@@ -10068,14 +10013,9 @@
         ],
         "type": "object",
         "properties": {
-          "workerId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Worker row id.",
-            "format": "int32"
+          "workerRef": {
+            "description": "Public stable reference for this worker registration.",
+            "$ref": "#/components/schemas/WorkerRef"
           },
           "jobNamespace": {
             "type": "string",
@@ -10144,6 +10084,7 @@
         },
         "description": "One worker row in a ValueTask&lt;PagedResult&lt;WorkerListItem&gt;&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page."
       },
+      "WorkerRef": { },
       "WorkerStatusCode": { }
     }
   },

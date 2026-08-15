@@ -9,9 +9,10 @@ ON CONFLICT (name) DO UPDATE SET
 WHERE {{schema}}.namespaces.catalog_hash IS NOT excluded.catalog_hash;
 
 INSERT INTO {{schema}}.workers
-(namespace_id, status_code, deployment_version, host, engine_version, dotnet_version, process_id, max_concurrency, last_seen_at_utc)
+(namespace_id, worker_ref, status_code, deployment_version, host, engine_version, dotnet_version, process_id, max_concurrency, last_seen_at_utc)
 SELECT
     ns.id,
+    @p_worker_ref,
     10 /* WorkerStatusCode.Active */,
     @p_deployment_version,
     @p_host,
@@ -32,7 +33,7 @@ SELECT
     120 /* EventCode.WorkerStarted */,
     w.namespace_id,
     70 /* ActorCode.Worker */,
-    CAST(w.id AS TEXT),
+    w.worker_ref,
     NULL,
     NULL,
     NULL,
@@ -45,10 +46,10 @@ SELECT
     NULL,
     NULL
 FROM {{schema}}.workers w
-WHERE w.id = (SELECT MAX(id) FROM {{schema}}.workers);
+WHERE w.worker_ref = @p_worker_ref;
 
 SELECT
     w.namespace_id AS namespace_id,
     w.id AS worker_id
 FROM {{schema}}.workers w
-WHERE w.id = (SELECT MAX(id) FROM {{schema}}.workers);
+WHERE w.worker_ref = @p_worker_ref;

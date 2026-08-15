@@ -9,7 +9,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.start_worker(
     p_engine_version VARCHAR,
     p_dotnet_version VARCHAR,
     p_process_id INT,
-    p_max_concurrency INT
+    p_max_concurrency INT,
+    p_worker_ref UUID
 )
 RETURNS TABLE (namespace_id SMALLINT, worker_id INT)
 LANGUAGE sql
@@ -53,6 +54,7 @@ AS $$
     w AS (
         INSERT INTO {{schema}}.workers (
             namespace_id,
+            worker_ref,
             status_code,
             deployment_version,
             host,
@@ -66,6 +68,7 @@ AS $$
             version)
         SELECT
             ns.id,
+            p_worker_ref,
             10 /* WorkerStatusCode.Active */,
             p_deployment_version,
             p_host,
@@ -78,7 +81,7 @@ AS $$
             now(),
             0
         FROM ns
-        RETURNING id, namespace_id
+        RETURNING id, namespace_id, worker_ref
     ),
     evt AS (
         INSERT INTO {{schema}}.events (
@@ -103,7 +106,7 @@ AS $$
             now(),
             w.namespace_id,
             70 /* ActorCode.Worker */,
-            w.id::VARCHAR,
+            w.worker_ref::TEXT,
             NULL,
             NULL,
             NULL,

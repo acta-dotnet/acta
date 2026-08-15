@@ -16,7 +16,8 @@ SELECT
     a.created_at_utc,
     a.modified_at_utc,
     a.job_ref,
-    a.acknowledged_at_utc
+    a.acknowledged_at_utc,
+    a.alert_ref
 FROM {{schema}}.alerts a
 JOIN {{schema}}.namespaces ns ON ns.id = a.namespace_id
 WHERE

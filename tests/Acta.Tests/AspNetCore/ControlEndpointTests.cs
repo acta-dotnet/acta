@@ -1050,7 +1050,8 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/alerts/7/" + verb)
+        var alertRef = AlertRef.New();
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/alerts/{alertRef}/" + verb)
         {
             Content = JsonContent.Create(new { reasonMessage = "because" }),
         };
@@ -1060,10 +1061,10 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
-        Assert.Contains("\"alertId\":7", body);
+        Assert.Contains($"\"alertRef\":\"{alertRef}\"", body);
         var calls = verb == "acknowledge" ? jobs.AcknowledgeCalls : jobs.ResolveCalls;
         var call = Assert.Single(calls);
-        Assert.Equal((7L, "because", (string?)null), call);
+        Assert.Equal((alertRef, "because", (string?)null), call);
     }
 
     [Theory]
@@ -1075,7 +1076,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/alerts/0/" + verb);
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/alerts/{default(AlertRef)}/" + verb);
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -1093,14 +1094,15 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(jobs);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/alerts/7/" + verb);
+        var alertRef = AlertRef.New();
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/alerts/{alertRef}/" + verb);
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var calls = verb == "acknowledge" ? jobs.AcknowledgeCalls : jobs.ResolveCalls;
         var call = Assert.Single(calls);
-        Assert.Equal((7L, (string?)null, (string?)null), call);
+        Assert.Equal((alertRef, (string?)null, (string?)null), call);
     }
 
     [Fact]
@@ -1164,7 +1166,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/alerts/7/" + verb),
+            new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/alerts/{AlertRef.New()}/" + verb),
             TestContext.Current.CancellationToken
         );
 

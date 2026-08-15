@@ -9,7 +9,9 @@ SELECT TOP (@p_alert_batch_size)
     a.occurrence_count,
     a.created_at_utc,
     a.retry_count,
-    a.channel_name
+    a.channel_name,
+    a.alert_ref,
+    a.job_ref
 FROM {{schema}}.alerts a
 LEFT JOIN {{schema}}.jobs j
     ON j.id = a.job_id

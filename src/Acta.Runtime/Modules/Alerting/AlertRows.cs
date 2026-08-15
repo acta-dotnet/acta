@@ -35,7 +35,9 @@ internal sealed record DeliverableAlert(
     int OccurrenceCount,
     DateTime CreatedAtUtc,
     byte RetryCount,
-    string ChannelName
+    string ChannelName,
+    Guid AlertRef,
+    Guid? JobRef
 );
 
 /// <summary>
@@ -66,11 +68,13 @@ internal sealed record JobAlertListProjectionRow(
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
     Guid? JobRef,
-    DateTime? AcknowledgedAtUtc
+    DateTime? AcknowledgedAtUtc,
+    Guid AlertRef
 )
 {
     public AlertListItem ToItem() =>
         new(
+            new Acta.AlertRef(AlertRef),
             AlertId,
             JobNamespace,
             JobId,

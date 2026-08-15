@@ -68,8 +68,8 @@ internal interface IAlertStore
     /// </summary>
     Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct);
 
-    /// <summary>Point-read of one alert row by id, in the list projection's shape; null when missing.</summary>
-    Task<AlertListItem?> GetJobAlertAsync(long alertId, CancellationToken ct);
+    /// <summary>Point-read of one alert row by ref, in the list projection's shape; null when missing.</summary>
+    Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct);
 }
 
 /// <summary>
@@ -87,7 +87,8 @@ internal sealed record RaiseJobAlertCommand(
     string ChannelName,
     AlertDeliveryStatusCode DeliveryStatus,
     string? DeduplicationKey,
-    DateTime? DedupeWindowStartUtc
+    DateTime? DedupeWindowStartUtc,
+    Guid AlertRef
 )
 {
     public static RaiseJobAlertCommand Create(
@@ -121,13 +122,16 @@ internal sealed record RaiseJobAlertCommand(
             channelName,
             deliveryStatus,
             deduplicationKey.Truncate(ActaTextLimits.AlertDedupeKey),
-            dedupeWindowStartUtc
+            dedupeWindowStartUtc,
+            // The candidate public ref is minted here so every caller carries one; the raise consumes it
+            // only when the upsert actually inserts, leaving a deduped row's ref stable across re-fires.
+            Acta.AlertRef.New().Value
         );
     }
 }
 
-/// <summary>Validated operator control verb target: the alert id plus the audit actor and reason.</summary>
-internal sealed record AlertControlCommand(long AlertId, JobControlActor Actor, string ReasonMessage);
+/// <summary>Validated operator control verb target: the alert ref plus the audit actor and reason.</summary>
+internal sealed record AlertControlCommand(Guid AlertRef, JobControlActor Actor, string ReasonMessage);
 
 /// <summary>Decoded alerts list request; <c>Take</c> carries the page-size-plus-one peek-ahead.</summary>
 internal sealed record AlertPageRequest(

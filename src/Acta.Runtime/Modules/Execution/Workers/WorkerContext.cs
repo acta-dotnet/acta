@@ -18,9 +18,14 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 {
     public WorkerRegistration? WorkerRegistration { get; } = workerRegistration;
 
-    // Worker-only state. All four fields stay empty in enqueue-only mode.
+    // Worker-only state. All these fields stay empty in enqueue-only mode.
     public Dictionary<string, short> NamespaceIds { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> WorkerIdByNamespace { get; } = new(StringComparer.Ordinal);
+
+    // The public ref minted for this process's workers row, retained beside its numeric id. The store
+    // writes address the registration by id, so nothing in the runtime reads this yet; it is here so a
+    // consumer that needs to name this worker the way operators see it does not have to re-read the row.
+    public Dictionary<string, Guid> WorkerRefByNamespace { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, Dictionary<string, int>> DefinitionIdsByNamespace { get; } = new(StringComparer.Ordinal);
 
     // definitions.id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync

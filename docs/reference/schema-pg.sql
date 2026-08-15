@@ -771,13 +771,15 @@ SELECT
     CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(e.detail, 'UTF8') END
         AS detail_text,
     e.worker_id,
+    wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
     e.tenant_id
 FROM acta.events AS e
 JOIN acta.namespaces AS ns ON ns.id = e.namespace_id
 LEFT JOIN acta.definitions AS d ON d.id = e.definition_id
-LEFT JOIN acta.jobs AS root ON root.id = e.lineage_root_id;
+LEFT JOIN acta.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN acta.workers AS wkr ON wkr.id = e.worker_id;
 
 DROP VIEW IF EXISTS acta.tags_view;
 CREATE VIEW acta.tags_view AS
@@ -796,7 +798,7 @@ LEFT JOIN acta.namespaces AS ns ON ns.id = t.namespace_id;
 -- ===== routines (versionless; always rewritten to this file's definitions) =====
 
 CREATE OR REPLACE FUNCTION acta.acknowledge_job_alert(
-    p_id BIGINT,
+    p_alert_ref UUID,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
     p_reason_message VARCHAR
@@ -817,7 +819,7 @@ BEGIN
     SELECT a.namespace_id, a.job_id, a.job_ref, a.acknowledged_at_utc, a.resolved_at_utc
     INTO v_namespace_id, v_job_id, v_job_ref, v_ack, v_resolved
     FROM acta.alerts a
-    WHERE a.id = p_id
+    WHERE a.alert_ref = p_alert_ref
     FOR UPDATE;
 
     IF NOT FOUND THEN
@@ -844,7 +846,7 @@ BEGIN
         acknowledged_at_utc = v_ack,
         modified_at_utc = now(),
         version = version + 1
-    WHERE id = p_id;
+    WHERE alert_ref = p_alert_ref;
 
     INSERT INTO acta.events (
         event_code,
@@ -898,7 +900,8 @@ CREATE OR REPLACE FUNCTION acta.raise_job_alert(
     p_channel_name VARCHAR,
     p_delivery_status_code SMALLINT,
     p_dedupe_key VARCHAR,
-    p_dedupe_window_start_utc TIMESTAMPTZ
+    p_dedupe_window_start_utc TIMESTAMPTZ,
+    p_alert_ref UUID
 )
 RETURNS INT
 LANGUAGE plpgsql
@@ -924,6 +927,7 @@ BEGIN
     IF p_dedupe_key IS NULL THEN
         INSERT INTO acta.alerts (
             namespace_id,
+            alert_ref,
             job_id,
             job_ref,
             origin_code,
@@ -942,6 +946,7 @@ BEGIN
             version)
         VALUES (
             v_ns,
+            p_alert_ref,
             p_job_id,
             v_job_ref,
             p_origin_code,
@@ -963,6 +968,7 @@ BEGIN
 
     INSERT INTO acta.alerts (
         namespace_id,
+        alert_ref,
         job_id,
         job_ref,
         origin_code,
@@ -981,6 +987,7 @@ BEGIN
         version)
     VALUES (
         v_ns,
+        p_alert_ref,
         p_job_id,
         v_job_ref,
         p_origin_code,
@@ -1018,7 +1025,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.resolve_job_alert_manual(
-    p_id BIGINT,
+    p_alert_ref UUID,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
     p_reason_message VARCHAR
@@ -1039,7 +1046,7 @@ BEGIN
     SELECT a.namespace_id, a.job_id, a.job_ref, a.acknowledged_at_utc, a.resolved_at_utc
     INTO v_namespace_id, v_job_id, v_job_ref, v_ack, v_resolved
     FROM acta.alerts a
-    WHERE a.id = p_id
+    WHERE a.alert_ref = p_alert_ref
     FOR UPDATE;
 
     IF NOT FOUND THEN
@@ -1066,7 +1073,7 @@ BEGIN
         resolved_at_utc = v_resolved,
         modified_at_utc = now(),
         version = version + 1
-    WHERE id = p_id;
+    WHERE alert_ref = p_alert_ref;
 
     INSERT INTO acta.events (
         event_code,
@@ -6458,7 +6465,7 @@ BEGIN
             version = version + 1
         FROM doomed d
         WHERE w.id = d.id
-        RETURNING w.id, w.namespace_id
+        RETURNING w.id, w.namespace_id, w.worker_ref
     ),
 
     evt AS (
@@ -6484,7 +6491,7 @@ BEGIN
             now(),
             d.namespace_id,
             70 /* ActorCode.Worker */,
-            d.id::VARCHAR,
+            d.worker_ref::TEXT,
             NULL,
             NULL,
             NULL,
@@ -6516,7 +6523,8 @@ CREATE OR REPLACE FUNCTION acta.start_worker(
     p_engine_version VARCHAR,
     p_dotnet_version VARCHAR,
     p_process_id INT,
-    p_max_concurrency INT
+    p_max_concurrency INT,
+    p_worker_ref UUID
 )
 RETURNS TABLE (namespace_id SMALLINT, worker_id INT)
 LANGUAGE sql
@@ -6560,6 +6568,7 @@ AS $$
     w AS (
         INSERT INTO acta.workers (
             namespace_id,
+            worker_ref,
             status_code,
             deployment_version,
             host,
@@ -6573,6 +6582,7 @@ AS $$
             version)
         SELECT
             ns.id,
+            p_worker_ref,
             10 /* WorkerStatusCode.Active */,
             p_deployment_version,
             p_host,
@@ -6585,7 +6595,7 @@ AS $$
             now(),
             0
         FROM ns
-        RETURNING id, namespace_id
+        RETURNING id, namespace_id, worker_ref
     ),
     evt AS (
         INSERT INTO acta.events (
@@ -6610,7 +6620,7 @@ AS $$
             now(),
             w.namespace_id,
             70 /* ActorCode.Worker */,
-            w.id::VARCHAR,
+            w.worker_ref::TEXT,
             NULL,
             NULL,
             NULL,
@@ -6644,7 +6654,7 @@ AS $$
         WHERE
             id = p_worker_id
             AND status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-        RETURNING id
+        RETURNING id, worker_ref
     )
     INSERT INTO acta.events (
         event_code,
@@ -6668,7 +6678,7 @@ AS $$
         now(),
         p_namespace_id,
         70 /* ActorCode.Worker */,
-        s.id::VARCHAR,
+        s.worker_ref::TEXT,
         NULL,
         NULL,
         NULL,

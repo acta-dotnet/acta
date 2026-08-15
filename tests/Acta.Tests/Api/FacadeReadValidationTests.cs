@@ -180,7 +180,7 @@ public sealed class FacadeReadValidationTests
         public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) =>
             Task.FromResult(new AlertPage([], request.IncludeTotal ? 0L : null));
 
-        public Task<AlertListItem?> GetJobAlertAsync(long alertId, CancellationToken ct) => Task.FromResult<AlertListItem?>(null);
+        public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => Task.FromResult<AlertListItem?>(null);
     }
 
     private static AlertsApi Alerts() => new(new EmptyAlertStore());

@@ -14,7 +14,7 @@ AS $$
         WHERE
             id = p_worker_id
             AND status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-        RETURNING id
+        RETURNING id, worker_ref
     )
     INSERT INTO {{schema}}.events (
         event_code,
@@ -38,7 +38,7 @@ AS $$
         now(),
         p_namespace_id,
         70 /* ActorCode.Worker */,
-        s.id::VARCHAR,
+        s.worker_ref::TEXT,
         NULL,
         NULL,
         NULL,

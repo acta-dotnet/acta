@@ -28,7 +28,8 @@ internal sealed record JobSnapshotRow(
     DateTime ModifiedAtUtc,
     int? TenantId,
     string? TenantKey,
-    int DefinitionId
+    int DefinitionId,
+    Guid? LeasedByWorkerRef
 )
 {
     // Named, not positional: this row is in SELECT order and the snapshot in entity order, and both
@@ -59,7 +60,8 @@ internal sealed record JobSnapshotRow(
             LeasedByWorkerId: LeasedByWorkerId,
             LeaseExpiresAtUtc: LeaseExpiresAtUtc,
             RetentionUntilUtc: RetentionUntilUtc,
-            ModifiedAtUtc: ModifiedAtUtc
+            ModifiedAtUtc: ModifiedAtUtc,
+            LeasedByWorkerRef: LeasedByWorkerRef is { } leasedRef ? new WorkerRef(leasedRef) : null
         );
 }
 
@@ -87,7 +89,9 @@ internal sealed record ExplainHeaderRow(
     JobEventReasonCode? LatestReasonCode,
     string? LatestReasonMessage,
     int? LastExecutedByWorkerId,
-    string? LastExecutedByWorkerName
+    string? LastExecutedByWorkerName,
+    Guid? LeasedByWorkerRef,
+    Guid? LastExecutedByWorkerRef
 );
 
 /// <summary>One <c>steps</c> row for the explain read, in SELECT order.</summary>

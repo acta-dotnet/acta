@@ -17,13 +17,13 @@ public sealed record JobDetail(
     // Scope / routing.
     string JobNamespace,
     // Surrogate for the namespace+name pair; non-null because the job row's definition_id is NOT NULL.
-    int DefinitionId,
+    [property: JsonIgnore] int DefinitionId,
     string JobName,
     [property: JsonIgnore] long? LineageRootId,
     JobRef? LineageRootJobRef,
     [property: JsonIgnore] long? ParentJobId,
     JobRef? ParentJobRef,
-    int? TenantId,
+    [property: JsonIgnore] int? TenantId,
     string? TenantKey,
     // Caller keys.
     string? DeduplicationKey,
@@ -37,10 +37,11 @@ public sealed record JobDetail(
     DateTime? NextRunAtUtc,
     int ExecutionNumber,
     short FailureCount,
-    int? LeasedByWorkerId,
+    [property: JsonIgnore] int? LeasedByWorkerId,
     DateTime? LeaseExpiresAtUtc,
     DateTime? RetentionUntilUtc,
     // Audit.
     DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc
+    DateTime ModifiedAtUtc,
+    WorkerRef? LeasedByWorkerRef
 );

@@ -227,14 +227,15 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync("/acta/api/v1/workers/42", ct);
-        var missing = await client.GetAsync("/acta/api/v1/workers/404", ct);
+        var knownRef = TestDashboardHost.FakeJobs.KnownWorkerRef;
+        var known = await client.GetAsync($"/acta/api/v1/workers/{knownRef}", ct);
+        var missing = await client.GetAsync($"/acta/api/v1/workers/{WorkerRef.New()}", ct);
         var malformed = await client.GetAsync("/acta/api/v1/workers/nope", ct);
         var body = await known.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
         Assert.Equal("no-store", known.Headers.CacheControl?.ToString());
-        Assert.Contains("\"workerId\":42", body);
+        Assert.Contains($"\"workerRef\":\"{knownRef}\"", body);
         Assert.Contains("\"jobNamespace\":\"billing\"", body);
         Assert.Contains("\"lastHeartbeatAtUtc\":", body);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);

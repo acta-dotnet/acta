@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS temp._resolve_job_alert;
 CREATE TEMP TABLE _resolve_job_alert AS
 SELECT
     a.id,
+    a.alert_ref,
     a.namespace_id,
     a.job_id,
     a.job_ref,
@@ -11,7 +12,7 @@ SELECT
     CASE WHEN a.resolved_at_utc IS NOT NULL THEN 1 ELSE 0 END AS already_resolved,
     {{now}} AS now_utc
 FROM {{schema}}.alerts a
-WHERE a.id = @p_id;
+WHERE a.alert_ref = @p_alert_ref;
 
 INSERT INTO {{schema}}.events (
     event_code,
@@ -60,7 +61,7 @@ SET
     modified_at_utc = (SELECT now_utc FROM temp._resolve_job_alert),
     version = version + 1
 WHERE
-    id = @p_id
+    alert_ref = @p_alert_ref
     AND EXISTS (SELECT 1 FROM temp._resolve_job_alert t WHERE t.already_resolved = 0);
 
 SELECT
@@ -74,5 +75,5 @@ SELECT
         WHEN t.already_resolved = 1 THEN t.resolved_at_utc
         ELSE t.now_utc
     END AS resolved_at_utc
-FROM (SELECT @p_id AS qid) q
-LEFT JOIN temp._resolve_job_alert t ON t.id = q.qid;
+FROM (SELECT @p_alert_ref AS qref) q
+LEFT JOIN temp._resolve_job_alert t ON t.alert_ref = q.qref;

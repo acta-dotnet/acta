@@ -75,25 +75,42 @@ public abstract class StartWorkerSpec<TFixture> : ActaStorageTestBase<TFixture>
         Assert.Equal(3, count);
     }
 
-    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with actor worker and actor_key equal to the worker id")]
+    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with actor worker and actor_key equal to the worker ref")]
     public async Task Each_worker_has_exactly_one_WorkerStarted_event_with_correct_actor_fields()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsName = TestKey("sw-evt");
 
-        var (nsId, wId1) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host1", "v1", null, null, 1001, 4, ct);
-        var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct);
+        // The refs are minted here so the expected actor_key is known independently of the row read: the
+        // event carries the worker's public ref as canonical lowercase uuid text, never the numeric id.
+        var ref1 = WorkerRef.New();
+        var ref2 = WorkerRef.New();
+        var (nsId, wId1) = await WorkerTestOps.StartAsync(
+            Services,
+            nsName,
+            "test",
+            null,
+            "host1",
+            "v1",
+            null,
+            null,
+            1001,
+            4,
+            ct,
+            ref1.Value
+        );
+        var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct, ref2.Value);
 
         var events1 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId1 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e1 = Assert.Single(events1);
         Assert.Equal(ActorCode.Worker, e1.ActorCode);
-        Assert.Equal(wId1.ToString(CultureInfo.InvariantCulture), e1.ActorKey);
+        Assert.Equal(ref1.Value.ToString("D", CultureInfo.InvariantCulture), e1.ActorKey);
         Assert.Equal(nsId, e1.NamespaceId);
 
         var events2 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId2 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e2 = Assert.Single(events2);
         Assert.Equal(ActorCode.Worker, e2.ActorCode);
-        Assert.Equal(wId2.ToString(CultureInfo.InvariantCulture), e2.ActorKey);
+        Assert.Equal(ref2.Value.ToString("D", CultureInfo.InvariantCulture), e2.ActorKey);
         Assert.Equal(nsId, e2.NamespaceId);
     }
 

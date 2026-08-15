@@ -172,10 +172,10 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             ct
         );
 
-    public Task<AlertListItem?> GetJobAlertAsync(long alertId, CancellationToken ct) =>
+    public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) =>
         session.QueryAsync(
             "Sql/Alerting/GetJobAlert.sql",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, alertRef)),
             async (reader, token) =>
             {
                 var read = DbProjectionResolver.Resolve<JobAlertListProjectionRow>();
@@ -197,6 +197,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)command.DeliveryStatus));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeKey, command.DeduplicationKey));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeWindowStartUtc, command.DedupeWindowStartUtc));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, command.AlertRef));
     }
 
     private async Task<AlertControlOutcome> ControlAsync(string operation, AlertControlCommand command, CancellationToken ct) =>
@@ -204,7 +205,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             new StoreCommand("Alerting", operation),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, command.AlertId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, command.AlertRef));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));

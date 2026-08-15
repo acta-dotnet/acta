@@ -161,11 +161,14 @@ internal static class TestDashboardHost
         /// "rejected" reports rejected (e.g. paused or in-flight).</summary>
         public List<(string ScheduleName, string? Note, string? ActorKey)> TriggerCalls { get; } = [];
 
-        /// <summary>Recorded AcknowledgeAsync calls. An alertId of 0 reports not found.</summary>
-        public List<(long AlertId, string? Note, string? ActorKey)> AcknowledgeCalls { get; } = [];
+        /// <summary>The one worker the workers fake knows; every other ref reports not found.</summary>
+        public static readonly WorkerRef KnownWorkerRef = new(new Guid("019826f0-0000-7000-8000-0000000002a0"));
 
-        /// <summary>Recorded ResolveAsync calls. An alertId of 0 reports not found.</summary>
-        public List<(long AlertId, string? Note, string? ActorKey)> ResolveCalls { get; } = [];
+        /// <summary>Recorded AcknowledgeAsync calls. The default alert ref reports not found.</summary>
+        public List<(AlertRef AlertRef, string? Note, string? ActorKey)> AcknowledgeCalls { get; } = [];
+
+        /// <summary>Recorded ResolveAsync calls. The default alert ref reports not found.</summary>
+        public List<(AlertRef AlertRef, string? Note, string? ActorKey)> ResolveCalls { get; } = [];
 
         public Exception? ListJobsException { get; init; }
 
@@ -330,7 +333,8 @@ internal static class TestDashboardHost
                 ExclusiveKey: null,
                 RetentionUntilUtc: null,
                 CreatedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
-                ModifiedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
+                ModifiedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                LeasedByWorkerRef: null
             );
 
         public ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
@@ -974,10 +978,11 @@ internal static class TestDashboardHost
 
         private sealed class FakeWorkers : IWorkers
         {
-            public ValueTask<WorkerDetail?> GetAsync(int workerId, CancellationToken ct = default) =>
+            public ValueTask<WorkerDetail?> GetAsync(WorkerRef workerRef, CancellationToken ct = default) =>
                 ValueTask.FromResult<WorkerDetail?>(
-                    workerId == 42
+                    workerRef == KnownWorkerRef
                         ? new WorkerDetail(
+                            KnownWorkerRef,
                             42,
                             "billing",
                             WorkerStatusCode.Active,
@@ -998,48 +1003,48 @@ internal static class TestDashboardHost
                 ValueTask.FromResult(new PagedResult<WorkerListItem>([], null, false, 50, null));
         }
 
-        /// <summary>An alertId of 0 reports not found; every other alertId applies.</summary>
+        /// <summary>The default (all-zero) alert ref reports not found; every other ref applies.</summary>
         private sealed class FakeAlerts(
-            List<(long AlertId, string? Note, string? ActorKey)> acknowledgeCalls,
-            List<(long AlertId, string? Note, string? ActorKey)> resolveCalls
+            List<(AlertRef AlertRef, string? Note, string? ActorKey)> acknowledgeCalls,
+            List<(AlertRef AlertRef, string? Note, string? ActorKey)> resolveCalls
         ) : IAlerts
         {
             public static readonly DateTime AcknowledgedAt = new(2026, 6, 12, 7, 0, 0, DateTimeKind.Utc);
             public static readonly DateTime ResolvedAt = new(2026, 6, 12, 8, 0, 0, DateTimeKind.Utc);
 
             public ValueTask<AlertControlResult> AcknowledgeAsync(
-                long alertId,
+                AlertRef alertRef,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
             )
             {
-                if (alertId == 0)
+                if (alertRef == default)
                 {
-                    return ValueTask.FromResult(new AlertControlResult(alertId, ControlAction.NotFound, null, null));
+                    return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.NotFound, null, null));
                 }
 
-                acknowledgeCalls.Add((alertId, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AlertControlResult(alertId, ControlAction.Applied, AcknowledgedAt, null));
+                acknowledgeCalls.Add((alertRef, reasonMessage, actorKey));
+                return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.Applied, AcknowledgedAt, null));
             }
 
             public ValueTask<AlertControlResult> ResolveAsync(
-                long alertId,
+                AlertRef alertRef,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
             )
             {
-                if (alertId == 0)
+                if (alertRef == default)
                 {
-                    return ValueTask.FromResult(new AlertControlResult(alertId, ControlAction.NotFound, null, null));
+                    return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.NotFound, null, null));
                 }
 
-                resolveCalls.Add((alertId, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AlertControlResult(alertId, ControlAction.Applied, null, ResolvedAt));
+                resolveCalls.Add((alertRef, reasonMessage, actorKey));
+                return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.Applied, null, ResolvedAt));
             }
 
-            public ValueTask<AlertDetail?> GetAsync(long alertId, CancellationToken ct = default) =>
+            public ValueTask<AlertDetail?> GetAsync(AlertRef alertRef, CancellationToken ct = default) =>
                 ValueTask.FromResult<AlertDetail?>(null);
 
             public ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>

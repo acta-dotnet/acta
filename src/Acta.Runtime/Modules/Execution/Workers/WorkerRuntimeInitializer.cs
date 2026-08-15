@@ -83,6 +83,10 @@ internal sealed class WorkerRuntimeInitializer(
             var engineVersion =
                 typeof(WorkerRuntimeInitializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                 ?? "unknown";
+            // The registration's public ref is allocated here, not by the database: the workers row is
+            // append-only, so this process's ref is fixed for the lifetime of the registration and is
+            // retained beside the numeric id for the shutdown and diagnostic paths.
+            var workerRef = WorkerRef.New().Value;
             var (registeredNamespaceId, registeredWorkerId) = await _workers.StartWorkerAsync(
                 StartWorkerCommand.Create(
                     ns,
@@ -93,12 +97,14 @@ internal sealed class WorkerRuntimeInitializer(
                     engineVersion,
                     RuntimeInformation.FrameworkDescription,
                     Environment.ProcessId,
-                    _options.Value.MaxConcurrentExecutors
+                    _options.Value.MaxConcurrentExecutors,
+                    workerRef
                 ),
                 ct
             );
             _context.NamespaceIds[ns] = registeredNamespaceId;
             _context.WorkerIdByNamespace[ns] = registeredWorkerId;
+            _context.WorkerRefByNamespace[ns] = workerRef;
         }
 
         var namespaceId = _context.NamespaceIds[ns];

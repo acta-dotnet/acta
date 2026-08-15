@@ -23,7 +23,8 @@ SELECT
     r.modified_at_utc,
     j.tenant_id,
     t.tenant_key,
-    j.definition_id
+    j.definition_id,
+    lw.worker_ref AS leased_by_worker_ref
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
@@ -31,4 +32,5 @@ INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
 LEFT JOIN {{schema}}.jobs pjob ON pjob.id = j.parent_id
 LEFT JOIN {{schema}}.jobs lroot ON lroot.id = j.lineage_root_id
 LEFT JOIN {{schema}}.tenants t ON t.id = j.tenant_id
+LEFT JOIN {{schema}}.workers lw ON lw.id = r.leased_by_worker_id
 WHERE j.id = @p_id;

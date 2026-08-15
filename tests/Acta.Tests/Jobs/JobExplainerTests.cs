@@ -6,6 +6,8 @@ namespace Acta.Tests.Jobs;
 public class JobExplainerTests
 {
     private static readonly DateTime Now = new(2026, 7, 4, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly WorkerRef LeaseWorkerRef = new(new Guid("019826f0-0000-7000-8000-000000000011"));
+    private static readonly WorkerRef LastRunWorkerRef = new(new Guid("019826f0-0000-7000-8000-000000000012"));
 
     private static ExplainHeaderRow Header(
         JobStatusCode status,
@@ -21,7 +23,12 @@ public class JobExplainerTests
         JobEventReasonCode? latestReasonCode = null,
         string? latestReasonMessage = null,
         int? lastExecutedByWorkerId = null,
-        string? lastExecutedByWorkerName = null
+        string? lastExecutedByWorkerName = null,
+        Guid? leasedByWorkerRef = null,
+        Guid? lastExecutedByWorkerRef = null,
+        // Retention deletes workers rows, so a runtimes/events worker id can outlive its row. The LEFT
+        // JOINs then yield neither a ref nor a deployment version while the id still points somewhere.
+        bool workerRowPurged = false
     ) =>
         new(
             JobId: 4821,
@@ -35,13 +42,19 @@ public class JobExplainerTests
             NextRunAtUtc: nextRunAtUtc,
             LeasedByWorkerId: leasedByWorkerId,
             LeaseExpiresAtUtc: leaseExpiresAtUtc,
-            WorkerDeploymentVersion: workerDeploymentVersion,
+            WorkerDeploymentVersion: workerRowPurged ? null : workerDeploymentVersion,
             WorkerStatus: workerStatus,
             WorkerLastHeartbeatAtUtc: workerLastSeenAtUtc,
             LatestReasonCode: latestReasonCode,
             LatestReasonMessage: latestReasonMessage,
             LastExecutedByWorkerId: lastExecutedByWorkerId,
-            LastExecutedByWorkerName: lastExecutedByWorkerName
+            LastExecutedByWorkerName: workerRowPurged ? null : lastExecutedByWorkerName,
+            // The SQL LEFT JOINs produce a ref exactly when the id is present and its row still exists,
+            // so the fixture mirrors that.
+            LeasedByWorkerRef: workerRowPurged ? null : leasedByWorkerRef ?? (leasedByWorkerId is null ? null : LeaseWorkerRef.Value),
+            LastExecutedByWorkerRef: workerRowPurged
+                ? null
+                : lastExecutedByWorkerRef ?? (lastExecutedByWorkerId is null ? null : LastRunWorkerRef.Value)
         );
 
     private static JobExplainData Data(
@@ -124,9 +137,40 @@ public class JobExplainerTests
         Assert.False(x.Lease!.Expired);
         Assert.Equal(17, x.Lease.WorkerId);
         Assert.Equal("payments-v42", x.Lease.WorkerName);
-        Assert.Contains("Executing on worker payments-v42 (17)", x.Headline);
+        Assert.Contains("Executing on worker payments-v42", x.Headline);
         Assert.Contains("Lease expires in 2m", x.Headline);
+        Assert.Equal(LeaseWorkerRef, x.Lease.WorkerRef);
         Assert.Contains(x.NextActions, a => a.Kind == "none");
+    }
+
+    [Fact]
+    public void A_lease_whose_worker_row_was_purged_keeps_the_lease_but_fabricates_no_ref()
+    {
+        // runtimes still names a holder, but retention deleted that workers row: the lease timings stay
+        // meaningful while the holder becomes unidentifiable. The prose must never print the internal id
+        // and must never mint an all-zero ref.
+        var data = Data(
+            Header(
+                JobStatusCode.Executing,
+                leasedByWorkerId: 17,
+                leaseExpiresAtUtc: Now.AddMinutes(2),
+                workerDeploymentVersion: "payments-v42",
+                lastExecutedByWorkerId: 17,
+                lastExecutedByWorkerName: "payments-v42",
+                workerRowPurged: true
+            )
+        );
+
+        var x = JobExplainer.Explain(data, Now);
+
+        Assert.NotNull(x.Lease);
+        Assert.Null(x.Lease!.WorkerRef);
+        Assert.Null(x.Lease.WorkerName);
+        Assert.Equal(17, x.Lease.WorkerId);
+        Assert.False(x.Lease.Expired);
+        Assert.Contains("Executing on an unknown worker", x.Headline);
+        Assert.DoesNotContain("17", x.Headline);
+        Assert.Null(x.LastExecutedBy);
     }
 
     [Fact]
@@ -211,7 +255,7 @@ public class JobExplainerTests
 
         var x = JobExplainer.Explain(data, Now);
 
-        Assert.Equal("payments-v42 (17)", x.LastExecutedBy);
+        Assert.Equal("payments-v42", x.LastExecutedBy);
     }
 
     [Fact]

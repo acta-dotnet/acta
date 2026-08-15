@@ -31,11 +31,12 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
 
         _log.Log(
             level,
-            "ACTA ALERT [{Severity}/{Kind}] ns={Namespace} job={JobId} ch={Channel} runbook={RunbookUrl} x{Count}: {Title} - {Message}",
+            "ACTA ALERT [{Severity}/{Kind}] ns={Namespace} alert={AlertRef} job={JobRef} ch={Channel} runbook={RunbookUrl} x{Count}: {Title} - {Message}",
             n.Severity,
             n.Kind,
             n.JobNamespace,
-            n.JobId,
+            n.AlertRef,
+            n.JobRef,
             target.ChannelName,
             n.RunbookUrl,
             n.OccurrenceCount,

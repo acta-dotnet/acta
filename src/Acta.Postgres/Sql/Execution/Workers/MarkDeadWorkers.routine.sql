@@ -24,7 +24,7 @@ BEGIN
             version = version + 1
         FROM doomed d
         WHERE w.id = d.id
-        RETURNING w.id, w.namespace_id
+        RETURNING w.id, w.namespace_id, w.worker_ref
     ),
 
     evt AS (
@@ -50,7 +50,7 @@ BEGIN
             now(),
             d.namespace_id,
             70 /* ActorCode.Worker */,
-            d.id::VARCHAR,
+            d.worker_ref::TEXT,
             NULL,
             NULL,
             NULL,

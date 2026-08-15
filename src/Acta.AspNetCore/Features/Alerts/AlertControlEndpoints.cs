@@ -6,7 +6,7 @@ namespace Acta.AspNetCore.Features.Alerts;
 
 /// <summary>
 /// POST alert-control endpoints: thin HTTP wrappers over the <see cref="IAlerts"/> acknowledge/resolve
-/// verbs. Unlike the natural-key-addressed schedule verbs, an alert is addressed by its route id. The
+/// verbs. Unlike the natural-key-addressed schedule verbs, an alert is addressed by its public ref. The
 /// verbs are idempotent (re-acknowledge/re-resolve is Applied without mutation), so this layer maps
 /// <see cref="ControlAction"/> to only 200 (applied) and 404 (not found), never 409.
 /// </summary>
@@ -19,14 +19,14 @@ internal static class AlertControlEndpoints
             options,
             "acknowledge",
             "Acknowledge the alert: an operator has seen it.",
-            static (operations, alertId, note, actorKey, ct) => operations.Alerts.AcknowledgeAsync(alertId, note, actorKey, ct)
+            static (operations, alertRef, note, actorKey, ct) => operations.Alerts.AcknowledgeAsync(alertRef, note, actorKey, ct)
         );
         MapVerb(
             group,
             options,
             "resolve",
             "Resolve the alert: its cause is handled.",
-            static (operations, alertId, note, actorKey, ct) => operations.Alerts.ResolveAsync(alertId, note, actorKey, ct)
+            static (operations, alertRef, note, actorKey, ct) => operations.Alerts.ResolveAsync(alertRef, note, actorKey, ct)
         );
     }
 
@@ -35,14 +35,19 @@ internal static class AlertControlEndpoints
         ActaEndpointOptions options,
         string verb,
         string summary,
-        Func<IActaOperations, long, string?, string?, CancellationToken, ValueTask<AlertControlResult>> invoke
+        Func<IActaOperations, AlertRef, string?, string?, CancellationToken, ValueTask<AlertControlResult>> invoke
     )
     {
         group
             .MapPost(
-                "/alerts/{alertId:long}/" + verb,
-                async Task<IResult> (long alertId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/alerts/{alertRef}/" + verb,
+                async Task<IResult> (string alertRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
+                    if (!AlertRef.TryParse(alertRef, out var parsed))
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert not found.");
+                    }
+
                     var (note, error) = await ControlEndpointValidation.ReadOptionalTextAsync(
                         http,
                         options,
@@ -58,7 +63,7 @@ internal static class AlertControlEndpoints
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
                     var actorKey = http.User?.Identity?.Name;
-                    var result = await invoke(operations, alertId, note, actorKey, ct);
+                    var result = await invoke(operations, parsed, note, actorKey, ct);
                     return ToResult(result);
                 }
             )
@@ -72,7 +77,7 @@ internal static class AlertControlEndpoints
     {
         var statusCode = result.Action == ControlAction.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status200OK;
         return Results.Json(
-            new AlertControlResponse(result.AlertId, result.Action, result.AcknowledgedAtUtc, result.ResolvedAtUtc),
+            new AlertControlResponse(result.AlertRef, result.Action, result.AcknowledgedAtUtc, result.ResolvedAtUtc),
             DashboardJsonContext.Default.AlertControlResponse,
             statusCode: statusCode
         );

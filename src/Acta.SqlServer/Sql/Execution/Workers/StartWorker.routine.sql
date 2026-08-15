@@ -9,7 +9,8 @@ CREATE OR ALTER PROCEDURE {{schema}}.start_worker
     @p_engine_version VARCHAR(128),
     @p_dotnet_version VARCHAR(64),
     @p_process_id INT,
-    @p_max_concurrency INT
+    @p_max_concurrency INT,
+    @p_worker_ref UNIQUEIDENTIFIER
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -55,6 +56,7 @@ BEGIN
         INSERT INTO {{schema}}.workers
         (
             namespace_id,
+            worker_ref,
             status_code,
             deployment_version,
             host,
@@ -70,6 +72,7 @@ BEGIN
         VALUES
         (
             @ns_id,
+            @p_worker_ref,
             10 /* WorkerStatusCode.Active */,
             @p_deployment_version,
             @p_host,
@@ -90,7 +93,7 @@ BEGIN
             execution_status_code, duration_ms, reason_code, reason_message
         )
         VALUES (
-            120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, CAST(@worker_id AS VARCHAR(128)),
+            120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, LOWER(CONVERT(varchar(36), @p_worker_ref)),
             NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
         );
 

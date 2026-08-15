@@ -21,7 +21,9 @@ SELECT
     le.reason_code,
     le.reason_message,
     lx.worker_id AS last_executed_worker_id,
-    lxw.deployment_version AS last_executed_worker_name
+    lxw.deployment_version AS last_executed_worker_name,
+    w.worker_ref AS leased_by_worker_ref,
+    lxw.worker_ref AS last_executed_worker_ref
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id

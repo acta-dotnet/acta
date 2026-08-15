@@ -21,9 +21,9 @@ internal static class SlackAlertFormatter
         };
 
         var fields = new List<SlackField> { new("Kind", n.Kind.ToString(), true), new("Namespace", n.JobNamespace, true) };
-        if (n.JobId is { } jobId)
+        if (n.JobRef is { } jobRef)
         {
-            fields.Add(new("Job", jobId.ToString(CultureInfo.InvariantCulture), true));
+            fields.Add(new("Job", jobRef.ToString(), true));
         }
         if (n.OccurrenceCount > 1)
         {

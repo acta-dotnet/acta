@@ -10,11 +10,8 @@ internal sealed class WorkersApi(IWorkerStore store) : IWorkers
     private const string ListOperationName = "ListWorkers";
     private const string OrderWorkers = "last_seen_at_utc desc, id desc";
 
-    public ValueTask<WorkerDetail?> GetAsync(int workerId, CancellationToken ct = default)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(workerId);
-        return store.GetWorkerAsync(workerId, ct);
-    }
+    public ValueTask<WorkerDetail?> GetAsync(WorkerRef workerRef, CancellationToken ct = default) =>
+        store.GetWorkerAsync(workerRef.Value, ct);
 
     public async ValueTask<PagedResult<WorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default)
     {

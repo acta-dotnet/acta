@@ -32,6 +32,7 @@ SELECT
     CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(e.detail, 'UTF8') END
         AS detail_text,
     e.worker_id,
+    wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
     e.tenant_id
@@ -39,3 +40,4 @@ FROM {{schema}}.events AS e
 JOIN {{schema}}.namespaces AS ns ON ns.id = e.namespace_id
 LEFT JOIN {{schema}}.definitions AS d ON d.id = e.definition_id
 LEFT JOIN {{schema}}.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN {{schema}}.workers AS wkr ON wkr.id = e.worker_id

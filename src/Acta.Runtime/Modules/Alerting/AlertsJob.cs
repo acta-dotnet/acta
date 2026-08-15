@@ -306,9 +306,9 @@ internal sealed class AlertsJob(
     )
     {
         var notification = new AlertNotification(
-            a.AlertId,
+            new AlertRef(a.AlertRef),
             ctx.JobNamespace,
-            a.JobId,
+            a.JobRef is { } jobRef ? new JobRef(jobRef) : null,
             a.Severity,
             a.Kind,
             a.Title,

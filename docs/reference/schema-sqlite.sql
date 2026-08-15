@@ -754,13 +754,15 @@ SELECT
     CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(e.detail AS TEXT) END
         AS detail_text,
     e.worker_id,
+    wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
     e.tenant_id
 FROM main.events AS e
 JOIN main.namespaces AS ns ON ns.id = e.namespace_id
 LEFT JOIN main.definitions AS d ON d.id = e.definition_id
-LEFT JOIN main.jobs AS root ON root.id = e.lineage_root_id;
+LEFT JOIN main.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN main.workers AS wkr ON wkr.id = e.worker_id;
 
 DROP VIEW IF EXISTS main.tags_view;
 CREATE VIEW main.tags_view AS

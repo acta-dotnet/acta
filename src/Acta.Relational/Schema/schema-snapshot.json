@@ -1357,7 +1357,7 @@
           {
             "Id": 70,
             "Code": "worker",
-            "Description": "Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey = \u0022{workerId}\u0022.",
+            "Description": "Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey stores the acting worker\u0027s public ref as canonical lowercase uuid text; read projections render it as wrk_....",
             "Lifecycle": "Active"
           }
         ]

@@ -59,7 +59,8 @@ internal sealed record JobScheduleListRow(
     DateTime? PausedUntilUtc,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    int Version
+    int Version,
+    Guid? JobRef
 )
 {
     public ScheduleListItem ToItem() =>
@@ -81,7 +82,8 @@ internal sealed record JobScheduleListRow(
             PausedUntilUtc,
             CreatedAtUtc,
             ModifiedAtUtc,
-            Version
+            Version,
+            JobRef is { } jobRef ? new JobRef(jobRef) : null
         );
 }
 

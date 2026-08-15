@@ -9,7 +9,8 @@ CREATE OR ALTER PROCEDURE {{schema}}.raise_job_alert
     @p_channel_name VARCHAR(128),
     @p_delivery_status_code TINYINT,
     @p_dedupe_key VARCHAR(512),
-    @p_dedupe_window_start_utc DATETIME2(3)
+    @p_dedupe_window_start_utc DATETIME2(3),
+    @p_alert_ref UNIQUEIDENTIFIER
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -35,14 +36,14 @@ BEGIN
     IF @p_dedupe_key IS NULL
         BEGIN
             INSERT INTO {{schema}}.alerts (
-                namespace_id, job_id, job_ref,
+                namespace_id, alert_ref, job_id, job_ref,
                 origin_code, severity_code, kind_code, title, message, channel_name,
                 dedupe_key, dedupe_window_start_utc, occurrence_count,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
             )
             VALUES (
-                @v_ns, @p_job_id, @v_job_ref,
+                @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                 @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
                 NULL, NULL, 1,
                 @p_delivery_status_code, 0,
@@ -81,7 +82,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM @updated)
             BEGIN
                 INSERT INTO {{schema}}.alerts (
-                    namespace_id, job_id, job_ref,
+                    namespace_id, alert_ref, job_id, job_ref,
                     origin_code, severity_code, kind_code, title, message, channel_name,
                     dedupe_key, dedupe_window_start_utc, occurrence_count,
                     delivery_status_code, retry_count,
@@ -89,7 +90,7 @@ BEGIN
                 )
                 OUTPUT INSERTED.occurrence_count INTO @updated
                 VALUES (
-                    @v_ns, @p_job_id, @v_job_ref,
+                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                     @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
                     @p_dedupe_key, @p_dedupe_window_start_utc, 1,
                     @p_delivery_status_code, 0,

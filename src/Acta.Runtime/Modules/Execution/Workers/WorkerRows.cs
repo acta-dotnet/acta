@@ -20,11 +20,13 @@ internal sealed record JobWorkerListRow(
     int MaxConcurrency,
     DateTime LastHeartbeatAtUtc,
     DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc
+    DateTime ModifiedAtUtc,
+    Guid WorkerRef
 )
 {
     public WorkerListItem ToItem() =>
         new(
+            new Acta.WorkerRef(WorkerRef),
             WorkerId,
             JobNamespace,
             Status,
@@ -41,6 +43,7 @@ internal sealed record JobWorkerListRow(
 
     public WorkerDetail ToDetail() =>
         new(
+            new Acta.WorkerRef(WorkerRef),
             WorkerId,
             JobNamespace,
             Status,

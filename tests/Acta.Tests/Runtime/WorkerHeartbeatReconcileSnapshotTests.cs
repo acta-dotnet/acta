@@ -77,6 +77,6 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
 
         public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
 
-        public ValueTask<WorkerDetail?> GetWorkerAsync(int workerId, CancellationToken ct) => throw new NotSupportedException();
+        public ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) => throw new NotSupportedException();
     }
 }

@@ -12,9 +12,9 @@ public sealed class LogAlertTransportTests
         var logger = new RecordingLogger();
         var transport = new LogAlertTransport(logger);
         var notification = new AlertNotification(
-            AlertId: 1,
+            AlertRef: new AlertRef(new Guid("019826f0-0000-7000-8000-000000000001")),
             JobNamespace: "orders",
-            JobId: 42,
+            JobRef: new JobRef(new Guid("019826f0-0000-7000-8000-00000000002a")),
             Severity: AlertSeverityCode.Error,
             Kind: AlertKindCode.FinalFailure,
             Title: "Job failed",

@@ -238,9 +238,17 @@ internal static class CliOutput
         }
     }
 
+    // Same identity rule the explanation prose uses: name (with the ref alongside when known), else the
+    // bare ref, else a non-identity phrase once the holder's row has been purged.
     private static string LeaseWorkerLabel(JobExplainLease lease)
     {
-        var worker = lease.WorkerName is { Length: > 0 } name ? $"Worker {name} ({lease.WorkerId})" : $"Worker {lease.WorkerId}";
+        var worker = (lease.WorkerName is { Length: > 0 } ? lease.WorkerName : null, lease.WorkerRef) switch
+        {
+            (string name, WorkerRef workerRef) => $"Worker {name} ({workerRef})",
+            (string name, null) => $"Worker {name}",
+            (null, WorkerRef workerRef) => $"Worker {workerRef}",
+            (null, null) => "Worker is no longer registered",
+        };
         return lease.ExpiresAtUtc is { } expires ? $"{worker}, lease expired at {expires:O}" : worker;
     }
 

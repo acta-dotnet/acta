@@ -20,9 +20,9 @@ public enum AlertDeliveryOutcome : byte
 /// <see cref="RunbookUrl"/> comes from the job's definition, resolved at delivery time.
 /// </summary>
 public sealed record AlertNotification(
-    long AlertId,
+    AlertRef AlertRef,
     string JobNamespace,
-    long? JobId,
+    JobRef? JobRef,
     AlertSeverityCode Severity,
     AlertKindCode Kind,
     string Title,
