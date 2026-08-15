@@ -16,7 +16,7 @@
 
 
   // Namespace names are always lowercase kebab, so the name filter lowercases input to match the
-  // server-side nameStartsWith prefix without a 400 on a stray capital.
+  // server-side nameContains match without a 400 on a stray capital.
   const filters = createUrlFilters({ name: 'name', status: 'status', tags: 'tags' }, { name: '', status: '', tags: '' });
   const statuses = ['', 'active', 'suspended'];
 

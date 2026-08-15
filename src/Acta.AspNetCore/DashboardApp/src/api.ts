@@ -286,12 +286,12 @@ export interface DefinitionControlResponse {
   message: string;
 }
 
-// PATCH a definition's operator overrides. The body carries the version (optimistic concurrency), the
+// PATCH a definition's operator overrides. The body carries the expectedVersion CAS token, the
 // full override set (null/absent field = clear), and a note. Applied (200), rejected/version-conflict
 // (409), and not-found (404) all return a DefinitionControlResponse; anything else throws.
 export async function setDefinitionOverrides(
   id: number,
-  version: number,
+  expectedVersion: number,
   overrides: Record<string, unknown>,
   note?: string
 ): Promise<DefinitionControlResponse> {
@@ -299,7 +299,7 @@ export async function setDefinitionOverrides(
     path: `definitions/${id}`,
     method: 'PATCH',
     headers: controlHeaders(),
-    body: { version, overrides, reasonMessage: note?.trim() || null },
+    body: { expectedVersion, overrides, reasonMessage: note?.trim() || null },
     acceptedStatuses: [404, 409]
   });
 

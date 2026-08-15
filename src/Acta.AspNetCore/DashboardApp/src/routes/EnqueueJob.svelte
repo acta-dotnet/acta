@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, enqueueJob, ApiError, type JobInputTemplate, type JobPayloadView, type Paged } from '../api.ts';
+  import { api, enqueueJob, ApiError, type JobInputTemplate, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed, type EnqueueInputState } from './enqueueTemplate.ts';
@@ -41,16 +41,16 @@
   const namespacesQuery = createQuery(() => ({
     queryKey: keys.list('enqueue-namespaces', {}),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const all: { id: number; name: string }[] = [];
+      const all: NamespaceListItem[] = [];
       let cursor: string | undefined;
       // Bounded walk: the catalog is small, but a misbehaving cursor must never spin forever.
       for (let guard = 0; guard < 100; guard++) {
-        const page = await api<Paged<{ id: number; name: string }>>('namespaces', { pageSize: 100, cursor }, { signal });
+        const page = await api<Paged<NamespaceListItem>>('namespaces', { pageSize: 100, cursor }, { signal });
         all.push(...page.items);
         if (!page.hasMore || !page.nextCursor) break;
         cursor = page.nextCursor;
       }
-      return all.filter((item) => !isSysNamespace(item.id)).map((item) => item.name);
+      return all.filter((item) => !isSysNamespace(item.namespaceId)).map((item) => item.jobNamespace);
     },
     enabled: canControlNow,
     staleTime: 60_000

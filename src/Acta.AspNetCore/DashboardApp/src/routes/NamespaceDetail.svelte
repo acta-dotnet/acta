@@ -24,10 +24,10 @@
     for (let guard = 0; guard < 100; guard++) {
       const page = await api<Paged<NamespaceListItem>>(
         'namespaces',
-        { nameStartsWith: namespaceName, pageSize: 100, cursor },
+        { nameContains: namespaceName, pageSize: 100, cursor },
         { signal }
       );
-      const match = page.items.find((item) => item.name === namespaceName);
+      const match = page.items.find((item) => item.jobNamespace === namespaceName);
       if (match) return match;
       if (!page.hasMore || !page.nextCursor) break;
       cursor = page.nextCursor;

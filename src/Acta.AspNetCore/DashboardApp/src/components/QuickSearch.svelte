@@ -94,9 +94,9 @@
     staleTime: 15_000
   }), clientArg);
   const tenants = createQuery(() => ({
-    queryKey: keys.list('palette-tenants', { search: textQ?.raw }),
+    queryKey: keys.list('palette-tenants', { nameContains: textQ?.raw }),
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      api<Paged<TenantHit>>('tenants', { search: textQ?.raw, pageSize: 5 }, { signal }),
+      api<Paged<TenantHit>>('tenants', { nameContains: textQ?.raw, pageSize: 5 }, { signal }),
     enabled: probeEnabled,
     staleTime: 15_000
   }), clientArg);
