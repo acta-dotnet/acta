@@ -67,14 +67,19 @@
       .filter((el) => el.offsetParent !== null);
   }
 
-  // Trap Tab/Shift+Tab inside the box, and handle Escape here (stopping propagation so a parent
-  // window handler does not double-fire).
+  // Escape must close from anywhere, not only while focus sits inside the box: a click on the
+  // backdrop or the dialog's padding parks focus on <body>, and an overlay-level keydown handler
+  // then never hears the key - observed live on the purge dialog. Window-level capture also stops
+  // the event before any handler underneath (palette, popovers) can react to the same press.
+  function onWindowKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!submitting) onCancel();
+  }
+
+  // Trap Tab/Shift+Tab inside the box; Escape is handled at the window (above).
   function onKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      if (!submitting) onCancel();
-      return;
-    }
     if (e.key !== 'Tab') return;
     const f = focusables();
     if (f.length === 0) return;
@@ -95,6 +100,8 @@
     onConfirm(reason.trim());
   }
 </script>
+
+<svelte:window onkeydowncapture={onWindowKeydown} />
 
 <div class="confirm-overlay" role="presentation" onkeydown={onKeydown}>
   <div

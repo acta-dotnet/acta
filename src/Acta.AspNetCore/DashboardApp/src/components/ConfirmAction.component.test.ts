@@ -36,6 +36,20 @@ describe('ConfirmAction', () => {
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
+  it('cancels on Escape even after a backdrop click parked focus outside the box', async () => {
+    // The purge-dialog regression: a click on the backdrop or dialog padding blurs the box, focus
+    // lands on <body>, and an overlay-scoped keydown handler never hears the key.
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(ConfirmAction, { title: 'Cancel?', onCancel });
+
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    await user.keyboard('{Escape}');
+
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
   it('traps forward and reverse focus inside the dialog', async () => {
     render(ConfirmAction, { title: 'Proceed?', danger: true });
     const reason = screen.getByRole('textbox');
