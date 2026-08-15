@@ -49,13 +49,14 @@ public abstract class GetJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(deduplicationKey, snapshot.DeduplicationKey);
         Assert.Equal(TestNamespace, snapshot.JobNamespace);
         Assert.Equal("add-numbers", snapshot.JobName);
-        // The definition id is the surrogate for that namespace+name pair: it must address the same row.
+        // The job's namespace+name pair addresses the catalog row its definition id points at.
         var definition = await Services
             .GetRequiredService<Acta.Runtime.Modules.Execution.Definitions.DefinitionsService>()
-            .GetAsync(snapshot.DefinitionId, ct);
+            .GetAsync(snapshot.JobNamespace, snapshot.JobName, ct);
         Assert.NotNull(definition);
         Assert.Equal("add-numbers", definition!.JobName);
         Assert.Equal(TestNamespace, definition.JobNamespace);
+        Assert.Equal(snapshot.DefinitionId, definition.DefinitionId);
         Assert.Equal(JobPriorityCode.Normal, snapshot.Priority);
         Assert.Equal(0, snapshot.ExecutionNumber);
         Assert.Null(snapshot.ParentJobId);

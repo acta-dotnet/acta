@@ -206,18 +206,39 @@ export interface JobControlResponse {
   message: string;
 }
 
-// Alert-control POST response (acknowledge/resolve, at alerts/{alertId}/{action}). AlertsList
-// drives both through useControlMutation. Unlike JobControlResponse's action, this action is only
-// ever 'applied' or 'notFound' - acknowledge/resolve are idempotent, so the backend never rejects.
+// Alert-control POST response (acknowledge/resolve, at alerts/{alertRef}/{action}). AlertsList and
+// AlertDetail drive both through useControlMutation. Unlike JobControlResponse's action, this action
+// is only ever 'applied' or 'notFound' - acknowledge/resolve are idempotent, so the backend never rejects.
 export interface AlertControlResponse {
-  alertId: number;
+  alertRef: string;
   action: ControlAction;
   acknowledgedAtUtc: string | null;
   resolvedAtUtc: string | null;
 }
 
+// GET /alerts/{alertRef}: the single-alert read behind the alert detail screen. Same fields the list
+// row carries; the numeric alert id never reaches the wire.
+export interface AlertDetailView {
+  alertRef: string;
+  jobNamespace: string;
+  jobRef: string | null;
+  origin: string;
+  severity: string;
+  kind: string;
+  title: string;
+  message: string;
+  channelName: string;
+  occurrenceCount: number;
+  resolvedAtUtc: string | null;
+  deliveryStatus: string;
+  retryCount: number;
+  retryAfterUtc: string | null;
+  createdAtUtc: string;
+  modifiedAtUtc: string;
+  acknowledgedAtUtc: string | null;
+}
+
 export interface TenantListItem {
-  tenantId: number;
   tenantKey: string;
   displayName: string | null;
   description: string | null;
@@ -241,7 +262,6 @@ export interface AdminControlResult {
 }
 
 export interface NamespaceListItem {
-  namespaceId: number;
   jobNamespace: string;
   status: string;
   ownerTeam: string | null;
@@ -250,12 +270,11 @@ export interface NamespaceListItem {
 }
 
 export interface TenantRegistrationResponse {
-  tenantId: number;
   tenantKey: string;
 }
 
 // Tenant register POST. Insert-or-return-existing: a new tenant is created active, an existing one
-// is returned untouched (suspend/resume own status changes). Returns the assigned tenant id; a
+// is returned untouched (suspend/resume own status changes). Returns the canonical tenant key; a
 // 400/404 (bad key, or controls disabled) throws with the problem detail.
 export async function registerTenant(
   tenantKey: string,
@@ -273,7 +292,7 @@ export async function registerTenant(
     }
   });
 
-  if (response.ok && body && typeof body === 'object' && 'tenantId' in (body as object)) {
+  if (response.ok && body && typeof body === 'object' && 'tenantKey' in (body as object)) {
     return body;
   }
 
@@ -281,22 +300,25 @@ export async function registerTenant(
 }
 
 export interface DefinitionControlResponse {
-  definitionId: number;
+  jobNamespace: string;
+  jobName: string;
   action: ControlAction;
   message: string;
 }
 
-// PATCH a definition's operator overrides. The body carries the expectedVersion CAS token, the
-// full override set (null/absent field = clear), and a note. Applied (200), rejected/version-conflict
-// (409), and not-found (404) all return a DefinitionControlResponse; anything else throws.
+// PATCH a definition's operator overrides, addressed by its natural key. The body carries the
+// expectedVersion CAS token, the full override set (null/absent field = clear), and a note. Applied
+// (200), rejected/version-conflict (409), and not-found (404) all return a DefinitionControlResponse;
+// anything else throws.
 export async function setDefinitionOverrides(
-  id: number,
+  jobNamespace: string,
+  jobName: string,
   expectedVersion: number,
   overrides: Record<string, unknown>,
   note?: string
 ): Promise<DefinitionControlResponse> {
   const { response, body } = await request<unknown>({
-    path: `definitions/${id}`,
+    path: `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`,
     method: 'PATCH',
     headers: controlHeaders(),
     body: { expectedVersion, overrides, reasonMessage: note?.trim() || null },
@@ -309,7 +331,8 @@ export async function setDefinitionOverrides(
     }
     if (response.status === 404) {
       return {
-        definitionId: id,
+        jobNamespace,
+        jobName,
         action: 'notFound',
         message: problemValue(body, 'detail') ?? problemValue(body, 'title') ?? 'Definition not found.'
       };
@@ -373,7 +396,6 @@ export interface JobPayloadView {
 // One schedule bound to a job's recurring slot, as it appears inside the aggregate detail (the same
 // shape the /schedules list returns; JobSchedulesPanel reads this subset).
 export interface JobScheduleView {
-  jobScheduleId: number;
   jobNamespace: string;
   jobName: string;
   scheduleName: string;

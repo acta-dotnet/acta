@@ -12,14 +12,14 @@ internal sealed record TagUpsertRequest(string? Name, string? Value);
 /// entity, and control-gated POST (upsert) / DELETE (remove) verbs. Patterns and route parameters are
 /// spelled out per endpoint so the Request Delegate Generator can bind them; shared logic lives in the
 /// read/mutate helpers. A syntactically invalid target reads as 404 (it cannot exist). On mutation an
-/// invalid catalog identifier (namespace/tenant/schedule) is a 400, while a malformed job ref is a 404,
-/// matching how every other job endpoint treats an unparseable ref.
+/// invalid catalog identifier (namespace/tenant/schedule/definition) is a 400, while a malformed entity
+/// ref (job, worker, alert) is a 404, matching how every other ref-addressed endpoint treats one.
 /// </summary>
 internal static class TagEndpoints
 {
     public static void MapReads(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // A nested empty-prefix group so the six reads declare their one shared contract once. They
+        // A nested empty-prefix group so the seven reads declare their one shared contract once. They
         // all funnel through ReadTags, so they all answer the same two ways.
         var group = outer.MapGroup("");
         group.ProducesJson<IReadOnlyList<TagItem>>();
@@ -33,9 +33,11 @@ internal static class TagEndpoints
             .WithSummary("Read the job's tags.");
         group
             .MapGet(
-                "/definitions/{definitionId:int}/tags",
-                (int definitionId, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, ResolveOrNull(() => TagTarget.ForDefinition(definitionId)), ct)
+                "/definitions/{jobNamespace}/{jobName}/tags",
+                (string jobNamespace, string jobName, IActaOperations operations, CancellationToken ct) =>
+                    DefinitionKeyError(jobNamespace, jobName) is { } invalid
+                        ? Task.FromResult(invalid)
+                        : ReadTags(operations, TagTarget.ForDefinition(jobNamespace, jobName), ct)
             )
             .WithSummary("Read the definition's tags.");
         group
@@ -47,11 +49,16 @@ internal static class TagEndpoints
             .WithSummary("Read the schedule's tags.");
         group
             .MapGet(
-                "/workers/{workerId:int}/tags",
-                (int workerId, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, ResolveOrNull(() => TagTarget.ForWorker(workerId)), ct)
+                "/workers/{workerRef}/tags",
+                (string workerRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, WorkerTarget(workerRef), ct)
             )
             .WithSummary("Read the worker's tags.");
+        group
+            .MapGet(
+                "/alerts/{alertRef}/tags",
+                (string alertRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, AlertTarget(alertRef), ct)
+            )
+            .WithSummary("Read the alert's tags.");
         group
             .MapGet(
                 "/namespaces/{jobNamespace}/tags",
@@ -70,7 +77,7 @@ internal static class TagEndpoints
 
     public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // Same shape for all twelve mutations: every one resolves a target then applies, so an
+        // Same shape for all fourteen mutations: every one resolves a target then applies, so an
         // unresolvable or unmatched target is the 404 and an applied change is the AdminControlResponse.
         var group = outer.MapGroup("");
         group.ProducesJson<AdminControlResponse>();
@@ -93,16 +100,20 @@ internal static class TagEndpoints
 
         group
             .MapPost(
-                "/definitions/{definitionId:int}/tags",
-                (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Upsert(http, operations, options, () => TagTarget.ForDefinition(definitionId), ct)
+                "/definitions/{jobNamespace}/{jobName}/tags",
+                (string jobNamespace, string jobName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    DefinitionKeyError(jobNamespace, jobName) is { } invalid
+                        ? Task.FromResult(invalid)
+                        : Upsert(http, operations, options, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
             )
             .WithSummary("Add or update one tag on the definition.");
         group
             .MapDelete(
-                "/definitions/{definitionId:int}/tags/{tagName}",
-                (int definitionId, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Remove(http, operations, options, () => TagTarget.ForDefinition(definitionId), tagName, ct)
+                "/definitions/{jobNamespace}/{jobName}/tags/{tagName}",
+                (string jobNamespace, string jobName, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    DefinitionKeyError(jobNamespace, jobName) is { } invalid
+                        ? Task.FromResult(invalid)
+                        : Remove(http, operations, options, () => TagTarget.ForDefinition(jobNamespace, jobName), tagName, ct)
             )
             .WithSummary("Remove one tag from the definition.");
 
@@ -136,18 +147,33 @@ internal static class TagEndpoints
 
         group
             .MapPost(
-                "/workers/{workerId:int}/tags",
-                (int workerId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Upsert(http, operations, options, () => TagTarget.ForWorker(workerId), ct)
+                "/workers/{workerRef}/tags",
+                (string workerRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    Upsert(http, operations, options, () => WorkerTarget(workerRef), ct)
             )
             .WithSummary("Add or update one tag on the worker.");
         group
             .MapDelete(
-                "/workers/{workerId:int}/tags/{tagName}",
-                (int workerId, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Remove(http, operations, options, () => TagTarget.ForWorker(workerId), tagName, ct)
+                "/workers/{workerRef}/tags/{tagName}",
+                (string workerRef, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    Remove(http, operations, options, () => WorkerTarget(workerRef), tagName, ct)
             )
             .WithSummary("Remove one tag from the worker.");
+
+        group
+            .MapPost(
+                "/alerts/{alertRef}/tags",
+                (string alertRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    Upsert(http, operations, options, () => AlertTarget(alertRef), ct)
+            )
+            .WithSummary("Add or update one tag on the alert.");
+        group
+            .MapDelete(
+                "/alerts/{alertRef}/tags/{tagName}",
+                (string alertRef, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    Remove(http, operations, options, () => AlertTarget(alertRef), tagName, ct)
+            )
+            .WithSummary("Remove one tag from the alert.");
 
         group
             .MapPost(
@@ -265,6 +291,33 @@ internal static class TagEndpoints
 
     private static TagTarget? JobTarget(string jobRef, ActaEndpointOptions options) =>
         JobTargetBinding.TryParseTarget(jobRef, options, out var lookup) ? TagTarget.ForJob(lookup) : null;
+
+    /// <summary>
+    /// The 400 for a definition key this API cannot address, or null when the key is usable.
+    /// <see cref="TagTarget.ForDefinition"/> normalizes for its .NET callers (it folds case), but the
+    /// definition reads reject anything but the canonical lowercase form - so the edge applies the
+    /// reads' rule first and every definition route, read or write, answers a bad key the same way.
+    /// </summary>
+    private static IResult? DefinitionKeyError(string jobNamespace, string jobName)
+    {
+        try
+        {
+            IdentifierSyntax.ValidateKebab(jobNamespace, nameof(jobNamespace));
+            IdentifierSyntax.ValidateDottedKebab(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength);
+            return null;
+        }
+        catch (ArgumentException ex)
+        {
+            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid definition key.", ex.Message);
+        }
+    }
+
+    // A malformed entity ref cannot name a row, so it reads as 404 exactly like an unknown job ref.
+    private static TagTarget? WorkerTarget(string workerRef) =>
+        WorkerRef.TryParse(workerRef, out var parsed) ? TagTarget.ForWorker(parsed) : null;
+
+    private static TagTarget? AlertTarget(string alertRef) =>
+        AlertRef.TryParse(alertRef, out var parsed) ? TagTarget.ForAlert(parsed) : null;
 
     private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
         TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));

@@ -48,7 +48,7 @@ export function buildIncidentSummary(
   if (explanation?.activeWait) lines.push(`Active wait: ${explanation.activeWait.kind} ${explanation.activeWait.name}`);
   if (explanation?.lease) {
     lines.push(
-      `Lease: worker ${explanation.lease.workerName ?? explanation.lease.workerId}, expires ${explanation.lease.expiresAtUtc ?? 'unknown'}, expired=${explanation.lease.expired}`
+      `Lease: worker ${explanation.lease.workerName ?? explanation.lease.workerRef ?? '(purged)'}, expires ${explanation.lease.expiresAtUtc ?? 'unknown'}, expired=${explanation.lease.expired}`
     );
   }
 

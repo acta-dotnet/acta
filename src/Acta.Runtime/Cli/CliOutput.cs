@@ -13,7 +13,7 @@ internal static class CliOutput
     /// <summary>
     /// Writes a control-verb result in plain or JSON format.
     /// </summary>
-    public static void WriteControl(TextWriter writer, string verb, JobControlResult result, bool json)
+    public static void WriteControl(TextWriter writer, string verb, JobRef jobRef, JobControlResult result, bool json)
     {
         if (json)
         {
@@ -22,7 +22,7 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("verb", verb);
-                    w.WriteNumber("jobId", result.JobId);
+                    w.WriteString("jobRef", jobRef.ToString());
                     w.WriteString("action", result.Action.ToString());
                     if (result.Status is { } status)
                     {
@@ -37,7 +37,7 @@ internal static class CliOutput
             return;
         }
 
-        writer.WriteLine($"job: {result.JobId}");
+        writer.WriteLine($"job: {jobRef}");
         writer.WriteLine($"action: {result.Action}");
         writer.WriteLine($"status: {(result.Status is { } s ? s.ToString() : "(none)")}");
     }
@@ -54,17 +54,9 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("jobRef", snapshot.JobRef.ToString());
-                    w.WriteNumber("jobId", snapshot.JobId);
                     w.WriteString("namespace", snapshot.JobNamespace);
                     w.WriteString("name", snapshot.JobName);
-                    if (snapshot.TenantId is { } tenantId)
-                    {
-                        w.WriteNumber("tenantId", tenantId);
-                    }
-                    else
-                    {
-                        w.WriteNull("tenantId");
-                    }
+                    WriteJsonStringOrNull(w, "tenantKey", snapshot.TenantKey);
                     if (snapshot.DeduplicationKey is { } key)
                     {
                         w.WriteString("deduplicationKey", key);
@@ -81,11 +73,10 @@ internal static class CliOutput
             return;
         }
 
-        writer.WriteLine($"job-ref: {snapshot.JobRef}");
-        writer.WriteLine($"job: {snapshot.JobId}");
+        writer.WriteLine($"job: {snapshot.JobRef}");
         writer.WriteLine($"namespace: {snapshot.JobNamespace}");
         writer.WriteLine($"name: {snapshot.JobName}");
-        writer.WriteLine($"tenant: {(snapshot.TenantId is { } tenant ? tenant.ToString(CultureInfo.InvariantCulture) : "(none)")}");
+        writer.WriteLine($"tenant: {snapshot.TenantKey ?? "(none)"}");
         writer.WriteLine($"deduplication-key: {snapshot.DeduplicationKey ?? "(none)"}");
         writer.WriteLine($"status: {snapshot.Status}");
         writer.WriteLine($"created-utc: {snapshot.CreatedAtUtc:O}");
@@ -115,7 +106,6 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("jobRef", x.JobRef.ToString());
-                    w.WriteNumber("jobId", x.JobId);
                     w.WriteString("namespace", x.JobNamespace);
                     w.WriteString("name", x.JobName);
                     w.WriteString("status", x.Status.ToString());
@@ -138,7 +128,7 @@ internal static class CliOutput
                     if (x.Lease is { } lease)
                     {
                         w.WriteStartObject("lease");
-                        w.WriteNumber("workerId", lease.WorkerId);
+                        WriteJsonStringOrNull(w, "workerRef", lease.WorkerRef?.ToString());
                         WriteJsonStringOrNull(w, "workerName", lease.WorkerName);
                         WriteJsonInstantOrNull(w, "expiresAtUtc", lease.ExpiresAtUtc);
                         w.WriteBoolean("expired", lease.Expired);
@@ -280,7 +270,7 @@ internal static class CliOutput
     /// instant, code, and status transition on one line; reason code and message, when present,
     /// follow on indented lines. A trailing hint surfaces the cursor for the next page.
     /// </summary>
-    public static void WriteEvents(TextWriter writer, long jobId, PagedResult<EventListItem> page, bool json)
+    public static void WriteEvents(TextWriter writer, JobRef jobRef, PagedResult<EventListItem> page, bool json)
     {
         if (json)
         {
@@ -288,7 +278,7 @@ internal static class CliOutput
                 writer,
                 w =>
                 {
-                    w.WriteNumber("jobId", jobId);
+                    w.WriteString("jobRef", jobRef.ToString());
                     w.WriteStartArray("events");
                     foreach (var e in page.Items)
                     {
@@ -299,9 +289,9 @@ internal static class CliOutput
                         WriteJsonStringOrNull(w, "toStatus", e.ToStatus?.Code);
                         WriteJsonStringOrNull(w, "reasonCode", e.ReasonCode?.Code);
                         WriteJsonStringOrNull(w, "reasonMessage", e.ReasonMessage);
-                        if (e.WorkerId is { } wid)
+                        if (e.WorkerRef is { } workerRef)
                         {
-                            w.WriteNumber("workerId", wid);
+                            w.WriteString("workerRef", workerRef.ToString());
                         }
                         if (e.ExecutionNumber is { } en)
                         {
@@ -316,7 +306,7 @@ internal static class CliOutput
             return;
         }
 
-        writer.WriteLine($"Events for job {jobId} (newest first)");
+        writer.WriteLine($"Events for job {jobRef} (newest first)");
         writer.WriteLine();
         if (page.Items.Count == 0)
         {
@@ -328,7 +318,7 @@ internal static class CliOutput
         {
             var transition =
                 e.FromStatus is null && e.ToStatus is null ? "" : $"  {e.FromStatus?.Code ?? "?"} -> {e.ToStatus?.Code ?? "?"}";
-            var attempt = e.WorkerId is { } wid ? $"  worker {wid}" : "";
+            var attempt = e.WorkerRef is { } worker ? $"  worker {worker}" : "";
             attempt += e.ExecutionNumber is { } en ? $"  exec {en}" : "";
             writer.WriteLine($"{e.CreatedAtUtc:O}  {e.EventCode.Code}{transition}{attempt}");
             if (e.ReasonCode is { } reason)
@@ -344,7 +334,7 @@ internal static class CliOutput
         if (page.HasMore && page.NextCursor is { } cursor)
         {
             writer.WriteLine();
-            writer.WriteLine($"more events available; next page: jobs events {jobId} --after {cursor}");
+            writer.WriteLine($"more events available; next page: jobs events {jobRef} --after {cursor}");
         }
     }
 
@@ -364,7 +354,7 @@ internal static class CliOutput
     /// Writes a debug-run verdict: the targeted job, the single-run outcome, and the job's
     /// status after the run (null when the row is gone).
     /// </summary>
-    public static void WriteDebugRun(TextWriter writer, long jobId, string run, JobStatusCode? status, bool json)
+    public static void WriteDebugRun(TextWriter writer, JobRef jobRef, string run, JobStatusCode? status, bool json)
     {
         if (json)
         {
@@ -372,7 +362,7 @@ internal static class CliOutput
                 writer,
                 w =>
                 {
-                    w.WriteNumber("jobId", jobId);
+                    w.WriteString("jobRef", jobRef.ToString());
                     w.WriteString("run", run);
                     if (status is { } s)
                     {
@@ -387,7 +377,7 @@ internal static class CliOutput
             return;
         }
 
-        writer.WriteLine($"job: {jobId}");
+        writer.WriteLine($"job: {jobRef}");
         writer.WriteLine($"run: {run}");
         writer.WriteLine($"status: {(status is { } p ? p.ToString() : "(none)")}");
     }
@@ -395,7 +385,7 @@ internal static class CliOutput
     /// <summary>
     /// Writes a job id and status in plain or JSON format.
     /// </summary>
-    public static void WriteStatus(TextWriter writer, long jobId, JobStatusCode status, bool json)
+    public static void WriteStatus(TextWriter writer, JobRef jobRef, JobStatusCode status, bool json)
     {
         if (json)
         {
@@ -403,14 +393,14 @@ internal static class CliOutput
                 writer,
                 w =>
                 {
-                    w.WriteNumber("jobId", jobId);
+                    w.WriteString("jobRef", jobRef.ToString());
                     w.WriteString("status", status.ToString());
                 }
             );
             return;
         }
 
-        writer.WriteLine($"job: {jobId}");
+        writer.WriteLine($"job: {jobRef}");
         writer.WriteLine($"status: {status}");
     }
 

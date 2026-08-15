@@ -3,10 +3,10 @@
   import { QueryClientProvider } from '@tanstack/svelte-query';
   import WorkerDetail from '../routes/WorkerDetail.svelte';
 
-  let { workerId }: { workerId: number } = $props();
+  let { workerRef }: { workerRef: string } = $props();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 </script>
 
 <QueryClientProvider {client}>
-  {#snippet children()}<WorkerDetail {workerId} />{/snippet}
+  {#snippet children()}<WorkerDetail {workerRef} />{/snippet}
 </QueryClientProvider>

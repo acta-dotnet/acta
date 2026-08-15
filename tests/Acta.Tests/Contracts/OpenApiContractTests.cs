@@ -115,7 +115,6 @@ public sealed class OpenApiContractTests
                         var schema = doc.Kind switch
                         {
                             QueryParameterKind.Int => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
-                            QueryParameterKind.Long => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64" },
                             QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
                             QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
                             _ => new OpenApiSchema { Type = JsonSchemaType.String },

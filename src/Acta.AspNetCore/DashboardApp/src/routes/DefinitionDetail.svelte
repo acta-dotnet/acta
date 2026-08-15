@@ -13,7 +13,10 @@
   import { routes } from '../routes';
   import { displayFormatter } from '../format';
 
-  let { defId } = $props();
+  let { jobNamespace, jobName } = $props();
+
+  // The definition subresource root; every read and the tag editor hang off it.
+  let definitionPath = $derived(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`);
 
   // The override slots, in the entity's policy order. `key` matches both the list item field prefix
   // (key / keyOverride / keyEffective) and the PATCH payload field. `kind` drives parsing on save.
@@ -36,13 +39,13 @@
   // An editor must never have its in-progress inputs clobbered by a background refresh, so this
   // query neither polls nor refetches on window focus or network reconnect; it refetches only after a successful save.
   const detail = createQuery(() => ({
-    queryKey: keys.detail('definitions', defId),
+    queryKey: keys.detail('definitions', definitionPath),
     queryFn: async ({ signal }) => {
-      // Single-by-id read (GET /api/definitions/{id}); a 404 surfaces its "Definition not found." title.
-      const def = await api('definitions/' + encodeURIComponent(defId), {}, { signal });
+      // Natural-key read (GET /api/definitions/{ns}/{name}); a 404 surfaces its "Definition not found." title.
+      const def = await api(definitionPath, {}, { signal });
       let history = [];
       try {
-        history = (await api('definitions/' + def.definitionId + '/events', { pageSize: 20 }, { signal })).items;
+        history = (await api(definitionPath + '/events', { pageSize: 20 }, { signal })).items;
       } catch (e) {
         if (e?.name === 'AbortError') throw e;
         // history is best-effort; the editor still works without it
@@ -108,7 +111,7 @@
       overrides[f.key] = parse(f.kind, inputs[f.key] ?? '');
     }
     try {
-      const res = await setDefinitionOverrides(def.definitionId, def.version, overrides, note);
+      const res = await setDefinitionOverrides(def.jobNamespace, def.jobName, def.version, overrides, note);
       message = res.message;
       messageKind = res.action === 'applied' ? 'ok' : 'warn';
       if (res.action === 'applied') {
@@ -150,7 +153,7 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Definition identity">
-      <div class="entity-meta mono">definition #{def.definitionId} · {def.jobNamespace} / {def.jobName} · version {def.version}</div>
+      <div class="entity-meta mono">{def.jobNamespace} / {def.jobName} · version {def.version}</div>
       <StatusBadge status={def.status} />
     </section>
 
@@ -208,7 +211,7 @@
           </nav>
         </section>
 
-        <TagEditor path={`definitions/${def.definitionId}/tags`} />
+        <TagEditor path={definitionPath + '/tags'} />
 
         <section class="detail-panel">
           <h2>Contract</h2>

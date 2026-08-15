@@ -112,8 +112,10 @@ Same destructive-class precedent as 0.7.0:
 
 ### Breaking: the HTTP surface
 
-- Namespace identity unified on `jobNamespace` (routes, fields); ids follow the route noun
-  (`namespaceId`, `alertId`, `{definitionId}`, `{signalName}`).
+- Namespace identity unified on `jobNamespace` (routes, fields); every other route noun names what it
+  addresses (`alertRef`, `workerRef`, `{jobNamespace}/{jobName}` for a definition, `{signalName}`).
+  No entity's DB integer is a wire identity any more: an alert, worker, or job is addressed by its
+  public ref, and a definition, namespace, or tenant by its natural key.
 - **Every control verb now names its target in the route.** The schedule verbs move from
   body-addressed `POST /schedules/{action}` to
   `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/{action}` (and the preview follows:

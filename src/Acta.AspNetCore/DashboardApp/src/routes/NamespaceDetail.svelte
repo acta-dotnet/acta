@@ -81,7 +81,7 @@
   let loading = $derived(detail.isPending);
   let error = $derived(detail.error instanceof Error ? detail.error.message : detail.error ? String(detail.error) : '');
   let canControlNow = $derived(canControl(capabilities.data));
-  let systemNamespace = $derived(namespace ? isSysNamespace(namespace.namespaceId) : false);
+  let systemNamespace = $derived(namespace ? isSysNamespace(namespace.jobNamespace) : false);
 
   const detailsMutation = useControlMutation<
     { name: string; ownerTeam: string; description: string; expectedVersion: number; reason?: string },
@@ -200,7 +200,7 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Namespace identity">
-      <div class="entity-meta mono">namespace #{namespace.namespaceId} · version {namespace.version}</div>
+      <div class="entity-meta mono">{namespace.jobNamespace} · version {namespace.version}</div>
       <StatusBadge status={namespace.status} />
     </section>
 

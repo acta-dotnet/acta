@@ -3,11 +3,10 @@
 export interface JobDetail {
   jobRef: string;
   jobNamespace: string;
-  definitionId: number;
   jobName: string;
   lineageRootJobRef: string | null;
   parentJobRef: string | null;
-  tenantId: number | null;
+  tenantKey: string | null;
   deduplicationKey: string | null;
   correlationKey: string | null;
   exclusiveKey: string | null;
@@ -17,7 +16,7 @@ export interface JobDetail {
   nextRunAtUtc: string | null;
   executionNumber: number;
   failureCount: number;
-  leasedByWorkerId: number | null;
+  leasedByWorkerRef: string | null;
   leaseExpiresAtUtc: string | null;
   retentionUntilUtc: string | null;
   createdAtUtc: string;
@@ -30,7 +29,7 @@ export interface JobEvent {
   createdAtUtc: string;
   jobNamespace: string;
   jobRef: string | null;
-  workerId: number | null;
+  workerRef: string | null;
   executionNumber: number | null;
   fromStatus: string | null;
   toStatus: string | null;
@@ -50,7 +49,8 @@ export interface JobExplanation {
   headline: string;
   activeWait: JobWait | null;
   lease: {
-    workerId: number;
+    // Both go null together once retention purged the holding worker's row.
+    workerRef: string | null;
     workerName: string | null;
     expiresAtUtc: string | null;
     expired: boolean;
@@ -82,7 +82,7 @@ export interface JobLineage {
 }
 
 export interface JobWorker {
-  workerId: number;
+  workerRef: string;
   jobNamespace: string;
   status: string;
   host: string;

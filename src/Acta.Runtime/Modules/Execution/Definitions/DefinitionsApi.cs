@@ -7,16 +7,17 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 internal sealed class DefinitionsApi(DefinitionsService definitions) : IDefinitions
 {
     public ValueTask<DefinitionControlResult> UpdateOverridesAsync(
-        int definitionId,
+        string jobNamespace,
+        string jobName,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         string? actorKey = null,
         string? reasonMessage = null,
         CancellationToken ct = default
-    ) => definitions.UpdateOverridesAsync(definitionId, expectedVersion, overrides, actorKey, reasonMessage, ct);
+    ) => definitions.UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, actorKey, reasonMessage, ct);
 
-    public ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct = default) =>
-        definitions.GetAsync(definitionId, ct);
+    public ValueTask<JobDefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
+        definitions.GetAsync(jobNamespace, jobName, ct);
 
     public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         definitions.ListAsync(query, ct);

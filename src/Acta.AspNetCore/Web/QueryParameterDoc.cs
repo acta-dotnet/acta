@@ -31,7 +31,6 @@ internal enum QueryParameterKind : byte
     Int = 2,
     Bool = 3,
     Instant = 4,
-    Long = 5,
 }
 
 internal static class QueryParameterDocExtensions

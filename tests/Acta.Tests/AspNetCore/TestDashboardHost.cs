@@ -164,6 +164,9 @@ internal static class TestDashboardHost
         /// <summary>The one worker the workers fake knows; every other ref reports not found.</summary>
         public static readonly WorkerRef KnownWorkerRef = new(new Guid("019826f0-0000-7000-8000-0000000002a0"));
 
+        /// <summary>The one alert the alerts fake can read back; every other ref reports not found.</summary>
+        public static readonly AlertRef KnownAlertRef = new(new Guid("019826f0-0000-7000-8000-0000000002a1"));
+
         /// <summary>Recorded AcknowledgeAsync calls. The default alert ref reports not found.</summary>
         public List<(AlertRef AlertRef, string? Note, string? ActorKey)> AcknowledgeCalls { get; } = [];
 
@@ -928,7 +931,8 @@ internal static class TestDashboardHost
         private sealed class FakeDefinitions : IDefinitions
         {
             public ValueTask<DefinitionControlResult> UpdateOverridesAsync(
-                int definitionId,
+                string jobNamespace,
+                string jobName,
                 int expectedVersion,
                 JobDefinitionPolicyOverrides overrides,
                 string? actorKey = null,
@@ -942,11 +946,94 @@ internal static class TestDashboardHost
                     : ValueTask.FromResult(new DefinitionControlResult(ControlAction.Applied));
             }
 
-            public ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct = default) =>
-                ValueTask.FromResult<JobDefinitionDetail?>(null);
+            /// <summary>
+            /// Only billing/send-invoice exists; every other natural key reads as absent. Mirrors the
+            /// production guard first: DefinitionsService validates the key before it resolves, so a
+            /// non-canonical one (uppercase, a wildcard) is an InvalidQueryException the edge maps to 400,
+            /// never a miss.
+            /// </summary>
+            public ValueTask<JobDefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default)
+            {
+                ValidateKey(jobNamespace, jobName);
+                return ValueTask.FromResult(
+                    jobNamespace == "billing" && jobName == "send-invoice"
+                        ? new JobDefinitionDetail(
+                            DefinitionId: 5,
+                            JobNamespace: "billing",
+                            JobName: "send-invoice",
+                            Status: JobDefinitionStatusCode.Active,
+                            DefinitionHash: "hash-5",
+                            ManifestGenerationAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                            InputTypeName: "Billing.SendInvoice",
+                            InputFormatId: 1,
+                            InputFormatName: "json",
+                            OutputTypeName: null,
+                            OutputFormatId: 0,
+                            OutputFormatName: "none",
+                            Priority: JobPriorityCode.Normal,
+                            PriorityOverride: null,
+                            PriorityEffective: JobPriorityCode.Normal,
+                            MaxAttempts: 3,
+                            MaxAttemptsOverride: null,
+                            MaxAttemptsEffective: 3,
+                            Backoff: "1s..1m x2",
+                            BackoffOverride: null,
+                            BackoffEffective: "1s..1m x2",
+                            ExecutionTimeoutSeconds: 60,
+                            ExecutionTimeoutSecondsOverride: null,
+                            ExecutionTimeoutSecondsEffective: 60,
+                            DeadlineSeconds: 0,
+                            DeadlineSecondsOverride: null,
+                            DeadlineSecondsEffective: 0,
+                            DeadlineBehavior: DeadlineBehaviorCode.Strict,
+                            DeadlineBehaviorOverride: null,
+                            DeadlineBehaviorEffective: DeadlineBehaviorCode.Strict,
+                            JobRetentionSeconds: 0,
+                            JobRetentionSecondsOverride: null,
+                            JobRetentionSecondsEffective: 0,
+                            AuditLevel: JobAuditLevelCode.Audit,
+                            AuditLevelOverride: null,
+                            AuditLevelEffective: JobAuditLevelCode.Audit,
+                            AlertProfile: AlertProfileCode.None,
+                            AlertProfileOverride: null,
+                            AlertProfileEffective: AlertProfileCode.None,
+                            AlertChannelName: null,
+                            AlertChannelNameOverride: null,
+                            AlertChannelNameEffective: null,
+                            RunbookUrl: null,
+                            RunbookUrlOverride: null,
+                            RunbookUrlEffective: null,
+                            DisplayName: null,
+                            DisplayNameOverride: null,
+                            DisplayNameEffective: null,
+                            Description: null,
+                            DescriptionOverride: null,
+                            DescriptionEffective: null,
+                            CreatedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                            ModifiedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                            Version: 2
+                        )
+                        : null
+                );
+            }
 
-            // The billing namespace carries one definition, id 5 - the same id the fake snapshot reports
-            // as its DefinitionId, so the definition link on the job screen addresses a real row here.
+            // The same shape QueryValidation applies inside DefinitionsService: a lookup-permissive
+            // kebab namespace and a dotted-kebab name, both rejected rather than folded.
+            private static void ValidateKey(string jobNamespace, string jobName)
+            {
+                try
+                {
+                    IdentifierSyntax.ValidateKebab(jobNamespace, nameof(jobNamespace));
+                    IdentifierSyntax.ValidateDottedKebab(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new InvalidQueryException(ex.Message);
+                }
+            }
+
+            // The billing namespace carries one definition, send-invoice - the same namespace+name pair
+            // the fake snapshot reports, so the definition link on the job screen addresses a real row here.
             public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(
                     query.JobNamespace == "billing"
@@ -1044,8 +1131,33 @@ internal static class TestDashboardHost
                 return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.Applied, null, ResolvedAt));
             }
 
+            /// <summary>Only <see cref="FakeJobs.KnownAlertRef"/> exists; every other ref reads as absent.</summary>
             public ValueTask<AlertDetail?> GetAsync(AlertRef alertRef, CancellationToken ct = default) =>
-                ValueTask.FromResult<AlertDetail?>(null);
+                ValueTask.FromResult(
+                    alertRef == KnownAlertRef
+                        ? new AlertDetail(
+                            KnownAlertRef,
+                            9001,
+                            "billing",
+                            42,
+                            FoundJobRef,
+                            AlertOriginCode.Manual,
+                            AlertSeverityCode.Critical,
+                            AlertKindCode.Manual,
+                            "Invoice provider timed out",
+                            "The provider returned 504 three times.",
+                            "default",
+                            3,
+                            null,
+                            AlertDeliveryStatusCode.Delivered,
+                            1,
+                            null,
+                            new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                            new DateTime(2026, 6, 12, 6, 30, 0, DateTimeKind.Utc),
+                            null
+                        )
+                        : null
+                );
 
             public ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
                 ValueTask.FromResult(new PagedResult<AlertListItem>([], null, false, 50, null));

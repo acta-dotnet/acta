@@ -7,6 +7,7 @@
   import { livePaused, listRefetchInterval } from '../../polling.ts';
   import DataTable from '../../components/DataTable.svelte';
   import Icon from '../../components/Icon.svelte';
+  import JobRef from '../../components/JobRef.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StateView from '../../components/StateView.svelte';
   import { routes } from '../../routes.ts';
@@ -133,8 +134,8 @@
             </td>
             <td class="col-num">{execution.durationMs != null ? (execution.durationMs === 0 ? '<1 ms' : displayFormatter.milliseconds(execution.durationMs)) : '·'}</td>
             <td>
-              {#if execution.workerId != null}
-                <a class="mono" href={routes.worker(execution.workerId, { namespace: job.jobNamespace })}>worker-{execution.workerId}</a>
+              {#if execution.workerRef != null}
+                <JobRef value={execution.workerRef} href={routes.worker(execution.workerRef, { namespace: job.jobNamespace })} />
               {:else}<span class="dim">·</span>{/if}
             </td>
             <td class="wrap" class:cell-repeat={repeatReason}>

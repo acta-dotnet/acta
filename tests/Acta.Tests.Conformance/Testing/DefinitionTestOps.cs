@@ -28,7 +28,8 @@ internal static class DefinitionTestOps
 
     public static async Task<DefinitionControlResult> UpdateOverridesAsync(
         IServiceProvider services,
-        int definitionId,
+        string jobNamespace,
+        string jobName,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         JobControlActor actor,
@@ -37,5 +38,5 @@ internal static class DefinitionTestOps
     ) =>
         await services
             .GetRequiredService<DefinitionsService>()
-            .UpdateOverridesAsync(definitionId, expectedVersion, overrides, actor.ActorKey, reasonMessage, ct);
+            .UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, actor.ActorKey, reasonMessage, ct);
 }

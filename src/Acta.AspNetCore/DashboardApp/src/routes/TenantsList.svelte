@@ -80,7 +80,7 @@
     {/snippet}
 
     <ActaGrid
-      rowKey={(tenant: TenantListItem) => tenant.tenantId}
+      rowKey={(tenant: TenantListItem) => tenant.tenantKey}
       endpoint="tenants"
       mobileCards={true}
       {columns}

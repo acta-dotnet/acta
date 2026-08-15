@@ -18,10 +18,17 @@ export function buildNamespaceDetailsPayload(input: NamespaceDetailsInput): { ow
   };
 }
 
-// The seeded sys namespace (Id 1) is protected by the backend (control verbs 400 on it); the list
-// page mirrors that guardrail by rendering no write controls for this row at all.
-export function isSysNamespace(id: number): boolean {
-  return id === 1;
+// The reserved system namespace name. Mirrors IdentifierSyntax.ReservedSystemName, which the
+// dashboard cannot import; it is a frozen wire constant, so one named copy is the whole coupling.
+export const RESERVED_SYSTEM_NAMESPACE = 'sys';
+
+// The seeded sys namespace is protected by the backend (control verbs 400 on it); the list page
+// mirrors that guardrail by rendering no write controls for this row at all. Recognized by name: the
+// row's DB id is an engine internal and no longer reaches the wire. The reservation is the bare name
+// OR the `sys.` prefix, matching IdentifierSyntax.IsReservedSystemName - a kebab namespace name
+// cannot contain a dot today, so the prefix arm is defense against the rule widening, not a live case.
+export function isSysNamespace(jobNamespace: string | null | undefined): boolean {
+  return jobNamespace === RESERVED_SYSTEM_NAMESPACE || (jobNamespace?.startsWith(RESERVED_SYSTEM_NAMESPACE + '.') ?? false);
 }
 
 // Same AdminControlAction semantics as tenantAdmin.ts's tenantAdminNeedsReload:

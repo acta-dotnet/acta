@@ -268,7 +268,7 @@
 ### Override writes are version-guarded, recompute effective, and audited
 - **Contract:** Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event.
 - **Arrange:** A registered definition carries code-default policy columns.
-- **Act:** An override set is applied then cleared, and stale-version and unknown-id writes are attempted.
+- **Act:** An override set is applied then cleared, and stale-version and unknown-name writes are attempted.
 - **Assert:** Only the override columns change with effective recomputed, defaults and definition_hash stay put, bad writes reject, and a policy-changed event lands.
 - **Guarantees:**
   - Setting an override recomputes effective and leaves the default + hash untouched
@@ -277,7 +277,7 @@
   - An invalid or over-long backoff override is rejected and writes nothing
   - An out-of-range numeric override is rejected before any write, through the guarded API
   - Boundary override values (MaxAttempts 1, DeadlineSeconds 0, JobRetentionSeconds 0) are applied
-  - An unknown definition id is NotFound
+  - An unknown definition name is NotFound
   - A definition-scoped policy-changed event is emitted
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.SetDefinitionOverridesAsync`

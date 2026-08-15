@@ -11,7 +11,7 @@ test('worker status interpretations distinguish lifecycle states', () => {
 
 test('worker support summary carries durable identity and version evidence', () => {
   const worker: WorkerDetailShape = {
-    workerId: 42,
+    workerRef: 'wrk_01kydka200fay8000000000002',
     jobNamespace: 'billing',
     status: 'active',
     host: 'host-a',
@@ -26,7 +26,7 @@ test('worker support summary carries durable identity and version evidence', () 
   };
 
   const summary = workerSupportSummary(worker);
-  assert.match(summary, /Acta worker 42/);
+  assert.match(summary, /Acta worker wrk_01kydka200fay8000000000002/);
   assert.match(summary, /host-a\/4242/);
   assert.match(summary, /deploy-1/);
   assert.match(summary, /Last heartbeat: 2026-07-14/);

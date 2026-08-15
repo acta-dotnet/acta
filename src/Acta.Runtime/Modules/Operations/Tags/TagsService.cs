@@ -2,7 +2,14 @@ using Acta.Runtime.Modules.Execution.Api;
 
 namespace Acta.Runtime.Modules.Operations.Tags;
 
-internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITags
+/// <summary>
+/// <see cref="ITags"/> over the tag store. A target names its entity the way operators do - a ref or a
+/// natural key - so every scope but the two that already carry a row id resolves through a declared
+/// seam (<see cref="IExecutionQueries"/> for jobs and schedules, the domain facades for the rest)
+/// before the store sees a scope id. An entity that does not exist is an unresolvable target: NotFound.
+/// </summary>
+internal sealed class TagsService(ITagStore store, IExecutionQueries jobs, IDefinitions definitions, IWorkers workers, IAlerts alerts)
+    : ITags
 {
     public async ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default)
     {
@@ -76,13 +83,29 @@ internal sealed class TagsService(ITagStore store, IExecutionQueries jobs) : ITa
             case TagScopeCode.Namespace:
                 return new ResolvedTagTarget(target.ScopeCode, null, (string)target.Lookup);
 
-            case TagScopeCode.Definition:
-            case TagScopeCode.Worker:
-                return new ResolvedTagTarget(target.ScopeCode, Convert.ToInt64(target.Lookup), null);
-
-            case TagScopeCode.Alert:
             case TagScopeCode.Event:
                 return new ResolvedTagTarget(target.ScopeCode, (long)target.Lookup, null);
+
+            // The three ref/natural-key scopes resolve through the owning store's read: the row keeps
+            // the internal id the tags table joins on, and an absent row is an unresolvable target.
+            case TagScopeCode.Definition:
+            {
+                var (jobNamespace, jobName) = ((string, string))target.Lookup;
+                var definition = await definitions.GetAsync(jobNamespace, jobName, ct);
+                return definition is null ? null : new ResolvedTagTarget(TagScopeCode.Definition, definition.DefinitionId, null);
+            }
+
+            case TagScopeCode.Worker:
+            {
+                var worker = await workers.GetAsync((WorkerRef)target.Lookup, ct);
+                return worker is null ? null : new ResolvedTagTarget(TagScopeCode.Worker, worker.WorkerId, null);
+            }
+
+            case TagScopeCode.Alert:
+            {
+                var alert = await alerts.GetAsync((AlertRef)target.Lookup, ct);
+                return alert is null ? null : new ResolvedTagTarget(TagScopeCode.Alert, alert.AlertId, null);
+            }
 
             case TagScopeCode.Job:
             {

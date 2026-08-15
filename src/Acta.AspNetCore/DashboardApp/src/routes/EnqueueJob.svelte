@@ -50,7 +50,7 @@
         if (!page.hasMore || !page.nextCursor) break;
         cursor = page.nextCursor;
       }
-      return all.filter((item) => !isSysNamespace(item.namespaceId)).map((item) => item.jobNamespace);
+      return all.filter((item) => !isSysNamespace(item.jobNamespace)).map((item) => item.jobNamespace);
     },
     enabled: canControlNow,
     staleTime: 60_000
@@ -63,7 +63,7 @@
     return {
       queryKey: keys.list('enqueue-definitions', { jobNamespace }),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
-        api<Paged<{ definitionId: number; jobName: string }>>(
+        api<Paged<{ jobName: string }>>(
           'definitions',
           { jobNamespace, status: 'active', pageSize: 200 },
           { signal }

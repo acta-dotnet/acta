@@ -28,7 +28,7 @@ public sealed record EventListItem(
     JobRef? JobRef,
     [property: JsonIgnore] long? LineageRootId,
     JobRef? LineageRootJobRef,
-    int? DefinitionId,
+    [property: JsonIgnore] int? DefinitionId,
     [property: JsonIgnore] int? TenantId,
     [property: JsonIgnore] int? WorkerId,
     int? ExecutionNumber,

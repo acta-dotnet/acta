@@ -69,6 +69,7 @@ SELECT
         SELECT COUNT(*)
         FROM {{schema}}.events e
         JOIN {{schema}}.namespaces ns ON ns.id = e.namespace_id
+        LEFT JOIN {{schema}}.tenants t ON t.id = e.tenant_id
         WHERE
             (@p_job_id IS NULL OR e.job_id = @p_job_id)
             AND (@p_lineage_root_id IS NULL OR e.lineage_root_id = @p_lineage_root_id)
@@ -76,6 +77,7 @@ SELECT
             AND (@p_event_code IS NULL OR e.event_code = @p_event_code)
             AND (@p_definition_id IS NULL OR e.definition_id = @p_definition_id)
             AND (@p_tenant_id IS NULL OR e.tenant_id = @p_tenant_id)
+            AND (@p_tenant_key IS NULL OR t.tenant_key = @p_tenant_key)
             AND (@p_worker_id IS NULL OR e.worker_id = @p_worker_id)
             AND (@p_actor_code IS NULL OR e.actor_code = @p_actor_code)
             AND (@p_reason_code IS NULL OR e.reason_code = @p_reason_code)

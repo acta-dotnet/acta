@@ -192,7 +192,6 @@ internal static class ActaApiEndpoints
                     string? error = null;
                     if (
                         !QueryBinding.TryEnum<JobStatusCode>(http.Request.Query, "status", out var status, ref error)
-                        || !QueryBinding.TryInt(http.Request.Query, "tenantId", out var tenantId, ref error)
                         || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                         || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
                         || !QueryBinding.TryBool(http.Request.Query, "terminalOnly", out var terminalOnly, ref error)
@@ -231,7 +230,6 @@ internal static class ActaApiEndpoints
                             Status: status,
                             JobName: QueryBinding.Text(http.Request.Query, "jobName"),
                             ParentJobId: parentJobId,
-                            TenantId: tenantId,
                             TenantKey: QueryBinding.Text(http.Request.Query, "tenantKey"),
                             CorrelationKey: QueryBinding.Text(http.Request.Query, "correlationKey"),
                             PageSize: pageSize,
@@ -258,7 +256,6 @@ internal static class ActaApiEndpoints
                 new QueryParameterDoc("recurringOnly", QueryParameterKind.Bool, "True restricts to recurring slots."),
                 new QueryParameterDoc("parentJobRef", QueryParameterKind.String, "Only direct children of this parent job ref."),
                 new QueryParameterDoc("correlationKey", QueryParameterKind.String, "Only jobs stamped with this correlation key."),
-                new QueryParameterDoc("tenantId", QueryParameterKind.Int, "Only jobs admitted under this tenant id."),
                 new QueryParameterDoc("tenantKey", QueryParameterKind.String, "Only jobs admitted under this tenant key."),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,
@@ -616,16 +613,13 @@ internal static class ActaApiEndpoints
         group
             .MapGet(
                 "/events",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                (HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
                 {
                     string? error = null;
                     if (
                         !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
                         || !QueryBinding.TryEventCode(http.Request.Query, "eventCode", out var eventCode, ref error)
-                        || !QueryBinding.TryLong(http.Request.Query, "jobId", out var jobId, ref error)
                         || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                        || !QueryBinding.TryInt(http.Request.Query, "tenantId", out var tenantId, ref error)
-                        || !QueryBinding.TryInt(http.Request.Query, "workerId", out var workerId, ref error)
                         || !QueryBinding.TryCode<ActorCode>(
                             http.Request.Query,
                             "actorCode",
@@ -647,35 +641,94 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest(error));
                     }
 
-                    var query = new ListEventsQuery(
-                        JobId: jobId,
-                        IncludeTotal: includeTotal == true,
-                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                        EventCode: eventCode,
-                        TenantId: tenantId,
-                        TenantKey: QueryBinding.Text(http.Request.Query, "tenantKey"),
-                        WorkerId: workerId,
-                        ActorCode: actorCode,
-                        ReasonCode: reasonCode,
-                        CreatedFromUtc: createdFromUtc,
-                        CreatedToUtc: createdToUtc,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        Tags: QueryBinding.Tags(http.Request.Query)
-                    );
+                    var jobRefText = QueryBinding.Text(http.Request.Query, "jobRef");
+                    var lineageRefText = QueryBinding.Text(http.Request.Query, "lineageRootJobRef");
+                    if (
+                        !TryParseJobFilter(jobRefText, options, "jobRef", out var jobFilter, ref error)
+                        || !TryParseJobFilter(lineageRefText, options, "lineageRootJobRef", out var lineageFilter, ref error)
+                    )
+                    {
+                        return Task.FromResult(BadRequest(error));
+                    }
+
+                    var workerRefText = QueryBinding.Text(http.Request.Query, "workerRef");
+                    WorkerRef? workerFilter = null;
+                    if (workerRefText is not null)
+                    {
+                        if (!WorkerRef.TryParse(workerRefText, out var parsedWorker))
+                        {
+                            return Task.FromResult(BadRequest("workerRef is not a valid worker ref."));
+                        }
+
+                        workerFilter = parsedWorker;
+                    }
+
                     return Guard(async () =>
-                        Results.Json(
+                    {
+                        // Every ref filter resolves to the internal id the ledger indexes on, and answers
+                        // the same two ways the other ref-valued filters do (/jobs parentJobRef,
+                        // /alerts jobRef): malformed is a 400 above, a ref that names no row is a 404.
+                        long? jobId = null;
+                        if (jobFilter is { } job)
+                        {
+                            jobId = await jobs.GetJobIdAsync(job, ct);
+                            if (jobId is null)
+                            {
+                                return NotFound();
+                            }
+                        }
+
+                        long? lineageRootId = null;
+                        if (lineageFilter is { } lineage)
+                        {
+                            lineageRootId = await jobs.GetJobIdAsync(lineage, ct);
+                            if (lineageRootId is null)
+                            {
+                                return NotFound();
+                            }
+                        }
+
+                        int? workerId = null;
+                        if (workerFilter is { } worker)
+                        {
+                            var row = await operations.Workers.GetAsync(worker, ct);
+                            if (row is null)
+                            {
+                                return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.");
+                            }
+
+                            workerId = row.WorkerId;
+                        }
+
+                        var query = new ListEventsQuery(
+                            JobId: jobId,
+                            LineageRootId: lineageRootId,
+                            IncludeTotal: includeTotal == true,
+                            JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
+                            EventCode: eventCode,
+                            TenantKey: QueryBinding.Text(http.Request.Query, "tenantKey"),
+                            WorkerId: workerId,
+                            ActorCode: actorCode,
+                            ReasonCode: reasonCode,
+                            CreatedFromUtc: createdFromUtc,
+                            CreatedToUtc: createdToUtc,
+                            PageSize: pageSize,
+                            Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
+                            Tags: QueryBinding.Tags(http.Request.Query)
+                        );
+                        return Results.Json(
                             await operations.Ledger.ListEventsAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultEventListItem
-                        )
-                    );
+                        );
+                    });
                 }
             )
             .WithSummary("List ledger events, filtered and keyset-paged.")
             .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only events recorded in this namespace."),
-                new QueryParameterDoc("jobId", QueryParameterKind.Long, "Only events for this job id."),
+                new QueryParameterDoc("jobRef", QueryParameterKind.String, "Only events for this job ref."),
+                new QueryParameterDoc("lineageRootJobRef", QueryParameterKind.String, "Only events in this lineage root's tree."),
                 new QueryParameterDoc("eventCode", QueryParameterKind.String, "Exact event code as its kebab string.", CodeKind: "event"),
                 new QueryParameterDoc("actorCode", QueryParameterKind.String, "Exact actor as its kebab code.", CodeKind: "actor"),
                 new QueryParameterDoc(
@@ -684,19 +737,19 @@ internal static class ActaApiEndpoints
                     "Exact reason as its kebab code.",
                     CodeKind: "job-event-reason"
                 ),
-                new QueryParameterDoc("tenantId", QueryParameterKind.Int, "Only events stamped with this tenant id."),
                 new QueryParameterDoc("tenantKey", QueryParameterKind.String, "Only events stamped with this tenant key."),
-                new QueryParameterDoc("workerId", QueryParameterKind.Int, "Only events recorded by this worker."),
+                new QueryParameterDoc("workerRef", QueryParameterKind.String, "Only events recorded by this worker ref."),
                 new QueryParameterDoc("createdFromUtc", QueryParameterKind.Instant, "Inclusive lower bound on the event instant."),
                 new QueryParameterDoc("createdToUtc", QueryParameterKind.Instant, "Exclusive upper bound on the event instant."),
                 .. QueryParameterDocExtensions.PagingCore,
                 new QueryParameterDoc(
                     "includeTotal",
                     QueryParameterKind.Bool,
-                    "Also compute the row count; this endpoint accepts it only together with jobId."
+                    "Also compute the row count; this endpoint accepts it only together with jobRef."
                 ),
                 .. QueryParameterDocExtensions.TagFilter,
-            ]);
+            ])
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
             .MapGet(
@@ -795,11 +848,11 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/definitions/{definitionId:int}",
-                static (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/definitions/{jobNamespace}/{jobName}",
+                static (string jobNamespace, string jobName, IActaOperations operations, CancellationToken ct) =>
                     Guard(async () =>
                     {
-                        var def = await operations.Definitions.GetAsync(definitionId, ct);
+                        var def = await operations.Definitions.GetAsync(jobNamespace, jobName, ct);
                         return def is null
                             ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Definition not found.")
                             : Results.Json(def, DashboardJsonContext.Default.JobDefinitionDetail);
@@ -811,8 +864,8 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/definitions/{definitionId:int}/events",
-                static (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/definitions/{jobNamespace}/{jobName}/events",
+                static (string jobNamespace, string jobName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
                     string? error = null;
                     if (
@@ -823,18 +876,28 @@ internal static class ActaApiEndpoints
                         return Task.FromResult(BadRequest(error));
                     }
 
-                    var query = new ListEventsQuery(
-                        DefinitionId: definitionId,
-                        EventCode: eventCode,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor")
-                    );
                     return Guard(async () =>
-                        Results.Json(
+                    {
+                        // The audit trail keys on the catalog id, resolved here from the natural key so
+                        // the id stays off the wire. A key that names no definition is the same 404 the
+                        // definition read itself answers.
+                        var def = await operations.Definitions.GetAsync(jobNamespace, jobName, ct);
+                        if (def is null)
+                        {
+                            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Definition not found.");
+                        }
+
+                        var query = new ListEventsQuery(
+                            DefinitionId: def.DefinitionId,
+                            EventCode: eventCode,
+                            PageSize: pageSize,
+                            Cursor: QueryBinding.Text(http.Request.Query, "cursor")
+                        );
+                        return Results.Json(
                             await operations.Ledger.ListEventsAsync(query, ct),
                             DashboardJsonContext.Default.PagedResultEventListItem
-                        )
-                    );
+                        );
+                    });
                 }
             )
             .WithSummary("List one definition's audit events.")
@@ -847,7 +910,8 @@ internal static class ActaApiEndpoints
                     QueryParameterKind.String,
                     "Opaque keyset cursor from the previous page's nextCursor; omit for the first page."
                 ),
-            ]);
+            ])
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
             .MapGet(
@@ -1122,6 +1186,27 @@ internal static class ActaApiEndpoints
                 .. QueryParameterDocExtensions.TagFilter,
             ])
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group
+            .MapGet(
+                "/alerts/{alertRef}",
+                static (string alertRef, IActaOperations operations, CancellationToken ct) =>
+                    Guard(async () =>
+                    {
+                        if (!AlertRef.TryParse(alertRef, out var parsed))
+                        {
+                            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert not found.");
+                        }
+
+                        var alert = await operations.Alerts.GetAsync(parsed, ct);
+                        return alert is null
+                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert not found.")
+                            : Results.Json(alert, DashboardJsonContext.Default.AlertDetail);
+                    })
+            )
+            .WithSummary("Read one alert.")
+            .Produces<AlertDetail>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     // Only the typed validation exceptions are caller errors; anything else (including a plain
@@ -1136,6 +1221,28 @@ internal static class ActaApiEndpoints
         {
             return BadRequest(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Binds an optional job-ref query filter from its already-read value. Absent is null with no
+    /// error; malformed is a 400, the same answer every other ref-valued query parameter gives.
+    /// </summary>
+    private static bool TryParseJobFilter(string? text, ActaEndpointOptions options, string name, out JobLookup? job, ref string? error)
+    {
+        job = null;
+        if (text is null)
+        {
+            return true;
+        }
+
+        if (!JobTargetBinding.TryParseTarget(text, options, out var parsed))
+        {
+            error = $"{name} is not a valid job ref.";
+            return false;
+        }
+
+        job = parsed;
+        return true;
     }
 
     private static IResult BadRequest(string? detail) =>

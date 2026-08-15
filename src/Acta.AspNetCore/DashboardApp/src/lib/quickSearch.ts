@@ -6,6 +6,8 @@ import { navigationGroups, navigationHref } from '../routes.ts';
 
 export type Recognition =
   | { kind: 'jobRef'; ref: string }
+  | { kind: 'workerRef'; ref: string }
+  | { kind: 'alertRef'; ref: string }
   | { kind: 'jobId'; id: string }
   | { kind: 'correlation'; key: string }
   | { kind: 'dedupKey'; key: string }
@@ -13,8 +15,11 @@ export type Recognition =
   | { kind: 'tag'; token: string }
   | { kind: 'text'; folded: string; raw: string };
 
-// Type tag + 26-char Crockford ULID, same shape JobRef renders.
+// Type tag + 26-char Crockford ULID, same shape JobRef renders. One regex per entity so a pasted
+// ref routes to its own detail screen rather than being probed as a name fragment.
 const JOB_REF = /^job_[0-9a-hjkmnp-tv-z]{26}$/i;
+const WORKER_REF = /^wrk_[0-9a-hjkmnp-tv-z]{26}$/i;
+const ALERT_REF = /^alr_[0-9a-hjkmnp-tv-z]{26}$/i;
 const JOB_ID = /^(?:id:|#)(\d+)$/i;
 // One token, name:value, no whitespace; the server canonicalizes tag names.
 const TAG_TOKEN = /^[^\s:]+:[^\s:]+$/;
@@ -23,6 +28,8 @@ export function parseQuery(input: string): Recognition | null {
   const value = input.trim();
   if (!value) return null;
   if (JOB_REF.test(value)) return { kind: 'jobRef', ref: value.toLowerCase() };
+  if (WORKER_REF.test(value)) return { kind: 'workerRef', ref: value.toLowerCase() };
+  if (ALERT_REF.test(value)) return { kind: 'alertRef', ref: value.toLowerCase() };
   const id = value.match(JOB_ID);
   if (id) return { kind: 'jobId', id: id[1] };
   const lower = value.toLowerCase();

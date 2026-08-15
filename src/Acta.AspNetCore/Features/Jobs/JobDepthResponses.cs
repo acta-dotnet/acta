@@ -117,7 +117,7 @@ internal sealed record JobDetailResponse(
             ),
             ct
         );
-        var definition = await operations.Definitions.GetAsync(job.DefinitionId, ct);
+        var definition = await operations.Definitions.GetAsync(job.JobNamespace, job.JobName, ct);
         // Every worker in the namespace, not just the live ones: the "why isn't this running?" panel
         // needs the whole set to tell "no workers at all" from "workers, none of them active".
         var workers =

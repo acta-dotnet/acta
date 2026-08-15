@@ -71,7 +71,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var alertRow = Assert.Single(await Db.From<JobAlert>().Where(a => a.JobId == jobId).ToListAsync(ct));
         await Operations.Tags.UpsertAsync(TagTarget.ForJob(JobLookup.ById(jobId)), new TagInput("retention", "job"), ct: ct);
         await Operations.Tags.UpsertAsync(TagTarget.ForEvent(eventRow.Id), new TagInput("retention", "event"), ct: ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(alertRow.Id), new TagInput("retention", "alert"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(alertRow.AlertRef)), new TagInput("retention", "alert"), ct: ct);
 
         // Drain rather than assert a single call deletes it: the sweep selects WITH (UPDLOCK, READPAST),
         // so a row contended by the live claim loop is skipped rather than waited for. The count still
@@ -102,7 +102,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         );
         Assert.Equal(
             [new TagItem("retention", "alert")],
-            Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForAlert(alertRow.Id), ct)).Items
+            Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForAlert(new AlertRef(alertRow.AlertRef)), ct)).Items
         );
     }
 
@@ -169,13 +169,13 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         Assert.Equal(WorkerStatusCode.Active, worker!.Status);
-        await Operations.Tags.UpsertAsync(TagTarget.ForWorker(worker.Id), new TagInput("retention"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForWorker(new WorkerRef(worker.WorkerRef)), new TagInput("retention"), ct: ct);
 
         // Active workers are never purged, even with the cutoff in the future.
         var active = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, -1, 1000, 50, ct);
         Assert.Equal(0, active.Workers);
         Assert.NotNull(await Db.From<JobWorker>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct));
-        Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForWorker(worker.Id), ct));
+        Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForWorker(new WorkerRef(worker.WorkerRef)), ct));
 
         // Retire it: age last_seen past a positive window, then the global sweep flips it to Dead.
         var agedAt = DateTime.UtcNow.AddHours(-1);
@@ -200,8 +200,8 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var seeded = await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct);
         var settled = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Delivered);
         var inFlight = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Pending);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(settled.Id), new TagInput("retention", "delete"), ct: ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(inFlight.Id), new TagInput("retention", "keep"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(settled.AlertRef)), new TagInput("retention", "delete"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(inFlight.AlertRef)), new TagInput("retention", "keep"), ct: ct);
 
         // A wide window leaves both rows untouched.
         var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
@@ -217,7 +217,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Empty(await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Alert && t.ScopeId == settled.Id).ToListAsync(ct));
         Assert.Equal(
             [new TagItem("retention", "keep")],
-            Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForAlert(inFlight.Id), ct)).Items
+            Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForAlert(new AlertRef(inFlight.AlertRef)), ct)).Items
         );
     }
 

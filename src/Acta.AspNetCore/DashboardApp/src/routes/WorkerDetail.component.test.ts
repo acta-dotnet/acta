@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import WorkerDetailHarness from '../test/WorkerDetailHarness.svelte';
 
 const worker = {
-  workerId: 42,
+  workerRef: 'wrk_01kydka200fay8000000000002',
   jobNamespace: 'billing',
   status: 'active',
   host: 'host-a',
@@ -20,7 +20,7 @@ const worker = {
 describe('WorkerDetail', () => {
   it('shows a loading state before the worker response arrives', async () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
-    render(WorkerDetailHarness, { workerId: 42 });
+    render(WorkerDetailHarness, { workerRef: worker.workerRef });
 
     // StateView holds the loading line back briefly so fast loads never flash it.
     expect(await screen.findByText('Loading worker...')).toBeTruthy();
@@ -28,7 +28,7 @@ describe('WorkerDetail', () => {
 
   it('renders durable worker identity and lifecycle evidence', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(worker), { status: 200 })));
-    render(WorkerDetailHarness, { workerId: 42 });
+    render(WorkerDetailHarness, { workerRef: worker.workerRef });
 
     expect(await screen.findByText('Live and eligible to claim jobs in its namespace.')).toBeTruthy();
     expect(screen.getByText('host-a')).toBeTruthy();
@@ -41,7 +41,7 @@ describe('WorkerDetail', () => {
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ title: 'Backend unavailable', detail: 'Try again later.' }), { status: 503 }))
     );
-    render(WorkerDetailHarness, { workerId: 42 });
+    render(WorkerDetailHarness, { workerRef: worker.workerRef });
 
     expect(await screen.findByText('Try again later.')).toBeTruthy();
     expect(screen.queryByText('Worker not found.')).toBeNull();

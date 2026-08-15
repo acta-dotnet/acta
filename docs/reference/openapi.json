@@ -1158,15 +1158,6 @@
             }
           },
           {
-            "name": "tenantId",
-            "in": "query",
-            "description": "Only jobs admitted under this tenant id.",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          {
             "name": "tenantKey",
             "in": "query",
             "description": "Only jobs admitted under this tenant key.",
@@ -1275,7 +1266,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{definitionId}": {
+    "/acta/api/v1/definitions/{jobNamespace}/{jobName}": {
       "patch": {
         "tags": [
           "Definitions"
@@ -1283,13 +1274,19 @@
         "summary": "Set or clear the definition's operator policy overrides.",
         "parameters": [
           {
-            "name": "definitionId",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -1373,13 +1370,19 @@
         "summary": "Read one job definition and its effective policy.",
         "parameters": [
           {
-            "name": "definitionId",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -3364,7 +3367,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{definitionId}/tags": {
+    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/tags": {
       "post": {
         "tags": [
           "Definitions"
@@ -3372,13 +3375,19 @@
         "summary": "Add or update one tag on the definition.",
         "parameters": [
           {
-            "name": "definitionId",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -3462,13 +3471,19 @@
         "summary": "Read the definition's tags.",
         "parameters": [
           {
-            "name": "definitionId",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -3539,7 +3554,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{definitionId}/tags/{tagName}": {
+    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Definitions"
@@ -3547,13 +3562,19 @@
         "summary": "Remove one tag from the definition.",
         "parameters": [
           {
-            "name": "definitionId",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -3956,7 +3977,7 @@
         }
       }
     },
-    "/acta/api/v1/workers/{workerId}/tags": {
+    "/acta/api/v1/workers/{workerRef}/tags": {
       "post": {
         "tags": [
           "Workers"
@@ -3964,13 +3985,11 @@
         "summary": "Add or update one tag on the worker.",
         "parameters": [
           {
-            "name": "workerId",
+            "name": "workerRef",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -4054,13 +4073,11 @@
         "summary": "Read the worker's tags.",
         "parameters": [
           {
-            "name": "workerId",
+            "name": "workerRef",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -4131,7 +4148,7 @@
         }
       }
     },
-    "/acta/api/v1/workers/{workerId}/tags/{tagName}": {
+    "/acta/api/v1/workers/{workerRef}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Workers"
@@ -4139,13 +4156,280 @@
         "summary": "Remove one tag from the worker.",
         "parameters": [
           {
-            "name": "workerId",
+            "name": "workerRef",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            }
+          },
+          {
+            "name": "tagName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/alerts/{alertRef}/tags": {
+      "post": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Add or update one tag on the alert.",
+        "parameters": [
+          {
+            "name": "alertRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Read the alert's tags.",
+        "parameters": [
+          {
+            "name": "alertRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TagItem"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/alerts/{alertRef}/tags/{tagName}": {
+      "delete": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Remove one tag from the alert.",
+        "parameters": [
+          {
+            "name": "alertRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -5501,12 +5785,19 @@
             }
           },
           {
-            "name": "jobId",
+            "name": "jobRef",
             "in": "query",
-            "description": "Only events for this job id.",
+            "description": "Only events for this job ref.",
             "schema": {
-              "type": "integer",
-              "format": "int64"
+              "type": "string"
+            }
+          },
+          {
+            "name": "lineageRootJobRef",
+            "in": "query",
+            "description": "Only events in this lineage root's tree.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -5604,15 +5895,6 @@
             }
           },
           {
-            "name": "tenantId",
-            "in": "query",
-            "description": "Only events stamped with this tenant id.",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          {
             "name": "tenantKey",
             "in": "query",
             "description": "Only events stamped with this tenant key.",
@@ -5621,12 +5903,11 @@
             }
           },
           {
-            "name": "workerId",
+            "name": "workerRef",
             "in": "query",
-            "description": "Only events recorded by this worker.",
+            "description": "Only events recorded by this worker ref.",
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           },
           {
@@ -5667,7 +5948,7 @@
           {
             "name": "includeTotal",
             "in": "query",
-            "description": "Also compute the row count; this endpoint accepts it only together with jobId.",
+            "description": "Also compute the row count; this endpoint accepts it only together with jobRef.",
             "schema": {
               "type": "boolean"
             }
@@ -5731,6 +6012,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PagedResultOfEventListItem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -6015,7 +6306,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{definitionId}/events": {
+    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/events": {
       "get": {
         "tags": [
           "Definitions"
@@ -6023,13 +6314,19 @@
         "summary": "List one definition's audit events.",
         "parameters": [
           {
-            "name": "definitionId",
+            "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -6143,6 +6440,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PagedResultOfEventListItem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -6811,6 +7118,86 @@
           }
         }
       }
+    },
+    "/acta/api/v1/alerts/{alertRef}": {
+      "get": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Read one alert.",
+        "parameters": [
+          {
+            "name": "alertRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6878,6 +7265,113 @@
         }
       },
       "AlertDeliveryStatusCode": { },
+      "AlertDetail": {
+        "required": [
+          "alertRef",
+          "jobNamespace",
+          "jobRef",
+          "origin",
+          "severity",
+          "kind",
+          "title",
+          "message",
+          "channelName",
+          "occurrenceCount",
+          "resolvedAtUtc",
+          "deliveryStatus",
+          "retryCount",
+          "retryAfterUtc",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "acknowledgedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "alertRef": {
+            "$ref": "#/components/schemas/AlertRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/AlertOriginCode"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AlertSeverityCode"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AlertKindCode"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "channelName": {
+            "type": "string"
+          },
+          "occurrenceCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolvedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "deliveryStatus": {
+            "$ref": "#/components/schemas/AlertDeliveryStatusCode"
+          },
+          "retryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "retryAfterUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acknowledgedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "The single-alert read model returned by ValueTask&lt;AlertDetail?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). Today it carries the\nlist row's fields; it is a distinct type because a detail read can grow additively (delivery\nhistory, the alerting event's detail) without the list row paying for it."
+      },
       "AlertKindCode": { },
       "AlertListItem": {
         "required": [
@@ -7050,19 +7544,18 @@
       },
       "DefinitionControlResponse": {
         "required": [
-          "definitionId",
+          "jobNamespace",
+          "jobName",
           "action",
           "message"
         ],
         "type": "object",
         "properties": {
-          "definitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
           },
           "action": {
             "$ref": "#/components/schemas/ControlAction"
@@ -7084,7 +7577,6 @@
           "jobName",
           "jobRef",
           "lineageRootJobRef",
-          "definitionId",
           "executionNumber",
           "actorCode",
           "actorKey",
@@ -7150,16 +7642,6 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
-          },
-          "definitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Catalog definition id, or null.",
-            "format": "int32"
           },
           "executionNumber": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -7364,7 +7846,6 @@
       },
       "JobDefinitionDetail": {
         "required": [
-          "definitionId",
           "jobNamespace",
           "jobName",
           "status",
@@ -7421,14 +7902,6 @@
         ],
         "type": "object",
         "properties": {
-          "definitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "jobNamespace": {
             "type": "string"
           },
@@ -7741,11 +8214,10 @@
             "format": "int32"
           }
         },
-        "description": "The full job definition row returned by ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)): the whole\n`definitions` row in its authoritative column order - identity + control, contract + formats,\nevery policy triple (code `default`, operator `override` [null = inherit], DB-computed\n`effective`), and audit bookkeeping. Backs the dashboard's definition detail editor, where\noperators see and edit defaults vs overrides vs effective. The grid uses the slimmer\nJobDefinitionListItem."
+        "description": "The full job definition row returned by ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)): the whole\n`definitions` row in its authoritative column order - identity + control, contract + formats,\nevery policy triple (code `default`, operator `override` [null = inherit], DB-computed\n`effective`), and audit bookkeeping. Backs the dashboard's definition detail editor, where\noperators see and edit defaults vs overrides vs effective. The grid uses the slimmer\nJobDefinitionListItem. A definition is addressed by its natural key (namespace +\nname); the catalog id stays off the wire."
       },
       "JobDefinitionListItem": {
         "required": [
-          "definitionId",
           "jobNamespace",
           "jobName",
           "status",
@@ -7760,14 +8232,6 @@
         ],
         "type": "object",
         "properties": {
-          "definitionId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "jobNamespace": {
             "type": "string"
           },
@@ -7829,7 +8293,7 @@
             "format": "int32"
           }
         },
-        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(int jobDefinitionId, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail)."
+        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
       },
       "JobDefinitionStatusCode": { },
       "JobDetail": {
@@ -8486,7 +8950,6 @@
           "jobRef",
           "jobNamespace",
           "jobName",
-          "tenantId",
           "tenantKey",
           "parentJobRef",
           "lineageRootJobRef",
@@ -8513,16 +8976,6 @@
           "jobName": {
             "type": "string",
             "description": "Job definition name."
-          },
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Resolved tenant id, or null.",
-            "format": "int32"
           },
           "tenantKey": {
             "type": [
@@ -8676,7 +9129,6 @@
       "MisfireStrategyCode": { },
       "NamespaceListItem": {
         "required": [
-          "namespaceId",
           "jobNamespace",
           "status",
           "ownerTeam",
@@ -8685,15 +9137,6 @@
         ],
         "type": "object",
         "properties": {
-          "namespaceId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "DB-assigned namespace id, referenced by `job.namespace_id`. The seeded sys namespace is id 1.",
-            "format": "int16"
-          },
           "jobNamespace": {
             "type": "string",
             "description": "Operator-readable kebab-case namespace name. Unique."
@@ -9767,7 +10210,6 @@
       },
       "TenantDetail": {
         "required": [
-          "tenantId",
           "tenantKey",
           "displayName",
           "description",
@@ -9778,15 +10220,6 @@
         ],
         "type": "object",
         "properties": {
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "DB-assigned tenant id, referenced by `job.tenant_id`.",
-            "format": "int32"
-          },
           "tenantKey": {
             "type": "string",
             "description": "Caller-supplied opaque external identifier. Unique."
@@ -9833,7 +10266,6 @@
       },
       "TenantListItem": {
         "required": [
-          "tenantId",
           "tenantKey",
           "displayName",
           "description",
@@ -9844,15 +10276,6 @@
         ],
         "type": "object",
         "properties": {
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "DB-assigned tenant id, referenced by `job.tenant_id`.",
-            "format": "int32"
-          },
           "tenantKey": {
             "type": "string",
             "description": "Caller-supplied opaque external identifier. Unique."
@@ -9899,19 +10322,10 @@
       },
       "TenantRegistrationResponse": {
         "required": [
-          "tenantId",
           "tenantKey"
         ],
         "type": "object",
         "properties": {
-          "tenantId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "tenantKey": {
             "type": "string"
           }

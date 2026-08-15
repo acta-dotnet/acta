@@ -245,7 +245,7 @@
         <section class="detail-panel go-to" aria-label="Go to">
           <p class="detail-kicker">Go to</p>
           <nav>
-            <a href={routes.definition(job.definitionId, { namespace: job.jobNamespace })}>Definition</a>
+            <a href={routes.definition(job.jobNamespace, job.jobName, { namespace: job.jobNamespace })}>Definition</a>
             <a href={routes.jobs({ jobName: job.jobName, namespace: job.jobNamespace })}>Similar jobs</a>
             <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>Namespace</a>
             <a href={routes.workers({ namespace: job.jobNamespace })}>Workers</a>

@@ -6,7 +6,7 @@ namespace Acta.AspNetCore.Features.Definitions;
 
 /// <summary>
 /// PATCH definition-control endpoint: a thin HTTP wrapper over <see cref="IDefinitions"/>. The
-/// definition is addressed by its catalog id in the route; the JSON body carries the version (optimistic
+/// definition is addressed by its natural key (namespace + name) in the route; the JSON body carries the version (optimistic
 /// concurrency), the full override set, and an optional note. The verb owns the version gate and audit
 /// stamping; this layer validates the request shape and maps <see cref="ControlAction"/> to 200
 /// (applied), 409 (version conflict), and 404 (not found). An invalid override (e.g. an out-of-range
@@ -19,8 +19,14 @@ internal static class DefinitionControlEndpoints
     {
         group
             .MapPatch(
-                "/definitions/{definitionId:int}",
-                async Task<IResult> (int definitionId, HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                "/definitions/{jobNamespace}/{jobName}",
+                async Task<IResult> (
+                    string jobNamespace,
+                    string jobName,
+                    HttpContext http,
+                    IActaOperations operations,
+                    CancellationToken ct
+                ) =>
                 {
                     if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
                     {
@@ -43,14 +49,15 @@ internal static class DefinitionControlEndpoints
                     try
                     {
                         var result = await operations.Definitions.UpdateOverridesAsync(
-                            definitionId,
+                            jobNamespace,
+                            jobName,
                             body!.ExpectedVersion,
                             body.Overrides ?? new JobDefinitionPolicyOverrides(),
                             actorKey,
                             body.ReasonMessage,
                             ct
                         );
-                        return ToResult(definitionId, result);
+                        return ToResult(jobNamespace, jobName, result);
                     }
                     catch (ArgumentException ex)
                     {
@@ -67,7 +74,7 @@ internal static class DefinitionControlEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
-    private static IResult ToResult(int definitionId, DefinitionControlResult result)
+    private static IResult ToResult(string jobNamespace, string jobName, DefinitionControlResult result)
     {
         var (statusCode, message) = result.Action switch
         {
@@ -80,7 +87,7 @@ internal static class DefinitionControlEndpoints
         };
 
         return Results.Json(
-            new DefinitionControlResponse(definitionId, result.Action, message),
+            new DefinitionControlResponse(jobNamespace, jobName, result.Action, message),
             DashboardJsonContext.Default.DefinitionControlResponse,
             statusCode: statusCode
         );

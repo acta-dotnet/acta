@@ -4,8 +4,10 @@ import type { RouteName } from './routes.ts';
 export interface Route {
   name: RouteName;
   jobRef?: string;
-  defId?: string;
-  workerId?: number;
+  defNamespace?: string;
+  defName?: string;
+  workerRef?: string;
+  alertRef?: string;
   namespaceName?: string;
   tenantKey?: string;
   scheduleNamespace?: string;
@@ -45,21 +47,21 @@ export function parseRouteHash(hash: string): Route {
       return parts.length === 1 ? { name: 'events' } : { name: 'not-found' };
     case 'definitions':
       if (parts.length === 1) return { name: 'definitions' };
-      return parts.length === 2 ? { name: 'definition-detail', defId: decoded(parts, 1) } : { name: 'not-found' };
+      // A definition is addressed by its natural key: /definitions/{namespace}/{name}.
+      return parts.length === 3
+        ? { name: 'definition-detail', defNamespace: decoded(parts, 1), defName: decoded(parts, 2) }
+        : { name: 'not-found' };
     case 'schedules':
       if (parts.length === 1) return { name: 'schedules' };
       return parts.length === 4
         ? { name: 'schedule-detail', scheduleNamespace: decoded(parts, 1), scheduleJobName: decoded(parts, 2), scheduleName: decoded(parts, 3) }
         : { name: 'not-found' };
-    case 'workers': {
+    case 'workers':
       if (parts.length === 1) return { name: 'workers' };
-      const workerId = Number(decoded(parts, 1));
-      return parts.length === 2 && Number.isInteger(workerId) && workerId > 0
-        ? { name: 'worker-detail', workerId }
-        : { name: 'not-found' };
-    }
+      return parts.length === 2 ? { name: 'worker-detail', workerRef: decoded(parts, 1) } : { name: 'not-found' };
     case 'alerts':
-      return parts.length === 1 ? { name: 'alerts' } : { name: 'not-found' };
+      if (parts.length === 1) return { name: 'alerts' };
+      return parts.length === 2 ? { name: 'alert-detail', alertRef: decoded(parts, 1) } : { name: 'not-found' };
     case 'namespaces':
       if (parts.length === 1) return { name: 'namespaces' };
       return parts.length === 2 ? { name: 'namespace-detail', namespaceName: decoded(parts, 1) } : { name: 'not-found' };

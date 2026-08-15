@@ -18,11 +18,10 @@
   import { routes } from '../routes.ts';
 
   interface ScheduleItem {
-    jobScheduleId: number;
-    jobId: number;
-    definitionId: number;
     jobNamespace: string;
     jobName: string;
+    // The recurring slot job this schedule fires; null only while the slot has not been created yet.
+    jobRef: string | null;
     scheduleName: string;
     origin: string;
     expressionKind: string;
@@ -81,16 +80,18 @@
   // filter) so a busy schedule's executions can't crowd them out, then merge newest-first.
   const HISTORY_CODES = ['schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered'];
   const history = createQuery(() => ({
-    queryKey: keys.detail('schedule-history', `${schedule?.jobId ?? 0}`),
+    queryKey: keys.detail('schedule-history', schedule?.jobRef ?? ''),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const pages = await Promise.all(
         HISTORY_CODES.map((eventCode) =>
-          api<Paged<HistoryEvent>>('events', { jobId: schedule!.jobId, eventCode, pageSize: 20 }, { signal }).then((page) => page.items)
+          api<Paged<HistoryEvent>>('events', { jobRef: schedule!.jobRef, eventCode, pageSize: 20 }, { signal }).then(
+            (page) => page.items
+          )
         )
       );
       return mergeHistory(pages);
     },
-    enabled: !!schedule
+    enabled: !!schedule?.jobRef
   }));
 
   let loading = $derived(detail.isPending);
@@ -102,7 +103,7 @@
       : routes.jobs()
   );
   let definitionHref = $derived(
-    schedule ? routes.definition(schedule.definitionId, { namespace: schedule.jobNamespace }) : routes.definitions()
+    schedule ? routes.definition(schedule.jobNamespace, schedule.jobName, { namespace: schedule.jobNamespace }) : routes.definitions()
   );
 </script>
 
@@ -124,7 +125,7 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Schedule identity">
-      <div class="entity-meta mono">schedule #{schedule.jobScheduleId} · {schedule.jobNamespace} / {schedule.jobName} · version {schedule.version}</div>
+      <div class="entity-meta mono">{schedule.jobNamespace} / {schedule.jobName} / {schedule.scheduleName} · version {schedule.version}</div>
       <ScheduleStatus status={schedule.status} pausedUntilUtc={schedule.pausedUntilUtc} />
     </section>
 

@@ -43,8 +43,9 @@ public class CliClipboardTests
 
 /// <summary>
 /// The runner fills a missing target from the clipboard before building the lookup, and reports
-/// a usage error when the clipboard yields nothing usable. The fake IJobs resolves nothing, so a
-/// not-found exit proves the clipboard value reached the lookup.
+/// a usage error when the clipboard yields nothing usable. The fake IJobs resolves exactly one job
+/// (<see cref="NothingJobs.KnownJobId"/>), so a not-found exit proves the clipboard value reached
+/// the lookup and the signal cases still have a job to address.
 /// </summary>
 public class CliRunnerClipboardTests
 {
@@ -109,7 +110,7 @@ public class CliRunnerClipboardTests
         );
 
         var exitCode = await runner.RunAsync(
-            new CliCommand(CliVerb.Info, Target: "42", null, null, null, null, Json: false),
+            new CliCommand(CliVerb.Info, Target: "43", null, null, null, null, Json: false),
             TestContext.Current.CancellationToken
         );
 
@@ -150,9 +151,97 @@ public class CliRunnerClipboardTests
         Assert.Equal(json, System.Text.Encoding.UTF8.GetString(Value!));
     }
 
+    /// <summary>
+    /// The read verbs resolve the target once, up front, then read again. Between the two the row can
+    /// be purged - and "the job produced nothing" and "the job is gone" arrive at the CLI identically.
+    /// Reporting the first as success would tell an operator a purged job simply had no output.
+    /// </summary>
+    [Theory]
+    [InlineData("result")]
+    [InlineData("events")]
+    public async Task A_read_verb_on_a_job_that_vanished_after_the_resolve_exits_not_found(string verb)
+    {
+        var (exit, output, error) = await RunVerbAsync(verb, vanished: true);
+
+        Assert.Equal(2, exit);
+        Assert.Contains("job not found", error);
+        Assert.DoesNotContain("(no result)", output);
+        Assert.DoesNotContain("(no events)", output);
+    }
+
+    [Theory]
+    [InlineData("result", "(no result)")]
+    [InlineData("events", "(no events)")]
+    public async Task A_read_verb_on_a_live_job_with_nothing_to_show_still_succeeds(string verb, string expected)
+    {
+        var (exit, output, error) = await RunVerbAsync(verb, vanished: false);
+
+        Assert.Equal(0, exit);
+        Assert.Contains(expected, output);
+        Assert.DoesNotContain("job not found", error);
+    }
+
+    // The verb arrives as its CLI spelling because CliVerb is internal to the runtime; parsing it here
+    // also proves the two cases address the same verbs an operator actually types.
+    private static async Task<(int Exit, string Output, string Error)> RunVerbAsync(string verb, bool vanished)
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var jobs = new NothingJobs { JobVanishedAfterResolve = vanished };
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], output, error, () => null);
+
+        Assert.True(CliCommandParser.TryParse([verb, "42"], out var command, out var parseError), parseError);
+        var exit = await runner.RunAsync(command, TestContext.Current.CancellationToken);
+        return (exit, output.ToString(), error.ToString());
+    }
+
     private sealed class NothingJobs : IJobs, IActaOperations, ILedger
     {
-        public ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default) => ValueTask.FromResult<JobDetail?>(null);
+        /// <summary>The one job id this fake resolves; every other target reads as absent.</summary>
+        public const long KnownJobId = 42;
+
+        /// <summary>
+        /// Simulates the purge race the read verbs have to survive: the up-front resolve still returns
+        /// the snapshot, but every later read finds the row gone. Without it, "no result" / "no events"
+        /// and "no job" are indistinguishable.
+        /// </summary>
+        public bool JobVanishedAfterResolve { get; set; }
+
+        private static readonly JobRef KnownJobRef = new(new Guid("019826f0-0000-7000-8000-00000000002a"));
+
+        public ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult(
+                job.Kind == JobLookupKind.JobId && job.JobId == KnownJobId
+                    ? new JobDetail(
+                        JobId: KnownJobId,
+                        JobRef: KnownJobRef,
+                        JobNamespace: "shop",
+                        DefinitionId: 1,
+                        JobName: "send-email",
+                        LineageRootId: null,
+                        LineageRootJobRef: null,
+                        ParentJobId: null,
+                        ParentJobRef: null,
+                        TenantId: null,
+                        TenantKey: null,
+                        DeduplicationKey: null,
+                        CorrelationKey: null,
+                        ExclusiveKey: null,
+                        InputFormatId: 0,
+                        Status: JobStatusCode.Ready,
+                        Priority: JobPriorityCode.Normal,
+                        NextRunAtUtc: null,
+                        ExecutionNumber: 0,
+                        FailureCount: 0,
+                        LeasedByWorkerId: null,
+                        LeaseExpiresAtUtc: null,
+                        RetentionUntilUtc: null,
+                        CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
+                        ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
+                        LeasedByWorkerRef: null
+                    )
+                    : null
+            );
 
         public ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
             ValueTask.FromResult<JobExplanation?>(null);
@@ -181,8 +270,9 @@ public class CliRunnerClipboardTests
         public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        /// <summary>The job carries no retained events; whether it still exists is the status read.</summary>
         public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
-            throw new NotSupportedException();
+            ValueTask.FromResult(new PagedResult<EventListItem>([], null, false, 50, null));
 
         public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
@@ -294,11 +384,16 @@ public class CliRunnerClipboardTests
 
         public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
 
-        public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult<JobStatusCode?>(
+                JobVanishedAfterResolve || job.Kind != JobLookupKind.JobId || job.JobId != KnownJobId ? null : JobStatusCode.Ready
+            );
 
         public ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
 
-        public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
+        /// <summary>The job produced no result; whether it still exists is the status read.</summary>
+        public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult<JobPayload?>(null);
 
         public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();

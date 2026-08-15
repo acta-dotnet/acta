@@ -23,7 +23,14 @@ public sealed class TagTarget
     public static TagTarget ForNamespace(string namespaceName) =>
         new(TagScopeCode.Namespace, IdentifierSyntax.CanonicalizeKebab(namespaceName, nameof(namespaceName)));
 
-    public static TagTarget ForDefinition(int definitionId) => new(TagScopeCode.Definition, Positive(definitionId, nameof(definitionId)));
+    public static TagTarget ForDefinition(string jobNamespace, string jobName) =>
+        new(
+            TagScopeCode.Definition,
+            (
+                IdentifierSyntax.CanonicalizeKebab(jobNamespace, nameof(jobNamespace)),
+                IdentifierSyntax.NormalizeName(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength)
+            )
+        );
 
     public static TagTarget ForJob(JobLookup job) => new(TagScopeCode.Job, job);
 
@@ -33,9 +40,9 @@ public sealed class TagTarget
         return new TagTarget(TagScopeCode.Schedule, schedule);
     }
 
-    public static TagTarget ForWorker(int workerId) => new(TagScopeCode.Worker, Positive(workerId, nameof(workerId)));
+    public static TagTarget ForWorker(WorkerRef workerRef) => new(TagScopeCode.Worker, workerRef);
 
-    public static TagTarget ForAlert(long alertId) => new(TagScopeCode.Alert, Positive(alertId, nameof(alertId)));
+    public static TagTarget ForAlert(AlertRef alertRef) => new(TagScopeCode.Alert, alertRef);
 
     public static TagTarget ForEvent(long eventId) => new(TagScopeCode.Event, Positive(eventId, nameof(eventId)));
 

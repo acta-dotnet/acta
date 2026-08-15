@@ -27,9 +27,10 @@ public sealed class TagEndpointTests
             var path in new[]
             {
                 $"jobs/{Found}/tags",
-                "definitions/7/tags",
+                "definitions/billing/send-invoice/tags",
                 "schedules/billing/send-invoice/nightly/tags",
-                "workers/3/tags",
+                $"workers/{WorkerRef.New()}/tags",
+                $"alerts/{AlertRef.New()}/tags",
                 "namespaces/billing/tags",
                 "tenants/acme/tags",
             }
@@ -60,6 +61,38 @@ public sealed class TagEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, malformedRef.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, invalidName.StatusCode);
+    }
+
+    /// <summary>
+    /// A definition key the API cannot address is a 400 on the tag subresource exactly as it is on the
+    /// definition read, on every verb. The tag target type normalizes case for its .NET callers, so
+    /// without an edge check the same uppercase key answered three different ways across these routes.
+    /// </summary>
+    [Fact]
+    public async Task Definition_tag_routes_reject_an_uppercase_key_the_way_the_definition_read_does()
+    {
+        var (app, client) = await StartControlsAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var read = await client.GetAsync("/acta/api/v1/definitions/Billing/send-invoice", ct);
+        var tagsRead = await client.GetAsync("/acta/api/v1/definitions/Billing/send-invoice/tags", ct);
+
+        using var upsert = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/definitions/Billing/send-invoice/tags")
+        {
+            Content = JsonContent.Create(new { name = "env", value = "prod" }),
+        };
+        upsert.Headers.Add(Confirm, "true");
+        var tagsUpsert = await client.SendAsync(upsert, ct);
+
+        using var remove = new HttpRequestMessage(HttpMethod.Delete, "/acta/api/v1/definitions/Billing/send-invoice/tags/env");
+        remove.Headers.Add(Confirm, "true");
+        var tagsRemove = await client.SendAsync(remove, ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, read.StatusCode);
+        Assert.Equal(read.StatusCode, tagsRead.StatusCode);
+        Assert.Equal(read.StatusCode, tagsUpsert.StatusCode);
+        Assert.Equal(read.StatusCode, tagsRemove.StatusCode);
     }
 
     [Fact]

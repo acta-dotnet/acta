@@ -12,7 +12,7 @@ function event(overrides: Partial<JobEvent>): JobEvent {
     createdAtUtc: '2026-08-09T10:00:0' + (seq % 10) + 'Z',
     jobNamespace: 'billing',
     jobRef: 'job_x',
-    workerId: null,
+    workerRef: null,
     executionNumber: 1,
     fromStatus: null,
     toStatus: null,
@@ -26,14 +26,14 @@ function event(overrides: Partial<JobEvent>): JobEvent {
 
 test('a paired execution derives start, end, duration, worker, and outcome', () => {
   const runs = deriveExecutions([
-    event({ eventCode: 'job.execution-finished', executionStatus: 'failed', durationMs: 125, workerId: 7, reasonCode: 'handler-error', reasonMessage: 'boom' }),
-    event({ eventCode: 'job.execution-started', workerId: 7 }),
+    event({ eventCode: 'job.execution-finished', executionStatus: 'failed', durationMs: 125, workerRef: 'wrk_7', reasonCode: 'handler-error', reasonMessage: 'boom' }),
+    event({ eventCode: 'job.execution-started', workerRef: 'wrk_7' }),
   ]);
   assert.equal(runs.length, 1);
   const run = runs[0];
   assert.equal(run.outcome, 'failed');
   assert.equal(run.durationMs, 125);
-  assert.equal(run.workerId, 7);
+  assert.equal(run.workerRef, 'wrk_7');
   assert.equal(run.reasonMessage, 'boom');
   assert.equal(run.missingStart, false);
   assert.equal(run.missingEnd, false);
@@ -41,25 +41,25 @@ test('a paired execution derives start, end, duration, worker, and outcome', () 
 
 test('an orphan reclaim (end-only, null worker) falls back to the start event worker', () => {
   const runs = deriveExecutions([
-    event({ eventCode: 'job.execution-started', workerId: 4 }),
-    event({ eventCode: 'job.execution-finished', executionStatus: 'orphaned', durationMs: null, workerId: null }),
+    event({ eventCode: 'job.execution-started', workerRef: 'wrk_4' }),
+    event({ eventCode: 'job.execution-finished', executionStatus: 'orphaned', durationMs: null, workerRef: null }),
   ]);
   assert.equal(runs[0].outcome, 'orphaned');
-  assert.equal(runs[0].workerId, 4);
+  assert.equal(runs[0].workerRef, 'wrk_4');
   assert.equal(runs[0].durationMs, null);
 });
 
 test('a claim-only crash derives from the end event alone and flags the missing start', () => {
   const runs = deriveExecutions([
-    event({ eventCode: 'job.execution-finished', executionStatus: 'orphaned', workerId: null }),
+    event({ eventCode: 'job.execution-finished', executionStatus: 'orphaned', workerRef: null }),
   ]);
   assert.equal(runs[0].outcome, 'orphaned');
   assert.equal(runs[0].missingStart, true);
-  assert.equal(runs[0].workerId, null);
+  assert.equal(runs[0].workerRef, null);
 });
 
 test('an in-flight execution (start-only) reads as executing', () => {
-  const runs = deriveExecutions([event({ eventCode: 'job.execution-started', workerId: 2 })]);
+  const runs = deriveExecutions([event({ eventCode: 'job.execution-started', workerRef: 'wrk_2' })]);
   assert.equal(runs[0].outcome, 'executing');
   assert.equal(runs[0].missingEnd, true);
 });

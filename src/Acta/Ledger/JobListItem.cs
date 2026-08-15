@@ -8,7 +8,7 @@ namespace Acta;
 /// carries the public refs and hides the numeric ids.
 /// </summary>
 /// <param name="JobId">Internal sequence-allocated job id.</param> <param name="JobRef">Public stable job reference.</param>
-/// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Job definition name.</param> <param name="TenantId">Resolved tenant id, or null.</param> <param name="TenantKey">Tenant's caller-supplied key resolved from the catalog, or null.</param>
+/// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Job definition name.</param> <param name="TenantId">Resolved tenant id, or null; internal, never serialized.</param> <param name="TenantKey">Tenant's caller-supplied key resolved from the catalog, or null.</param>
 /// <param name="ParentJobId">Parent job id for child jobs, or null for roots.</param> <param name="ParentJobRef">Parent job's public ref, or null for roots.</param>
 /// <param name="LineageRootId">Root id of the job's lineage tree, or null.</param> <param name="LineageRootJobRef">Lineage root's public ref, or null.</param>
 /// <param name="DeduplicationKey">Caller-supplied deduplication key, or null.</param> <param name="CorrelationKey">Caller-supplied correlation id (trace / request / order id), or null.</param> <param name="Status">Current lifecycle status.</param> <param name="Priority">Claim priority.</param>
@@ -19,7 +19,7 @@ public sealed record JobListItem(
     JobRef JobRef,
     string JobNamespace,
     string JobName,
-    int? TenantId,
+    [property: JsonIgnore] int? TenantId,
     string? TenantKey,
     [property: JsonIgnore] long? ParentJobId,
     JobRef? ParentJobRef,

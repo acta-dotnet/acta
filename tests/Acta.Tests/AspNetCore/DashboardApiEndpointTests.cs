@@ -105,23 +105,28 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Events_endpoint_binds_event_code_job_id_and_tenant_id_filters()
+    public async Task Events_endpoint_binds_event_code_and_the_ref_filters()
     {
         var jobs = new TestDashboardHost.FakeJobs();
         var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
 
         var ok = await client.GetAsync(
-            "/acta/api/v1/events?eventCode=namespace.updated&jobId=7&tenantId=3&workerId=9",
+            "/acta/api/v1/events?eventCode=namespace.updated"
+                + $"&jobRef={TestDashboardHost.FoundJobRef}"
+                + $"&workerRef={TestDashboardHost.FakeJobs.KnownWorkerRef}"
+                + "&tenantKey=acme",
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.NotNull(jobs.LastEventsQuery);
         Assert.Equal(Acta.EventCode.NamespaceUpdated, jobs.LastEventsQuery!.EventCode);
-        Assert.Equal(7L, jobs.LastEventsQuery.JobId);
-        Assert.Equal(3, jobs.LastEventsQuery.TenantId);
-        Assert.Equal(9, jobs.LastEventsQuery.WorkerId);
+        // Each ref is edge-resolved to the internal id the ledger indexes on.
+        Assert.Equal(42L, jobs.LastEventsQuery.JobId);
+        Assert.Equal(42, jobs.LastEventsQuery.WorkerId);
+        Assert.Equal("acme", jobs.LastEventsQuery.TenantKey);
+        Assert.Null(jobs.LastEventsQuery.TenantId);
 
         // A divergent wire code (member JobDefinitionOverridesUpdated) binds via its [Code] string, not the member name.
         var divergent = await client.GetAsync(
@@ -132,10 +137,132 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, jobs.LastEventsQuery!.EventCode);
 
         var badCode = await client.GetAsync("/acta/api/v1/events?eventCode=nope", TestContext.Current.CancellationToken);
-        var badJobId = await client.GetAsync("/acta/api/v1/events?jobId=abc", TestContext.Current.CancellationToken);
+        var badJobRef = await client.GetAsync("/acta/api/v1/events?jobRef=abc", TestContext.Current.CancellationToken);
+        var badWorkerRef = await client.GetAsync("/acta/api/v1/events?workerRef=abc", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, badCode.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, badJobId.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, badJobRef.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, badWorkerRef.StatusCode);
+    }
+
+    /// <summary>
+    /// A well-formed ref that names no row is a 404, the same answer the other ref-valued query
+    /// filters (/jobs parentJobRef, /alerts jobRef) give; the read never runs.
+    /// </summary>
+    [Theory]
+    [InlineData("jobRef")]
+    [InlineData("lineageRootJobRef")]
+    public async Task Events_endpoint_maps_a_job_ref_that_names_no_row_to_404(string parameter)
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        await using var _ = app;
+
+        var response = await client.GetAsync($"/acta/api/v1/events?{parameter}={JobRef.New()}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(jobs.LastEventsQuery);
+    }
+
+    [Fact]
+    public async Task Events_endpoint_maps_a_worker_ref_that_names_no_row_to_404()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        await using var _ = app;
+
+        var response = await client.GetAsync($"/acta/api/v1/events?workerRef={WorkerRef.New()}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(jobs.LastEventsQuery);
+    }
+
+    /// <summary>The three ref filters answer exactly like their siblings on both inputs.</summary>
+    [Fact]
+    public async Task Events_ref_filters_answer_the_same_way_the_sibling_endpoints_do()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var unknown = JobRef.New();
+
+        var siblingMalformed = await client.GetAsync("/acta/api/v1/jobs?parentJobRef=abc", ct);
+        var eventsMalformed = await client.GetAsync("/acta/api/v1/events?jobRef=abc", ct);
+        var siblingUnknown = await client.GetAsync($"/acta/api/v1/alerts?jobRef={unknown}", ct);
+        var eventsUnknown = await client.GetAsync($"/acta/api/v1/events?jobRef={unknown}", ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, siblingMalformed.StatusCode);
+        Assert.Equal(siblingMalformed.StatusCode, eventsMalformed.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, siblingUnknown.StatusCode);
+        Assert.Equal(siblingUnknown.StatusCode, eventsUnknown.StatusCode);
+    }
+
+    [Fact]
+    public async Task Alert_detail_returns_the_alert_or_404()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var known = await client.GetAsync($"/acta/api/v1/alerts/{TestDashboardHost.FakeJobs.KnownAlertRef}", ct);
+        var body = await known.Content.ReadAsStringAsync(ct);
+        var unknown = await client.GetAsync($"/acta/api/v1/alerts/{AlertRef.New()}", ct);
+        var malformed = await client.GetAsync("/acta/api/v1/alerts/9001", ct);
+
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        Assert.Contains($"\"alertRef\":\"{TestDashboardHost.FakeJobs.KnownAlertRef}\"", body);
+        Assert.Contains("\"severity\":\"critical\"", body);
+        Assert.Contains($"\"jobRef\":\"{Found}\"", body);
+        // The numeric alert id and its subject job id are engine internals, not wire identity.
+        Assert.DoesNotContain("\"alertId\"", body);
+        Assert.DoesNotContain("\"jobId\"", body);
+        // A malformed ref cannot name a row, so it reads the same way an unknown one does.
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
+    }
+
+    [Fact]
+    public async Task Definition_detail_is_addressed_by_its_natural_key_and_404s_for_an_unknown_one()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var known = await client.GetAsync("/acta/api/v1/definitions/billing/send-invoice", ct);
+        var body = await known.Content.ReadAsStringAsync(ct);
+        var unknownName = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job", ct);
+        var unknownNamespace = await client.GetAsync("/acta/api/v1/definitions/no-such-ns/send-invoice", ct);
+
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        Assert.Contains("\"jobNamespace\":\"billing\"", body);
+        Assert.Contains("\"jobName\":\"send-invoice\"", body);
+        Assert.DoesNotContain("\"definitionId\"", body);
+        Assert.Equal(HttpStatusCode.NotFound, unknownName.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unknownNamespace.StatusCode);
+    }
+
+    /// <summary>
+    /// The audit trail keys on the catalog id the natural key resolves to, so a key that names no
+    /// definition answers exactly like the definition read itself rather than an empty page.
+    /// </summary>
+    [Fact]
+    public async Task Definition_events_read_answers_404_for_a_definition_that_does_not_exist()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var known = await client.GetAsync("/acta/api/v1/definitions/billing/send-invoice/events", ct);
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        // The read ran scoped to the resolved catalog id, which never reaches the wire.
+        Assert.Equal(5, jobs.LastEventsQuery!.DefinitionId);
+
+        var unknown = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job/events", ct);
+        var detail = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job", ct);
+
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Equal(detail.StatusCode, unknown.StatusCode);
     }
 
     [Fact]
@@ -497,17 +624,21 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Jobs_accepts_tenantId_filter_and_rejects_a_malformed_one()
+    public async Task Jobs_accepts_a_tenantKey_filter_and_ignores_the_retired_tenantId()
     {
-        var (app, client) = await TestDashboardHost.StartAsync();
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var ok = await client.GetAsync("/acta/api/v1/jobs?tenantId=1", ct);
-        var bad = await client.GetAsync("/acta/api/v1/jobs?tenantId=abc", ct);
-
+        var ok = await client.GetAsync("/acta/api/v1/jobs?tenantKey=acme", ct);
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+        Assert.Equal("acme", jobs.LastJobsQuery!.TenantKey);
+
+        // tenantId left the wire: it is no longer bound, so it neither filters nor 400s.
+        var retired = await client.GetAsync("/acta/api/v1/jobs?tenantId=abc", ct);
+        Assert.Equal(HttpStatusCode.OK, retired.StatusCode);
+        Assert.Null(jobs.LastJobsQuery!.TenantId);
     }
 
     [Fact]

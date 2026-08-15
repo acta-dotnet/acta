@@ -17,7 +17,6 @@
   import type { ColumnDef } from '../components/grid/types.ts';
 
   interface DefinitionRow {
-    definitionId: number;
     jobNamespace: string;
     status: string;
     jobName: string;
@@ -64,7 +63,7 @@
   // current namespace scope so drilling in (and back) doesn't reset it to "all namespaces".
   function detailHref(def: DefinitionRow): string {
     const ns = get(scope);
-    return routes.definition(def.definitionId, { namespace: ns });
+    return routes.definition(def.jobNamespace, def.jobName, { namespace: ns });
   }
 </script>
 
@@ -86,7 +85,7 @@
     {#snippet modifiedCell(def: DefinitionRow)}<RelativeTime value={def.modifiedAtUtc} />{/snippet}
 
     <ActaGrid
-      rowKey={(definition: DefinitionRow) => definition.definitionId}
+      rowKey={(definition: DefinitionRow) => definition.jobNamespace + '/' + definition.jobName}
       endpoint="definitions"
       mobileCards={true}
       {columns}

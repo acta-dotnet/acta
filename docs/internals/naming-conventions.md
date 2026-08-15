@@ -56,7 +56,11 @@ after 1.0.0 is a breaking change, not a cleanup.
 
 ## Wire conventions (HTTP/JSON)
 
-- Ids are resource-qualified: `jobRef`, `alertId`, `outboxId` - never a bare `id`.
+- Identities are resource-qualified: `jobRef`, `alertRef`, `workerRef`, `outboxId` - never a bare `id`.
+  An entity a caller addresses carries a public `*Ref` (the rendered `job_`/`alr_`/`wrk_` form) and its
+  DB integer stays off the wire; `outboxId` keeps the `Id` suffix because it is a stored uuid column,
+  not a rendered ref. Catalog entities are addressed by their natural key instead
+  (`{jobNamespace}/{jobName}`, `{tenantKey}`), so they carry no ref at all.
 - `jobNamespace` is the namespace's name everywhere, on every tier.
 - Instants end in `AtUtc` (`createdAtUtc`); every persisted instant is UTC.
 - Narrowing booleans end in `Only` and are nullable (`unresolvedOnly`, `liveOnly`).

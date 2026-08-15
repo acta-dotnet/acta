@@ -7,6 +7,8 @@
 // / status), which is what the kebab-case filter values the dashboard carries actually match (the raw
 // *_code columns are the undecoded numeric codes).
 
+import { refToUuid } from './entityRef.ts';
+
 const ROW_LIMIT = 100;
 
 // The SQL flavor the emitted statement targets. Provider and schema come from the /capabilities read;
@@ -23,12 +25,12 @@ export interface SqlDialect {
 export const COPY_SQL_TITLE =
   'Copy these filters as SQL against the operator views. For ad-hoc inspection; the views are not a stable integration API.';
 
-type Predicate = { column: string; op: string; value: string | number } | { raw: string };
+type Predicate = { column: string; op: string; value: string } | { raw: string };
 
-// Single-quote escape a string literal; numbers pass through as bare literals (no quoting) so numeric
-// columns (tenant_id, worker_id) are not compared against a quoted string.
-function sqlLiteral(value: string | number): string {
-  return typeof value === 'number' ? String(value) : `'${value.replace(/'/g, "''")}'`;
+// Single-quote escape a string literal. Every predicate the builder emits compares a text column (or
+// a uuid column, which every provider accepts a quoted literal for), so there is no numeric form.
+function sqlLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
 }
 
 function select(dialect: SqlDialect, view: string, predicates: Predicate[], orderBy: string): string {
@@ -47,14 +49,6 @@ function select(dialect: SqlDialect, view: string, predicates: Predicate[], orde
 
 function text(value: string | null | undefined): string {
   return (value ?? '').trim();
-}
-
-// A numeric filter contributes only when it is a whole-number literal; a blank or partial entry is
-// dropped rather than emitted as a type-mismatched predicate.
-function integer(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined || value === '') return null;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) ? parsed : null;
 }
 
 export interface JobsSqlFilters {
@@ -82,8 +76,8 @@ export interface EventsSqlFilters {
   eventCode?: string;
   actorCode?: string;
   reasonCode?: string;
-  workerId?: string | number;
-  tenantId?: string | number;
+  /** Public worker ref (`wrk_…`); emitted against the view's own `worker_ref` column, decoded to uuid text. */
+  workerRef?: string;
   createdFromUtc?: string;
   createdToUtc?: string;
 }
@@ -94,10 +88,12 @@ export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {
   if (text(filters.eventCode)) predicates.push({ column: 'event', op: '=', value: text(filters.eventCode) });
   if (text(filters.actorCode)) predicates.push({ column: 'actor', op: '=', value: text(filters.actorCode) });
   if (text(filters.reasonCode)) predicates.push({ column: 'reason', op: '=', value: text(filters.reasonCode) });
-  const worker = integer(filters.workerId);
-  if (worker !== null) predicates.push({ column: 'worker_id', op: '=', value: worker });
-  const tenant = integer(filters.tenantId);
-  if (tenant !== null) predicates.push({ column: 'tenant_id', op: '=', value: tenant });
+  // The acting worker is addressed by its public ref. events_view already joins workers and exposes
+  // worker_ref, so this needs no subselect - but note the column stores the ref's canonical uuid text,
+  // which is also what events.actor_key holds for a worker actor: neither ever compares to a wrk_ string.
+  // A malformed or absent ref is dropped rather than emitted as a predicate that can never match.
+  const workerRef = refToUuid(filters.workerRef);
+  if (workerRef !== null) predicates.push({ column: 'worker_ref', op: '=', value: workerRef });
   if (text(filters.createdFromUtc))
     predicates.push({ column: 'created_at_utc', op: '>=', value: text(filters.createdFromUtc) });
   // Exclusive upper bound to match every provider's ListJobEvents.sql (`created_at_utc < to`); a `<=`

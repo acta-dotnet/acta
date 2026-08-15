@@ -291,7 +291,7 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         [
             TagTarget.ForJob(lookup),
             TagTarget.ForSchedule(new ScheduleLookup(lookup, schedule.Name)),
-            TagTarget.ForAlert(alert.Id),
+            TagTarget.ForAlert(new AlertRef(alert.AlertRef)),
             TagTarget.ForEvent(eventId),
         ];
         foreach (var target in targets)
@@ -388,11 +388,11 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             [
                 TagTarget.ForTenant(tenantKey),
                 TagTarget.ForNamespace(TestNamespace),
-                TagTarget.ForDefinition(definition.Id),
+                TagTarget.ForDefinition(TestNamespace, definition.Name),
                 TagTarget.ForJob(job),
                 TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ById(schedule.JobId), schedule.Name)),
-                TagTarget.ForWorker(worker.Id),
-                TagTarget.ForAlert(alert.Id),
+                TagTarget.ForWorker(new WorkerRef(worker.WorkerRef)),
+                TagTarget.ForAlert(new AlertRef(alert.AlertRef)),
                 TagTarget.ForEvent(eventId),
             ]
         );
@@ -402,11 +402,11 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         [
             TagTarget.ForTenant(TestKey("missing-tenant")),
             TagTarget.ForNamespace($"missing-{TestId}"),
-            TagTarget.ForDefinition(int.MaxValue),
+            TagTarget.ForDefinition(TestNamespace, "missing-definition"),
             TagTarget.ForJob(JobLookup.ById(long.MaxValue)),
             TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ById(long.MaxValue), "missing")),
-            TagTarget.ForWorker(int.MaxValue),
-            TagTarget.ForAlert(long.MaxValue),
+            TagTarget.ForWorker(WorkerRef.New()),
+            TagTarget.ForAlert(AlertRef.New()),
             TagTarget.ForEvent(long.MaxValue),
         ];
 

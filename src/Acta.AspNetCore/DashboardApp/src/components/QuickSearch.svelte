@@ -11,7 +11,6 @@
   import Icon from './Icon.svelte';
 
   interface DefinitionHit {
-    definitionId: number;
     jobNamespace: string;
     jobName: string;
   }
@@ -130,6 +129,14 @@
       out.push({ id: 'jump:ref', group: 'Jump', icon: 'cube', label: 'Open job ' + rec.ref, href: routes.job(rec.ref, { namespace: ns }) });
       return out;
     }
+    if (rec.kind === 'workerRef') {
+      out.push({ id: 'jump:worker', group: 'Jump', icon: 'desktop', label: 'Open worker ' + rec.ref, href: routes.worker(rec.ref, { namespace: ns }) });
+      return out;
+    }
+    if (rec.kind === 'alertRef') {
+      out.push({ id: 'jump:alert', group: 'Jump', icon: 'bell', label: 'Open alert ' + rec.ref, href: routes.alert(rec.ref, { namespace: ns }) });
+      return out;
+    }
     if (rec.kind === 'jobId') {
       out.push({ id: 'jump:id', group: 'Jump', icon: 'cube', label: 'Open job id ' + rec.id, hint: 'needs numeric-id lookup enabled on the host', href: routes.job('id:' + rec.id, { namespace: ns }) });
       return out;
@@ -171,12 +178,12 @@
     }
     for (const hit of definitions.data?.items ?? []) {
       out.push({
-        id: 'def:' + hit.definitionId,
+        id: 'def:' + hit.jobNamespace + '/' + hit.jobName,
         group: 'Definitions',
         icon: 'reader',
         label: hit.jobName,
         hint: hit.jobNamespace,
-        href: routes.definition(hit.definitionId, { namespace: ns })
+        href: routes.definition(hit.jobNamespace, hit.jobName, { namespace: ns })
       });
     }
     for (const hit of namespaces.data?.items ?? []) {
@@ -382,7 +389,7 @@
           aria-label="Quick search"
           autocomplete="off"
           spellcheck="false"
-          placeholder="Search or paste anything: names, refs, ids, ns:, tags…"
+          placeholder="Search or paste anything: names, job_/wrk_/alr_ refs, ns:, tags…"
           value={raw}
           oninput={(event) => { raw = event.currentTarget.value; active = 0; lookupError = ''; }}
           onkeydown={onInputKeydown} />

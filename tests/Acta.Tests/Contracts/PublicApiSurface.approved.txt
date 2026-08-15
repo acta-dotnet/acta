@@ -828,8 +828,8 @@ interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IDefinitions
-    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.Int32 jobDefinitionId, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String actorKey = default, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.JobDefinitionDetail> GetAsync(System.Int32 jobDefinitionId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String actorKey = default, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.JobDefinitionDetail> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobDefinitionListItem>> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IJobContextAccessor
     Acta.JobContext JobContext { get;set; }
@@ -2244,14 +2244,14 @@ sealed class Acta.TagSet
     System.Collections.Generic.IReadOnlyList<Acta.TagItem> Items { get; }
     System.Int32 Count { get; }
 sealed class Acta.TagTarget
-    Acta.TagTarget ForAlert(System.Int64 alertId)
-    Acta.TagTarget ForDefinition(System.Int32 definitionId)
+    Acta.TagTarget ForAlert(Acta.AlertRef alertRef)
+    Acta.TagTarget ForDefinition(System.String jobNamespace, System.String jobName)
     Acta.TagTarget ForEvent(System.Int64 eventId)
     Acta.TagTarget ForJob(Acta.JobLookup job)
     Acta.TagTarget ForNamespace(System.String namespaceName)
     Acta.TagTarget ForSchedule(Acta.ScheduleLookup schedule)
     Acta.TagTarget ForTenant(System.String tenantKey)
-    Acta.TagTarget ForWorker(System.Int32 workerId)
+    Acta.TagTarget ForWorker(Acta.WorkerRef workerRef)
 sealed class Acta.TenantDetail
     .ctor(System.Int32 TenantId, System.String TenantKey, System.String DisplayName, System.String Description, Acta.TenantStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.TenantStatusCode Status { get;init; }

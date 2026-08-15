@@ -76,7 +76,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var name = TestKey("ovr-matrix");
-        var id = await RegisterAsync(name, ct);
+        await RegisterAsync(name, ct);
         var before = await ReadAsync(name, ct);
 
         // Each int/decimal/code override is a distinct value so any cross-wiring (e.g.
@@ -88,7 +88,8 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
 
         var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
-            id,
+            TestNamespace,
+            name,
             before.Version,
             new JobDefinitionPolicyOverrides(
                 Priority: JobPriorityCode.High, // ≠ Bulk base
@@ -155,12 +156,13 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var name = TestKey("ovr-clear");
-        var id = await RegisterAsync(name, ct);
+        await RegisterAsync(name, ct);
 
         var v0 = (await ReadAsync(name, ct)).Version;
         await DefinitionTestOps.UpdateOverridesAsync(
             Services,
-            id,
+            TestNamespace,
+            name,
             v0,
             new JobDefinitionPolicyOverrides(
                 Priority: JobPriorityCode.High,
@@ -183,7 +185,16 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
         );
 
         var set = await ReadAsync(name, ct);
-        await DefinitionTestOps.UpdateOverridesAsync(Services, id, set.Version, new JobDefinitionPolicyOverrides(), Actor, "clear all", ct);
+        await DefinitionTestOps.UpdateOverridesAsync(
+            Services,
+            TestNamespace,
+            name,
+            set.Version,
+            new JobDefinitionPolicyOverrides(),
+            Actor,
+            "clear all",
+            ct
+        );
 
         var cleared = await ReadAsync(name, ct);
 

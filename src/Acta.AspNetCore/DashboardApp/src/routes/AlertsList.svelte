@@ -23,7 +23,7 @@
   import { displayFormatter } from '../format.ts';
 
   interface AlertRow {
-    alertId: number;
+    alertRef: string;
     severity: string;
     title: string;
     message: string;
@@ -54,6 +54,7 @@
     { key: 'severity', header: 'Severity' },
     { key: 'state', header: 'State' },
     { key: 'title', header: 'Title' },
+    { key: 'alertRef', header: 'Alert', class: 'shrink mobile-hide' },
     { key: 'message', header: 'Message', class: 'dim' },
     { key: 'job', header: 'Job' },
     { key: 'channelName', header: 'Channel', class: 'mobile-hide' },
@@ -83,27 +84,27 @@
     setScope('');
   }
 
-  // Both verbs live at alerts/{alertId}/{action} and return AlertControlResponse; invalidating
+  // Both verbs live at alerts/{alertRef}/{action} and return AlertControlResponse; invalidating
   // the 'alerts' key prefix refreshes every cached alerts list/page.
   const mutation = useControlMutation<
-    { alertId: number; action: 'acknowledge' | 'resolve'; note?: string },
+    { alertRef: string; action: 'acknowledge' | 'resolve'; note?: string },
     AlertControlResponse
   >({
-    path: (vars) => `alerts/${vars.alertId}/${vars.action}`,
+    path: (vars) => `alerts/${vars.alertRef}/${vars.action}`,
     body: (vars) => ({ reasonMessage: vars.note?.trim() || null }),
-    notFound: (vars) => ({ alertId: vars.alertId, action: 'notFound', acknowledgedAtUtc: null, resolvedAtUtc: null }),
+    notFound: (vars) => ({ alertRef: vars.alertRef, action: 'notFound', acknowledgedAtUtc: null, resolvedAtUtc: null }),
     invalidateKeys: () => [['alerts']] as const
   });
   let busy = $derived(mutation.isPending);
   let message = $state('');
   let messageKind = $state('');
-  let confirming = $state<{ alertId: number; action: 'acknowledge' | 'resolve'; title: string } | null>(null);
+  let confirming = $state<{ alertRef: string; action: 'acknowledge' | 'resolve'; title: string } | null>(null);
 
-  async function act(alertId: number, action: 'acknowledge' | 'resolve', note: string) {
+  async function act(alertRef: string, action: 'acknowledge' | 'resolve', note: string) {
     confirming = null;
     message = '';
     try {
-      const result = await mutation.mutateAsync({ alertId, action, note });
+      const result = await mutation.mutateAsync({ alertRef, action, note });
       // Only 'applied' is green; anything else (notFound, or a future non-applied action) is a warning,
       // never a false success - same guard as JobControls' `result.action === 'applied' ? 'ok' : 'warn'`.
       const applied = result.action === 'applied';
@@ -151,6 +152,12 @@
         {bucket === 'resolved' ? 'Resolved' : bucket === 'acknowledged' ? 'Acknowledged' : 'Open'}
       </span>
     {/snippet}
+    {#snippet titleCell(alert: AlertRow)}
+      <a href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace })}>{alert.title}</a>
+    {/snippet}
+    {#snippet alertCell(alert: AlertRow)}
+      <JobRef value={alert.alertRef} href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace })} copy />
+    {/snippet}
     {#snippet jobCell(alert: AlertRow)}
       {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace })} copy />{:else}<span class="dim">·</span>{/if}
     {/snippet}
@@ -163,16 +170,16 @@
     {#snippet actionsCell(alert: AlertRow)}
       {#if canControlNow}
         {#if !alert.acknowledgedAtUtc}
-          <button disabled={busy} onclick={() => (confirming = { alertId: alert.alertId, action: 'acknowledge', title: alert.title })}><Icon name="check-circle" />Acknowledge</button>
+          <button disabled={busy} onclick={() => (confirming = { alertRef: alert.alertRef, action: 'acknowledge', title: alert.title })}><Icon name="check-circle" />Acknowledge</button>
         {/if}
         {#if !alert.resolvedAtUtc}
-          <button disabled={busy} onclick={() => (confirming = { alertId: alert.alertId, action: 'resolve', title: alert.title })}><Icon name="check-circle" />Resolve</button>
+          <button disabled={busy} onclick={() => (confirming = { alertRef: alert.alertRef, action: 'resolve', title: alert.title })}><Icon name="check-circle" />Resolve</button>
         {/if}
       {/if}
     {/snippet}
 
     <ActaGrid
-      rowKey={(alert: AlertRow) => alert.alertId}
+      rowKey={(alert: AlertRow) => alert.alertRef}
       endpoint="alerts"
       mobileCards={true}
       {columns}
@@ -186,6 +193,8 @@
       cells={{
         severity: severityCell,
         state: stateCell,
+        title: titleCell,
+        alertRef: alertCell,
         job: jobCell,
         deliveryStatus: deliveryCell,
         latest: latestCell,
@@ -207,6 +216,6 @@
     }
     confirmLabel={target.action === 'acknowledge' ? 'Acknowledge alert' : 'Resolve alert'}
     requireReason={target.action === 'resolve'}
-    onConfirm={(note) => act(target.alertId, target.action, note)}
+    onConfirm={(note) => act(target.alertRef, target.action, note)}
     onCancel={() => (confirming = null)} />
 {/if}

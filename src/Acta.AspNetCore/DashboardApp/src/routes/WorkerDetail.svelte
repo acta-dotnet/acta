@@ -8,6 +8,7 @@
   import ChangeHistory from '../components/ChangeHistory.svelte';
   import TagEditor from '../components/TagEditor.svelte';
   import CopyButton from '../components/CopyButton.svelte';
+  import JobRef from '../components/JobRef.svelte';
   import Icon from '../components/Icon.svelte';
   import { mergeHistory, type HistoryEvent } from '../components/changeHistory.ts';
   import type { Paged } from '../api.ts';
@@ -19,16 +20,16 @@
   import { workerStatusInterpretation, workerSupportSummary, type WorkerDetailShape } from './workerDetailState.ts';
   import { detailRefetchInterval, livePaused } from '../polling.ts';
 
-  let { workerId }: { workerId: number } = $props();
+  let { workerRef }: { workerRef: string } = $props();
 
   const detail = createQuery(() => {
     // Read the store while building the options so pausing immediately cancels the active interval.
     const paused = $livePaused;
     return {
-      queryKey: keys.detail('workers', workerId),
+      queryKey: keys.detail('workers', workerRef),
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<WorkerDetailShape | null> => {
         try {
-          return await api<WorkerDetailShape>(`workers/${workerId}`, {}, { signal });
+          return await api<WorkerDetailShape>(`workers/${encodeURIComponent(workerRef)}`, {}, { signal });
         } catch (error) {
           if (error instanceof ApiError && error.status === 404) return null;
           throw error;
@@ -45,14 +46,14 @@
   let worker = $derived(detail.data ?? null);
 
   // Worker lifecycle trail (started/stopped/dead), scoped to this worker server-side via the events
-  // endpoint's workerId filter, then merged newest-first across the codes.
+  // endpoint's workerRef filter, then merged newest-first across the codes.
   const HISTORY_CODES = ['worker.started', 'worker.stopped', 'worker.died'];
   const history = createQuery(() => ({
-    queryKey: keys.detail('worker-history', workerId),
+    queryKey: keys.detail('worker-history', workerRef),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const pages = await Promise.all(
         HISTORY_CODES.map((eventCode) =>
-          api<Paged<HistoryEvent>>('events', { workerId, eventCode, pageSize: 20 }, { signal }).then((page) => page.items)
+          api<Paged<HistoryEvent>>('events', { workerRef, eventCode, pageSize: 20 }, { signal }).then((page) => page.items)
         )
       );
       return mergeHistory(pages);
@@ -65,7 +66,7 @@
   let supportSummary = $derived(worker ? workerSupportSummary(worker) : '');
 </script>
 
-<Page title={`Worker ${workerId}`}>
+<Page title={`Worker ${workerRef}`}>
   {#snippet breadcrumb()}<a href={backHref}><Icon name="chevron-left" />Workers</a>{/snippet}
   {#snippet actions()}
     {#if worker}
@@ -85,7 +86,7 @@
     <div class="panel"><StateView {error} onRetry={() => detail.refetch()} /></div>
   {:else if worker}
     <section class="entity-summary" aria-label="Worker identity">
-      <div class="entity-meta mono">worker #{worker.workerId} · {worker.jobNamespace} · {worker.host}{worker.processId == null ? '' : ` / PID ${worker.processId}`}</div>
+      <div class="entity-meta mono">{worker.workerRef} · {worker.jobNamespace} · {worker.host}{worker.processId == null ? '' : ` / PID ${worker.processId}`}</div>
       <StatusBadge status={worker.status} />
     </section>
 
@@ -108,7 +109,7 @@
             <div><dt>Host</dt><dd><span class="mono">{worker.host}</span></dd></div>
             <div><dt>Process ID</dt><dd><span class="mono">{worker.processId ?? 'unknown'}</span></dd></div>
             <div><dt>Max concurrency</dt><dd>{displayFormatter.number(worker.maxConcurrency)}</dd></div>
-            <div><dt>Worker ID</dt><dd><span class="mono">{worker.workerId}</span> <CopyButton value={worker.workerId} label="Copy worker ID" /></dd></div>
+            <div><dt>Worker ref</dt><dd><JobRef value={worker.workerRef} copy /></dd></div>
           </dl>
         </section>
 
@@ -134,7 +135,7 @@
           </nav>
         </section>
 
-        <TagEditor path={`workers/${worker.workerId}/tags`} />
+        <TagEditor path={`workers/${encodeURIComponent(worker.workerRef)}/tags`} />
       </aside>
     </div>
   {:else}

@@ -61,14 +61,9 @@ internal static class TenantControlEndpoints
                     try
                     {
                         var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-                        var tenantId = await operations.Tenants.RegisterAsync(
-                            canonicalTenantKey,
-                            request.DisplayName,
-                            request.Description,
-                            ct
-                        );
+                        await operations.Tenants.RegisterAsync(canonicalTenantKey, request.DisplayName, request.Description, ct);
                         return Results.Json(
-                            new TenantRegistrationResponse(tenantId, canonicalTenantKey),
+                            new TenantRegistrationResponse(canonicalTenantKey),
                             DashboardJsonContext.Default.TenantRegistrationResponse,
                             statusCode: StatusCodes.Status200OK
                         );
@@ -79,9 +74,9 @@ internal static class TenantControlEndpoints
                     }
                 }
             )
-            // RegisterAsync is insert-or-get, and it returns the id either way without saying which,
-            // so this cannot honestly claim 201. An idempotent upsert answering 200 with the canonical
-            // key is the accurate shape.
+            // RegisterAsync is insert-or-get, and it succeeds either way without saying which, so this
+            // cannot honestly claim 201. An idempotent upsert answering 200 with the canonical key is
+            // the accurate shape.
             .WithSummary("Register a tenant, or return the existing one.")
             .Produces<TenantRegistrationResponse>(StatusCodes.Status200OK);
 

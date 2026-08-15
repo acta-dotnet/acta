@@ -13,14 +13,14 @@ const job = {
   correlationKey: 'order-42',
   jobNamespace: 'billing',
   jobName: 'send-invoice',
-  tenantId: null,
+  tenantKey: null,
   status: 'failed',
   priority: 'normal',
   executionNumber: 1,
   failureCount: 1,
   inputFormatId: 1,
   nextRunAtUtc: null,
-  leasedByWorkerId: null,
+  leasedByWorkerRef: null,
   leaseExpiresAtUtc: null,
   exclusiveKey: null,
   retentionUntilUtc: '2026-08-14T08:00:00Z',
@@ -34,7 +34,7 @@ const event = {
   createdAtUtc: timestamp,
   jobNamespace: 'billing',
   jobRef,
-  workerId: 7,
+  workerRef: 'wrk_01kydka200fay8000000000002',
   executionNumber: 1,
   fromStatus: 'executing',
   toStatus: 'failed',
@@ -77,7 +77,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
       return json({ controlsEnabled: options.controls, version: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
     }
     if (path === 'namespaces') {
-      return json(paged([{ namespaceId: 2, jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]));
+      return json(paged([{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]));
     }
     if (path === 'overview') {
       return json({
@@ -105,7 +105,6 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === 'schedules') return json(paged([]));
     if (path === 'definitions') {
       return json(paged([{
-        definitionId: 7,
         jobNamespace: 'billing',
         jobName: 'send-invoice',
         status: 'active',

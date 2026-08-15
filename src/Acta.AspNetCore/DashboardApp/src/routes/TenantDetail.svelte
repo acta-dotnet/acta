@@ -53,11 +53,11 @@
   // Admin audit trail: one small query per tenant admin event code, merged newest-first.
   const HISTORY_CODES = ['tenant.suspended', 'tenant.resumed', 'tenant.updated'];
   const history = createQuery(() => ({
-    queryKey: keys.detail('tenant-history', `${tenant?.tenantId ?? 0}`),
+    queryKey: keys.detail('tenant-history', tenant?.tenantKey ?? ''),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const pages = await Promise.all(
         HISTORY_CODES.map((eventCode) =>
-          api<Paged<HistoryEvent>>('events', { tenantId: tenant!.tenantId, eventCode, pageSize: 20 }, { signal }).then(
+          api<Paged<HistoryEvent>>('events', { tenantKey: tenant!.tenantKey, eventCode, pageSize: 20 }, { signal }).then(
             (page) => page.items
           )
         )
@@ -272,7 +272,7 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Tenant identity">
-      <div class="entity-meta mono">tenant #{tenant.tenantId} · {tenant.tenantKey} · version {tenant.version}</div>
+      <div class="entity-meta mono">{tenant.tenantKey} · version {tenant.version}</div>
       <StatusBadge status={tenant.status} />
     </section>
 

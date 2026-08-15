@@ -22,7 +22,7 @@ export interface ExecutionSummary {
   startedAtUtc: string | null;
   finishedAtUtc: string | null;
   durationMs: number | null;
-  workerId: number | null;
+  workerRef: string | null;
   outcome: ExecutionOutcome;
   reasonCode: string | null;
   reasonMessage: string | null;
@@ -67,7 +67,7 @@ export function deriveExecutions(events: JobEvent[]): ExecutionSummary[] {
       finishedAtUtc: end?.createdAtUtc ?? null,
       durationMs: end?.durationMs ?? null,
       // Orphan reclaim writes the end event with a NULL worker; the start event still knows.
-      workerId: end?.workerId ?? start?.workerId ?? null,
+      workerRef: end?.workerRef ?? start?.workerRef ?? null,
       outcome,
       reasonCode: end?.reasonCode ?? null,
       reasonMessage: end?.reasonMessage ?? null,

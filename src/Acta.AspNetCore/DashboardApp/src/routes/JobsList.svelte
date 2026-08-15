@@ -26,7 +26,6 @@
     jobName: string;
     jobNamespace: string;
     status: string;
-    tenantId: number | null;
     tenantKey: string | null;
     createdAtUtc: string;
     nextRunAtUtc: string | null;
@@ -205,7 +204,7 @@
     {/snippet}
     {#snippet statusCell(job: JobRow)}<StatusBadge status={job.status} />{/snippet}
     {#snippet tenantCell(job: JobRow)}
-      {#if job.tenantKey}<a href={routes.tenant(job.tenantKey, { namespace: $scope })} class="mono">{job.tenantKey}</a>{:else if job.tenantId != null}{job.tenantId}{:else}<span class="dim">·</span>{/if}
+      {#if job.tenantKey}<a href={routes.tenant(job.tenantKey, { namespace: $scope })} class="mono">{job.tenantKey}</a>{:else}<span class="dim">·</span>{/if}
     {/snippet}
     {#snippet ageCell(job: JobRow)}<RelativeTime value={job.createdAtUtc} />{/snippet}
     {#snippet nextRunCell(job: JobRow)}<RelativeTime value={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} />{/snippet}

@@ -17,13 +17,13 @@ function stubApi(): void {
     }
     if (path === 'definitions') {
       const items = 'mica-settle'.includes(url.searchParams.get('nameContains') ?? '')
-        ? [{ definitionId: 7, jobNamespace: 'billing', jobName: 'mica-settle' }]
+        ? [{ jobNamespace: 'billing', jobName: 'mica-settle' }]
         : [];
       return jsonResponse({ items, hasMore: false, nextCursor: null });
     }
     if (path === 'namespaces') {
       const items = 'billing'.includes(url.searchParams.get('nameContains') ?? '')
-        ? [{ namespaceId: 2, jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]
+        ? [{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]
         : [];
       return jsonResponse({ items, hasMore: false, nextCursor: null });
     }
@@ -104,7 +104,7 @@ describe('QuickSearch', () => {
     expect(hit).toBeTruthy();
 
     await user.keyboard('{Enter}');
-    expect(location.hash).toContain('#/definitions/7');
+    expect(location.hash).toContain('#/definitions/billing/mica-settle');
   });
 
   it('switches the namespace scope from a namespace hit and stays open', async () => {

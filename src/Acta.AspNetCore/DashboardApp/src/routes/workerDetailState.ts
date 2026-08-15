@@ -1,5 +1,5 @@
 export interface WorkerDetailShape {
-  workerId: number;
+  workerRef: string;
   jobNamespace: string;
   status: string;
   host: string;
@@ -30,7 +30,7 @@ export function workerStatusInterpretation(status: string): string {
 
 export function workerSupportSummary(worker: WorkerDetailShape): string {
   return [
-    `Acta worker ${worker.workerId}`,
+    `Acta worker ${worker.workerRef}`,
     `Namespace: ${worker.jobNamespace}`,
     `Status: ${worker.status}`,
     `Host/PID: ${worker.host}/${worker.processId ?? 'unknown'}`,

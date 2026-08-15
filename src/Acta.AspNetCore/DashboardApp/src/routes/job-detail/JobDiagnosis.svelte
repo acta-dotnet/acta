@@ -25,7 +25,7 @@
       {/if}
       {#if explanation.lease}
         <dt>Worker</dt>
-        <dd id="job-worker-evidence"><a class="mono" href={routes.worker(explanation.lease.workerId, { namespace: jobNamespace })}>{explanation.lease.workerName ?? '#' + explanation.lease.workerId}</a>{#if explanation.lease.expired}<span class="dim"> · lease expired <RelativeTime value={explanation.lease.expiresAtUtc} /></span>{/if}{#if explanation.lease.workerLastHeartbeatAtUtc}<span class="dim"> · last heartbeat <RelativeTime value={explanation.lease.workerLastHeartbeatAtUtc} /></span>{/if}
+        <dd id="job-worker-evidence">{#if explanation.lease.workerRef}<a class="mono" href={routes.worker(explanation.lease.workerRef, { namespace: jobNamespace })}>{explanation.lease.workerName ?? explanation.lease.workerRef}</a>{:else}<span class="dim">worker is no longer registered</span>{/if}{#if explanation.lease.expired}<span class="dim"> · lease expired <RelativeTime value={explanation.lease.expiresAtUtc} /></span>{/if}{#if explanation.lease.workerLastHeartbeatAtUtc}<span class="dim"> · last heartbeat <RelativeTime value={explanation.lease.workerLastHeartbeatAtUtc} /></span>{/if}
           {#if explanation.lease.expired}<div class="dim">{explanation.lease.recoveryExpectation}</div>{/if}</dd>
       {:else if explanation.lastExecutedBy}
         <dt>Worker</dt><dd class="dim">last executed on <span class="mono">{explanation.lastExecutedBy}</span></dd>

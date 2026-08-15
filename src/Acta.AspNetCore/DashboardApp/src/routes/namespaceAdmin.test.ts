@@ -1,7 +1,7 @@
 // Run with Node's built-in test runner (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildNamespaceDetailsPayload, isSysNamespace, namespaceAdminNeedsReload } from './namespaceAdmin.ts';
+import { RESERVED_SYSTEM_NAMESPACE, buildNamespaceDetailsPayload, isSysNamespace, namespaceAdminNeedsReload } from './namespaceAdmin.ts';
 
 test('buildNamespaceDetailsPayload trims input and keeps a real value', () => {
   assert.deepEqual(buildNamespaceDetailsPayload({ ownerTeam: '  Platform  ', description: ' core namespace ' }), {
@@ -14,10 +14,16 @@ test('buildNamespaceDetailsPayload sends null for a blank field, clearing that c
   assert.deepEqual(buildNamespaceDetailsPayload({ ownerTeam: '', description: '   ' }), { ownerTeam: null, description: null });
 });
 
-test('isSysNamespace is true only for the seeded id 1', () => {
-  assert.equal(isSysNamespace(1), true);
-  assert.equal(isSysNamespace(2), false);
-  assert.equal(isSysNamespace(0), false);
+test('isSysNamespace mirrors the backend reservation: the bare name and the sys. prefix', () => {
+  assert.equal(isSysNamespace(RESERVED_SYSTEM_NAMESPACE), true);
+  assert.equal(isSysNamespace('sys'), true);
+  // IdentifierSyntax.IsReservedSystemName reserves the prefix too, so the guardrail follows it.
+  assert.equal(isSysNamespace('sys.recovery'), true);
+  // Only the delimited prefix counts - a name that merely starts with the letters is a user row.
+  assert.equal(isSysNamespace('system-billing'), false);
+  assert.equal(isSysNamespace('billing'), false);
+  assert.equal(isSysNamespace(null), false);
+  assert.equal(isSysNamespace(undefined), false);
 });
 
 test('namespaceAdminNeedsReload is false for applied and alreadyInState - both are successes', () => {

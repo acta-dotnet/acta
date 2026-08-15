@@ -5,7 +5,7 @@ import { canControl, capabilitiesQuery, keys, listPage } from './query.ts';
 import { DETAIL_REFETCH_MS, detailRefetchInterval } from './polling.ts';
 
 test('list keys drop blank filter values so blank and missing agree', () => {
-  assert.deepEqual(keys.list('jobs', { status: '', tenantId: null, jobName: undefined }), ['jobs', {}]);
+  assert.deepEqual(keys.list('jobs', { status: '', tenantKey: null, jobName: undefined }), ['jobs', {}]);
   assert.deepEqual(keys.list('jobs', { status: 'Failed' }), ['jobs', { status: 'Failed' }]);
 });
 

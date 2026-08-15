@@ -18,10 +18,52 @@ internal sealed class DefinitionsService(IDefinitionStore store)
     private const string OrderDefinitions = "namespace asc, name asc, id asc";
     private const string ListOperationName = "ListJobDefinitions";
 
-    public async ValueTask<JobDefinitionDetail?> GetAsync(int definitionId, CancellationToken ct)
+    public async ValueTask<JobDefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct)
     {
-        QueryValidation.ValidatePositiveId(definitionId, nameof(definitionId));
-        return await store.GetDefinitionAsync(definitionId, ct);
+        var definitionId = await ResolveDefinitionIdAsync(jobNamespace, jobName, ct);
+        return definitionId is null ? null : await store.GetDefinitionAsync(definitionId.Value, ct);
+    }
+
+    /// <summary>
+    /// Resolves a definition's natural key (namespace + name) to its catalog id, or null when the
+    /// catalog holds no such definition. The grid read is the resolver, and it is an exact match by
+    /// construction twice over: <c>NameSearch</c> is a LIKE pattern whose <c>%</c> wrapping is applied
+    /// by <see cref="ListAsync"/> and never by the store, so the bare name passed here carries no
+    /// wildcard (<see cref="QueryValidation.ValidateJobNameFragment"/> rejects <c>%</c> and <c>_</c>),
+    /// and the returned rows are still filtered on an ordinal name equality below. A prefix sibling
+    /// (<c>invoice</c> beside <c>invoice-retry</c>) therefore cannot be resolved by accident.
+    /// </summary>
+    private async ValueTask<int?> ResolveDefinitionIdAsync(string jobNamespace, string jobName, CancellationToken ct)
+    {
+        var ns = QueryValidation.ValidateNamespace(jobNamespace, nameof(jobNamespace));
+        var name = QueryValidation.ValidateJobNameFragment(jobName, nameof(jobName));
+        if (ns is null || name is null)
+        {
+            throw new InvalidQueryException("jobNamespace and jobName are both required.");
+        }
+
+        var page = await store.ListDefinitionsAsync(
+            new DefinitionPageRequest(
+                JobNamespace: ns,
+                NameSearch: name,
+                Status: null,
+                CursorNamespaceName: null,
+                CursorJobName: null,
+                CursorId: null,
+                Take: 2,
+                IncludeTotal: false
+            ),
+            ct
+        );
+        foreach (var row in page.Rows)
+        {
+            if (string.Equals(row.JobName, name, StringComparison.Ordinal))
+            {
+                return row.DefinitionId;
+            }
+        }
+
+        return null;
     }
 
     public async ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct)
@@ -90,7 +132,8 @@ internal sealed class DefinitionsService(IDefinitionStore store)
     }
 
     public async ValueTask<DefinitionControlResult> UpdateOverridesAsync(
-        int definitionId,
+        string jobNamespace,
+        string jobName,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         string? actorKey,
@@ -151,9 +194,15 @@ internal sealed class DefinitionsService(IDefinitionStore store)
 
         var actor = new JobControlActor(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
+        var definitionId = await ResolveDefinitionIdAsync(jobNamespace, jobName, ct);
+        if (definitionId is null)
+        {
+            return new DefinitionControlResult(ControlAction.NotFound);
+        }
+
         var outcome = await store.SetDefinitionOverridesAsync(
             new SetDefinitionOverridesCommand(
-                definitionId,
+                definitionId.Value,
                 expectedVersion,
                 overrides,
                 actor,

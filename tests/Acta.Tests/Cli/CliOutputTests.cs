@@ -6,14 +6,21 @@ namespace Acta.Tests.Cli;
 public class CliOutputTests
 {
     private static readonly WorkerRef ExplainWorkerRef = new(new Guid("019826f0-0000-7000-8000-000000000011"));
+    private static readonly JobRef SampleJobRef = new(new Guid("019826f0-0000-7000-8000-000000000042"));
 
     [Fact]
     public void Control_plain_writes_key_value_lines()
     {
         var w = new StringWriter();
-        CliOutput.WriteControl(w, "pause", new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused), json: false);
+        CliOutput.WriteControl(
+            w,
+            "pause",
+            SampleJobRef,
+            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused),
+            json: false
+        );
         var text = w.ToString();
-        Assert.Contains("job: 123", text);
+        Assert.Contains($"job: {SampleJobRef}", text);
         Assert.Contains("action: Applied", text);
         Assert.Contains("status: Paused", text);
     }
@@ -22,9 +29,16 @@ public class CliOutputTests
     public void Control_json_writes_wire_record()
     {
         var w = new StringWriter();
-        CliOutput.WriteControl(w, "pause", new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused), json: true);
+        CliOutput.WriteControl(
+            w,
+            "pause",
+            SampleJobRef,
+            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused),
+            json: true
+        );
         var text = w.ToString();
-        Assert.Contains("\"jobId\":123", text);
+        Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
+        Assert.DoesNotContain("\"jobId\"", text);
         Assert.Contains("\"action\":\"Applied\"", text);
         Assert.Contains("\"status\":\"Paused\"", text);
     }
@@ -35,7 +49,7 @@ public class CliOutputTests
         var w = new StringWriter();
         var s = new JobDetail(
             JobId: 7,
-            JobRef: JobRef.New(),
+            JobRef: SampleJobRef,
             LineageRootId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
@@ -63,7 +77,8 @@ public class CliOutputTests
         );
         CliOutput.WriteSnapshot(w, s, json: false);
         var text = w.ToString();
-        Assert.Contains("job: 7", text);
+        Assert.Contains($"job: {SampleJobRef}", text);
+        Assert.DoesNotContain("job: 7", text);
         Assert.Contains("namespace: shop", text);
         Assert.Contains("name: send-email", text);
         Assert.Contains("status: Ready", text);
@@ -75,11 +90,12 @@ public class CliOutputTests
         var withTenant = Snapshot(JobStatusCode.Ready, tenantId: 42);
         var plain = new StringWriter();
         CliOutput.WriteSnapshot(plain, withTenant, json: false);
-        Assert.Contains("tenant: 42", plain.ToString());
+        Assert.Contains("tenant: tenant-42", plain.ToString());
 
         var json = new StringWriter();
         CliOutput.WriteSnapshot(json, withTenant, json: true);
-        Assert.Contains("\"tenantId\":42", json.ToString());
+        Assert.Contains("\"tenantKey\":\"tenant-42\"", json.ToString());
+        Assert.DoesNotContain("\"tenantId\"", json.ToString());
 
         var noTenant = Snapshot(JobStatusCode.Ready, tenantId: null);
         var plainNone = new StringWriter();
@@ -88,7 +104,7 @@ public class CliOutputTests
 
         var jsonNull = new StringWriter();
         CliOutput.WriteSnapshot(jsonNull, noTenant, json: true);
-        Assert.Contains("\"tenantId\":null", jsonNull.ToString());
+        Assert.Contains("\"tenantKey\":null", jsonNull.ToString());
     }
 
     private static JobDetail Snapshot(JobStatusCode status, int? tenantId) =>
@@ -125,11 +141,11 @@ public class CliOutputTests
     public void Control_null_status_prints_none_and_json_null()
     {
         var plain = new StringWriter();
-        CliOutput.WriteControl(plain, "cancel", new JobControlResult(0, ControlAction.NotFound, null), json: false);
+        CliOutput.WriteControl(plain, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null), json: false);
         Assert.Contains("status: (none)", plain.ToString());
 
         var json = new StringWriter();
-        CliOutput.WriteControl(json, "cancel", new JobControlResult(0, ControlAction.NotFound, null), json: true);
+        CliOutput.WriteControl(json, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null), json: true);
         Assert.Contains("\"status\":null", json.ToString());
     }
 
@@ -189,10 +205,10 @@ public class CliOutputTests
             TotalCount: null
         );
 
-        CliOutput.WriteEvents(w, 7, page, json: false);
+        CliOutput.WriteEvents(w, SampleJobRef, page, json: false);
         var text = w.ToString();
 
-        Assert.Contains("Events for job 7", text);
+        Assert.Contains($"Events for job {SampleJobRef}", text);
         Assert.Contains("job.execution-started  ready -> executing", text);
         Assert.Contains("job.execution-finished  executing -> failed", text);
         Assert.Contains("reason: job.unhandled-exception", text);
@@ -204,7 +220,7 @@ public class CliOutputTests
     {
         var w = new StringWriter();
         var page = new PagedResult<EventListItem>([], NextCursor: null, HasMore: false, PageSize: 50, TotalCount: null);
-        CliOutput.WriteEvents(w, 7, page, json: false);
+        CliOutput.WriteEvents(w, SampleJobRef, page, json: false);
         Assert.Contains("(no events)", w.ToString());
     }
 
@@ -228,10 +244,10 @@ public class CliOutputTests
             TotalCount: null
         );
 
-        CliOutput.WriteEvents(w, 7, page, json: true);
+        CliOutput.WriteEvents(w, SampleJobRef, page, json: true);
         var text = w.ToString();
 
-        Assert.Contains("\"jobId\":7", text);
+        Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
         Assert.Contains("\"event\":\"job.execution-finished\"", text);
         Assert.Contains("\"reasonCode\":\"job.unhandled-exception\"", text);
         Assert.Contains("\"reasonMessage\":\"boom\"", text);
@@ -277,7 +293,7 @@ public class CliOutputTests
     private static JobExplanation Explanation() =>
         new(
             JobId: 4821,
-            JobRef: JobRef.New(),
+            JobRef: SampleJobRef,
             JobNamespace: "payments",
             JobName: "checkout",
             Status: JobStatusCode.Suspended,
@@ -285,7 +301,7 @@ public class CliOutputTests
             Headline: "Suspended, waiting for signal \"fraud-review\".",
             ActiveWait: new JobExplainWait(JobCheckpointKindCode.Signal, "fraud-review", null),
             Lease: null,
-            LastExecutedBy: "payments-v42 (17)",
+            LastExecutedBy: "payments-v42",
             Steps: [new JobExplainStep("reserve-stock", JobStepStatusCode.Succeeded, "succeeded and will not rerun")],
             Reason: null,
             NextActions:
@@ -305,7 +321,7 @@ public class CliOutputTests
         Assert.Contains("payments/checkout", text);
         Assert.Contains("Suspended, waiting for signal \"fraud-review\".", text);
         Assert.Contains("Last activity:", text);
-        Assert.Contains("- Last executed on worker payments-v42 (17).", text);
+        Assert.Contains("- Last executed on worker payments-v42.", text);
         Assert.Contains("Durable work:", text);
         Assert.Contains("- Step \"reserve-stock\" succeeded and will not rerun.", text);
         Assert.Contains("Next actions:", text);
@@ -398,7 +414,8 @@ public class CliOutputTests
         CliOutput.WriteExplanation(w, Explanation(), json: true);
         var text = w.ToString();
 
-        Assert.Contains("\"jobId\":4821", text);
+        Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
+        Assert.DoesNotContain("\"jobId\"", text);
         Assert.Contains("\"status\":\"Suspended\"", text);
         Assert.Contains("\"headline\":", text);
         Assert.Contains("\"activeWait\":", text);
@@ -432,12 +449,12 @@ public class CliOutputTests
     public void DebugRun_prints_outcome_and_handles_null_status()
     {
         var plain = new StringWriter();
-        CliOutput.WriteDebugRun(plain, 5, "Completed", JobStatusCode.Succeeded, json: false);
+        CliOutput.WriteDebugRun(plain, SampleJobRef, "Completed", JobStatusCode.Succeeded, json: false);
         Assert.Contains("run: Completed", plain.ToString());
         Assert.Contains("status: Succeeded", plain.ToString());
 
         var json = new StringWriter();
-        CliOutput.WriteDebugRun(json, 5, "Rearmed", null, json: true);
+        CliOutput.WriteDebugRun(json, SampleJobRef, "Rearmed", null, json: true);
         Assert.Contains("\"run\":\"Rearmed\"", json.ToString());
         Assert.Contains("\"status\":null", json.ToString());
     }

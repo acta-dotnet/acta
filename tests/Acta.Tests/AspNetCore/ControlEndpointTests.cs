@@ -923,7 +923,7 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Register_tenant_applies_and_returns_the_assigned_id()
+    public async Task Register_tenant_applies_and_returns_the_canonical_key()
     {
         var jobs = new TestDashboardHost.FakeJobs();
         var (app, client) = await StartWithControlsAsync(jobs);
@@ -944,7 +944,7 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
-        Assert.Contains("\"tenantId\":7", body);
+        Assert.DoesNotContain("\"tenantId\"", body);
         Assert.Contains("\"tenantKey\":\"cust-001\"", body);
         var call = Assert.Single(jobs.TenantCalls);
         Assert.Equal(("cust-001", "Acme Corp", "Acme"), call);
@@ -1031,7 +1031,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Patch, "/acta/api/v1/definitions/1")
+        var request = new HttpRequestMessage(HttpMethod.Patch, "/acta/api/v1/definitions/billing/send-invoice")
         {
             Content = JsonContent.Create(new { expectedVersion = 1, overrides = new { maxAttempts = 0 } }),
         };

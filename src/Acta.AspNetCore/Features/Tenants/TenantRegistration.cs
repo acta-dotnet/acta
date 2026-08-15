@@ -8,6 +8,7 @@ namespace Acta.AspNetCore.Features.Tenants;
 internal sealed record TenantRegistrationRequest(string? TenantKey = null, string? DisplayName = null, string? Description = null);
 
 /// <summary>
-/// HTTP projection of a registered tenant: the DB-assigned id and the echoed canonical key.
+/// HTTP projection of a registered tenant: the echoed canonical key, which is how every other
+/// endpoint addresses a tenant. The DB-assigned id stays internal.
 /// </summary>
-internal sealed record TenantRegistrationResponse(int TenantId, string TenantKey);
+internal sealed record TenantRegistrationResponse(string TenantKey);

@@ -30,7 +30,7 @@
       schedule for its full timing detail and change history.
     </p>
     <div class="schedule-list">
-      {#each schedules as schedule (schedule.jobScheduleId)}
+      {#each schedules as schedule (schedule.jobNamespace + '/' + schedule.jobName + '/' + schedule.scheduleName)}
         <div class="schedule-item">
           <div class="schedule-head">
             <a class="mono" href={routes.schedule(schedule.jobNamespace, schedule.jobName, schedule.scheduleName)}>{schedule.scheduleName}</a>

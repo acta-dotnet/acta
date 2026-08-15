@@ -66,7 +66,7 @@
 
     {#snippet nameCell(namespace: NamespaceListItem)}
       <a href={detailHref(namespace)}>{namespace.jobNamespace}</a>
-      {#if isSysNamespace(namespace.namespaceId)}<span class="badge held ns-sys-badge" title="Seeded system namespace">sys</span>{/if}
+      {#if isSysNamespace(namespace.jobNamespace)}<span class="badge held ns-sys-badge" title="Seeded system namespace">sys</span>{/if}
     {/snippet}
     {#snippet statusCell(namespace: NamespaceListItem)}<StatusBadge status={namespace.status} />{/snippet}
     {#snippet actionsCell(namespace: NamespaceListItem)}
@@ -78,7 +78,7 @@
     {/snippet}
 
     <ActaGrid
-      rowKey={(namespace: NamespaceListItem) => namespace.namespaceId}
+      rowKey={(namespace: NamespaceListItem) => namespace.jobNamespace}
       endpoint="namespaces"
       mobileCards={true}
       {columns}

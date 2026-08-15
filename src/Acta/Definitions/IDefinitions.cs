@@ -6,9 +6,10 @@ namespace Acta;
 /// </summary>
 public interface IDefinitions
 {
-    /// <summary>Apply <paramref name="overrides"/> to the definition <paramref name="jobDefinitionId"/>, guarded by <paramref name="expectedVersion"/>. Missing is NotFound; stale version is Rejected.</summary>
+    /// <summary>Apply <paramref name="overrides"/> to the definition named by <paramref name="jobNamespace"/> and <paramref name="jobName"/>, guarded by <paramref name="expectedVersion"/>. Missing is NotFound; stale version is Rejected.</summary>
     ValueTask<DefinitionControlResult> UpdateOverridesAsync(
-        int jobDefinitionId,
+        string jobNamespace,
+        string jobName,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
         string? actorKey = null,
@@ -16,8 +17,8 @@ public interface IDefinitions
         CancellationToken ct = default
     );
 
-    /// <summary>Read a single job definition's full detail by surrogate id, or null when none matches.</summary>
-    ValueTask<JobDefinitionDetail?> GetAsync(int jobDefinitionId, CancellationToken ct = default);
+    /// <summary>Read a single job definition's full detail by its natural key, or null when none matches.</summary>
+    ValueTask<JobDefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
 
     /// <summary>List job definitions ordered by namespace then name, optionally filtered by namespace and status.</summary>
     ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);

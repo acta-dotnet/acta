@@ -9,6 +9,9 @@
   import JobRef from '../../components/JobRef.svelte';
 
   let { job, tenantKey = undefined, lastEvent = null, maxAttempts = null }: { job: JobDetail; tenantKey?: string; lastEvent?: JobEvent | null; maxAttempts?: number | null } = $props();
+
+  // The aggregate echoes the tenant key at the top level; the job row carries it too, so either source serves.
+  let tenant = $derived(tenantKey ?? job.tenantKey ?? null);
 </script>
 
 <section class="panel" aria-labelledby="job-summary-heading">
@@ -17,7 +20,7 @@
   <dl class="kv">
     <dt>Name</dt><dd>{job.jobName}</dd>
     <dt>Namespace</dt><dd><a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>{job.jobNamespace}</a></dd>
-    <dt>Tenant</dt><dd>{#if tenantKey}<a href={routes.tenant(tenantKey, { namespace: job.jobNamespace })} class="mono">{tenantKey}</a>{:else if job.tenantId != null}{job.tenantId}{:else}-{/if}</dd>
+    <dt>Tenant</dt><dd>{#if tenant}<a href={routes.tenant(tenant, { namespace: job.jobNamespace })} class="mono">{tenant}</a>{:else}-{/if}</dd>
     <dt>Priority</dt><dd>{job.priority}</dd>
     <dt>Input</dt><dd>{payloadFormatLabel(job.inputFormatId)}</dd>
   </dl>

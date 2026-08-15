@@ -13,6 +13,7 @@ export type RouteName =
   | 'workers'
   | 'worker-detail'
   | 'alerts'
+  | 'alert-detail'
   | 'namespaces'
   | 'namespace-detail'
   | 'tenants'
@@ -45,6 +46,7 @@ export const routeRegistry: RouteMetadata[] = [
   { name: 'job-detail', label: 'Job', section: 'Operate', detail: true, fullHeight: false, activeNav: 'jobs' },
   { name: 'enqueue', label: 'Enqueue job', section: 'Operate', detail: true, fullHeight: false, activeNav: 'jobs' },
   { name: 'alerts', label: 'Alerts', section: 'Operate', detail: false, fullHeight: true, activeNav: 'alerts', navPath: 'alerts', navOrder: 4, icon: 'bell' },
+  { name: 'alert-detail', label: 'Alert', section: 'Operate', detail: true, fullHeight: false, activeNav: 'alerts' },
   { name: 'workers', label: 'Workers', section: 'Operate', detail: false, fullHeight: true, activeNav: 'workers', navPath: 'workers', navOrder: 5, icon: 'desktop' },
   { name: 'worker-detail', label: 'Worker', section: 'Operate', detail: true, fullHeight: false, activeNav: 'workers' },
   { name: 'events', label: 'Events', section: 'Operate', detail: false, fullHeight: true, activeNav: 'events', navPath: 'events', navOrder: 6, icon: 'activity-log' },
@@ -96,10 +98,14 @@ export const routes = {
     href('enqueue', { ns: ns(options.namespace), jobName: options.jobName, from: options.from }),
   events: (options: { namespace?: string | null; tenantKey?: string | null } = {}) => href('events', { ns: ns(options.namespace), tenantKey: options.tenantKey }),
   workers: (options: { namespace?: string | null; status?: string | null } = {}) => href('workers', { ns: ns(options.namespace), status: options.status }),
-  worker: (workerId: number, options: { namespace?: string | null } = {}) => href(`workers/${workerId}`, { ns: ns(options.namespace) }),
+  worker: (workerRef: string, options: { namespace?: string | null } = {}) =>
+    href(`workers/${encodeURIComponent(workerRef)}`, { ns: ns(options.namespace) }),
   alerts: (options: { namespace?: string | null } = {}) => href('alerts', { ns: ns(options.namespace) }),
+  alert: (alertRef: string, options: { namespace?: string | null } = {}) =>
+    href(`alerts/${encodeURIComponent(alertRef)}`, { ns: ns(options.namespace) }),
   definitions: (options: { namespace?: string | null } = {}) => href('definitions', { ns: ns(options.namespace) }),
-  definition: (definitionId: number | string, options: { namespace?: string | null } = {}) => href(`definitions/${encodeURIComponent(String(definitionId))}`, { ns: ns(options.namespace) }),
+  definition: (jobNamespace: string, jobName: string, options: { namespace?: string | null } = {}) =>
+    href(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`, { ns: ns(options.namespace ?? jobNamespace) }),
   schedules: (options: { namespace?: string | null } = {}) => href('schedules', { ns: ns(options.namespace) }),
   schedule: (namespace: string, jobName: string, scheduleName: string) => href(`schedules/${encodeURIComponent(namespace)}/${encodeURIComponent(jobName)}/${encodeURIComponent(scheduleName)}`, { ns: namespace }),
   namespaces: (options: { namespace?: string | null } = {}) => href('namespaces', { ns: ns(options.namespace) }),

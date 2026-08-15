@@ -38,34 +38,46 @@ internal sealed class CliCommandRunner(
         {
             if (!CliClipboard.TryResolveTarget((clipboard ?? CliClipboard.ReadText)(), out var fromClipboard))
             {
-                await error.WriteLineAsync("Job id is missing: pass a job id or deduplication-key, or copy one to the clipboard.");
+                await error.WriteLineAsync("Job target is missing: pass a job ref or deduplication-key, or copy one to the clipboard.");
                 return ExitUsage;
             }
             command = command with { Target = fromClipboard };
         }
 
-        if (!TryBuildLookup(command, out var job, out var usageError))
+        if (!TryBuildLookup(command, out var lookup, out var usageError))
         {
             await error.WriteLineAsync(usageError);
             return ExitUsage;
         }
 
+        // One resolution up front, so every verb addresses the row by its already-resolved internal id
+        // and prints the job's public ref - whichever of ref, deduplication key, or id the operator typed.
+        var snapshot = await jobs.GetAsync(lookup, ct);
+        if (snapshot is null)
+        {
+            return await NotFoundAsync();
+        }
+
+        var job = JobLookup.ById(snapshot.JobId);
+        var jobRef = snapshot.JobRef;
+
         return command.Verb switch
         {
-            CliVerb.Info => await InfoAsync(job, command.Json, ct),
-            CliVerb.Status => await StatusAsync(job, command.Json, ct),
+            CliVerb.Info => Info(snapshot, command.Json),
+            CliVerb.Status => await StatusAsync(job, jobRef, command.Json, ct),
             CliVerb.Result => await ResultAsync(job, ct),
-            CliVerb.Cancel => Control("cancel", await jobs.CancelAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Pause => Control("pause", await jobs.PauseAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Resume => Control("resume", await jobs.ResumeAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Restart => Control("restart", await jobs.RestartAsync(job, command.Reason, ct: ct), command.Json),
+            CliVerb.Cancel => Control("cancel", jobRef, await jobs.CancelAsync(job, command.Reason, ct: ct), command.Json),
+            CliVerb.Pause => Control("pause", jobRef, await jobs.PauseAsync(job, command.Reason, ct: ct), command.Json),
+            CliVerb.Resume => Control("resume", jobRef, await jobs.ResumeAsync(job, command.Reason, ct: ct), command.Json),
+            CliVerb.Restart => Control("restart", jobRef, await jobs.RestartAsync(job, command.Reason, ct: ct), command.Json),
             CliVerb.Signal => Control(
                 "signal",
+                jobRef,
                 await jobs.RaiseSignalAsync(job, command.SignalName!, SignalPayload(command.SignalValue), ct: ct),
                 command.Json
             ),
-            CliVerb.Debug => await DebugAsync(job, command.Json, command.Break, ct),
-            CliVerb.Events => await EventsAsync(job, command.Take, command.Cursor, command.Json, ct),
+            CliVerb.Debug => await DebugAsync(snapshot, command.Json, command.Break, ct),
+            CliVerb.Events => await EventsAsync(job, jobRef, command.Take, command.Cursor, command.Json, ct),
             CliVerb.Explain => await ExplainAsync(job, command.Json, ct),
             _ => ExitUsage,
         };
@@ -106,9 +118,9 @@ internal sealed class CliCommandRunner(
     private static JobPayload SignalPayload(string? value) =>
         value is null ? JobPayload.None : JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(value));
 
-    private int Control(string verb, JobControlResult result, bool json)
+    private int Control(string verb, JobRef jobRef, JobControlResult result, bool json)
     {
-        CliOutput.WriteControl(output, verb, result, json);
+        CliOutput.WriteControl(output, verb, jobRef, result, json);
         return result.Action switch
         {
             ControlAction.Applied => ExitOk,
@@ -117,14 +129,8 @@ internal sealed class CliCommandRunner(
         };
     }
 
-    private async Task<int> InfoAsync(JobLookup job, bool json, CancellationToken ct)
+    private int Info(JobDetail snapshot, bool json)
     {
-        var snapshot = await jobs.GetAsync(job, ct);
-        if (snapshot is null)
-        {
-            await error.WriteLineAsync("job not found");
-            return ExitNotFound;
-        }
         CliOutput.WriteSnapshot(output, snapshot, json);
         return ExitOk;
     }
@@ -140,43 +146,48 @@ internal sealed class CliCommandRunner(
         var explanation = await jobs.ExplainAsync(job, ct);
         if (explanation is null)
         {
-            await error.WriteLineAsync("job not found");
-            return ExitNotFound;
+            return await NotFoundAsync();
         }
         CliOutput.WriteExplanation(output, explanation, json);
         return ExitOk;
     }
 
-    private async Task<int> StatusAsync(JobLookup job, bool json, CancellationToken ct)
+    private async Task<int> StatusAsync(JobLookup job, JobRef jobRef, bool json, CancellationToken ct)
     {
-        var jobId = await jobs.GetJobIdAsync(job, ct);
-        if (jobId is null)
-        {
-            await error.WriteLineAsync("job not found");
-            return ExitNotFound;
-        }
-        var status = await jobs.GetStatusAsync(JobLookup.ById(jobId.Value), ct);
+        var status = await jobs.GetStatusAsync(job, ct);
         if (status is null)
         {
-            await error.WriteLineAsync("job not found");
-            return ExitNotFound;
+            return await NotFoundAsync();
         }
-        CliOutput.WriteStatus(output, jobId.Value, status.Value, json);
+        CliOutput.WriteStatus(output, jobRef, status.Value, json);
         return ExitOk;
     }
 
+    private async Task<int> NotFoundAsync()
+    {
+        await error.WriteLineAsync("job not found");
+        return ExitNotFound;
+    }
+
+    /// <summary>
+    /// Whether the job still exists. The verbs resolve their target up front, but a purge or a
+    /// retention sweep can delete the row before the verb's own read lands - and an absent row and an
+    /// absent payload are the same <c>null</c> to <c>GetResultAsync</c>. Probed only when the output
+    /// would otherwise be empty, so the happy path still costs one read.
+    /// </summary>
+    private async Task<bool> StillExistsAsync(JobLookup job, CancellationToken ct) => await jobs.GetStatusAsync(job, ct) is not null;
+
     private async Task<int> ResultAsync(JobLookup job, CancellationToken ct)
     {
-        var jobId = await jobs.GetJobIdAsync(job, ct);
-        if (jobId is null)
-        {
-            await error.WriteLineAsync("job not found");
-            return ExitNotFound;
-        }
-
-        var payload = await jobs.GetResultAsync(JobLookup.ById(jobId.Value), ct);
+        var payload = await jobs.GetResultAsync(job, ct);
         if (payload is null || payload.Value.IsNone)
         {
+            // "No result" and "no job" both arrive as null here; only the second is an error.
+            if (!await StillExistsAsync(job, ct))
+            {
+                return await NotFoundAsync();
+            }
+
             await output.WriteLineAsync("(no result)");
             return ExitOk;
         }
@@ -194,46 +205,42 @@ internal sealed class CliCommandRunner(
     }
 
     /// <summary>
-    /// Prints the job's audit timeline newest first: resolves the target to a job id, then reads one
-    /// page of ILedger.ListEventsAsync scoped to that id. This is the operator path to the "why" behind a
-    /// terminal status, which the job snapshot no longer carries.
+    /// Prints the job's audit timeline newest first: one page of ILedger.ListEventsAsync scoped to the
+    /// resolved job id, headed and continued by the job's public ref. This is the operator path to the
+    /// "why" behind a terminal status, which the job snapshot no longer carries.
     /// </summary>
-    private async Task<int> EventsAsync(JobLookup job, int? take, string? cursor, bool json, CancellationToken ct)
+    private async Task<int> EventsAsync(JobLookup job, JobRef jobRef, int? take, string? cursor, bool json, CancellationToken ct)
     {
-        var jobId = await jobs.GetJobIdAsync(job, ct);
-        if (jobId is null)
+        var page = await operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: job.JobId, PageSize: take, Cursor: cursor), ct);
+
+        // An empty page is a job with no retained events; a purged job reads the same way. Only the
+        // second is an error, so an empty page is worth one existence probe before it is reported.
+        if (page.Items.Count == 0 && !await StillExistsAsync(job, ct))
         {
-            await error.WriteLineAsync("job not found");
-            return ExitNotFound;
+            return await NotFoundAsync();
         }
 
-        var page = await operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: take, Cursor: cursor), ct);
-        CliOutput.WriteEvents(output, jobId.Value, page, json);
+        CliOutput.WriteEvents(output, jobRef, page, json);
         return ExitOk;
     }
 
     /// <summary>
-    /// Runs an existing job in this process for debugging: resolves the target, initializes the
-    /// owning worker's catalog, resets a non-Ready job via restart semantics, then claims exactly
+    /// Runs an existing job in this process for debugging: initializes the owning worker's catalog,
+    /// resets a non-Ready job via restart semantics, then claims exactly
     /// that id and dispatches through the normal runner pipeline. Only this one job runs: the
     /// worker's normal claim loop is never started, so no other jobs are claimed or executed in this
     /// process during the run. A live worker stealing the row between reset and claim surfaces as not
     /// claimable; the race is accepted. The exit code reflects the attempt: a thrown handler counts
     /// as failed even when the retry budget re-arms the job.
     /// </summary>
-    private async Task<int> DebugAsync(JobLookup job, bool json, bool breakAtHandler, CancellationToken ct)
+    private async Task<int> DebugAsync(JobDetail snapshot, bool json, bool breakAtHandler, CancellationToken ct)
     {
-        var snapshot = await jobs.GetAsync(job, ct);
-        if (snapshot is null)
-        {
-            await error.WriteLineAsync("job not found");
-            return ExitNotFound;
-        }
         var jobId = snapshot.JobId;
+        var jobRef = snapshot.JobRef;
 
         if (snapshot.Status is JobStatusCode.Executing or JobStatusCode.Dispatched)
         {
-            await error.WriteLineAsync($"job {jobId} is currently {snapshot.Status}; cannot run it here.");
+            await error.WriteLineAsync($"job {jobRef} is currently {snapshot.Status}; cannot run it here.");
             return ExitRejected;
         }
 
@@ -254,7 +261,7 @@ internal sealed class CliCommandRunner(
                 var restart = await jobs.RestartAsync(JobLookup.ById(jobId), "cli debug", ct: ct);
                 if (restart.Action != ControlAction.Applied)
                 {
-                    await error.WriteLineAsync($"could not make job {jobId} Ready: {restart.Action} (status {restart.Status}).");
+                    await error.WriteLineAsync($"could not make job {jobRef} Ready: {restart.Action} (status {restart.Status}).");
                     return ExitRejected;
                 }
                 restarted = true;
@@ -291,7 +298,7 @@ internal sealed class CliCommandRunner(
             if (outcome == RunOnceOutcome.NothingClaimed)
             {
                 await error.WriteLineAsync(
-                    $"job {jobId} was not claimable (a worker may hold or have taken it, its row was transiently locked, or it is not due)."
+                    $"job {jobRef} was not claimable (a worker may hold or have taken it, its row was transiently locked, or it is not due)."
                 );
                 return ExitRejected;
             }
@@ -300,7 +307,7 @@ internal sealed class CliCommandRunner(
             var final = await jobs.GetAsync(JobLookup.ById(jobId), ct);
             var attemptFailed = outcome == RunOnceOutcome.Failed || (final is not null && final.FailureCount > baselineFailures);
 
-            CliOutput.WriteDebugRun(output, jobId, outcome.ToString(), final?.Status, json);
+            CliOutput.WriteDebugRun(output, jobRef, outcome.ToString(), final?.Status, json);
             return attemptFailed ? ExitRejected : ExitOk;
         }
         finally

@@ -96,10 +96,11 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var enqueued = await EnqueueOneAsync(TestKey("cli-info"), ct);
         var runner = CreateRunner(out var output);
 
-        Assert.Equal(0, await runner.RunAsync(Parse($"info {enqueued.JobId}"), ct));
-        Assert.Equal(0, await runner.RunAsync(Parse($"status {enqueued.JobId}"), ct));
+        // Addressed by the public ref, the identity the CLI also prints back.
+        Assert.Equal(0, await runner.RunAsync(Parse($"info {enqueued.JobRef}"), ct));
+        Assert.Equal(0, await runner.RunAsync(Parse($"status {enqueued.JobRef}"), ct));
         var text = output.ToString();
-        Assert.Contains($"job: {enqueued.JobId}", text);
+        Assert.Contains($"job: {enqueued.JobRef}", text);
         Assert.Contains("name: add-numbers", text);
         Assert.Contains("status: Ready", text);
     }
@@ -147,7 +148,7 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var eventsRunner = CreateRunner(out var eventsOutput);
         Assert.Equal(0, await eventsRunner.RunAsync(Parse($"events {enqueued.JobId}"), ct));
         var text = eventsOutput.ToString();
-        Assert.Contains($"Events for job {enqueued.JobId}", text);
+        Assert.Contains($"Events for job {enqueued.JobRef}", text);
         Assert.Contains("job.execution-started", text);
         Assert.Contains("job.execution-finished", text);
     }

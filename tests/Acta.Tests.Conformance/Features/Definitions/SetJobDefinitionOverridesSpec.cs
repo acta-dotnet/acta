@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     Area = "Catalog",
     Contract = "Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event.",
     Arrange = "A registered definition carries code-default policy columns.",
-    Act = "An override set is applied then cleared, and stale-version and unknown-id writes are attempted.",
+    Act = "An override set is applied then cleared, and stale-version and unknown-name writes are attempted.",
     Assert = "Only the override columns change with effective recomputed, defaults and definition_hash stay put, bad writes reject, and a policy-changed event lands."
 )]
 [CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.SetDefinitionOverridesAsync))]
@@ -73,12 +73,13 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var name = TestKey("set-ovr");
-        var id = await RegisterAsync(name, 3, ct);
+        await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
         var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
-            id,
+            TestNamespace,
+            name,
             before.Version,
             new JobDefinitionPolicyOverrides(MaxAttempts: 9),
             Actor,
@@ -101,14 +102,32 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var name = TestKey("clear-ovr");
-        var id = await RegisterAsync(name, 4, ct);
+        await RegisterAsync(name, 4, ct);
 
         var v0 = (await ReadAsync(name, ct)).Version;
-        await DefinitionTestOps.UpdateOverridesAsync(Services, id, v0, new JobDefinitionPolicyOverrides(MaxAttempts: 12), Actor, "set", ct);
+        await DefinitionTestOps.UpdateOverridesAsync(
+            Services,
+            TestNamespace,
+            name,
+            v0,
+            new JobDefinitionPolicyOverrides(MaxAttempts: 12),
+            Actor,
+            "set",
+            ct
+        );
         var set = await ReadAsync(name, ct);
         Assert.Equal((short)12, set.MaxAttemptsEffective);
 
-        await DefinitionTestOps.UpdateOverridesAsync(Services, id, set.Version, new JobDefinitionPolicyOverrides(), Actor, "clear", ct);
+        await DefinitionTestOps.UpdateOverridesAsync(
+            Services,
+            TestNamespace,
+            name,
+            set.Version,
+            new JobDefinitionPolicyOverrides(),
+            Actor,
+            "clear",
+            ct
+        );
         var cleared = await ReadAsync(name, ct);
         Assert.Null(cleared.MaxAttemptsOverride);
         Assert.Equal((short)4, cleared.MaxAttemptsEffective); // reverts to default
@@ -120,12 +139,13 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var name = TestKey("stale");
-        var id = await RegisterAsync(name, 5, ct);
+        await RegisterAsync(name, 5, ct);
         var before = await ReadAsync(name, ct);
 
         var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
-            id,
+            TestNamespace,
+            name,
             before.Version + 1,
             new JobDefinitionPolicyOverrides(MaxAttempts: 99),
             Actor,
@@ -147,13 +167,14 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         var ct = TestContext.Current.CancellationToken;
         var (db, _) = Store();
         var name = TestKey("bad-backoff");
-        var id = await RegisterAsync(name, 3, ct);
+        await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             DefinitionTestOps.UpdateOverridesAsync(
                 Services,
-                id,
+                TestNamespace,
+                name,
                 before.Version,
                 new JobDefinitionPolicyOverrides(Backoff: badBackoff),
                 Actor,
@@ -183,13 +204,14 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     {
         var ct = TestContext.Current.CancellationToken;
         var name = TestKey("out-of-range");
-        var id = await RegisterAsync(name, 3, ct);
+        await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             new DefinitionsApi(Services.GetRequiredService<DefinitionsService>())
                 .UpdateOverridesAsync(
-                    id,
+                    TestNamespace,
+                    name,
                     before.Version,
                     new JobDefinitionPolicyOverrides(
                         MaxAttempts: maxAttempts,
@@ -213,11 +235,12 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     {
         var ct = TestContext.Current.CancellationToken;
         var name = TestKey("boundary-ovr");
-        var id = await RegisterAsync(name, 3, ct);
+        await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
         var result = await new DefinitionsApi(Services.GetRequiredService<DefinitionsService>()).UpdateOverridesAsync(
-            id,
+            TestNamespace,
+            name,
             before.Version,
             new JobDefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
             Actor.ActorKey,
@@ -228,15 +251,16 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         Assert.Equal(ControlAction.Applied, result.Action);
     }
 
-    [Fact(DisplayName = "An unknown definition id is NotFound")]
-    public async Task Unknown_id_is_not_found()
+    [Fact(DisplayName = "An unknown definition name is NotFound")]
+    public async Task Unknown_name_is_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
 
         var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
-            int.MaxValue,
+            TestNamespace,
+            TestKey("ghost-definition"),
             0,
             new JobDefinitionPolicyOverrides(MaxAttempts: 1),
             Actor,
@@ -258,7 +282,8 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
 
         await DefinitionTestOps.UpdateOverridesAsync(
             Services,
-            id,
+            TestNamespace,
+            name,
             v0,
             new JobDefinitionPolicyOverrides(MaxAttempts: 7),
             Actor,

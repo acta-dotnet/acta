@@ -21,6 +21,7 @@
   import WorkersList from './routes/WorkersList.svelte';
   import WorkerDetail from './routes/WorkerDetail.svelte';
   import AlertsList from './routes/AlertsList.svelte';
+  import AlertDetail from './routes/AlertDetail.svelte';
   import NamespacesList from './routes/NamespacesList.svelte';
   import NamespaceDetail from './routes/NamespaceDetail.svelte';
   import TenantsList from './routes/TenantsList.svelte';
@@ -169,8 +170,8 @@
     {:else if $route.name === 'definitions'}
       <DefinitionsList />
     {:else if $route.name === 'definition-detail'}
-      {#key $route.defId}
-        <DefinitionDetail defId={$route.defId} />
+      {#key $route.defNamespace + '/' + $route.defName}
+        <DefinitionDetail jobNamespace={$route.defNamespace} jobName={$route.defName} />
       {/key}
     {:else if $route.name === 'schedules'}
       <SchedulesList />
@@ -184,11 +185,15 @@
     {:else if $route.name === 'workers'}
       <WorkersList />
     {:else if $route.name === 'worker-detail'}
-      {#key $route.workerId}
-        <WorkerDetail workerId={$route.workerId} />
+      {#key $route.workerRef}
+        <WorkerDetail workerRef={$route.workerRef} />
       {/key}
     {:else if $route.name === 'alerts'}
       <AlertsList />
+    {:else if $route.name === 'alert-detail'}
+      {#key $route.alertRef}
+        <AlertDetail alertRef={$route.alertRef} />
+      {/key}
     {:else if $route.name === 'namespaces'}
       <NamespacesList />
     {:else if $route.name === 'namespace-detail'}

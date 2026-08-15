@@ -241,7 +241,7 @@
                 <!-- The job ref rides with the title rather than taking its own column, so this
                      panel keeps the same four columns as the others without losing the link. -->
                 <td>
-                  {alert.title}
+                  <a href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace ?? $scope })}>{alert.title}</a>
                   {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace ?? $scope })} />{/if}
                 </td>
                 <td><SeverityBadge severity={alert.severity} /></td>
@@ -270,7 +270,7 @@
           <tbody>
             {#each workers.items as worker}
               <tr class:trouble={worker.status === 'dead'}>
-                <td class="mono"><a href={routes.worker(worker.workerId, { namespace: worker.jobNamespace })}>{worker.workerId}</a></td>
+                <td><JobRef value={worker.workerRef} href={routes.worker(worker.workerRef, { namespace: worker.jobNamespace })} /></td>
                 <td><StatusBadge status={worker.status} /></td>
                 <td>{worker.jobNamespace}</td>
                 <td><RelativeTime value={worker.lastHeartbeatAtUtc} /></td>

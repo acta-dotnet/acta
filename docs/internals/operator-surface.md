@@ -22,13 +22,13 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Lineage map | `IJobs.GetLineageMapAsync` | (in detail) | | cost joins (demo) |
 | Resolve by key | `IJobs.GetJobIdAsync` | `GET /jobs/by-key` | target syntax | |
 | List jobs | `ILedger.ListJobsAsync` | `GET /jobs` | | |
-| List events | `ILedger.ListEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{id}/events` | `events` | Explain bundle |
+| List events | `ILedger.ListEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{jobNamespace}/{jobName}/events` | `events` | Explain bundle |
 | Overview | `ILedger.GetOverviewAsync` | `GET /overview` | | |
 | Namespaces | `Namespaces.ListItemsAsync` | `GET /namespaces` | | one representation, the row; `ListAsync` stays for name-only callers |
-| Definitions | `Definitions.ListAsync` / `GetAsync` | `GET /definitions`, `GET /definitions/{id}` | | |
+| Definitions | `Definitions.ListAsync` / `GetAsync` | `GET /definitions`, `GET /definitions/{jobNamespace}/{jobName}` | | |
 | Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | | |
-| Workers | `Workers.ListAsync` / `GetAsync` | `GET /workers`, `GET /workers/{id}` | | |
-| Alerts | `Alerts.ListAsync` | `GET /alerts` | | |
+| Workers | `Workers.ListAsync` / `GetAsync` | `GET /workers`, `GET /workers/{workerRef}` | | |
+| Alerts | `Alerts.ListAsync` / `GetAsync` | `GET /alerts`, `GET /alerts/{alertRef}` | | |
 | Tenants | `Tenants.ListAsync` | `GET /tenants` | | |
 | Tags | `Tags.*` reads | `GET .../tags` per scope | | |
 | Input template | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | | enqueue form shape hint |
@@ -56,10 +56,10 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Area | Layer-1 | HTTP |
 | --- | --- | --- |
 | Schedules | `Schedules.Pause/Resume/TriggerNow/SetOverrides` | `POST /schedules/...` |
-| Definitions | `Definitions.SetOverrides` | `PATCH /definitions/{id}` |
+| Definitions | `Definitions.SetOverrides` | `PATCH /definitions/{jobNamespace}/{jobName}` |
 | Tenants | `Tenants.Register/Suspend/Resume/UpdateAsync` | `POST/PATCH /tenants...` |
 | Namespaces | `Namespaces.Suspend/Resume/UpdateAsync` | `POST/PATCH /namespaces...` |
-| Alerts | `Alerts.Acknowledge/Resolve` | `POST /alerts/{id}/...` |
+| Alerts | `Alerts.Acknowledge/Resolve` | `POST /alerts/{alertRef}/...` |
 | Tags | `Tags.Apply/Remove` | `POST/DELETE .../tags` |
 
 ## Known gaps (deliberate)

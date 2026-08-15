@@ -136,25 +136,6 @@ internal static class QueryBinding
         return false;
     }
 
-    public static bool TryLong(IQueryCollection query, string name, out long? value, ref string? error)
-    {
-        value = null;
-        var raw = query[name];
-        if (raw.Count == 0 || string.IsNullOrEmpty(raw[0]))
-        {
-            return true;
-        }
-
-        if (long.TryParse(raw[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
-        {
-            value = parsed;
-            return true;
-        }
-
-        error = $"Query parameter '{name}' is not a valid integer.";
-        return false;
-    }
-
     public static bool TryBool(IQueryCollection query, string name, out bool? value, ref string? error)
     {
         value = null;

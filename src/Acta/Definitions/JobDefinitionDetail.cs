@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Acta;
 
 /// <summary>
@@ -6,10 +8,11 @@ namespace Acta;
 /// every policy triple (code <c>default</c>, operator <c>override</c> [null = inherit], DB-computed
 /// <c>effective</c>), and audit bookkeeping. Backs the dashboard's definition detail editor, where
 /// operators see and edit defaults vs overrides vs effective. The grid uses the slimmer
-/// <see cref="JobDefinitionListItem"/>.
+/// <see cref="JobDefinitionListItem"/>. A definition is addressed by its natural key (namespace +
+/// name); the catalog id stays off the wire.
 /// </summary>
 public sealed record JobDefinitionDetail(
-    int DefinitionId,
+    [property: JsonIgnore] int DefinitionId,
     string JobNamespace,
     string JobName,
     JobDefinitionStatusCode Status,
