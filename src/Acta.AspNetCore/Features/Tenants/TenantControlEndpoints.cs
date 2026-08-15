@@ -82,6 +82,7 @@ internal static class TenantControlEndpoints
             // RegisterAsync is insert-or-get, and it returns the id either way without saying which,
             // so this cannot honestly claim 201. An idempotent upsert answering 200 with the canonical
             // key is the accurate shape.
+            .WithSummary("Register a tenant, or return the existing one.")
             .Produces<TenantRegistrationResponse>(StatusCodes.Status200OK);
 
         group
@@ -106,6 +107,7 @@ internal static class TenantControlEndpoints
                     }
                 }
             )
+            .WithSummary("Suspend the tenant: new work is rejected at enqueue.")
             .Produces<AdminControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -131,6 +133,7 @@ internal static class TenantControlEndpoints
                     }
                 }
             )
+            .WithSummary("Resume a suspended tenant.")
             .Produces<AdminControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -202,6 +205,7 @@ internal static class TenantControlEndpoints
                     }
                 }
             )
+            .WithSummary("Update the tenant's display name and description.")
             .Produces<AdminControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);

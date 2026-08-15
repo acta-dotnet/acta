@@ -20,15 +20,21 @@ internal static class OutboxControlEndpoints
         group.ProducesJson<OutboxControlResponse>(StatusCodes.Status409Conflict);
         group.ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPost(
-            "/outbox/requeue",
-            (HttpContext http, IActaOperations operations, CancellationToken ct) => HandleAsync(http, operations, options, "requeue", ct)
-        );
+        group
+            .MapPost(
+                "/outbox/requeue",
+                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    HandleAsync(http, operations, options, "requeue", ct)
+            )
+            .WithSummary("Return quarantined outbox rows to pending; the next relay pass applies it.");
 
-        group.MapPost(
-            "/outbox/discard",
-            (HttpContext http, IActaOperations operations, CancellationToken ct) => HandleAsync(http, operations, options, "discard", ct)
-        );
+        group
+            .MapPost(
+                "/outbox/discard",
+                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    HandleAsync(http, operations, options, "discard", ct)
+            )
+            .WithSummary("Delete quarantined outbox rows, keeping the ids as audit evidence.");
     }
 
     private static async Task<IResult> HandleAsync(

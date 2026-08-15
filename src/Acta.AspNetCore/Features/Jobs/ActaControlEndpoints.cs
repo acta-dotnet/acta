@@ -14,13 +14,43 @@ internal static class ActaControlEndpoints
 {
     public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        MapVerb(group, options, "pause", static (jobs, lookup, reason, actorKey, ct) => jobs.PauseAsync(lookup, reason, actorKey, ct));
-        MapVerb(group, options, "resume", static (jobs, lookup, reason, actorKey, ct) => jobs.ResumeAsync(lookup, reason, actorKey, ct));
-        MapVerb(group, options, "restart", static (jobs, lookup, reason, actorKey, ct) => jobs.RestartAsync(lookup, reason, actorKey, ct));
-        MapVerb(group, options, "cancel", static (jobs, lookup, reason, actorKey, ct) => jobs.CancelAsync(lookup, reason, actorKey, ct));
+        MapVerb(
+            group,
+            options,
+            "pause",
+            "Pause the job until an operator resumes it.",
+            static (jobs, lookup, reason, actorKey, ct) => jobs.PauseAsync(lookup, reason, actorKey, ct)
+        );
+        MapVerb(
+            group,
+            options,
+            "resume",
+            "Resume a paused job.",
+            static (jobs, lookup, reason, actorKey, ct) => jobs.ResumeAsync(lookup, reason, actorKey, ct)
+        );
+        MapVerb(
+            group,
+            options,
+            "restart",
+            "Restart a terminal job with its original input.",
+            static (jobs, lookup, reason, actorKey, ct) => jobs.RestartAsync(lookup, reason, actorKey, ct)
+        );
+        MapVerb(
+            group,
+            options,
+            "cancel",
+            "Cancel the job.",
+            static (jobs, lookup, reason, actorKey, ct) => jobs.CancelAsync(lookup, reason, actorKey, ct)
+        );
         // Purge carries no caller reason: the body still passes through MapVerb's confirmation-header and
         // JSON-shape checks (for parity with the other verbs), but the parsed reason is never forwarded.
-        MapVerb(group, options, "purge", static (jobs, lookup, _, actorKey, ct) => jobs.PurgeAsync(lookup, actorKey, ct));
+        MapVerb(
+            group,
+            options,
+            "purge",
+            "Delete the job's record from the ledger.",
+            static (jobs, lookup, _, actorKey, ct) => jobs.PurgeAsync(lookup, actorKey, ct)
+        );
         MapReschedule(group, options);
         MapReprioritize(group, options);
         MapInput(group, options);
@@ -157,6 +187,7 @@ internal static class ActaControlEndpoints
                     }
                 }
             )
+            .WithSummary("Amend a waiting job's stored input, format-faithfully.")
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status404NotFound);
@@ -214,6 +245,7 @@ internal static class ActaControlEndpoints
                     return ToResult("reschedule", parsed, result);
                 }
             )
+            .WithSummary("Move the job's next-run instant.")
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
@@ -262,6 +294,7 @@ internal static class ActaControlEndpoints
                     return ToResult("reprioritize", parsed, result);
                 }
             )
+            .WithSummary("Change the job's priority.")
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
@@ -339,6 +372,7 @@ internal static class ActaControlEndpoints
                     }
                 }
             )
+            .WithSummary("Raise a named signal on the job, with an optional JSON value.")
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
@@ -348,6 +382,7 @@ internal static class ActaControlEndpoints
         RouteGroupBuilder group,
         ActaEndpointOptions options,
         string verb,
+        string summary,
         Func<IJobs, JobLookup, string?, string?, CancellationToken, ValueTask<JobControlResult>> invoke
     )
     {
@@ -378,6 +413,7 @@ internal static class ActaControlEndpoints
             // just the happy path: applied is 200, a state that forbids the transition is 409, an
             // unknown ref is 404. All three carry the same body, so a client reads `action` and the
             // resulting `status` without special-casing the status code.
+            .WithSummary(summary)
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);

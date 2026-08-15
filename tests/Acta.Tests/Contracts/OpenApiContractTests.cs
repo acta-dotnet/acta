@@ -48,6 +48,28 @@ public sealed class OpenApiContractTests
         );
     }
 
+    // Every operation carries a one-line summary, so a reader scanning the document (or Scalar's
+    // operation list) never meets an unexplained action. New endpoints fail here until they say
+    // what they are about via WithSummary.
+    [Fact]
+    public async Task Every_operation_carries_a_summary()
+    {
+        var document = JsonNode.Parse(await GenerateAsync())!;
+        var missing = new List<string>();
+        foreach (var (path, operations) in document["paths"]!.AsObject())
+        {
+            foreach (var (method, operation) in operations!.AsObject())
+            {
+                if (string.IsNullOrWhiteSpace(operation?["summary"]?.GetValue<string>()))
+                {
+                    missing.Add($"{method.ToUpperInvariant()} {path}");
+                }
+            }
+        }
+
+        Assert.Empty(missing);
+    }
+
     private static async Task<string> GenerateAsync()
     {
         var builder = WebApplication.CreateBuilder();

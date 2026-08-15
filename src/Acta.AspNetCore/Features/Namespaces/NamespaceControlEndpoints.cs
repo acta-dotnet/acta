@@ -20,124 +20,130 @@ internal static class NamespaceControlEndpoints
         group.ProducesProblem(StatusCodes.Status404NotFound);
         group.ProducesProblem(StatusCodes.Status409Conflict);
 
-        group.MapPost(
-            "/namespaces/{jobNamespace}/suspend",
-            async Task<IResult> (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
-                if (error is not null)
+        group
+            .MapPost(
+                "/namespaces/{jobNamespace}/suspend",
+                async Task<IResult> (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return error;
-                }
+                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                try
-                {
-                    var result = await operations.Namespaces.SuspendAsync(jobNamespace, reason, http.User?.Identity?.Name, ct);
-                    return AdminControlHttp.ToResult(result);
+                    try
+                    {
+                        var result = await operations.Namespaces.SuspendAsync(jobNamespace, reason, http.User?.Identity?.Name, ct);
+                        return AdminControlHttp.ToResult(result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid namespace jobNamespace.",
+                            ex.Message
+                        );
+                    }
                 }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid namespace jobNamespace.",
-                        ex.Message
-                    );
-                }
-            }
-        );
+            )
+            .WithSummary("Suspend the namespace: new work is rejected at enqueue.");
 
-        group.MapPost(
-            "/namespaces/{jobNamespace}/resume",
-            async Task<IResult> (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
-                if (error is not null)
+        group
+            .MapPost(
+                "/namespaces/{jobNamespace}/resume",
+                async Task<IResult> (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return error;
-                }
+                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
+                    if (error is not null)
+                    {
+                        return error;
+                    }
 
-                try
-                {
-                    var result = await operations.Namespaces.ResumeAsync(jobNamespace, reason, http.User?.Identity?.Name, ct);
-                    return AdminControlHttp.ToResult(result);
+                    try
+                    {
+                        var result = await operations.Namespaces.ResumeAsync(jobNamespace, reason, http.User?.Identity?.Name, ct);
+                        return AdminControlHttp.ToResult(result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid namespace jobNamespace.",
+                            ex.Message
+                        );
+                    }
                 }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid namespace jobNamespace.",
-                        ex.Message
-                    );
-                }
-            }
-        );
+            )
+            .WithSummary("Resume a suspended namespace.");
 
-        group.MapPatch(
-            "/namespaces/{jobNamespace}",
-            async Task<IResult> (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+        group
+            .MapPatch(
+                "/namespaces/{jobNamespace}",
+                async Task<IResult> (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.NamespacePatchRequest,
-                    ct
-                );
-                if (bodyError is not null)
-                {
-                    return bodyError;
-                }
-
-                if (body!.ExpectedVersion is not { } expectedVersion)
-                {
-                    return ControlEndpointValidation.Problem(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid namespace update.",
-                        "expectedVersion is required."
-                    );
-                }
-                if (
-                    ControlEndpointValidation.ValidateLength(body.OwnerTeam, "ownerTeam", AdminTextLimits.NamespaceOwnerTeam) is
-                    { } ownerTeamError
-                )
-                {
-                    return ownerTeamError;
-                }
-                if (
-                    ControlEndpointValidation.ValidateLength(body.Description, "description", AdminTextLimits.NamespaceDescription) is
-                    { } descriptionError
-                )
-                {
-                    return descriptionError;
-                }
-
-                var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
-                if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
-                {
-                    return reasonError;
-                }
-
-                try
-                {
-                    var result = await operations.Namespaces.UpdateAsync(
-                        jobNamespace,
-                        expectedVersion,
-                        body.OwnerTeam,
-                        body.Description,
-                        reason,
-                        http.User?.Identity?.Name,
+                    var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.NamespacePatchRequest,
                         ct
                     );
-                    return AdminControlHttp.ToResult(result);
+                    if (bodyError is not null)
+                    {
+                        return bodyError;
+                    }
+
+                    if (body!.ExpectedVersion is not { } expectedVersion)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid namespace update.",
+                            "expectedVersion is required."
+                        );
+                    }
+                    if (
+                        ControlEndpointValidation.ValidateLength(body.OwnerTeam, "ownerTeam", AdminTextLimits.NamespaceOwnerTeam) is
+                        { } ownerTeamError
+                    )
+                    {
+                        return ownerTeamError;
+                    }
+                    if (
+                        ControlEndpointValidation.ValidateLength(body.Description, "description", AdminTextLimits.NamespaceDescription) is
+                        { } descriptionError
+                    )
+                    {
+                        return descriptionError;
+                    }
+
+                    var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
+                    if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
+                    {
+                        return reasonError;
+                    }
+
+                    try
+                    {
+                        var result = await operations.Namespaces.UpdateAsync(
+                            jobNamespace,
+                            expectedVersion,
+                            body.OwnerTeam,
+                            body.Description,
+                            reason,
+                            http.User?.Identity?.Name,
+                            ct
+                        );
+                        return AdminControlHttp.ToResult(result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid namespace update.", ex.Message);
+                    }
                 }
-                catch (ArgumentException ex)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid namespace update.", ex.Message);
-                }
-            }
-        );
+            )
+            .WithSummary("Update the namespace's owner team and description.");
     }
 }

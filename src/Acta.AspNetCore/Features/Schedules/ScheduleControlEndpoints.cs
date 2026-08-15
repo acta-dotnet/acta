@@ -21,153 +21,169 @@ internal static class ScheduleControlEndpoints
         group.ProducesJson<ScheduleControlResponse>();
         group.ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPost(
-            "/schedules/pause",
-            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+        group
+            .MapPost(
+                "/schedules/pause",
+                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return confirmationError;
-                }
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
 
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.SchedulePauseRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
-                {
-                    return badRequest;
-                }
-
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                var result = await operations.Schedules.PauseAsync(lookup, body.PausedUntilUtc, body.ReasonMessage, actorKey, ct);
-                return ToResult("pause", result);
-            }
-        );
-
-        group.MapPost(
-            "/schedules/resume",
-            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
-
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.ScheduleResumeRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
-                {
-                    return badRequest;
-                }
-
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                var result = await operations.Schedules.ResumeAsync(lookup, body.ReasonMessage, actorKey, ct);
-                return ToResult("resume", result);
-            }
-        );
-
-        group.MapPost(
-            "/schedules/trigger",
-            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
-
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.ScheduleTriggerRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
-                {
-                    return badRequest;
-                }
-
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                var result = await operations.Schedules.TriggerNowAsync(lookup, body.ReasonMessage, actorKey, ct);
-                return ToResult("trigger", result);
-            }
-        );
-
-        group.MapPost(
-            "/schedules/overrides",
-            async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-            {
-                if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                {
-                    return confirmationError;
-                }
-
-                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                    http,
-                    DashboardJsonContext.Default.SetScheduleOverridesRequest,
-                    ct
-                );
-                if (error is not null)
-                {
-                    return error;
-                }
-
-                if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
-                {
-                    return badRequest;
-                }
-
-                if (body.ExpectedVersion is not { } version)
-                {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", "version is required.");
-                }
-
-                // Operator identity for the audit trail comes from the authenticated principal, never the
-                // body; the verb stamps actor = Operator.
-                var actorKey = http.User?.Identity?.Name;
-                try
-                {
-                    var result = await operations.Schedules.UpdateOverridesAsync(
-                        lookup,
-                        version,
-                        body.Expression,
-                        body.TimeZoneId,
-                        body.ReasonMessage,
-                        actorKey,
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.SchedulePauseRequest,
                         ct
                     );
-                    return ToResult("overrides", result);
+                    if (error is not null)
+                    {
+                        return error;
+                    }
+
+                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
+                    {
+                        return badRequest;
+                    }
+
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    var result = await operations.Schedules.PauseAsync(lookup, body.PausedUntilUtc, body.ReasonMessage, actorKey, ct);
+                    return ToResult("pause", result);
                 }
-                catch (ArgumentException ex)
+            )
+            .WithSummary("Pause a recurring schedule, indefinitely or until an instant.");
+
+        group
+            .MapPost(
+                "/schedules/resume",
+                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid schedule overrides.", ex.Message);
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
+
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.ScheduleResumeRequest,
+                        ct
+                    );
+                    if (error is not null)
+                    {
+                        return error;
+                    }
+
+                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
+                    {
+                        return badRequest;
+                    }
+
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    var result = await operations.Schedules.ResumeAsync(lookup, body.ReasonMessage, actorKey, ct);
+                    return ToResult("resume", result);
                 }
-            }
-        );
+            )
+            .WithSummary("Resume a paused schedule, reconciled by its misfire policy.");
+
+        group
+            .MapPost(
+                "/schedules/trigger",
+                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                {
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
+
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.ScheduleTriggerRequest,
+                        ct
+                    );
+                    if (error is not null)
+                    {
+                        return error;
+                    }
+
+                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
+                    {
+                        return badRequest;
+                    }
+
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    var result = await operations.Schedules.TriggerNowAsync(lookup, body.ReasonMessage, actorKey, ct);
+                    return ToResult("trigger", result);
+                }
+            )
+            .WithSummary("Fire the schedule now, without moving its cadence.");
+
+        group
+            .MapPost(
+                "/schedules/overrides",
+                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                {
+                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+                    {
+                        return confirmationError;
+                    }
+
+                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                        http,
+                        DashboardJsonContext.Default.SetScheduleOverridesRequest,
+                        ct
+                    );
+                    if (error is not null)
+                    {
+                        return error;
+                    }
+
+                    if (!TryLookup(body!.JobNamespace, body.JobName, body.ScheduleName, out var lookup, out var badRequest))
+                    {
+                        return badRequest;
+                    }
+
+                    if (body.ExpectedVersion is not { } version)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid request.",
+                            "version is required."
+                        );
+                    }
+
+                    // Operator identity for the audit trail comes from the authenticated principal, never the
+                    // body; the verb stamps actor = Operator.
+                    var actorKey = http.User?.Identity?.Name;
+                    try
+                    {
+                        var result = await operations.Schedules.UpdateOverridesAsync(
+                            lookup,
+                            version,
+                            body.Expression,
+                            body.TimeZoneId,
+                            body.ReasonMessage,
+                            actorKey,
+                            ct
+                        );
+                        return ToResult("overrides", result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid schedule overrides.",
+                            ex.Message
+                        );
+                    }
+                }
+            )
+            .WithSummary("Set or clear the schedule's expression and time-zone overrides.");
     }
 
     private static bool TryLookup(

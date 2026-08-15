@@ -15,6 +15,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Pause the job until an operator resumes it.",
         "parameters": [
           {
             "name": "jobRef",
@@ -114,6 +115,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Resume a paused job.",
         "parameters": [
           {
             "name": "jobRef",
@@ -213,6 +215,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Restart a terminal job with its original input.",
         "parameters": [
           {
             "name": "jobRef",
@@ -312,6 +315,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Cancel the job.",
         "parameters": [
           {
             "name": "jobRef",
@@ -411,6 +415,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Delete the job's record from the ledger.",
         "parameters": [
           {
             "name": "jobRef",
@@ -510,6 +515,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Move the job's next-run instant.",
         "parameters": [
           {
             "name": "jobRef",
@@ -609,6 +615,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Change the job's priority.",
         "parameters": [
           {
             "name": "jobRef",
@@ -708,6 +715,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Amend a waiting job's stored input, format-faithfully.",
         "parameters": [
           {
             "name": "jobRef",
@@ -805,6 +813,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Read the job's stored input payload.",
         "parameters": [
           {
             "name": "jobRef",
@@ -884,6 +893,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Raise a named signal on the job, with an optional JSON value.",
         "parameters": [
           {
             "name": "jobRef",
@@ -991,6 +1001,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Enqueue a job.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1078,6 +1089,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "List jobs, filtered and keyset-paged.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -1268,6 +1280,7 @@
         "tags": [
           "Definitions"
         ],
+        "summary": "Set or clear the definition's operator policy overrides.",
         "parameters": [
           {
             "name": "definitionId",
@@ -1357,6 +1370,7 @@
         "tags": [
           "Definitions"
         ],
+        "summary": "Read one job definition and its effective policy.",
         "parameters": [
           {
             "name": "definitionId",
@@ -1438,6 +1452,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Register a tenant, or return the existing one.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1505,6 +1520,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "List tenants.",
         "parameters": [
           {
             "name": "status",
@@ -1622,6 +1638,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Suspend the tenant: new work is rejected at enqueue.",
         "parameters": [
           {
             "name": "tenantKey",
@@ -1711,6 +1728,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Resume a suspended tenant.",
         "parameters": [
           {
             "name": "tenantKey",
@@ -1800,6 +1818,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Update the tenant's display name and description.",
         "parameters": [
           {
             "name": "tenantKey",
@@ -1897,6 +1916,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Read one tenant.",
         "parameters": [
           {
             "name": "tenantKey",
@@ -1976,6 +1996,7 @@
         "tags": [
           "Alerts"
         ],
+        "summary": "Acknowledge the alert: an operator has seen it.",
         "parameters": [
           {
             "name": "alertId",
@@ -2067,6 +2088,7 @@
         "tags": [
           "Alerts"
         ],
+        "summary": "Resolve the alert: its cause is handled.",
         "parameters": [
           {
             "name": "alertId",
@@ -2158,6 +2180,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Pause a recurring schedule, indefinitely or until an instant.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2237,6 +2260,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Resume a paused schedule, reconciled by its misfire policy.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2316,6 +2340,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Fire the schedule now, without moving its cadence.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2395,6 +2420,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Set or clear the schedule's expression and time-zone overrides.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2474,6 +2500,7 @@
         "tags": [
           "Namespaces"
         ],
+        "summary": "Suspend the namespace: new work is rejected at enqueue.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2573,6 +2600,7 @@
         "tags": [
           "Namespaces"
         ],
+        "summary": "Resume a suspended namespace.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2672,6 +2700,7 @@
         "tags": [
           "Namespaces"
         ],
+        "summary": "Update the namespace's owner team and description.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2771,6 +2800,7 @@
         "tags": [
           "Outbox"
         ],
+        "summary": "Return quarantined outbox rows to pending; the next relay pass applies it.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2860,6 +2890,7 @@
         "tags": [
           "Outbox"
         ],
+        "summary": "Delete quarantined outbox rows, keeping the ids as audit evidence.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2949,6 +2980,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Add or update one tag on the job.",
         "parameters": [
           {
             "name": "jobRef",
@@ -3036,6 +3068,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Read the job's tags.",
         "parameters": [
           {
             "name": "jobRef",
@@ -3118,6 +3151,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Remove one tag from the job.",
         "parameters": [
           {
             "name": "jobRef",
@@ -3215,6 +3249,7 @@
         "tags": [
           "Definitions"
         ],
+        "summary": "Add or update one tag on the definition.",
         "parameters": [
           {
             "name": "definitionId",
@@ -3304,6 +3339,7 @@
         "tags": [
           "Definitions"
         ],
+        "summary": "Read the definition's tags.",
         "parameters": [
           {
             "name": "definitionId",
@@ -3388,6 +3424,7 @@
         "tags": [
           "Definitions"
         ],
+        "summary": "Remove one tag from the definition.",
         "parameters": [
           {
             "name": "definitionId",
@@ -3487,6 +3524,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Add or update one tag on the schedule.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -3590,6 +3628,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Read the schedule's tags.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -3688,6 +3727,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Remove one tag from the schedule.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -3801,6 +3841,7 @@
         "tags": [
           "Workers"
         ],
+        "summary": "Add or update one tag on the worker.",
         "parameters": [
           {
             "name": "workerId",
@@ -3890,6 +3931,7 @@
         "tags": [
           "Workers"
         ],
+        "summary": "Read the worker's tags.",
         "parameters": [
           {
             "name": "workerId",
@@ -3974,6 +4016,7 @@
         "tags": [
           "Workers"
         ],
+        "summary": "Remove one tag from the worker.",
         "parameters": [
           {
             "name": "workerId",
@@ -4073,6 +4116,7 @@
         "tags": [
           "Namespaces"
         ],
+        "summary": "Add or update one tag on the namespace.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4160,6 +4204,7 @@
         "tags": [
           "Namespaces"
         ],
+        "summary": "Read the namespace's tags.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4242,6 +4287,7 @@
         "tags": [
           "Namespaces"
         ],
+        "summary": "Remove one tag from the namespace.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4339,6 +4385,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Add or update one tag on the tenant.",
         "parameters": [
           {
             "name": "tenantKey",
@@ -4426,6 +4473,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Read the tenant's tags.",
         "parameters": [
           {
             "name": "tenantKey",
@@ -4508,6 +4556,7 @@
         "tags": [
           "Tenants"
         ],
+        "summary": "Remove one tag from the tenant.",
         "parameters": [
           {
             "name": "tenantKey",
@@ -4605,6 +4654,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Read a job's compile-time input template.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4690,6 +4740,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Read one job's snapshot.",
         "parameters": [
           {
             "name": "jobRef",
@@ -4769,6 +4820,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Read the job's full detail aggregate in one request.",
         "parameters": [
           {
             "name": "jobRef",
@@ -4848,6 +4900,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "Resolve a job by namespace and deduplication key.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4937,6 +4990,7 @@
         "tags": [
           "Overview"
         ],
+        "summary": "Read the ledger's health-overview counters.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5006,6 +5060,7 @@
         "tags": [
           "Outbox"
         ],
+        "summary": "List outbox relay sources with backlog and quarantine totals.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5092,6 +5147,7 @@
         "tags": [
           "Outbox"
         ],
+        "summary": "List a relay source's quarantined staging rows.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5197,6 +5253,7 @@
         "tags": [
           "Namespaces"
         ],
+        "summary": "List namespaces.",
         "parameters": [
           {
             "name": "status",
@@ -5314,6 +5371,7 @@
         "tags": [
           "Events"
         ],
+        "summary": "List ledger events, filtered and keyset-paged.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5566,6 +5624,7 @@
         "tags": [
           "Jobs"
         ],
+        "summary": "List one job's event timeline.",
         "parameters": [
           {
             "name": "jobRef",
@@ -5716,6 +5775,7 @@
         "tags": [
           "Definitions"
         ],
+        "summary": "List job definitions.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5841,6 +5901,7 @@
         "tags": [
           "Definitions"
         ],
+        "summary": "List one definition's audit events.",
         "parameters": [
           {
             "name": "definitionId",
@@ -5975,6 +6036,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "List recurring schedules, next run first.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6108,6 +6170,7 @@
         "tags": [
           "Capabilities"
         ],
+        "summary": "Read this host's API capabilities.",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -6167,6 +6230,7 @@
         "tags": [
           "Schedules"
         ],
+        "summary": "Preview a schedule's upcoming fire instants.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6274,6 +6338,7 @@
         "tags": [
           "Workers"
         ],
+        "summary": "List workers.",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6393,6 +6458,7 @@
         "tags": [
           "Workers"
         ],
+        "summary": "Read one worker.",
         "parameters": [
           {
             "name": "workerId",
@@ -6475,6 +6541,7 @@
         "tags": [
           "Alerts"
         ],
+        "summary": "List alerts.",
         "parameters": [
           {
             "name": "jobNamespace",

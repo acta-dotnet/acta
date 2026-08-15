@@ -18,12 +18,14 @@ internal static class AlertControlEndpoints
             group,
             options,
             "acknowledge",
+            "Acknowledge the alert: an operator has seen it.",
             static (operations, alertId, note, actorKey, ct) => operations.Alerts.AcknowledgeAsync(alertId, note, actorKey, ct)
         );
         MapVerb(
             group,
             options,
             "resolve",
+            "Resolve the alert: its cause is handled.",
             static (operations, alertId, note, actorKey, ct) => operations.Alerts.ResolveAsync(alertId, note, actorKey, ct)
         );
     }
@@ -32,6 +34,7 @@ internal static class AlertControlEndpoints
         RouteGroupBuilder group,
         ActaEndpointOptions options,
         string verb,
+        string summary,
         Func<IActaOperations, long, string?, string?, CancellationToken, ValueTask<AlertControlResult>> invoke
     )
     {
@@ -60,6 +63,7 @@ internal static class AlertControlEndpoints
                 }
             )
             // One declaration for acknowledge and resolve alike.
+            .WithSummary(summary)
             .Produces<AlertControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }

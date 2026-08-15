@@ -248,6 +248,7 @@ internal static class ActaApiEndpoints
                     });
                 }
             )
+            .WithSummary("List jobs, filtered and keyset-paged.")
             .Produces<PagedResult<JobListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only jobs in this namespace."),
@@ -279,6 +280,7 @@ internal static class ActaApiEndpoints
                     return snapshot is null ? NotFound() : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
                 }
             )
+            .WithSummary("Read one job's snapshot.")
             .Produces<JobDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -307,6 +309,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("Read the job's stored input payload.")
             .Produces<Features.Jobs.JobPayloadResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -346,6 +349,7 @@ internal static class ActaApiEndpoints
                     return Results.Json(detail, DashboardJsonContext.Default.JobDetailResponse);
                 }
             )
+            .WithSummary("Read the job's full detail aggregate in one request.")
             .Produces<Features.Jobs.JobDetailResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -371,6 +375,7 @@ internal static class ActaApiEndpoints
                         });
                 }
             )
+            .WithSummary("Resolve a job by namespace and deduplication key.")
             .Produces<JobDetail>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc(
@@ -405,6 +410,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("Read the ledger's health-overview counters.")
             .Produces<OverviewSnapshot>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the overview to one namespace; omit for all."),
@@ -438,6 +444,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List outbox relay sources with backlog and quarantine totals.")
             .Produces<PagedResult<OutboxSourceListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope to one relay source's namespace; omit for all."),
@@ -491,6 +498,7 @@ internal static class ActaApiEndpoints
                     });
                 }
             )
+            .WithSummary("List a relay source's quarantined staging rows.")
             .Produces<PagedResult<OutboxQuarantinedItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithQueryParameters([
@@ -535,6 +543,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List namespaces.")
             .Produces<PagedResult<NamespaceListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc(
@@ -577,6 +586,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List tenants.")
             .Produces<PagedResult<TenantListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc(
@@ -613,6 +623,7 @@ internal static class ActaApiEndpoints
                     return tenant is null ? NotFound() : Results.Json(tenant, DashboardJsonContext.Default.TenantDetail);
                 }
             )
+            .WithSummary("Read one tenant.")
             .Produces<TenantDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -674,6 +685,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List ledger events, filtered and keyset-paged.")
             .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only events recorded in this namespace."),
@@ -738,6 +750,7 @@ internal static class ActaApiEndpoints
                         });
                 }
             )
+            .WithSummary("List one job's event timeline.")
             .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("eventCode", QueryParameterKind.String, "Exact event code as its kebab string.", CodeKind: "event"),
@@ -778,6 +791,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List job definitions.")
             .Produces<PagedResult<JobDefinitionListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only definitions registered in this namespace."),
@@ -805,6 +819,7 @@ internal static class ActaApiEndpoints
                             : Results.Json(def, DashboardJsonContext.Default.JobDefinitionDetail);
                     })
             )
+            .WithSummary("Read one job definition and its effective policy.")
             .Produces<JobDefinitionDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -836,6 +851,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List one definition's audit events.")
             .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("eventCode", QueryParameterKind.String, "Exact event code as its kebab string.", CodeKind: "event"),
@@ -881,6 +897,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List recurring schedules, next run first.")
             .Produces<PagedResult<ScheduleListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only schedules in this namespace."),
@@ -931,6 +948,7 @@ internal static class ActaApiEndpoints
                     return Results.Json(body, DashboardJsonContext.Default.CapabilitiesResponse);
                 }
             )
+            .WithSummary("Read this host's API capabilities.")
             .Produces<CapabilitiesResponse>(StatusCodes.Status200OK);
 
         group
@@ -962,6 +980,7 @@ internal static class ActaApiEndpoints
                     });
                 }
             )
+            .WithSummary("Preview a schedule's upcoming fire instants.")
             .Produces<SchedulePreview>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "The schedule's namespace.", Required: true),
@@ -999,6 +1018,7 @@ internal static class ActaApiEndpoints
                     );
                 }
             )
+            .WithSummary("List workers.")
             .Produces<PagedResult<WorkerListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only workers registered for this namespace."),
@@ -1025,6 +1045,7 @@ internal static class ActaApiEndpoints
                             : Results.Json(worker, DashboardJsonContext.Default.WorkerDetail);
                     })
             )
+            .WithSummary("Read one worker.")
             .Produces<WorkerDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -1089,6 +1110,7 @@ internal static class ActaApiEndpoints
                     });
                 }
             )
+            .WithSummary("List alerts.")
             .Produces<PagedResult<AlertListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only alerts raised in this namespace."),

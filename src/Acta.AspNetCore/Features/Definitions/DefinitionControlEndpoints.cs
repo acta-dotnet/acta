@@ -62,6 +62,7 @@ internal static class DefinitionControlEndpoints
                     }
                 }
             )
+            .WithSummary("Set or clear the definition's operator policy overrides.")
             .Produces<DefinitionControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }

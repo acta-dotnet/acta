@@ -61,6 +61,7 @@ internal static class JobDepthEndpoints
                     );
                 }
             )
+            .WithSummary("Read a job's compile-time input template.")
             .Produces<JobInputTemplateResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
@@ -200,6 +201,7 @@ internal static class JobDepthEndpoints
             )
             // 201 when the enqueue inserted, 200 when a deduplication key matched an existing row.
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
+            .WithSummary("Enqueue a job.")
             .Produces<JobEnqueueResponse>(StatusCodes.Status201Created)
             .Produces<JobEnqueueResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict);
