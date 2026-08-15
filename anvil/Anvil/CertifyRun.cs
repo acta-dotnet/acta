@@ -86,6 +86,13 @@ internal static class CertifyRun
         var scopes = services.GetRequiredService<IServiceScopeFactory>();
         var session = services.GetRequiredService<AnvilSession>();
         var progress = services.GetRequiredService<SeedProgress>();
+        var outboxDb = services.GetRequiredService<AnvilOutboxDatabase>();
+
+        // The relay is certified under the same chaos as the ledger: the seeder commits business rows
+        // plus staged outbox records into the producer file for the whole window, and sys.outbox
+        // drains them while workers are being killed. Sized to the run but bounded, so the staging
+        // tail never dominates the quiesce.
+        var outboxRows = isSeeder ? Math.Clamp(jobs / 2, 200, 5_000) : 0;
 
         void Phase(string phase, string detail)
         {
@@ -99,6 +106,7 @@ internal static class CertifyRun
         Console.WriteLine(
             isSeeder
                 ? $"  {participant} seeds and owns the verdict | {jobs} jobs, {workers} workers, 5 steps x {stepDelayMs}ms, chaos for {chaos.TotalMinutes:0} min"
+                    + $" | {outboxRows} outbox rows staged under chaos"
                 : $"  {participant} brings {workers} workers and chaos for {chaos.TotalMinutes:0} min | the seeder owns the verdict"
         );
         Console.WriteLine();
@@ -153,6 +161,7 @@ internal static class CertifyRun
             );
             var batch = session.NextBatch();
             _ = SeedAsync(scopes, batch, spec, progress);
+            _ = StageOutboxAsync(outboxDb, session, outboxRows, chaos);
         }
 
         faults.StartContinuousCrashes();
@@ -200,6 +209,18 @@ internal static class CertifyRun
             return 0;
         }
 
+        // The staging file drains first: rows still Pending or Claimed there become ledger jobs only
+        // when a relay tick moves them, so waiting on the ledger alone would declare quiesce while
+        // the relay is still creating work. Quarantined rows do not block the drain - they are the
+        // delivered check's finding, not a backlog.
+        Phase("QUIESCE", "waiting for the outbox staging backlog to drain");
+        var stagingDrained = await WaitAsync(
+            async () => (await outboxDb.CountsAsync(ct)).Pending == 0,
+            quiesceTimeout,
+            TimeSpan.FromSeconds(10),
+            ct
+        );
+
         // Quiesce does not end when the chaos stops: work held by already-killed workers stays
         // Executing until its lease lapses and recovery sweeps it, one batch per tick.
         var quiesced = await WaitAsync(
@@ -220,11 +241,82 @@ internal static class CertifyRun
             return 1;
         }
 
-        Phase("SEALING", "running certify.sql");
+        Phase("SEALING", "checking the outbox handoff, then running certify.sql");
         Console.WriteLine();
+
+        // The outbox certification is split across the ownership seam: the staging table lives in
+        // the producer's database, which certify.sql (bound to the Acta schema) cannot reach.
+        // These two lines are the producer-side half; certify.sql carries the ledger-reachable half
+        // (outbox-relayed-outcome / outbox-relayed).
+        var (pendingLeft, quarantined) = await outboxDb.CountsAsync(ct);
+        var stagedOperations = await outboxDb.CountOperationsAsync(ct);
+        var deliveredJobs = await OutboxDeliveredAsync(scopes, id, ct);
+        var drainedOk = stagingDrained && pendingLeft == 0;
+        // Delivered is count equality, and that is sufficient: dedup keys are unique per staged row
+        // and per (namespace, key) in the ledger, so equal counts is a bijection. A deduplicated
+        // handoff resolves to the same job and counts as delivered.
+        var deliveredOk = deliveredJobs == stagedOperations;
+        Console.WriteLine(
+            $"  [{(drainedOk ? "ok  " : "FAIL")}] {"outbox-drained", -28} pending+claimed={pendingLeft} quarantined={quarantined}"
+        );
+        Console.WriteLine(
+            $"  [{(deliveredOk ? "ok  " : "FAIL")}] {"outbox-delivered", -28} staged={stagedOperations} ledger_jobs={deliveredJobs}"
+        );
+
         var exit = await CertifyVerdict.RunAsync(provider, id.Schema, ct);
+        if (!drainedOk || !deliveredOk)
+        {
+            // An outbox handoff failure is a hard FAIL even when the SQL half passed or was merely
+            // inconclusive; the seal must not read green over undelivered producer rows.
+            exit = 1;
+        }
         Phase(exit == 0 ? "PASS" : "FAIL", exit == 0 ? "every asserted property held" : "see the verdict on the console");
         return exit;
+    }
+
+    // The producer-to-ledger bridge for the delivered check: every staged operation's job under this
+    // run's correlation key, recognized by the ingress=outbox tag the staging path stamps.
+    private static async Task<long> OutboxDeliveredAsync(IServiceScopeFactory scopes, RunIdentity id, CancellationToken ct)
+    {
+        using var scope = scopes.CreateScope();
+        var ledger = scope.ServiceProvider.GetRequiredService<IActaOperations>().Ledger;
+        var page = await ledger.ListJobsAsync(
+            new ListJobsQuery(
+                JobNamespace: id.Namespace,
+                CorrelationKey: id.RunId,
+                PageSize: 1,
+                IncludeTotal: true,
+                Tags: [new TagFilter("ingress", "outbox")]
+            ),
+            ct
+        );
+        return page.TotalCount ?? 0;
+    }
+
+    // Staging runs beside the chaos rather than ahead of it: a fixed budget in small committed
+    // batches spread across the window, so relay claims race worker kills the whole time. Best
+    // effort by design - the delivered check compares against what actually committed, so a staging
+    // error under-fills the run instead of corrupting the verdict.
+    private static async Task StageOutboxAsync(AnvilOutboxDatabase outboxDb, AnvilSession session, int total, TimeSpan chaos)
+    {
+        const int Chunk = 200;
+        var batch = session.NextBatch();
+        var delay = TimeSpan.FromTicks(chaos.Ticks / (Math.Max(1, total / Chunk) + 1));
+        var staged = 0;
+        try
+        {
+            while (staged < total)
+            {
+                var count = Math.Min(Chunk, total - staged);
+                await outboxDb.StageAsync(count, batch, firstOrdinal: staged, CancellationToken.None);
+                staged += count;
+                await Task.Delay(delay);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  outbox staging stopped after {staged} of {total} rows: {ex.Message}");
+        }
     }
 
     // AnvilStateReader is scoped (it holds a store connection), so every read opens its own scope.

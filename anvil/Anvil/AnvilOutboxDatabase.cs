@@ -98,6 +98,19 @@ public sealed class AnvilOutboxDatabase(string path, AnvilSession session)
         return (pending, quarantined);
     }
 
+    /// <summary>
+    /// Committed business operations - the producer-side truth the delivered check compares the
+    /// ledger against: every one of these rows committed together with exactly one staged outbox
+    /// record whose deduplication key is the operation id.
+    /// </summary>
+    public async Task<long> CountOperationsAsync(CancellationToken ct)
+    {
+        await using var connection = await OpenAsync(ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM anvil_operations";
+        return (long)(await command.ExecuteScalarAsync(ct))!;
+    }
+
     private async Task<SqliteConnection> OpenAsync(CancellationToken ct)
     {
         var connection = new SqliteConnection(ConnectionString);

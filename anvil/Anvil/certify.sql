@@ -227,7 +227,37 @@ FROM   (SELECT job_id, COUNT(*) AS bodies
 WHERE  n.bodies > 1;
 
 -- ---------------------------------------------------------------------------------------------
--- 11. tenant context survived every hop                  [any time]
+-- 11. every relayed outbox job landed Succeeded          [QUIESCED ONLY]
+-- ---------------------------------------------------------------------------------------------
+-- The ledger-reachable half of the outbox certification. The staging table lives in the producer's
+-- database (Anvil's is a SQLite file), which this file - bound to the Acta schema - cannot reach, so
+-- the check is split across that ownership seam: Anvil probes the producer for *drained* (zero rows
+-- Pending or Claimed after quiesce) and bridges staged operation counts to the ledger for
+-- *delivered* (every committed operation's job exists; a deduplicated handoff counts as delivered).
+-- What the ledger alone can assert is what happened AFTER the handoff: every job the relay created
+-- ran to Succeeded. The staged rows target `outbox-receipt`, a trivial handler with no designed
+-- failure, so any other terminal state is a real finding. Relayed jobs are recognized by the
+-- deduplication key the producer mints (`anvil/{run}/{batch}/outbox/{n}`); a run that staged nothing
+-- passes vacuously.
+SELECT 'outbox-relayed-outcome' AS check_name, r.job_id, r.status_code
+FROM   {s}runtimes r
+JOIN   {s}jobs j ON j.id = r.job_id
+WHERE  j.deduplication_key LIKE 'anvil/%/outbox/%'
+  AND  r.status_code <> 100;
+
+-- ---------------------------------------------------------------------------------------------
+-- 12. how many outbox rows the relay delivered           [MEASURED: always reports, never fails]
+-- ---------------------------------------------------------------------------------------------
+-- The number the seal pairs with Anvil's producer-side staged count: the two are printed side by
+-- side (Anvil's outbox-delivered line) and must agree, but only the harness can see both databases,
+-- so the ledger half is reported here as evidence rather than asserted.
+SELECT 'outbox-relayed' AS check_name, COUNT(*) AS relayed_jobs
+FROM   {s}jobs j
+WHERE  j.deduplication_key LIKE 'anvil/%/outbox/%'
+HAVING COUNT(*) >= 0;
+
+-- ---------------------------------------------------------------------------------------------
+-- 13. tenant context survived every hop                  [any time]
 -- ---------------------------------------------------------------------------------------------
 -- The tenant supplied at enqueue is the tenant the handler observed. Deliberately NOT a comparison of
 -- events.tenant_id to jobs.tenant_id: those are two projections of one stored value, so that query
