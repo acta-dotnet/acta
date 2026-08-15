@@ -27,6 +27,9 @@ internal sealed class OutboxRelayRegistry(
     private readonly ILoggerFactory? _loggerFactory = loggerFactory;
     private readonly ConcurrentDictionary<string, OutboxRelayService> _services = new(StringComparer.Ordinal);
 
+    /// <summary>Whether this process declared a relay for the namespace (the operator quarantine reads need the source locally).</summary>
+    public bool HasRelay(string namespaceName) => _byNamespace.ContainsKey(namespaceName);
+
     /// <summary>This namespace's relay registration; throws when the namespace declared no relay.</summary>
     public OutboxRelayRegistration Registration(string namespaceName) =>
         _byNamespace.TryGetValue(namespaceName, out var registration)

@@ -6570,7 +6570,8 @@
         "enum": [
           "Applied",
           "NotFound",
-          "Rejected"
+          "Rejected",
+          "Accepted"
         ],
         "description": "Coarse outcome of an IJobs control verb."
       },

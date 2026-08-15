@@ -28,4 +28,7 @@ public enum ControlAction : byte
 
     /// <summary>The job's current status did not permit the transition; <c>Status</c> is that blocking status.</summary>
     Rejected = 3,
+
+    /// <summary>The command was accepted and durably parked; the applying pass performs the transition on its next run. Used by verbs that stage work instead of transitioning state directly (the <see cref="IOutbox"/> controls).</summary>
+    Accepted = 4,
 }

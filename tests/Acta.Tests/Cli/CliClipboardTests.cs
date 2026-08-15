@@ -174,6 +174,7 @@ public class CliRunnerClipboardTests
         public INamespaces Namespaces => throw new NotSupportedException();
         public ITags Tags => throw new NotSupportedException();
         public ISettings Settings => throw new NotSupportedException();
+        public IOutbox Outbox => throw new NotSupportedException();
         public ILedger Ledger => this;
         public DbProvider Provider => DbProvider.Sqlite;
 

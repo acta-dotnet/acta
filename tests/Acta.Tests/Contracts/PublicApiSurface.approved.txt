@@ -553,6 +553,7 @@ static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
     System.String MarkdownReport = <24524 chars, sha256:2775D4BE>
 enum Acta.ControlAction
+    Accepted = 4
     Applied = 1
     NotFound = 2
     Rejected = 3
@@ -795,6 +796,7 @@ interface Acta.IActaOperations
     Acta.IDefinitions Definitions { get; }
     Acta.ILedger Ledger { get; }
     Acta.INamespaces Namespaces { get; }
+    Acta.IOutbox Outbox { get; }
     Acta.ISchedules Schedules { get; }
     Acta.ISettings Settings { get; }
     Acta.ITags Tags { get; }
@@ -875,6 +877,11 @@ interface Acta.INamespaces
     System.Threading.Tasks.ValueTask<Acta.AdminControlResult> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListNamesAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
+interface Acta.IOutbox
+    System.Threading.Tasks.ValueTask<Acta.OutboxControlResult> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.OutboxControlResult> RequeueAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.OutboxQuarantinedItem>> ListQuarantinedAsync(Acta.ListOutboxQuarantinedQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.OutboxSourceListItem>> ListSourcesAsync(Acta.ListOutboxSourcesQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IOutboxSourceBuilder
     System.Int32 QuarantineThreshold { get;set; }
     System.String Schema { get;set; }
@@ -1789,6 +1796,17 @@ sealed class Acta.ListNamespacesQuery
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }
+sealed class Acta.ListOutboxQuarantinedQuery
+    .ctor(System.String JobNamespace, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default)
+    System.Boolean IncludeTotal { get;init; }
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+    System.String JobNamespace { get;init; }
+sealed class Acta.ListOutboxSourcesQuery
+    .ctor(System.String JobNamespace = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default)
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+    System.String JobNamespace { get;init; }
 sealed class Acta.ListSchedulesQuery
     .ctor(System.String JobNamespace = default, System.String JobName = default, System.Nullable<Acta.ScheduleOriginCode> Origin = default, System.Nullable<System.Boolean> LiveOnly = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1879,6 +1897,29 @@ sealed class Acta.NamespaceStatusCodeJsonConverter
     Acta.NamespaceStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.NamespaceStatusCode value, System.Text.Json.JsonSerializerOptions options)
 struct Acta.NoInput
+sealed class Acta.OutboxControlResult
+    .ctor(Acta.ControlAction Action, System.Nullable<System.DateTime> PendingSinceUtc)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.DateTime> PendingSinceUtc { get;init; }
+sealed class Acta.OutboxQuarantinedItem
+    .ctor(System.Guid OutboxId, System.String JobNamespace, System.String JobName, System.String DeduplicationKey, System.String CorrelationKey, System.String TenantKey, System.Int32 FailureCount, System.String LastError, System.DateTime CreatedAtUtc)
+    System.DateTime CreatedAtUtc { get;init; }
+    System.Guid OutboxId { get;init; }
+    System.Int32 FailureCount { get;init; }
+    System.String CorrelationKey { get;init; }
+    System.String DeduplicationKey { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String LastError { get;init; }
+    System.String TenantKey { get;init; }
+sealed class Acta.OutboxSourceListItem
+    .ctor(System.String JobNamespace, Acta.JobRef SlotJobRef, System.String LastTickSummary, System.Nullable<System.Int64> Backlog, System.Nullable<System.Int64> QuarantineTotal, System.Boolean IsLocal)
+    Acta.JobRef SlotJobRef { get;init; }
+    System.Boolean IsLocal { get;init; }
+    System.Nullable<System.Int64> Backlog { get;init; }
+    System.Nullable<System.Int64> QuarantineTotal { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String LastTickSummary { get;init; }
 enum Acta.OutboxStatusCode
     Claimed = 20
     Pending = 10

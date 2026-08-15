@@ -115,6 +115,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
         services.TryAddSingleton<SettingsService>();
         services.TryAddSingleton<ISettings, SettingsApi>();
+        services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
 
         // Process-wide Acta meter. One singleton owns the instruments; every worker runtime emits

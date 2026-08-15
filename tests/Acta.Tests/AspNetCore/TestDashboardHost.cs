@@ -192,6 +192,10 @@ internal static class TestDashboardHost
         public ITags Tags => TagsFake;
         public ISettings Settings => throw new NotSupportedException();
 
+        public FakeOutbox OutboxFake { get; } = new();
+
+        public IOutbox Outbox => OutboxFake;
+
         public ILedger Ledger => this;
 
         public DbProvider Provider => DbProvider.Sqlite;
@@ -749,6 +753,119 @@ internal static class TestDashboardHost
                         ? null
                         : new SchedulePreview("0 9 * * *", "UTC", [new DateTime(2026, 6, 12, 9, 0, 0, DateTimeKind.Utc)])
                 );
+        }
+
+        /// <summary>Outbox fake: "billing" is the one known source (local, one quarantined row); a
+        /// namespace of "missing" reports not found, "rejected" reports a pending-command rejection,
+        /// and a quarantine listing outside "billing" throws the non-local error like production.</summary>
+        public sealed class FakeOutbox : IOutbox
+        {
+            public static readonly Guid QuarantinedId = Guid.Parse("00000000-0000-0000-0000-00000000000a");
+
+            public static readonly DateTime PendingSince = new(2026, 6, 12, 7, 30, 0, DateTimeKind.Utc);
+
+            /// <summary>Recorded requeue/discard calls with their scope and audit fields.</summary>
+            public List<(
+                string Verb,
+                string JobNamespace,
+                IReadOnlyList<Guid>? OutboxIds,
+                string? Reason,
+                string? ActorKey
+            )> ControlCalls { get; } = [];
+
+            public ValueTask<PagedResult<OutboxSourceListItem>> ListSourcesAsync(
+                ListOutboxSourcesQuery query,
+                CancellationToken ct = default
+            ) =>
+                ValueTask.FromResult(
+                    new PagedResult<OutboxSourceListItem>(
+                        query.JobNamespace is null or "billing"
+                            ?
+                            [
+                                new OutboxSourceListItem(
+                                    "billing",
+                                    FoundJobRef,
+                                    "claimed=2 relayed=2 dedup=0 quarantined=0 backlog=5 quarantine=1",
+                                    5,
+                                    1,
+                                    IsLocal: true
+                                ),
+                            ]
+                            : [],
+                        null,
+                        false,
+                        50,
+                        null
+                    )
+                );
+
+            public ValueTask<PagedResult<OutboxQuarantinedItem>> ListQuarantinedAsync(
+                ListOutboxQuarantinedQuery query,
+                CancellationToken ct = default
+            ) =>
+                query.JobNamespace == "billing"
+                    ? ValueTask.FromResult(
+                        new PagedResult<OutboxQuarantinedItem>(
+                            [
+                                new OutboxQuarantinedItem(
+                                    QuarantinedId,
+                                    "billing",
+                                    "send-invoice",
+                                    "inv-9",
+                                    "trace-9",
+                                    null,
+                                    5,
+                                    "route rejected: unknown job",
+                                    new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
+                                ),
+                            ],
+                            null,
+                            false,
+                            50,
+                            query.IncludeTotal ? 1L : null
+                        )
+                    )
+                    : throw new InvalidOperationException(
+                        $"Namespace '{query.JobNamespace}' has no outbox relay registered in this process."
+                    );
+
+            public ValueTask<OutboxControlResult> RequeueAsync(
+                string jobNamespace,
+                IReadOnlyList<Guid>? outboxIds = null,
+                string? reasonMessage = null,
+                string? actorKey = null,
+                CancellationToken ct = default
+            ) => Control("requeue", jobNamespace, outboxIds, reasonMessage, actorKey);
+
+            public ValueTask<OutboxControlResult> DiscardAsync(
+                string jobNamespace,
+                IReadOnlyList<Guid>? outboxIds = null,
+                string? reasonMessage = null,
+                string? actorKey = null,
+                CancellationToken ct = default
+            ) => Control("discard", jobNamespace, outboxIds, reasonMessage, actorKey);
+
+            private ValueTask<OutboxControlResult> Control(
+                string verb,
+                string jobNamespace,
+                IReadOnlyList<Guid>? outboxIds,
+                string? reasonMessage,
+                string? actorKey
+            )
+            {
+                if (jobNamespace == "missing")
+                {
+                    return ValueTask.FromResult(new OutboxControlResult(ControlAction.NotFound, null));
+                }
+
+                if (jobNamespace == "rejected")
+                {
+                    return ValueTask.FromResult(new OutboxControlResult(ControlAction.Rejected, PendingSince));
+                }
+
+                ControlCalls.Add((verb, jobNamespace, outboxIds, reasonMessage, actorKey));
+                return ValueTask.FromResult(new OutboxControlResult(ControlAction.Accepted, null));
+            }
         }
 
         /// <summary>Target-agnostic tag fake: GetAsync returns <see cref="Current"/> (null reports an
