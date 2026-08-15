@@ -715,7 +715,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Amend a waiting job's stored input, format-faithfully.",
+        "summary": "Amend a waiting job's stored input.",
         "parameters": [
           {
             "name": "jobRef",

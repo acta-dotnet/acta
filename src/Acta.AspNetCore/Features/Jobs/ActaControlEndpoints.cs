@@ -187,7 +187,7 @@ internal static class ActaControlEndpoints
                     }
                 }
             )
-            .WithSummary("Amend a waiting job's stored input, format-faithfully.")
+            .WithSummary("Amend a waiting job's stored input.")
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status404NotFound);
