@@ -14,7 +14,8 @@
       "commandLineArgs": "--provider postgres",
       "launchBrowser": false,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ACTA_TEST_PG": "Host=localhost;Port=5432;Database=acta-dev;Username=postgres;Password=AbitMOREsecure_PASSWORD"
       },
       "applicationUrl": "http://127.0.0.1:5059"
     },
@@ -23,7 +24,8 @@
       "commandLineArgs": "--provider sqlserver",
       "launchBrowser": false,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ACTA_TEST_MSSQL": "Server=127.0.0.1,1433;Initial Catalog=acta-dev;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
       },
       "applicationUrl": "http://127.0.0.1:5059"
     }
