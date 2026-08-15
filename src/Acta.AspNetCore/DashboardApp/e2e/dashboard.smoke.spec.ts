@@ -189,7 +189,7 @@ test('executions tab summarizes the attempt and deep-links expanded', async ({ p
   await page.getByRole('button', { name: 'Executions' }).click();
   await expect(page.getByText('Showing 1 of 1 executions')).toBeVisible();
   await expect(page.getByText('125 ms')).toBeVisible();
-  await expect(page.getByRole('link', { name: '7' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'wrk_01kydka200fay8000000000002' })).toBeVisible();
 
   await page.goto(`/#/jobs/${jobRef}?ns=billing&tab=executions&execution=1`);
   const walk = page.getByRole('button', { name: 'Walk execution 1 in the timeline' });
