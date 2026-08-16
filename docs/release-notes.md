@@ -185,21 +185,26 @@ job in ten thousand under kill-every-5s chaos.
 
 ### Certification: four gates, four seals
 
-All four run on the release commit and file under `docs/certification/`:
+All four ran on the release commit on 2026-08-16 and file under `docs/certification/`:
 
-- **PostgreSQL and SQL Server standard runs** (10,000 jobs, 64 slots, 7-minute kill window each) —
-  PASS, and the first seals to certify the outbox handoff: 5,000 producer rows staged during the
-  chaos on each engine, every one drained and delivered. The two ledgers converged to within a few
-  rows of scheduling luck, again.
-- **The first SQLite seal** — same shape at 48 slots on one WAL file, PASS, reduced scope stated on
-  its face (single machine is the engine's deployment model; multi-machine claims are permanently
-  out of scope there). This ends the standing contradiction with releasing.md's "one run per
-  provider".
-- **The 3-participant / 2-namespace ensemble** both 0.8.0 ensemble seals named as "one flag away
-  and unrun" — PASS. `namespace-isolation` was falsifiable for the first time (a second namespace
-  live and being killed beside the first) and held with zero rows, and the run carries the
-  release's non-vacuous `AtMostOnce` evidence: 38 of 400 charges interrupted mid-body, none ever
-  run twice.
+- **`seal-20260816T081858Z.md` — PostgreSQL standard** (10,000 jobs, 64 slots, 7-minute kill
+  window): PASS, with the outbox handoff certified across its ownership seam — 5,000 producer rows
+  staged during the chaos, every one drained and delivered.
+- **`seal-20260816T083231Z.md` — SQL Server standard**: PASS at the same shape, 574 orphaned
+  attempts against PostgreSQL's 579 and identical job, step, and receipt totals to the row.
+- **`seal-20260816T085003Z.md` — SQLite**: PASS at 48 slots on one WAL file, reduced scope stated
+  on its face (single machine is the engine's deployment model; multi-machine claims are
+  permanently out of scope there). This ends the standing contradiction with releasing.md's "one
+  run per provider".
+- **`seal-20260816T090216Z.md` — the 3-participant / 2-namespace ensemble** both 0.8.0 ensemble
+  seals named as "one flag away and unrun": PASS. `namespace-isolation` was falsifiable for the
+  first time (a second namespace live and being killed beside the first) and held with zero rows,
+  and the run carries the release's non-vacuous `AtMostOnce` evidence: 44 of 400 charges
+  interrupted mid-body, none ever run twice.
+
+The SQLite gate's first run of this round is why the round exists: it failed `expected-outcome` on
+one row out of fifteen thousand, and that row was the lost step CAS described above — so all four
+seals are the re-run on the commit that fixed it.
 
 ## 0.8.0-beta.1
 
