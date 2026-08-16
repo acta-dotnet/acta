@@ -99,7 +99,7 @@ public static class BenchCli
         var outputDir = BaselineCapture.OutputDirectory();
         Console.WriteLine(
             $"Running {preset.Name} benchmark for {string.Join(", ", providers)} "
-                + $"(jobs={preset.Jobs}, rows={preset.QueryRows})  -  {measurements} measurements, ETA shown live"
+                + $"(jobs={preset.Jobs}, batchJobs={preset.EnqueueBatchJobs}, rows={preset.QueryRows})  -  {measurements} measurements, ETA shown live"
         );
         Console.WriteLine($"Output: {outputDir}");
 

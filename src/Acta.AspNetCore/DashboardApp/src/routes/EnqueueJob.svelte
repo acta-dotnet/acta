@@ -148,7 +148,9 @@
   });
 
   let inputPayload = $derived<JobPayloadView>(
-    input.format === 'text' ? { format: 'text', formatId: 3, text: input.text } : { format: 'json', formatId: 1, json: input.json }
+    input.format === 'text'
+      ? { formatName: 'text', formatId: 3, text: input.text }
+      : { formatName: 'json', formatId: 1, json: input.json }
   );
 
   // PayloadView reports the edited draft; dispatch on the active format (a text clone stays text, a

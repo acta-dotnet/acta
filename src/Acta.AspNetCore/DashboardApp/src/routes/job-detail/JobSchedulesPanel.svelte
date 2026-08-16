@@ -48,7 +48,7 @@
             status={schedule.status}
             version={schedule.version}
             expression={schedule.expression}
-            timeZoneId={schedule.timeZone}
+            timeZoneId={schedule.timeZoneId}
             onChanged={onChanged} />
         </div>
       {/each}

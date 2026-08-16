@@ -19,7 +19,7 @@
 
   // A none-format or over-cap (truncated) input has no wire body to amend into, so the editor never
   // opens for one.
-  let editable = $derived(canControl && inputAmendable(status) && input.format !== 'none' && !input.truncated);
+  let editable = $derived(canControl && inputAmendable(status) && input.formatName !== 'none' && !input.truncated);
   let editing = $state(false);
   let reason = $state('');
   let message = $state('');
@@ -41,7 +41,7 @@
   // text, everything else json). Binary and none formats are not editable, so only json/text reach here.
   async function amend(text: string): Promise<void> {
     message = '';
-    const built = amendBody(text, input.format);
+    const built = amendBody(text, input.formatName);
     if ('error' in built) {
       message = built.error;
       messageKind = 'bad';

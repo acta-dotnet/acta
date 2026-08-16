@@ -10,7 +10,7 @@
     "test:helpers": "node --test --experimental-strip-types src/api.test.ts src/format.test.ts src/theme/*.test.ts src/query.test.ts src/router.test.ts src/components/grid/paging.test.ts src/components/grid/virtualRows.test.ts src/lib/useControlMutation.test.ts src/lib/tagTokens.test.ts src/lib/quickSearch.test.ts src/lib/copyAsSql.test.ts src/lib/timeZones.test.ts src/components/jobControlState.test.ts src/components/changeHistory.test.ts src/components/jobTimelineState.test.ts src/components/signalDrawerState.test.ts src/routes/job-detail/jobDetailState.test.ts src/routes/job-detail/executionsState.test.ts src/routes/job-detail/inputAmend.test.ts src/routes/workerDetailState.test.ts src/routes/alertStateFilter.test.ts src/components/scheduleControlState.test.ts src/components/scheduleOverrides.test.ts src/routes/tenantAdmin.test.ts src/routes/namespaceAdmin.test.ts src/routes/enqueueTemplate.test.ts",
     "test:components": "vitest run",
     "test:smoke": "playwright test",
-    "test": "npm run test:helpers && npm run test:components"
+    "test": "npm run check && npm run test:helpers && npm run test:components"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

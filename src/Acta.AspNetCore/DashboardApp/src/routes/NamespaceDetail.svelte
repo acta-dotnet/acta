@@ -174,10 +174,10 @@
   }
 
   let backHref = $derived(routes.namespaces({ namespace: $scope }));
-  let jobsHref = $derived(routes.jobs({ namespace: namespace?.name }));
+  let jobsHref = $derived(routes.jobs({ namespace: namespace?.jobNamespace }));
 </script>
 
-<Page title={namespace?.name ?? 'Namespace'}>
+<Page title={namespace?.jobNamespace ?? 'Namespace'}>
   {#snippet breadcrumb()}
     <a href={backHref}><Icon name="chevron-left" />Namespaces</a>
   {/snippet}

@@ -75,7 +75,7 @@ jobs:
       - name: npm test
         working-directory: src/Acta.AspNetCore/DashboardApp
         run: npm test
-      # `npm test` is helpers + components only. The Playwright smoke drives the real routes end to
+      # `npm test` is svelte-check + helpers + components. The Playwright smoke drives the real routes end to
       # end (job investigation, controls, quick search, read-only deployment, mobile and appearance),
       # with every API call mocked in the spec, so it needs no .NET host and no database - just Vite,
       # which its own playwright.config webServer starts. 8 tests, a few seconds.

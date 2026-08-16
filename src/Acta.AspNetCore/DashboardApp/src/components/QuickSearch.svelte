@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { createQuery, type QueryClient } from '@tanstack/svelte-query';
-  import { api, type Paged } from '../api.ts';
+  import { api, type NamespaceListItem, type Paged } from '../api.ts';
   import { keys, capabilitiesQuery } from '../query.ts';
   import { scope, setScope } from '../scope.ts';
   import { routes } from '../routes.ts';
@@ -14,11 +14,9 @@
     jobNamespace: string;
     jobName: string;
   }
-  interface NamespaceHit {
-    name: string;
-    ownerTeam: string | null;
-    status: string;
-  }
+  // Namespaces reuse the exported list-item shape rather than a local hit interface: this palette
+  // reads the same `namespaces` page NamespaceDetail does, and a private copy of the row silently
+  // drifted from the wire field name once already.
   interface TenantHit {
     tenantKey: string;
     displayName: string | null;
@@ -88,7 +86,7 @@
   const namespaces = createQuery(() => ({
     queryKey: keys.list('palette-namespaces', { nameContains: textQ?.folded }),
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      api<Paged<NamespaceHit>>('namespaces', { nameContains: textQ?.folded, pageSize: 5 }, { signal }),
+      api<Paged<NamespaceListItem>>('namespaces', { nameContains: textQ?.folded, pageSize: 5 }, { signal }),
     enabled: probeEnabled,
     staleTime: 15_000
   }), clientArg);

@@ -14,7 +14,12 @@ namespace Anvil.Bench;
 
 public sealed record BaselinePolicy(int WarmupIterations, int MeasuredRepeats, string Aggregation);
 
-public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, int QueryRows, bool FullMatrix);
+/// <summary>
+/// One benchmark size class. <c>Jobs</c> is the shared per-cell job count; <c>EnqueueBatchJobs</c> is
+/// the enqueue-batch scenario's own, much larger count, because that scenario writes rows without
+/// draining them and burns <c>Jobs</c> in a fraction of a second on every provider.
+/// </summary>
+public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, int EnqueueBatchJobs, int QueryRows, bool FullMatrix);
 
 public sealed record BaselineEnvironmentInfo(
     string DotnetVersion,
@@ -104,8 +109,25 @@ public delegate Task<CellResult> BaselineCellRunner(BaselineCellSpec spec, int r
 /// </summary>
 public static class BaselineSuite
 {
-    public static readonly BenchPreset QuickPreset = new("quick", new BaselinePolicy(0, 1, "single"), 1_000, 10_000, FullMatrix: false);
-    public static readonly BenchPreset FullPreset = new("full", new BaselinePolicy(1, 3, "median"), 10_000, 100_000, FullMatrix: true);
+    // enqueue-batch carries its own, far larger row count: see EnqueueBatchScenario for why, and for
+    // the warning that baselines captured before this sizing are not comparable for that scenario.
+    // Both values are sized so the slowest provider spends several seconds inside the measured window.
+    public static readonly BenchPreset QuickPreset = new(
+        "quick",
+        new BaselinePolicy(0, 1, "single"),
+        Jobs: 1_000,
+        EnqueueBatchJobs: 100_000,
+        QueryRows: 10_000,
+        FullMatrix: false
+    );
+    public static readonly BenchPreset FullPreset = new(
+        "full",
+        new BaselinePolicy(1, 3, "median"),
+        Jobs: 10_000,
+        EnqueueBatchJobs: 500_000,
+        QueryRows: 100_000,
+        FullMatrix: true
+    );
 
     private static readonly string[] Providers = ["sqlite", "pg", "mssql"];
     private static readonly ExecutionProfile[] ExecutionProfiles =
@@ -242,7 +264,7 @@ public static class BaselineSuite
                     dbVersion,
                     keyProfile: null,
                     actualProfile: ExecutionProfile.Direct,
-                    jobs: preset.Jobs,
+                    jobs: preset.EnqueueBatchJobs,
                     executors: 0,
                     claimBatch: 0,
                     payloadBytes: 0,

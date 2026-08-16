@@ -518,6 +518,17 @@ public sealed class EnqueueScenario : IScenario
 /// </summary>
 public sealed class EnqueueBatchScenario : IScenario
 {
+    // This scenario writes rows and never drains them, so it runs roughly two orders of magnitude
+    // faster per job than throughput or drain. At the shared preset job count a cell finished in
+    // about 0.4s, short enough that process warmup and OS scheduling dominated it: repeats of the
+    // same commit spread 30-50%, which is wider than any regression the cell is meant to catch. It
+    // therefore takes its own row count (BenchPreset.EnqueueBatchJobs, two orders of magnitude above
+    // the shared count) so the measured window is seconds rather than milliseconds.
+    //
+    // Rates stay in the same units (enq/s over the aggregate producer wall clock), but they are NOT
+    // comparable across the resizing: a baseline captured before it measured a different amount of
+    // work, and the per-row cost changes with volume (page splits, index growth, WAL churn). Compare
+    // enqueue-batch numbers only against baselines whose cell key carries the same job count.
     private const int IdleHorizonSeconds = 3600;
 
     public string Name => "enqueue-batch";
