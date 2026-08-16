@@ -70,6 +70,227 @@ public sealed class OpenApiContractTests
         Assert.Empty(missing);
     }
 
+    /// <summary>
+    /// Integer-typed names the wire may carry. Every one is a value - a ledger position, a counter, a
+    /// duration, a byte size, a policy number, a page size, an HTTP status - never an entity identity.
+    /// The set is a literal, not a rule, so putting a new integer on the wire is a deliberate edit here
+    /// that a reviewer sees; a new integer identity fails the gate on the day it is introduced.
+    /// </summary>
+    private static readonly HashSet<string> AllowedWireIntegers = new(StringComparer.Ordinal)
+    {
+        // Ledger positions, counters, and the concurrency token.
+        "jobEventId",
+        "executionNumber",
+        "occurrenceCount",
+        "failureCount",
+        "retryCount",
+        "version",
+        // Payload-format discriminators (a persisted-code number, not a row identity).
+        "formatId",
+        "inputFormatId",
+        "outputFormatId",
+        // Durations, byte sizes, and policy numbers, including their override/effective pairs.
+        "byteLength",
+        "durationMs",
+        "deadlineSeconds",
+        "deadlineSecondsEffective",
+        "deadlineSecondsOverride",
+        "executionTimeoutSeconds",
+        "executionTimeoutSecondsEffective",
+        "executionTimeoutSecondsOverride",
+        "jobRetentionSeconds",
+        "jobRetentionSecondsEffective",
+        "jobRetentionSecondsOverride",
+        "maxAttempts",
+        "maxAttemptsEffective",
+        "maxAttemptsOverride",
+        "maxConcurrency",
+        "oldestReadyAgeSeconds",
+        "scheduleLagSeconds",
+        // The operating-system process id a worker runs under: an external value, not an Acta row.
+        "processId",
+        // Paging and totals.
+        "limit",
+        "pageSize",
+        "totalCount",
+        "quarantineTotal",
+        "schedulesTotal",
+        "workersTotal",
+        // Overview and outbox aggregate counts.
+        "backlog",
+        "deadWorkerCount",
+        "dueSoonScheduleCount",
+        "executingCount",
+        "executorCapacity",
+        "failedCount",
+        "jobCount",
+        "readyCount",
+        "staleWorkerCount",
+        "systemJobCount",
+        "unresolvedAlertCount",
+        "unresolvedCriticalAlertCount",
+        // RFC 9457 problem details: the HTTP status code.
+        "status",
+    };
+
+    /// <summary>
+    /// Identity nouns 0.9.0 took off the wire. Banned by name whatever their type, because renaming one
+    /// to a string would keep the database integer addressable and defeat the point of the refs cut.
+    /// </summary>
+    private static readonly string[] RetiredIdentityNames =
+    [
+        "jobId",
+        "parentJobId",
+        "lineageRootId",
+        "workerId",
+        "alertId",
+        "definitionId",
+        "tenantId",
+        "namespaceId",
+        "jobScheduleId",
+        "leasedByWorkerId",
+    ];
+
+    // Structural gate, deliberately not a description grep: it walks the generated document itself, so
+    // it sees what a client sees. Two independent checks - an integer outside the value allowlist, and a
+    // retired identity noun anywhere - because either alone can be evaded by the other's shape.
+    [Fact]
+    public async Task No_integer_identities_in_openapi()
+    {
+        var document = JsonNode.Parse(await GenerateAsync())!;
+        var members = new List<WireMember>();
+
+        foreach (var (schemaName, schema) in Members(document["components"]?["schemas"]))
+        {
+            CollectSchemaMembers(schema, schemaName, members);
+        }
+
+        foreach (var (path, operations) in Members(document["paths"]))
+        {
+            foreach (var placeholder in PathPlaceholders(path))
+            {
+                members.Add(new WireMember(placeholder, $"path {path}", IsInteger: false));
+            }
+
+            foreach (var (method, operation) in Members(operations))
+            {
+                var where = $"{method.ToUpperInvariant()} {path}";
+                foreach (var parameter in Elements(operation?["parameters"]))
+                {
+                    if (parameter?["name"] is not JsonValue nameValue || !nameValue.TryGetValue<string>(out var name))
+                    {
+                        continue;
+                    }
+                    var schema = parameter["schema"];
+                    members.Add(new WireMember(name, where, IsInteger(schema) || IsInteger(schema?["items"])));
+                }
+
+                foreach (var (_, media) in Members(operation?["requestBody"]?["content"]))
+                {
+                    CollectSchemaMembers(media?["schema"], $"{where} request", members);
+                }
+
+                foreach (var (statusCode, response) in Members(operation?["responses"]))
+                {
+                    foreach (var (_, media) in Members(response?["content"]))
+                    {
+                        CollectSchemaMembers(media?["schema"], $"{where} {statusCode}", members);
+                    }
+                }
+            }
+        }
+
+        // A walker that found nothing would pass both checks vacuously; the document has hundreds of
+        // members, so this pins that the traversal actually reached them.
+        Assert.True(members.Count > 100, $"the document walk found only {members.Count} members; the traversal is broken.");
+
+        var unexpectedIntegers = members
+            .Where(m => m.IsInteger && !AllowedWireIntegers.Contains(m.Name))
+            .Select(m => $"{m.Where}: integer '{m.Name}' is not an allowed wire value")
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+
+        var retired = members
+            .Where(m => RetiredIdentityNames.Contains(m.Name, StringComparer.Ordinal))
+            .Select(m => $"{m.Where}: '{m.Name}' is a retired integer identity")
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            unexpectedIntegers.Count == 0 && retired.Count == 0,
+            "No database integer may be a wire identity. Address the entity by its public ref "
+                + "(job_/alr_/wrk_) or its natural key; if the field really is a value, add it to "
+                + "AllowedWireIntegers with the reason.\n\n"
+                + string.Join("\n", unexpectedIntegers.Concat(retired))
+        );
+    }
+
+    /// <summary>One schema property, path placeholder, or operation parameter found in the document.</summary>
+    private sealed record WireMember(string Name, string Where, bool IsInteger);
+
+    // Walks one schema, naming every property it reaches. Composition keywords are followed so a member
+    // cannot hide inside an allOf branch or an array's item schema; $ref is not followed because every
+    // referenced component is walked in its own right.
+    private static void CollectSchemaMembers(JsonNode? schema, string where, List<WireMember> members)
+    {
+        if (schema is not JsonObject node)
+        {
+            return;
+        }
+
+        foreach (var (name, property) in Members(node["properties"]))
+        {
+            members.Add(new WireMember(name, where, IsInteger(property)));
+            CollectSchemaMembers(property, $"{where}.{name}", members);
+        }
+
+        CollectSchemaMembers(node["items"], $"{where}[]", members);
+        CollectSchemaMembers(node["additionalProperties"], $"{where}{{}}", members);
+        foreach (var keyword in CompositionKeywords)
+        {
+            foreach (var branch in Elements(node[keyword]))
+            {
+                CollectSchemaMembers(branch, where, members);
+            }
+        }
+    }
+
+    private static readonly string[] CompositionKeywords = ["allOf", "anyOf", "oneOf"];
+
+    private static IEnumerable<KeyValuePair<string, JsonNode?>> Members(JsonNode? node) =>
+        node as JsonObject ?? Enumerable.Empty<KeyValuePair<string, JsonNode?>>();
+
+    private static IEnumerable<JsonNode?> Elements(JsonNode? node) => node as JsonArray ?? Enumerable.Empty<JsonNode?>();
+
+    // OpenAPI 3.1 renders a nullable integer as a type array, so both spellings have to be recognized.
+    private static bool IsInteger(JsonNode? schema) =>
+        schema?["type"] switch
+        {
+            JsonArray types => types.Any(IsIntegerLiteral),
+            { } single => IsIntegerLiteral(single),
+            _ => false,
+        };
+
+    private static bool IsIntegerLiteral(JsonNode? node) =>
+        node is JsonValue value && value.TryGetValue<string>(out var text) && string.Equals(text, "integer", StringComparison.Ordinal);
+
+    private static IEnumerable<string> PathPlaceholders(string path)
+    {
+        var start = path.IndexOf('{', StringComparison.Ordinal);
+        while (start >= 0)
+        {
+            var end = path.IndexOf('}', start);
+            if (end < 0)
+            {
+                yield break;
+            }
+            yield return path[(start + 1)..end];
+            start = path.IndexOf('{', end);
+        }
+    }
+
     private static async Task<string> GenerateAsync()
     {
         var builder = WebApplication.CreateBuilder();

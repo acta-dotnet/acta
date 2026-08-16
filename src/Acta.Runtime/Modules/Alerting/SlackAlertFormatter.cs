@@ -5,7 +5,8 @@ namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
 /// Builds the Slack incoming-webhook payload for an alert: a header line with a severity emoji and title,
-/// the message body, and a colored attachment carrying reason, namespace, job, occurrences, and runbook.
+/// the message body, and a colored attachment carrying the alert ref, kind, namespace, the subject job's
+/// ref when there is one, occurrences, and runbook. Identity is always a public ref, never a row id.
 /// Pure (no I/O); the JSON shape is origin-generated for NativeAOT via <see cref="AlertSlackJsonContext"/>.
 /// </summary>
 internal static class SlackAlertFormatter
@@ -20,7 +21,15 @@ internal static class SlackAlertFormatter
             _ => ("ℹ️", "#2962ff"),
         };
 
-        var fields = new List<SlackField> { new("Kind", n.Kind.ToString(), true), new("Namespace", n.JobNamespace, true) };
+        // Alert first, and unconditional: it is the one handle that addresses what paged the reader.
+        // The Job field is optional because an alert can have no subject job, which used to leave such
+        // a notification with no addressable identity at all.
+        var fields = new List<SlackField>
+        {
+            new("Alert", n.AlertRef.ToString(), true),
+            new("Kind", n.Kind.ToString(), true),
+            new("Namespace", n.JobNamespace, true),
+        };
         if (n.JobRef is { } jobRef)
         {
             fields.Add(new("Job", jobRef.ToString(), true));

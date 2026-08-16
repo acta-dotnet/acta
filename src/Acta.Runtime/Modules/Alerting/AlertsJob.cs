@@ -337,9 +337,9 @@ internal sealed class AlertsJob(
         {
             _log.LogWarning(
                 ex,
-                "ACTA sys.alerts: transport '{TransportKind}' threw delivering alert {AlertId}; will retry.",
+                "ACTA sys.alerts: transport '{TransportKind}' threw delivering alert {AlertRef}; will retry.",
                 channel.TransportKind,
-                a.AlertId
+                new AlertRef(a.AlertRef)
             );
             return AlertDeliveryOutcome.Retryable;
         }
@@ -355,19 +355,19 @@ internal sealed class AlertsJob(
         if (reason == AlertChannelDecisionReason.MissingChannel)
         {
             _log.LogWarning(
-                "ACTA sys.alerts: channel '{Channel}' is not configured for namespace '{Namespace}'; marking alert {AlertId} failed.",
+                "ACTA sys.alerts: channel '{Channel}' is not configured for namespace '{Namespace}'; marking alert {AlertRef} failed.",
                 alert.ChannelName,
                 ctx.JobNamespace,
-                alert.AlertId
+                new AlertRef(alert.AlertRef)
             );
             return;
         }
 
         _log.LogWarning(
-            "ACTA sys.alerts: no transport registered for kind '{TransportKind}' (channel '{Channel}', alert {AlertId}); marking delivery failed.",
+            "ACTA sys.alerts: no transport registered for kind '{TransportKind}' (channel '{Channel}', alert {AlertRef}); marking delivery failed.",
             channel!.TransportKind,
             channel.Name,
-            alert.AlertId
+            new AlertRef(alert.AlertRef)
         );
     }
 
@@ -381,18 +381,18 @@ internal sealed class AlertsJob(
         if (reason is AlertChannelDecisionReason.DisabledChannel or AlertChannelDecisionReason.DeprecatedChannel)
         {
             _log.LogInformation(
-                "ACTA sys.alerts: channel '{Channel}' is {Status} for namespace '{Namespace}'; suppressing alert {AlertId}.",
+                "ACTA sys.alerts: channel '{Channel}' is {Status} for namespace '{Namespace}'; suppressing alert {AlertRef}.",
                 channel.Name,
                 channel.Status,
                 ctx.JobNamespace,
-                alert.AlertId
+                new AlertRef(alert.AlertRef)
             );
             return;
         }
 
         _log.LogInformation(
-            "ACTA sys.alerts: alert {AlertId} severity {Severity} is below min severity {MinSeverity} for channel '{Channel}'; suppressing delivery.",
-            alert.AlertId,
+            "ACTA sys.alerts: alert {AlertRef} severity {Severity} is below min severity {MinSeverity} for channel '{Channel}'; suppressing delivery.",
+            new AlertRef(alert.AlertRef),
             alert.Severity,
             channel.MinSeverity,
             channel.Name

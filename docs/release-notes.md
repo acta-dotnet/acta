@@ -131,6 +131,47 @@ Same destructive-class precedent as 0.7.0:
 - **The ~45 query parameters that were absent from `openapi.json` are now documented and
   drift-checked**, so the frozen contract actually protects the filter surface.
 
+### Breaking: entity refs replace integer identities
+
+`job_` had a public ref since 0.8.0; alerts and workers did not, so half the surface still addressed
+rows by a dense integer that a restored backup can recycle. 0.9.0 finishes the job — the rule is now
+*a database integer is never a wire identity*, written down in
+[naming conventions](./internals/naming-conventions.md) and enforced by three gates rather than by
+review.
+
+- **`alr_` and `wrk_` join `job_`.** Both are UUIDv7 values minted in C# and passed into the write, so
+  the database never defaults one; both get a unique index. `alerts.alert_ref` is applied on the
+  INSERT arm of the dedupe upsert only, so **an alert that re-fires inside its window keeps the ref
+  its first firing minted** — a delivered notification's link never goes stale.
+- **Routes re-keyed.** `GET /alerts/{alertRef}` (new) plus the acknowledge / resolve verbs and the
+  alert tag routes; `GET /workers/{workerRef}` and the worker tag routes;
+  `GET|PATCH /definitions/{jobNamespace}/{jobName}` plus its `/events` and tag routes. `/events`
+  filters are now `jobRef`, `lineageRootJobRef`, `workerRef` and `tenantKey`; a malformed ref answers
+  400 and a well-formed one that names no row answers 404, matching the sibling endpoints.
+- **Every remaining integer identity left the payloads.** `jobId`, `parentJobId`, `lineageRootId`,
+  `definitionId`, `tenantId`, `namespaceId`, `workerId`, `leasedByWorkerId`, `alertId` and
+  `jobScheduleId` are no longer serialized; the .NET records keep them for in-process callers behind
+  `[JsonIgnore]`. Values stay numeric and are unaffected: `jobEventId`, `executionNumber`,
+  `occurrenceCount`, `failureCount`, `version`, page sizes and counts.
+- **Events reads gained `tenantKey` and `workerRef`**, and worker-actor rows changed what `actor_key`
+  holds: it now stores the acting worker's ref as canonical lowercase uuid text (previously the worker
+  id), and read projections render it as `wrk_...`. The denormalized copy is what makes the timeline
+  outlive its worker — after retention reaps the row the joined `workerRef` reads null while
+  `actorKey` still names the worker an operator saw.
+- **CLI output is ref-based**, plain and `--json` alike: control, status, events, snapshot, explain and
+  debug all print `job_...` / `wrk_...` and no internal id, and the events continuation hint hands back
+  `jobs events <job_...> --after <cursor>`. Numeric-id *input* is still accepted (`jobs info 42`) as the
+  documented advanced path. One behavior change: a control verb whose target no longer exists now
+  prints a uniform `job not found` on stderr instead of a control block reading `action: NotFound` —
+  same exit code 2, one message across all five not-found paths.
+- **Reprovisioning in place leaves stale PostgreSQL overloads.** `start_worker`, `raise_job_alert`,
+  `acknowledge_job_alert` and `resolve_job_alert_manual` all changed arity or parameter types, and the
+  installer issues `CREATE OR REPLACE FUNCTION` without a `DROP`. The old overload therefore lingers
+  beside the new one on a database provisioned by an earlier build. It is harmless — every call is
+  positional and the arity plus parameter types disambiguate — but a fresh provision (the documented
+  0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
+  anyway.
+
 ### Certification: four gates, four seals
 
 All four run on the release commit and file under `docs/certification/`:

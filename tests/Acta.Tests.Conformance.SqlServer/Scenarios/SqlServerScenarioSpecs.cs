@@ -27,6 +27,8 @@ public sealed class SqlServerPurgeExpiredDataSpec : PurgeExpiredDataSpec<SqlServ
 
 public sealed class SqlServerJobRefSurvivesPurgeSpec : JobRefSurvivesPurgeSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerWorkerRefSurvivesPurgeSpec : WorkerRefSurvivesPurgeSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerReferenceEnqueueSpec : ReferenceEnqueueSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRelativeDelayUsesDbClockSpec : RelativeDelayUsesDbClockSpec<SqlServerConformanceFixture>;

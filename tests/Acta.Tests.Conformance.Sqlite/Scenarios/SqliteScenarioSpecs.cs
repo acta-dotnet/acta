@@ -25,6 +25,8 @@ public sealed class SqlitePurgeExpiredDataSpec : PurgeExpiredDataSpec<SqliteConf
 
 public sealed class SqliteJobRefSurvivesPurgeSpec : JobRefSurvivesPurgeSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteWorkerRefSurvivesPurgeSpec : WorkerRefSurvivesPurgeSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteReferenceEnqueueSpec : ReferenceEnqueueSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRelativeDelayUsesDbClockSpec : RelativeDelayUsesDbClockSpec<SqliteConformanceFixture>;

@@ -72,6 +72,11 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             new()
             {
                 NamespaceId = nsId,
+                // A fresh ref per row: ux_alerts_ref accepts the all-zero default exactly once per
+                // schema, and the conformance schema is append-only, so defaulting it made the
+                // positive control below fail on every run after the first. Minting also makes that
+                // control prove what it claims - that a valid alert row inserts.
+                AlertRef = Acta.AlertRef.New().Value,
                 JobId = jobId,
                 JobRef = jobRef,
                 OriginCode = AlertOriginCode.Manual,
@@ -193,6 +198,9 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             new()
             {
                 NamespaceId = nsId,
+                // Same reason as the alerts fixture above: ux_workers_ref makes the all-zero default a
+                // once-per-schema value, which broke the positive control on any re-run.
+                WorkerRef = Acta.WorkerRef.New().Value,
                 Status = WorkerStatusCode.Active,
                 DeploymentVersion = "test",
                 Host = "test-host",

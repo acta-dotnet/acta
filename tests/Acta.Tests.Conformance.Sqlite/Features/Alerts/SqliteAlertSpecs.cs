@@ -24,3 +24,5 @@ public sealed class SqliteListJobAlertsFilterMatrixSpec : ListJobAlertsFilterMat
 public sealed class SqliteListJobAlertsSpec : ListJobAlertsSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRaiseJobAlertSpec : RaiseJobAlertSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteAlertRefDedupeStabilitySpec : AlertRefDedupeStabilitySpec<SqliteConformanceFixture>;

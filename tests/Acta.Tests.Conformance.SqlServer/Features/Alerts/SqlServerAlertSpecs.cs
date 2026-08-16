@@ -26,3 +26,5 @@ public sealed class SqlServerListJobAlertsFilterMatrixSpec : ListJobAlertsFilter
 public sealed class SqlServerListJobAlertsSpec : ListJobAlertsSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRaiseJobAlertSpec : RaiseJobAlertSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerAlertRefDedupeStabilitySpec : AlertRefDedupeStabilitySpec<SqlServerConformanceFixture>;

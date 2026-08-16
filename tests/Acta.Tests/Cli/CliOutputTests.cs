@@ -1,3 +1,4 @@
+using System.Reflection;
 using Acta.Runtime.Cli;
 using Xunit;
 
@@ -458,4 +459,240 @@ public class CliOutputTests
         Assert.Contains("\"run\":\"Rearmed\"", json.ToString());
         Assert.Contains("\"status\":null", json.ToString());
     }
+
+    // ---- No_integer_identities_in_cli_output -------------------------------------------------
+    // Every internal id a CLI fixture can carry is a distinctive sentinel, so a writer that prints
+    // one is caught by the digits themselves - not by a field name a rename could slip past. The
+    // counterpart assertion is that the ref or key the operator addresses the row by IS printed, so
+    // the gate cannot be satisfied by writing nothing. Each writer runs plain and --json.
+
+    private const long SentinelJobId = 424242;
+    private const long SentinelLineageRootId = 424243;
+    private const long SentinelParentJobId = 424244;
+    private const int SentinelDefinitionId = 424245;
+    private const int SentinelTenantId = 424246;
+    private const int SentinelWorkerId = 424247;
+    private const long SentinelJobEventId = 424248;
+    private const int SentinelLeasedByWorkerId = 424249;
+
+    private static readonly string[] InternalIdSentinels = ["424242", "424243", "424244", "424245", "424246", "424247", "424248", "424249"];
+
+    // Fixed, never JobRef.New(): a contract test that mints a random ref has a nonzero chance of
+    // rendering a sentinel digit run and failing for a reason that has nothing to do with the contract.
+    private static readonly WorkerRef SentinelWorkerRef = new(new Guid("019826f0-0000-7000-8000-0000000000aa"));
+    private static readonly JobRef SentinelLineageRootJobRef = new(new Guid("019826f0-0000-7000-8000-0000000000ab"));
+    private static readonly JobRef SentinelParentJobRef = new(new Guid("019826f0-0000-7000-8000-0000000000ac"));
+    private const string SentinelTenantKey = "acme-eu";
+    private const string SentinelCursor = "cursor-token";
+
+    // The writer surface is walked rather than trusted: a Write* method added tomorrow lands in none of
+    // the theories below and would ship unprotected. Same philosophy as the openapi gate - enumerate the
+    // real surface and compare it to a literal, so the gate fails on the day the surface grows.
+    private static readonly string[] CoveredWriters =
+    [
+        nameof(CliOutput.WriteControl),
+        nameof(CliOutput.WriteDebugRun),
+        nameof(CliOutput.WriteEvents),
+        nameof(CliOutput.WriteExplanation),
+        nameof(CliOutput.WriteSnapshot),
+        nameof(CliOutput.WriteStatus),
+        // Usage text lists verbs and namespace names and renders no entity, so it carries no identity
+        // to leak. Listed here so the surface comparison stays exact rather than filtered.
+        nameof(CliOutput.WriteUsage),
+    ];
+
+    [Fact]
+    public void Every_cli_writer_is_covered_by_the_no_integer_identity_theories()
+    {
+        var actual = typeof(CliOutput)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => m.Name.StartsWith("Write", StringComparison.Ordinal))
+            .Select(m => m.Name)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.Ordinal);
+
+        // Set equality both ways: a new writer fails as an uncovered addition, and a deleted one fails
+        // as a stale entry, so the literal cannot rot in either direction.
+        Assert.Equal(CoveredWriters.OrderBy(n => n, StringComparer.Ordinal), actual);
+    }
+
+    private static void AssertRefsOnly(string text, params string[] expected)
+    {
+        foreach (var sentinel in InternalIdSentinels)
+        {
+            Assert.DoesNotContain(sentinel, text, StringComparison.Ordinal);
+        }
+        foreach (var value in expected)
+        {
+            Assert.Contains(value, text, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Control_output_names_the_job_by_ref_only(bool json)
+    {
+        var w = new StringWriter();
+        CliOutput.WriteControl(
+            w,
+            "pause",
+            SampleJobRef,
+            new JobControlResult(SentinelJobId, ControlAction.Applied, JobStatusCode.Paused),
+            json
+        );
+        AssertRefsOnly(w.ToString(), SampleJobRef.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Status_output_names_the_job_by_ref_only(bool json)
+    {
+        var w = new StringWriter();
+        CliOutput.WriteStatus(w, SampleJobRef, JobStatusCode.Executing, json);
+        AssertRefsOnly(w.ToString(), SampleJobRef.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DebugRun_output_names_the_job_by_ref_only(bool json)
+    {
+        var w = new StringWriter();
+        CliOutput.WriteDebugRun(w, SampleJobRef, "Completed", JobStatusCode.Succeeded, json);
+        AssertRefsOnly(w.ToString(), SampleJobRef.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Snapshot_output_carries_the_ref_and_tenant_key_but_no_internal_id(bool json)
+    {
+        var w = new StringWriter();
+        CliOutput.WriteSnapshot(w, SentinelSnapshot(), json);
+        AssertRefsOnly(w.ToString(), SampleJobRef.ToString(), SentinelTenantKey);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Events_output_carries_job_and_worker_refs_but_no_internal_id(bool json)
+    {
+        var w = new StringWriter();
+        CliOutput.WriteEvents(w, SampleJobRef, SentinelEventPage(), json);
+        AssertRefsOnly(w.ToString(), SampleJobRef.ToString(), SentinelWorkerRef.ToString(), SentinelCursor);
+    }
+
+    // The continuation hint is the one place the CLI hands an operator a command to retype, so it has
+    // to carry the ref: a hint spelling the internal id would teach the retired addressing form.
+    [Fact]
+    public void The_events_continuation_hint_carries_the_ref_through_to_the_next_page()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteEvents(w, SampleJobRef, SentinelEventPage(), json: false);
+        AssertRefsOnly(w.ToString(), $"jobs events {SampleJobRef} --after {SentinelCursor}");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Explanation_output_carries_job_and_worker_refs_but_no_internal_id(bool json)
+    {
+        var w = new StringWriter();
+        CliOutput.WriteExplanation(w, SentinelExplanation(), json);
+        AssertRefsOnly(w.ToString(), SampleJobRef.ToString(), SentinelWorkerRef.ToString());
+    }
+
+    private static JobDetail SentinelSnapshot() =>
+        new(
+            JobId: SentinelJobId,
+            JobRef: SampleJobRef,
+            LineageRootId: SentinelLineageRootId,
+            LineageRootJobRef: SentinelLineageRootJobRef,
+            ParentJobId: SentinelParentJobId,
+            ParentJobRef: SentinelParentJobRef,
+            DeduplicationKey: "invoice-7",
+            CorrelationKey: null,
+            JobNamespace: "shop",
+            JobName: "send-email",
+            DefinitionId: SentinelDefinitionId,
+            TenantId: SentinelTenantId,
+            TenantKey: SentinelTenantKey,
+            Status: JobStatusCode.Failed,
+            Priority: JobPriorityCode.Normal,
+            ExecutionNumber: 2,
+            FailureCount: 3,
+            InputFormatId: 0,
+            NextRunAtUtc: null,
+            LeasedByWorkerId: SentinelLeasedByWorkerId,
+            LeaseExpiresAtUtc: null,
+            ExclusiveKey: null,
+            RetentionUntilUtc: null,
+            CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
+            ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
+            LeasedByWorkerRef: SentinelWorkerRef
+        );
+
+    private static PagedResult<EventListItem> SentinelEventPage() =>
+        new(
+            [
+                new EventListItem(
+                    JobEventId: SentinelJobEventId,
+                    EventCode: EventCode.JobExecutionFinished,
+                    CreatedAtUtc: new DateTime(2026, 6, 21, 12, 30, 1, DateTimeKind.Utc),
+                    JobNamespace: "shop",
+                    JobName: "send-invoice",
+                    JobId: SentinelJobId,
+                    JobRef: SampleJobRef,
+                    LineageRootId: SentinelLineageRootId,
+                    LineageRootJobRef: SentinelLineageRootJobRef,
+                    DefinitionId: SentinelDefinitionId,
+                    TenantId: SentinelTenantId,
+                    WorkerId: SentinelWorkerId,
+                    ExecutionNumber: 2,
+                    ActorCode: ActorCode.Worker,
+                    ActorKey: SentinelWorkerRef.ToString(),
+                    FromStatus: JobStatusCode.Executing,
+                    ToStatus: JobStatusCode.Failed,
+                    ExecutionStatus: null,
+                    DurationMs: 12,
+                    ReasonCode: JobEventReasonCode.JobUnhandledException,
+                    ReasonMessage: "boom",
+                    DetailText: null,
+                    WorkerRef: SentinelWorkerRef,
+                    TenantKey: SentinelTenantKey
+                ),
+            ],
+            NextCursor: SentinelCursor,
+            HasMore: true,
+            PageSize: 50,
+            TotalCount: null
+        );
+
+    private static JobExplanation SentinelExplanation() =>
+        new(
+            JobId: SentinelJobId,
+            JobRef: SampleJobRef,
+            JobNamespace: "payments",
+            JobName: "checkout",
+            Status: JobStatusCode.Executing,
+            StatusMeaning: JobStatusCode.Executing.Description,
+            Headline: "Executing, but its lease expired 2m ago.",
+            ActiveWait: null,
+            Lease: new JobExplainLease(
+                WorkerId: SentinelWorkerId,
+                WorkerName: null,
+                ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
+                Expired: true,
+                WorkerLastHeartbeatAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
+                WorkerStale: true,
+                RecoveryExpectation: "Recovery should return it to Ready on the next maintenance tick.",
+                WorkerRef: SentinelWorkerRef
+            ),
+            LastExecutedBy: null,
+            Steps: [new JobExplainStep("reserve-stock", JobStepStatusCode.Succeeded, "succeeded and will not rerun")],
+            Reason: "worker shutdown",
+            NextActions: [new JobExplainAction("cancel", "cancel the job")]
+        );
 }

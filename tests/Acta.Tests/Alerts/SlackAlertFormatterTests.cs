@@ -61,9 +61,21 @@ public sealed class SlackAlertFormatterTests
         var msg = SlackAlertFormatter.Build(Notification());
         var fields = Assert.Single(msg.Attachments).Fields;
 
+        Assert.Contains(fields, f => f.Title == "Alert" && f.Value == TestAlertRef.ToString());
         Assert.Contains(fields, f => f.Title == "Kind" && f.Value == nameof(AlertKindCode.FinalFailure));
         Assert.Contains(fields, f => f.Title == "Namespace" && f.Value == "orders");
         Assert.Contains(fields, f => f.Title == "Job" && f.Value == TestJobRef.ToString());
+    }
+
+    // The alert ref is the reader's only handle on the alert itself, so it is not conditional on the
+    // alert having a subject job - a job-less alert used to arrive with nothing to address it by.
+    [Fact]
+    public void A_job_less_alert_still_carries_its_own_ref()
+    {
+        var fields = Assert.Single(SlackAlertFormatter.Build(Notification(withJob: false)).Attachments).Fields;
+
+        Assert.Contains(fields, f => f.Title == "Alert" && f.Value == TestAlertRef.ToString());
+        Assert.DoesNotContain(fields, f => f.Title == "Job");
     }
 
     [Fact]

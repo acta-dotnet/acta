@@ -114,6 +114,16 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.UpdateAlertDeliveryAsync`
 
+### A deduplicated alert keeps the ref its first firing minted
+- **Contract:** A repeat firing inside the dedupe window bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it.
+- **Arrange:** A seeded job and definition give the alert a subject, and one deduplication key with a fixed window bucket collapses every firing onto one row.
+- **Act:** The same deduplication key is raised three times inside one window while a second key is raised alongside it.
+- **Assert:** Occurrence count grows with each firing while the alert ref is unchanged, and the second key mints a ref of its own.
+- **Guarantees:**
+  - Repeat firings inside the dedupe window bump occurrence_count and keep the ref the first firing minted
+- **Store methods:**
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+
 ### Alert delivery retries with backoff and goes terminal at max retries
 - **Contract:** A throwing transport retries with backoff up to max retries then goes terminal Failed, a missing transport fails immediately, and a null-job-id alert delivers.
 - **Arrange:** Pending alerts are seeded against a throwing transport, a missing transport kind, and one system alert with a null job id.
@@ -1777,6 +1787,18 @@
 - **Store methods:**
   - `Acta.Runtime.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
 
+### Events outlive a purged worker with a canonical actor key
+- **Contract:** Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.
+- **Arrange:** A worker starts and stops in the test namespace, leaving lifecycle events stamped with its actor key, and is then aged into Dead so retention may reap it.
+- **Act:** PurgeExpiredData runs with a future worker cutoff, then the events are listed by the purged worker's historical id.
+- **Assert:** The workers row is gone while its events remain with a null worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.
+- **Guarantees:**
+  - After purge the worker row is gone while its events keep a canonical wrk_ actor key, a null workerRef, and the historical worker id
+- **Store methods:**
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
+  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StopWorkerAsync`
+  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+
 ## Scheduling
 
 ### GetScheduleState returns live cursors for the namespace, empty when none exist
@@ -2254,13 +2276,13 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 
 | Store method | Covering conformance specs |
 | --- | --- |
-| `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Purge reaps expired jobs events alerts and dead workers within batches |
+| `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and dead workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
 | `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
-| `IAlertStore.RaiseJobAlertAsync` | Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.RaiseJobAlertAsync` | A deduplicated alert keeps the ref its first firing minted<br>Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.ResolveJobAlertsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
@@ -2333,8 +2355,8 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
 | `IWorkerStore.MarkDeadWorkersAsync` | Stale workers in any namespace are marked Dead by one global sweep |
 | `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker hash-gate-upserts namespace and appends a fresh worker row per call |
-| `IWorkerStore.StopWorkerAsync` | Stop flips an active worker to Stopped once and is idempotent |
-| `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
+| `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
+| `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
 | `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |
 | `ITagStore.ApplyAsync` | Tags read and mutate all first-class targets and filter typed queries |
 | `ITagStore.GetAsync` | Tags read and mutate all first-class targets and filter typed queries |

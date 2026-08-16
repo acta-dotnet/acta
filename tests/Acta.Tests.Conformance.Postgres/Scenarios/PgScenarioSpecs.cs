@@ -27,6 +27,8 @@ public sealed class PgPurgeExpiredDataSpec : PurgeExpiredDataSpec<PgConformanceF
 
 public sealed class PgJobRefSurvivesPurgeSpec : JobRefSurvivesPurgeSpec<PgConformanceFixture>;
 
+public sealed class PgWorkerRefSurvivesPurgeSpec : WorkerRefSurvivesPurgeSpec<PgConformanceFixture>;
+
 public sealed class PgReferenceEnqueueSpec : ReferenceEnqueueSpec<PgConformanceFixture>;
 
 public sealed class PgRelativeDelayUsesDbClockSpec : RelativeDelayUsesDbClockSpec<PgConformanceFixture>;

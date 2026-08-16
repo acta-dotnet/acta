@@ -54,13 +54,57 @@ after 1.0.0 is a breaking change, not a cleanup.
 - **`Item`** is a plain list element outside paging (`TagItem`, `OutboxQuarantinedItem` when the
   page wrapper already names the paging).
 
+## Public identity: refs and the wire boundary
+
+**A database integer is never a wire identity.** Surrogate keys are the engine's own bookkeeping: they
+are dense, guessable, recycled by a restored backup, and meaningless to anyone outside the schema.
+Every entity a caller addresses therefore carries a public ref instead, and its integer stays behind
+the boundary. Ledger positions and counters are not caught by this rule - `jobEventId`,
+`executionNumber`, `occurrenceCount`, `failureCount`, `version` are *values*, and a value is allowed to
+be a number.
+
+A ref is `prefix + 26 lowercase Crockford Base32 characters` encoding a UUIDv7's canonical big-endian
+bytes. **The prefix is exactly three letters plus an underscore** - `job_`, `alr_`, `wrk_` - so a
+pasted handle names its own entity and a ref for the wrong one fails to parse rather than resolving.
+Parsing folds case and the Crockford `o`/`i`/`l` aliases; emission is always canonical lowercase. Refs
+are minted in C# and passed into the write, never defaulted by the database, so a deduplicated repeat
+keeps the ref its first firing minted.
+
+The boundary has three sides, and only two of them are inside it:
+
+- **HTTP/JSON and the CLI are inside.** No integer identity appears in a payload, a route, a query
+  parameter, or a printed line. Catalog entities - definition, namespace, tenant - are addressed by
+  their natural key (`{jobNamespace}/{jobName}`, `{tenantKey}`) and carry no ref at all.
+- **The in-process .NET API is outside, by documented exception.** A handler is already running inside
+  the engine, so making it round-trip a ref would buy nothing and cost a lookup. These categories are
+  the whole list, not a pattern to extend:
+  - **Read-model id members behind `[JsonIgnore]`.** Every public read model keeps its integer id as a
+    property and hides it from JSON, so an in-process caller can pass it straight back into a store or
+    a `List*Query` while the wire never sees it. This is the largest category by count and covers the
+    job, event, alert, definition, namespace, tenant, worker, schedule, lineage, and explanation read
+    models alike.
+  - **Ambient identity on `JobContext`**: `JobId`, `NamespaceId`, `TenantId`, `WorkerId`.
+  - **Addressing and resolution**: `JobLookup.ById`, and `IJobs.GetJobIdAsync`, which exists precisely
+    to turn a lookup into the internal id an advanced caller then uses.
+  - **Write outcomes, failures, and their ids**: `JobEnqueueOutcome`, `JobControlResult`, the other
+    `Job*Outcome` records, `JobFailedException.JobId`,
+    `DuplicateDeduplicationKeyInBatchException.ParentJobId` / its `ForChild` factory, and the
+    `Acta.Testing` pass-throughs of these members (`ScenarioSession<TInput>.JobId`).
+  - **The child-job APIs**, which take or return a child's id: `WaitChildAsync`, `WaitChildrenAsync`,
+    `GetChildResultAsync`, `ChildJobOutcome.ChildJobId`, `MapItemOutcome<TKey>.ChildJobId`, and
+    `JobEnqueueOptionsBuilder.ParentJobId(long)`.
+  - **The `int`/`long` filter members on the `List*Query` records**, which the HTTP edge resolves refs
+    into and never binds from the wire.
+- **The SQL operator views are outside.** `acta.jobs_view`, `acta.events_view`, `acta.workers_view`,
+  `acta.alerts_view` and their peers (`main.*` on SQLite) exist so a DBA can join the schema in a query
+  window; they keep the internal integer columns because joining on them is the point. They project the
+  ref columns alongside, so a view can answer both questions, but they are not a wire surface and no
+  gate treats them as one.
+
 ## Wire conventions (HTTP/JSON)
 
 - Identities are resource-qualified: `jobRef`, `alertRef`, `workerRef`, `outboxId` - never a bare `id`.
-  An entity a caller addresses carries a public `*Ref` (the rendered `job_`/`alr_`/`wrk_` form) and its
-  DB integer stays off the wire; `outboxId` keeps the `Id` suffix because it is a stored uuid column,
-  not a rendered ref. Catalog entities are addressed by their natural key instead
-  (`{jobNamespace}/{jobName}`, `{tenantKey}`), so they carry no ref at all.
+  `outboxId` keeps the `Id` suffix because it is a stored uuid column, not a rendered ref.
 - `jobNamespace` is the namespace's name everywhere, on every tier.
 - Instants end in `AtUtc` (`createdAtUtc`); every persisted instant is UTC.
 - Narrowing booleans end in `Only` and are nullable (`unresolvedOnly`, `liveOnly`).
