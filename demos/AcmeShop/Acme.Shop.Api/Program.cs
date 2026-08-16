@@ -72,8 +72,8 @@ app.MapGet(
             return Results.BadRequest(new { error = "Invalid job ref." });
         }
 
-        var snapshot = await jobs.GetAsync(parsed, ct);
-        return snapshot is null ? Results.NotFound() : Results.Ok(ToStatus(snapshot));
+        var job = await jobs.GetAsync(parsed, ct);
+        return job is null ? Results.NotFound() : Results.Ok(ToStatus(job));
     }
 );
 
@@ -89,8 +89,8 @@ app.MapGet(
             return Results.Unauthorized();
         }
 
-        var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey("shipping", $"ship:{userId}:{orderId}"), ct);
-        return snapshot is null ? Results.NotFound() : Results.Ok(ToStatus(snapshot));
+        var job = await jobs.GetAsync(JobLookup.ByDeduplicationKey("shipping", $"ship:{userId}:{orderId}"), ct);
+        return job is null ? Results.NotFound() : Results.Ok(ToStatus(job));
     }
 );
 
@@ -120,4 +120,4 @@ Console.WriteLine("  dotnet run --project demos/AcmeShop/Acme.Shop.Shipping");
 
 await app.RunAsync();
 
-static JobLifecycleStatus ToStatus(JobSnapshot s) => new(s.JobRef.ToString(), s.Status.ToString(), s.CreatedAtUtc, s.ModifiedAtUtc);
+static JobLifecycleStatus ToStatus(JobDetail s) => new(s.JobRef.ToString(), s.Status.ToString(), s.CreatedAtUtc, s.ModifiedAtUtc);

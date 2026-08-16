@@ -42,17 +42,11 @@ app.MapGet(
             return Results.BadRequest(new { error = "Invalid job ref." });
         }
 
-        var snapshot = await jobs.GetAsync(parsed, ct);
-        return snapshot is null
+        var job = await jobs.GetAsync(parsed, ct);
+        return job is null
             ? Results.NotFound()
             : Results.Ok(
-                new WelcomeEmailStatus(
-                    snapshot.JobRef,
-                    snapshot.Status.ToString(),
-                    snapshot.DeduplicationKey,
-                    snapshot.CreatedAtUtc,
-                    snapshot.ModifiedAtUtc
-                )
+                new WelcomeEmailStatus(job.JobRef, job.Status.ToString(), job.DeduplicationKey, job.CreatedAtUtc, job.ModifiedAtUtc)
             );
     }
 );
