@@ -172,6 +172,17 @@ review.
   0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
   anyway.
 
+### Execution correctness: a lost step CAS no longer terminalizes a healthy job
+
+A `complete_step` version CAS that matches no row usually means another execution re-claimed the
+job, but the signal can be spurious — a transient-retry re-run of a batch whose first attempt
+committed reads zero changes and looks identical. The executor previously answered with a terminal
+Failed carrying no reason; a job the worker in fact still owned died silently. It now submits a
+retryable `job.attempt-aborted` failure instead: a row another execution owns no-ops at the
+completion CAS exactly as before, while a row still owned re-arms under the failure budget and
+retries, replaying its recorded steps. Found by this release's SQLite certification gate — one
+job in ten thousand under kill-every-5s chaos.
+
 ### Certification: four gates, four seals
 
 All four run on the release commit and file under `docs/certification/`:

@@ -313,12 +313,20 @@ internal sealed class JobExecution(
             }
             catch (StepOwnershipLostException ownershipLost)
             {
-                // A step completion CAS matched no row: a concurrent execution re-claimed this job
-                // (bumping runtimes.version), so this attempt is a zombie. Stop cooperatively, same as a stolen
-                // lease; the complete CAS below no-ops against the row the winner now owns.
+                // A step completion CAS matched no row. Usually a concurrent execution re-claimed this
+                // job (bumping the step version), so this attempt is a zombie; but the signal can be
+                // spurious: a transient-retry re-run of a CAS batch whose first attempt committed reads
+                // zero changes and looks identical. Submit a RETRYABLE failure rather than a reason-less
+                // terminal: a row another execution owns no-ops at the completion CAS below exactly as a
+                // stolen lease does, while a row this worker still owns re-arms under the failure budget
+                // and retries instead of landing Failed with no recorded reason.
                 outcome = ExecutionOutcome.Failed;
+                failureReason = JobEventReasonCode.JobAttemptAborted;
+                failureMessage = $"Step '{ownershipLost.StepName}' ownership could not be confirmed; attempt aborted.".Truncate(
+                    ActaTextLimits.ReasonMessage
+                );
                 _log.LogInformation(
-                    "WorkerRuntime: job {JobId} lost step '{StepName}' ownership mid-flight; another execution owns it. Stopping cooperatively.",
+                    "WorkerRuntime: job {JobId} lost step '{StepName}' ownership mid-flight; aborting the attempt cooperatively.",
                     job.JobId,
                     ownershipLost.StepName
                 );
