@@ -46,6 +46,9 @@ internal static class NamespaceControlEndpoints
                     }
                 }
             )
+            // The body is read manually rather than bound, so the document only learns its shape from
+            // this declaration; optional because a bare POST suspends with no reason.
+            .AcceptsJson<JobControlRequest>(optional: true)
             .WithSummary("Suspend the namespace: new work is rejected at enqueue.");
 
         group
@@ -74,6 +77,7 @@ internal static class NamespaceControlEndpoints
                     }
                 }
             )
+            .AcceptsJson<JobControlRequest>(optional: true)
             .WithSummary("Resume a suspended namespace.");
 
         group
@@ -144,6 +148,7 @@ internal static class NamespaceControlEndpoints
                     }
                 }
             )
+            .AcceptsJson<NamespacePatchRequest>()
             .WithSummary("Update the namespace's owner team and description.");
     }
 }

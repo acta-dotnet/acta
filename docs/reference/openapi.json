@@ -26,6 +26,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -126,6 +135,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -226,6 +244,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -326,6 +353,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -426,6 +462,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -526,6 +571,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRescheduleRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -626,6 +681,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobReprioritizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -726,6 +791,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobInputRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -912,6 +987,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1002,6 +1086,16 @@
           "Jobs"
         ],
         "summary": "Enqueue a job.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobEnqueueApiRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1290,6 +1384,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDefinitionOverridesRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1456,6 +1560,16 @@
           "Tenants"
         ],
         "summary": "Register a tenant, or return the existing one.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1652,6 +1766,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1742,6 +1865,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -1832,6 +1964,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantPatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2010,6 +2152,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2100,6 +2251,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2206,6 +2366,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePauseRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2312,6 +2481,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2418,6 +2596,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2524,6 +2711,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetScheduleOverridesRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2614,6 +2811,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2714,6 +2920,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2814,6 +3029,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NamespacePatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -2914,6 +3139,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutboxControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -3014,6 +3248,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutboxControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -3114,6 +3357,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -3391,6 +3644,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -3692,6 +3955,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -3993,6 +4266,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -4262,6 +4545,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -4531,6 +4824,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -4800,6 +5103,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -7233,6 +7546,17 @@
           }
         }
       },
+      "AlertControlRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "AlertControlResponse": {
         "required": [
           "alertRef",
@@ -7814,6 +8138,17 @@
         }
       },
       "JobCheckpointStatusCode": { },
+      "JobControlRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "JobControlResponse": {
         "required": [
           "jobRef",
@@ -8295,6 +8630,82 @@
         },
         "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
       },
+      "JobDefinitionPolicyOverrides": {
+        "type": "object",
+        "properties": {
+          "priority": { },
+          "maxAttempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
+          "backoff": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "executionTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineBehavior": { },
+          "jobRetentionSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "auditLevel": { },
+          "alertProfile": { },
+          "alertChannelName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "runbookUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The complete operator-override set applied to a job definition's policy. Each field is the override\nfor its policy slot: a non-null value sets the override, `null` clears it (the effective value\nfalls back to the code default). Applied as a whole - the supplied set replaces the row's current\noverrides - so the dashboard reads the current overrides, edits, and writes the full set back. Never\ntouches the code-owned defaults, the contract/formats, or `definition_hash`."
+      },
       "JobDefinitionStatusCode": { },
       "JobDetail": {
         "required": [
@@ -8562,6 +8973,80 @@
         ],
         "description": "Coarse outcome classifier for one enqueued row."
       },
+      "JobEnqueueApiRequest": {
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "jobName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "input": { },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "base64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "formatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "deduplicationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "correlationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priority": { },
+          "delaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "JobEnqueueResponse": {
         "required": [
           "jobRef",
@@ -8773,6 +9258,30 @@
           }
         },
         "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there,\nand what an operator can do next. Assembled from the same `runtimes` / `workers` /\n`steps` / `checkpoints` / `events` rows an operator could read with a `SELECT`:\nActa explains the work it runs rather than hiding it behind synthesized state. Returned by\nValueTask&lt;JobExplanation?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as prose, the dashboard as a panel.\nStatusMeaning is the [Code] description of Status; Headline is a\none-sentence summary; ActiveWait / Lease are set only in the relevant states;\nLastExecutedBy names the worker that last ran the job (for states with no live lease);\nReason is the most recent reason on the timeline; NextActions are the operator's\nmoves, most relevant first."
+      },
+      "JobInputRequest": {
+        "type": "object",
+        "properties": {
+          "input": { },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "base64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "JobInputTemplateResponse": {
         "required": [
@@ -9121,6 +9630,38 @@
       "JobRef": {
         "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
       },
+      "JobReprioritizeRequest": {
+        "required": [
+          "priority"
+        ],
+        "type": "object",
+        "properties": {
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "JobRescheduleRequest": {
+        "type": "object",
+        "properties": {
+          "nextRunAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "JobStatusCode": { },
       "JobStepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
@@ -9171,8 +9712,61 @@
         },
         "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\n`namespaces` table, and the one representation `GET /namespaces` answers with.\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
       },
+      "NamespacePatchRequest": {
+        "type": "object",
+        "properties": {
+          "ownerTeam": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode. Id 90 is reserved for an Archived (hidden/historical)\nstatus, for symmetry with TenantStatusCode's reservation."
+      },
+      "OutboxControlRequest": {
+        "type": "object",
+        "properties": {
+          "outboxIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "OutboxControlResponse": {
         "required": [
@@ -10165,6 +10759,24 @@
         "description": "One schedule row in a ValueTask&lt;PagedResult&lt;ScheduleListItem&gt;&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\ntime zone are the effective values: the operator override when present, else the original."
       },
       "ScheduleOriginCode": { },
+      "SchedulePauseRequest": {
+        "type": "object",
+        "properties": {
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "SchedulePreview": {
         "required": [
           "expression",
@@ -10190,6 +10802,67 @@
         "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string SchedulePreview.Expression and string SchedulePreview.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; SchedulePreview.NextRunsUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
       },
       "ScheduleStatusCode": { },
+      "SetDefinitionOverridesRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "overrides": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobDefinitionPolicyOverrides"
+              }
+            ]
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SetScheduleOverridesRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "expression": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeZoneId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "TagItem": {
         "required": [
           "name"
@@ -10207,6 +10880,27 @@
           }
         },
         "description": "One normalized tag attached to a target."
+      },
+      "TagUpsertRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "TenantDetail": {
         "required": [
@@ -10319,6 +11013,61 @@
           }
         },
         "description": "One tenant row in a ValueTask&lt;PagedResult&lt;TenantListItem&gt;&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from\nthe `tenants` table. The string TenantListItem.TenantKey is the caller-supplied opaque external\nidentifier; the human label lives in string? TenantListItem.Description."
+      },
+      "TenantPatchRequest": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TenantRegistrationRequest": {
+        "type": "object",
+        "properties": {
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "TenantRegistrationResponse": {
         "required": [

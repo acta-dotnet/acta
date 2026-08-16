@@ -177,7 +177,9 @@ internal sealed record JobCheckpointResponse(
 internal sealed record JobEnqueueApiRequest(
     string? JobNamespace = null,
     string? JobName = null,
-    JsonElement Input = default,
+    // Nullable rather than a bare JsonElement: the absent case has to be a value the schema generator
+    // can write as this parameter's default, and an uninitialized JsonElement has nothing to write.
+    JsonElement? Input = null,
     string? Text = null,
     string? Base64 = null,
     byte? FormatId = null,

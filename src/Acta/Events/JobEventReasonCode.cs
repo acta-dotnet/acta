@@ -50,7 +50,7 @@ public enum JobEventReasonCode : byte
 
     [Code(
         "job.attempt-aborted",
-        "Worker aborted the attempt mid-flight (lease renewal at risk or a held lock lost); retried under the failure budget."
+        "Worker aborted the attempt mid-flight (lease renewal at risk, a held lock lost, or a step's ownership unconfirmed); retried under the failure budget."
     )]
     JobAttemptAborted = 25,
 

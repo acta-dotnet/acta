@@ -477,7 +477,7 @@ for the read surface as authorization to read every payload the ledger holds. Se
 
 Every terminal landing stamps `retention_until_utc` from the definition's `JobRetention` policy
 (default 90 days); the framework `sys.retention` job purges terminal rows past that deadline in
-batches, along with `events` / `alerts` / dead-worker rows past their `JobsOptions` windows
+batches, along with `events` / `alerts` / terminal-worker rows past their `JobsOptions` windows
 (`JobEventsRetention`, `AlertRetention`, `WorkerRetention`). A row with a NULL
 `retention_until_utc` is never purged; only terminal rows ever carry one. Substrate rows
 (checkpoints, steps, results) delete with their job.

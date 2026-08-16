@@ -99,7 +99,7 @@ internal static class JobDepthEndpoints
                         );
                     }
 
-                    var hasInput = body.Input.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null);
+                    var hasInput = body.Input is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) };
                     if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) > 1)
                     {
                         return ControlEndpointValidation.Problem(
@@ -153,7 +153,7 @@ internal static class JobDepthEndpoints
                     else
                     {
                         input = hasInput
-                            ? JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input.GetRawText()))
+                            ? JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input!.Value.GetRawText()))
                             : JobPayload.None;
                     }
 
@@ -202,6 +202,8 @@ internal static class JobDepthEndpoints
             // 201 when the enqueue inserted, 200 when a deduplication key matched an existing row.
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
             .WithSummary("Enqueue a job.")
+            // The body is read manually rather than bound, so the document only learns its shape here.
+            .AcceptsJson<JobEnqueueApiRequest>()
             .Produces<JobEnqueueResponse>(StatusCodes.Status201Created)
             .Produces<JobEnqueueResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict);

@@ -89,6 +89,9 @@ internal static class TagEndpoints
                 (string jobRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     Upsert(http, operations, options, () => JobTarget(jobRef, options), ct)
             )
+            // The tag body is read manually rather than bound, so the document only learns its shape
+            // from these declarations; one per upsert, the same request record every time.
+            .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the job.");
         group
             .MapDelete(
@@ -106,6 +109,7 @@ internal static class TagEndpoints
                         ? Task.FromResult(invalid)
                         : Upsert(http, operations, options, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
             )
+            .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the definition.");
         group
             .MapDelete(
@@ -129,6 +133,7 @@ internal static class TagEndpoints
                     CancellationToken ct
                 ) => Upsert(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
             )
+            .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the schedule.");
         group
             .MapDelete(
@@ -151,6 +156,7 @@ internal static class TagEndpoints
                 (string workerRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     Upsert(http, operations, options, () => WorkerTarget(workerRef), ct)
             )
+            .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the worker.");
         group
             .MapDelete(
@@ -166,6 +172,7 @@ internal static class TagEndpoints
                 (string alertRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     Upsert(http, operations, options, () => AlertTarget(alertRef), ct)
             )
+            .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the alert.");
         group
             .MapDelete(
@@ -181,6 +188,7 @@ internal static class TagEndpoints
                 (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     Upsert(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), ct)
             )
+            .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the namespace.");
         group
             .MapDelete(
@@ -196,6 +204,7 @@ internal static class TagEndpoints
                 (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     Upsert(http, operations, options, () => TagTarget.ForTenant(tenantKey), ct)
             )
+            .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the tenant.");
         group
             .MapDelete(

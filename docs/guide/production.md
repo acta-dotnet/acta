@@ -23,7 +23,7 @@ are declared.
 - Expose the dashboard/API remotely only behind host authentication and authorization.
 - Enable HTTP controls only for authorized operators.
 - Configure alert channels and decide whether missing alert channels should warn or fail startup.
-- Review retention windows for jobs, events, alerts, and dead workers.
+- Review retention windows for jobs, events, alerts, and terminal (stopped or dead) workers.
 - Review retention versus manual purge in the [Operator guide](./operator-guide.md), including backup retention.
 - Verify backup and restore behavior with queued, executing, and terminal jobs.
 - Drill the [documented failure modes](./failure-modes.md) for worker loss, SQL outage, and restore.

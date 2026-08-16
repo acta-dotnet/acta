@@ -1768,16 +1768,16 @@
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResolveJobIdByRefAsync`
   - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
 
-### Purge reaps expired jobs events alerts and dead workers within batches
-- **Contract:** Purge deletes terminal jobs with cascade, expired events, settled alerts, Dead workers and expired lock rows, capping each batched section at max iterations.
-- **Arrange:** Terminal purge-now jobs, events, settled and in-flight alerts, Dead and Active workers, and expired and live lock rows are seeded.
+### Purge reaps expired jobs events alerts and terminal workers within batches
+- **Contract:** Purge deletes terminal jobs with cascade, expired events, settled alerts, Stopped and Dead workers and expired locks, capping each section at max iterations.
+- **Arrange:** Terminal purge-now jobs, events, settled and in-flight alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.
 - **Act:** PurgeExpiredData.Run executes with wide and future-cutoff windows driving each sweep section to a deterministic boundary.
-- **Assert:** Expired jobs delete with cascade alongside expired events, settled alerts, Dead workers and expired locks, while everything else survives.
+- **Assert:** Expired jobs delete with cascade alongside expired events, settled alerts, both terminal worker statuses and expired locks, while everything else survives.
 - **Guarantees:**
   - Job retention deletes job tags but preserves surviving alert and event tags
   - A future-retention job stamped with the default window survives the purge
   - Expired events are deleted and recent events are kept
-  - A Dead worker is reaped and an Active worker is kept
+  - Stopped and Dead workers are both reaped while an Active worker is kept
   - A settled alert past the window is deleted and an in-flight alert is kept
   - An expired lock row is reaped and a live lock is kept
   - An expired terminal parent survives the sweep while a live child still references it
@@ -1789,7 +1789,7 @@
 
 ### Events outlive a purged worker with a canonical actor key
 - **Contract:** Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.
-- **Arrange:** A worker starts and stops in the test namespace, leaving lifecycle events stamped with its actor key, and is then aged into Dead so retention may reap it.
+- **Arrange:** A worker starts and stops in the test namespace, leaving lifecycle events stamped with its actor key, and its Stopped row is left for retention to reap.
 - **Act:** PurgeExpiredData runs with a future worker cutoff, then the events are listed by the purged worker's historical id.
 - **Assert:** The workers row is gone while its events remain with a null worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.
 - **Guarantees:**
@@ -2276,7 +2276,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 
 | Store method | Covering conformance specs |
 | --- | --- |
-| `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and dead workers within batches |
+| `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |

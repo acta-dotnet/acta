@@ -7,8 +7,8 @@ namespace Acta.Relational.Entities;
 /// <c>WorkerRuntime.InitializeAsync</c> call INSERTs a fresh row representing that runtime's
 /// lifetime, identified by the DB-assigned <see cref="Id"/>. A single host can produce many rows
 /// (multiple containers, multi-runtime processes, restarts), and rows are never reused. The
-/// retention sweep deletes <c>Dead</c> workers older than <c>JobsOptions.WorkerRetention</c>
-/// (default <c>P90D</c>).
+/// retention sweep deletes terminal workers - <c>Stopped</c> and <c>Dead</c> alike - older than
+/// <c>JobsOptions.WorkerRetention</c> (default <c>P90D</c>).
 /// </summary>
 [DbTable("workers")]
 [DbPrimaryKey(Name = "pk_workers", Columns = ["id"])]

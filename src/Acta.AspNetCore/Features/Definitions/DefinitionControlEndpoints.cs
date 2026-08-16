@@ -70,6 +70,8 @@ internal static class DefinitionControlEndpoints
                 }
             )
             .WithSummary("Set or clear the definition's operator policy overrides.")
+            // The body is read manually rather than bound, so the document only learns its shape here.
+            .AcceptsJson<SetDefinitionOverridesRequest>()
             .Produces<DefinitionControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }

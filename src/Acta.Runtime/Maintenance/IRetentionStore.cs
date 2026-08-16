@@ -3,7 +3,7 @@ namespace Acta.Runtime.Maintenance;
 /// <summary>
 /// Persistence port for cross-feature expiration purging: one namespace-scoped
 /// <c>purge_expired_data</c> sweep running five ordered bounded delete sections (terminal jobs past
-/// retention, old events, settled alerts, dead workers, and a global expired-lock reap).
+/// retention, old events, settled alerts, terminal workers, and a global expired-lock reap).
 /// </summary>
 internal interface IRetentionStore
 {

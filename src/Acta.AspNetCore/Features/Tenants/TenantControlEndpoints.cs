@@ -78,6 +78,8 @@ internal static class TenantControlEndpoints
             // cannot honestly claim 201. An idempotent upsert answering 200 with the canonical key is
             // the accurate shape.
             .WithSummary("Register a tenant, or return the existing one.")
+            // The body is read manually rather than bound, so the document only learns its shape here.
+            .AcceptsJson<TenantRegistrationRequest>()
             .Produces<TenantRegistrationResponse>(StatusCodes.Status200OK);
 
         group
@@ -103,6 +105,8 @@ internal static class TenantControlEndpoints
                 }
             )
             .WithSummary("Suspend the tenant: new work is rejected at enqueue.")
+            // Optional: a bare POST suspends with no reason.
+            .AcceptsJson<JobControlRequest>(optional: true)
             .Produces<AdminControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -129,6 +133,7 @@ internal static class TenantControlEndpoints
                 }
             )
             .WithSummary("Resume a suspended tenant.")
+            .AcceptsJson<JobControlRequest>(optional: true)
             .Produces<AdminControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -201,6 +206,7 @@ internal static class TenantControlEndpoints
                 }
             )
             .WithSummary("Update the tenant's display name and description.")
+            .AcceptsJson<TenantPatchRequest>()
             .Produces<AdminControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);

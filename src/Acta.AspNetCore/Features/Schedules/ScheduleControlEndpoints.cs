@@ -68,6 +68,9 @@ internal static class ScheduleControlEndpoints
                     );
                 }
             )
+            // The body is read manually rather than bound, so the document only learns its shape from
+            // this declaration; optional because a bare POST pauses indefinitely with no reason.
+            .AcceptsJson<SchedulePauseRequest>(optional: true)
             .WithSummary("Pause a recurring schedule, indefinitely or until an instant.");
 
         group
@@ -98,6 +101,7 @@ internal static class ScheduleControlEndpoints
                     );
                 }
             )
+            .AcceptsJson<JobControlRequest>(optional: true)
             .WithSummary("Resume a paused schedule, reconciled by its misfire policy.");
 
         group
@@ -128,6 +132,7 @@ internal static class ScheduleControlEndpoints
                     );
                 }
             )
+            .AcceptsJson<JobControlRequest>(optional: true)
             .WithSummary("Fire the schedule now, without moving its cadence.");
 
         group
@@ -185,6 +190,7 @@ internal static class ScheduleControlEndpoints
                     );
                 }
             )
+            .AcceptsJson<SetScheduleOverridesRequest>()
             .WithSummary("Set or clear the schedule's expression and time-zone overrides.");
     }
 

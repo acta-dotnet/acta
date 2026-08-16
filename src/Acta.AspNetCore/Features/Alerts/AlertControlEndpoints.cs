@@ -69,6 +69,9 @@ internal static class AlertControlEndpoints
             )
             // One declaration for acknowledge and resolve alike.
             .WithSummary(summary)
+            // The body is read manually rather than bound, so the document only learns its shape from
+            // this declaration; optional because a bare POST acknowledges with no note.
+            .AcceptsJson<AlertControlRequest>(optional: true)
             .Produces<AlertControlResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }

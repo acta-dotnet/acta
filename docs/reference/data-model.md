@@ -621,7 +621,7 @@ Acta-owned catalog of tenants: the customer / business entity a Job is about. A 
 
 ### `acta.workers` <a id="entity-acta-workers"></a>
 
-Worker registration and liveness row. One row per worker process; every `WorkerRuntime.InitializeAsync` call INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned `Id`. A single host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The retention sweep deletes `Dead` workers older than `JobsOptions.WorkerRetention` (default `P90D`).
+Worker registration and liveness row. One row per worker process; every `WorkerRuntime.InitializeAsync` call INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned `Id`. A single host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The retention sweep deletes terminal workers - `Stopped` and `Dead` alike - older than `JobsOptions.WorkerRetention` (default `P90D`).
 
 **CLR type** `Acta.Relational.Entities.JobWorker` · **Primary key** `pk_workers` (`id`)
 

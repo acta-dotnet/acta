@@ -174,7 +174,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "B4559C904C5A434BA046F504CF51B969B01C567E3619C1ED56854EC32472DA5E";
+    private const string ExpectedDescriptionHash = "91016884CB833194189615678955BA80B0E31141D4D7084C446572B05987C831";
 
     [Fact]
     public void Frozen_contract_covers_all_29_families_and_163_values()

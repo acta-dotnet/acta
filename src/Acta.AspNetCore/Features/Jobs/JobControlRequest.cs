@@ -26,7 +26,9 @@ internal sealed record JobReprioritizeRequest(JobPriorityCode Priority, string? 
 /// the framework stamps the actor and reason code itself.
 /// </summary>
 internal sealed record JobInputRequest(
-    System.Text.Json.JsonElement Input = default,
+    // Nullable rather than a bare JsonElement: the absent case has to be a value the schema generator
+    // can write as this parameter's default, and an uninitialized JsonElement has nothing to write.
+    System.Text.Json.JsonElement? Input = null,
     string? Text = null,
     string? Base64 = null,
     string? ReasonMessage = null

@@ -110,7 +110,7 @@ BEGIN
             SELECT id FROM {{schema}}.workers
             WHERE
                 namespace_id = p_namespace_id
-                AND status_code = 200 /* WorkerStatusCode.Dead */
+                AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
                 AND last_seen_at_utc <= v_worker_cutoff
             ORDER BY last_seen_at_utc, id
             LIMIT p_batch_size

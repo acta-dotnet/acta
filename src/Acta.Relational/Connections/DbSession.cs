@@ -122,42 +122,19 @@ internal sealed class DbSession : IDbSession
         Action<DbCommand> bind,
         Func<DbDataReader, T> mapRow,
         CancellationToken ct
-    ) =>
-        Run(
-            async token =>
-            {
-                await using var conn = await OpenConnectionAsync(token);
-                await using var tx = BeginWriteTransaction(conn);
-                await using var cmd = CreateBoundWriteCommand(conn, tx, command, bind);
-                var rows = await ReadPrimaryRowsAsync(cmd, mapRow, token);
-                if (tx is not null)
-                {
-                    await tx.CommitAsync(token);
-                }
+    ) => ExecuteThenCommitAsync(command, bind, (cmd, token) => ReadPrimaryRowsAsync(cmd, mapRow, token), ct);
 
-                return rows;
-            },
-            ct
-        );
-
-    public Task<T?> ExecuteSingleAsync<T>(StoreCommand command, Action<DbCommand> bind, Func<DbDataReader, T> mapRow, CancellationToken ct)
-        where T : class =>
-        Run<T?>(
-            async token =>
-            {
-                await using var conn = await OpenConnectionAsync(token);
-                await using var tx = BeginWriteTransaction(conn);
-                await using var cmd = CreateBoundWriteCommand(conn, tx, command, bind);
-                var rows = await ReadPrimaryRowsAsync(cmd, mapRow, token);
-                if (tx is not null)
-                {
-                    await tx.CommitAsync(token);
-                }
-
-                return rows.Count > 0 ? rows[^1] : null;
-            },
-            ct
-        );
+    public async Task<T?> ExecuteSingleAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    )
+        where T : class
+    {
+        var rows = await ExecuteThenCommitAsync(command, bind, (cmd, token) => ReadPrimaryRowsAsync(cmd, mapRow, token), ct);
+        return rows.Count > 0 ? rows[^1] : null;
+    }
 
     // Caller-transaction execute: joins the supplied transaction rather than owning one. No connection
     // open/dispose, no BeginWriteTransaction, no commit/rollback, and no DeadlockRetry - Acta never
@@ -203,22 +180,115 @@ internal sealed class DbSession : IDbSession
     }
 
     public Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) =>
-        Run<object?>(
-            async token =>
+        ExecuteThenCommitAsync<object?>(
+            command,
+            bind,
+            async (cmd, token) =>
             {
-                await using var conn = await OpenConnectionAsync(token);
-                await using var tx = BeginWriteTransaction(conn);
-                await using var cmd = CreateBoundWriteCommand(conn, tx, command, bind);
                 await cmd.ExecuteNonQueryAsync(token);
-                if (tx is not null)
-                {
-                    await tx.CommitAsync(token);
-                }
-
                 return null;
             },
             ct
         );
+
+    // The one owned-write shape, split at the point where the batch has fully executed and is ready to
+    // commit. Everything before that point - open, begin, bind, execute - runs inside DeadlockRetry: a
+    // transient there leaves nothing committed, and the attempt's transaction is rolled back by its
+    // dispose before the next attempt re-opens. The commit and teardown run OUTSIDE the retry, because
+    // a transient raised once the batch has landed is not safely replayable: re-running the whole batch
+    // against rows it already changed reads as a lost CAS. Such a failure surfaces as the error it is,
+    // for the executor's retryable-abort path and the caller's own failure budget to recover.
+    private async Task<T> ExecuteThenCommitAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbCommand, CancellationToken, Task<T>> execute,
+        CancellationToken ct
+    )
+    {
+        var executed = await Run(
+            async token =>
+            {
+                var conn = await OpenConnectionAsync(token);
+                DbTransaction? tx = null;
+                try
+                {
+                    tx = BeginWriteTransaction(conn);
+                    await using var cmd = CreateBoundWriteCommand(conn, tx, command, bind);
+                    return new ExecutedBatch<T>(conn, tx, await execute(cmd, token));
+                }
+                catch
+                {
+                    // Roll the failed attempt back here rather than leaning on a scope exit: the
+                    // connection and transaction outlive this lambda on the success path, so only the
+                    // throwing path may dispose them, and it must - transaction first - before a retry
+                    // opens a fresh one.
+                    await DisposeFailedAttemptAsync(tx, conn);
+                    throw;
+                }
+            },
+            ct
+        );
+
+        // Single attempt, but through the same IsCancellation funnel the retried region uses: a
+        // token-cancelled commit must still surface as OperationCanceledException on the provider
+        // (SqlClient) that reports one as a plain SqlException.
+        return await DeadlockRetry.RunAsync(
+            async token =>
+            {
+                await using (executed.Connection)
+                await using (executed.Transaction)
+                {
+                    if (executed.Transaction is not null)
+                    {
+                        await executed.Transaction.CommitAsync(token);
+                    }
+                }
+
+                return executed.Value;
+            },
+            static _ => false,
+            maxAttempts: 1,
+            ct,
+            _dialect.IsCancellation
+        );
+    }
+
+    // Tears a failed attempt down without ever becoming the failure itself. The transaction goes first
+    // (its dispose is what rolls back) and the connection goes regardless, because a rollback on a
+    // connection the database already aborted is the likeliest thing here to throw, and losing the
+    // connection to it would leak one per failed attempt. Both teardown failures are swallowed so the
+    // attempt's own exception is what propagates: DeadlockRetry classifies whatever leaves this scope,
+    // and a dispose exception in its place would make a transient stop looking like one and abandon a
+    // retry that would have succeeded.
+    private static async ValueTask DisposeFailedAttemptAsync(DbTransaction? tx, DbConnection conn)
+    {
+        try
+        {
+            if (tx is not null)
+            {
+                await tx.DisposeAsync();
+            }
+        }
+        catch (Exception)
+        {
+            // Deliberately ignored: the caller rethrows the original failure.
+        }
+        finally
+        {
+            try
+            {
+                await conn.DisposeAsync();
+            }
+            catch (Exception)
+            {
+                // Deliberately ignored: the caller rethrows the original failure.
+            }
+        }
+    }
+
+    // Carries the still-open connection and uncommitted transaction of a batch that executed cleanly
+    // out of the retried region, so the commit can happen outside it.
+    private readonly record struct ExecutedBatch<T>(DbConnection Connection, DbTransaction? Transaction, T Value);
 
     private DbTransaction? BeginWriteTransaction(DbConnection conn) =>
         _dialect.WrapsMutationInTransaction ? _dialect.BeginImmediateTransaction(conn) : null;

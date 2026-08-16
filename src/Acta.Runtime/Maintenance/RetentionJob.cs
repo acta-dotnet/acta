@@ -12,7 +12,7 @@ namespace Acta.Runtime.Maintenance;
 /// One pass deletes, in bounded batches: terminal <c>job</c> rows past their <c>retention_until_utc</c>
 /// (cascading the per-job child tables), <c>events</c> rows older than
 /// <c>JobsOptions.JobEventsRetention</c>, settled <c>alerts</c> rows older than
-/// <c>JobsOptions.AlertRetention</c>, and Dead <c>workers</c> rows older than
+/// <c>JobsOptions.AlertRetention</c>, and terminal (Stopped or Dead) <c>workers</c> rows older than
 /// <c>JobsOptions.WorkerRetention</c>, then reaps expired <c>leases</c> lock rows globally. The batch
 /// and iteration caps bound each tick; the next hourly fire continues any backlog. <c>AuditLevel.Failures</c>
 /// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.

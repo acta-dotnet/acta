@@ -15,20 +15,20 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for <c>sys.retention</c>'s five sweep sections (<c>purge_expired_data</c>):
 /// terminal jobs past <c>retention_until_utc</c> (with CASCADE), <c>events</c> rows past the events
-/// window, settled <c>alerts</c> rows past the alert window, Dead <c>workers</c> rows past the
-/// worker window, and expired <c>leases</c> lock rows. Event/alert/worker windows are driven to deterministic boundaries by passing a window
+/// window, settled <c>alerts</c> rows past the alert window, terminal (Stopped or Dead)
+/// <c>workers</c> rows past the worker window, and expired <c>leases</c> lock rows. Event/alert/worker windows are driven to deterministic boundaries by passing a window
 /// wide enough to exclude everything (large positive) or a cutoff in the future (negative), so no
 /// real-time wait is needed; deletable terminal jobs are produced through the real
 /// enqueue/execute/complete path via the zero-retention <c>purge-now</c> probe.
 /// </summary>
 [ConformanceSpec(
     "purge-expired-data.sweeps",
-    "Purge reaps expired jobs events alerts and dead workers within batches",
+    "Purge reaps expired jobs events alerts and terminal workers within batches",
     Area = "Retention",
-    Contract = "Purge deletes terminal jobs with cascade, expired events, settled alerts, Dead workers and expired lock rows, capping each batched section at max iterations.",
-    Arrange = "Terminal purge-now jobs, events, settled and in-flight alerts, Dead and Active workers, and expired and live lock rows are seeded.",
+    Contract = "Purge deletes terminal jobs with cascade, expired events, settled alerts, Stopped and Dead workers and expired locks, capping each section at max iterations.",
+    Arrange = "Terminal purge-now jobs, events, settled and in-flight alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.",
     Act = "PurgeExpiredData.Run executes with wide and future-cutoff windows driving each sweep section to a deterministic boundary.",
-    Assert = "Expired jobs delete with cascade alongside expired events, settled alerts, Dead workers and expired locks, while everything else survives."
+    Assert = "Expired jobs delete with cascade alongside expired events, settled alerts, both terminal worker statuses and expired locks, while everything else survives."
 )]
 [CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeExpiredDataAsync))]
 public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -160,12 +160,15 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Empty(await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Event && t.ScopeId == taggedEvent.Id).ToListAsync(ct));
     }
 
-    [Fact(DisplayName = "A Dead worker is reaped and an Active worker is kept")]
-    public async Task Dead_worker_is_deleted_and_active_worker_survives()
+    [Fact(DisplayName = "Stopped and Dead workers are both reaped while an Active worker is kept")]
+    public async Task Terminal_workers_are_deleted_and_active_worker_survives()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var workers = Services.GetRequiredService<IWorkerStore>();
 
+        // The runtime's own worker is the only row here, and it is Active: read it before seeding the
+        // second one so the single-row query still addresses it unambiguously.
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         Assert.Equal(WorkerStatusCode.Active, worker!.Status);
@@ -177,13 +180,35 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.NotNull(await Db.From<JobWorker>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct));
         Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForWorker(new WorkerRef(worker.WorkerRef)), ct));
 
-        // Retire it: age last_seen past a positive window, then the global sweep flips it to Dead.
+        // A second worker that shuts down cleanly: Stopped is the other terminal status, and it reaches
+        // it without ever being Dead - mark_dead_workers only retires a worker that went silent.
+        var (_, stoppedId) = await WorkerTestOps.StartAsync(
+            Services,
+            TestNamespace,
+            "test",
+            null,
+            "purge-host",
+            "v1",
+            null,
+            null,
+            4243,
+            4,
+            ct
+        );
+        await workers.StopWorkerAsync(ns, stoppedId, ct);
+
+        // Retire the first one: age last_seen past a positive window, then the global sweep flips it to
+        // Dead. The cleanly-stopped row is untouched by that sweep and stays Stopped.
         var agedAt = DateTime.UtcNow.AddHours(-1);
         await Db.From<JobWorker>().Where(w => w.Id == worker.Id).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAt }, ct);
-        await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(30, ct);
+        await workers.MarkDeadWorkersAsync(30, ct);
+        Assert.Equal(WorkerStatusCode.Stopped, (await Db.From<JobWorker>().Where(w => w.Id == stoppedId).SingleOrDefaultAsync(ct))!.Status);
+
+        // One sweep takes both terminal rows: the worker window applies to Stopped and Dead alike.
         var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, -1, 1000, 50, ct);
-        Assert.Equal(1, purged.Workers);
+        Assert.Equal(2, purged.Workers);
         Assert.Null(await Db.From<JobWorker>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobWorker>().Where(w => w.Id == stoppedId).SingleOrDefaultAsync(ct));
         Assert.Empty(await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Worker && t.ScopeId == worker.Id).ToListAsync(ct));
     }
 

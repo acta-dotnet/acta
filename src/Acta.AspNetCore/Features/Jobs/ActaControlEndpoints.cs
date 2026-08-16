@@ -91,7 +91,7 @@ internal static class ActaControlEndpoints
                     }
 
                     var hasInput =
-                        body!.Input.ValueKind is not (System.Text.Json.JsonValueKind.Undefined or System.Text.Json.JsonValueKind.Null);
+                        body!.Input is { ValueKind: not (System.Text.Json.JsonValueKind.Undefined or System.Text.Json.JsonValueKind.Null) };
                     if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) != 1)
                     {
                         return ControlEndpointValidation.Problem(
@@ -170,7 +170,10 @@ internal static class ActaControlEndpoints
                     else
                     {
                         // Json fallback: accepted for any non-none stored format; the runner decodes by the stored id.
-                        payload = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes(body.Input.GetRawText()));
+                        payload = JobPayload.FromBytes(
+                            JobPayloadFormat.Json,
+                            System.Text.Encoding.UTF8.GetBytes(body.Input!.Value.GetRawText())
+                        );
                     }
 
                     // Operator identity for the audit trail comes from the authenticated principal, never the
@@ -188,6 +191,8 @@ internal static class ActaControlEndpoints
                 }
             )
             .WithSummary("Amend a waiting job's stored input.")
+            // The body is read manually rather than bound, so the document only learns its shape here.
+            .AcceptsJson<JobInputRequest>()
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status404NotFound);
@@ -246,6 +251,7 @@ internal static class ActaControlEndpoints
                 }
             )
             .WithSummary("Move the job's next-run instant.")
+            .AcceptsJson<JobRescheduleRequest>()
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
@@ -295,6 +301,7 @@ internal static class ActaControlEndpoints
                 }
             )
             .WithSummary("Change the job's priority.")
+            .AcceptsJson<JobReprioritizeRequest>()
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
@@ -373,6 +380,9 @@ internal static class ActaControlEndpoints
                 }
             )
             .WithSummary("Raise a named signal on the job, with an optional JSON value.")
+            // The signal value is free-form JSON passed through verbatim, so the declared body type is
+            // "any JSON" rather than a record; optional because an empty body raises a presence-only signal.
+            .AcceptsJson<System.Text.Json.JsonElement>(optional: true)
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
@@ -414,6 +424,9 @@ internal static class ActaControlEndpoints
             // unknown ref is 404. All three carry the same body, so a client reads `action` and the
             // resulting `status` without special-casing the status code.
             .WithSummary(summary)
+            // The body is read manually rather than bound, so the document only learns its shape from
+            // this declaration; optional because a bare POST applies the verb with no reason.
+            .AcceptsJson<JobControlRequest>(optional: true)
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);

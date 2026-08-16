@@ -297,18 +297,20 @@ public abstract class JobContext
     // ---------- State reset ----------
 
     /// <summary>
-    /// Clears this Job's durable state (every <c>JobCheckpoint</c>,
-    /// <c>JobStep</c>, and <c>JobResult</c> row) so the next execution starts as
-    /// new. Does not change the Job's status, lease, failure budget, or schedule; the current attempt
-    /// still completes normally. Emits <c>job.state-reset</c>.
+    /// Clears this Job's durable state (every <c>JobCheckpoint</c>, <c>JobStep</c>, and
+    /// <c>JobResult</c> row) so the next execution starts as new. Does not change the Job's status,
+    /// lease, failure budget, or schedule; the current attempt still completes normally. Emits
+    /// <c>job.state-reset</c>.
     /// </summary>
     /// <remarks>
     /// Intended as the final action of a handler that runs again (a recurring Job, or one that
     /// re-arms): the attempt completes and the next claim sees none of this attempt's state. Calling
-    /// it mid-handler discards the variables, timers, step checkpoints, and signals the rest of
-    /// the attempt would read. Child outcome latches are cleared too, while a finished child still
-    /// dedupes by name and never re-raises, so waiting on it again hangs; use per-fire child names
-    /// in handlers that reset.
+    /// it mid-handler discards the variables, timers, step checkpoints, and signals the rest of the
+    /// attempt would read. Child outcome latches are cleared too, while a finished child still dedupes
+    /// by name and never re-raises, so waiting on it again hangs; use per-fire child names in handlers
+    /// that reset. It also breaks at-most-once: the reset deletes an already-run <c>AtMostOnce</c>
+    /// step's recorded outcome, so an attempt aborted afterwards re-arms, finds no record, and invokes
+    /// that step a second time. Mid-execution this is for tests and repair, never a handler's path.
     /// </remarks>
     public async Task ResetStateAsync(CancellationToken ct = default)
     {

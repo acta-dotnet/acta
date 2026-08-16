@@ -28,6 +28,9 @@ internal static class OutboxControlEndpoints
                 (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     HandleAsync(http, operations, options, "requeue", jobNamespace, ct)
             )
+            // The body is read manually rather than bound, so the document only learns its shape from
+            // this declaration; optional because a bare POST targets every quarantined row.
+            .AcceptsJson<OutboxControlRequest>(optional: true)
             .WithSummary("Return quarantined outbox rows to pending; the next relay pass applies it.");
 
         group
@@ -36,6 +39,7 @@ internal static class OutboxControlEndpoints
                 (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     HandleAsync(http, operations, options, "discard", jobNamespace, ct)
             )
+            .AcceptsJson<OutboxControlRequest>(optional: true)
             .WithSummary("Delete quarantined outbox rows, keeping the ids as audit evidence.");
     }
 

@@ -66,7 +66,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
 | `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
 | `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before `sys.recovery` marks a worker Dead. |
-| `WorkerRetention` | 90 days | cluster data | Dead worker row retention. Must be at least one day. |
+| `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. Must be at least one day. |
 | `JobEventsRetention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetention` | 90 | cluster data | Retention for settled alert rows. In-flight alert delivery rows are not purged by age. |
 | `RegisterSystemJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. **Setting this `false` disables crash recovery**: `sys.recovery` is the only thing that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay `Executing` behind a lapsed lease permanently. The runtime warns at startup when it is off. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |

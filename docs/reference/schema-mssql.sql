@@ -7100,7 +7100,7 @@ BEGIN
             FROM acta.workers WITH (UPDLOCK, READPAST)
             WHERE
                 namespace_id = @p_namespace_id
-                AND status_code = 200 /* WorkerStatusCode.Dead */
+                AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
                 AND last_seen_at_utc <= @worker_cutoff
             ORDER BY last_seen_at_utc, id;
             DELETE FROM acta.tags

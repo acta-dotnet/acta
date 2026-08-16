@@ -21,7 +21,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "Events outlive a purged worker with a canonical actor key",
     Area = "Retention",
     Contract = "Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.",
-    Arrange = "A worker starts and stops in the test namespace, leaving lifecycle events stamped with its actor key, and is then aged into Dead so retention may reap it.",
+    Arrange = "A worker starts and stops in the test namespace, leaving lifecycle events stamped with its actor key, and its Stopped row is left for retention to reap.",
     Act = "PurgeExpiredData runs with a future worker cutoff, then the events are listed by the purged worker's historical id.",
     Assert = "The workers row is gone while its events remain with a null worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them."
 )]
@@ -73,14 +73,8 @@ public abstract class WorkerRefSurvivesPurgeSpec<TFixture> : ActaStorageTestBase
         Assert.All(before.Items, e => Assert.Equal<WorkerRef?>(workerRef, e.WorkerRef));
         Assert.All(before.Items, e => Assert.Equal(workerRef.ToString(), e.ActorKey));
 
-        // Retention reaps Dead workers only, and a cleanly stopped worker is Stopped: mark_dead_workers
-        // never touches it. The status is aged here through the test session so the deletion itself
-        // still runs through the production purge routine, which is the path under test.
-        var agedAt = DateTime.UtcNow.AddHours(-1);
-        await Db.From<JobWorker>()
-            .Where(w => w.Id == workerId)
-            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead, LastHeartbeatAtUtc = agedAt }, ct);
-
+        // Retention reaps both terminal worker statuses, so the cleanly stopped row is purged as it
+        // stands: the deletion runs through the production purge routine, which is the path under test.
         // Drain rather than assert one call reaps it: the sweep skips rows another transaction holds.
         var purged = 0;
         for (var pass = 1; pass <= 20 && purged == 0; pass++)

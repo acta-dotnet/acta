@@ -183,6 +183,22 @@ completion CAS exactly as before, while a row still owned re-arms under the fail
 retries, replaying its recorded steps. Found by this release's SQLite certification gate — one
 job in ten thousand under kill-every-5s chaos.
 
+The transient-retry region that produced the spurious signal was narrowed at the same time. A
+relational session used to retry a lambda that included the commit, so a transient raised after the
+write had already landed replayed the whole batch against rows it had itself just changed. The retry
+now covers statement execution only; commit and teardown run outside it, and a transient during
+commit surfaces as the error it is for the executor's retryable-abort path and the caller's own
+failure budget to handle.
+
+### Retention: stopped workers age out too
+
+The worker section of the retention sweep deleted `Dead` rows only, so a worker that shut down
+cleanly left a `Stopped` row behind forever. `JobsOptions.WorkerRetention` (default 90 days) now
+governs both terminal statuses: `Stopped` and `Dead` rows alike are reaped once they are older than
+the window. `Active` and `Draining` workers are still never purged. Nothing else about the sweep
+changed — same window arithmetic, same batching, same ordering — and the first sweep after upgrading
+will clear the stopped-worker backlog a long-running cluster has accumulated.
+
 ### Certification: four gates, four seals
 
 All four ran on the release commit on 2026-08-16 and file under `docs/certification/`:

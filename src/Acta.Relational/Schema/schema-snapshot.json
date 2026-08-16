@@ -1979,7 +1979,7 @@
           {
             "Id": 25,
             "Code": "job.attempt-aborted",
-            "Description": "Worker aborted the attempt mid-flight (lease renewal at risk or a held lock lost); retried under the failure budget.",
+            "Description": "Worker aborted the attempt mid-flight (lease renewal at risk, a held lock lost, or a step\u0027s ownership unconfirmed); retried under the failure budget.",
             "Lifecycle": "Active"
           },
           {

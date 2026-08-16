@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -85,6 +86,8 @@ public sealed class OpenApiContractTests
         "failureCount",
         "retryCount",
         "version",
+        // The CAS token a patch echoes back: the same counter as "version", read then re-sent.
+        "expectedVersion",
         // Payload-format discriminators (a persisted-code number, not a row identity).
         "formatId",
         "inputFormatId",
@@ -93,6 +96,7 @@ public sealed class OpenApiContractTests
         "byteLength",
         "durationMs",
         "deadlineSeconds",
+        "delaySeconds",
         "deadlineSecondsEffective",
         "deadlineSecondsOverride",
         "executionTimeoutSeconds",
@@ -300,11 +304,13 @@ public sealed class OpenApiContractTests
         builder.Services.AddSingleton<IJobs>(fake);
         builder.Services.AddSingleton<IActaOperations>(fake);
         builder.Services.AddOpenApi(o =>
-        // Two request records carry `JsonElement Input = default` for the free-form payload. The
-        // generator copies that default into the schema and then cannot serialize it, because an
-        // uninitialized JsonElement has no value to write. The defaults document nothing anyway -
-        // the field is "whatever JSON the caller sends" - so they are dropped rather than paid for
-        // by weakening the request types to keep a generator happy.
+        // Every optional member of a request record carries a C# default, and the generator copies
+        // each one into the schema. They document nothing a reader needs - the absent case is already
+        // "this field is optional" - and they make the committed document churn on a default nobody
+        // reads, so the schema transformer below drops them all. (The two free-form payload fields
+        // declare `JsonElement?` rather than a bare `JsonElement` for the same generator: an
+        // uninitialized JsonElement has no value it can write as a default, and it throws there
+        // before any transformer runs.)
         {
             // Without this the generator defaults info.title to "{entry assembly} | {document}",
             // which stamped this test host's name into the committed contract ("Acta.Tests | v1")
@@ -374,7 +380,7 @@ public sealed class OpenApiContractTests
         var app = builder.Build();
         // The dashboard UI is off: its index, asset, and SPA-fallback routes are not part of the API
         // contract, and the SPA catch-all would otherwise appear as a documented path.
-        app.MapActa(
+        var acta = app.MapActa(
             "/acta",
             o =>
             {
@@ -382,11 +388,35 @@ public sealed class OpenApiContractTests
                 o.EnableControls = true;
             }
         );
+        // The handlers read their JSON body through ControlEndpointValidation rather than a bound
+        // parameter, so they declare it as RequestBodyDoc metadata (product-side, OpenAPI-free) and it
+        // is translated into the framework's IAcceptsMetadata here - only here. In a serving host that
+        // metadata is read by the routing matcher, which would start answering the missing-body and
+        // wrong-content-type cases these handlers answer themselves; this host routes nothing but the
+        // document read, so the translation is free. Finally() rather than Add() so it runs after the
+        // per-endpoint conventions that write the declarations.
+        ((IEndpointConventionBuilder)acta).Finally(endpoint =>
+        {
+            if (endpoint.Metadata.OfType<RequestBodyDoc>().LastOrDefault() is { } doc)
+            {
+                endpoint.Metadata.Add(new DeclaredRequestBody(doc));
+            }
+        });
         app.MapOpenApi();
         await app.StartAsync(TestContext.Current.CancellationToken);
         await using var _ = app;
 
         return await app.GetTestClient().GetStringAsync("/openapi/v1.json", TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>The framework-shaped body declaration the generator reads, built from a RequestBodyDoc.</summary>
+    private sealed class DeclaredRequestBody(RequestBodyDoc doc) : IAcceptsMetadata
+    {
+        public IReadOnlyList<string> ContentTypes { get; } = ["application/json"];
+
+        public Type? RequestType { get; } = doc.BodyType;
+
+        public bool IsOptional { get; } = doc.Optional;
     }
 
     // Two kinds of line ending here, and both are platform-dependent. The file's own, and the ones
