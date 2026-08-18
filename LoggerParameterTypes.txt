@@ -40,14 +40,21 @@ Ref;System.String
 SubjectRef;System.String
 
 # What was attempted: exclusive-key-admission, outbox-relay. A closed set of verbs, low cardinality.
+# Kebab-case, because these are labels this codebase invented rather than states C# already names.
 Operation;System.String
 
-# How it ended: bounced, suppressed, quarantined. Rendered rather than passed as the enum it often
-# comes from - an enum's property form is the sink's choice between its name and its numeric value, so
-# leaving it typed makes the stored shape depend on where Acta happens to be hosted.
+# How it ended: Succeeded, NothingClaimed, Bounced, Suppressed, Quarantined. PascalCase, mirroring the
+# enum member it usually is - a RunOnceOutcome, a CompleteExecutionAction - and spelled the same way at
+# the few sites with no enum behind them. Rendered rather than passed as the enum: an enum's property
+# form is the sink's choice between its name and its numeric value, so leaving it typed makes the
+# stored shape depend on where Acta happens to be hosted. Mirroring beats mapping here, because a
+# translation table would need a fallback arm that silently swallows a member added later.
+# Not to be confused with the metric tag of the same idea, which is lowercase and frozen; see
+# docs/internals/naming-conventions.md for why the two surfaces diverge on purpose.
 Outcome;System.String
 
-# Why, low cardinality: key-held, unknown-job. Rendered for the same reason as Outcome.
+# Why, low cardinality: key-held, unknown-job. Kebab-case for the same reason as Operation - these are
+# invented labels, not enum members. Rendered for the same reason as Outcome.
 Reason;System.String
 
 # Any cardinal - rows, batch size, executors. The whole integer family rather than one width, because

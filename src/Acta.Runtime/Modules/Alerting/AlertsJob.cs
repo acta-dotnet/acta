@@ -382,7 +382,7 @@ internal sealed class AlertsJob(
                 "ACTA sys.alerts: alert {Ref} in namespace '{Namespace}' is {Outcome}: channel '{Detail}' is {Reason}.",
                 new AlertRef(alert.AlertRef).ToString(),
                 ctx.JobNamespace,
-                "suppressed",
+                "Suppressed",
                 channel.Name,
                 channel.Status.ToString()
             );
@@ -392,7 +392,7 @@ internal sealed class AlertsJob(
         _log.LogInformation(
             "ACTA sys.alerts: alert {Ref} is {Outcome}: {Detail}.",
             new AlertRef(alert.AlertRef).ToString(),
-            "suppressed",
+            "Suppressed",
             $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'"
         );
     }

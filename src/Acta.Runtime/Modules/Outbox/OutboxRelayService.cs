@@ -198,7 +198,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
             _log.LogError(
                 "ACTA sys.outbox: {Operation} {Outcome} {Count} row(s) this tick; {Detail}.",
                 "outbox-relay",
-                "quarantined",
+                "Quarantined",
                 quarantinedIds.Count,
                 $"source '{options.SourceName}', ids [{OutboxQuarantineTickException.FormatSample(quarantinedIds)}]"
             );

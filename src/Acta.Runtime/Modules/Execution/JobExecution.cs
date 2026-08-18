@@ -119,7 +119,7 @@ internal sealed class JobExecution(
                 _log.LogDebug(
                     "WorkerRuntime: {Operation} {Outcome} job {JobId} ({Reason}); exclusive key '{Detail}' is held elsewhere, so the job re-armed Ready in {DurationMs}ms.",
                     "exclusive-key-admission",
-                    "bounced",
+                    "Bounced",
                     job.JobId,
                     "key-held",
                     exclusiveKey,

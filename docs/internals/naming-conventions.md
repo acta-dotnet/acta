@@ -169,6 +169,23 @@ free and it grows with every line anyone adds.
   making the mapped shape depend on where Acta happens to be hosted. `Count`, `DurationMs` and `JobId`
   stay numeric for the opposite reason: written as text they could not be averaged or bucketed at all,
   which is the whole point of splitting categorical from cardinal.
+- **`Outcome` values are PascalCase; `Operation` and `Reason` values are kebab-case.** The split is not
+  cosmetic, it follows what the value *is*. An `Outcome` reports a state C# already names - a
+  `RunOnceOutcome`, a `CompleteExecutionAction` - so it mirrors the enum member exactly (`Succeeded`,
+  `NothingClaimed`), and the handful of sites with no enum behind them spell their literal the same way
+  (`Bounced`, `Suppressed`, `Quarantined`). `Operation` and `Reason` are invented labels rather than
+  enum members - `exclusive-key-admission`, `outbox-relay`, `key-held`, `unknown-job` - so they take
+  the identifier convention, which is kebab. Mirroring rather than mapping is deliberate: rendering an
+  enum through a translation table would need a `_ =>` fallback that silently swallows a member added
+  later, and `.ToString()` keeps the enum the single source of truth, so a new state needs no telemetry
+  change at all.
+- **Log `Outcome` values and metric `outcome` tags diverge on purpose, and neither should be "fixed" to
+  match the other.** `JobExecution.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
+  into `JobMetrics`, because metric tag values follow OpenTelemetry's lowercase convention and freeze
+  at 1.0; a log field mirrors the C# code and does not freeze. Two surfaces, each internally consistent,
+  beats one convention bent across both. Persisted code tokens are a third such surface and stay kebab
+  for the same kind of reason - `AlertDeliveryStatusCode.Suppressed` is the C# member and `suppressed`
+  is what the ledger stores, so a log line reporting that state writes `Suppressed`.
 - **The vocabulary is enforced, not merely documented.** `LoggerParameterTypes.txt` at the repo root
   is the list, and Meziantou.Analyzer's `MA0135` (name not declared) and `MA0124` (argument is not a
   declared type) fail the build over `src/**/*.cs`. `.editorconfig` holds the two lines that switch
