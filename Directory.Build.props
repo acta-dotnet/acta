@@ -94,6 +94,12 @@
          really is dead. -->
     <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true'"
       >$(NoWarn);CA1812</NoWarn>
+    <!-- Spec code only. A spec hands ownership of hosts, connections, token sources and test doubles to
+         an xUnit fixture, a helper factory, or the assertion that outlives the statement, and CA2000
+         cannot follow ownership across any of those - so it reports the construction rather than the
+         leak. Enforced in src and anvil, where the nine sites it found were each judged individually and
+         the objects turned out to own no handle at all. -->
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA2000;CA1001;CA2213</NoWarn>
     <!-- Spec code only. These parse literals the spec itself wrote, so there is no locale to get wrong.
          Enforced everywhere else, because Anvil's numbers gate a release and the emitter's parse round-
          trips generated text. -->
@@ -129,17 +135,16 @@
        to keep the whole curated tier switched off until all of them were fixed, which is how the tier
        stayed off for a year. Parking is the lesser evil and is explicitly not a ruling on any of them.
        Each rule is deleted from this list as its A3 slice lands, and the block goes with the last one.
-       Counts are distinct sites (file, line, column) measured on 58f61c0 and are the slice sizes:
-         CA1062  128  null validation on public entry points
-         CA2000  118  disposable not disposed along every path
-         CA1031   62  general exception boundaries
-         CA1508   10  provably-dead branches - parked, not ruled on. When its slice lands, inspect each
-                      site: they are all (object?)row.X is-never-null in DB row mappers and may be
-                      legitimate defence against nullability the compiler cannot see. No blanket rule.
-         CA1001    4  types owning disposable fields without IDisposable
-         CA2213    3  owned disposable fields never disposed -->
+       The counts below came from the first inventory pass and have twice proved wrong per rule - the
+       disposal family was sized at 125 and turned out to be 9 - so measure a family directly before
+       sizing its slice. The total that pass reported did reproduce; only the per-rule split did not.
+         CA1062  ~128  null validation on public entry points
+         CA1031   ~62  general exception boundaries
+         CA1508   ~10  provably-dead branches - parked, not ruled on. When its slice lands, inspect each
+                       site: they are all (object?)row.X is-never-null in DB row mappers and may be
+                       legitimate defence against nullability the compiler cannot see. No blanket rule. -->
   <PropertyGroup>
-    <NoWarn>$(NoWarn);CA1062;CA2000;CA1031;CA1508;CA1001;CA2213</NoWarn>
+    <NoWarn>$(NoWarn);CA1062;CA1031;CA1508</NoWarn>
   </PropertyGroup>
 
   <!-- TEMPORARY - the long tail: ~64 sites across the 17 rules listed below, at 1-9 each, still to be

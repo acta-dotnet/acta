@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Channels;
 using Acta.Runtime.Hosting;
 using Acta.Runtime.Kernel;
@@ -267,6 +268,17 @@ internal sealed class WorkerLoop(
     /// to the free-executor count and hands each claimed row straight to a running Task, so there is no
     /// Channel and no buffered-Dispatched window: claim_batch transitions Ready->Executing directly.
     /// </summary>
+    [SuppressMessage(
+        "Reliability",
+        "CA2000:Dispose objects before losing scope",
+        Justification = "The 'slots' SemaphoreSlim is the loop's permit counter, shared with every fire-and-forget "
+            + "RunOneAsync task, each of which Releases it in a finally. The loop's own finally drains by "
+            + "re-acquiring all executorCount permits, so the coordinator resumes while the last Release is still "
+            + "unwinding inside the semaphore; disposing there would race it, and Release starts with a disposed "
+            + "check, so a clean drain could end in ObjectDisposedException in the claim/dispatch loop. Disposal "
+            + "would also reclaim nothing: the only disposable state a SemaphoreSlim holds is the wait handle "
+            + "behind AvailableWaitHandle, which no code in Acta reads. Left to the GC on purpose."
+    )]
     private async Task CombinedLoopAsync(
         string ns,
         short namespaceId,

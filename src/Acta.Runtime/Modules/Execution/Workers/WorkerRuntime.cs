@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Hosting;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
@@ -28,6 +29,18 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// skip the worker-row write and short-circuit the loop, but still run provider bootstraps so
 /// the schema is in place before any enqueue resolves.
 /// </remarks>
+[SuppressMessage(
+    "Design",
+    "CA1001:Types that own disposable fields should be disposable",
+    Justification = "The one disposable field is _drainCts, and disposing it would reclaim nothing. It is a bare "
+        + "CancellationTokenSource: no CancelAfter, so no Timer is ever armed, and nothing in Acta reads "
+        + "Token.WaitHandle, so the lazily-created ManualResetEvent is never materialized - Dispose() would do no "
+        + "more than set a flag. Its only registration is the linked source WorkerLoop builds in RunLoopAsync, "
+        + "which that method scopes with 'using', so callbacks cannot accumulate on it. Against zero benefit, "
+        + "IDisposable costs real safety: the source must stay usable for the whole process because BeginDrain "
+        + "arrives from the host's StopAsync, and the public constructor is a documented direct test seam whose "
+        + "callers would all have to take on a lifecycle they do not otherwise need. Deliberately not disposable."
+)]
 internal sealed class WorkerRuntime
 {
     private readonly WorkerContext _context;
@@ -41,7 +54,8 @@ internal sealed class WorkerRuntime
 
     // Cancelled by BeginDrainAsync to stop the claim loop's producer while the heartbeat and in-flight
     // handlers run on under the host token. Lives for the runtime's lifetime so the drain signal is never
-    // lost to a startup race; a lightweight source with no timer/registration needs no disposal.
+    // lost to a startup race; a lightweight source with no timer and no WaitHandle needs no disposal (see the
+    // CA1001 suppression above).
     private readonly CancellationTokenSource _drainCts = new();
 
     // The claim/dispatch loop task, captured so the host can await the actual drain (all claimed + in-flight

@@ -118,7 +118,12 @@ static async Task RunDashboardAsync(string[] args, string provider)
     });
     builder.Services.AddSingleton(session);
     builder.Services.AddSingleton(outboxDb);
+    // Registered as an instance, so the container never disposes it (MEDI disposes only what it builds
+    // itself). Teardown is the ApplicationStopping registration further down, which is where the child
+    // processes have to die anyway - before the rest of the host comes apart under them.
+#pragma warning disable CA2000 // Disposed by the ApplicationStopping registration below.
     builder.Services.AddSingleton(new WorkerProcessLauncher(id.RunId, id.Schema, provider, id.Namespace, outboxDb.Path, participant));
+#pragma warning restore CA2000
     builder.Services.AddSingleton<RateTelemetry>();
     builder.Services.AddSingleton<SeedProgress>();
     builder.Services.AddSingleton<FaultInjectors>();

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Acta;
 
 namespace Anvil;
@@ -17,8 +18,24 @@ public sealed class FaultInjectors(
     // relay needs regular gaps to claim between them on the shared SQLite write lock.
     private const int OutboxChunkSize = 500;
     private readonly Lock _gate = new();
+
+    // Each fault's source is minted by its Start* verb and handed to the background loop that verb
+    // launches; that loop owns it from then on and disposes it in its own finally once it unwinds.
+    // Stop* and Dispose only Cancel, which is what actually gets the loop there.
+    private const string OwnedByFaultLoop =
+        "Ownership of each source passes to the background loop its Start* verb launches, and that loop disposes "
+        + "it in its own finally after unwinding (RunContinuousCrashesAsync / RunQueuePressureAsync / "
+        + "RunOutboxPressureAsync). Dispose here only Cancels, deliberately: the loop is still awaiting Token when "
+        + "it runs, so disposing the source from here would race that read and throw ObjectDisposedException "
+        + "instead of stopping the fault.";
+
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = OwnedByFaultLoop)]
     private CancellationTokenSource? _continuousCrashesCts;
+
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = OwnedByFaultLoop)]
     private CancellationTokenSource? _queuePressureCts;
+
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = OwnedByFaultLoop)]
     private CancellationTokenSource? _outboxPressureCts;
     private int _workersCrashed;
     private int _queuePressureRate;

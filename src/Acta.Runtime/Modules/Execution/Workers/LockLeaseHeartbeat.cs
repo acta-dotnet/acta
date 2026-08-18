@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Hosting;
 using Acta.Runtime.Services.Locks;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,17 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// extend (exception/timeout) feeds nothing, left to the <see cref="AttemptWatchdog"/>. A no-op in
 /// enqueue-only mode.
 /// </summary>
+[SuppressMessage(
+    "Design",
+    "CA1001:Types that own disposable fields should be disposable",
+    Justification = "The one disposable field is _tickGate, a SemaphoreSlim used purely as an async mutex around "
+        + "TickAsync. A SemaphoreSlim only holds an OS wait handle once AvailableWaitHandle is read, and nothing in "
+        + "Acta reads it, so Dispose() would release nothing. Disposal would also be unsafe at every point a "
+        + "shutdown could pick it: the gate is entered by the lock-lease loop and by "
+        + "WorkerRuntime.RunHeartbeatOnceAsync, so a disposed gate would turn a harmless late tick into "
+        + "ObjectDisposedException. The type is created once per WorkerRuntime and lives as long as the process; "
+        + "deliberately not disposable. The per-extend linked source inside TickAsync is separately 'using'-scoped."
+)]
 internal sealed class LockLeaseHeartbeat(
     ILockStore lockStore,
     IOptions<JobsOptions> options,

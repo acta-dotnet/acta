@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace Anvil;
@@ -42,6 +43,15 @@ public sealed class WorkerProcessLauncher(
     private readonly string _runId = runId;
     private int _sequence;
 
+    [SuppressMessage(
+        "Reliability",
+        "CA2000:Dispose objects before losing scope",
+        Justification = "The Process is not lost - ownership passes to the ManagedWorker parked in _workers, and "
+            + "every exit from that dictionary disposes it: Snapshot() calls DisposeProcess() on the entries it "
+            + "evicts past the retention window, Dispose() does the same for the survivors, and the Start() "
+            + "failure path below disposes before rethrowing. CA2000 cannot follow the handoff through the "
+            + "dictionary."
+    )]
     public WorkerSnapshot Spawn()
     {
         var ordinal = Interlocked.Increment(ref _sequence);
