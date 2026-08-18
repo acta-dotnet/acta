@@ -140,6 +140,14 @@ internal sealed class WorkerLoop(
     // An empty claim sleeps until the horizon's nearest run time (capped by the safety poll), and the
     // wakeup transport interrupts that sleep the moment a publish makes work claimable, so idle
     // pickup is signal-latency, not poll-cadence.
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "The claim loop is the process's entire supply of work and must survive a database outage. Propagating "
+            + "would end claiming for the lifetime of the process and the worker would idle silently until restarted. "
+            + "The catch logs at error and backs off a full safety interval before retrying, because the anti-spin "
+            + "floor is for deadline races, not error retry. Shutdown leaves through the filtered cancellation arm."
+    )]
     private async Task ClaimLoopAsync(ChannelWriter<ClaimedJob> writer, string ns, short namespaceId, int workerId, CancellationToken ct)
     {
         var options = _options.Value;
@@ -233,6 +241,14 @@ internal sealed class WorkerLoop(
     // Consumer: one of N loops draining the shared channel. Each job runs to completion before the
     // loop pulls the next, so live concurrency equals the executor count. A per-job fault is logged
     // and swallowed so one bad job never tears the executor down.
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Per-job catch on one of N executor loops. A handler fault has already been landed durably by the "
+            + "executor, so anything arriving here is a fault in the execution path itself: it is logged at error and "
+            + "the loop takes the next job. Propagating would tear down that executor for the process lifetime, "
+            + "silently shrinking concurrency until a restart."
+    )]
     private async Task ExecutorLoopAsync(ChannelReader<ClaimedJob> reader, string ns, short namespaceId, int workerId, CancellationToken ct)
     {
         try
@@ -278,6 +294,14 @@ internal sealed class WorkerLoop(
             + "check, so a clean drain could end in ObjectDisposedException in the claim/dispatch loop. Disposal "
             + "would also reclaim nothing: the only disposable state a SemaphoreSlim holds is the wait handle "
             + "behind AvailableWaitHandle, which no code in Acta reads. Left to the GC on purpose."
+    )]
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Claim-side catch of the Direct-profile coordinator. It must release the slots it acquired and back off "
+            + "rather than die: propagating would end both claiming and dispatch for the process, and the permits "
+            + "taken for the failed claim would never be returned, permanently shrinking the batch. Logged at error; "
+            + "shutdown leaves through the filtered cancellation arm."
     )]
     private async Task CombinedLoopAsync(
         string ns,
@@ -376,6 +400,14 @@ internal sealed class WorkerLoop(
     /// Runs one already-started job to completion, then releases its slot. A per-job fault is logged and
     /// swallowed so one bad job never tears the coordinator down.
     /// </summary>
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Runs one already-started job on the coordinator; a per-job fault is logged so one bad job never tears "
+            + "the coordinator down. This task is not awaited, so propagating would only produce an unobserved Task "
+            + "exception - the finally would still release the slot and the loop would carry on with no record of why "
+            + "the job died."
+    )]
     private async Task RunOneAsync(ClaimedJob job, string ns, short namespaceId, int workerId, SemaphoreSlim slots, CancellationToken ct)
     {
         try

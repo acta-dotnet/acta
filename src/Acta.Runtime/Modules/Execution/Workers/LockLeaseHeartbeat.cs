@@ -46,6 +46,14 @@ internal sealed class LockLeaseHeartbeat(
     // Serializes TickAsync so the loop cannot race itself (double extends against one lock).
     private readonly SemaphoreSlim _tickGate = new(1, 1);
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Two catches on the lock-lease loop - the immediate first tick and each periodic tick. An extend failure "
+            + "must cost one interval: propagating would end the loop, so every lock held by a running attempt would "
+            + "stop being extended and would expire mid-flight while the attempt kept running. Logged at error; "
+            + "shutdown leaves through the filtered cancellation arms."
+    )]
     public async Task RunAsync(CancellationToken ct)
     {
         if (_workerRegistration is null)

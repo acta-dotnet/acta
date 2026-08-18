@@ -36,7 +36,7 @@ internal static class TestDashboardHost
         builder.WebHost.UseTestServer();
         var fake = jobs ?? new FakeJobs();
         builder.Services.AddSingleton<IJobs>(fake);
-        builder.Services.AddSingleton<IActaOperations>(fake as IActaOperations ?? new FakeJobs());
+        builder.Services.AddSingleton<IActaOperations>(fake);
         configureBuilder?.Invoke(builder);
 
         var app = builder.Build();

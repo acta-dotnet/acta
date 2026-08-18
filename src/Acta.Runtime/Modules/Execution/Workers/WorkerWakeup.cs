@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Kernel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -184,6 +185,15 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
 {
     private readonly ILogger _log = (ILogger?)log ?? NullLogger.Instance;
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "This is the publish seam whose entire purpose is that a wake never breaks its caller - see the type "
+            + "summary. Every wake is published after its durable mutation committed, so propagating anything from "
+            + "here (including the caller's own cancellation) would report failure for an operation that already "
+            + "succeeded. The failure is counted on the publish-failure metric and logged at warning; waiters keep a "
+            + "poll floor."
+    )]
     public async ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default)
     {
         metrics?.RecordWakeupPublish(NamespaceTag(channel), ChannelTag(channel.Kind), ReasonTag(reason));

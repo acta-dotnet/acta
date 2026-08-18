@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -16,6 +17,15 @@ namespace Acta.AspNetCore.Web;
 /// </summary>
 internal static class ActaApiEndpoints
 {
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "The group's endpoint filter is this API's last backstop and answers every unhandled failure as "
+            + "ProblemDetails: the transient database/network family as 503, everything else as 500, with the exception "
+            + "logged host-side and never echoed (driver messages carry connection strings). Propagating would hand the "
+            + "client a raw framework 500 and leave the dashboard with no problem document to render. The typed "
+            + "rejections it must not swallow are caught in the arms above it."
+    )]
     public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
     {
         // Names and tags for every endpoint below, derived from its own route. Applied at the group so

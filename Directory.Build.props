@@ -94,6 +94,23 @@
          really is dead. -->
     <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true'"
       >$(NoWarn);CA1812</NoWarn>
+    <!-- Outside src only. A spec, a bench and a local-dev helper take their arguments from the code that
+         calls them one line above, so a null guard on each is ceremony rather than a contract. The five
+         src sites were judged individually: one gained a guard, four already validate through
+         IdentifierSyntax or are owned by System.Text.Json, which never passes a null writer. Note the
+         trees: 75 sites are in tests, 45 in anvil and 2 in support/Acta.LocalHost, so a tests-and-anvil
+         scope would leave the last two firing. -->
+    <NoWarn
+      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/support/`))' == 'true'"
+      >$(NoWarn);CA1062</NoWarn>
+    <!-- Outside src only, and for the same reason it is kept in src: a catch-all belongs at a boundary
+         whose job is not to die. Out here those are bench harness loops, chaos injectors and the
+         Doctor's top-level Main handlers, where the alternative to a broad catch is a crashed harness
+         and no diagnostic. In src the 32 sites are each declared at their own boundary with what would
+         happen if the exception escaped. Trees: 6 in tests, 18 in anvil, 5 in tools/Acta.Doctor. -->
+    <NoWarn
+      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'"
+      >$(NoWarn);CA1031</NoWarn>
     <!-- Spec code only. A spec hands ownership of hosts, connections, token sources and test doubles to
          an xUnit fixture, a helper factory, or the assertion that outlives the statement, and CA2000
          cannot follow ownership across any of those - so it reports the construction rather than the
@@ -128,23 +145,6 @@
          build and fails on any CommandText that is neither an embedded load nor literal text, unless
          the composing member is declared there with the validation that keeps it safe. -->
     <NoWarn>$(NoWarn);CA2100</NoWarn>
-  </PropertyGroup>
-
-  <!-- TEMPORARY - Track A3 debt. These are real findings, not conventions Acta disagrees with. They are
-       parked here, unfixed, because TreatWarningsAsErrors is global: the alternative to parking them was
-       to keep the whole curated tier switched off until all of them were fixed, which is how the tier
-       stayed off for a year. Parking is the lesser evil and is explicitly not a ruling on any of them.
-       Each rule is deleted from this list as its A3 slice lands, and the block goes with the last one.
-       The counts below came from the first inventory pass and have twice proved wrong per rule - the
-       disposal family was sized at 125 and turned out to be 9 - so measure a family directly before
-       sizing its slice. The total that pass reported did reproduce; only the per-rule split did not.
-         CA1062  ~128  null validation on public entry points
-         CA1031   ~62  general exception boundaries
-         CA1508   ~10  provably-dead branches - parked, not ruled on. When its slice lands, inspect each
-                       site: they are all (object?)row.X is-never-null in DB row mappers and may be
-                       legitimate defence against nullability the compiler cannot see. No blanket rule. -->
-  <PropertyGroup>
-    <NoWarn>$(NoWarn);CA1062;CA1031;CA1508</NoWarn>
   </PropertyGroup>
 
   <!-- TEMPORARY - the long tail: ~64 sites across the 17 rules listed below, at 1-9 each, still to be

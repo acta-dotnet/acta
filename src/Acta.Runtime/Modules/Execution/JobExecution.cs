@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Runtime.Modules.Execution.Jobs;
@@ -54,6 +55,15 @@ internal sealed class JobExecution(
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "The executor's per-attempt boundary: this is where an arbitrary user handler's exception becomes a "
+            + "recorded Failed outcome with JobUnhandledException (or the non-retryable reason for NotImplemented / "
+            + "NotSupported), so the job is landed, the retry budget applied and the timeline written. Handlers can "
+            + "throw anything, so the catch cannot be narrowed. Propagating would tear down the worker loop and leave "
+            + "the row Executing until its lease expired - a durable job silently turned into a recovery case."
+    )]
     public async Task<RunOnceOutcome> RunAsync(
         IServiceProvider attemptServices,
         JobDescriptor descriptor,

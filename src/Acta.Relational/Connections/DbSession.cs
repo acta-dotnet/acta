@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using Acta.Relational.Commands;
 using Acta.Relational.Resources;
 
@@ -260,6 +261,15 @@ internal sealed class DbSession : IDbSession
     // attempt's own exception is what propagates: DeadlockRetry classifies whatever leaves this scope,
     // and a dispose exception in its place would make a transient stop looking like one and abandon a
     // retry that would have succeeded.
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Both catches tear down a failed attempt and must never become the failure themselves. A rollback on a "
+            + "connection the database already aborted is the likeliest thing here to throw, and letting it propagate "
+            + "would replace the attempt's own exception - DeadlockRetry classifies whatever leaves this scope, so a "
+            + "dispose error in a transient's place would abandon a retry that would have succeeded. Deliberately "
+            + "silent: the caller rethrows the original failure, which is the report."
+    )]
     private static async ValueTask DisposeFailedAttemptAsync(DbTransaction? tx, DbConnection conn)
     {
         try

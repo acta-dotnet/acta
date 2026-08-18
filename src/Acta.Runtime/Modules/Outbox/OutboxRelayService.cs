@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
@@ -477,6 +478,13 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
                 }),
         ];
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Best-effort release of an outbox claim whose rows were already finalized. Propagating would fail a "
+            + "relay tick that actually succeeded; the lease expiry plus the token CAS keep the rows safe either way. "
+            + "Logged at debug."
+    )]
     private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds, CancellationToken ct)
     {
         try

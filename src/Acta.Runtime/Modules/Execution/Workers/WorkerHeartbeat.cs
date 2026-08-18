@@ -56,6 +56,14 @@ internal sealed class WorkerHeartbeat(
     // and a tick must not race itself (double lease extends, double feed).
     private readonly SemaphoreSlim _tickGate = new(1, 1);
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Two catches on the heartbeat loop - the immediate first tick and each periodic tick. Propagating would "
+            + "end the loop, so last_seen would stop advancing and lease recovery would reclaim this worker's jobs "
+            + "while it was still running them. A failed tick must cost one interval and nothing more. Logged at "
+            + "error; shutdown leaves through the filtered cancellation arms."
+    )]
     public async Task RunAsync(CancellationToken ct)
     {
         if (_workerRegistration is null)

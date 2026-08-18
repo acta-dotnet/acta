@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -129,6 +130,13 @@ internal sealed class WorkerRuntimeHost(
     // shutdown token. Awaiting the loop (not a sampled in-flight count) so channel-buffered claims are run
     // too. A drain that does not finish within HostOptions.ShutdownTimeout cancels the token; the base stop
     // then ends the stragglers and sys.recovery reclaims them.
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Shutdown must run to completion. A worker loop that faulted during drain is surfaced by base.StopAsync; "
+            + "letting it propagate here would abandon the remaining shutdown steps of every other runtime. Logged at "
+            + "warning; the budget-elapsed case has its own arm above."
+    )]
     private async Task WaitForDrainAsync(CancellationToken cancellationToken)
     {
         try

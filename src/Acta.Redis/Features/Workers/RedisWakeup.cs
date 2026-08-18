@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using Acta.Redis.Configuration;
 using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
@@ -58,6 +59,15 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         _log = (ILogger?)log ?? NullLogger.Instance;
     }
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "A wake is best-effort by contract and is always published after its durable mutation committed, so a "
+            + "failed publish must never fail the caller: propagating would report failure for work that already "
+            + "succeeded. StackExchange.Redis surfaces connection, timeout, command and disposal faults as unrelated "
+            + "types, so only a general catch covers 'Redis is unreachable'. Logged at warning; the local latch was "
+            + "already woken above and remote waiters fall back to their poll floors."
+    )]
     public async ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default)
     {
         // Local first: the publishing process's own waiters wake without a network round trip even
@@ -92,6 +102,14 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
     // One pattern subscription per process, established lazily by the first waiter; publish-only
     // processes never subscribe. A subscription raced by Redis downtime resubscribes with the
     // multiplexer's reconnect; wakes missed meanwhile are covered by the waiters' poll floors.
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "The subscription is established lazily by the first waiter, so this runs inside a claim loop's first "
+            + "wait. Propagating would fault that loop and take the worker down because Redis was momentarily "
+            + "unreachable - exactly the failure the poll floors exist to survive. Logged at warning; the next wait "
+            + "retries the subscription and the multiplexer resubscribes on reconnect."
+    )]
     private async ValueTask EnsureSubscribedAsync(CancellationToken ct)
     {
         if (_subscribed)
@@ -156,6 +174,14 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         _ = DeliverAsync(channel, TimeSpan.FromTicks(Random.Shared.NextInt64(_remoteJitterMax.Ticks + 1)));
     }
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Runs detached off a StackExchange.Redis callback thread and is never awaited, so there is no caller to "
+            + "observe a fault: an escaping exception would become an unobserved Task exception on the multiplexer's "
+            + "callback. The catch also clears the pending-jitter slot, without which that channel would never "
+            + "schedule another jittered wake."
+    )]
     private async Task DeliverAsync(WorkerWakeupChannel channel, TimeSpan jitter)
     {
         try
@@ -181,6 +207,13 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
 
     // Both dispose shapes: hosting disposes the container asynchronously, but plain
     // ServiceProvider.Dispose() is synchronous and throws on an IAsyncDisposable-only singleton.
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Unsubscribe during container teardown. Propagating would abort the disposal of every singleton after "
+            + "this one because Redis was unreachable at shutdown, when the subscription is about to be dropped "
+            + "anyway. Logged at debug, and the subscribe gate is still disposed below."
+    )]
     public void Dispose()
     {
         if (_subscribed)
@@ -198,6 +231,13 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         _subscribeGate.Dispose();
     }
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Unsubscribe during container teardown. Propagating would abort the disposal of every singleton after "
+            + "this one because Redis was unreachable at shutdown, when the subscription is about to be dropped "
+            + "anyway. Logged at debug, and the subscribe gate is still disposed below."
+    )]
     public async ValueTask DisposeAsync()
     {
         if (_subscribed)

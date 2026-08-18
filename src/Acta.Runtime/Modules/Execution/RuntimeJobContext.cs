@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.Checkpoints;
@@ -439,6 +440,13 @@ internal sealed class RuntimeJobContext(
         return token is not null;
     }
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Best-effort release of the exclusive-key lease, on a path that runs after the attempt's outcome is "
+            + "already decided. Propagating would replace that outcome with a cleanup failure, reporting a job that "
+            + "ran correctly as failed. Recorded through RecordLockReleaseFailure; the lease TTL reclaims the key."
+    )]
     internal async Task ReleaseExclusiveKeyLockAsync(CancellationToken ct)
     {
         if (_exclusiveKeyToken is not { } token)

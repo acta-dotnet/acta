@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -404,6 +405,19 @@ internal sealed class SqliteDialect : ISqlDialect
             }
         );
 
+    [SuppressMessage(
+        "Maintainability",
+        "CA1508:Avoid dead conditional code",
+        Justification = "False positive. The parameter is long?; "
+            + "boxing a nullable value type whose HasValue is false yields a null reference, so the cast is "
+            + "null exactly when the column must be NULL. CA1508 models that boxing conversion as never-null "
+            + "and is wrong here: deleting the branch it calls dead would bind a CLR null rather than "
+            + "DBNull.Value, which is not the same thing to any provider. The nullable reference-typed columns "
+            + "bound beside these use the identical idiom and are not flagged. "
+            + "Binding NULL is this helper's whole purpose, and the sibling AddNullableText and "
+            + "AddNullableBlob use the same idiom over reference types without being flagged. Kept identical "
+            + "to those two and to the PostgreSQL and SQL Server binders."
+    )]
     private static void AddNullableInt(DbCommand command, string name, long? value) =>
         command.Parameters.Add(
             new SqliteParameter

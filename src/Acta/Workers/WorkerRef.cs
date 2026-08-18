@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -54,6 +55,15 @@ public sealed class WorkerRefJsonConverter : JsonConverter<WorkerRef>
     public override WorkerRef Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         WorkerRef.TryParse(reader.GetString(), out var workerRef) ? workerRef : throw new JsonException("Invalid worker ref.");
 
+    [SuppressMessage(
+        "Design",
+        "CA1062:Validate arguments of public methods",
+        Justification = "False positive in practice: System.Text.Json owns this call and never hands a converter a null writer, "
+            + "so the only way to reach the guard would be to invoke the converter directly instead of through the "
+            + "serializer. The code-generated converters in this assembly emit the identical unguarded one-line body "
+            + "for the same shape, so a throw here alone would put the three hand-written converters out of step with "
+            + "the generator for no reachable gain."
+    )]
     public override void Write(Utf8JsonWriter writer, WorkerRef value, JsonSerializerOptions options) =>
         writer.WriteStringValue(value.ToString());
 }

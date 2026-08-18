@@ -69,6 +69,10 @@ public static class ActaEndpointRouteBuilderExtensions
     )
     {
         ArgumentNullException.ThrowIfNull(endpoints);
+        // Guarded here rather than left to MapGroup below: that throw names the framework's own 'prefix'
+        // parameter, and it lands only after EnsureDashboardJsonContext has already mutated the app's
+        // serializer resolver chain. Rejecting first keeps a failed call free of side effects.
+        ArgumentNullException.ThrowIfNull(pattern);
         EnsureDashboardJsonContext(endpoints);
         var options = new ActaDashboardOptions();
         configure?.Invoke(options);

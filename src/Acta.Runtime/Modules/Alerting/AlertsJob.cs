@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Services.Time;
@@ -297,6 +298,14 @@ internal sealed class AlertsJob(
         }
     }
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Alert transports are user-supplied and may throw anything. A throwing transport must degrade to "
+            + "Retryable for that one channel; propagating would fail the whole sys.alerts job and stall delivery for "
+            + "every other alert and channel in the tick. The caller's own cancellation is rethrown by the filtered "
+            + "arm above, so shutdown is never recorded as a transport fault."
+    )]
     private async Task<AlertDeliveryOutcome> SendAsync(
         JobContext ctx,
         DeliverableAlert a,
