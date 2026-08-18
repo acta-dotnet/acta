@@ -8,18 +8,108 @@
     <MinVerDefaultPreReleaseIdentifiers>preview</MinVerDefaultPreReleaseIdentifiers>
   </PropertyGroup>
 
-  <!-- SDK-only deep analysis profile. Enable with /p:EnableStrictAnalysis=true when you want
-       the built-in Roslyn/NET analyzers to report their full rule set without adding analyzer packages. -->
-  <PropertyGroup Condition="'$(EnableStrictAnalysis)' == 'true'">
+  <!-- Curated analyzer tier, on unconditionally: the built-in Roslyn/.NET analyzers report their full
+       rule set without adding analyzer packages, and the families that contradict a deliberate Acta
+       convention are switched off below with their reason. This is deliberately not an opt-in profile.
+       A /p: flag that no CI job passes is aspirational config that rots, so the gate is the default
+       build or it is not a gate. -->
+  <PropertyGroup>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- Acta's canonical identifiers, deduplication keys, slugs, and operator-facing tokens are
-         lowercase ASCII by design; CA1308's uppercase normalization guidance conflicts with that.
-         Code-family and transport enums intentionally use byte/short backing types to match
-         persisted catalog/storage widths; CA1028's int guidance conflicts with that contract. -->
-    <NoWarn>$(NoWarn);CA1308;CA1028</NoWarn>
+  </PropertyGroup>
+
+  <!-- Permanent suppressions. Each rule here asks for a change Acta has deliberately decided against,
+       so it is turned off with its reason recorded rather than satisfied in code. -->
+  <PropertyGroup>
+    <!-- Canonical identifiers, deduplication keys, slugs, and operator-facing tokens are lowercase
+         ASCII by design; CA1308's uppercase-normalization guidance conflicts with that. -->
+    <NoWarn>$(NoWarn);CA1308</NoWarn>
+    <!-- Code-family and transport enums intentionally use byte/short backing types to match persisted
+         catalog/storage widths; CA1028's int guidance conflicts with that contract. -->
+    <NoWarn>$(NoWarn);CA1028</NoWarn>
+    <!-- Acta only ever runs in ASP.NET Core and generic-host workers, neither of which installs a
+         SynchronizationContext, so CA2007's ConfigureAwait(false) has nothing here to guard against. -->
+    <NoWarn>$(NoWarn);CA2007</NoWarn>
+    <!-- The specs name behaviour as Given_When_Then sentences on purpose, because the test name is the
+         failure message a maintainer reads; CA1707's no-underscores rule conflicts with that. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+    <!-- xUnit and BenchmarkDotNet discover fixtures, theory data, and benchmark classes by reflection
+         and require them public; CA1515's internal-by-default guidance breaks that discovery. -->
+    <NoWarn>$(NoWarn);CA1515</NoWarn>
+    <!-- These comparisons are over ASCII protocol tokens and test literals, not culture-sensitive user
+         text; CA1307/CA1310's explicit-StringComparison guidance adds ceremony without meaning. -->
+    <NoWarn>$(NoWarn);CA1307;CA1310</NoWarn>
+    <!-- Code-family enums name their zero member Unspecified because the persisted catalog defines it
+         as the forward-read sentinel; CA1008's demand for a member named None would rename a persisted
+         contract to satisfy an analyzer. -->
+    <NoWarn>$(NoWarn);CA1008</NoWarn>
+    <!-- URL-shaped values such as runbook_url_override are persisted varchar columns that travel as
+         strings on the wire; CA2234/CA1054/CA1055/CA1056's Uri guidance would change a persisted and
+         public contract to satisfy an analyzer. -->
+    <NoWarn>$(NoWarn);CA2234;CA1054;CA1055;CA1056</NoWarn>
+    <!-- Acta's exceptions carry required evidence - the job ref, the key, the exhausted budget - and
+         deliberately omit the parameterless and message-only constructors so a caller cannot throw one
+         without the context it exists to carry; CA1032 asks for exactly those constructors. -->
+    <NoWarn>$(NoWarn);CA1032</NoWarn>
+    <!-- RaiseSignalAsync and its siblings are durable ledger operations named as verbs, not CLR
+         events; CA1030's event-shaped guidance does not describe them. -->
+    <NoWarn>$(NoWarn);CA1030</NoWarn>
+    <!-- The only Random use is retry backoff and claim-poll jitter, where spreading load is the point
+         and unpredictability is not a security property; CA5394 reads it as a cryptographic concern. -->
+    <NoWarn>$(NoWarn);CA5394</NoWarn>
+    <!-- Acta logs sparsely and off the hot path: the claim loop and executor log at Debug or on
+         failure. CA1848/CA1873's LoggerMessage delegates would restructure ~89 call sites to save
+         allocations those paths do not make. -->
+    <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
+    <!-- Acta ships no resource files and no localization story; operator messages, exception text and
+         log templates are deliberately English-only, so CA1303 presumes a product Acta is not. -->
+    <NoWarn>$(NoWarn);CA1303</NoWarn>
+    <!-- Every site is DbDataReader.IsDBNull on a row already buffered by an awaited ReadAsync, and no
+         reader opens with CommandBehavior.SequentialAccess. IsDBNullAsync would add an async state
+         machine per column and make the read path slower, so CA1849 is wrong here. -->
+    <NoWarn>$(NoWarn);CA1849</NoWarn>
+    <!-- The sites are conformance-spec helpers and cold operator paths, never the claim or execute
+         loop; interface-typed internals are a deliberate readability choice and CA1859's dispatch
+         saving is unmeasurable outside a hot loop. -->
+    <NoWarn>$(NoWarn);CA1859</NoWarn>
+  </PropertyGroup>
+
+  <!-- TEMPORARY - Track A3 debt. These are real findings, not conventions Acta disagrees with, and
+       TreatWarningsAsErrors is global, so the curated tier could not land until every one is fixed.
+       Each rule is deleted from this list as its A3 slice lands, and the block goes with the last one.
+       Counts are distinct sites (file, line, column) measured on 58f61c0 and are the slice sizes:
+         CA1062  128  null validation on public entry points
+         CA2000  118  disposable not disposed along every path
+         CA2100   92  CommandText built from possibly-tainted input - the reason Track A is in rc.1
+         CA1031   62  general exception boundaries
+         CA1508   10  provably-dead branches - inspect per site, do not blanket-suppress
+         CA1001    4  types owning disposable fields without IDisposable
+         CA2213    3  owned disposable fields never disposed -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1062;CA2000;CA2100;CA1031;CA1508;CA1001;CA2213</NoWarn>
+  </PropertyGroup>
+
+  <!-- TEMPORARY - Track A3 fixes that are agreed but not yet written. Each rule leaves this list as
+       its slice lands, and the block goes with the last one. Distinct sites measured on 58f61c0:
+         CA1305   18  int.Parse/double.Parse without InvariantCulture, in Anvil (14) and Acta.Emit (4).
+                      A real locale bug: on a comma-decimal locale double.Parse("1.5") misparses, and
+                      Anvil is the certification harness whose numbers gate the release.
+         CA2208    9  ArgumentException given a paramName that is not a parameter.
+         CA1068    5  CancellationToken not last. All internal - IJobs already has it last on both
+                      public RaiseSignalAsync overloads; the odd one out is a third overload that
+                      exists only on the internal JobsApi with actorKey and ct transposed.
+         CA1812    1  NoOpWakeup in BenchHost.cs is never instantiated - delete it. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1305;CA2208;CA1068;CA1812</NoWarn>
+  </PropertyGroup>
+
+  <!-- TEMPORARY - the long tail, ~64 sites across 15 rules at 1-9 each, still to be read per site and
+       either fixed or moved above with a reason. Some are probably real and small (CA1823 unused
+       fields, CA1816 missing GC.SuppressFinalize); most look like pure style. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1822;CA1034;CA1064;CA1861;CA2225;CA1875;CA1819;CA1823;CA1816;CA1805</NoWarn>
+    <NoWarn>$(NoWarn);CA1716;CA1711;CA1820;CA1815;CA1050;CA1040;CA1024</NoWarn>
   </PropertyGroup>
 
   <!-- Shared NuGet metadata; only the packable src libraries emit it at pack time. -->
