@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -574,7 +575,11 @@ public abstract class JobContext
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var outcome = await WaitSignalCoreAsync(ChildSignalPrefix + childJobId, linked.Token);
+        // Read side of the child-latch checkpoint key. The name is persisted in the ledger and matched
+        // as text against the one RaiseChildLatch writes, in another process and possibly another
+        // culture, so the two renderings must agree byte for byte; the invariant culture is stated on
+        // both sides rather than inherited from whatever the ambient one happens to be.
+        var outcome = await WaitSignalCoreAsync(ChildSignalPrefix + childJobId.ToString(CultureInfo.InvariantCulture), linked.Token);
         return outcome.Value is null
             ? throw new InvalidOperationException($"Child outcome slot for job {childJobId} carries no envelope.")
             : ChildOutcomeEnvelope.Parse(outcome.Value);

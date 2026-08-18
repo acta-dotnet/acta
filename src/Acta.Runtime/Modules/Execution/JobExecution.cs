@@ -79,7 +79,7 @@ internal sealed class JobExecution(
                 "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: {Outcome}; skipping.",
                 job.JobId,
                 $"execution number {job.ExecutionNumber}",
-                start
+                start.ToString()
             );
             return RunOnceOutcome.NothingClaimed;
         }

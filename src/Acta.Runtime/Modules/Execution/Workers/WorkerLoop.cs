@@ -246,7 +246,7 @@ internal sealed class WorkerLoop(
                     var outcome = await _executor.ExecuteClaimedJobAsync(job, ns, namespaceId, workerId, alreadyStarted: false, ct);
                     if (outcome != RunOnceOutcome.NothingClaimed)
                     {
-                        _log.LogInformation("WorkerRuntime: {Namespace} job {JobId} -> {Outcome}", ns, job.JobId, outcome);
+                        _log.LogInformation("WorkerRuntime: {Namespace} job {JobId} -> {Outcome}", ns, job.JobId, outcome.ToString());
                     }
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -378,7 +378,7 @@ internal sealed class WorkerLoop(
             var outcome = await _executor.ExecuteClaimedJobAsync(job, ns, namespaceId, workerId, alreadyStarted: true, ct);
             if (outcome != RunOnceOutcome.NothingClaimed)
             {
-                _log.LogInformation("WorkerRuntime: {Namespace} job {JobId} -> {Outcome}", ns, job.JobId, outcome);
+                _log.LogInformation("WorkerRuntime: {Namespace} job {JobId} -> {Outcome}", ns, job.JobId, outcome.ToString());
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }

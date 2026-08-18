@@ -29,7 +29,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
             _log.LogWarning(
                 "Slack channel '{Detail}' has no endpoint; cannot deliver alert {Ref}.",
                 target.ChannelName,
-                notification.AlertRef
+                notification.AlertRef.ToString()
             );
             return AlertDeliveryOutcome.Permanent;
         }
@@ -59,7 +59,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
                 ex,
                 "Slack delivery to channel '{Detail}' failed transiently for alert {Ref}.",
                 target.ChannelName,
-                notification.AlertRef
+                notification.AlertRef.ToString()
             );
             return AlertDeliveryOutcome.Retryable;
         }

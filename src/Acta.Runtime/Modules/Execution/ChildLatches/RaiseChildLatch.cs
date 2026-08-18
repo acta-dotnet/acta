@@ -1,3 +1,4 @@
+using System.Globalization;
 using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.Signals;
 
@@ -23,17 +24,15 @@ internal static class RaiseChildLatch
         CancellationToken ct
     )
     {
+        // Write side of the child-latch checkpoint key. The name is persisted in the ledger and matched
+        // as text by JobContext.WaitChildAsync, in another process and possibly another culture, so the
+        // two renderings must agree byte for byte; the invariant culture is stated on both sides rather
+        // than inherited from whatever the ambient one happens to be.
+        var slotName = NamePrefix + childJobId.ToString(CultureInfo.InvariantCulture);
         var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus);
         var input = new JobControlInput(new JobControlActor(ActorCode.Sys), JobEventReasonCode.JobSignalReleased, null);
         var outcome = await signals.RaiseSignalAsync(
-            new RaiseSignalCommand(
-                parentJobId,
-                JobCheckpointKindCode.ChildLatch,
-                NamePrefix + childJobId,
-                JobPayloadFormat.Json.Id,
-                envelope,
-                input
-            ),
+            new RaiseSignalCommand(parentJobId, JobCheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
             ct
         );
         return outcome.Action == JobControlActionInternal.Applied && outcome.Status == JobStatusCode.Ready;

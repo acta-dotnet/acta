@@ -208,6 +208,4 @@ internal static class JobDepthEndpoints
             .Produces<JobEnqueueResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict);
     }
-
-    private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
 }

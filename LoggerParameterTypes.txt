@@ -1,0 +1,68 @@
+# The structured-logging field vocabulary, enforced by Meziantou.Analyzer's MA0135 and MA0124 over
+# src/**/*.cs (see .editorconfig for the two lines that switch them on, and src/Directory.Build.props
+# for the reference that is here only for them).
+#
+# Why a closed list. Every distinct placeholder name in an ILogger template becomes a property on the
+# emitted event, and an indexing sink maps each property it has never seen as a new field. So the tail
+# of names is not free: it is index schema, paid for once per name and forever, by whoever runs Acta
+# rather than by whoever wrote the log line. Adding a twelfth name is therefore a decision about an
+# operator's index, not a formality about a message - which is why the list lives here and the build
+# fails on a name that is not in it.
+#
+# These names are not frozen the way the metric instrument names are. A field may be added, and this
+# file is where that is agreed; the cost is a mapped field, and the bar is that filtering or grouping
+# by the new name is worth one.
+#
+# Categorical against cardinal is the split that makes the vocabulary useful, and it is why the two
+# groups are typed differently. Anything an operator filters or groups by is declared System.String
+# and rendered at the call site, so the sink stores the token Acta meant rather than whatever a typed
+# value happens to serialize as. Anything an operator aggregates - averages, percentiles, sums - stays
+# a number, because a count or a duration written as text cannot be aggregated at all.
+#
+# Format: Name;Type;Type;... - one line per field, listing every CLR type the field may carry.
+
+# The namespace, on every line that has one.
+Namespace;System.String
+
+# Job identity. Numeric on purpose: it is the ledger's own key, and an operator sorts and ranges by it.
+JobId;System.Int64
+
+# The job definition's name.
+JobName;System.String
+
+# The minted entity ref the line is about, rendered - alr_..., job_..., wrk_.... Declared string rather
+# than the ref struct so a sink that serializes the property object cannot reach past ToString() and
+# store the wrapped uuid, which is the internal form no operator can read or address.
+Ref;System.String
+
+# The second ref, for a line that legitimately concerns two entities - an alert notification names both
+# the alert it is and the job it is about. Rendered for the same reason as Ref.
+SubjectRef;System.String
+
+# What was attempted: exclusive-key-admission, outbox-relay. A closed set of verbs, low cardinality.
+Operation;System.String
+
+# How it ended: bounced, suppressed, quarantined. Rendered rather than passed as the enum it often
+# comes from - an enum's property form is the sink's choice between its name and its numeric value, so
+# leaving it typed makes the stored shape depend on where Acta happens to be hosted.
+Outcome;System.String
+
+# Why, low cardinality: key-held, unknown-job. Rendered for the same reason as Outcome.
+Reason;System.String
+
+# Any cardinal - rows, batch size, executors. The whole integer family rather than one width, because
+# the widths are already decided elsewhere: a namespace id is Int16, a batch length Int32, a ledger
+# count Int64. Casting a call site to satisfy this file would be the tail wagging the dog, and the
+# aggregation an operator runs over the field does not care which width arrived. Int16 and Int32 are
+# in use today; Int64 is listed because a ledger count is the obvious next one.
+Count;System.Int16;System.Int32;System.Int64
+
+# Any duration, always in milliseconds, so an average over the field means something without a unit
+# lookup - the name carries the unit for exactly that reason. Int32 and Int64 are in use; Double is
+# listed because the metric surface already measures durations as double (JobMetrics.RecordExecution),
+# and a log line reporting the same measurement should not have to round it to say so.
+DurationMs;System.Int32;System.Int64;System.Double
+
+# The one-off tail: free text, and the only field with no shape. Everything that is neither an index
+# key nor an aggregable number belongs here rather than in a name of its own.
+Detail;System.String

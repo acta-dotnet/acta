@@ -138,19 +138,19 @@ did not.
 Every distinct name becomes a mapped field in the operator's index, so a tail of one-off names is not
 free and it grows with every line anyone adds.
 
-| Field | Holds |
-|-------|-------|
-| `Namespace` | The job namespace's name |
-| `JobId` | The job's internal id |
-| `JobName` | The definition's job name |
-| `Ref` | The public ref of the entity the line is about |
-| `SubjectRef` | The second ref, when a line legitimately carries two |
-| `Operation` | The named action or phase being reported |
-| `Outcome` | How it ended |
-| `Reason` | Why it ended that way |
-| `Count` | A cardinal quantity: rows, bytes, attempt number |
-| `DurationMs` | An elapsed or configured span |
-| `Detail` | The genuinely one-off value nobody filters or groups by |
+| Field | Type | Holds |
+|-------|------|-------|
+| `Namespace` | string | The job namespace's name |
+| `JobId` | int64 | The job's internal id |
+| `JobName` | string | The definition's job name |
+| `Ref` | string | The public ref of the entity the line is about |
+| `SubjectRef` | string | The second ref, when a line legitimately carries two |
+| `Operation` | string | The named action or phase being reported |
+| `Outcome` | string | How it ended |
+| `Reason` | string | Why it ended that way |
+| `Count` | int16 / int32 / int64 | A cardinal quantity: rows, bytes, attempt number |
+| `DurationMs` | int32 / int64 / double | An elapsed or configured span |
+| `Detail` | string | The genuinely one-off value nobody filters or groups by |
 
 - **Durations are always milliseconds.** One name, one unit, so an average over the field means
   something; a `TimeSpan` converts at the call site rather than arriving as a second spelling.
@@ -161,10 +161,31 @@ free and it grows with every line anyone adds.
 - **What an operator filters or groups by stays distinct and typed; everything else is `Detail`.**
   Where a name was doing the explaining - a bare channel, a lock kind - the sentence says it instead,
   because the field is an index key and the message is what a human reads.
+- **The categorical fields are rendered at the call site, not passed typed.** `Ref` and `SubjectRef`
+  take the `alr_` / `job_` string rather than the ref struct, and `Outcome` and `Reason` take a token
+  rather than the enum they often come from. Both for the same reason: a sink may serialize the
+  property *object* instead of formatting it, and then a typed ref stores the wrapped uuid an operator
+  cannot address, while an enum stores whichever of its name and its numeric value that sink prefers -
+  making the mapped shape depend on where Acta happens to be hosted. `Count`, `DurationMs` and `JobId`
+  stay numeric for the opposite reason: written as text they could not be averaged or bucketed at all,
+  which is the whole point of splitting categorical from cardinal.
+- **The vocabulary is enforced, not merely documented.** `LoggerParameterTypes.txt` at the repo root
+  is the list, and Meziantou.Analyzer's `MA0135` (name not declared) and `MA0124` (argument is not a
+  declared type) fail the build over `src/**/*.cs`. `.editorconfig` holds the two lines that switch
+  them on and the reason for the `src` scope; `src/Directory.Build.props` holds the reference. Nothing
+  outside `src` is held to it - concepts, specs and Anvil do not ship, so an index schema is not a cost
+  they pay.
+- **These names are not frozen the way the instrument names above are.** A metric name is a dashboard
+  query's binding and breaks it when it moves; a log field can be added by agreeing it in
+  `LoggerParameterTypes.txt`. What it costs is one more mapped field in every index that receives Acta's
+  logs, forever, paid by whoever runs Acta rather than whoever wrote the line - so the bar is that
+  filtering or grouping by the new name is worth one, not that a message reads better with it.
 - **`JobLogScope` additionally stamps `ExecutionNumber`, `WorkerId` and `CorrelationKey`** as scope
   state, so every framework and handler line emitted during an attempt carries them. Those three sit
   outside the template set by necessity: scope keys must be unique across the scope stack, so they
-  cannot fold into `Count` or `Detail`. `JobLogScopeTests` pins them.
+  cannot fold into `Count` or `Detail`. They are also invisible to the gate, which reads template
+  placeholders and not the key/value list a scope is built from, so `JobLogScopeTests` is what pins
+  them.
 
 Related: [contract evolution](../guide/contract-evolution.md) covers how consumers evolve their own
 job contracts against a running ledger; this page covers how Acta names the surface it freezes.

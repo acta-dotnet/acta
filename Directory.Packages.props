@@ -15,6 +15,10 @@
   <ItemGroup>
     <PackageVersion Include="MinVer" Version="7.0.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
+    <!-- Referenced by src/Directory.Build.props for two rules only - the log-field vocabulary gate.
+         Pinned rather than floated: the whole rule set arrives with the package, and a version bump
+         adds rules that would land as build errors in an unrelated change. -->
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.165" />
   </ItemGroup>
   <!-- Hosting + DI/Options surface. Acta depends on DI/Options abstractions to define
        UseActa(IServiceCollection); consumers bring the full Hosting. -->

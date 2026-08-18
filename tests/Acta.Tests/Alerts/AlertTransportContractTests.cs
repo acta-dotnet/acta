@@ -87,13 +87,15 @@ public sealed class AlertTransportContractTests
         var entry = Assert.Single(logger.Entries);
         AssertRendersRefsOnly(entry.Message, TestAlertRef.ToString(), TestJobRef.ToString());
 
-        // Structured logging keeps the alert's identity typed, so a sink that renders properties rather
-        // than the formatted message addresses the alert rather than falling back to some numeric
-        // surrogate. This line is the notification itself, so both refs stay typed: Ref addresses the
-        // alert, SubjectRef the job it concerns. AssertRendersRefsOnly above proves neither ever renders
-        // as its stored uuid, whichever field carries it.
-        Assert.Contains(entry.Properties, p => p.Key == "Ref" && p.Value is AlertRef);
-        Assert.Contains(entry.Properties, p => p.Key == "SubjectRef" && p.Value is JobRef);
+        // The properties carry the rendered refs, not the ref types. AssertRendersRefsOnly above only
+        // sees the formatted message, and a sink is free to ignore that and serialize the property
+        // objects instead - at which point a typed AlertRef is whatever the serializer makes of a
+        // record struct wrapping a Guid, which is the stored uuid this suite exists to keep out of an
+        // operator's hands. A string that already reads alr_ / job_ has nothing left to fall back to,
+        // so the guarantee holds for the property path and the message path alike. This line is the
+        // notification itself, which is why it carries two: Ref addresses the alert, SubjectRef the job.
+        Assert.Contains(entry.Properties, p => p.Key == "Ref" && (p.Value as string) == TestAlertRef.ToString());
+        Assert.Contains(entry.Properties, p => p.Key == "SubjectRef" && (p.Value as string) == TestJobRef.ToString());
     }
 
     [Fact]

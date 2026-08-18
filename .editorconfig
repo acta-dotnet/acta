@@ -391,6 +391,20 @@ dotnet_naming_style.s_camelcase.required_suffix =
 dotnet_naming_style.s_camelcase.word_separator = 
 dotnet_naming_style.s_camelcase.capitalization = camel_case
 
+# The log-field vocabulary gate. Meziantou.Analyzer is referenced by src/Directory.Build.props with
+# MeziantouAnalysisMode=None, which turns its whole rule set off; these two lines are the only reason
+# the package is here at all. MA0135 fails a template placeholder whose name is not declared in
+# LoggerParameterTypes.txt, and MA0124 fails an argument whose type is not one the name declares.
+#
+# Scoped to src on purpose, and the scope is load-bearing rather than tidy. Every distinct placeholder
+# name becomes a mapped field in the operator's index, so the eleven names are a shipped contract and a
+# twelfth is a schema change. Nothing outside src ships: concepts are executable documentation, specs
+# name what they assert, and Anvil's harness prints its own numbers - holding those to an index schema
+# would be enforcing a cost none of them pay.
+[src/**/*.cs]
+dotnet_diagnostic.MA0135.severity = warning
+dotnet_diagnostic.MA0124.severity = warning
+
 # Concepts are executable documentation; preserve their intentionally instance-oriented handlers.
 [concepts/**/*.cs]
 dotnet_diagnostic.CA1822.severity = none

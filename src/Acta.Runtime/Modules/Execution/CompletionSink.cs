@@ -258,7 +258,7 @@ internal sealed class CompletionSink
             _log.LogWarning(
                 "Bulk fallback completion for job {JobId} returned {Outcome}; nothing was finalized here.",
                 b.JobId,
-                result.Action
+                result.Action.ToString()
             );
             return;
         }

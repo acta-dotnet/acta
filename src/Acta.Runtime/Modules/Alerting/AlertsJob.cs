@@ -338,7 +338,7 @@ internal sealed class AlertsJob(
                 ex,
                 "ACTA sys.alerts: transport kind '{Detail}' threw delivering alert {Ref}; will retry.",
                 channel.TransportKind,
-                new AlertRef(a.AlertRef)
+                new AlertRef(a.AlertRef).ToString()
             );
             return AlertDeliveryOutcome.Retryable;
         }
@@ -357,7 +357,7 @@ internal sealed class AlertsJob(
                 "ACTA sys.alerts: channel '{Detail}' is not configured for namespace '{Namespace}'; marking alert {Ref} failed.",
                 alert.ChannelName,
                 ctx.JobNamespace,
-                new AlertRef(alert.AlertRef)
+                new AlertRef(alert.AlertRef).ToString()
             );
             return;
         }
@@ -365,7 +365,7 @@ internal sealed class AlertsJob(
         _log.LogWarning(
             "ACTA sys.alerts: no transport is registered for {Detail}; marking alert {Ref} delivery failed.",
             $"kind '{channel!.TransportKind}' on channel '{channel.Name}'",
-            new AlertRef(alert.AlertRef)
+            new AlertRef(alert.AlertRef).ToString()
         );
     }
 
@@ -380,18 +380,18 @@ internal sealed class AlertsJob(
         {
             _log.LogInformation(
                 "ACTA sys.alerts: alert {Ref} in namespace '{Namespace}' is {Outcome}: channel '{Detail}' is {Reason}.",
-                new AlertRef(alert.AlertRef),
+                new AlertRef(alert.AlertRef).ToString(),
                 ctx.JobNamespace,
                 "suppressed",
                 channel.Name,
-                channel.Status
+                channel.Status.ToString()
             );
             return;
         }
 
         _log.LogInformation(
             "ACTA sys.alerts: alert {Ref} is {Outcome}: {Detail}.",
-            new AlertRef(alert.AlertRef),
+            new AlertRef(alert.AlertRef).ToString(),
             "suppressed",
             $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'"
         );

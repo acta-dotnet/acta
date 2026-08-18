@@ -9,4 +9,29 @@
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+
+  <!-- The log-field vocabulary gate, and the only reason this package is referenced. Meziantou.Analyzer
+       ships ~214 rules; two of them - MA0135 (a template placeholder whose name is not declared) and
+       MA0124 (an argument whose type is not one the name declares) - turn LoggerParameterTypes.txt from
+       a convention into a build failure. The other 212 are opinions Acta has not judged, and
+       AnalysisMode=AllEnabledByDefault above would otherwise switch every one of them on as an error.
+
+       So the whole set is turned off here and the two are turned back on in .editorconfig, scoped to
+       [src/**/*.cs], where the reason for that scope is written down. MeziantouAnalysisMode=None is the
+       package's own off-switch - a global config it ships that names every rule it actually contains, at
+       the version actually restored. An enumerated list in a repo .globalconfig would do the same thing
+       today and rot at the next version bump, because rules added later would not be in it and would
+       default back on; this cannot drift, since the list arrives with the package it describes.
+
+       Referenced from src rather than the root on purpose. MA0135 fails every placeholder in a project
+       that was not handed the vocabulary file, so the blast radius of getting this wrong is the whole
+       tree - and nothing outside src ships logs to an operator's index anyway. PrivateAssets="all" keeps
+       it a compile-time tool and out of the packages' dependency lists. -->
+  <PropertyGroup>
+    <MeziantouAnalysisMode>None</MeziantouAnalysisMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)../LoggerParameterTypes.txt" />
+  </ItemGroup>
 </Project>
