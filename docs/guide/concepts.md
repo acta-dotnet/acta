@@ -119,8 +119,9 @@ by `JobId`. `JobId` is a stable tie-breaker inside a single claim, **not** a mul
 guarantee: database identities are allocation order, not commit order, so two producers can commit
 their rows in the opposite order to the ids they were given.
 
-**`ExclusiveKey` provides mutual exclusion, not ordering.** At most one job per
-(namespace, `ExclusiveKey`) executes at a time. Admission order is unspecified: under sustained
+**`ExclusiveKey` provides mutual exclusion, not ordering.** While a worker holds a valid lease on the
+key, no other job with that `(namespace, ExclusiveKey)` is admitted — the exclusion is as strong as
+the lease, so a stalled heartbeat can let it expire while the handler still runs. Admission order is unspecified: under sustained
 arrivals that keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its
 wait. Use it for exclusive *unordered* work. A job that finds the key held is re-armed Ready a couple
 of seconds out without consuming retry budget, and while it waits it is not a claim candidate: a job

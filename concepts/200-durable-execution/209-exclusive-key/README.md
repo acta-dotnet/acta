@@ -27,16 +27,17 @@ Acta acquires the exclusive-key lease after claim but before handler invocation.
 `ready` with a short delay and releases its worker. The event reason makes this budget-neutral bounce
 visible instead of looking like an application failure.
 
-`ExclusiveKey` provides mutual exclusion, not ordering. At most one job per namespace and key
-executes at a time. Admission order is unspecified: under sustained arrivals that keep a key held, an
-older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for exclusive
-*unordered* work.
+`ExclusiveKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
+no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a
+heartbeat renews while the handler runs. Admission order is unspecified: under sustained arrivals that
+keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for
+exclusive *unordered* work.
 
 ## Trade-offs
 
 Contention adds claim/re-arm traffic, and on a key that never goes idle a bounced job can starve. A
 bounce returns the job to `ready` with its next run pushed a few seconds out, so at the instant the
-key frees the bounced job is not in the claim candidate set at all: a job enqueued later takes the
+key frees the bounced job is not in the claim candidate set at all: a job enqueued later can take the
 key ahead of it, and the arrival after that can do the same. Ordering the claim scan differently
 cannot repair that, because the starved job is not among the rows being ordered.
 

@@ -33,20 +33,27 @@
     <NoWarn>$(NoWarn);CA2007</NoWarn>
     <!-- The specs name behaviour as Given_When_Then sentences on purpose, because the test name is the
          failure message a maintainer reads; CA1707's no-underscores rule conflicts with that. -->
-    <NoWarn>$(NoWarn);CA1707</NoWarn>
+    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true'">$(NoWarn);CA1707</NoWarn>
     <!-- xUnit and BenchmarkDotNet discover fixtures, theory data, and benchmark classes by reflection
          and require them public; CA1515's internal-by-default guidance breaks that discovery. -->
-    <NoWarn>$(NoWarn);CA1515</NoWarn>
-    <!-- These comparisons are over ASCII protocol tokens and test literals, not culture-sensitive user
-         text; CA1307/CA1310's explicit-StringComparison guidance adds ceremony without meaning. -->
-    <NoWarn>$(NoWarn);CA1307;CA1310</NoWarn>
-    <!-- Code-family enums name their zero member Unspecified because the persisted catalog defines it
-         as the forward-read sentinel; CA1008's demand for a member named None would rename a persisted
-         contract to satisfy an analyzer. -->
+    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'">$(NoWarn);CA1515</NoWarn>
+    <!-- Suppressed for spec and harness code only, where these are Assert.Contains/StartsWith over test
+         literals. NOT suppressed in src: an ASCII protocol token is a reason to be MORE explicit about
+         ordinal comparison, not less - the default overloads are culture-sensitive, and a Turkish-locale
+         dotless i changes what "I".ToLower() produces. The src sites are A3 work, not a convention. -->
+    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'">$(NoWarn);CA1307;CA1310</NoWarn>
+    <!-- Only the three Extensible code families carry a zero member, named Unspecified because the
+         catalog defines it as the forward-read sentinel. The other 22 families deliberately have no
+         zero value: the schema emits a CHECK IN (...) list for them, so an out-of-family id cannot be
+         persisted, and a sentinel would invent a state the ledger has no row shape for. CA1008 cannot
+         see that constraint. -->
     <NoWarn>$(NoWarn);CA1008</NoWarn>
     <!-- URL-shaped values such as runbook_url_override are persisted varchar columns that travel as
-         strings on the wire; CA2234/CA1054/CA1055/CA1056's Uri guidance would change a persisted and
-         public contract to satisfy an analyzer. -->
+         strings on the wire, so CA1054/CA1055/CA1056 would change a persisted and public contract to
+         satisfy an analyzer. CA2234 is a different rule - it asks a call site to select a Uri overload
+         and changes no signature - but the value in hand is that same persisted string, so converting
+         it at the boundary only to hand it back would add a parse that can throw on data the ledger
+         already accepted. -->
     <NoWarn>$(NoWarn);CA2234;CA1054;CA1055;CA1056</NoWarn>
     <!-- Acta's exceptions carry required evidence - the job ref, the key, the exhausted budget - and
          deliberately omit the parameterless and message-only constructors so a caller cannot throw one
@@ -58,32 +65,41 @@
     <!-- The only Random use is retry backoff and claim-poll jitter, where spreading load is the point
          and unpredictability is not a security property; CA5394 reads it as a cryptographic concern. -->
     <NoWarn>$(NoWarn);CA5394</NoWarn>
-    <!-- Acta logs sparsely and off the hot path: the claim loop and executor log at Debug or on
-         failure. CA1848/CA1873's LoggerMessage delegates would restructure ~89 call sites to save
-         allocations those paths do not make. -->
+    <!-- Two different rules, suppressed for one reason. CA1848 wants LoggerMessage delegates, which
+         would restructure ~71 call sites for allocations Acta's sparse, mostly-Debug logging does not
+         make at volume. CA1873 is narrower - it warns that an expensive argument is evaluated even when
+         the level is disabled - and the flagged arguments here are field reads and already-materialised
+         strings, not computation. Revisit CA1873 if a log line ever takes a computed argument. -->
     <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
     <!-- Acta ships no resource files and no localization story; operator messages, exception text and
          log templates are deliberately English-only, so CA1303 presumes a product Acta is not. -->
     <NoWarn>$(NoWarn);CA1303</NoWarn>
     <!-- Every site is DbDataReader.IsDBNull on a row already buffered by an awaited ReadAsync, and no
-         reader opens with CommandBehavior.SequentialAccess. IsDBNullAsync would add an async state
-         machine per column and make the read path slower, so CA1849 is wrong here. -->
+         reader opens with CommandBehavior.SequentialAccess, so there is no I/O for the async form to
+         overlap. Awaiting it per column adds a task allocation and continuation on a path that reads
+         columns in a tight loop; the method already has its one state machine either way. CA1849 is
+         wrong here rather than tolerated. -->
     <NoWarn>$(NoWarn);CA1849</NoWarn>
-    <!-- The sites are conformance-spec helpers and cold operator paths, never the claim or execute
-         loop; interface-typed internals are a deliberate readability choice and CA1859's dispatch
-         saving is unmeasurable outside a hot loop. -->
-    <NoWarn>$(NoWarn);CA1859</NoWarn>
+    <!-- Suppressed for spec and harness code only, where the sites are Task-returning test helpers and
+         Anvil mappers. Interface-typed internals are a deliberate readability choice there and the
+         dispatch saving is unmeasurable. NOT suppressed in src, so a future hit on the claim or execute
+         path is reported rather than silently inherited. -->
+    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\support\`))' == 'true'">$(NoWarn);CA1859</NoWarn>
   </PropertyGroup>
 
-  <!-- TEMPORARY - Track A3 debt. These are real findings, not conventions Acta disagrees with, and
-       TreatWarningsAsErrors is global, so the curated tier could not land until every one is fixed.
+  <!-- TEMPORARY - Track A3 debt. These are real findings, not conventions Acta disagrees with. They are
+       parked here, unfixed, because TreatWarningsAsErrors is global: the alternative to parking them was
+       to keep the whole curated tier switched off until all of them were fixed, which is how the tier
+       stayed off for a year. Parking is the lesser evil and is explicitly not a ruling on any of them.
        Each rule is deleted from this list as its A3 slice lands, and the block goes with the last one.
        Counts are distinct sites (file, line, column) measured on 58f61c0 and are the slice sizes:
          CA1062  128  null validation on public entry points
          CA2000  118  disposable not disposed along every path
          CA2100   92  CommandText built from possibly-tainted input - the reason Track A is in rc.1
          CA1031   62  general exception boundaries
-         CA1508   10  provably-dead branches - inspect per site, do not blanket-suppress
+         CA1508   10  provably-dead branches - parked, not ruled on. When its slice lands, inspect each
+                      site: they are all (object?)row.X is-never-null in DB row mappers and may be
+                      legitimate defence against nullability the compiler cannot see. No blanket rule.
          CA1001    4  types owning disposable fields without IDisposable
          CA2213    3  owned disposable fields never disposed -->
   <PropertyGroup>
@@ -99,14 +115,27 @@
          CA1068    5  CancellationToken not last. All internal - IJobs already has it last on both
                       public RaiseSignalAsync overloads; the odd one out is a third overload that
                       exists only on the internal JobsApi with actorKey and ct transposed.
-         CA1812    1  NoOpWakeup in BenchHost.cs is never instantiated - delete it. -->
+         CA1812    1  NoOpWakeup in BenchHost.cs is never instantiated - delete it.
+         CA1307   18  Culture-sensitive Replace/Contains/IndexOf in src and tools, unmasked by scoping
+                      CA1307 away from the spec suppression above. These are real: Replace(string,
+                      string) and Contains(string) ARE culture-sensitive, and the sites are identifier,
+                      SQL-text and migration-name handling - exactly where a Turkish-locale dotless i
+                      would change behaviour. Add StringComparison.Ordinal per site. -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);CA1305;CA2208;CA1068;CA1812</NoWarn>
+    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'">$(NoWarn);CA1307;CA1310</NoWarn>
+    <!-- CA1859, 3 sites, also unmasked by scoping: NormalizeTags and SnapshotTags in src return
+         IReadOnlyList<TagInput>? where the concrete array would avoid an interface dispatch, and
+         CodeFamiliesUsed in the emitter is the same shape. Unlike the spec-helper sites the src pair is
+         on the enqueue path, so they are worth taking rather than ruling away - as their own change,
+         with the perf claim actually checked. -->
+    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'">$(NoWarn);CA1859</NoWarn>
   </PropertyGroup>
 
-  <!-- TEMPORARY - the long tail, ~64 sites across 15 rules at 1-9 each, still to be read per site and
-       either fixed or moved above with a reason. Some are probably real and small (CA1823 unused
-       fields, CA1816 missing GC.SuppressFinalize); most look like pure style. -->
+  <!-- TEMPORARY - the long tail: ~64 sites across the 17 rules listed below, at 1-9 each, still to be
+       read per site and either fixed or moved above with a reason. No ruling has been made on any of
+       them; the count of rules here must match the list. Some are probably real and small (CA1823
+       unused fields, CA1816 missing GC.SuppressFinalize); most look like pure style. -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);CA1822;CA1034;CA1064;CA1861;CA2225;CA1875;CA1819;CA1823;CA1816;CA1805</NoWarn>
     <NoWarn>$(NoWarn);CA1716;CA1711;CA1820;CA1815;CA1050;CA1040;CA1024</NoWarn>

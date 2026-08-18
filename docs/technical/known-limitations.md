@@ -47,16 +47,22 @@ repeatable work.
 
 ## Ordering
 
-Acta does not order work. The claim scan reads ready rows by priority (highest first), then by
+Acta orders claims, not work. The claim scan reads ready rows by priority (highest first), then by
 next-run instant, then by `JobId`, and that is a claim-time sort, not a queue discipline. `JobId` is
 a stable tie-breaker inside one claim, not a multi-producer FIFO guarantee: database identities are
 allocation order, not commit order.
 
-`ExclusiveKey` provides mutual exclusion, not ordering. At most one job per (namespace,
-`ExclusiveKey`) executes at a time. Admission order is unspecified: under sustained arrivals that
-keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it
-for exclusive *unordered* work. There is no fairness, aging, or queue-position guarantee for a
-contended key, and none is planned; a job that needs a bounded wait needs a different design.
+`ExclusiveKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
+no other job with that `(namespace, ExclusiveKey)` is admitted. The exclusion is as strong as the
+lease and no stronger: a heartbeat renews it while the handler runs, so if that heartbeat stops — a
+stalled process, a long pause, a partition — the lease can expire while the handler is still running
+and another worker can admit the next job. That is the same at-least-once boundary described under
+[Execution model](#execution-model), not a separate one.
+
+Admission order is unspecified: under sustained arrivals that keep a key held, an older job can be
+repeatedly overtaken, and Acta does not bound its wait. Use it for exclusive *unordered* work. There
+is no fairness, aging, or queue-position guarantee for a contended key, and none is planned; a job
+that needs a bounded wait needs a different design.
 
 Three levels are available, and only the third one orders anything.
 
