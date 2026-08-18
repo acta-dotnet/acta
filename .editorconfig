@@ -406,10 +406,17 @@ dotnet_diagnostic.CA1822.severity = none
 # completed unit of work into a failure over a cleanup step the lease TTL already covers - and reports
 # it through OnLockReleaseFailure; the inner bare catch guards that observer and is deliberately silent,
 # because a broken observability hook must not alter the outcome either.
+# CA1819: SignalWaitOutcome.Value, on the protected record struct WaitSignalCoreAsync returns. It is
+# not a property guarding state a caller could reach past - it is the raised slot's stored bytes in
+# transit, returned by the subclass sink and handed straight to DeserializeSignalPayload(byte,
+# byte[]), which takes byte[] because the serializer registry does. Widening it to ReadOnlyMemory
+# would cost a copy at the only two members that ever touch it, and both are on the frozen 1.0.0
+# surface: the record struct is protected on the public abstract class handlers receive.
 [src/Acta/Execution/JobContext.cs]
 dotnet_diagnostic.CA1822.severity = none
 dotnet_diagnostic.CA1062.severity = none
 dotnet_diagnostic.CA1031.severity = none
+dotnet_diagnostic.CA1819.severity = none
 
 #### Scoped analyzer rulings ####
 
@@ -426,6 +433,16 @@ dotnet_diagnostic.CA1031.severity = none
 [anvil/Anvil/FaultInjectors.cs]
 dotnet_diagnostic.CA2213.severity = none
 
+# CA1050: AnvilServer, the constants holder naming the loopback address the dashboard binds, prints
+# and opens. It sits in the global namespace because this file is Anvil's entry point: a file-scoped
+# namespace has to precede every other member and top-level statements have to come first, so the two
+# cannot share a file, and the brace form is what csharp_style_namespace_declarations = file_scoped
+# above rules out. Its only readers are four sites in this same file, and Anvil is the internal
+# certification harness with IsPackable false, so the collision with a consumer's own type that
+# CA1050 exists to prevent has no consumer to collide with.
+[anvil/Anvil/Program.cs]
+dotnet_diagnostic.CA1050.severity = none
+
 # CA2000: Spawn's Process is not lost - ownership passes to the ManagedWorker parked in _workers, and
 # every exit from that dictionary disposes it: Snapshot() disposes the entries it evicts past the
 # retention window, Dispose() the survivors, and the Start() failure path disposes before rethrowing.
@@ -440,6 +457,87 @@ dotnet_diagnostic.CA2000.severity = none
 # out of step with the generator for no reachable gain.
 [src/Acta/{Alerts/AlertRef.cs,Jobs/JobRef.cs,Workers/WorkerRef.cs}]
 dotnet_diagnostic.CA1062.severity = none
+
+# CA1805: two documented defaults that happen to coincide with the CLR zero. SqlProviderOptions'
+# ApplyMigrationsOnStartup = false is the one option on that type whose default is a policy statement
+# - its doc comment spends four lines saying production should keep DB lifecycle in infrastructure -
+# and it sits directly under DeadlockRetryAttempts = 5, which states its default the same way and is
+# not flagged. JobPayloadFormat.None = default is the same shape: it declares that the no-payload
+# sentinel *is* the zero-id value, the invariant IsNone reads, and it sits directly above
+# Json = BuiltIn(1, "json"). Taking the initializer off either one makes the sibling declarations in
+# one block disagree about whether a default is worth writing down, and removes the line a reader
+# checks the documented default against.
+[src/Acta/{Configuration/SqlProviderOptions.cs,Payloads/JobPayloadFormat.cs}]
+dotnet_diagnostic.CA1805.severity = none
+
+# CA1716: UpdateOverridesAsync's 'overrides' parameter, which collides with VB's Overrides keyword.
+# The word is load-bearing across the three contract tiers docs/internals/naming-conventions.md
+# freezes: the feature is operator policy overrides, the argument's own type is
+# JobDefinitionPolicyOverrides, the schema spells the modifier _override on every column it qualifies,
+# and the method is named for it. Renaming the parameter alone would leave one link in that chain
+# calling it something else, which is exactly the drift the naming rules were written to stop - and
+# the member is on the frozen 1.0.0 surface, where a rename is a break, not a cleanup.
+[src/Acta/Definitions/IDefinitions.cs]
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1024: GetBehavior(), which CA1024 wants as a property. It is the one member of that extension
+# block that throws - its switch closes with ArgumentOutOfRangeException for a code outside the
+# family - and .NET's own property guidance is that a getter should not throw. Its two neighbours,
+# IsTerminal and ChargesFailureBudget, are total over the enum and are properties for exactly that
+# reason; the split follows the guidance rather than ignoring it.
+[src/Acta/Execution/ExecutionStatusCode.cs]
+dotnet_diagnostic.CA1024.severity = none
+
+# CA2225: the implicit widening from JobContract<TInput, TResult> to JobContract<TInput>, which drops
+# the result type so one generated member drives both RunAndWaitAsync and the fire-and-forget
+# EnqueueAsync. Both sides are readonly record structs over the identical (Type, string) pair, so the
+# conversion is total, allocation-free and cannot throw - there is no failure mode a named alternate
+# could report differently. Adding ToJobContract() would put a second public spelling of a
+# field-for-field copy on a type the manifest generator emits once per declared job, and the type is
+# on the frozen 1.0.0 surface.
+[src/Acta/Jobs/JobContract.cs]
+dotnet_diagnostic.CA2225.severity = none
+
+# CA1711: JobHandlerInvokeDelegate is a delegate declaration, so the suffix reports what the type is.
+# CA1711's reserved-suffix list exists to stop a type borrowing a word it does not earn; this one
+# earns it, and the name distinguishes the dispatch delegate from the generated invoker it points at.
+# Public and frozen at 1.0.0, so a rename is a break.
+[src/Acta/Jobs/JobHandlerInvokeDelegate.cs]
+dotnet_diagnostic.CA1711.severity = none
+
+# CA2225: the two implicit conversions into JobLookup, from JobRef and from JobEnqueueOutcome. The
+# friendly alternates CA2225 asks for already exist and are what the operators call - ByRef(JobRef)
+# and ById(long) - so the rule is satisfied in substance and fails only on the spelling: it wants
+# ToJobLookup / FromJobRef. Acta names lookup factories By* as a family - ByRef, ById,
+# ByDeduplicationKey - which reads at the call site as the sentence it is, and the type is on the
+# frozen 1.0.0 surface, so a second public name for each would be added and never removed.
+[src/Acta/Jobs/JobLookup.cs]
+dotnet_diagnostic.CA2225.severity = none
+
+# CA1711: JobBehaviorDelegate is a delegate declaration, on the same reasoning as
+# JobHandlerInvokeDelegate's - the suffix is accurate, and here it also separates the continuation
+# from the IJobPipelineBehavior that receives it.
+# CA1716: the 'next' parameter, which collides with VB's Next keyword. It is the name every .NET
+# pipeline gives its continuation, starting with ASP.NET Core's own
+# IMiddleware.InvokeAsync(HttpContext, RequestDelegate next) - so the two rules together would have
+# Acta rename the exact shape the framework it hosts in ships, and readers would meet a middleware
+# chain whose continuation is called something else. Both the delegate and the interface member are
+# public and frozen at 1.0.0.
+[src/Acta/Jobs/JobPipelineBehavior.cs]
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1815: JobPayload deliberately does not define what two payloads being equal means. The struct is
+# a (format, buffer) pair in transit, and its two candidate meanings are both wrong: the inherited
+# ValueType.Equals compares the ReadOnlyMemory field, which is equal when two payloads point at the
+# same buffer and length rather than when their bytes match, and a content comparison would be an
+# O(n) scan over a buffer that
+# JobsOptions.MaxInlinePayloadBytes lets reach 1 MiB by default and 256 MB by configuration, on the
+# type every input, result, step and checkpoint body flows through. Nothing in src or tests compares
+# payloads, keys a dictionary by one, or puts one in a set; format identity is what code actually
+# tests, and JobPayloadFormat carries equality for that.
+[src/Acta/Payloads/JobPayload.cs]
+dotnet_diagnostic.CA1815.severity = none
 
 # CA1031: the group's endpoint filter is this API's last backstop and answers every unhandled failure as
 # ProblemDetails - the transient database/network family as 503, everything else as 500, logged
@@ -641,3 +739,82 @@ dotnet_diagnostic.CA1031.severity = none
 # way. Logged at debug.
 [src/Acta.Runtime/Modules/Outbox/OutboxRelayService.cs]
 dotnet_diagnostic.CA1031.severity = none
+
+# CA1861: four expected-trace arrays, one per [Fact] - the ordered open/begin/execute/commit/dispose
+# sequence each test exists to pin. CA1861's premise is a constant array rebuilt on every call of a
+# method called repeatedly; each of these is built once, in one test, and passed to one Assert.Equal.
+# Hoisting them to static readonly fields would move four different expected sequences away from the
+# four assertions that own them and force four names onto values whose whole content is the
+# assertion.
+[tests/Acta.Tests/Storage/DbSessionRetryRegionTests.cs]
+dotnet_diagnostic.CA1861.severity = none
+
+# CA1040: IConformanceMetaSpec<TFixture> is an empty interface because being empty is the whole
+# mechanism. HarnessReflection.IsCandidateContractSpec walks the assembly and excludes any spec
+# assignable to it from the parity set, so the type carries no members to declare - membership is the
+# signal. Giving it a method to satisfy the rule would put a member on every meta-spec that nothing
+# calls, which is the dead code CA1040 is trying to prevent, one level up.
+[tests/Acta.Tests.Conformance/Contracts/IConformanceMetaSpec.cs]
+dotnet_diagnostic.CA1040.severity = none
+
+# CA1822: ClaimedExpiredRow, one of the private protected arrange helpers every derived outbox spec
+# calls by bare name. Its siblings - ClaimAsync, SeedAndClaimAsync, SeedAndQuarantineAsync - reach
+# Store and Fixture; this one composes its row with a `with` expression over DueRow and so touches no
+# instance state today. Marking it static would make one arrange vocabulary carry two modifiers,
+# split by which member currently happens to need the fixture rather than by what any of them means,
+# and it would change no call site, because a static protected member is reached the same way.
+[tests/Acta.Tests.Conformance/Features/Outbox/OutboxSpecBase.cs]
+dotnet_diagnostic.CA1822.severity = none
+
+# CA1822: the eight private *CoreAsync catalog reads - ListTables, ListViews, ListColumns,
+# ListIndexes, ListForeignKeys, ListCheckConstraints, ListCollationOverrides, CountTables. They exist
+# only because SQL Server needs its reads wrapped in ReadCatalogAsync for the 1205 deadlock-victim
+# retry, which is why this fixture is the one of the three that splits each read into a public member
+# plus a private body. The bodies are the same code PgConformanceFixture and SqliteConformanceFixture
+# keep as plain public instance methods, and none of the three touches instance state - all of them
+# open a connection from a static connection string. Marking these eight static would leave the one
+# fixture that had to be split as the only one whose catalog reads are static, to elide a `this` on a
+# test path whose next statement opens a database connection.
+[tests/Acta.Tests.Conformance.SqlServer/Testing/SqlServerConformanceFixture.cs]
+dotnet_diagnostic.CA1822.severity = none
+
+# CA1816: the DisposeAsync on each base is an xUnit IAsyncLifetime member, not a disposal API a
+# caller reaches. xUnit v3 constructs the test class, awaits InitializeAsync, runs the test, awaits
+# DisposeAsync once, and drops the reference; neither base declares a finalizer and neither can
+# inherit one, because the derived types are conformance spec classes the runner instantiates.
+# GC.SuppressFinalize(this) on an object with nothing to suppress is a no-op, and the benefit the
+# rule states - sparing a derived type that adds a finalizer from re-implementing IDisposable - has
+# no derived type here that could claim it.
+[tests/Acta.Tests.Conformance/Testing/{ActaTestBase.cs,IntegrationSpec.cs}]
+dotnet_diagnostic.CA1816.severity = none
+
+# CA1819: OutboxSeed.Input, the byte[]? positional member of the readonly record struct a spec seeds
+# an external-outbox row with. The record is the row, not a holder guarding one: byte[] is the shape
+# the source table's input column binds as through each provider fixture's ADO seeder, and the seed
+# is written once and read once. There is no internal state for the array to leak and no repeated
+# get for a defensive copy to cost.
+[tests/Acta.Tests.Conformance/Testing/OutboxTestSupport.cs]
+dotnet_diagnostic.CA1819.severity = none
+
+# CA1875: one line, the same in all three provider specs but for the variable it reads -
+# BeginBanner().Matches(script).Count + 1, counting the migration sections in the published provision
+# script. Regex.Count would save materializing a handful of Match objects, once per spec, in a method
+# whose surrounding work is executing that entire script against a live database twice. The three
+# specs are kept line-for-line alike on purpose so a reader can diff one provider's provision proof
+# against another's and see only the provider differences.
+[tests/**/{PgProvisionScriptSpec.cs,MsSqlProvisionScriptSpec.cs,SqliteProvisionScriptSpec.cs}]
+dotnet_diagnostic.CA1875.severity = none
+
+# CA1819: VariableRaceResult.ObservedValues, an int[] on a probe result record. The record is the
+# handler's return value, serialized to JSON as the job result and deserialized by the spec that
+# asserts on it - it is a wire shape, so there is no encapsulated state to defend and every read is
+# the one read.
+# CA1820: the `== string.Empty` inside VariableRoundTripResult's string block. That block is a table
+# of round-trip assertions written as one chained expression - whitespace, punctuation, non-Latin
+# script, emoji - each proving a stored variable comes back identical, and the empty string is one
+# row of it. Both replacements the rule offers are worse here: .Length == 0 breaks the table into two
+# shapes, and IsNullOrEmpty would also accept null, which is precisely the round-trip failure this
+# row exists to catch.
+[tests/Acta.Tests.TestJobs/JobVariableProbes.cs]
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA1820.severity = none

@@ -4,7 +4,6 @@ using Acta.Runtime.Modules.Execution.ChildLatches;
 using Acta.Runtime.Modules.Execution.Timers;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -67,7 +66,6 @@ internal sealed class JobExecutionHarness(
             executionStore: _store,
             new UnusedSerializers(),
             new UnusedLockStore(),
-            new UnusedClock(),
             cancellationToken: _attemptCts.Token,
             triggeringScheduleNames: [],
             deadlineAtUtc: null,
@@ -264,8 +262,8 @@ internal sealed class JobExecutionHarness(
         public object? GetService(Type serviceType) => null;
     }
 
-    // The attempt carries no payload and takes no lock or clock reading, so these three ports are
-    // constructor ceremony only; throwing keeps an accidental dependency from passing silently.
+    // The attempt carries no payload and takes no lock, so these two ports are constructor ceremony
+    // only; throwing keeps an accidental dependency from passing silently.
     private sealed class UnusedSerializers : IJobPayloadSerializerRegistry
     {
         public IJobPayloadSerializer Resolve(byte formatId) => throw new NotSupportedException();
@@ -281,10 +279,5 @@ internal sealed class JobExecutionHarness(
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
-    }
-
-    private sealed class UnusedClock : IActaClock
-    {
-        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => throw new NotSupportedException();
     }
 }

@@ -1,6 +1,5 @@
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
@@ -52,7 +51,6 @@ public sealed class RuntimeJobContextLockReleaseTests
             executionStore: null!,
             new ThrowingSerializerRegistry(),
             lockStore,
-            new ThrowingClock(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null,
@@ -80,11 +78,6 @@ public sealed class RuntimeJobContextLockReleaseTests
         public IJobPayloadSerializer Resolve(byte formatId) => throw new NotSupportedException();
 
         public bool IsRegistered(byte formatId) => false;
-    }
-
-    private sealed class ThrowingClock : IActaClock
-    {
-        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class RecordingLogger : ILogger

@@ -295,7 +295,6 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             executionStore: Services.GetRequiredService<IExecutionStore>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: Services.GetRequiredService<ILockStore>(),
-            clock: Clock,
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

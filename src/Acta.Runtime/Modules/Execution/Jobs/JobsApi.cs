@@ -2,7 +2,6 @@ using System.Data.Common;
 using System.Diagnostics;
 using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Runtime.Modules.Execution.Signals;
-using Microsoft.Extensions.Options;
 
 namespace Acta.Runtime.Modules.Execution.Jobs;
 
@@ -16,14 +15,11 @@ internal sealed class JobsApi(
     JobTypeIndex typeIndex,
     JobContractIndex contractIndex,
     JobDescriptorIndex descriptorIndex,
-    IOptions<JobsOptions> options,
     IWorkerWakeup wakeup,
     JobsService jobsService,
     SignalService signalService
 ) : IJobs
 {
-    private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
-
     public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
         jobsService.EnqueueAsync(request, ct);
 

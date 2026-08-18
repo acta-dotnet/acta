@@ -11,7 +11,6 @@ using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Runtime.Modules.Execution.Timers;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -33,7 +32,6 @@ internal sealed class RuntimeJobContext(
     Acta.Runtime.Modules.Execution.IExecutionStore executionStore,
     IJobPayloadSerializerRegistry serializers,
     ILockStore lockStore,
-    IActaClock clock,
     IReadOnlyList<string> triggeringScheduleNames,
     DateTime? deadlineAtUtc,
     CancellationToken cancellationToken,
@@ -55,7 +53,6 @@ internal sealed class RuntimeJobContext(
     private readonly Acta.Runtime.Modules.Execution.IExecutionStore _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly ILockStore _lockStore = lockStore;
-    private readonly IActaClock _clock = clock;
     private readonly short _namespaceId = namespaceId;
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;

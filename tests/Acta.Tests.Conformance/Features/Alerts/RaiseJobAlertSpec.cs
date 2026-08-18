@@ -4,7 +4,6 @@ using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -243,7 +242,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             executionStore: Services.GetRequiredService<IExecutionStore>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: Services.GetRequiredService<ILockStore>(),
-            clock: Services.GetRequiredService<IActaClock>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

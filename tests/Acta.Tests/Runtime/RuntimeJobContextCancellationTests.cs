@@ -1,7 +1,6 @@
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Checkpoints;
 using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -41,7 +40,6 @@ public sealed class RuntimeJobContextCancellationTests
             executionStore: db,
             new ThrowingSerializerRegistry(),
             new ThrowingLockStore(),
-            new ThrowingClock(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null
@@ -143,10 +141,5 @@ public sealed class RuntimeJobContextCancellationTests
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
-    }
-
-    private sealed class ThrowingClock : IActaClock
-    {
-        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => throw new NotSupportedException();
     }
 }

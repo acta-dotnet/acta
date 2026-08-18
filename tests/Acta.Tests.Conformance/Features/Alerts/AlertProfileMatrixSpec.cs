@@ -225,7 +225,6 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
             executionStore: Services.GetRequiredService<IExecutionStore>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: Services.GetRequiredService<ILockStore>(),
-            clock: Services.GetRequiredService<IActaClock>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

@@ -65,12 +65,37 @@
          deliberately omit the parameterless and message-only constructors so a caller cannot throw one
          without the context it exists to carry; CA1032 asks for exactly those constructors. -->
     <NoWarn>$(NoWarn);CA1032</NoWarn>
+    <!-- The same boundary drawn the other way round. Acta's catchable exception surface is the Acta
+         contract package - JobFailedException, PayloadTooLargeException, the JobControlException
+         family - and every type CA1064 flags is instead internal to Acta.Runtime, thrown as an engine
+         control signal that one frame catches. AlertProjectionDataException is the projector's own
+         poison classification, thrown and caught inside AlertsJob. StepOwnershipLostException is the
+         complete_step CAS miss, thrown by RuntimeJobContext and caught by JobExecution. The meta
+         reader throws OutboxContractException and the relay catches it in the same tick.
+         OutboxQuarantineTickException is the one that does leave the runtime, as the sys.outbox job's
+         own failure - but it reaches an operator as alert text, never as a type on a handler's catch
+         list. Publishing the four would freeze engine internals into the supported surface. -->
+    <NoWarn>$(NoWarn);CA1064</NoWarn>
     <!-- RaiseSignalAsync and its siblings are durable ledger operations named as verbs, not CLR
          events; CA1030's event-shaped guidance does not describe them. -->
     <NoWarn>$(NoWarn);CA1030</NoWarn>
     <!-- The only Random use is retry backoff and claim-poll jitter, where spreading load is the point
          and unpredictability is not a security property; CA5394 reads it as a cryptographic concern. -->
     <NoWarn>$(NoWarn);CA5394</NoWarn>
+    <!-- Seven sites in three shapes. Three are not a nested type anyone wrote: they are the container
+         Roslyn synthesizes for a C# extension block, which is why the diagnostic names no type at all
+         - the message reads "Do not nest type ." with the name blank. Those blocks are the IsTerminal
+         / IsClaimable / GetBehavior members on ExecutionStatusCode, JobStepStatusCode and
+         JobStatusCode, and the flagged type has no name to rename, no accessibility to set and no
+         file to move to; the rule fires on the language feature itself, wherever it is used. Two are
+         AttemptIdentity and NoteDetail, the note payload of one [Job] handler each, nested in the
+         TestJobs probe that writes them because TestJobs is a single flat namespace across 33 probe
+         files, where a name that generic belongs to its handler rather than to all of them. The last
+         two are ValidateUserDottedKebabTests and JobPayloadConvenienceFactoryTests in
+         JobRequestBuilderTests, where the nesting is xUnit's grouping mechanism: a nested test class
+         must be public to be discovered, and it runs under the outer class's name, which is the
+         subject those two sub-suites hang off. -->
+    <NoWarn>$(NoWarn);CA1034</NoWarn>
     <!-- Two different rules, suppressed for one reason. CA1848 wants LoggerMessage delegates, which
          would restructure ~71 call sites for allocations Acta's sparse, mostly-Debug logging does not
          make at volume. CA1873 is narrower - it warns that an expensive argument is evaluated even when
@@ -146,15 +171,6 @@
          build and fails on any CommandText that is neither an embedded load nor literal text, unless
          the composing member is declared there with the validation that keeps it safe. -->
     <NoWarn>$(NoWarn);CA2100</NoWarn>
-  </PropertyGroup>
-
-  <!-- TEMPORARY - the long tail: ~64 sites across the 17 rules listed below, at 1-9 each, still to be
-       read per site and either fixed or moved above with a reason. No ruling has been made on any of
-       them; the count of rules here must match the list. Some are probably real and small (CA1823
-       unused fields, CA1816 missing GC.SuppressFinalize); most look like pure style. -->
-  <PropertyGroup>
-    <NoWarn>$(NoWarn);CA1822;CA1034;CA1064;CA1861;CA2225;CA1875;CA1819;CA1823;CA1816;CA1805</NoWarn>
-    <NoWarn>$(NoWarn);CA1716;CA1711;CA1820;CA1815;CA1050;CA1040;CA1024</NoWarn>
   </PropertyGroup>
 
   <!-- Shared NuGet metadata; only the packable src libraries emit it at pack time. -->

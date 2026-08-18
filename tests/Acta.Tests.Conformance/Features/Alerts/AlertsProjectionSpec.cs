@@ -216,7 +216,6 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
             executionStore: Services.GetRequiredService<IExecutionStore>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: Services.GetRequiredService<ILockStore>(),
-            clock: Services.GetRequiredService<IActaClock>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

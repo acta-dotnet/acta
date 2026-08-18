@@ -174,7 +174,6 @@ internal sealed class JobExecutor(
                 _rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.IExecutionStore>(),
                 _serializers,
                 _lockStore,
-                _clock,
                 fireOutcome?.TriggeringScheduleNames ?? [],
                 descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
                     ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
