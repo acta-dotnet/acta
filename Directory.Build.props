@@ -36,12 +36,16 @@
     <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true'">$(NoWarn);CA1707</NoWarn>
     <!-- xUnit and BenchmarkDotNet discover fixtures, theory data, and benchmark classes by reflection
          and require them public; CA1515's internal-by-default guidance breaks that discovery. -->
-    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'">$(NoWarn);CA1515</NoWarn>
+    <NoWarn
+      Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'"
+      >$(NoWarn);CA1515</NoWarn>
     <!-- Suppressed for spec and harness code only, where these are Assert.Contains/StartsWith over test
          literals. NOT suppressed in src: an ASCII protocol token is a reason to be MORE explicit about
          ordinal comparison, not less - the default overloads are culture-sensitive, and a Turkish-locale
          dotless i changes what "I".ToLower() produces. The src sites are A3 work, not a convention. -->
-    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'">$(NoWarn);CA1307;CA1310</NoWarn>
+    <NoWarn
+      Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'"
+      >$(NoWarn);CA1307;CA1310</NoWarn>
     <!-- Only the three Extensible code families carry a zero member, named Unspecified because the
          catalog defines it as the forward-read sentinel. The other 22 families deliberately have no
          zero value: the schema emits a CHECK IN (...) list for them, so an out-of-family id cannot be
@@ -84,7 +88,21 @@
          Anvil mappers. Interface-typed internals are a deliberate readability choice there and the
          dispatch saving is unmeasurable. NOT suppressed in src, so a future hit on the claim or execute
          path is reported rather than silently inherited. -->
-    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\support\`))' == 'true'">$(NoWarn);CA1859</NoWarn>
+    <NoWarn
+      Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\support\`))' == 'true'"
+      >$(NoWarn);CA1859</NoWarn>
+    <!-- Fires on every CommandText assignment because the analyzer cannot see where the string came
+         from. In Acta it never came from a value: the ledger's command bodies are embedded .sql
+         resources loaded by SqlResourceCatalog, the rest is text this repo authored, and every value
+         travels as a bound DbParameter - no site concatenates one into SQL. What is interpolated is
+         identifiers - the schema, the outbox table, the routine name, the bootstrap database name -
+         and each is rejected before it reaches a command unless it matches IdentifierSyntax's bare
+         `[a-z][a-z0-9_]*` shape (or, for CREATE DATABASE, the one-character-wider name shape that
+         still excludes every quoting character). That is a claim about code rather than a convention
+         Acta holds, so it does not get to age unread: CommandTextCompositionTests walks src/ on every
+         build and fails on any CommandText that is neither an embedded load nor literal text, unless
+         the composing member is declared there with the validation that keeps it safe. -->
+    <NoWarn>$(NoWarn);CA2100</NoWarn>
   </PropertyGroup>
 
   <!-- TEMPORARY - Track A3 debt. These are real findings, not conventions Acta disagrees with. They are
@@ -95,7 +113,6 @@
        Counts are distinct sites (file, line, column) measured on 58f61c0 and are the slice sizes:
          CA1062  128  null validation on public entry points
          CA2000  118  disposable not disposed along every path
-         CA2100   92  CommandText built from possibly-tainted input - the reason Track A is in rc.1
          CA1031   62  general exception boundaries
          CA1508   10  provably-dead branches - parked, not ruled on. When its slice lands, inspect each
                       site: they are all (object?)row.X is-never-null in DB row mappers and may be
@@ -103,7 +120,7 @@
          CA1001    4  types owning disposable fields without IDisposable
          CA2213    3  owned disposable fields never disposed -->
   <PropertyGroup>
-    <NoWarn>$(NoWarn);CA1062;CA2000;CA2100;CA1031;CA1508;CA1001;CA2213</NoWarn>
+    <NoWarn>$(NoWarn);CA1062;CA2000;CA1031;CA1508;CA1001;CA2213</NoWarn>
   </PropertyGroup>
 
   <!-- TEMPORARY - Track A3 fixes that are agreed but not yet written. Each rule leaves this list as
@@ -123,13 +140,17 @@
                       would change behaviour. Add StringComparison.Ordinal per site. -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);CA1305;CA2208;CA1068;CA1812</NoWarn>
-    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'">$(NoWarn);CA1307;CA1310</NoWarn>
+    <NoWarn
+      Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'"
+      >$(NoWarn);CA1307;CA1310</NoWarn>
     <!-- CA1859, 3 sites, also unmasked by scoping: NormalizeTags and SnapshotTags in src return
          IReadOnlyList<TagInput>? where the concrete array would avoid an interface dispatch, and
          CodeFamiliesUsed in the emitter is the same shape. Unlike the spec-helper sites the src pair is
          on the enqueue path, so they are worth taking rather than ruling away - as their own change,
          with the perf claim actually checked. -->
-    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'">$(NoWarn);CA1859</NoWarn>
+    <NoWarn
+      Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'"
+      >$(NoWarn);CA1859</NoWarn>
   </PropertyGroup>
 
   <!-- TEMPORARY - the long tail: ~64 sites across the 17 rules listed below, at 1-9 each, still to be
