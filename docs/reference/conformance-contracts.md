@@ -2226,12 +2226,12 @@
 ## Workers
 
 ### Stale workers in any namespace are marked Dead by one global sweep
-- **Contract:** MarkDeadWorkers marks every Active worker past the dead-after window Dead across all namespaces and writes each worker.died event to its own namespace.
-- **Arrange:** An aged Active worker and a fresh worker exist in one namespace, and another aged worker exists in a second namespace.
+- **Contract:** MarkDeadWorkers marks every stale Active worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips non-Active workers.
+- **Arrange:** An aged Active worker, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.
 - **Act:** A single MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument.
-- **Assert:** Both aged workers are marked Dead with a worker.died event in each worker's own namespace while the fresh worker stays Active.
+- **Assert:** Both aged Active workers are Dead with a worker.died event in their namespace, while the fresh worker stays Active and the aged Stopped worker stays Stopped.
 - **Guarantees:**
-  - One global sweep marks aged workers Dead in every namespace, keeps fresh workers, and attributes each event to the worker's namespace
+  - One global sweep marks aged workers Dead in every namespace, keeps fresh and cleanly-stopped workers, and attributes each event to the worker's namespace
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.MarkDeadWorkersAsync`
 

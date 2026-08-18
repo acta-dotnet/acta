@@ -55,16 +55,28 @@ public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.NotEmpty(eventsBefore);
         Assert.All(eventsBefore, e => Assert.Equal<Guid?>(jobRef.Value, e.JobRef));
 
-        // Purge the job row but keep its events (wide event window).
-        var purge = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        // Purge the job row but keep its events (wide event window), sweeping until the row is actually
+        // gone. One sweep is not enough on the shared parallel schema: purge_expired_data stages its batch
+        // WITH (UPDLOCK, READPAST) / FOR UPDATE SKIP LOCKED, so a row another transaction holds is skipped
+        // this pass. Every conformance spec inserts into the same jobs/runtimes tables, so this spec's own
+        // zero-retention row can sit under an unrelated transaction's lock at the instant a one-shot purge
+        // runs - the sweep then deletes nothing and the job row below survives its own purge. Repeating is
+        // what production does too (sys.retention runs on a timer), so the settled outcome is the contract.
+        var purge = await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            NoEventPurgeDays,
+            NoAlertPurgeDays,
+            NoWorkerPurgeSeconds,
+            1000,
+            50,
+            async () => await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct) is null,
+            ct
+        );
 
-        // Deliberately NOT "this call purged exactly one job". The sweep selects WITH (UPDLOCK, READPAST)
-        // and reports only what it deleted itself, so it skips a row another transaction holds - and
-        // sys.retention auto-registers into every worker namespace, including this one, so a scheduled
-        // sweep can legitimately reach the zero-retention job first and this call then reports 0.
-        // Asserting the count asserts which actor did it; the property under test is that the row is
-        // gone, which is checked below and holds either way. The same racy count assert was removed
-        // from the reap spec in July for exactly this reason.
+        // Deliberately NOT "this call purged exactly one job": the count says which pass did it, and any
+        // pass doing it satisfies the contract. The events count is not racy in the same way - the wide
+        // event window makes the events section a no-op on every pass, which is the property asserted here.
         Assert.Equal(0, purge.Events);
 
         // Force a fresh insert after purge. SQLite used to reuse the deleted highest row id here,
@@ -77,7 +89,9 @@ public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TF
         );
         Assert.NotEqual(jobId, replacement.JobId);
 
-        // The heavy row is gone; GetAsync by ref returns null.
+        // The heavy row is gone; GetAsync by ref returns null. Both of these are settled-state assertions,
+        // which is why the sweep above loops until they hold rather than firing once: a READPAST skip would
+        // otherwise leave the row alive here and fail an assertion about retention with a lock-timing flake.
         Assert.Null(await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Null(await Jobs.GetAsync(JobLookup.ByRef(jobRef), ct));
 

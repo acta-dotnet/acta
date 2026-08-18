@@ -8,10 +8,16 @@ namespace Acta.Tests.Conformance.Testing;
 /// assembly run in parallel.
 /// </summary>
 /// <remarks>
-/// Each test instance allocates its schema in <see cref="InitializeAsync"/> and releases it in
-/// <see cref="DisposeAsync"/>; with xunit v3's new-instance-per-test default and one-fact-per-class
-/// structure, no two tests share state. <typeparamref name="TFixture"/> supplies the per-provider
-/// hooks so the spec class stays provider-neutral.
+/// The schema is shared, not per-test. <see cref="InitializeAsync"/> calls
+/// <see cref="IConformanceFixture.CreateSchemaAsync"/>, which hands back a handle to the one process-wide
+/// <c>acta_test</c> schema (bootstrapped once behind the provider's cache and never torn down), and
+/// <see cref="DisposeAsync"/> is a no-op on it so rows persist for inspection. xunit v3's
+/// new-instance-per-test default gives each test a fresh spec object and fixture, but every one of them
+/// reads and writes the same tables, so a spec isolates itself by owning its rows - a unique namespace, a
+/// unique deduplication key, a filter on ids it created - and never by assuming an empty schema. Reset is
+/// an explicit operator action via <c>DatabaseSetup.ResetActaTestSchema</c>.
+/// <typeparamref name="TFixture"/> supplies the per-provider hooks so the spec class stays
+/// provider-neutral.
 /// </remarks>
 /// <typeparam name="TFixture">The per-provider fixture supplying schema lifecycle and catalog queries.</typeparam>
 public abstract class IntegrationSpec<TFixture> : IAsyncLifetime
@@ -20,7 +26,7 @@ public abstract class IntegrationSpec<TFixture> : IAsyncLifetime
     /// <summary>The fresh fixture allocated for this test instance.</summary>
     protected TFixture Fixture { get; } = new();
 
-    /// <summary>The isolated schema allocated for this test; non-null after <see cref="InitializeAsync"/>.</summary>
+    /// <summary>The shared <c>acta_test</c> schema handle; non-null after <see cref="InitializeAsync"/>.</summary>
     protected IIntegrationSchema Schema { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()

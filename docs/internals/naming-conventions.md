@@ -2,9 +2,9 @@
 
 The naming rules the 0.9.0 surface froze under. Both pre-freeze audits (the .NET surface audit and
 the schema audit) found drift that a stated rule would have prevented, so the rules are stated here
-once and every later name is measured against them. They govern all three contract tiers - the .NET
-surface, the HTTP surface, and the SQL schema plus persisted codes - and a rename that violates one
-after 1.0.0 is a breaking change, not a cleanup.
+once and every later name is measured against them. They govern all four contract tiers - the .NET
+surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetry an operator queries
+- and a rename that violates one after 1.0.0 is a breaking change, not a cleanup.
 
 ## Words with one meaning
 
@@ -112,6 +112,59 @@ The boundary has three sides, and only two of them are inside it:
   offset paging anywhere.
 - **`expectedVersion` is the CAS token on requests; `version` on responses is the new current
   value.** The two never swap names.
+
+## Telemetry: metric instruments
+
+Telemetry is a contract like the other three: a dashboard query binds to an instrument name and an
+operator's index maps a log field, so both outlive the release that introduced them. The rules were
+unstated until now, which is how one histogram carried a capitalized name while its nine siblings
+did not.
+
+- **Instrument names are lowercase, dot-separated, and `acta.` prefixed** - `acta.executions`,
+  `acta.claims`, `acta.wakeup.publish.failures`. The meter itself is `Acta`, because a consumer types
+  it into `AddMeter` as a name; everything under it is lowercase, which is what a metrics backend and
+  its query language read as one namespace.
+- **Segments narrow left to right**: subject, then the thing that happened to it
+  (`acta.lock.release.failures`, `acta.alert.projection.skips`).
+- **The unit lives in the instrument, not in the name.** `acta.duration` declares `ms` as its unit
+  argument; a name never restates what the unit already carries.
+- **Tags stay low-cardinality** - `namespace`, `job_name`, `outcome`, `reason_code`, `result`. Job id
+  and execution number are deliberately absent from metrics and live on the log scope and traces
+  instead. `JobMetricsTests` pins instrument names, tag keys, and tag values.
+
+## Telemetry: structured log fields
+
+**There are eleven field names, and a new log line draws from them rather than inventing a twelfth.**
+Every distinct name becomes a mapped field in the operator's index, so a tail of one-off names is not
+free and it grows with every line anyone adds.
+
+| Field | Holds |
+|-------|-------|
+| `Namespace` | The job namespace's name |
+| `JobId` | The job's internal id |
+| `JobName` | The definition's job name |
+| `Ref` | The public ref of the entity the line is about |
+| `SubjectRef` | The second ref, when a line legitimately carries two |
+| `Operation` | The named action or phase being reported |
+| `Outcome` | How it ended |
+| `Reason` | Why it ended that way |
+| `Count` | A cardinal quantity: rows, bytes, attempt number |
+| `DurationMs` | An elapsed or configured span |
+| `Detail` | The genuinely one-off value nobody filters or groups by |
+
+- **Durations are always milliseconds.** One name, one unit, so an average over the field means
+  something; a `TimeSpan` converts at the call site rather than arriving as a second spelling.
+- **`Ref` is any minted entity ref** - job, alert, worker - and the message around it names which
+  (`alert {Ref}`), so there is no field per entity type. **`SubjectRef` is the second one**, for the
+  line that legitimately carries two: the alert transport logs the alert under `Ref` and the job it
+  concerns under `SubjectRef`.
+- **What an operator filters or groups by stays distinct and typed; everything else is `Detail`.**
+  Where a name was doing the explaining - a bare channel, a lock kind - the sentence says it instead,
+  because the field is an index key and the message is what a human reads.
+- **`JobLogScope` additionally stamps `ExecutionNumber`, `WorkerId` and `CorrelationKey`** as scope
+  state, so every framework and handler line emitted during an attempt carries them. Those three sit
+  outside the template set by necessity: scope keys must be unique across the scope stack, so they
+  cannot fold into `Count` or `Detail`. `JobLogScopeTests` pins them.
 
 Related: [contract evolution](../guide/contract-evolution.md) covers how consumers evolve their own
 job contracts against a running ledger; this page covers how Acta names the surface it freezes.

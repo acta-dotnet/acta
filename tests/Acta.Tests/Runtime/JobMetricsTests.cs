@@ -39,7 +39,7 @@ public sealed class JobMetricsTests
         var (Value, Tags) = Assert.Single(
             Collect<double>(
                 metrics,
-                "Acta.duration",
+                "acta.duration",
                 () => metrics.RecordExecution("billing", "send-receipt", "failed", reasonCode: "unhandled-exception", durationMs: 42)
             )
         );

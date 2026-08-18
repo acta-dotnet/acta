@@ -20,7 +20,11 @@ public readonly record struct DbCheckInfo(string Name);
 /// </remarks>
 public interface IConformanceFixture
 {
-    /// <summary>Allocate a fresh isolated schema with M001 applied; throws via <c>Assert.Skip</c> when the provider env var is unset.</summary>
+    /// <summary>
+    /// Return a handle to the shared <c>acta_test</c> schema, bootstrapping it with M001 applied on first
+    /// touch and caching that bootstrap process-wide; throws via <c>Assert.Skip</c> when the provider env
+    /// var is unset. Every spec in the assembly gets a handle to the same schema, not one of its own.
+    /// </summary>
     ValueTask<IIntegrationSchema> CreateSchemaAsync();
 
     /// <summary>

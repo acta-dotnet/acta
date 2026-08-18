@@ -50,6 +50,23 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
             ct
         );
 
+    /// <summary>
+    /// Enqueue one job in this spec's own namespace and return its id, for use as an alert subject.
+    /// </summary>
+    /// <remarks>
+    /// raise_job_alert resolves job_id against the whole jobs table, not against the alert's namespace, so
+    /// a hardcoded id (this spec used 1 and 2) names rows some other spec created in the shared acta_test
+    /// schema and throws ACTA:ALERT_UNKNOWN_JOB the moment a purge or a schema reset removes them. Which
+    /// ids the alerts hang off is irrelevant to the filter under test; that this spec owns them is not.
+    /// </remarks>
+    private async Task<long> EnqueueProbeJobAsync(CancellationToken ct)
+    {
+        var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
+        var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new TestJobs.AddNumbers(0, 0));
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", payload, null, null, null), ct);
+        return enqueued.JobId;
+    }
+
     private async Task<IReadOnlyList<AlertListItem>> AllAlertsAsync(CancellationToken ct, string ns = null!) =>
         (
             await Services
@@ -64,8 +81,8 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // Two alerts under j1, one under j2
-        const long j1 = 1L,
-            j2 = 2L;
+        var j1 = await EnqueueProbeJobAsync(ct);
+        var j2 = await EnqueueProbeJobAsync(ct);
         await RaiseAsync(Db, j1, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
         await RaiseAsync(Db, j1, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
         await RaiseAsync(Db, j2, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
