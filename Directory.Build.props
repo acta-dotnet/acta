@@ -17,6 +17,10 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <!-- Slash-normalised project path. The scoped suppressions below test which tree a project lives
+         in, and MSBuildProjectDirectory uses the platform separator - so matching on a backslash
+         silently matches nothing on the Linux CI runner and every scoped rule fires there instead. -->
+    <_ActaTree>$(MSBuildProjectDirectory.Replace('\', '/'))</_ActaTree>
   </PropertyGroup>
 
   <!-- Permanent suppressions. Each rule here asks for a change Acta has deliberately decided against,
@@ -33,18 +37,16 @@
     <NoWarn>$(NoWarn);CA2007</NoWarn>
     <!-- The specs name behaviour as Given_When_Then sentences on purpose, because the test name is the
          failure message a maintainer reads; CA1707's no-underscores rule conflicts with that. -->
-    <NoWarn Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true'">$(NoWarn);CA1707</NoWarn>
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA1707</NoWarn>
     <!-- xUnit and BenchmarkDotNet discover fixtures, theory data, and benchmark classes by reflection
          and require them public; CA1515's internal-by-default guidance breaks that discovery. -->
-    <NoWarn
-      Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'"
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true'"
       >$(NoWarn);CA1515</NoWarn>
     <!-- Suppressed for spec and harness code only, where these are Assert.Contains/StartsWith over test
          literals. NOT suppressed in src: an ASCII protocol token is a reason to be MORE explicit about
          ordinal comparison, not less - the default overloads are culture-sensitive, and a Turkish-locale
          dotless i changes what "I".ToLower() produces. The src sites are A3 work, not a convention. -->
-    <NoWarn
-      Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true'"
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true'"
       >$(NoWarn);CA1307;CA1310</NoWarn>
     <!-- Only the three Extensible code families carry a zero member, named Unspecified because the
          catalog defines it as the forward-read sentinel. The other 22 families deliberately have no
@@ -89,7 +91,7 @@
          dispatch saving is unmeasurable. NOT suppressed in src, so a future hit on the claim or execute
          path is reported rather than silently inherited. -->
     <NoWarn
-      Condition="'$(MSBuildProjectDirectory.Contains(`\tests\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\anvil\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\support\`))' == 'true'"
+      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/support/`))' == 'true'"
       >$(NoWarn);CA1859</NoWarn>
     <!-- Fires on every CommandText assignment because the analyzer cannot see where the string came
          from. In Acta it never came from a value: the ledger's command bodies are embedded .sql
@@ -140,17 +142,14 @@
                       would change behaviour. Add StringComparison.Ordinal per site. -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);CA1305;CA2208;CA1068;CA1812</NoWarn>
-    <NoWarn
-      Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'"
+    <NoWarn Condition="'$(_ActaTree.Contains(`/src/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'"
       >$(NoWarn);CA1307;CA1310</NoWarn>
     <!-- CA1859, 3 sites, also unmasked by scoping: NormalizeTags and SnapshotTags in src return
          IReadOnlyList<TagInput>? where the concrete array would avoid an interface dispatch, and
          CodeFamiliesUsed in the emitter is the same shape. Unlike the spec-helper sites the src pair is
          on the enqueue path, so they are worth taking rather than ruling away - as their own change,
          with the perf claim actually checked. -->
-    <NoWarn
-      Condition="'$(MSBuildProjectDirectory.Contains(`\src\`))' == 'true' or '$(MSBuildProjectDirectory.Contains(`\tools\`))' == 'true'"
-      >$(NoWarn);CA1859</NoWarn>
+    <NoWarn Condition="'$(_ActaTree.Contains(`/src/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'">$(NoWarn);CA1859</NoWarn>
   </PropertyGroup>
 
   <!-- TEMPORARY - the long tail: ~64 sites across the 17 rules listed below, at 1-9 each, still to be
