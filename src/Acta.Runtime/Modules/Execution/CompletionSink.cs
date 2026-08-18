@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Channels;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Workers;
@@ -137,16 +136,6 @@ internal sealed class CompletionSink
         }
     }
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Three catches on the buffered-completion flush, none of them silent. The batch call logs at error and "
-            + "leaves every job Executing for sys.recovery - one statement, one commit, so nothing landed. The per-job "
-            + "catch records the first failure and the unfinalized job ids, reported together after the loop; the "
-            + "wakeup catch records the first failure and reports it after the loop, and a lost wakeup only costs a "
-            + "waiter its poll interval. This runs on the sink's own drain task, so propagating would kill the flush "
-            + "loop and strand every batch behind it."
-    )]
     private async Task FlushAsync(List<BufferedCompletion> batch)
     {
         if (batch.Count == 0)
@@ -239,10 +228,9 @@ internal sealed class CompletionSink
         {
             _log.LogError(
                 completionFailure,
-                "Bulk completion left {Unresolved} of {Count} jobs unfinalized ({JobIds}); those remain Executing for recovery.",
+                "Bulk completion left {Count} jobs unfinalized ({Detail}); those remain Executing for recovery.",
                 unresolved.Count,
-                batch.Count,
-                string.Join(", ", unresolved)
+                $"of {batch.Count} in the batch: {string.Join(", ", unresolved)}"
             );
         }
 
@@ -268,7 +256,7 @@ internal sealed class CompletionSink
             // the completion sat buffered. Nothing was finalized here; recovery or the concurrent
             // winner owns the row now. Say so, or the buffered completion vanishes without a trace.
             _log.LogWarning(
-                "Bulk fallback completion for job {JobId} returned {Action}; nothing was finalized here.",
+                "Bulk fallback completion for job {JobId} returned {Outcome}; nothing was finalized here.",
                 b.JobId,
                 result.Action
             );

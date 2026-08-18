@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Runtime.Modules.Execution.Jobs;
@@ -55,15 +54,6 @@ internal sealed class JobExecution(
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "The executor's per-attempt boundary: this is where an arbitrary user handler's exception becomes a "
-            + "recorded Failed outcome with JobUnhandledException (or the non-retryable reason for NotImplemented / "
-            + "NotSupported), so the job is landed, the retry budget applied and the timeline written. Handlers can "
-            + "throw anything, so the catch cannot be narrowed. Propagating would tear down the worker loop and leave "
-            + "the row Executing until its lease expired - a durable job silently turned into a recovery case."
-    )]
     public async Task<RunOnceOutcome> RunAsync(
         IServiceProvider attemptServices,
         JobDescriptor descriptor,
@@ -86,9 +76,9 @@ internal sealed class JobExecution(
             // guard (incl. the claim-time version) means we mutated nothing; clean skip, let the row
             // be re-claimed next tick.
             _log.LogInformation(
-                "WorkerRuntime: lost claim on job {JobId} (en={ExecutionNumber}) before start: {Action}; skipping.",
+                "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: {Outcome}; skipping.",
                 job.JobId,
-                job.ExecutionNumber,
+                $"execution number {job.ExecutionNumber}",
                 start
             );
             return RunOnceOutcome.NothingClaimed;
@@ -127,10 +117,13 @@ internal sealed class JobExecution(
             if (exclusiveKeyBounced)
             {
                 _log.LogDebug(
-                    "WorkerRuntime: job {JobId} bounced: exclusive key '{ExclusiveKey}' is held; re-armed Ready in {DelaySeconds}s.",
+                    "WorkerRuntime: {Operation} {Outcome} job {JobId} ({Reason}); exclusive key '{Detail}' is held elsewhere, so the job re-armed Ready in {DurationMs}ms.",
+                    "exclusive-key-admission",
+                    "bounced",
                     job.JobId,
+                    "key-held",
                     exclusiveKey,
-                    _exclusiveKeyBounceDelaySeconds
+                    _exclusiveKeyBounceDelaySeconds * 1000
                 );
             }
         }
@@ -195,11 +188,11 @@ internal sealed class JobExecution(
                         // existing "no result" shape (format 0, NULL) with job.result-oversized recording
                         // why. A typed read of the missing result throws rather than handing back a default.
                         _log.LogWarning(
-                            "Handler result for job '{JobName}' ({JobId}) is {Bytes} bytes, exceeding the {Cap}-byte MaxInlinePayloadBytes cap; the result body was dropped.",
+                            "Handler result for job '{JobName}' ({JobId}) is {Count} bytes, exceeding the {Detail}; the result body was dropped.",
                             descriptor.JobName,
                             job.JobId,
                             resultBytes.Length,
-                            _maxInlinePayloadBytes
+                            $"MaxInlinePayloadBytes cap of {_maxInlinePayloadBytes} bytes"
                         );
                         resultFormatId = 0;
                         resultBytes = ReadOnlyMemory<byte>.Empty;
@@ -336,7 +329,7 @@ internal sealed class JobExecution(
                     ActaTextLimits.ReasonMessage
                 );
                 _log.LogInformation(
-                    "WorkerRuntime: job {JobId} lost step '{StepName}' ownership mid-flight; aborting the attempt cooperatively.",
+                    "WorkerRuntime: job {JobId} lost ownership of step '{Detail}' mid-flight; aborting the attempt cooperatively.",
                     job.JobId,
                     ownershipLost.StepName
                 );
@@ -353,7 +346,7 @@ internal sealed class JobExecution(
                 failureMessage = interrupted.Message.Truncate(ActaTextLimits.ReasonMessage);
                 handlerStatusCode = (byte)JobStatusCode.Failed;
                 _log.LogWarning(
-                    "Handler for job '{JobName}' ({JobId}) did not handle StepInterruptedException for step '{StepName}'; failing terminally.",
+                    "Handler for job '{JobName}' ({JobId}) did not handle StepInterruptedException for step '{Detail}'; failing terminally.",
                     descriptor.JobName,
                     job.JobId,
                     interrupted.StepName

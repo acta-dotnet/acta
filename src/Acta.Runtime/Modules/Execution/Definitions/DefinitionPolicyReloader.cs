@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Hosting;
 using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Logging;
@@ -29,14 +28,6 @@ internal sealed class DefinitionPolicyReloader(
     private readonly TimeSpan _interval = options.Value.SafetyPollInterval;
     private readonly ILogger _log = log;
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Per-tick catch on a long-lived background loop: a failed reload tick (a database outage, a row a "
-            + "provider rejects) must cost one interval, not the loop. Propagating would end policy reloads for the "
-            + "process lifetime with no way to restart them, leaving every worker on stale definition policy. Logged "
-            + "at error; shutdown leaves through the filtered cancellation arms."
-    )]
     public async Task RunAsync(CancellationToken ct)
     {
         if (_workerRegistration is null)
@@ -45,7 +36,10 @@ internal sealed class DefinitionPolicyReloader(
         }
 
         var ns = _workerRegistration.NamespaceName;
-        _log.LogInformation("WorkerRuntime: starting definition-policy reload loop (interval {Interval}).", _interval);
+        _log.LogInformation(
+            "WorkerRuntime: starting definition-policy reload loop (interval {DurationMs}ms).",
+            (long)_interval.TotalMilliseconds
+        );
 
         try
         {

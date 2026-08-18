@@ -29,19 +29,18 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
             _ => LogLevel.Information,
         };
 
+        // This line is the notification, not a note about one, so both refs stay typed: Ref addresses the
+        // alert and SubjectRef the job it concerns, which is the one place a line legitimately carries
+        // two entity refs. The rest is the delivered body and renders into the free-text tail.
         _log.Log(
             level,
-            "ACTA ALERT [{Severity}/{Kind}] ns={Namespace} alert={AlertRef} job={JobRef} ch={Channel} runbook={RunbookUrl} x{Count}: {Title} - {Message}",
-            n.Severity,
-            n.Kind,
+            "ACTA ALERT ns={Namespace} alert={Ref} job={SubjectRef} kind={Reason} x{Count}: {Detail}",
             n.JobNamespace,
             n.AlertRef,
             n.JobRef,
-            target.ChannelName,
-            n.RunbookUrl,
+            n.Kind,
             n.OccurrenceCount,
-            n.Title,
-            n.Message
+            $"[{n.Severity}] ch={target.ChannelName} runbook={n.RunbookUrl} {n.Title} - {n.Message}"
         );
         return Task.FromResult(AlertDeliveryOutcome.Delivered);
     }

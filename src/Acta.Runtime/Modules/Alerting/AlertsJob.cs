@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Services.Time;
@@ -118,11 +117,10 @@ internal sealed class AlertsJob(
 
         _log.LogWarning(
             exception,
-            "ACTA sys.alerts: skipped poison event {EventId} in namespace {Namespace}; reason {SkipReason}. Durable outcome: {SkipVariable}.",
-            e.EventId,
+            "ACTA sys.alerts: skipped poison alert event {Detail} in namespace {Namespace}; reason {Reason}.",
+            $"{e.EventId} (durable outcome recorded in job variable '{variableName}')",
             ctx.JobNamespace,
-            reason,
-            variableName
+            reason
         );
         _metrics?.RecordAlertProjectionSkip(ctx.JobNamespace, reason);
     }
@@ -298,14 +296,6 @@ internal sealed class AlertsJob(
         }
     }
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Alert transports are user-supplied and may throw anything. A throwing transport must degrade to "
-            + "Retryable for that one channel; propagating would fail the whole sys.alerts job and stall delivery for "
-            + "every other alert and channel in the tick. The caller's own cancellation is rethrown by the filtered "
-            + "arm above, so shutdown is never recorded as a transport fault."
-    )]
     private async Task<AlertDeliveryOutcome> SendAsync(
         JobContext ctx,
         DeliverableAlert a,
@@ -346,7 +336,7 @@ internal sealed class AlertsJob(
         {
             _log.LogWarning(
                 ex,
-                "ACTA sys.alerts: transport '{TransportKind}' threw delivering alert {AlertRef}; will retry.",
+                "ACTA sys.alerts: transport kind '{Detail}' threw delivering alert {Ref}; will retry.",
                 channel.TransportKind,
                 new AlertRef(a.AlertRef)
             );
@@ -364,7 +354,7 @@ internal sealed class AlertsJob(
         if (reason == AlertChannelDecisionReason.MissingChannel)
         {
             _log.LogWarning(
-                "ACTA sys.alerts: channel '{Channel}' is not configured for namespace '{Namespace}'; marking alert {AlertRef} failed.",
+                "ACTA sys.alerts: channel '{Detail}' is not configured for namespace '{Namespace}'; marking alert {Ref} failed.",
                 alert.ChannelName,
                 ctx.JobNamespace,
                 new AlertRef(alert.AlertRef)
@@ -373,9 +363,8 @@ internal sealed class AlertsJob(
         }
 
         _log.LogWarning(
-            "ACTA sys.alerts: no transport registered for kind '{TransportKind}' (channel '{Channel}', alert {AlertRef}); marking delivery failed.",
-            channel!.TransportKind,
-            channel.Name,
+            "ACTA sys.alerts: no transport is registered for {Detail}; marking alert {Ref} delivery failed.",
+            $"kind '{channel!.TransportKind}' on channel '{channel.Name}'",
             new AlertRef(alert.AlertRef)
         );
     }
@@ -390,21 +379,21 @@ internal sealed class AlertsJob(
         if (reason is AlertChannelDecisionReason.DisabledChannel or AlertChannelDecisionReason.DeprecatedChannel)
         {
             _log.LogInformation(
-                "ACTA sys.alerts: channel '{Channel}' is {Status} for namespace '{Namespace}'; suppressing alert {AlertRef}.",
-                channel.Name,
-                channel.Status,
+                "ACTA sys.alerts: alert {Ref} in namespace '{Namespace}' is {Outcome}: channel '{Detail}' is {Reason}.",
+                new AlertRef(alert.AlertRef),
                 ctx.JobNamespace,
-                new AlertRef(alert.AlertRef)
+                "suppressed",
+                channel.Name,
+                channel.Status
             );
             return;
         }
 
         _log.LogInformation(
-            "ACTA sys.alerts: alert {AlertRef} severity {Severity} is below min severity {MinSeverity} for channel '{Channel}'; suppressing delivery.",
+            "ACTA sys.alerts: alert {Ref} is {Outcome}: {Detail}.",
             new AlertRef(alert.AlertRef),
-            alert.Severity,
-            channel.MinSeverity,
-            channel.Name
+            "suppressed",
+            $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'"
         );
     }
 

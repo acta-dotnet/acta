@@ -60,7 +60,7 @@ internal sealed class AttemptWatchdog
             return;
         }
 
-        _log.LogInformation("WorkerRuntime: starting lease watchdog loop (cadence {Cadence}).", _cadence);
+        _log.LogInformation("WorkerRuntime: starting lease watchdog loop (cadence {DurationMs}ms).", (long)_cadence.TotalMilliseconds);
 
         try
         {

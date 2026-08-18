@@ -25,7 +25,7 @@ internal static class JobLogScope
         {
             new("JobId", jobId),
             new("JobName", jobName),
-            new("JobNamespace", jobNamespace),
+            new("Namespace", jobNamespace),
             new("ExecutionNumber", executionNumber),
             new("WorkerId", workerId),
         };

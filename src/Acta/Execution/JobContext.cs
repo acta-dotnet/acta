@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -786,16 +785,6 @@ public abstract class JobContext
     /// does not limit runtime worker concurrency; branch on the outcome or call
     /// <see cref="MapOutcome{TKey}.ThrowIfAnyFailed"/>.
     /// </summary>
-    [SuppressMessage(
-        "Design",
-        "CA1062:Validate arguments of public methods",
-        Justification = "False positive: groupName is validated on entry. IdentifierSyntax.ValidateUserKebab reaches "
-            + "EnsureNonEmptyAndLength, which opens with ArgumentNullException.ThrowIfNull(value, paramName), and the "
-            + "paramName threaded through is nameof(groupName) - so a null argument already throws "
-            + "ArgumentNullException naming the right parameter, before the flagged use. CA1062 does not follow the "
-            + "validation two frames down. A local guard would be dead code; the sibling ParallelAsync validates the "
-            + "same way and escapes the rule only because it never dereferences the name."
-    )]
     public async Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
         string groupName,
         IEnumerable<TItem> items,
@@ -1031,15 +1020,6 @@ public abstract class JobContext
     /// Result-returning overload of
     /// <see cref="RunWithLockAsync(string, Func{Task}, TimeSpan?, LockScope, CancellationToken)"/>.
     /// </summary>
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Two catches in the release path of the finally block. The outer one keeps a failed lock release from "
-            + "replacing the action's own result or exception - propagating would turn a completed unit of work into "
-            + "a failure over a cleanup step the lease TTL already covers - and reports it through "
-            + "OnLockReleaseFailure. The inner bare catch guards that observer and is deliberately silent, because a "
-            + "broken observability hook must not alter the action outcome either."
-    )]
     public async Task<TResult> RunWithLockAsync<TResult>(
         string key,
         Func<Task<TResult>> action,

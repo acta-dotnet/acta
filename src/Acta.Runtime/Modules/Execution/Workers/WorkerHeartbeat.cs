@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,17 +15,6 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// <see cref="Acta.Runtime.Services.Locks.ILockStore"/> (relational today, Redis tomorrow) stays a distinct failure
 /// domain. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
 /// </summary>
-[SuppressMessage(
-    "Design",
-    "CA1001:Types that own disposable fields should be disposable",
-    Justification = "The one disposable field is _tickGate, a SemaphoreSlim used purely as an async mutex around "
-        + "TickAsync. A SemaphoreSlim only holds an OS wait handle once AvailableWaitHandle is read, and nothing in "
-        + "Acta reads it, so Dispose() would release nothing. Disposal would also be unsafe at every point a "
-        + "shutdown could pick it: the gate is entered by the heartbeat loop, by the host's StampDrainingAsync "
-        + "during the drain, and by WorkerRuntime.RunHeartbeatOnceAsync, so a disposed gate would turn a harmless "
-        + "late tick into ObjectDisposedException. The type is created once per WorkerRuntime and lives as long as "
-        + "the process; deliberately not disposable."
-)]
 internal sealed class WorkerHeartbeat(
     IWorkerStore workers,
     IOptions<JobsOptions> options,
@@ -56,14 +44,6 @@ internal sealed class WorkerHeartbeat(
     // and a tick must not race itself (double lease extends, double feed).
     private readonly SemaphoreSlim _tickGate = new(1, 1);
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Two catches on the heartbeat loop - the immediate first tick and each periodic tick. Propagating would "
-            + "end the loop, so last_seen would stop advancing and lease recovery would reclaim this worker's jobs "
-            + "while it was still running them. A failed tick must cost one interval and nothing more. Logged at "
-            + "error; shutdown leaves through the filtered cancellation arms."
-    )]
     public async Task RunAsync(CancellationToken ct)
     {
         if (_workerRegistration is null)
@@ -71,7 +51,7 @@ internal sealed class WorkerHeartbeat(
             return;
         }
 
-        _log.LogInformation("WorkerRuntime: starting heartbeat loop (interval {Interval}).", _interval);
+        _log.LogInformation("WorkerRuntime: starting heartbeat loop (interval {DurationMs}ms).", (long)_interval.TotalMilliseconds);
 
         try
         {

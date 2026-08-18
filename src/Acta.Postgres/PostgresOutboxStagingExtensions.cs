@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Diagnostics.CodeAnalysis;
 using Acta.Relational.Outbox;
 using Npgsql;
 using NpgsqlTypes;
@@ -31,17 +30,6 @@ public static class PostgresOutboxStagingExtensions
         return InsertAsync(transaction, connection, row, sql, cancellationToken);
     }
 
-    [SuppressMessage(
-        "Maintainability",
-        "CA1508:Avoid dead conditional code",
-        Justification = "False positive on both flagged lines. OutboxStagingRow.NextRunAtUtc is DateTime? and "
-            + "DelaySeconds is int?; boxing a nullable value type whose HasValue is false yields a null reference, so the cast is "
-            + "null exactly when the column must be NULL. CA1508 models that boxing conversion as never-null "
-            + "and is wrong here: deleting the branch it calls dead would bind a CLR null rather than "
-            + "DBNull.Value, which is not the same thing to any provider. The nullable reference-typed columns "
-            + "bound beside these use the identical idiom and are not flagged. "
-            + "Kept identical to the SQL Server staging binder."
-    )]
     private static async Task InsertAsync(
         DbTransaction transaction,
         DbConnection connection,

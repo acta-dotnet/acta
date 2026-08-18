@@ -8,6 +8,7 @@ using Acta.SqlServer.Hosting;
 using Acta.SqlServer.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Acta.SqlServer;
@@ -39,10 +40,13 @@ public static class SqlServerActaBuilderExtensions
         builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<SqlServerProviderOptions>>().Value);
         builder.Services.AddSingleton<SqlServerDialect>();
         builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<SqlServerDialect>());
+        // GetService, not GetRequiredService: a bare host may register no logging at all, and the
+        // session falls back to the null logger rather than failing to resolve.
         builder.Services.AddSingleton(static sp => new DbSession(
             sp.GetRequiredService<SqlProviderOptions>(),
             sp.GetRequiredService<ISqlDialect>(),
-            sp.GetRequiredService<SqlResourceCatalog>()
+            sp.GetRequiredService<SqlResourceCatalog>(),
+            sp.GetService<ILogger<DbSession>>()
         ));
         builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
         builder.Services.AddSingleton<IProviderBootstrap, SqlServerProviderBootstrap>();

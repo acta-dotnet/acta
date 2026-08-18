@@ -28,13 +28,11 @@ internal static class ContractDriftPolicy
         foreach (var drift in drifts)
         {
             log.LogWarning(
-                "Payload contract drift for job {JobName} in namespace {Namespace}: input type {OldInput} -> {NewInput}, input format {OldFormat} -> {NewFormat}. Enqueues made from now on use the new contract.",
+                "Payload contract drift for job {JobName} in namespace {Namespace}: {Detail}. Enqueues made from now on use the new contract.",
                 drift.JobName,
                 ns,
-                drift.Stored.InputTypeName,
-                drift.Incoming.InputTypeName,
-                drift.Stored.InputFormatName,
-                drift.Incoming.InputFormatName
+                $"input type {drift.Stored.InputTypeName} -> {drift.Incoming.InputTypeName}, "
+                    + $"input format {drift.Stored.InputFormatName} -> {drift.Incoming.InputFormatName}"
             );
         }
     }

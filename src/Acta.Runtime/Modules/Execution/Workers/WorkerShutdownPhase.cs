@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>Runs a best-effort worker lifecycle phase concurrently under a linked deadline.</summary>
@@ -38,14 +36,6 @@ internal static class WorkerShutdownPhase
         }
     }
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Best-effort shutdown phase. The outer catch routes a per-item failure to the caller's onFailure "
-            + "reporter instead of faulting the Task.WhenAll, which would abandon the other items' stamps "
-            + "mid-shutdown. The inner bare catch is deliberately broad and deliberately silent: it guards the "
-            + "reporter itself, because logging cannot be allowed to fault a best-effort shutdown phase."
-    )]
     private static async Task RunOneAsync<T>(
         T item,
         Func<T, CancellationToken, Task> operation,

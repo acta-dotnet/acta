@@ -1,7 +1,8 @@
 using System.Data.Common;
-using System.Diagnostics.CodeAnalysis;
 using Acta.Relational.Commands;
 using Acta.Relational.Resources;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Acta.Relational.Connections;
 
@@ -16,8 +17,9 @@ internal sealed class DbSession : IDbSession
     private readonly SqlResourceCatalog _sql;
     private readonly int _commandTimeoutSeconds;
     private readonly int _retryAttempts;
+    private readonly ILogger _log;
 
-    public DbSession(SqlProviderOptions options, ISqlDialect dialect, SqlResourceCatalog sql)
+    public DbSession(SqlProviderOptions options, ISqlDialect dialect, SqlResourceCatalog sql, ILogger<DbSession>? log = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(options.ConnectionString);
@@ -32,6 +34,7 @@ internal sealed class DbSession : IDbSession
         _sql = sql;
         _commandTimeoutSeconds = (int)Math.Ceiling(options.CommandTimeout.TotalSeconds);
         _retryAttempts = Math.Max(1, options.DeadlockRetryAttempts);
+        _log = log ?? NullLogger<DbSession>.Instance;
     }
 
     public DbProvider Provider { get; }
@@ -260,17 +263,10 @@ internal sealed class DbSession : IDbSession
     // connection to it would leak one per failed attempt. Both teardown failures are swallowed so the
     // attempt's own exception is what propagates: DeadlockRetry classifies whatever leaves this scope,
     // and a dispose exception in its place would make a transient stop looking like one and abandon a
-    // retry that would have succeeded.
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Both catches tear down a failed attempt and must never become the failure themselves. A rollback on a "
-            + "connection the database already aborted is the likeliest thing here to throw, and letting it propagate "
-            + "would replace the attempt's own exception - DeadlockRetry classifies whatever leaves this scope, so a "
-            + "dispose error in a transient's place would abandon a retry that would have succeeded. Deliberately "
-            + "silent: the caller rethrows the original failure, which is the report."
-    )]
-    private static async ValueTask DisposeFailedAttemptAsync(DbTransaction? tx, DbConnection conn)
+    // retry that would have succeeded. Swallowed toward the caller is not swallowed outright: each one
+    // is logged at warning, because a connection that failed to dispose never returns to the pool and
+    // pool exhaustion is otherwise the first symptom an operator sees.
+    private async ValueTask DisposeFailedAttemptAsync(DbTransaction? tx, DbConnection conn)
     {
         try
         {
@@ -279,9 +275,13 @@ internal sealed class DbSession : IDbSession
                 await tx.DisposeAsync();
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Deliberately ignored: the caller rethrows the original failure.
+            _log.LogWarning(
+                ex,
+                "Acta: rolling back a failed database attempt threw while disposing its transaction; teardown continues "
+                    + "and the attempt's own failure is what propagates to the caller."
+            );
         }
         finally
         {
@@ -289,9 +289,13 @@ internal sealed class DbSession : IDbSession
             {
                 await conn.DisposeAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Deliberately ignored: the caller rethrows the original failure.
+                _log.LogWarning(
+                    ex,
+                    "Acta: disposing the connection of a failed database attempt threw; that connection may never return "
+                        + "to the pool, and the attempt's own failure is what propagates to the caller."
+                );
             }
         }
     }

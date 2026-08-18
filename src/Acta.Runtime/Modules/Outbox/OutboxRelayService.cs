@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
@@ -197,10 +196,11 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         if (quarantinedIds.Count > 0)
         {
             _log.LogError(
-                "ACTA sys.outbox: source '{Source}' quarantined {Count} row(s) this tick: [{Ids}].",
-                options.SourceName,
+                "ACTA sys.outbox: {Operation} {Outcome} {Count} row(s) this tick; {Detail}.",
+                "outbox-relay",
+                "quarantined",
                 quarantinedIds.Count,
-                OutboxQuarantineTickException.FormatSample(quarantinedIds)
+                $"source '{options.SourceName}', ids [{OutboxQuarantineTickException.FormatSample(quarantinedIds)}]"
             );
             throw new OutboxQuarantineTickException(options.SourceName, quarantinedIds);
         }
@@ -258,7 +258,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
             await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList(), ct);
             _log.LogWarning(
                 ex,
-                "ACTA sys.outbox: source '{Source}' target enqueue failed; releasing claim and failing tick.",
+                "ACTA sys.outbox: target enqueue failed for source '{Detail}'; releasing claim and failing tick.",
                 options.SourceName
             );
             throw;
@@ -310,12 +310,11 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
             }
 
             _log.LogInformation(
-                "ACTA sys.outbox: source '{Source}' row group ({Namespace}/{DedupKey}) rejected; {Rescheduled} rescheduled, {Quarantined} quarantined.",
-                options.SourceName,
+                "ACTA sys.outbox: rejected a row group in namespace {Namespace}; {Count} row(s) quarantined ({Detail}).",
                 group.Representative.JobNamespace,
-                group.Representative.DeduplicationKey,
-                group.Rows.Count - groupQuarantined,
-                groupQuarantined
+                groupQuarantined,
+                $"source '{options.SourceName}', dedup key '{group.Representative.DeduplicationKey}', "
+                    + $"{group.Rows.Count - groupQuarantined} rescheduled"
             );
         }
 
@@ -478,13 +477,6 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
                 }),
         ];
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Best-effort release of an outbox claim whose rows were already finalized. Propagating would fail a "
-            + "relay tick that actually succeeded; the lease expiry plus the token CAS keep the rows safe either way. "
-            + "Logged at debug."
-    )]
     private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds, CancellationToken ct)
     {
         try

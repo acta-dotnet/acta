@@ -106,8 +106,9 @@
     <!-- Outside src only, and for the same reason it is kept in src: a catch-all belongs at a boundary
          whose job is not to die. Out here those are bench harness loops, chaos injectors and the
          Doctor's top-level Main handlers, where the alternative to a broad catch is a crashed harness
-         and no diagnostic. In src the 32 sites are each declared at their own boundary with what would
-         happen if the exception escaped. Trees: 6 in tests, 18 in anvil, 5 in tools/Acta.Doctor. -->
+         and no diagnostic. In src the 32 sites are ruled on per file in .editorconfig, each naming the
+         boundary and what would happen if the exception escaped. Trees: 6 in tests, 18 in anvil, 5 in
+         tools/Acta.Doctor. -->
     <NoWarn
       Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'"
       >$(NoWarn);CA1031</NoWarn>

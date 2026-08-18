@@ -8,6 +8,7 @@ using Acta.Sqlite.Hosting;
 using Acta.Sqlite.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Acta.Sqlite;
@@ -44,10 +45,13 @@ public static class SqliteActaBuilderExtensions
             sp.GetRequiredService<IOptions<JobsOptions>>().Value.ExecutionProfile
         ));
         builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<SqliteDialect>());
+        // GetService, not GetRequiredService: a bare host may register no logging at all, and the
+        // session falls back to the null logger rather than failing to resolve.
         builder.Services.AddSingleton(static sp => new DbSession(
             sp.GetRequiredService<SqlProviderOptions>(),
             sp.GetRequiredService<ISqlDialect>(),
-            sp.GetRequiredService<SqlResourceCatalog>()
+            sp.GetRequiredService<SqlResourceCatalog>(),
+            sp.GetService<ILogger<DbSession>>()
         ));
         builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
         builder.Services.AddSingleton<IProviderBootstrap, SqliteProviderBootstrap>();

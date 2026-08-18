@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Acta.Runtime.Cli;
 
@@ -52,14 +51,6 @@ internal static class CliClipboard
             : Run("xclip", "-selection clipboard -o") ?? Run("xsel", "--clipboard --output") ?? Run("wl-paste", "--no-newline");
     }
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Spawning an OS clipboard tool fails in as many shapes as there are platforms - a missing binary, a "
-            + "denied spawn, an unsupported platform, a session with no clipboard at all - and none of them is worth "
-            + "crashing a CLI verb over. Returning null is the signal rather than silence: the caller reports the "
-            + "usage error that the value was neither passed nor readable from the clipboard."
-    )]
     private static string? Run(string fileName, string arguments)
     {
         try

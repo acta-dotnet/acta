@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Acta.Runtime.Hosting;
 using Acta.Runtime.Services.Locks;
 using Microsoft.Extensions.Logging;
@@ -16,17 +15,6 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// extend (exception/timeout) feeds nothing, left to the <see cref="AttemptWatchdog"/>. A no-op in
 /// enqueue-only mode.
 /// </summary>
-[SuppressMessage(
-    "Design",
-    "CA1001:Types that own disposable fields should be disposable",
-    Justification = "The one disposable field is _tickGate, a SemaphoreSlim used purely as an async mutex around "
-        + "TickAsync. A SemaphoreSlim only holds an OS wait handle once AvailableWaitHandle is read, and nothing in "
-        + "Acta reads it, so Dispose() would release nothing. Disposal would also be unsafe at every point a "
-        + "shutdown could pick it: the gate is entered by the lock-lease loop and by "
-        + "WorkerRuntime.RunHeartbeatOnceAsync, so a disposed gate would turn a harmless late tick into "
-        + "ObjectDisposedException. The type is created once per WorkerRuntime and lives as long as the process; "
-        + "deliberately not disposable. The per-extend linked source inside TickAsync is separately 'using'-scoped."
-)]
 internal sealed class LockLeaseHeartbeat(
     ILockStore lockStore,
     IOptions<JobsOptions> options,
@@ -46,14 +34,6 @@ internal sealed class LockLeaseHeartbeat(
     // Serializes TickAsync so the loop cannot race itself (double extends against one lock).
     private readonly SemaphoreSlim _tickGate = new(1, 1);
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Two catches on the lock-lease loop - the immediate first tick and each periodic tick. An extend failure "
-            + "must cost one interval: propagating would end the loop, so every lock held by a running attempt would "
-            + "stop being extended and would expire mid-flight while the attempt kept running. Logged at error; "
-            + "shutdown leaves through the filtered cancellation arms."
-    )]
     public async Task RunAsync(CancellationToken ct)
     {
         if (_workerRegistration is null)
@@ -61,7 +41,10 @@ internal sealed class LockLeaseHeartbeat(
             return;
         }
 
-        _log.LogInformation("WorkerRuntime: starting lock-lease heartbeat loop (interval {Interval}).", _interval);
+        _log.LogInformation(
+            "WorkerRuntime: starting lock-lease heartbeat loop (interval {DurationMs}ms).",
+            (long)_interval.TotalMilliseconds
+        );
 
         try
         {

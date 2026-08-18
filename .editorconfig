@@ -395,6 +395,249 @@ dotnet_naming_style.s_camelcase.capitalization = camel_case
 [concepts/**/*.cs]
 dotnet_diagnostic.CA1822.severity = none
 
-# These control verbs intentionally hang off the current JobContext instance for API fluency.
+# CA1822: these control verbs intentionally hang off the current JobContext instance for API fluency.
+# CA1062: MapAsync's groupName is validated on entry - IdentifierSyntax.ValidateUserKebab reaches
+# EnsureNonEmptyAndLength, which opens with ArgumentNullException.ThrowIfNull(value, nameof(groupName)),
+# so a null already throws naming the right parameter before the flagged use. CA1062 does not follow
+# validation two frames down, and a local guard would be dead code; the sibling ParallelAsync validates
+# the same way and escapes the rule only because it never dereferences the name.
+# CA1031: two catches in the release path of RunWithLockAsync<TResult>. The outer one keeps a failed
+# lock release from replacing the action's own result or exception - escaping there would turn a
+# completed unit of work into a failure over a cleanup step the lease TTL already covers - and reports
+# it through OnLockReleaseFailure; the inner bare catch guards that observer and is deliberately silent,
+# because a broken observability hook must not alter the outcome either.
 [src/Acta/Execution/JobContext.cs]
 dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1031.severity = none
+
+#### Scoped analyzer rulings ####
+
+# Rulings made per site, one section per file, each carrying the reason that site was cleared. What the
+# move out of the source costs is member precision: .editorconfig scopes by path, so a file-level entry
+# also switches the rule off for members of that file nobody judged, and for any added afterwards. Each
+# section therefore names the members its ruling was made for.
+
+# CA2213: the three fault sources are minted by their Start* verb and owned from then on by the loop it
+# launches (RunContinuousCrashesAsync / RunQueuePressureAsync / RunOutboxPressureAsync), which disposes
+# each one in its own finally. Dispose here only Cancels: the loop is still awaiting Token when it runs,
+# so disposing the source from the field would race that read into ObjectDisposedException instead of
+# stopping the fault.
+[anvil/Anvil/FaultInjectors.cs]
+dotnet_diagnostic.CA2213.severity = none
+
+# CA2000: Spawn's Process is not lost - ownership passes to the ManagedWorker parked in _workers, and
+# every exit from that dictionary disposes it: Snapshot() disposes the entries it evicts past the
+# retention window, Dispose() the survivors, and the Start() failure path disposes before rethrowing.
+# CA2000 cannot follow the handoff through the dictionary.
+[anvil/Anvil/WorkerProcessLauncher.cs]
+dotnet_diagnostic.CA2000.severity = none
+
+# CA1062: the Write side of the three hand-written ref converters. System.Text.Json owns the call and
+# never hands a converter a null writer, so the guard is reachable only by invoking the converter
+# directly instead of through the serializer. The code-generated converters in the same assembly emit
+# the identical unguarded one-line body for this shape, so a throw in these three alone would put them
+# out of step with the generator for no reachable gain.
+[src/Acta/{Alerts/AlertRef.cs,Jobs/JobRef.cs,Workers/WorkerRef.cs}]
+dotnet_diagnostic.CA1062.severity = none
+
+# CA1031: the group's endpoint filter is this API's last backstop and answers every unhandled failure as
+# ProblemDetails - the transient database/network family as 503, everything else as 500, logged
+# host-side and never echoed, because driver messages carry connection strings. Escaping would hand the
+# client a raw framework 500 and leave the dashboard with no problem document to render. The typed
+# rejections it must not swallow are caught in the arms above it.
+[src/Acta.AspNetCore/Web/ActaApiEndpoints.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1508: false positive on the enqueue binder's DelaySeconds (int?) and ParentId (long?). Boxing a
+# nullable value type whose HasValue is false yields a null reference, so the cast is null exactly when
+# the column must be NULL; CA1508 models that boxing conversion as never-null, and deleting the branch
+# it calls dead would bind a CLR null rather than DBNull.Value, which is not the same thing to any
+# provider. The nullable reference-typed columns bound beside these use the identical idiom and are not
+# flagged. ParentId is null for every root job, so that branch runs on essentially every enqueue.
+[src/Acta.Postgres/Services/PostgresDialect.cs]
+dotnet_diagnostic.CA1508.severity = none
+
+# CA1508: the same false positive as the enqueue binder above, on the staging binder's NextRunAtUtc
+# (DateTime?) and DelaySeconds (int?). Kept identical to the SQL Server staging binder.
+[src/Acta.Postgres/PostgresOutboxStagingExtensions.cs]
+dotnet_diagnostic.CA1508.severity = none
+
+# CA1508: the same false positive on the same two enqueue columns, kept identical to the PostgreSQL
+# binder so both providers bind NULL the same way.
+[src/Acta.SqlServer/Services/SqlServerDialect.cs]
+dotnet_diagnostic.CA1508.severity = none
+
+# CA1508: the same false positive on the staging binder's NextRunAtUtc and DelaySeconds. Kept identical
+# to the PostgreSQL staging binder.
+[src/Acta.SqlServer/SqlServerOutboxStagingExtensions.cs]
+dotnet_diagnostic.CA1508.severity = none
+
+# CA1508: the same false positive on AddNullableInteger's long? parameter. Binding NULL is that helper's
+# whole purpose, and the sibling AddNullableText and AddNullableBlob use the same idiom over reference
+# types without being flagged.
+[src/Acta.Sqlite/Services/SqliteDialect.cs]
+dotnet_diagnostic.CA1508.severity = none
+
+# CA1031: five catches on the best-effort wake transport, one reason each. A wake is always published
+# after its durable mutation committed, so a failed publish must never fail the caller - escaping would
+# report failure for work that already succeeded - and StackExchange.Redis surfaces connection, timeout,
+# command and disposal faults as unrelated types, so only a general catch covers "Redis is unreachable".
+# The lazy subscribe runs inside a claim loop's first wait, so escaping would fault that loop and take
+# the worker down because Redis was momentarily unreachable. The jittered relay runs detached off a
+# callback thread and is never awaited, so escaping would become an unobserved Task exception, and its
+# catch also clears the pending-jitter slot that channel needs to schedule again. Both dispose shapes
+# unsubscribe during container teardown, where escaping would abort the disposal of every singleton
+# after this one. Waiters keep their poll floors throughout.
+[src/Acta.Redis/Features/Workers/RedisWakeup.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: two catches that tear down a failed attempt and must never become the failure themselves. A
+# rollback on a connection the database already aborted is the likeliest thing here to throw, and
+# escaping would replace the attempt's own exception - DeadlockRetry classifies whatever leaves this
+# scope, so a dispose error in a transient's place would abandon a retry that would have succeeded.
+# Silent toward the caller, which rethrows the original failure; each swallowed teardown failure is
+# logged at warning so an operator still sees a connection that never returned to the pool.
+[src/Acta.Relational/Connections/DbSession.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA2208: RaiseJobAlertAsync's 'jobId' is not a parameter of that method by accident - it is the
+# unknown-job signal itself. AlertsJob classifies the failure with when (ex.ParamName == "jobId") and
+# the conformance spec pins the shape, so the paramName is a protocol token between the provider and
+# the projection, not a misnamed argument. Renaming it to 'command' would break that filter and let a
+# null-command ArgumentNullException masquerade as an unknown job.
+[src/Acta.Relational/Stores/RelationalAlertStore.cs]
+dotnet_diagnostic.CA2208.severity = none
+
+# CA1031: spawning an OS clipboard tool fails in as many shapes as there are platforms - a missing
+# binary, a denied spawn, an unsupported platform, a session with no clipboard at all - and none of them
+# is worth crashing a CLI verb over. Returning null is the signal rather than silence: the caller
+# reports the usage error that the value was neither passed nor readable from the clipboard.
+[src/Acta.Runtime/Cli/CliClipboard.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: top-level CLI handler. Any command failure has to become one line on stderr and exit code 1,
+# not an unhandled exception the host prints as a stack trace, and the stream flush plus
+# Environment.Exit below it must still run. Cancellation keeps its own arm above (exit 130).
+[src/Acta.Runtime/Cli/CliCommandHost.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: alert transports are user-supplied and may throw anything. A throwing transport must degrade
+# to Retryable for that one channel; escaping would fail the whole sys.alerts job and stall delivery for
+# every other alert and channel in the tick. The caller's own cancellation is rethrown by the filtered
+# arm above, so shutdown is never recorded as a transport fault.
+[src/Acta.Runtime/Modules/Alerting/AlertsJob.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: three catches on the buffered-completion flush, none of them silent. The batch call logs at
+# error and leaves every job Executing for sys.recovery - one statement, one commit, so nothing landed.
+# The per-job catch records the first failure and the unfinalized job ids, reported together after the
+# loop; the wakeup catch reports after the loop too, and a lost wakeup only costs a waiter its poll
+# interval. This runs on the sink's own drain task, so escaping would kill the flush loop and strand
+# every batch behind it.
+[src/Acta.Runtime/Modules/Execution/CompletionSink.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: per-tick catch on a long-lived background loop. A failed reload tick - a database outage, a
+# row a provider rejects - must cost one interval, not the loop: escaping would end policy reloads for
+# the process lifetime with no way to restart them, leaving every worker on stale definition policy.
+# Logged at error; shutdown leaves through the filtered cancellation arms.
+[src/Acta.Runtime/Modules/Execution/Definitions/DefinitionPolicyReloader.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: the executor's per-attempt boundary, where an arbitrary user handler's exception becomes a
+# recorded Failed outcome with JobUnhandledException (or the non-retryable reason for NotImplemented /
+# NotSupported), the job landed, the retry budget applied and the timeline written. Handlers can throw
+# anything, so the catch cannot be narrowed. Escaping would tear down the worker loop and leave the row
+# Executing until its lease expired - a durable job silently turned into a recovery case.
+[src/Acta.Runtime/Modules/Execution/JobExecution.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: best-effort release of the exclusive-key lease, on a path that runs after the attempt's
+# outcome is already decided. Escaping would replace that outcome with a cleanup failure, reporting a
+# job that ran correctly as failed. Recorded through RecordLockReleaseFailure; the lease TTL reclaims
+# the key.
+[src/Acta.Runtime/Modules/Execution/RuntimeJobContext.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1001: the one disposable field is _tickGate, a SemaphoreSlim used purely as an async mutex around
+# TickAsync. A SemaphoreSlim only holds an OS wait handle once AvailableWaitHandle is read and nothing
+# in Acta reads it, so Dispose() would release nothing; the gate is entered by the lock-lease loop and
+# by WorkerRuntime.RunHeartbeatOnceAsync, so a disposed gate would turn a harmless late tick into
+# ObjectDisposedException. Created once per WorkerRuntime and alive as long as the process, so
+# deliberately not disposable. The per-extend linked source inside TickAsync is separately
+# 'using'-scoped.
+# CA1031: two catches on the lock-lease loop - the immediate first tick and each periodic tick. An
+# extend failure must cost one interval: escaping would end the loop, so every lock held by a running
+# attempt would stop being extended and would expire mid-flight while the attempt kept running.
+[src/Acta.Runtime/Modules/Execution/Workers/LockLeaseHeartbeat.cs]
+dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1001: the one disposable field is _tickGate, on the same reasoning as LockLeaseHeartbeat's - a
+# SemaphoreSlim whose Dispose() would release nothing, entered here by the heartbeat loop, by the host's
+# StampDrainingAsync during the drain, and by WorkerRuntime.RunHeartbeatOnceAsync, so disposing it would
+# turn a harmless late tick into ObjectDisposedException. Deliberately not disposable.
+# CA1031: two catches on the heartbeat loop - the immediate first tick and each periodic tick. Escaping
+# would end the loop, so last_seen would stop advancing and lease recovery would reclaim this worker's
+# jobs while it was still running them. A failed tick must cost one interval and nothing more.
+[src/Acta.Runtime/Modules/Execution/Workers/WorkerHeartbeat.cs]
+dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1001: the one disposable field is _drainCts, and disposing it would reclaim nothing. It is a bare
+# CancellationTokenSource - no CancelAfter, so no Timer is ever armed, and nothing in Acta reads
+# Token.WaitHandle, so the lazily-created ManualResetEvent is never materialized. Its only registration
+# is the linked source WorkerLoop builds in RunLoopAsync, which that method scopes with 'using'. Against
+# zero benefit, IDisposable costs real safety: the source must stay usable for the whole process because
+# BeginDrain arrives from the host's StopAsync, and the public constructor is a documented direct test
+# seam whose callers would all have to take on a lifecycle they do not otherwise need.
+[src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntime.cs]
+dotnet_diagnostic.CA1001.severity = none
+
+# CA1031: four catches, one per loop. The claim loop is the process's entire supply of work and must
+# survive a database outage - escaping would end claiming for the process lifetime and the worker would
+# idle silently until restarted - so it logs at error and backs off a full safety interval, because the
+# anti-spin floor is for deadline races, not error retry. The executor loop's per-job catch keeps one
+# bad job from tearing that executor down and silently shrinking concurrency until a restart. The
+# Direct-profile coordinator's claim-side catch must release the slots it acquired, or the permits taken
+# for the failed claim would never be returned and the batch would shrink permanently. RunOneAsync is
+# not awaited, so escaping there would only produce an unobserved Task exception, leaving no record of
+# why the job died. Shutdown leaves through the filtered cancellation arms.
+# CA2000: the 'slots' SemaphoreSlim is the coordinator's permit counter, shared with every
+# fire-and-forget RunOneAsync task, each of which Releases it in a finally. The loop's own finally
+# drains by re-acquiring all executorCount permits, so the coordinator resumes while the last Release is
+# still unwinding inside the semaphore; disposing there would race it, and Release starts with a
+# disposed check, so a clean drain could end in ObjectDisposedException in the claim/dispatch loop.
+# Disposal would also reclaim nothing: the only disposable state a SemaphoreSlim holds is the wait
+# handle behind AvailableWaitHandle, which no code in Acta reads. Left to the GC on purpose.
+[src/Acta.Runtime/Modules/Execution/Workers/WorkerLoop.cs]
+dotnet_diagnostic.CA1031.severity = none
+dotnet_diagnostic.CA2000.severity = none
+
+# CA1031: shutdown must run to completion. A worker loop that faulted during drain is surfaced by
+# base.StopAsync; escaping here would abandon the remaining shutdown steps of every other runtime.
+# Logged at warning; the budget-elapsed case has its own arm above.
+[src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeHost.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: best-effort shutdown phase. The outer catch routes a per-item failure to the caller's
+# onFailure reporter instead of faulting the Task.WhenAll, which would abandon the other items' stamps
+# mid-shutdown. The inner bare catch is deliberately broad and deliberately silent: it guards the
+# reporter itself, because logging cannot be allowed to fault a best-effort shutdown phase.
+[src/Acta.Runtime/Modules/Execution/Workers/WorkerShutdownPhase.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: WorkerWakeupPublisher.WakeAsync is the publish seam whose entire purpose is that a wake never
+# breaks its caller. Every wake is published after its durable mutation committed, so escaping with
+# anything - including the caller's own cancellation - would report failure for an operation that
+# already succeeded. Counted on the publish-failure metric and logged at warning; waiters keep a poll
+# floor.
+[src/Acta.Runtime/Modules/Execution/Workers/WorkerWakeup.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: best-effort release of an outbox claim whose rows were already finalized. Escaping would fail
+# a relay tick that actually succeeded; the lease expiry plus the token CAS keep the rows safe either
+# way. Logged at debug.
+[src/Acta.Runtime/Modules/Outbox/OutboxRelayService.cs]
+dotnet_diagnostic.CA1031.severity = none

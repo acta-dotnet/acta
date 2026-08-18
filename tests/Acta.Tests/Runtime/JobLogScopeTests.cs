@@ -17,7 +17,7 @@ public sealed class JobLogScopeTests
 
         Assert.Equal(42L, fields["JobId"]);
         Assert.Equal("send-receipt", fields["JobName"]);
-        Assert.Equal("billing", fields["JobNamespace"]);
+        Assert.Equal("billing", fields["Namespace"]);
         Assert.Equal(3, fields["ExecutionNumber"]);
         Assert.Equal(7, fields["WorkerId"]);
     }

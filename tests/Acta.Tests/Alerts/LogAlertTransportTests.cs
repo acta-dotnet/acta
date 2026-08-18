@@ -37,7 +37,13 @@ public sealed class LogAlertTransportTests
         var entry = Assert.Single(logger.Entries);
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("https://runbook.example/job-failed", entry.Message);
-        Assert.Contains(entry.Properties, p => p.Key == "RunbookUrl" && (string?)p.Value == "https://runbook.example/job-failed");
+
+        // The runbook link is part of the delivered body, which the canonical log vocabulary carries in the
+        // one free-text Detail field; what matters is that a property-rendering sink still receives it.
+        Assert.Contains(
+            entry.Properties,
+            p => p.Key == "Detail" && ((string?)p.Value)?.Contains("https://runbook.example/job-failed", StringComparison.Ordinal) == true
+        );
     }
 
     private sealed class RecordingLogger : ILogger<LogAlertTransport>

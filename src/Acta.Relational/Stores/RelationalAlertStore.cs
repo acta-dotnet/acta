@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
@@ -18,15 +17,6 @@ namespace Acta.Relational.Stores;
 /// </summary>
 internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect dialect) : IAlertStore
 {
-    [SuppressMessage(
-        "Usage",
-        "CA2208:Instantiate argument exceptions correctly",
-        Justification = "'jobId' is not a parameter of this method by accident: it is the unknown-job signal itself. "
-            + "AlertsJob classifies the failure with `when (ex.ParamName == \"jobId\")` and the conformance spec pins "
-            + "the shape, so the paramName is a protocol token between the provider and the projection, not a "
-            + "misnamed argument. Renaming it to 'command' would both break that filter and let a null-command "
-            + "ArgumentNullException masquerade as an unknown job."
-    )]
     public async Task<int> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
     {
         try

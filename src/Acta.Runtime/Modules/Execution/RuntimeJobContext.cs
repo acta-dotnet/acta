@@ -1,7 +1,7 @@
 #nullable enable
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.Checkpoints;
@@ -307,7 +307,7 @@ internal sealed class RuntimeJobContext(
             {
                 RecordStep(name, "exhausted");
                 _log.LogWarning(
-                    "Step '{StepName}' on job {JobId} exhausted after attempt {StepAttemptNumber}: {StepReason}",
+                    "Step '{Operation}' on job {JobId} exhausted after attempt {Count}: {Detail}",
                     name,
                     JobId,
                     start.AttemptNumber,
@@ -318,11 +318,11 @@ internal sealed class RuntimeJobContext(
 
             RecordStep(name, "failed");
             _log.LogInformation(
-                "Step '{StepName}' on job {JobId} failed on attempt {StepAttemptNumber}; retry at {StepNextRetryAtUtc:o}.",
+                "Step '{Operation}' on job {JobId} failed on attempt {Count}; retry at {Detail}.",
                 name,
                 JobId,
                 start.AttemptNumber,
-                failure.NextRetryAtUtc
+                failure.NextRetryAtUtc?.ToString("o", CultureInfo.InvariantCulture)
             );
             throw new StepRetrySignal(failure.NextRetryAtUtc!.Value, name, message);
         }
@@ -440,13 +440,6 @@ internal sealed class RuntimeJobContext(
         return token is not null;
     }
 
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Best-effort release of the exclusive-key lease, on a path that runs after the attempt's outcome is "
-            + "already decided. Propagating would replace that outcome with a cleanup failure, reporting a job that "
-            + "ran correctly as failed. Recorded through RecordLockReleaseFailure; the lease TTL reclaims the key."
-    )]
     internal async Task ReleaseExclusiveKeyLockAsync(CancellationToken ct)
     {
         if (_exclusiveKeyToken is not { } token)
@@ -469,9 +462,8 @@ internal sealed class RuntimeJobContext(
     {
         _log.LogWarning(
             exception,
-            "Failed to release {LockKind} lock '{LockKey}' for job {JobId}; continuing because the lock TTL will clean it up.",
-            lockKind,
-            key,
+            "Failed to release the {Detail} held for job {JobId}; continuing because the lock TTL will clean it up.",
+            $"{lockKind} lock '{key}'",
             JobId
         );
         _metrics?.RecordLockReleaseFailure(JobNamespace, JobName, lockKind, exception.GetType().Name);

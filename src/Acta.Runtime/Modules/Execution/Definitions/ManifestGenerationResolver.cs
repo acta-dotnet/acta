@@ -40,7 +40,7 @@ internal static class ManifestGenerationResolver
         );
 
         log?.LogWarning(
-            "Acta manifest generation {ManifestGeneration} was derived from the deployed file's last-write time; "
+            "Acta manifest generation {Detail} was derived from the deployed file's last-write time; "
                 + "container image copies and artifact restores can skew it and misorder definition promotion. "
                 + "Set JobsOptions.ManifestGenerationUtc to a CI build stamp for deterministic ordering.",
             resolved.ToString("O", CultureInfo.InvariantCulture)

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Hosting;
@@ -18,13 +17,6 @@ internal sealed class CliCommandHost(CliInvocation invocation, IJobs jobs, IActa
     /// Parses the CLI verb, runs the command against IJobs, then exits the process with the
     /// appropriate code: 0 applied/found, 1 rejected/failed, 2 not found, 64 usage error.
     /// </summary>
-    [SuppressMessage(
-        "Design",
-        "CA1031:Do not catch general exception types",
-        Justification = "Top-level CLI handler. Any command failure has to become one line on stderr and exit code 1, not an "
-            + "unhandled exception the host prints as a stack trace, and the stream flush plus Environment.Exit below "
-            + "must still run. Cancellation keeps its own arm above (exit 130)."
-    )]
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try

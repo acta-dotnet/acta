@@ -1,6 +1,5 @@
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Acta.Relational.Commands;
 using Acta.Relational.Schema;
@@ -188,18 +187,6 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_t_value_search", NpgsqlDbType.Varchar, tagValueSearches);
     }
 
-    [SuppressMessage(
-        "Maintainability",
-        "CA1508:Avoid dead conditional code",
-        Justification = "False positive on both flagged lines. JobEnqueueRow.DelaySeconds is int? and ParentId is "
-            + "long?; boxing a nullable value type whose HasValue is false yields a null reference, so the cast is "
-            + "null exactly when the column must be NULL. CA1508 models that boxing conversion as never-null "
-            + "and is wrong here: deleting the branch it calls dead would bind a CLR null rather than "
-            + "DBNull.Value, which is not the same thing to any provider. The nullable reference-typed columns "
-            + "bound beside these use the identical idiom and are not flagged. "
-            + "ParentId is null for every root job, so that branch runs on essentially every enqueue. Kept "
-            + "identical to the SQL Server binder."
-    )]
     public void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema)
     {
         var postgres = (NpgsqlCommand)command;

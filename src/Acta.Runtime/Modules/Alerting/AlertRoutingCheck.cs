@@ -59,7 +59,7 @@ internal sealed class AlertRoutingCheck(
             }
 
             _log.LogWarning(
-                "Acta alerting: job {JobName} routes to unconfigured channel '{Channel}' in namespace {Namespace}; add it to worker startup configuration with w.AddAlertChannel(...).",
+                "Acta alerting: job {JobName} routes to unconfigured channel '{Detail}' in namespace {Namespace}; add it to worker startup configuration with w.AddAlertChannel(...).",
                 descriptor.JobName,
                 channel,
                 namespaceName
