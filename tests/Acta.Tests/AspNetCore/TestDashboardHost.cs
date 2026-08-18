@@ -636,8 +636,8 @@ internal static class TestDashboardHost
         public ValueTask<JobControlResult> RaiseSignalAsync(
             JobLookup job,
             string name,
-            CancellationToken ct = default,
-            string? actorKey = null
+            string? actorKey = null,
+            CancellationToken ct = default
         ) => Signal(job, name, JobPayload.None, actorKey);
 
         public ValueTask<JobControlResult> RaiseSignalAsync<T>(

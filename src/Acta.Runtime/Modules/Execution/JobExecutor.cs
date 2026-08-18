@@ -175,11 +175,11 @@ internal sealed class JobExecutor(
                 _serializers,
                 _lockStore,
                 _clock,
-                attemptCts.Token,
                 fireOutcome?.TriggeringScheduleNames ?? [],
                 descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
                     ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
                     : (DateTime?)null,
+                attemptCts.Token,
                 _options.Value.MaxInlinePayloadBytes,
                 attempt,
                 stepRetryDefaults,

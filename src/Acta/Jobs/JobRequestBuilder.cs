@@ -266,7 +266,7 @@ public sealed class JobRequestBuilder
         };
     }
 
-    private IReadOnlyList<TagInput>? SnapshotTags()
+    private TagInput[]? SnapshotTags()
     {
         if (_tags.Count == 0)
         {

@@ -54,7 +54,7 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
     // Coded identity is carried by the emitted CHECK value list (the real SQL artifact), plus IsCoded and
     // the stable CodeKind, never EnumTypeName, so a CLR enum rename is not treated as persistence drift.
     private static string ColumnSignature(ColumnModel c) =>
-        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|values={SqlSchemaEmitter.EnumValueList(c)?.Replace(" ", "")}";
+        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|values={SqlSchemaEmitter.EnumValueList(c)?.Replace(" ", "", StringComparison.Ordinal)}";
 
     private static string IndexSignature(DbIndexSpec i) =>
         $"{(i.IsUnique ? "U" : "I")}|cols={string.Join(",", i.Columns)}"

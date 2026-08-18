@@ -29,7 +29,7 @@ internal sealed class WorkerRuntimeHost(
 {
     private static readonly TimeSpan LifecycleStampTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly IReadOnlyList<WorkerRuntime> _runtimes = runtimes.ToArray();
+    private readonly WorkerRuntime[] _runtimes = runtimes.ToArray();
     private readonly IReadOnlyList<IProviderBootstrap> _bootstraps = bootstraps.ToArray();
     private readonly ILogger _log = log ?? NullLogger<WorkerRuntimeHost>.Instance;
 
@@ -57,7 +57,7 @@ internal sealed class WorkerRuntimeHost(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (_runtimes.Count == 0)
+        if (_runtimes.Length == 0)
         {
             _log.LogInformation("Acta: enqueue-only process; no workers registered.");
             return;
@@ -110,14 +110,14 @@ internal sealed class WorkerRuntimeHost(
             _runtimes,
             operation,
             LifecycleStampTimeout,
-            cancellationToken,
             (runtime, ex) =>
                 _log.LogWarning(
                     ex,
                     "Acta: {ShutdownPhase} stamp failed for worker namespace {Namespace}; lease recovery will reconcile it.",
                     phase,
                     runtime.WorkerNamespaceName
-                )
+                ),
+            cancellationToken
         );
         if (!completed)
         {

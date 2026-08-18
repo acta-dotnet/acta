@@ -36,7 +36,7 @@ internal static class MarkdownText
         {
             return null;
         }
-        var s = summary.Replace("\r", " ").Replace("\n", " ").Trim();
+        var s = summary.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
         var idx = FirstSentenceEnd(s);
         if (idx > 0)
         {

@@ -148,7 +148,7 @@ internal sealed class JobExecution(
                     }
                     return descriptor.Invoker(attemptServices, requestObject, jobContext, jobContext.CancellationToken);
                 }
-                var chain = _pipeline.Build(attemptServices, requestObject, jobContext, jobContext.CancellationToken, handlerInvocation);
+                var chain = _pipeline.Build(attemptServices, requestObject, jobContext, handlerInvocation, jobContext.CancellationToken);
 
                 var invocation = await chain();
                 outcome = ExecutionOutcome.Succeeded;

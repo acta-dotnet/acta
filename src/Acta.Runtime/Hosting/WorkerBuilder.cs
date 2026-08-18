@@ -82,9 +82,9 @@ internal sealed class WorkerBuilder(IServiceCollection services) : IWorkerBuilde
         if (source.QuarantineThreshold < 1)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(source.QuarantineThreshold),
+                nameof(configure),
                 source.QuarantineThreshold,
-                $"Outbox relay source '{sourceName}' sets a quarantine threshold of {source.QuarantineThreshold}. "
+                $"Outbox relay source '{sourceName}' sets a QuarantineThreshold of {source.QuarantineThreshold}. "
                     + "The threshold is the failure count at which a row quarantines and must be at least 1."
             );
         }

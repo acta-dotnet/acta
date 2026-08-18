@@ -87,7 +87,7 @@ internal static class DurationSyntax
 
     private static bool IsoIsTimeOnly(string s)
     {
-        var t = s.IndexOf('T');
+        var t = s.IndexOf('T', StringComparison.Ordinal);
         if (t < 0)
         {
             return false;

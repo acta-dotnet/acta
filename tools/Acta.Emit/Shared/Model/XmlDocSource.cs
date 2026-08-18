@@ -82,7 +82,7 @@ internal sealed class XmlDocSource
     private static string ShortenCref(string cref)
     {
         var withoutPrefix = cref.Length > 2 && cref[1] == ':' ? cref[2..] : cref;
-        var paren = withoutPrefix.IndexOf('(');
+        var paren = withoutPrefix.IndexOf('(', StringComparison.Ordinal);
         var trimmed = paren > 0 ? withoutPrefix[..paren] : withoutPrefix;
         var lastDot = trimmed.LastIndexOf('.');
         return lastDot > 0 ? trimmed[(lastDot + 1)..] : trimmed;

@@ -182,7 +182,7 @@ public static class ActaEndpointRouteBuilderExtensions
             : Headers(Results.Bytes(bytes, ContentTypeMap.For(path)), options, isIndex: false, isDev: false);
     }
 
-    private static IResult Headers(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) =>
+    private static HeaderedResult Headers(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) =>
         new HeaderedResult(inner, options, isIndex, isDev);
 
     private static string DevIndex(string viteOrigin, string basePath) =>

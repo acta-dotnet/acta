@@ -20,7 +20,7 @@ internal static class QueryBinding
         }
 
         // Kebab wire names ("retry-after") parse too: stripping the dashes leaves the member name.
-        var candidate = raw[0]!.Contains('-') ? raw[0]!.Replace("-", "") : raw[0]!;
+        var candidate = raw[0]!.Contains('-', StringComparison.Ordinal) ? raw[0]!.Replace("-", "", StringComparison.Ordinal) : raw[0]!;
         if (Enum.TryParse<TEnum>(candidate, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
         {
             value = parsed;
@@ -185,7 +185,7 @@ internal static class QueryBinding
 
             // `name` alone, or `name:value`. A trailing colon ("env:") carries no value and must match
             // the tag by name (any value), so an empty value part collapses back to a name-only filter.
-            var separator = item.IndexOf(':');
+            var separator = item.IndexOf(':', StringComparison.Ordinal);
             var value = separator < 0 ? null : item[(separator + 1)..];
             var filterName = separator < 0 ? item : item[..separator];
             filters.Add(string.IsNullOrEmpty(value) ? new Acta.TagFilter(filterName) : new Acta.TagFilter(filterName, value));

@@ -459,8 +459,8 @@ public class CliRunnerClipboardTests
         public ValueTask<JobControlResult> RaiseSignalAsync(
             JobLookup job,
             string name,
-            CancellationToken ct = default,
-            string? actorKey = null
+            string? actorKey = null,
+            CancellationToken ct = default
         ) => throw new NotSupportedException();
 
         public ValueTask<JobControlResult> RaiseSignalAsync<T>(

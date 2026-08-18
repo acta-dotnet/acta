@@ -377,13 +377,17 @@ static async Task<int> RunSmokeAsync(string? repoRoot)
         var sources = Directory
             .GetFiles(dir, "*.cs", SearchOption.AllDirectories)
             .Where(f =>
-                !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
-                && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")
+                !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             );
         if (
             sources.Any(f =>
                 File.ReadAllText(f) is var text
-                && (text.Contains("WaitForShutdownAsync") || text.Contains("RunAsync(") || text.Contains("Console.ReadKey"))
+                && (
+                    text.Contains("WaitForShutdownAsync", StringComparison.Ordinal)
+                    || text.Contains("RunAsync(", StringComparison.Ordinal)
+                    || text.Contains("Console.ReadKey", StringComparison.Ordinal)
+                )
             )
         )
         {

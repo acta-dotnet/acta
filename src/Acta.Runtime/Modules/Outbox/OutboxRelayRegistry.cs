@@ -20,7 +20,7 @@ internal sealed class OutboxRelayRegistry(
     ILoggerFactory? loggerFactory = null
 )
 {
-    private readonly IReadOnlyDictionary<string, OutboxRelayRegistration> _byNamespace = workers
+    private readonly Dictionary<string, OutboxRelayRegistration> _byNamespace = workers
         .Where(w => w.Relay is not null)
         .ToDictionary(w => w.NamespaceName, w => w.Relay!, StringComparer.Ordinal);
     private readonly IJobSubmission _target = target;

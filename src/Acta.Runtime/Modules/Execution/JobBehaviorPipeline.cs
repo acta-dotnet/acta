@@ -22,8 +22,8 @@ internal sealed class JobBehaviorPipeline(IReadOnlyList<Func<IServiceProvider, I
         IServiceProvider attemptServices,
         object request,
         JobContext context,
-        CancellationToken ct,
-        JobBehaviorDelegate innermost
+        JobBehaviorDelegate innermost,
+        CancellationToken ct
     )
     {
         if (_resolvers.Count == 0)

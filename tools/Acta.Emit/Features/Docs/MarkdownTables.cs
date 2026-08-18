@@ -9,7 +9,12 @@ namespace Acta.Emit.Features.Docs;
 internal static class MarkdownEscape
 {
     public static string Cell(string? value) =>
-        string.IsNullOrEmpty(value) ? "" : value.Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ");
+        string.IsNullOrEmpty(value)
+            ? ""
+            : value
+                .Replace("|", "\\|", StringComparison.Ordinal)
+                .Replace("\r", " ", StringComparison.Ordinal)
+                .Replace("\n", " ", StringComparison.Ordinal);
 }
 
 /// <summary>

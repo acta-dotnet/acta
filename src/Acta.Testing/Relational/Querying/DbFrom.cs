@@ -329,7 +329,7 @@ internal sealed class DbFrom<TEntity, TProjection>
         }
     }
 
-    private IReadOnlyList<DbColumnSpec> ResolveProjectionColumns()
+    private DbColumnSpec[] ResolveProjectionColumns()
     {
         var t = typeof(TProjection);
         var ctor = t.GetConstructors(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic)

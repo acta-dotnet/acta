@@ -16,7 +16,7 @@ public sealed class JobBehaviorPipelineTests
         var pipeline = new JobBehaviorPipeline([]);
         JobBehaviorDelegate innermost = () => new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
 
-        var built = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, innermost);
+        var built = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, innermost, CancellationToken.None);
 
         Assert.Same(innermost, built);
     }
@@ -36,7 +36,7 @@ public sealed class JobBehaviorPipelineTests
             return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
         }
 
-        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
+        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
         await chain();
 
         Assert.Equal(["A-pre", "B-pre", "C-pre", "handler", "C-post", "B-post", "A-post"], log);
@@ -54,7 +54,7 @@ public sealed class JobBehaviorPipelineTests
             return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
         }
 
-        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
+        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
         var result = await chain();
 
         Assert.False(handlerRan);
@@ -68,7 +68,7 @@ public sealed class JobBehaviorPipelineTests
         var pipeline = new JobBehaviorPipeline([_ => new RecordingBehavior("A", [])]);
         ValueTask<JobHandlerInvocationResult> handler() => throw thrown;
 
-        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
+        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
 
         var caught = await Assert.ThrowsAsync<RescheduleJobException>(async () => await chain());
         Assert.Same(thrown, caught);
@@ -85,7 +85,7 @@ public sealed class JobBehaviorPipelineTests
             return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
         }
 
-        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, CancellationToken.None, handler);
+        var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await chain());
         Assert.Equal(1, handlerRuns);

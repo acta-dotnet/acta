@@ -145,25 +145,19 @@ internal sealed class DefinitionsService(IDefinitionStore store)
 
         if (overrides.MaxAttempts is <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.");
+            throw new ArgumentOutOfRangeException(nameof(overrides), "MaxAttempts override must be at least 1.");
         }
         if (overrides.ExecutionTimeoutSeconds is <= 0)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(overrides.ExecutionTimeoutSeconds),
-                "ExecutionTimeoutSeconds override must be positive."
-            );
+            throw new ArgumentOutOfRangeException(nameof(overrides), "ExecutionTimeoutSeconds override must be positive.");
         }
         if (overrides.DeadlineSeconds is < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(overrides.DeadlineSeconds), "DeadlineSeconds override cannot be negative.");
+            throw new ArgumentOutOfRangeException(nameof(overrides), "DeadlineSeconds override cannot be negative.");
         }
         if (overrides.JobRetentionSeconds is < 0)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(overrides.JobRetentionSeconds),
-                "JobRetentionSeconds override cannot be negative."
-            );
+            throw new ArgumentOutOfRangeException(nameof(overrides), "JobRetentionSeconds override cannot be negative.");
         }
 
         if (overrides.AlertChannelName is { } alertChannelName)
@@ -187,7 +181,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             {
                 throw new ArgumentException(
                     $"Backoff override \"{backoff}\" must be a valid Acta backoff expression of at most {maxLength} characters.",
-                    nameof(overrides.Backoff)
+                    nameof(overrides)
                 );
             }
         }

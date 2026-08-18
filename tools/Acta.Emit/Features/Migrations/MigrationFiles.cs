@@ -90,7 +90,7 @@ internal static partial class MigrationFiles
         {
             var leaf = Path.GetFileName(file);
             var inner = leaf[..^tail.Length]; // "M002_add_x"
-            var underscore = inner.IndexOf('_');
+            var underscore = inner.IndexOf('_', StringComparison.Ordinal);
             if (underscore >= 0)
             {
                 return inner[(underscore + 1)..];

@@ -5,5 +5,5 @@ namespace Acta.Relational.Schema;
 /// </summary>
 internal sealed record SchemaMigration(int Version, string Name, string Template)
 {
-    public string SubstituteSchema(string schemaName) => Template.Replace("{{schema}}", schemaName);
+    public string SubstituteSchema(string schemaName) => Template.Replace("{{schema}}", schemaName, StringComparison.Ordinal);
 }

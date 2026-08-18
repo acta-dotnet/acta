@@ -207,7 +207,7 @@ internal sealed class WorkerRuntimeInitializer(
     // Worker-init clock-skew guard: measure the host-vs-DB clock offset (real GetUtcNow + the system
     // clock, deliberately NOT the schedule IActaClock that tests fake), then warn or throw per the
     // configured thresholds. AllowClockSkew downgrades the fail to a warning.
-    private Task ValidateClockSkewAsync(string namespaceName, CancellationToken ct)
+    private Task<ClockSkewVerdict> ValidateClockSkewAsync(string namespaceName, CancellationToken ct)
     {
         var opts = _options.Value;
         var validator = new ClockSkewValidator(
@@ -389,7 +389,7 @@ internal sealed class WorkerRuntimeInitializer(
             }
 
             var declared = descriptor.Schedules.IsDefaultOrEmpty
-                ? (IReadOnlyList<ScheduleDescriptor>)[]
+                ? (List<ScheduleDescriptor>)[]
                 : descriptor.Schedules.Where(s => ScheduleEnvironment.IsActiveIn(s.Environments, env)).ToList();
             var storedForDef = storedByDefinition.TryGetValue(defId, out var byName)
                 ? byName

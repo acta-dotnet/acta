@@ -58,7 +58,7 @@ internal static class CrockfordBase32
         {
             'o' => 0,
             'i' or 'l' => 1,
-            _ => Alphabet.IndexOf(lower),
+            _ => Alphabet.IndexOf(lower, StringComparison.Ordinal),
         };
     }
 }

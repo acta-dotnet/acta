@@ -102,10 +102,10 @@ internal sealed class SqlResourceCatalog
                 return CodeDecodeSql.RenderDecodeTokens(
                     reader
                         .ReadToEnd()
-                        .Replace("{{schema}}", _schema ?? "")
-                        .Replace("{{table_ref}}", tableRef)
-                        .Replace("{{table}}", table)
-                        .Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)")
+                        .Replace("{{schema}}", _schema ?? "", StringComparison.Ordinal)
+                        .Replace("{{table_ref}}", tableRef, StringComparison.Ordinal)
+                        .Replace("{{table}}", table, StringComparison.Ordinal)
+                        .Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)", StringComparison.Ordinal)
                 );
             }
         );

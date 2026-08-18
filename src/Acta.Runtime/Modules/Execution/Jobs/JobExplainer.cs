@@ -201,7 +201,7 @@ internal static class JobExplainer
         );
     }
 
-    private static IReadOnlyList<JobExplainStep> BuildSteps(IReadOnlyList<ExplainStepRow> rows)
+    private static List<JobExplainStep> BuildSteps(IReadOnlyList<ExplainStepRow> rows)
     {
         if (rows.Count == 0)
         {

@@ -45,7 +45,7 @@ internal static class JobEnqueueRequestValidation
     private static string? NormalizeOpaque(string? value, string paramName) =>
         value is null ? null : IdentifierSyntax.NormalizeKey(value, paramName);
 
-    private static IReadOnlyList<TagInput>? NormalizeTags(IReadOnlyList<TagInput>? tags, string paramName)
+    private static TagInput[]? NormalizeTags(IReadOnlyList<TagInput>? tags, string paramName)
     {
         if (tags is null)
         {

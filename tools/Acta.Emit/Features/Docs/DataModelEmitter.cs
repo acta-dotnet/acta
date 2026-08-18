@@ -78,7 +78,7 @@ internal static class DataModelEmitter
 
         if (!string.IsNullOrWhiteSpace(e.Summary))
         {
-            sb.AppendLine(e.Summary.Replace("\r\n", "\n").Trim());
+            sb.AppendLine(e.Summary.Replace("\r\n", "\n", StringComparison.Ordinal).Trim());
             sb.AppendLine();
         }
 
@@ -181,7 +181,7 @@ internal static class DataModelEmitter
 
     // Distinct code families referenced by this entity's columns, in column order. The synthetic
     // JobPayloadFormat family is added when any payload / *_format_id column is present.
-    private static IReadOnlyList<string> CodeFamiliesUsed(EntityModel e)
+    private static List<string> CodeFamiliesUsed(EntityModel e)
     {
         var families = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);

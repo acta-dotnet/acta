@@ -7,8 +7,8 @@ internal static class WorkerShutdownPhase
         IReadOnlyCollection<T> items,
         Func<T, CancellationToken, Task> operation,
         TimeSpan timeout,
-        CancellationToken shutdownToken,
-        Action<T, Exception> onFailure
+        Action<T, Exception> onFailure,
+        CancellationToken shutdownToken
     )
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -22,7 +22,7 @@ internal static class WorkerShutdownPhase
 
         using var phaseCts = CancellationTokenSource.CreateLinkedTokenSource(shutdownToken);
         phaseCts.CancelAfter(timeout);
-        var tasks = items.Select(item => RunOneAsync(item, operation, phaseCts.Token, onFailure)).ToArray();
+        var tasks = items.Select(item => RunOneAsync(item, operation, onFailure, phaseCts.Token)).ToArray();
         try
         {
             await Task.WhenAll(tasks).WaitAsync(phaseCts.Token);
@@ -39,8 +39,8 @@ internal static class WorkerShutdownPhase
     private static async Task RunOneAsync<T>(
         T item,
         Func<T, CancellationToken, Task> operation,
-        CancellationToken ct,
-        Action<T, Exception> onFailure
+        Action<T, Exception> onFailure,
+        CancellationToken ct
     )
     {
         try

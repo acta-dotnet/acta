@@ -86,6 +86,23 @@
          columns in a tight loop; the method already has its one state machine either way. CA1849 is
          wrong here rather than tolerated. -->
     <NoWarn>$(NoWarn);CA1849</NoWarn>
+    <!-- Spec code only. xUnit, the DI container and BenchmarkDotNet construct fixtures, fakes, theory
+         data and registered implementations by reflection, and CA1812 counts a generic type argument as
+         an instantiation only when the type parameter carries a new() constraint - which
+         ServiceDescriptor.Singleton<TService, TImplementation> does not. So a type that is registered
+         and used still reads as uninstantiated. Enforced in src, where an unreferenced internal type
+         really is dead. -->
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true'"
+      >$(NoWarn);CA1812</NoWarn>
+    <!-- Spec code only. These parse literals the spec itself wrote, so there is no locale to get wrong.
+         Enforced everywhere else, because Anvil's numbers gate a release and the emitter's parse round-
+         trips generated text. -->
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA1305</NoWarn>
+    <!-- Spec code only, and for one specific reason: the fakes and poison-event specs reproduce the
+         production throw shapes verbatim, including RaiseJobAlertAsync's 'jobId' paramName, which is not
+         a mistake but the unknown-job signal AlertsJob filters on. A spec that "corrected" the name
+         would stop reproducing the thing it exists to pin. -->
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA2208</NoWarn>
     <!-- Suppressed for spec and harness code only, where the sites are Task-returning test helpers and
          Anvil mappers. Interface-typed internals are a deliberate readability choice there and the
          dispatch saving is unmeasurable. NOT suppressed in src, so a future hit on the claim or execute
@@ -123,33 +140,6 @@
          CA2213    3  owned disposable fields never disposed -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);CA1062;CA2000;CA1031;CA1508;CA1001;CA2213</NoWarn>
-  </PropertyGroup>
-
-  <!-- TEMPORARY - Track A3 fixes that are agreed but not yet written. Each rule leaves this list as
-       its slice lands, and the block goes with the last one. Distinct sites measured on 58f61c0:
-         CA1305   18  int.Parse/double.Parse without InvariantCulture, in Anvil (14) and Acta.Emit (4).
-                      A real locale bug: on a comma-decimal locale double.Parse("1.5") misparses, and
-                      Anvil is the certification harness whose numbers gate the release.
-         CA2208    9  ArgumentException given a paramName that is not a parameter.
-         CA1068    5  CancellationToken not last. All internal - IJobs already has it last on both
-                      public RaiseSignalAsync overloads; the odd one out is a third overload that
-                      exists only on the internal JobsApi with actorKey and ct transposed.
-         CA1812    1  NoOpWakeup in BenchHost.cs is never instantiated - delete it.
-         CA1307   18  Culture-sensitive Replace/Contains/IndexOf in src and tools, unmasked by scoping
-                      CA1307 away from the spec suppression above. These are real: Replace(string,
-                      string) and Contains(string) ARE culture-sensitive, and the sites are identifier,
-                      SQL-text and migration-name handling - exactly where a Turkish-locale dotless i
-                      would change behaviour. Add StringComparison.Ordinal per site. -->
-  <PropertyGroup>
-    <NoWarn>$(NoWarn);CA1305;CA2208;CA1068;CA1812</NoWarn>
-    <NoWarn Condition="'$(_ActaTree.Contains(`/src/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'"
-      >$(NoWarn);CA1307;CA1310</NoWarn>
-    <!-- CA1859, 3 sites, also unmasked by scoping: NormalizeTags and SnapshotTags in src return
-         IReadOnlyList<TagInput>? where the concrete array would avoid an interface dispatch, and
-         CodeFamiliesUsed in the emitter is the same shape. Unlike the spec-helper sites the src pair is
-         on the enqueue path, so they are worth taking rather than ruling away - as their own change,
-         with the perf claim actually checked. -->
-    <NoWarn Condition="'$(_ActaTree.Contains(`/src/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'">$(NoWarn);CA1859</NoWarn>
   </PropertyGroup>
 
   <!-- TEMPORARY - the long tail: ~64 sites across the 17 rules listed below, at 1-9 each, still to be

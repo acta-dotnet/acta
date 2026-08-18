@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Sockets;
 using Acta;
@@ -273,6 +274,13 @@ public enum BenchWakeupMode
 /// A no-op <see cref="IWorkerWakeup"/>: waits always run out their poll floor and wakes do nothing, so
 /// pickup latency reflects polling alone. Honors the wait timeout and cancellation.
 /// </summary>
+[SuppressMessage(
+    "Performance",
+    "CA1812:Avoid uninstantiated internal classes",
+    Justification = "Constructed by the DI container for BenchWakeupMode.NoOp: it is named only as a "
+        + "generic type argument to ServiceDescriptor.Singleton, which carries no new() constraint, "
+        + "so the analyzer cannot see the instantiation."
+)]
 internal sealed class NoOpWakeup : IWorkerWakeup
 {
     public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default) =>

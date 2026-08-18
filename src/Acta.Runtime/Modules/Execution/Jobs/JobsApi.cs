@@ -443,8 +443,8 @@ internal sealed class JobsApi(
     public ValueTask<JobControlResult> RaiseSignalAsync(
         JobLookup job,
         string name,
-        CancellationToken ct = default,
-        string? actorKey = null
+        string? actorKey = null,
+        CancellationToken ct = default
     ) => RaiseSignalCoreAsync(job, name, valueFormatId: 0, value: null, actorKey, ct);
 
     public ValueTask<JobControlResult> RaiseSignalAsync<T>(

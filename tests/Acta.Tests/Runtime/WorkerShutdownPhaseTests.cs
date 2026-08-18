@@ -25,8 +25,8 @@ public sealed class WorkerShutdownPhaseTests
                 await release.Task.WaitAsync(ct);
             },
             TimeSpan.FromSeconds(5),
-            TestContext.Current.CancellationToken,
-            static (_, _) => { }
+            static (_, _) => { },
+            TestContext.Current.CancellationToken
         );
 
         await allStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
@@ -46,8 +46,8 @@ public sealed class WorkerShutdownPhaseTests
             [1, 2],
             (_, _) => never.Task,
             TimeSpan.FromMilliseconds(50),
-            TestContext.Current.CancellationToken,
-            static (_, _) => { }
+            static (_, _) => { },
+            TestContext.Current.CancellationToken
         );
 
         Assert.False(completed);
@@ -72,8 +72,8 @@ public sealed class WorkerShutdownPhaseTests
                 return Task.CompletedTask;
             },
             TimeSpan.FromSeconds(5),
-            TestContext.Current.CancellationToken,
-            (item, error) => failures.Add((item, error))
+            (item, error) => failures.Add((item, error)),
+            TestContext.Current.CancellationToken
         );
 
         Assert.True(completed);

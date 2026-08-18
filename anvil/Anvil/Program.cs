@@ -1,3 +1,4 @@
+using System.Globalization;
 using Acta;
 using Acta.AspNetCore;
 using Acta.Sqlite;
@@ -86,7 +87,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
     // Two participants on one machine would otherwise both bind 5059 and the second would fail to
     // start. Across machines everyone takes the default happily, which is why this is an override
     // rather than a required argument.
-    var port = GetArg(args, "--port") is { } portArg ? int.Parse(portArg) : AnvilServer.Port;
+    var port = GetArg(args, "--port") is { } portArg ? int.Parse(portArg, CultureInfo.InvariantCulture) : AnvilServer.Port;
     builder.WebHost.UseUrls(AnvilServer.BindUrlFor(port));
     // Boot failures are reported once, as an actionable block, by FailDashboardBoot; without this
     // filter the host logger prints the same exception first as a raw stack trace.
@@ -178,18 +179,21 @@ static async Task RunDashboardAsync(string[] args, string provider)
         // slot is a connection holder rather than a core.
         if (GetArg(args, "--certify-executors") is { } certifyExecutors)
         {
-            app.Services.GetRequiredService<WorkerProcessLauncher>().ExecutorsPerWorker = int.Parse(certifyExecutors);
+            app.Services.GetRequiredService<WorkerProcessLauncher>().ExecutorsPerWorker = int.Parse(
+                certifyExecutors,
+                CultureInfo.InvariantCulture
+            );
         }
 
         var exit = await CertifyRun.ExecuteAsync(
             app.Services,
             id,
             provider,
-            int.Parse(certifyJobs),
-            int.Parse(GetArg(args, "--certify-workers") ?? "8"),
-            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-chaos-min") ?? "10")),
-            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-quiesce-min") ?? "45")),
-            int.Parse(GetArg(args, "--certify-step-delay-ms") ?? "1000"),
+            int.Parse(certifyJobs, CultureInfo.InvariantCulture),
+            int.Parse(GetArg(args, "--certify-workers") ?? "8", CultureInfo.InvariantCulture),
+            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-chaos-min") ?? "10", CultureInfo.InvariantCulture)),
+            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-quiesce-min") ?? "45", CultureInfo.InvariantCulture)),
+            int.Parse(GetArg(args, "--certify-step-delay-ms") ?? "1000", CultureInfo.InvariantCulture),
             isSeeder,
             participant,
             CancellationToken.None
