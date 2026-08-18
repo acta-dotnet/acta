@@ -45,6 +45,35 @@ placement, or reconciliation paths.
 can re-run handler work that already finished in process. Use `Bulk` only for idempotent or safely
 repeatable work.
 
+## Ordering
+
+Acta does not order work. The claim scan reads ready rows by priority (highest first), then by
+next-run instant, then by `JobId`, and that is a claim-time sort, not a queue discipline. `JobId` is
+a stable tie-breaker inside one claim, not a multi-producer FIFO guarantee: database identities are
+allocation order, not commit order.
+
+`ExclusiveKey` provides mutual exclusion, not ordering. At most one job per (namespace,
+`ExclusiveKey`) executes at a time. Admission order is unspecified: under sustained arrivals that
+keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it
+for exclusive *unordered* work. There is no fairness, aging, or queue-position guarantee for a
+contended key, and none is planned; a job that needs a bounded wait needs a different design.
+
+Three levels are available, and only the third one orders anything.
+
+**Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
+`MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, and jobs that are due
+immediately. This yields serial execution, not strict FIFO: retries, delayed eligibility, priority
+changes, and operator actions move a row's next-run instant and reorder what is claimed next. Acta
+does not enforce that only one process claims a namespace, so the single-process condition is an
+operational promise, not a runtime invariant.
+
+**Exclusive unordered work.** `ExclusiveKey`, under the contract above.
+
+**Strict ordered processing.** A durable coordinator or chain job that releases item N+1 only after
+item N has reached the required outcome. Acta ships no built-in ordering key for this; you write the
+coordinator. The cost is head-of-line blocking, so the design needs an explicit policy for a poison
+item that never reaches its outcome.
+
 ## Contract evolution
 
 Contract evolution requires discipline. Jobs are durable rows, and old rows may execute after a new
@@ -71,6 +100,15 @@ Behind a reverse proxy on the same host, do not rely on `LocalOnly`; use real au
 
 SQLite has concurrency limits compared with server databases. Use SQL Server or PostgreSQL for
 distributed multi-worker deployments.
+
+On SQLite the `Bulk` execution profile degrades to `Direct`, silently. Group-committed completions
+need a batched-completion routine, and the SQLite provider has none, so the completion buffer is
+never created: the worker runs `Direct`'s combined claim-execute loop and commits every completion per
+job. Nothing logs the downgrade and no setting rejects it. The result is correct and fully durable,
+but it performs like `Direct`, not like `Bulk`, and one detail differs even from asking for `Direct`
+outright: the relaxed commit fsync `Direct` selects on SQLite (`PRAGMA synchronous = NORMAL`) is
+keyed on the configured profile, so a worker configured for `Bulk` keeps `FULL`. Configure `Direct`
+explicitly when the target is SQLite.
 
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.

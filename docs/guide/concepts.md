@@ -111,6 +111,36 @@ repeated.
 Acta is at-least-once. It makes durable state transitions and committed checkpoints repeat-safe; it
 does not make arbitrary external side effects exactly-once. Handlers own side-effect idempotency.
 
+## Ordering and exclusion
+
+Acta claims work in priority order, not arrival order. The claim scan reads ready rows in one
+namespace ordered by priority (highest first), then by next-run instant (rows with none first), then
+by `JobId`. `JobId` is a stable tie-breaker inside a single claim, **not** a multi-producer FIFO
+guarantee: database identities are allocation order, not commit order, so two producers can commit
+their rows in the opposite order to the ids they were given.
+
+**`ExclusiveKey` provides mutual exclusion, not ordering.** At most one job per
+(namespace, `ExclusiveKey`) executes at a time. Admission order is unspecified: under sustained
+arrivals that keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its
+wait. Use it for exclusive *unordered* work. A job that finds the key held is re-armed Ready a couple
+of seconds out without consuming retry budget, and while it waits it is not a claim candidate: a job
+enqueued later can take the key the moment it frees.
+
+There are three levels to choose between, and only the third one orders anything:
+
+| Level | What it gives you | How you get it |
+| --- | --- | --- |
+| **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, jobs due immediately. |
+| **Exclusive unordered work** | At most one job at a time per key, unbounded wait for any individual job. | `ExclusiveKey`. |
+| **Strict ordered processing** | Item N+1 starts only after item N reached the required outcome. | A durable coordinator or chain job you write: one job holds the sequence and releases the next item itself. |
+
+The first level's conditions are real constraints, not tuning hints. Retries, delayed eligibility,
+priority changes, and operator actions such as restart all move a row's next-run instant and reorder
+the queue; and Acta does not enforce single-process ownership of a namespace, so "one worker process"
+is an operational promise you keep, not an invariant the runtime checks. The third level costs
+head-of-line blocking: one stuck item holds everything behind it, so it needs a policy for poison
+items.
+
 ## Durable slots inside a job
 
 `JobContext` exposes durable primitives that belong to the parent job and share its claim, lease,

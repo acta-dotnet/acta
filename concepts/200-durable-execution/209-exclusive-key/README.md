@@ -27,11 +27,21 @@ Acta acquires the exclusive-key lease after claim but before handler invocation.
 `ready` with a short delay and releases its worker. The event reason makes this budget-neutral bounce
 visible instead of looking like an application failure.
 
+`ExclusiveKey` provides mutual exclusion, not ordering. At most one job per namespace and key
+executes at a time. Admission order is unspecified: under sustained arrivals that keep a key held, an
+older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for exclusive
+*unordered* work.
+
 ## Trade-offs
 
-Contention adds claim/re-arm traffic and can reduce fairness on very hot keys. The lock is scoped to
-Acta work in this database; it does not coordinate unrelated applications unless they share the same
-protocol.
+Contention adds claim/re-arm traffic, and on a key that never goes idle a bounced job can starve. A
+bounce returns the job to `ready` with its next run pushed a few seconds out, so at the instant the
+key frees the bounced job is not in the claim candidate set at all: a job enqueued later takes the
+key ahead of it, and the arrival after that can do the same. Ordering the claim scan differently
+cannot repair that, because the starved job is not among the rows being ordered.
+
+The lock is scoped to Acta work in this database; it does not coordinate unrelated applications
+unless they share the same protocol.
 
 ## Run the experiment
 
@@ -58,6 +68,22 @@ Increase the handler delay and enqueue more jobs with the same key. Watch repeat
 Then give each job a different key to see concurrency return.
 
 ## When not to use
+
+Not when you need order. `ExclusiveKey` is the middle rung of three, and only the third one orders
+anything:
+
+1. **Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
+   `MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, and jobs that are immediately
+   due. That gives serial execution, not strict FIFO: retries, delayed eligibility, priority changes,
+   and operator actions all reorder the queue, and Acta does not enforce that only one process runs
+   the namespace, so this is an operational promise you keep, not an invariant Acta checks. The claim
+   scan orders by priority, then by next-run instant, then by `JobId`; `JobId` is a stable
+   tie-breaker within one claim, not a multi-producer FIFO guarantee, because database identities are
+   allocation order, not commit order.
+2. **Exclusive unordered work.** `ExclusiveKey`, exactly as this lab shows it.
+3. **Strict ordered processing.** A durable coordinator or chain that releases item N+1 only once
+   item N has reached the required outcome. Head-of-line blocking is the price: one stuck item holds
+   everything behind it, so the design needs a poison-item policy.
 
 Use queue partitioning for sustained, high-volume per-key ordering. Use a unique constraint when the
 real invariant is “only one record may exist.” Use an external lock when non-Acta participants must
