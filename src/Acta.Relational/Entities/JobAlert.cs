@@ -147,6 +147,20 @@ internal sealed class JobAlert : IEntity<long>
     public int OccurrenceCount { get; set; }
 
     /// <summary>
+    /// High-water mark of the <c>events</c> row that last moved this alert automatically: the id of the
+    /// failure event that last raised or re-opened it, or of the success event that last resolved it.
+    /// NULL means no projected event has touched the row yet (a manual alert, or an automatic one whose
+    /// first projection is still in flight), and sorts before every event id. The <c>sys.alerts</c>
+    /// projector commits each event's alert write before it advances its cursor, so a crash mid-batch
+    /// replays events already projected; every automatic transition is conditional on the incoming event
+    /// id being strictly greater than this mark, which makes that replay a no-op instead of an inflated
+    /// <see cref="OccurrenceCount"/> or a re-opened resolution. Manual raises and the operator resolve
+    /// verb carry no event and leave this untouched.
+    /// </summary>
+    [DbColumn("last_projected_event_id", DbKind.Int64)]
+    public long? LastProjectedEventId { get; set; }
+
+    /// <summary>
     /// When the underlying condition cleared (recovery instant). NULL means the alert is still unresolved
     /// and is the single source of truth for resolution. Set by <c>complete_execution</c> when a
     /// previously-failed Job's next execution succeeds; cleared back to NULL when a re-failure inside the

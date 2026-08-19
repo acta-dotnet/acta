@@ -150,10 +150,12 @@ internal sealed class AlertsJob(
             // on EVERY success (no per-pass dedup): within one batch a job can go fail -> success -> fail
             // -> success, where the second failure re-opened (resolved_at = NULL) the deduped alert; only
             // resolving each success keeps it from lingering unresolved. The op is idempotent and a
-            // success with nothing open closes nothing, so the repeat costs a no-op.
+            // success with nothing open closes nothing, so the repeat costs a no-op. The success event's
+            // own id rides along: the store closes only alerts an OLDER event moved, so replaying this
+            // success behind a newer failure leaves the alert that failure opened open.
             if (e.JobId is { } jobId)
             {
-                await _store.ResolveJobAlertsAsync(ctx.NamespaceId, jobId, ct);
+                await _store.ResolveJobAlertsAsync(ctx.NamespaceId, jobId, e.EventId, ct);
             }
             return;
         }
@@ -224,7 +226,10 @@ internal sealed class AlertsJob(
                 channel,
                 AlertDeliveryStatusCode.Pending,
                 deduplicationKey,
-                windowStart
+                windowStart,
+                // The projecting event's id: the store increments, re-opens, and re-stamps only when it
+                // is newer than the row's mark, so re-projecting a batch after a crash changes nothing.
+                e.EventId
             );
         }
         catch (ArgumentException ex)

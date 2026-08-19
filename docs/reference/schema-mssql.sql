@@ -57,6 +57,7 @@ CREATE TABLE acta.alerts (
     dedupe_key varchar(512) NULL,
     dedupe_window_start_utc datetime2(3) NULL,
     occurrence_count int NOT NULL,
+    last_projected_event_id bigint NULL,
     resolved_at_utc datetime2(3) NULL,
     acknowledged_at_utc datetime2(3) NULL,
     delivery_status_code tinyint NOT NULL,
@@ -1107,6 +1108,7 @@ CREATE OR ALTER PROCEDURE acta.raise_job_alert
     @p_delivery_status_code TINYINT,
     @p_dedupe_key VARCHAR(512),
     @p_dedupe_window_start_utc DATETIME2(3),
+    @p_source_event_id BIGINT,
     @p_alert_ref UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -1135,14 +1137,14 @@ BEGIN
             INSERT INTO acta.alerts (
                 namespace_id, alert_ref, job_id, job_ref,
                 origin_code, severity_code, kind_code, title, message, channel_name,
-                dedupe_key, dedupe_window_start_utc, occurrence_count,
+                dedupe_key, dedupe_window_start_utc, occurrence_count, last_projected_event_id,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
             )
             VALUES (
                 @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                 @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                NULL, NULL, 1,
+                NULL, NULL, 1, @p_source_event_id,
                 @p_delivery_status_code, 0,
                 @now, @now, 0
             );
@@ -1167,6 +1169,7 @@ BEGIN
             channel_name = @p_channel_name,
             occurrence_count = ja.occurrence_count + 1,
             resolved_at_utc = NULL,
+            last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
             modified_at_utc = @now,
             version = ja.version + 1
         OUTPUT INSERTED.occurrence_count INTO @updated
@@ -1174,25 +1177,51 @@ BEGIN
         WHERE
             ja.namespace_id = @v_ns
             AND ja.dedupe_key = @p_dedupe_key
-            AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc;
+            AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc
+            AND (
+                @p_source_event_id IS NULL
+                OR ja.last_projected_event_id IS NULL
+                OR @p_source_event_id > ja.last_projected_event_id
+            );
 
         IF NOT EXISTS (SELECT 1 FROM @updated)
             BEGIN
-                INSERT INTO acta.alerts (
-                    namespace_id, alert_ref, job_id, job_ref,
-                    origin_code, severity_code, kind_code, title, message, channel_name,
-                    dedupe_key, dedupe_window_start_utc, occurrence_count,
-                    delivery_status_code, retry_count,
-                    created_at_utc, modified_at_utc, version
-                )
-                OUTPUT INSERTED.occurrence_count INTO @updated
-                VALUES (
-                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                    @p_dedupe_key, @p_dedupe_window_start_utc, 1,
-                    @p_delivery_status_code, 0,
-                    @now, @now, 0
+                -- Either no row is there yet and this raise inserts it, or one is and this is a replay
+                -- of an event it already absorbed. Reading under the range lock the UPDATE already
+                -- took tells the two apart without a race.
+                DECLARE @v_existing_count INT = (
+                    SELECT ja.occurrence_count
+                    FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, INDEX (ux_alerts_dedupe))
+                    WHERE
+                        ja.namespace_id = @v_ns
+                        AND ja.dedupe_key = @p_dedupe_key
+                        AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc
                 );
+
+                IF @v_existing_count IS NULL
+                    BEGIN
+                        INSERT INTO acta.alerts (
+                            namespace_id, alert_ref, job_id, job_ref,
+                            origin_code, severity_code, kind_code, title, message, channel_name,
+                            dedupe_key, dedupe_window_start_utc, occurrence_count, last_projected_event_id,
+                            delivery_status_code, retry_count,
+                            created_at_utc, modified_at_utc, version
+                        )
+                        OUTPUT INSERTED.occurrence_count INTO @updated
+                        VALUES (
+                            @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
+                            @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                            @p_dedupe_key, @p_dedupe_window_start_utc, 1, @p_source_event_id,
+                            @p_delivery_status_code, 0,
+                            @now, @now, 0
+                        );
+                    END
+                ELSE
+                    BEGIN
+                        -- A replay: nothing written, and the caller's failure threshold reads the count
+                        -- the row already carries.
+                        INSERT INTO @updated (occurrence_count) VALUES (@v_existing_count);
+                    END
             END
 
         COMMIT TRANSACTION;

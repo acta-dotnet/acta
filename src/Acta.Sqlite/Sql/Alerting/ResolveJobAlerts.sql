@@ -1,6 +1,7 @@
 UPDATE {{schema}}.alerts
 SET
     resolved_at_utc = {{now}},
+    last_projected_event_id = @p_source_event_id,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
@@ -8,4 +9,5 @@ WHERE
     AND job_id = @p_job_id
     AND origin_code = 10 /* AlertOriginCode.Automatic */
     AND kind_code IN (10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */)
-    AND resolved_at_utc IS NULL;
+    AND resolved_at_utc IS NULL
+    AND (last_projected_event_id IS NULL OR last_projected_event_id < @p_source_event_id);

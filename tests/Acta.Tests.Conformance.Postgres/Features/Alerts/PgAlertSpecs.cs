@@ -28,3 +28,5 @@ public sealed class PgListJobAlertsSpec : ListJobAlertsSpec<PgConformanceFixture
 public sealed class PgRaiseJobAlertSpec : RaiseJobAlertSpec<PgConformanceFixture>;
 
 public sealed class PgAlertRefDedupeStabilitySpec : AlertRefDedupeStabilitySpec<PgConformanceFixture>;
+
+public sealed class PgAlertProjectionReplaySpec : AlertProjectionReplaySpec<PgConformanceFixture>;

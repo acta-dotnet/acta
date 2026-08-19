@@ -14,8 +14,11 @@ internal interface IAlertStore
     /// Persists one <c>alerts</c> row and returns its post-upsert <c>occurrence_count</c>. A null
     /// deduplication key always inserts (returns 1); a non-null key upserts on
     /// <c>(namespace_id, deduplication_key, dedupe_window_start_utc)</c>, collapsing repeats inside the
-    /// window onto one row. Throws <see cref="ArgumentException"/> when the referenced job id does
-    /// not exist.
+    /// window onto one row. A command carrying a <c>SourceEventId</c> only increments, re-opens, and
+    /// re-stamps the row when that id is newer than the row's <c>last_projected_event_id</c>; a replay of
+    /// an already-projected event changes nothing and returns the stored count. A null
+    /// <c>SourceEventId</c> (a manual raise) always applies. Throws <see cref="ArgumentException"/> when
+    /// the referenced job id does not exist.
     /// </summary>
     Task<int> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct);
 
@@ -44,10 +47,13 @@ internal interface IAlertStore
     );
 
     /// <summary>
-    /// Marks one job's open automatic failure alerts resolved and returns the number of rows closed.
+    /// Marks one job's open automatic failure alerts resolved and returns the number of rows closed,
+    /// stamping <paramref name="sourceEventId"/> - the id of the success event driving the resolution -
+    /// on every row it closes. Only alerts whose <c>last_projected_event_id</c> precedes that id are
+    /// closed, so replaying a success behind a newer failure leaves the alert that failure opened alone.
     /// Idempotent: a second success closes nothing.
     /// </summary>
-    Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, CancellationToken ct);
+    Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct);
 
     /// <summary>
     /// Acknowledge one alert: missing row is NotFound; an already-acknowledged row is Applied without
@@ -88,6 +94,7 @@ internal sealed record RaiseJobAlertCommand(
     AlertDeliveryStatusCode DeliveryStatus,
     string? DeduplicationKey,
     DateTime? DedupeWindowStartUtc,
+    long? SourceEventId,
     Guid AlertRef
 )
 {
@@ -102,7 +109,8 @@ internal sealed record RaiseJobAlertCommand(
         string channelName,
         AlertDeliveryStatusCode deliveryStatus,
         string? deduplicationKey,
-        DateTime? dedupeWindowStartUtc
+        DateTime? dedupeWindowStartUtc,
+        long? sourceEventId
     )
     {
         channelName = IdentifierSyntax.CanonicalizeKebab(channelName, nameof(channelName), ActaTextLimits.AlertChannelName);
@@ -123,6 +131,7 @@ internal sealed record RaiseJobAlertCommand(
             deliveryStatus,
             deduplicationKey.Truncate(ActaTextLimits.AlertDedupeKey),
             dedupeWindowStartUtc,
+            sourceEventId,
             // The candidate public ref is minted here so every caller carries one; the raise consumes it
             // only when the upsert actually inserts, leaving a deduped row's ref stable across re-fires.
             Acta.AlertRef.New().Value

@@ -23,6 +23,7 @@ CREATE TABLE {{schema}}.alerts (
     dedupe_key varchar(512) NULL,
     dedupe_window_start_utc datetime2(3) NULL,
     occurrence_count int NOT NULL,
+    last_projected_event_id bigint NULL,
     resolved_at_utc datetime2(3) NULL,
     acknowledged_at_utc datetime2(3) NULL,
     delivery_status_code tinyint NOT NULL,

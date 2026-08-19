@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     dedupe_key varchar(512) NULL,
     dedupe_window_start_utc timestamptz NULL,
     occurrence_count integer NOT NULL,
+    last_projected_event_id bigint NULL,
     resolved_at_utc timestamptz NULL,
     acknowledged_at_utc timestamptz NULL,
     delivery_status_code smallint NOT NULL,

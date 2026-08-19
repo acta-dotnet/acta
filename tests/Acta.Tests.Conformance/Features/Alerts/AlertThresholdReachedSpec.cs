@@ -161,7 +161,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Null(raised.ResolvedAtUtc);
 
         // Resolve the alert (simulates a recovery event closing the row).
-        await Services.GetRequiredService<IAlertStore>().ResolveJobAlertsAsync(NamespaceId, jobId, ct);
+        await Services.GetRequiredService<IAlertStore>().ResolveJobAlertsAsync(NamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
         var afterResolve = await ReadAlertsAsync(NamespaceId, ct);
         var resolvedAlert = Assert.Single(afterResolve, a => a.Id == capturedId);
         Assert.NotNull(resolvedAlert.ResolvedAtUtc);

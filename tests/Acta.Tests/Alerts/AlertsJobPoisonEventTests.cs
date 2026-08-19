@@ -106,7 +106,8 @@ public sealed class AlertsJobPoisonEventTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+            throw new NotSupportedException();
 
         public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
             throw new NotSupportedException();

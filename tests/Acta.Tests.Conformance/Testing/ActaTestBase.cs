@@ -143,6 +143,18 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     {
         return await Db.From<JobAlert>().Where(a => a.NamespaceId == namespaceId).ToListAsync(ct);
     }
+
+    /// <summary>
+    /// One past the newest event id recorded against <paramref name="jobId"/>: the id the next event
+    /// written for that job would take. Specs standing in for a projected recovery pass it where the
+    /// real <c>sys.alerts</c> projector passes the success event's id, so the alert store's
+    /// projected-event high-water guard sees an id newer than anything the row has absorbed.
+    /// </summary>
+    private protected async Task<long> NextEventIdAsync(long jobId, CancellationToken ct)
+    {
+        var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId).ToListAsync(ct);
+        return events.Count == 0 ? 1L : events.Max(e => e.Id) + 1L;
+    }
 }
 
 /// <summary>

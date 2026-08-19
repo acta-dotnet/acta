@@ -112,13 +112,14 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     // Inline UPDATE in every provider (no routine); the number of rows closed is the command's
     // rows-affected count, read after draining the reader.
-    public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, CancellationToken ct) =>
+    public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
         session.QueryAsync(
             "Sql/Alerting/ResolveJobAlerts.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SourceEventId, sourceEventId));
             },
             async (reader, token) =>
             {
@@ -197,6 +198,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)command.DeliveryStatus));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeKey, command.DeduplicationKey));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeWindowStartUtc, command.DedupeWindowStartUtc));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SourceEventId, command.SourceEventId));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, command.AlertRef));
     }
 

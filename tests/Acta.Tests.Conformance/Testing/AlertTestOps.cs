@@ -9,6 +9,12 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class AlertTestOps
 {
+    /// <summary>
+    /// Raises one alert with no projected event behind it, the shape a manual
+    /// <c>ctx.AlertAsync</c> takes: the raise always applies and never moves the row's projection
+    /// high-water mark. Specs that need the projector's event-scoped behavior drive
+    /// <c>AlertsJob</c> itself.
+    /// </summary>
     public static Task<int> RaiseAsync(
         IServiceProvider services,
         string jobNamespace,
@@ -38,7 +44,8 @@ internal static class AlertTestOps
                     channelName,
                     deliveryStatus,
                     deduplicationKey,
-                    dedupeWindowStartUtc
+                    dedupeWindowStartUtc,
+                    sourceEventId: null
                 ),
                 ct
             );

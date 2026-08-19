@@ -139,8 +139,11 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.NotNull(seeded.DedupeKey);
         Assert.NotNull(seeded.DedupeWindowStartUtc);
 
-        // Resolve it.
-        await Services.GetRequiredService<IAlertStore>().ResolveJobAlertsAsync(NamespaceId, job.JobId, ct);
+        // Resolve it, standing in for the success event that would close it: an id past every failure
+        // event the projector already stamped on the row.
+        await Services
+            .GetRequiredService<IAlertStore>()
+            .ResolveJobAlertsAsync(NamespaceId, job.JobId, await NextEventIdAsync(job.JobId, ct), ct);
         var afterResolve = await ReadAlertsAsync(NamespaceId, ct);
         Assert.NotNull(Assert.Single(afterResolve, a => a.Kind == AlertKindCode.FinalFailure).ResolvedAtUtc);
 

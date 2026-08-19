@@ -62,6 +62,10 @@
             "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
+            "Name": "last_projected_event_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
             "Name": "resolved_at_utc",
             "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
           },

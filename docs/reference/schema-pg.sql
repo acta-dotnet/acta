@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS acta.alerts (
     dedupe_key varchar(512) NULL,
     dedupe_window_start_utc timestamptz NULL,
     occurrence_count integer NOT NULL,
+    last_projected_event_id bigint NULL,
     resolved_at_utc timestamptz NULL,
     acknowledged_at_utc timestamptz NULL,
     delivery_status_code smallint NOT NULL,
@@ -901,6 +902,7 @@ CREATE OR REPLACE FUNCTION acta.raise_job_alert(
     p_delivery_status_code SMALLINT,
     p_dedupe_key VARCHAR,
     p_dedupe_window_start_utc TIMESTAMPTZ,
+    p_source_event_id BIGINT,
     p_alert_ref UUID
 )
 RETURNS INT
@@ -939,6 +941,7 @@ BEGIN
             dedupe_key,
             dedupe_window_start_utc,
             occurrence_count,
+            last_projected_event_id,
             delivery_status_code,
             retry_count,
             created_at_utc,
@@ -958,6 +961,7 @@ BEGIN
             NULL,
             NULL,
             1,
+            p_source_event_id,
             p_delivery_status_code,
             0,
             now(),
@@ -980,6 +984,7 @@ BEGIN
         dedupe_key,
         dedupe_window_start_utc,
         occurrence_count,
+        last_projected_event_id,
         delivery_status_code,
         retry_count,
         created_at_utc,
@@ -999,6 +1004,7 @@ BEGIN
         p_dedupe_key,
         p_dedupe_window_start_utc,
         1,
+        p_source_event_id,
         p_delivery_status_code,
         0,
         now(),
@@ -1016,9 +1022,25 @@ BEGIN
         channel_name = EXCLUDED.channel_name,
         occurrence_count = acta.alerts.occurrence_count + 1,
         resolved_at_utc = NULL,
+        last_projected_event_id = COALESCE(EXCLUDED.last_projected_event_id, acta.alerts.last_projected_event_id),
         modified_at_utc = now(),
         version = acta.alerts.version + 1
+    WHERE
+        p_source_event_id IS NULL
+        OR acta.alerts.last_projected_event_id IS NULL
+        OR p_source_event_id > acta.alerts.last_projected_event_id
     RETURNING occurrence_count INTO v_occurrence_count;
+
+    -- The WHERE above held the row back: a replay of an event it already absorbed. Nothing was written,
+    -- and the count the row already carries is what the caller's failure threshold must read.
+    IF v_occurrence_count IS NULL THEN
+        SELECT occurrence_count INTO v_occurrence_count
+        FROM acta.alerts
+        WHERE
+            namespace_id = v_ns
+            AND dedupe_key = p_dedupe_key
+            AND dedupe_window_start_utc = p_dedupe_window_start_utc;
+    END IF;
 
     RETURN v_occurrence_count;
 END;

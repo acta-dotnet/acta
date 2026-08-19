@@ -43,7 +43,10 @@ internal sealed class AlertStoreSink(IAlertStore store, IActaClock clock, IOptio
                 channelName ?? "default",
                 AlertDeliveryStatusCode.Pending,
                 deduplicationKey,
-                windowStart
+                windowStart,
+                // No projected event behind a manual raise: it always applies and never moves the
+                // projection high-water mark.
+                sourceEventId: null
             ),
             ct
         );

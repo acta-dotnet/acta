@@ -201,7 +201,9 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         // Resolve alert A
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        await Services.GetRequiredService<IAlertStore>().ResolveJobAlertsAsync(nsId, resolveJobId, ct);
+        await Services
+            .GetRequiredService<IAlertStore>()
+            .ResolveJobAlertsAsync(nsId, resolveJobId, await NextEventIdAsync(resolveJobId, ct), ct);
 
         // unresolvedOnly=true: only B
         var unresolvedPage = await queries.Alerts.ListAsync(

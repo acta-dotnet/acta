@@ -322,6 +322,18 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
+        // sys.alerts projection source: the id of the events row being projected into an alert. Null for a
+        // manual raise, which has no event behind it. The raise and auto-resolve compare it against the
+        // alert's stored last_projected_event_id so a replayed event changes nothing.
+        public static readonly DbValueSpec<long?> SourceEventId = new(
+            ParameterName: "p_source_event_id",
+            Kind: DbKind.Int64,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         // sys.alerts batch cap: max rows the projection / delivery read returns per tick.
         public static readonly DbValueSpec<int> AlertBatchSize = new(
             ParameterName: "p_alert_batch_size",
