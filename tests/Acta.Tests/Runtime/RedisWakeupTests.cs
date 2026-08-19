@@ -232,8 +232,24 @@ public sealed class RedisWakeupTests
         await using var receiver = new RedisWakeup(redis, Options.Create(prefix));
         await using var sender = new RedisWakeup(redis, Options.Create(prefix));
 
+        // Prove the receiver's subscription is live before the burst, without going through the
+        // republish loop on the "billing" channel itself: that loop's whole purpose here is to measure
+        // how many jittered wakes the burst allocates, and republishing on "billing" would inflate the
+        // very count under test. RedisWakeup holds exactly one pattern subscription per process
+        // covering every channel by prefix (see its class remarks), so proving it live on ANY channel
+        // proves it live for "billing" too. Job-completion wakes are that channel: they skip
+        // _pendingJittered entirely and deliver immediately (see OnRemoteWake), so republishing this
+        // warm-up until it lands costs nothing towards JitteredWakesScheduled.
+        var warmup = receiver.WaitAsync(WorkerWakeupChannel.JobCompletion(1), WaitGenerously, None).AsTask();
+        Assert.Equal(
+            WorkerWakeupWaitStatus.Signaled,
+            await PublishUntilSignaledAsync(
+                warmup,
+                () => sender.WakeAsync(WorkerWakeupChannel.JobCompletion(1), WorkerWakeupReason.JobFinished, None).AsTask()
+            )
+        );
+
         var wait = receiver.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
-        await Task.Delay(250, None); // let the receiver's pattern subscription land - pub/sub has no replay
 
         // Two channels, many duplicates each: useful state is one pending wake per channel, not per message.
         for (var i = 0; i < 200; i++)

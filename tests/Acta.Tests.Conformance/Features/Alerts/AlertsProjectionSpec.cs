@@ -135,7 +135,10 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         var afterSuccess = await ReadAlertsAsync(NamespaceId, ct);
         Assert.Single(afterSuccess, a => a.Kind == AlertKindCode.Recovery);
-        Assert.All(afterSuccess.Where(a => a.Kind == AlertKindCode.FirstFailure), a => Assert.NotNull(a.ResolvedAtUtc));
+        // Assert.Single (not Assert.All, which vacuously passes on zero matches) proves the FirstFailure
+        // row from before still exists post-success, then asserts it resolved.
+        var resolvedFirstFailure = Assert.Single(afterSuccess, a => a.Kind == AlertKindCode.FirstFailure);
+        Assert.NotNull(resolvedFirstFailure.ResolvedAtUtc);
 
         // A further pass with no new events emits no second recovery.
         await RunAlertsAsync(job.JobId, ct);

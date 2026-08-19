@@ -84,6 +84,12 @@ public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var jobId = enqueued[0].JobId;
         await Runtime.RunOnceAsync(jobId, ct);
 
+        // The job's timeline is fully knowable here (one job, one run), so the combined read's total is
+        // pinned to an independently counted value rather than merely bounded against the page size -
+        // that bound is true by construction (a page can never exceed its filter's total) and would
+        // still pass with a badly wrong TotalCount.
+        var expectedTotal = (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)).Items.Count;
+
         var page = await Services
             .GetRequiredService<IEventStore>()
             .ListEventsAsync(
@@ -112,8 +118,7 @@ public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.NotEmpty(rows);
         Assert.True(rows.Count <= 2);
         Assert.All(rows, row => Assert.Equal(jobId, row.JobId));
-        Assert.NotNull(total);
-        Assert.True(total >= rows.Count);
+        Assert.Equal(expectedTotal, total);
         for (var i = 1; i < rows.Count; i++)
         {
             var ordered =

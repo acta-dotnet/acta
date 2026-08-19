@@ -3,6 +3,7 @@ using Acta.Runtime.Maintenance;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -112,12 +113,17 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
+        // retention_until_utc is stamped by the database at completion, so bracket it with two DB-clock
+        // reads rather than DateTime.UtcNow: the test process's clock can skew from the container's.
+        var clock = Services.GetRequiredService<IActaClock>();
+        var before = await clock.GetUtcNowAsync(ct);
         var jobId = (await EnqueueAndRunAsync("add-numbers", new AddNumbers(2, 3), ct)).JobId;
+        var after = await clock.GetUtcNowAsync(ct);
 
         // add-numbers carries no [Job(JobRetention=...)], so completion stamps the 90-day default.
         var job = await ReadJobAsync(jobId, ct);
         Assert.NotNull(job!.RetentionUntilUtc);
-        Assert.InRange(job.RetentionUntilUtc!.Value, DateTime.UtcNow.AddDays(89), DateTime.UtcNow.AddDays(91));
+        Assert.InRange(job.RetentionUntilUtc!.Value, before.AddDays(89), after.AddDays(91));
 
         var result = await RetentionTestOps.PurgeAsync(
             Services,

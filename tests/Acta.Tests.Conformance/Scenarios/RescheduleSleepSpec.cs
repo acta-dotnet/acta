@@ -1,6 +1,7 @@
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,14 +37,20 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-reschedule-delay", JobPayload.None), ct);
 
+        // next_run_at_utc is computed DB-side off the reschedule delay, so bracket the run with two
+        // DB-clock reads rather than DateTime.UtcNow: the test process's clock can skew from the
+        // container's.
+        var clock = Services.GetRequiredService<IActaClock>();
+        var before = await clock.GetUtcNowAsync(ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        var after = await clock.GetUtcNowAsync(ct);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
         Assert.Null(job.LeasedByWorkerId);
         Assert.Equal(0, job.FailureCount);
         Assert.NotNull(job.NextRunAtUtc);
-        Assert.InRange(job.NextRunAtUtc!.Value, DateTime.UtcNow.AddMinutes(8), DateTime.UtcNow.AddMinutes(12));
+        Assert.InRange(job.NextRunAtUtc!.Value, before.AddMinutes(8), after.AddMinutes(12));
 
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));

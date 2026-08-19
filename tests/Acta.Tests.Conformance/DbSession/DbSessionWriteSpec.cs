@@ -1,6 +1,8 @@
 using Acta.Relational.Entities;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.DbSession;
@@ -95,20 +97,24 @@ public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixtur
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // DbFn.UtcNow emits SYSUTCDATETIME() / now() as literal SQL, not a bound parameter.
+        // DbFn.UtcNow emits SYSUTCDATETIME() / now() as literal SQL, not a bound parameter, so the
+        // written value comes from the DB server clock. Bracket the write with two reads of that same
+        // clock instead of the test-process clock, so the bound never folds in this process's skew
+        // from the container's.
+        var clock = Services.GetRequiredService<IActaClock>();
+        var before = await clock.GetUtcNowAsync(ct);
         var affected = await Db.From<JobNamespace>()
             .Where(n => n.Id == TestNamespaceId)
             .UpdateOnlyAsync(() => new JobNamespace { ModifiedAtUtc = DbFn.UtcNow }, ct);
         Assert.Equal(1, affected);
+        var after = await clock.GetUtcNowAsync(ct);
 
         var row = await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal(DateTimeKind.Utc, row!.ModifiedAtUtc.Kind);
-        // The server clock should sit within a few minutes of the test-process clock.
-        Assert.True(
-            Math.Abs((DateTime.UtcNow - row.ModifiedAtUtc).TotalMinutes) < 5,
-            $"Expected modified_at_utc near now; got {row.ModifiedAtUtc:O}."
-        );
+        // A one-second slack absorbs modified_at_utc's coarser column precision against the clock
+        // read's, the same margin RelativeDelayUsesDbClockSpec uses for the same reason.
+        Assert.InRange(row.ModifiedAtUtc, before.AddSeconds(-1), after.AddSeconds(1));
     }
 
     [Fact(DisplayName = "DeleteAsync and UpdateOnlyAsync with no Where and no All() throw InvalidOperationException")]
