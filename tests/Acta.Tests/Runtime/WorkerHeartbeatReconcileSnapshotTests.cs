@@ -17,6 +17,10 @@ namespace Acta.Tests.Runtime;
 /// </summary>
 public sealed class WorkerHeartbeatReconcileSnapshotTests
 {
+    // Hang guards, not measurements: both waits are for an in-process gate the tick under test opens,
+    // so only a tick that never got there reaches this bound.
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+
     [Fact]
     public async Task TickAsync_does_not_cancel_an_attempt_registered_while_the_extend_query_is_in_flight()
     {
@@ -33,14 +37,14 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
 
         // Wait until the extend query is actually in flight (blocked on the gate) before registering
         // the new attempt, so it lands squarely in the gap the race exploits.
-        await db.Entered.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        await db.Entered.WaitAsync(HangGuard, ct);
 
         using var lateAttemptCts = new CancellationTokenSource();
         var lateAttempt = new RunningAttempt(lateAttemptCts);
         context.RunningAttempts[2] = lateAttempt;
 
         db.Release();
-        await tickTask.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        await tickTask.WaitAsync(HangGuard, ct);
 
         Assert.False(lateAttemptCts.IsCancellationRequested);
     }

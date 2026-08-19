@@ -58,7 +58,7 @@ public abstract class CombinedDispatchParitySpec<TFixture> : ActaRuntimeTestBase
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);
 
-        var deadline = TimeSpan.FromMinutes(1);
+        var deadline = SpecWaits.Converge;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sink.ElapsedTicks.Count < JobCount && sw.Elapsed < deadline)
         {

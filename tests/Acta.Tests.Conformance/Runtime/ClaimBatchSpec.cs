@@ -186,7 +186,7 @@ public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);
 
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
         while (DateTime.UtcNow < deadline)
         {
             var done = 0;

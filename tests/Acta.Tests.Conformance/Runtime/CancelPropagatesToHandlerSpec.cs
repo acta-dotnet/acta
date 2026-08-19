@@ -28,7 +28,8 @@ public abstract class CancelPropagatesToHandlerSpec<TFixture> : ActaRuntimeTestB
     public async Task ExternalCancel_OfARunningJob_CancelsTheHandlersToken()
     {
         var ct = TestContext.Current.CancellationToken;
-        var timeout = TimeSpan.FromSeconds(15);
+        // A hang guard, not a measurement: the waits below are for a probe gate and the run task.
+        var timeout = SpecWaits.Gate;
         CancellableHandler.Reset(TestNamespace);
 
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "cancellable", JobPayload.None), ct);

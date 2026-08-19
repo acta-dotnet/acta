@@ -65,21 +65,6 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var agedAtB = DateTime.UtcNow.AddHours(-1);
         await Db.From<JobWorker>().Where(w => w.Id == workerBId).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAtB }, ct);
 
-        // A fresh worker that must SURVIVE: seed one in namespace A with a current last_seen.
-        var (_, freshWorkerId) = await WorkerTestOps.StartAsync(
-            Services,
-            TestNamespace,
-            ownerTeam: null,
-            description: null,
-            hostName: "fresh-host",
-            deploymentVersion: "test",
-            engineVersion: null,
-            dotnetVersion: null,
-            processId: 0,
-            maxConcurrency: 1,
-            ct
-        );
-
         // A cleanly-stopped worker that must ALSO survive, aged past the same window. The sweep matches on
         // Active status AND a stale heartbeat, so aging this row leaves its status as the only thing
         // keeping it out - the assertion below is then a real negative rather than a vacuous one. A worker
@@ -102,9 +87,29 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             .Where(w => w.Id == stoppedWorkerId)
             .UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
 
-        // One global sweep: no namespace argument.
-        var marked = await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
-        Assert.True(marked >= 2, $"expected at least the two aged workers marked; got {marked}.");
+        // A fresh worker that must SURVIVE: seed one in namespace A with a current last_seen. Seeded
+        // last so the window in which it could itself age past the sweep's own cutoff is one call wide.
+        var (_, freshWorkerId) = await WorkerTestOps.StartAsync(
+            Services,
+            TestNamespace,
+            ownerTeam: null,
+            description: null,
+            hostName: "fresh-host",
+            deploymentVersion: "test",
+            engineVersion: null,
+            dotnetVersion: null,
+            processId: 0,
+            maxConcurrency: 1,
+            ct
+        );
+
+        // One global sweep: no namespace argument. The count it returns is deliberately not the fact.
+        // Being namespace-agnostic is the contract, so every sibling spec sharing the acta_test schema
+        // sweeps these same rows; one of them retiring the two aged workers first would leave this call
+        // nothing to mark, and a count assertion would then be reading which sweep won a race rather
+        // than what the sweep does. The settled rows and their events below say all of it, and say it
+        // identically whichever global sweep applied the transition.
+        await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
 
         var afterA = await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).SingleOrDefaultAsync(ct);
         var afterB = await Db.From<JobWorker>().Where(w => w.Id == workerBId).SingleOrDefaultAsync(ct);

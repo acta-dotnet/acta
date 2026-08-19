@@ -29,7 +29,7 @@ public abstract class JobRefContextSpec<TFixture> : ActaRuntimeTestBase<TFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "jobref-probe", JobPayload.None), ct);
 
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var seen = await CheckpointSlot.GetAsync(
             Services.GetRequiredService<IExecutionStore>(),

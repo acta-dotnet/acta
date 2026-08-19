@@ -24,7 +24,9 @@ namespace Acta.Tests.Conformance.Runtime;
 public abstract class AttemptOverlapChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
+    // A hang guard, not a measurement: every wait below is for an in-process signal the act just
+    // before it already caused, so only a genuine hang reaches this bound. See SpecWaits.
+    private static readonly TimeSpan Timeout = SpecWaits.Gate;
 
     [Fact(
         DisplayName = "A stale attempt's cleanup removes only its own tracking entry, the external cancel reaches the replacement via heartbeat, and the job settles Cancelled once"

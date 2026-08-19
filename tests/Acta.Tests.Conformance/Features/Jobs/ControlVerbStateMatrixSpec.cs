@@ -1,5 +1,6 @@
 using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -91,10 +92,13 @@ public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase
         await SetJobStatusAsync(Db, dispatchedJob, (byte)JobStatusCode.Dispatched, ct);
 
         // Default retention is 90 days so retention_until_utc will be ~now + 90d; capture a window.
-        var tBefore = DateTime.UtcNow.AddSeconds(-1);
+        // Both ends come off the DATABASE clock, because the value being bracketed does: comparing a
+        // db_now-derived instant against this process's clock would fold container clock skew into a
+        // one-second lower bound, and skew is not what this fact is about.
+        var tBefore = (await NowAsync(ct)).AddSeconds(-1);
         var cancelSuspended = await Services.GetRequiredService<IJobStore>().CancelJobAsync(suspendedJob, input, ct);
         var cancelDispatched = await Services.GetRequiredService<IJobStore>().CancelJobAsync(dispatchedJob, input, ct);
-        var tAfter = DateTime.UtcNow.AddDays(91);
+        var tAfter = (await NowAsync(ct)).AddDays(91);
 
         Assert.Equal(JobControlActionInternal.Applied, cancelSuspended.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancelSuspended.Outcome.Status);
@@ -175,9 +179,11 @@ public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase
         var explicitNextRun = new DateTime(2027, 6, 15, 12, 0, 0, DateTimeKind.Utc);
         var outcomeExplicit = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(explicitJob, input, explicitNextRun, ct);
 
-        var tBefore = DateTime.UtcNow.AddSeconds(-1);
+        // A null next run coalesces to db_now, so both ends of the window are read from the same
+        // clock that produced it; a process-clock bracket would be measuring container clock skew.
+        var tBefore = (await NowAsync(ct)).AddSeconds(-1);
         var outcomeDefault = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(defaultJob, input, null, ct);
-        var tAfter = DateTime.UtcNow.AddSeconds(1);
+        var tAfter = (await NowAsync(ct)).AddSeconds(1);
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeExplicit.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeExplicit.Status);
@@ -195,6 +201,9 @@ public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase
     }
 
     // ---------- helpers ----------
+
+    // The database clock, which is the one the verbs stamp their instants from.
+    private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {

@@ -30,7 +30,9 @@ namespace Acta.Tests.Conformance.Runtime;
 public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
+    // A hang guard, not a measurement: the waits below are for a probe gate and the run task, both
+    // driven by acts that already happened. See SpecWaits.
+    private static readonly TimeSpan Timeout = SpecWaits.Gate;
 
     [Fact(DisplayName = "Heartbeat advances a handler-held lock's lease")]
     public async Task Heartbeat_extends_a_handler_held_lock()

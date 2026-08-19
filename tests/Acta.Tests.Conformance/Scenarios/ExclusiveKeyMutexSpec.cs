@@ -115,7 +115,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         // Parallel single-tick executors race the claim and the execution-time lock; losers bounce
         // and retry once due again. The probe records the max observed handler concurrency.
         var completed = 0;
-        var deadline = DateTime.UtcNow.AddSeconds(60);
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
         await Task.WhenAll(
             Enumerable
                 .Range(0, workers)

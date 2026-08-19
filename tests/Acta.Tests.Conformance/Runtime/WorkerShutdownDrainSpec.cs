@@ -25,9 +25,10 @@ namespace Acta.Tests.Conformance.Runtime;
 public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    // Generous: these specs drive the real claim loop + DB round-trips, which can run slow under the
-    // conformance suite's aggressive cross-test parallelism. They finish in well under a second in isolation.
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+    // A hang guard, not a measurement: these specs drive the real claim loop and its DB round-trips,
+    // which run slow under the suite's cross-test parallelism and finish well under a second in
+    // isolation. Nothing here asserts on how long the drain took. See SpecWaits.
+    private static readonly TimeSpan Timeout = SpecWaits.Gate;
 
     /// <summary>The profile under test; each concrete spec pins one.</summary>
     protected abstract ExecutionProfile Profile { get; }

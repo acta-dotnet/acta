@@ -175,10 +175,13 @@ internal static class TestDashboardHost
 
         public Exception? ListJobsException { get; init; }
 
-        /// <summary>When set, ListJobsAsync awaits <paramref name="ct"/> indefinitely instead of
-        /// returning, so a client abort surfaces as a real <see cref="OperationCanceledException"/>
-        /// carrying the request's <c>RequestAborted</c> token (mirrors a client disconnecting mid-read).</summary>
+        /// <summary>When set, ListJobsAsync signals <see cref="ListJobsStarted"/> and then awaits
+        /// <paramref name="ct"/> indefinitely instead of returning, so a client abort surfaces as a
+        /// real <see cref="OperationCanceledException"/> carrying the request's <c>RequestAborted</c>
+        /// token (mirrors a client disconnecting mid-read).</summary>
         public bool ListJobsAwaitCancellation { get; init; }
+
+        public TaskCompletionSource ListJobsStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>When set, GetOverviewAsync signals <see cref="OverviewStarted"/> and then awaits
         /// request cancellation, allowing endpoint tests to cancel a database-like overview read.</summary>
@@ -223,6 +226,7 @@ internal static class TestDashboardHost
             LastJobsQuery = query;
             if (ListJobsAwaitCancellation)
             {
+                ListJobsStarted.TrySetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             }
 

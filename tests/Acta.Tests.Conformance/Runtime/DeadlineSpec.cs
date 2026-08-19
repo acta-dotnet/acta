@@ -1,5 +1,7 @@
+using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Checkpoints;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,8 +33,8 @@ public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "deadline-strict-probe", JobPayload.None), ct);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(1200), ct);
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
+        await MakeOverdueAsync(enqueued.JobId, ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var snapshot = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Cancelled, snapshot!.Status);
@@ -58,7 +60,7 @@ public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "deadline-retry-probe", JobPayload.None), ct);
 
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var snapshot = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Cancelled, snapshot!.Status);
@@ -75,8 +77,8 @@ public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "deadline-advisory-probe", JobPayload.None), ct);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(1200), ct);
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
+        await MakeOverdueAsync(enqueued.JobId, ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var snapshot = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Succeeded, snapshot!.Status);
@@ -93,5 +95,22 @@ public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.DoesNotContain(events, e => e.JobEventReasonCode == JobEventReasonCode.JobDeadlineExceeded);
+    }
+
+    /// <summary>
+    /// Puts the job's deadline instant in the past. A whole-job deadline is
+    /// <c>jobs.created_at_utc + deadline_seconds</c>, so moving the anchor back is the same state a
+    /// probe with a one-second deadline reaches by being left alone, without spending the second: the
+    /// subject here is what admission decides about an overdue job, never how the job got that way.
+    /// </summary>
+    private async Task MakeOverdueAsync(long jobId, CancellationToken ct)
+    {
+        // The anchor comes off the DATABASE clock, the one admission compares the derived deadline
+        // against. Back-dating from this process's clock would fold container clock skew into the
+        // stamp, and the amount of back-dating is not what makes this job overdue - the clock it is
+        // measured from is.
+        var anchor = (await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct)).AddMinutes(-5);
+        var affected = await Db.From<Job>().Where(j => j.Id == jobId).UpdateOnlyAsync(() => new Job { CreatedAtUtc = anchor }, ct);
+        Assert.Equal(1, affected);
     }
 }

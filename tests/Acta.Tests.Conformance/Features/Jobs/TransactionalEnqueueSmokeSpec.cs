@@ -46,19 +46,16 @@ public abstract class TransactionalEnqueueSmokeSpec<TFixture> : ActaRuntimeTestB
         await using var conn = await Db.OpenConnectionAsync(ct);
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
 
-        long jobId;
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
-            var outcome = await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(2, 3)), ct);
+            var outcome = await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(2, 3), marker), ct);
             Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
-            jobId = outcome.JobId;
             await tx.CommitAsync(ct);
         }
 
         Assert.Equal(1, await CountBusinessRowsAsync(conn, probe, marker, ct));
-        var job = await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
-        Assert.NotNull(job);
+        Assert.NotNull(await JobByKeyAsync(marker, ct));
     }
 
     [Fact(DisplayName = "Rollback discards both the business row and the provisional transactional enqueue")]
@@ -70,18 +67,15 @@ public abstract class TransactionalEnqueueSmokeSpec<TFixture> : ActaRuntimeTestB
         await using var conn = await Db.OpenConnectionAsync(ct);
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
 
-        long provisionalJobId;
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
-            var outcome = await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(4, 5)), ct);
-            provisionalJobId = outcome.JobId;
+            await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(4, 5), marker), ct);
             await tx.RollbackAsync(ct);
         }
 
         Assert.Equal(0, await CountBusinessRowsAsync(conn, probe, marker, ct));
-        var job = await Db.From<Job>().Where(j => j.Id == provisionalJobId).SingleOrDefaultAsync(ct);
-        Assert.Null(job);
+        Assert.Null(await JobByKeyAsync(marker, ct));
     }
 
     [Fact(DisplayName = "A batch transactional enqueue commits and rolls back atomically with the business insert")]
@@ -94,53 +88,66 @@ public abstract class TransactionalEnqueueSmokeSpec<TFixture> : ActaRuntimeTestB
 
         // Commit: two-row batch plus a business row all persist.
         var committedMarker = TestKey("batch-commit");
-        IReadOnlyList<long> committedIds;
+        string[] committedKeys = [committedMarker + "-a", committedMarker + "-b"];
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             await InsertBusinessRowAsync(conn, tx, probe, committedMarker, ct);
             var outcomes = await Jobs.EnqueueBatchAsync(
                 tx,
-                [Request("add-numbers", new AddNumbers(1, 1)), Request("add-numbers", new AddNumbers(2, 2))],
+                [
+                    Request("add-numbers", new AddNumbers(1, 1), committedKeys[0]),
+                    Request("add-numbers", new AddNumbers(2, 2), committedKeys[1]),
+                ],
                 ct
             );
             Assert.Equal(2, outcomes.Count);
-            committedIds = outcomes.Select(o => o.JobId).ToList();
             await tx.CommitAsync(ct);
         }
 
         Assert.Equal(1, await CountBusinessRowsAsync(conn, probe, committedMarker, ct));
-        foreach (var id in committedIds)
+        foreach (var key in committedKeys)
         {
-            Assert.NotNull(await Db.From<Job>().Where(j => j.Id == id).SingleOrDefaultAsync(ct));
+            Assert.NotNull(await JobByKeyAsync(key, ct));
         }
 
         // Rollback: two-row batch plus a business row all vanish.
         var rolledBackMarker = TestKey("batch-rollback");
-        IReadOnlyList<long> rolledBackIds;
+        string[] rolledBackKeys = [rolledBackMarker + "-a", rolledBackMarker + "-b"];
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             await InsertBusinessRowAsync(conn, tx, probe, rolledBackMarker, ct);
-            var outcomes = await Jobs.EnqueueBatchAsync(
+            await Jobs.EnqueueBatchAsync(
                 tx,
-                [Request("add-numbers", new AddNumbers(3, 3)), Request("add-numbers", new AddNumbers(4, 4))],
+                [
+                    Request("add-numbers", new AddNumbers(3, 3), rolledBackKeys[0]),
+                    Request("add-numbers", new AddNumbers(4, 4), rolledBackKeys[1]),
+                ],
                 ct
             );
-            rolledBackIds = outcomes.Select(o => o.JobId).ToList();
             await tx.RollbackAsync(ct);
         }
 
         Assert.Equal(0, await CountBusinessRowsAsync(conn, probe, rolledBackMarker, ct));
-        foreach (var id in rolledBackIds)
+        foreach (var key in rolledBackKeys)
         {
-            Assert.Null(await Db.From<Job>().Where(j => j.Id == id).SingleOrDefaultAsync(ct));
+            Assert.Null(await JobByKeyAsync(key, ct));
         }
     }
 
-    private JobEnqueueRequest Request(string jobName, object input)
+    /// <summary>
+    /// Finds the job this test enqueued by the deduplication key it stamped on it. Identity has to come
+    /// from something the test owns: a rolled-back insert releases its surrogate id, and SQLite hands
+    /// that same id to the next writer (AUTOINCREMENT's sequence bump rolls back with the row), so a
+    /// sibling spec enqueueing in that window would satisfy an id lookup with its own row.
+    /// </summary>
+    private async Task<Job?> JobByKeyAsync(string deduplicationKey, CancellationToken ct) =>
+        await Db.From<Job>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
+
+    private JobEnqueueRequest Request(string jobName, object input, string deduplicationKey)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);
-        return new JobEnqueueRequest(TestNamespace, jobName, payload);
+        return new JobEnqueueRequest(TestNamespace, jobName, payload, deduplicationKey);
     }
 
     private static async Task InsertBusinessRowAsync(DbConnection conn, DbTransaction tx, string probe, string marker, CancellationToken ct)

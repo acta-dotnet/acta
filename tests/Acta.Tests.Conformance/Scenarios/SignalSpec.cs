@@ -30,9 +30,13 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
 {
     private WakeupParkProbe _wakeup = null!;
 
-    // The wake-on-raise fact runs the real loop: a minute-long safety poll + no system recurring slots
-    // make a pickup attributable to the raise's wakeup publish alone, and the probe reports when the
-    // loop has parked in that sleep. The RunOnce-driven facts are unaffected by any of it.
+    // The wake-on-raise fact runs the real loop: a long safety poll + no system recurring slots make a
+    // pickup attributable to the raise's wakeup publish alone, and the probe reports when the loop has
+    // parked in that sleep. The interval is minutes rather than seconds so the fact's own budget for
+    // the released job to run can be generous and still finish nowhere near the poll. The
+    // RunOnce-driven facts are unaffected by any of it.
+    private static readonly TimeSpan SafetyPoll = TimeSpan.FromMinutes(5);
+
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         base.ConfigureServices(services, testNamespace);
@@ -40,7 +44,7 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         services.Configure<JobsOptions>(o =>
         {
             o.RegisterSystemJobs = false;
-            o.SafetyPollInterval = TimeSpan.FromMinutes(1);
+            o.SafetyPollInterval = SafetyPoll;
         });
     }
 
@@ -53,18 +57,18 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
         // Start the loop on a namespace with no Ready rows: its first empty claim sees a null horizon
-        // and commits to the full 1m safety sleep. Waiting for the park rather than sleeping a fixed
+        // and commits to the full safety sleep. Waiting for the park rather than sleeping a fixed
         // warm-up is what makes the raise the only possible cause: a first claim still in flight would
         // have claimed the released row itself.
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);
-        await _wakeup.Parked.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await _wakeup.Parked.WaitAsync(SpecWaits.Gate, ct);
 
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        var deadline = DateTime.UtcNow + SpecWaits.Gate;
         while (DateTime.UtcNow < deadline && (await ReadJobAsync(enqueued.JobId, ct)).Status != JobStatusCode.Succeeded)
         {
             await Task.Delay(50, ct);
@@ -73,9 +77,10 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         await loopCts.CancelAsync();
         await loop;
 
-        // The loop is stopped ~50s inside the safety sleep it committed to, so the poll cadence cannot
-        // have reached this job: only the raise's wakeup publish can have interrupted the sleep. The
-        // status is the whole fact, so a slow claim or read costs latency here, never a false failure.
+        // The budget above cannot reach a fifth of the safety sleep the loop committed to, so the
+        // poll cadence cannot have reached this job however long the wait actually took: only the
+        // raise's wakeup publish can have interrupted that sleep. The status is the whole fact, so a
+        // slow claim or read costs latency here and never a false failure.
         var final = (await ReadJobAsync(enqueued.JobId, ct)).Status;
         Assert.True(
             final == JobStatusCode.Succeeded,

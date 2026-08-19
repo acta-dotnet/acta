@@ -474,7 +474,9 @@ public sealed class DashboardApiEndpointTests
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var requestTask = client.GetAsync("/acta/api/v1/jobs", cts.Token);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        // The abort has to land while the read is in flight, so wait for the read to say it is rather
+        // than sleeping a guess at how long the request takes to reach the handler.
+        await jobs.ListJobsStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         cts.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => requestTask);

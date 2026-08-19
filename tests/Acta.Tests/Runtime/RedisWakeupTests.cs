@@ -29,6 +29,24 @@ public sealed class RedisWakeupTests
 
     private static RedisWakeupOptions UniquePrefix() => new() { ChannelPrefix = "acta-test-" + Guid.NewGuid().ToString("N") };
 
+    /// <summary>
+    /// Publishes until the receiver's wait reports, then returns how it ended. Pub/sub has no replay,
+    /// so a wake sent before the receiver's pattern subscription lands is gone; republishing makes the
+    /// delivery fact independent of how long the subscribe takes, where sleeping a fixed warm-up first
+    /// only guesses at it and loses the guess on a loaded machine. The wait's own timeout ends the
+    /// loop, so a wake that genuinely never arrives still fails as TimedOut rather than spinning.
+    /// </summary>
+    private static async Task<WorkerWakeupWaitStatus> PublishUntilSignaledAsync(Task<WorkerWakeupWaitStatus> wait, Func<Task> publish)
+    {
+        while (!wait.IsCompleted)
+        {
+            await publish();
+            await Task.WhenAny(wait, Task.Delay(50, None));
+        }
+
+        return await wait;
+    }
+
     // ---- UseRedisWakeup builder wiring ----
 
     [Fact]
@@ -92,17 +110,23 @@ public sealed class RedisWakeupTests
 
         var receiver = receiverHost.GetRequiredService<IWorkerWakeup>();
         var wait = receiver.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
-        await Task.Delay(250, None); // let the receiver's pattern subscription land - pub/sub has no replay
 
         // Publish through the same guard production call sites use, against the DI-resolved wakeup.
         var publisher = new WorkerWakeupPublisher(senderHost.GetRequiredService<IWorkerWakeup>());
-        await publisher.WakeAsync(
-            WorkerWakeupChannel.WorkerNamespace("billing"),
-            WorkerWakeupReason.WorkAvailable,
-            TestContext.Current.CancellationToken
+        Assert.Equal(
+            WorkerWakeupWaitStatus.Signaled,
+            await PublishUntilSignaledAsync(
+                wait,
+                () =>
+                    publisher
+                        .WakeAsync(
+                            WorkerWakeupChannel.WorkerNamespace("billing"),
+                            WorkerWakeupReason.WorkAvailable,
+                            TestContext.Current.CancellationToken
+                        )
+                        .AsTask()
+            )
         );
-
-        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
 
         static ServiceProvider BuildHost(string configuration, string prefix)
         {
@@ -160,23 +184,37 @@ public sealed class RedisWakeupTests
 
         // Worker-namespace relay (jittered on the remote side; the timeout is generous).
         var nsWait = receiver.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
-        await Task.Delay(250, None); // let the receiver's pattern subscription land - pub/sub has no replay
-        await sender.WakeAsync(
-            WorkerWakeupChannel.WorkerNamespace("billing"),
-            WorkerWakeupReason.WorkAvailable,
-            TestContext.Current.CancellationToken
+        Assert.Equal(
+            WorkerWakeupWaitStatus.Signaled,
+            await PublishUntilSignaledAsync(
+                nsWait,
+                () =>
+                    sender
+                        .WakeAsync(
+                            WorkerWakeupChannel.WorkerNamespace("billing"),
+                            WorkerWakeupReason.WorkAvailable,
+                            TestContext.Current.CancellationToken
+                        )
+                        .AsTask()
+            )
         );
-        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await nsWait.WaitAsync(WaitGenerously, None));
 
         // Job-completion relay (never jittered; reaches existing waiters only on the remote side too).
         var jobWait = receiver.WaitAsync(WorkerWakeupChannel.JobCompletion(12345), WaitGenerously, None).AsTask();
-        await Task.Delay(100, None);
-        await sender.WakeAsync(
-            WorkerWakeupChannel.JobCompletion(12345),
-            WorkerWakeupReason.JobFinished,
-            TestContext.Current.CancellationToken
+        Assert.Equal(
+            WorkerWakeupWaitStatus.Signaled,
+            await PublishUntilSignaledAsync(
+                jobWait,
+                () =>
+                    sender
+                        .WakeAsync(
+                            WorkerWakeupChannel.JobCompletion(12345),
+                            WorkerWakeupReason.JobFinished,
+                            TestContext.Current.CancellationToken
+                        )
+                        .AsTask()
+            )
         );
-        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await jobWait.WaitAsync(WaitGenerously, None));
     }
 
     [Fact]
@@ -206,8 +244,11 @@ public sealed class RedisWakeupTests
 
         // Pub/sub delivery is asynchronous, so let the receiver drain the burst before counting. The
         // settle stays inside the jitter window, where a scheduled wake has not yet cleared its slot.
+        // Bounded, so a burst that never reaches the receiver says so instead of spinning.
+        var drained = DateTime.UtcNow + WaitGenerously;
         while (receiver.JitteredWakesScheduled == 0)
         {
+            Assert.True(DateTime.UtcNow < drained, "no jittered wake was scheduled: the burst never reached the receiver.");
             await Task.Delay(25, None);
         }
 

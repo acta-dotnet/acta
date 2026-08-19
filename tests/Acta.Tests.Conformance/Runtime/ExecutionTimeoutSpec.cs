@@ -32,7 +32,7 @@ public abstract class ExecutionTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "timeout-probe", JobPayload.None), ct);
 
         // The handler blocks on its token forever; the 1s timeout cancels it and the run completes.
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var snapshot = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(snapshot);

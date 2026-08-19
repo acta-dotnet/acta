@@ -31,7 +31,7 @@ public abstract class TimeoutRetryBudgetSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // Attempt 1: handler blocks until the 1s timeout fires.
         // In budget (1 < MaxAttempts=2): job re-arms to Ready, failure_count 0→1.
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var after1 = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(after1);
@@ -46,7 +46,7 @@ public abstract class TimeoutRetryBudgetSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // Attempt 2: claim+run again (zero backoff, so the job is immediately claimable).
         // Budget exhausted (2 >= MaxAttempts=2): job lands terminal Failed, failure_count 1→2.
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var after2 = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(after2);

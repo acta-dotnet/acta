@@ -65,7 +65,9 @@ public sealed class LoopTickCancellationFilterTests
         using var cts = new CancellationTokenSource();
         var runTask = reloader.RunAsync(cts.Token);
 
-        await WaitUntil(() => logger.Entries.Count(e => e.Level == LogLevel.Error) >= 2, TimeSpan.FromSeconds(5));
+        // A hang guard, not a measurement: the fact is that the loop keeps ticking after a stray OCE,
+        // and the two entries it needs arrive on a 20ms cadence. Only a loop that stopped reaches this.
+        await WaitUntil(() => logger.Entries.Count(e => e.Level == LogLevel.Error) >= 2, TimeSpan.FromSeconds(30));
 
         cts.Cancel();
         await runTask; // Must complete cleanly, not fault - proves the stray OCE never escaped RunAsync.

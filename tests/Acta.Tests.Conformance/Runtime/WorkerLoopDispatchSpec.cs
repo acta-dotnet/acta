@@ -36,6 +36,16 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
     // the idle sleep ENDED rather than racing its length, so its exact value cannot decide them.
     private static readonly TimeSpan SafetyPoll = TimeSpan.FromSeconds(8);
 
+    // The wake-speed fact's two knobs. The wait budget is a hang guard, not a measurement: one
+    // colocated add-numbers completes in milliseconds, so only a stalled suite gets near it. The poll
+    // interval then sits ABOVE that budget, which is the entire arrangement - no poll is reachable
+    // inside the wait, so the waiter ends on its JobCompletion wake or on the timeout and on nothing
+    // else. A poll interval under the budget would instead rescue a broken wake by discovering the
+    // already-finished row on the next poll, which is the shape this fact exists to rule out.
+    private static readonly TimeSpan CompletionWait = SpecWaits.Gate;
+
+    private static readonly TimeSpan PollBeyondThisWait = CompletionWait + TimeSpan.FromSeconds(30);
+
     private WakeupParkProbe _wakeup = null!;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
@@ -172,11 +182,13 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
-        // PollInterval is deliberately huge so a poll-driven return is impossible inside the wait
-        // timeout: the waiter either returns on its JobCompletion wake or times out.
+        // PollInterval is longer than WaitTimeout, so the wait cannot reach a poll: the waiter is
+        // either woken by the colocated completion or it times out with the row long since finished.
+        // That leaves the wake as the only path to a non-timed-out wait, which is what the assertion
+        // below reads.
         var outcome = await Jobs.RunAndWaitAsync(
             new AddNumbers(2, 3),
-            new JobExecutionOptions { PollInterval = TimeSpan.FromSeconds(15), WaitTimeout = TimeSpan.FromSeconds(20) },
+            new JobExecutionOptions { PollInterval = PollBeyondThisWait, WaitTimeout = CompletionWait },
             ct
         );
 
@@ -219,7 +231,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
     private async Task<Task> StartParkedLoopAsync(CancellationToken loopCt, CancellationToken ct)
     {
         var loop = Runtime.RunLoopAsync(loopCt);
-        await _wakeup.Parked.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await _wakeup.Parked.WaitAsync(SpecWaits.Gate, ct);
         return loop;
     }
 
@@ -233,7 +245,7 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
 
     private static async Task WaitUntilAllDoneAsync(IJobStore store, IReadOnlyList<long> ids, CancellationToken ct)
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
         while (DateTime.UtcNow < deadline)
         {
             var done = 0;
