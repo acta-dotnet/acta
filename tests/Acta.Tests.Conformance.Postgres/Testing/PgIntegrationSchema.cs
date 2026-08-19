@@ -87,10 +87,29 @@ public sealed class PgIntegrationSchema : IIntegrationSchema
         await using (var conn = new NpgsqlConnection(adminBuilder.ConnectionString))
         {
             await conn.OpenAsync();
+
+            // Read the namespace id headroom before adding this run's own row, so a bootstrap that
+            // is about to fail the check doesn't spend one more id on its way out.
+            await ThrowIfNamespaceIdSpaceExhaustedAsync(conn);
+
             await UpsertFrameworkNamespaceAsync(conn);
         }
 
         return connectionString;
+    }
+
+    private static async Task ThrowIfNamespaceIdSpaceExhaustedAsync(NpgsqlConnection conn)
+    {
+        // pg_get_serial_sequence resolves the sequence backing namespaces.id instead of hardcoding
+        // "namespaces_id_seq", which would silently stop tracking consumption if the column's default
+        // were ever redefined. pg_sequence_last_value returns NULL - not 1 - for a sequence that has
+        // never been advanced (is_called = false), which is exactly the "zero consumed" reading a
+        // brand-new acta_test schema needs.
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT pg_sequence_last_value(pg_get_serial_sequence('{IntegrationConfig.TestSchemaName}.namespaces', 'id'));";
+        var result = await cmd.ExecuteScalarAsync();
+        var consumedIds = result is null or DBNull ? 0L : (long)result;
+        NamespaceIdBudget.ThrowIfExhausted("PostgreSQL", consumedIds);
     }
 
     private static async Task UpsertFrameworkNamespaceAsync(NpgsqlConnection conn)

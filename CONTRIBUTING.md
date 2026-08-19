@@ -95,6 +95,26 @@ from your IDE's test runner or with an explicit filter). It refuses any database
 whitelist (`acta-test`), so `acta-dev` can never be reset by it. Run it when accumulated
 append-only rows get unwieldy or after a destructive schema change.
 
+**Namespace id budget (Postgres / SQL Server).** `namespaces.id` is a `smallint` IDENTITY/sequence
+column on both server providers, and the shared `acta_test` schema is append-only: ids are never
+reclaimed between runs. A full-solution `dotnet test Acta.slnx` run measurably advances the counter
+by exactly 658, so a fresh `acta-test` database survives about 49 runs before the sequence reaches
+its 32767 ceiling, at which point both providers fail every conformance spec at once with a
+`nextval` / `IDENTITY` overflow that has nothing to do with whatever you were actually testing. The
+per-process bootstrap (`PgIntegrationSchema.BootstrapAsync`, `SqlServerIntegrationSchema.BootstrapAsync`)
+fails fast with an actionable message once headroom drops below five runs' worth, well ahead of that
+wall. When it does, drop the whole `acta-test` database - not just the schema, since
+`EnsureDatabaseAndApplyAsync` recreates the database and reapplies the schema on the next run -
+and never `acta-dev`:
+
+```bash
+docker compose exec -T postgres psql -U postgres -d acta-dev -c 'DROP DATABASE IF EXISTS "acta-test";'
+docker compose exec -T sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "<sa-password>" -C -b -Q "ALTER DATABASE [acta-test] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [acta-test];"
+```
+
+If the Postgres drop reports `acta-test` is in use, terminate its open backends against it first,
+then retry.
+
 **Destroy everything.** The disposable-container reset:
 
 ```bash

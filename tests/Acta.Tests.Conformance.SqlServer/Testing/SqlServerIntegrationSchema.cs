@@ -85,10 +85,29 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
         await using (var conn = new SqlConnection(connectionString))
         {
             await conn.OpenAsync();
+
+            // Read the namespace id headroom before adding this run's own row, so a bootstrap that
+            // is about to fail the check doesn't spend one more id on its way out.
+            await ThrowIfNamespaceIdSpaceExhaustedAsync(conn);
+
             await UpsertFrameworkNamespaceAsync(conn);
         }
 
         return connectionString;
+    }
+
+    private static async Task ThrowIfNamespaceIdSpaceExhaustedAsync(SqlConnection conn)
+    {
+        // IDENT_CURRENT reads the identity allocator's own high-water mark rather than MAX(id), so a
+        // namespace row removed by an explicit reset doesn't understate how much of the smallint
+        // space is spent - ids are never reused. On a brand-new table (no row ever inserted) it
+        // returns the identity seed (1), not 0 or NULL; that reads as "1 consumed", which is nowhere
+        // near NamespaceIdBudget.Threshold, so a fresh database never trips the check.
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT IDENT_CURRENT('{IntegrationConfig.TestSchemaName}.namespaces');";
+        var result = await cmd.ExecuteScalarAsync();
+        var consumedIds = result is null or DBNull ? 0L : Convert.ToInt64(result);
+        NamespaceIdBudget.ThrowIfExhausted("SQL Server", consumedIds);
     }
 
     private static async Task UpsertFrameworkNamespaceAsync(SqlConnection conn)
