@@ -22,6 +22,14 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
     // A normal positive lease; chaos expires it explicitly via ExpireLeaseAsync, never by waiting.
     private const int LeaseTtlSeconds = 60;
 
+    // Deliberately NOT SpecWaits.Gate: "chaos-blocking" (ChaosProbes.Blocking) carries its own
+    // ExecutionTimeout of PT10S, a second and independent mechanism that also cancels a stuck attempt.
+    // Gate (60s) sits above that decoy, so waiting that long could never tell "heartbeat cancelled it"
+    // apart from "the execution timeout eventually did" - the exact silent-success-path Finding 1
+    // flagged, just moved ten seconds later. This bound must stay well under 10s so a genuinely broken
+    // heartbeat fails the assertion instead of being rescued by the timeout.
+    private static readonly TimeSpan HeartbeatCancelBound = TimeSpan.FromSeconds(5);
+
     private StoreFaultPlan _faults = null!;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
@@ -138,13 +146,23 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
 
-        // --- 2. Heartbeat cancels the lost lease; release the probe if cancellation is slow.
+        // --- 2. Heartbeat cancels the lost lease. Leave the probe blocked when cancellation lands in
+        // time: JobExecutor retries the claim within this same tick, and that retry's own Blocking
+        // invocation is meant to hang on the SAME gate until ITS ExecutionTimeout (PT10S) finalizes the
+        // attempt - that is how a stolen-lease attempt is designed to resolve (see the comment on
+        // ChaosProbes.Blocking). Releasing here regardless of outcome was tried and breaks that: the
+        // retry then sails through as a trivial success instead of timing out, and the job below asserts
+        // Completed instead of the expected stolen-lease outcome. Only release early when cancellation
+        // genuinely did not happen in time, so a real regression fails fast via the assertion instead of
+        // hanging `await run` forever.
         await Runtime.RunHeartbeatOnceAsync(ct);
         var cancelled = ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct);
-        if (await Task.WhenAny(cancelled, Task.Delay(TimeSpan.FromSeconds(5), ct)) != cancelled)
+        var cancelledInTime = await Task.WhenAny(cancelled, Task.Delay(HeartbeatCancelBound, ct)) == cancelled;
+        if (!cancelledInTime)
         {
             ChaosProbes.Release(enqueued.JobId);
         }
+        Assert.True(cancelledInTime, "Heartbeat-driven cancellation did not cancel the handler whose lease was lost.");
 
         var stolenOutcome = await run;
         Assert.Contains(stolenOutcome, new[] { RunOnceOutcome.NothingClaimed, RunOnceOutcome.Rearmed });
