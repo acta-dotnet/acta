@@ -191,6 +191,21 @@ dotnet run --project tools/Acta.Emit -- check
 
 Commit messages use imperative mood with no prefixes.
 
+**Warnings are errors, and which trees that covers.** The root `Directory.Build.props` sets
+`TreatWarningsAsErrors` together with a curated analyzer tier, and `src/`, `tests/`, `anvil/`, `tools/`,
+`support/` and both `demos/` build under it — the demos chain to the root explicitly, because MSBuild
+stops at the first `Directory.Build.props` it finds walking up and would otherwise never read it. A rule
+that does not apply to a particular tree is switched off in `.editorconfig`, path-scoped, with the reason
+written beside it; see the `[concepts/**/*.cs]` and `[demos/**/*.cs]` blocks for the shape. Do not add a
+`[SuppressMessage]` attribute to production code — the ruling belongs where the next reader will look for
+it, not at the site.
+
+Two trees are exempt on purpose. `concepts/` and `tests/PackageSmoke/` carry their own
+`Directory.Build.props` that does not chain to the root: concepts are executable documentation whose
+shape is dictated by what they teach, and `PackageSmoke` exists to build the way a real external consumer
+would, untouched by this repository's build conventions. Holding either to the repo's analyzer tier would
+defeat the reason it exists.
+
 ## SQL style
 
 Hand-written provider SQL (everything under `src/*/Sql/`; the generated `Schema/Migrations` and

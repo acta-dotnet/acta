@@ -409,6 +409,23 @@ dotnet_diagnostic.MA0124.severity = warning
 [concepts/**/*.cs]
 dotnet_diagnostic.CA1822.severity = none
 
+# The demos build under the root analyzer tier and TreatWarningsAsErrors, because they are the code a
+# reader copies and should not be the one tree where warnings accumulate unseen. Turning that on
+# surfaced exactly these two rules across both demos and nothing else - no genuine finding - and both
+# are rules whose own premise stops applying once the code's purpose is to be read.
+#
+# CA1515 wants an application's types internal, on the grounds that nothing references an application
+# assembly. That is true of the demos and beside the point: they exist to be copied into a reader's own
+# app, where the same types are public, and README and quickstart show them that way. Demoting them
+# would teach a shape that serves nothing and would put the three out of step with each other.
+#
+# CA1062 fires on job-handler parameters, which Acta's own executor supplies and never passes null -
+# the same reason already recorded for JobContext.cs above. A null guard in every demo handler is
+# defensive code against the framework itself, and it is the first thing a reader would copy.
+[demos/**/*.cs]
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1062.severity = none
+
 # CA1822: these control verbs intentionally hang off the current JobContext instance for API fluency.
 # CA1062: MapAsync's groupName is validated on entry - IdentifierSyntax.ValidateUserKebab reaches
 # EnsureNonEmptyAndLength, which opens with ArgumentNullException.ThrowIfNull(value, nameof(groupName)),

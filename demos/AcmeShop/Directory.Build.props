@@ -1,4 +1,11 @@
 <Project>
+  <!-- Chain to the repo root so the demos build under the same curated analyzer tier and
+       TreatWarningsAsErrors as src. These are the files a reader copies, so they are held to the same
+       gate rather than being the one tree where warnings accumulate unseen. MSBuild stops at the first
+       Directory.Build.props it finds walking up, which is this one, so the chain is explicit or it does
+       not happen. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
   <!-- Shared build settings only. Every Acta package a project uses is named in that project's own
        csproj, so nothing about its dependencies is hidden here. -->
   <PropertyGroup>
