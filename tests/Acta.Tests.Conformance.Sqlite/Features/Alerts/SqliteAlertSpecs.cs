@@ -28,3 +28,5 @@ public sealed class SqliteRaiseJobAlertSpec : RaiseJobAlertSpec<SqliteConformanc
 public sealed class SqliteAlertRefDedupeStabilitySpec : AlertRefDedupeStabilitySpec<SqliteConformanceFixture>;
 
 public sealed class SqliteAlertProjectionReplaySpec : AlertProjectionReplaySpec<SqliteConformanceFixture>;
+
+public sealed class SqliteRecurringFailureAlertSpec : RecurringFailureAlertSpec<SqliteConformanceFixture>;

@@ -30,3 +30,5 @@ public sealed class SqlServerRaiseJobAlertSpec : RaiseJobAlertSpec<SqlServerConf
 public sealed class SqlServerAlertRefDedupeStabilitySpec : AlertRefDedupeStabilitySpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerAlertProjectionReplaySpec : AlertProjectionReplaySpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerRecurringFailureAlertSpec : RecurringFailureAlertSpec<SqlServerConformanceFixture>;

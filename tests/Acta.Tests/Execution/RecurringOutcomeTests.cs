@@ -6,8 +6,9 @@ namespace Acta.Tests.Execution;
 
 /// <summary>
 /// Unit-pins <see cref="JobExecution.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
-/// regardless of the consecutive-failure count (MaxAttempts is the one-off budget only), the counter
-/// saturates at <c>short.MaxValue</c>, a success resets it to zero, and an exhausted schedule pauses.
+/// regardless of the consecutive-failure count (MaxAttempts is the one-off budget only) while still carrying
+/// the attempt's reason through, the counter saturates at <c>short.MaxValue</c>, a success resets it to zero,
+/// and an exhausted schedule pauses.
 /// </summary>
 public class RecurringOutcomeTests
 {
@@ -17,7 +18,9 @@ public class RecurringOutcomeTests
     public void Failed_past_max_attempts_re_arms_ready_not_failed()
     {
         // failureCount already well past the budget: a one-off would land terminal Failed here; a
-        // recurring slot re-arms Ready and just bumps the counter.
+        // recurring slot re-arms Ready and just bumps the counter. Re-arming is not forgetting: the
+        // attempt's reason rides along on the rollover, which is what makes the failure alertable and
+        // attributable even though the status says the slot is armed again.
         var (status, failureCount, reason, message) = JobExecution.ComputeRecurringOutcome(
             ExecutionOutcome.Failed,
             Job(failureCount: 5),
@@ -29,8 +32,8 @@ public class RecurringOutcomeTests
 
         Assert.Equal(JobStatusCode.Ready, status);
         Assert.Equal((short)6, failureCount);
-        Assert.Null(reason);
-        Assert.Null(message);
+        Assert.Equal(JobEventReasonCode.JobUnhandledException, reason);
+        Assert.Equal("boom", message);
     }
 
     [Fact]
@@ -51,7 +54,7 @@ public class RecurringOutcomeTests
     [Fact]
     public void Succeeded_resets_the_failure_counter_to_zero()
     {
-        var (status, failureCount, _, _) = JobExecution.ComputeRecurringOutcome(
+        var (status, failureCount, reason, message) = JobExecution.ComputeRecurringOutcome(
             ExecutionOutcome.Succeeded,
             Job(failureCount: 9),
             Descriptor(maxAttempts: 2),
@@ -62,6 +65,11 @@ public class RecurringOutcomeTests
 
         Assert.Equal(JobStatusCode.Ready, status);
         Assert.Equal((short)0, failureCount);
+
+        // The rollover carries whatever reason the attempt supplied; a clean success supplies none, so
+        // the reason columns stay empty and only a real failure marks the slot's timeline.
+        Assert.Null(reason);
+        Assert.Null(message);
     }
 
     [Fact]

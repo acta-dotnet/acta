@@ -725,6 +725,12 @@ internal sealed class JobExecution(
     // is the one-off retry budget only and never terminalizes a recurring slot. Exhausted schedules pause
     // regardless of outcome; a success resets the failure counter to zero, a failure bumps it (saturating
     // at short.MaxValue so a long outage cannot overflow it into the negatives).
+    //
+    // The Ready rollover carries the attempt's reason through, like every other completion shape: the
+    // status says the slot is armed for its next occurrence, the reason says how the attempt that just
+    // ended ended. Dropping it left a nightly job that throws every night writing an unreasoned event,
+    // which is the one shape GetAlertableEvents cannot see - so the failure never alerted and jobs
+    // explain had nothing to show. A clean success supplies no reason and so still records none.
     internal static (
         JobStatusCode FinalStatus,
         short FailureCount,
@@ -750,7 +756,7 @@ internal sealed class JobExecution(
             return (JobStatusCode.Paused, failureCount, JobEventReasonCode.JobSchedulesExhausted, null);
         }
 
-        return (JobStatusCode.Ready, failureCount, null, null);
+        return (JobStatusCode.Ready, failureCount, failureReason, failureMessage);
     }
 
     private object DeserializeInput(JobDescriptor descriptor, ClaimedJob job)

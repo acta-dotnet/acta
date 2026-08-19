@@ -24,7 +24,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// success replayed <em>after</em> a later failure can close an alert it never opened. A repeated
 /// failure alone would not: it survives implementations that guard the raise and nothing else. A
 /// recurring slot carries the sequence, since only a recurring job outlives its own success, and the
-/// failures are orphaned attempts, the failure shape a recurring slot records with a reason code.
+/// failures are orphaned attempts because the recovery sweep produces one with no real-time wait and
+/// without the handler having to run.
 /// </summary>
 [ConformanceSpec(
     "alerts-projection.replay",

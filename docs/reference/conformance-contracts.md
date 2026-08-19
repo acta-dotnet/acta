@@ -189,6 +189,18 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
 
+### A recurring job whose handler throws raises an alert
+- **Contract:** A recurring slot re-arming Ready after a failed fire records why that attempt failed, so the projector can alert on a job that would otherwise fail unwatched.
+- **Arrange:** A recurring-ping slot in a namespace holding no alerts, with its handler armed to throw on every fire.
+- **Act:** The slot fires twice, throwing both times, and the sys.alerts projector runs after each fire.
+- **Assert:** Each rollover event carries the unhandled-exception reason, and the namespace holds exactly one open FirstFailure alert counting both fires.
+- **Guarantees:**
+  - A recurring fire whose handler throws attributes the reason on its Ready rollover and raises one alert
+- **Store methods:**
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+
 ### A replayed alert batch neither inflates a count nor re-closes an alert
 - **Contract:** Re-projecting events the sys.alerts cursor never advanced past leaves every alert those events already moved untouched.
 - **Arrange:** A recurring slot is orphaned, then fires successfully, then is orphaned again, with the projector cursor still at zero.
@@ -2282,11 +2294,11 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | --- | --- |
 | `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.GetAlertableEventsAsync` | A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
 | `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
-| `IAlertStore.RaiseJobAlertAsync` | A deduplicated alert keeps the ref its first firing minted<br>A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.RaiseJobAlertAsync` | A deduplicated alert keeps the ref its first firing minted<br>A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
@@ -2299,7 +2311,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.CheckpointSlotAsync` | Job variables round-trip through the context API with versioning and validation |
 | `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, drains the backlog, and reports the empty horizon<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
 | `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
-| `IExecutionStore.CompleteExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
+| `IExecutionStore.CompleteExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades |
