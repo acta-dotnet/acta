@@ -116,6 +116,26 @@ outright: the relaxed commit fsync `Direct` selects on SQLite (`PRAGMA synchrono
 keyed on the configured profile, so a worker configured for `Bulk` keeps `FULL`. Configure `Direct`
 explicitly when the target is SQLite.
 
+On SQLite, a `JobId` returned by a transactional enqueue that then rolls back is handed out again.
+`sqlite_sequence`, which backs `AUTOINCREMENT`, is an ordinary table, so the counter is rolled back with
+the transaction that advanced it and the next insert receives the same id. PostgreSQL and SQL Server
+allocate from non-transactional sequences, which burn the value instead. Acta's own contract is the same
+on all three: a transactional enqueue that rolls back leaves no durable row. What differs is what the
+returned identity means afterwards — an application that holds `JobEnqueueOutcome.JobId` across a
+rollback and looks it up later can, on SQLite, read a *different* job that has since been given that id.
+Hold `JobRef` instead. It is a UUIDv7 minted in your process before the row is written, so you have it
+in advance and nothing else will ever carry it, whereas a `JobId` is only meaningful for an enqueue that
+committed.
+
+A namespace id is 16 bits, so one database can allocate at most 32,767 namespaces over its whole
+lifetime. `namespaces.id` is `smallint` on PostgreSQL and SQL Server, and ids are never reclaimed:
+deleting a namespace does not return its id, so the ceiling counts every namespace ever created rather
+than the number that currently exist. Deployments do not approach this — namespaces are created
+deliberately, one per bounded context or tenant group, not per request — but the width is fixed at 1.0
+and cannot widen without a breaking schema change, so anything that creates namespaces programmatically
+should treat them as a finite budget. SQLite's `namespaces.id` is a 64-bit `AUTOINCREMENT` with no
+practical ceiling; 32,767 is the portable limit.
+
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.
 
