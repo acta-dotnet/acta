@@ -111,7 +111,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `None` | 0 | `none` | No automatic failure alerts. ctx.AlertAsync still creates rows. | Active |
 | `OnFailure` | 10 | `on-failure` | Default. Alerts on every failure transition; dedupe-window collapses repeats. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery. | Active |
 | `Info` | 20 | `info` | Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal. | Active |
-| `OnTerminal` | 30 | `on-terminal` | Alert on terminal failure only (retry budget exhausted, deadline, or a handler-declared failure). Resolves on recovery. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so those never alert here; use on-failure to hear about them. | Active |
+| `OnTerminal` | 30 | `on-terminal` | Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step. Resolves on recovery. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those. | Active |
 | `SysCritical` | 40 | `sys-critical` | Reserved for system Jobs. Emits at Severity = Critical to the Job's channel, or the configured "default" channel when none is declared. | Active |
 
 #### `AlertSeverityCode` · `alert-severity` <a id="code-family-alertseveritycode"></a>

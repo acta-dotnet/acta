@@ -50,9 +50,12 @@ for a terminal one. `MaxAttempts` is the one-shot retry budget: a recurring slot
 re-arming for its next occurrence however many consecutive runs throw, which is deliberate — a nightly
 job should not die permanently after three bad nights. But it means `AlertProfile.OnTerminal` and
 `AlertProfile.Info`, which alert only on the terminal transition, stay silent for a recurring job that
-throws or loses its lease. They still fire on the terminal shapes a recurring slot *can* reach: a
-handler that declares failure through `ctx.Fail(...)`, which stops the whole slot, and a whole-job
-deadline. **Choose `AlertProfile.OnFailure` for recurring work you want to hear about**; it alerts on
+throws or loses its lease. They still fire on the terminal shapes a recurring slot *can* reach, all of
+which stop the whole slot: a handler that declares failure through `ctx.FailAsync(...)`, an uncaught
+non-retryable exception, and an uncaught `StepInterruptedException` from a re-entered `AtMostOnce()`
+step. A whole-job deadline is *not* among them — it lands the job `Cancelled` rather than `Failed`, and
+no alert profile fires on a cancellation. **Choose `AlertProfile.OnFailure` for recurring work you want
+to hear about**; it alerts on
 each failure transition, and the dedupe window collapses a repeating nightly failure onto one row
 rather than one per night.
 

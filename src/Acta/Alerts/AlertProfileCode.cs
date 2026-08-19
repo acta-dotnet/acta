@@ -20,7 +20,7 @@ public enum AlertProfileCode : byte
 
     [Code(
         "on-terminal",
-        "Alert on terminal failure only (retry budget exhausted, deadline, or a handler-declared failure). Resolves on recovery. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so those never alert here; use on-failure to hear about them."
+        "Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step. Resolves on recovery. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those."
     )]
     OnTerminal = 30,
 

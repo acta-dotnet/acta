@@ -133,8 +133,9 @@ internal sealed class JobAlert : IEntity<long>
     public string? DedupeKey { get; init; }
 
     /// <summary>
-    /// Window-bucket start aligned to the fixed one-hour dedupe window; that window IS the rate
-    /// limit. NULL when <see cref="DedupeKey"/> is null (no dedupe).
+    /// Window-bucket start, the caller's now floored to a multiple of <c>JobsOptions.AlertDedupeWindow</c>
+    /// (4 hours by default, settable); that window IS the rate limit. NULL when <see cref="DedupeKey"/>
+    /// is null (no dedupe).
     /// </summary>
     [DbColumn("dedupe_window_start_utc", DbKind.UtcInstant)]
     public DateTime? DedupeWindowStartUtc { get; init; }
