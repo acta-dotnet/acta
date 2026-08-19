@@ -1056,15 +1056,6 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
 
-### A backlog drains exactly-once under N concurrent executors with batch claiming
-- **Contract:** A backlog enqueued through IJobs drains to Succeeded exactly once under concurrent batch-claiming executors.
-- **Arrange:** A backlog of ACTA_LOAD_JOBS ready jobs is preloaded, with ACTA_LOAD_EXECUTORS concurrent executors and a 32-row claim batch configured.
-- **Act:** The real batch-claim dispatch loop drains the backlog while throughput and latency percentiles are recorded.
-- **Assert:** Every job in the backlog lands Succeeded exactly once.
-- **Guarantees:**
-  - Every enqueued job executes exactly once and the whole backlog drains to completion
-  - Per-phase claim, start, and complete costs are reported (diagnostic)
-
 ### A timeout within budget re-arms to Ready; exhausted budget lands Failed
 - **Contract:** A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted.
 - **Arrange:** A timeout-budget-probe is registered with MaxAttempts 2, zero backoff, and a short per-attempt timeout.
