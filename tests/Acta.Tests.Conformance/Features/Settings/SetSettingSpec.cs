@@ -111,30 +111,39 @@ public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var name = TestKey("cas");
+        // Every set here carries this spec's own reason so the event assertions below can be scoped to it.
+        var reason = TestKey("cas-ev");
 
         // Expecting a version of a row that does not exist is NotFound, and nothing is created.
         var absent = await Service.SetAsync(name, "v", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
         Assert.Equal(AdminControlAction.NotFound, absent.Action);
         Assert.Null(await Service.GetAsync(name, namespaceName: null, jobName: null, ct));
 
-        await Service.SetAsync(name, "one", null, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        await Service.SetAsync(name, "one", null, null, namespaceName: null, jobName: null, reason, "op-1", ct);
 
         // Matching CAS applies and bumps: 0 -> 1.
-        var applied = await Service.SetAsync(name, "two", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        var applied = await Service.SetAsync(name, "two", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
         Assert.Equal(AdminControlAction.Applied, applied.Action);
         Assert.Equal(1, applied.Version);
 
         // Stale CAS rejects, reports the row's current version, and writes neither the row nor an event.
-        var eventsBefore = await Db.From<JobEvent>().Where(e => e.EventCode == EventCode.SettingUpdated).CountAsync(ct);
-        var stale = await Service.SetAsync(name, "three", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        // Both counts are scoped to this spec's own reason. Counting every setting.updated in the schema
+        // would be counting a shared, append-only table that any concurrent spec writing a setting also
+        // appends to, so the equality below would be asserting that nothing else in the suite set a
+        // setting during these two reads - which is not this fact, and not true.
+        var eventsBefore = await SettingEventCountAsync(reason, ct);
+        var stale = await Service.SetAsync(name, "three", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
         Assert.Equal(AdminControlAction.VersionConflict, stale.Action);
         Assert.Equal(1, stale.Version);
 
         var current = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);
         Assert.Equal("two", current!.Value);
         Assert.Equal(1, current.Version);
-        Assert.Equal(eventsBefore, await Db.From<JobEvent>().Where(e => e.EventCode == EventCode.SettingUpdated).CountAsync(ct));
+        Assert.Equal(eventsBefore, await SettingEventCountAsync(reason, ct));
     }
+
+    private async Task<int> SettingEventCountAsync(string reason, CancellationToken ct) =>
+        await Db.From<JobEvent>().Where(e => e.EventCode == EventCode.SettingUpdated && e.ReasonMessage == reason).CountAsync(ct);
 
     // Framework defaults fill the policy columns; only the identity matters to these facts.
     private static JobDescriptor Def(string name) =>

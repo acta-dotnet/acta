@@ -177,8 +177,10 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        // Alert A: Automatic + FirstFailure kind so ResolveJobAlerts will close it
-        const long resolveJobId = 1L;
+        // Alert A: Automatic + FirstFailure kind so ResolveJobAlerts will close it. The subject is a job
+        // this spec enqueues, for the reason EnqueueProbeJobAsync documents - a hardcoded id names rows
+        // another spec created. This was the one fact the rest of the class's migration missed.
+        var resolveJobId = await EnqueueProbeJobAsync(ct);
         await RaiseAsync(
             Db,
             resolveJobId,
