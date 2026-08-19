@@ -35,6 +35,7 @@ database you already run.
 | [Operator guide](./guide/operator-guide.md) | Verbs, dashboard, CLI, retention and purge, security and exposure. |
 | [Production](./guide/production.md) | Provider choice, sizing, leases, clocks, deployment, and the production checklist. |
 | [Failure modes](./guide/failure-modes.md) | What breaks, how it surfaces, and what to do. |
+| [Alerting](./guide/alerting.md) | Profiles, the dedupe window, alert volume, delivery, channels, and where alerting is not uniform. |
 | [Schedule operations](./guide/schedule-operations.md) | Pausing, previewing, and overriding recurring schedules. |
 | [Troubleshooting](./guide/troubleshooting.md) | Environment and startup problems. |
 | [SQL recipes](./guide/sql-recipes.md) | Ready queries for backlog, stuck jobs, worker liveness, and alerts. |
