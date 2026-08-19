@@ -20,17 +20,18 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// (<c>retry-probe</c>, <c>OnFailure</c> profile, <c>MaxAttempts = 3</c>) to terminal Failed, runs the
 /// projector, and asserts it classifies the finished <c>events</c> rows into the right automatic alerts
 /// - first-failure for the non-terminal re-arms (collapsed onto one row), final-failure for the terminal
-/// transition - keying off the event triple, never the mutable <c>job.failure_count</c>. A second pass
-/// emits nothing because the cursor advanced. Runs on SqlServer and Postgres.
+/// transition - keying off the event triple, never the mutable <c>job.failure_count</c>. A success only
+/// resolves the job's open failure alerts and writes none of its own. A second pass emits nothing because
+/// the cursor advanced. Runs on SqlServer and Postgres.
 /// </summary>
 [ConformanceSpec(
     "alerts-projection.classify",
-    "The alerts projector classifies failures and recoveries off events",
+    "The alerts projector classifies failures off events and resolves on success",
     Area = "Alerts",
-    Contract = "The sys.alerts projector classifies finished events into first-failure, final-failure and recovery alerts, advances its cursor so a second pass emits nothing.",
+    Contract = "The sys.alerts projector classifies finished events into first-failure and final-failure alerts, resolves them on success, and advances its cursor.",
     Arrange = "A failing retry-probe with the OnFailure profile and a flaky-recover job are registered in the test namespace.",
     Act = "Both jobs run to their terminal outcomes and the alerts projector passes over the finished events twice.",
-    Assert = "First-failures collapse onto one row, the terminal transition emits FinalFailure, success emits Recovery, and the second pass emits nothing."
+    Assert = "First-failures collapse onto one row, the terminal transition emits FinalFailure, success resolves without adding a row, and the second pass emits nothing."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
@@ -114,8 +115,8 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.All(alerts, a => Assert.Equal(AlertDeliveryStatusCode.Delivered, a.DeliveryStatusCode));
     }
 
-    [Fact(DisplayName = "Success resolves the open failure and emits one Recovery")]
-    public async Task Success_resolves_open_failure_and_emits_one_recovery()
+    [Fact(DisplayName = "Success resolves the open failure and writes no new alert")]
+    public async Task Success_resolves_open_failure_and_writes_no_new_alert()
     {
         var ct = TestContext.Current.CancellationToken;
         FlakyRecoverProbe.Reset(TestNamespace);
@@ -129,21 +130,26 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var firstFailure = Assert.Single(afterFail, a => a.Kind == AlertKindCode.FirstFailure);
         Assert.Null(firstFailure.ResolvedAtUtc);
 
-        // Attempt 2 succeeds. Project it: the open failure resolves and exactly one recovery is emitted.
+        // Attempt 2 succeeds. Project it: the open failure resolves and nothing new is written.
         await RunUntilAttemptsAsync(job, () => FlakyRecoverProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
+        // "Nothing new" is proven positively, by pinning the whole alert set: Assert.Single over the
+        // collection (not Assert.All, which passes vacuously on zero matches) shows the FirstFailure row
+        // from before is still the ONLY row, then asserts it resolved. Asserting a kind is *absent*
+        // would be unfalsifiable - it would pass even if projection stopped working entirely.
         var afterSuccess = await ReadAlertsAsync(NamespaceId, ct);
-        Assert.Single(afterSuccess, a => a.Kind == AlertKindCode.Recovery);
-        // Assert.Single (not Assert.All, which vacuously passes on zero matches) proves the FirstFailure
-        // row from before still exists post-success, then asserts it resolved.
-        var resolvedFirstFailure = Assert.Single(afterSuccess, a => a.Kind == AlertKindCode.FirstFailure);
+        var resolvedFirstFailure = Assert.Single(afterSuccess);
+        Assert.Equal(AlertKindCode.FirstFailure, resolvedFirstFailure.Kind);
+        Assert.Equal(job.JobId, resolvedFirstFailure.JobId);
         Assert.NotNull(resolvedFirstFailure.ResolvedAtUtc);
 
-        // A further pass with no new events emits no second recovery.
+        // A further pass with no new events still writes nothing: the same single resolved row.
         await RunAlertsAsync(job.JobId, ct);
         var afterIdle = await ReadAlertsAsync(NamespaceId, ct);
-        Assert.Single(afterIdle, a => a.Kind == AlertKindCode.Recovery);
+        var stillOnlyRow = Assert.Single(afterIdle);
+        Assert.Equal(AlertKindCode.FirstFailure, stillOnlyRow.Kind);
+        Assert.NotNull(stillOnlyRow.ResolvedAtUtc);
     }
 
     [Fact(DisplayName = "A None alert-profile job projects no alerts")]

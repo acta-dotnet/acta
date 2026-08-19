@@ -375,7 +375,6 @@ enum Acta.AlertKindCode
     FinalFailure = 30
     FirstFailure = 10
     Manual = 40
-    Recovery = 50
     ThresholdReached = 20
     Unspecified = 0
 static class Acta.AlertKindCodeExtensions
@@ -564,7 +563,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <24652 chars, sha256:12058036>
+    System.String MarkdownReport = <24552 chars, sha256:ABDD3D5F>
 enum Acta.ControlAction
     Accepted = 4
     Applied = 1

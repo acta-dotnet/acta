@@ -6,8 +6,8 @@ namespace TestJobs;
 /// <summary>
 /// A handler that throws on its first attempt per namespace, then succeeds. With <c>MaxAttempts = 3</c> and
 /// zero backoff a test drives: attempt 1 (fail -> re-arm, a non-terminal failure alert) then attempt 2
-/// (success -> recovery). Proves the <c>sys.alerts</c> success branch resolves the open failure alert and
-/// emits a single recovery.
+/// (success). Proves the <c>sys.alerts</c> success branch resolves the open failure alert and writes no
+/// alert of its own.
 /// </summary>
 public static class FlakyRecoverProbe
 {

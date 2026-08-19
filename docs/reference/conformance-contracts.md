@@ -172,17 +172,17 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
 
-### The alerts projector classifies failures and recoveries off events
-- **Contract:** The sys.alerts projector classifies finished events into first-failure, final-failure and recovery alerts, advances its cursor so a second pass emits nothing.
+### The alerts projector classifies failures off events and resolves on success
+- **Contract:** The sys.alerts projector classifies finished events into first-failure and final-failure alerts, resolves them on success, and advances its cursor.
 - **Arrange:** A failing retry-probe with the OnFailure profile and a flaky-recover job are registered in the test namespace.
 - **Act:** Both jobs run to their terminal outcomes and the alerts projector passes over the finished events twice.
-- **Assert:** First-failures collapse onto one row, the terminal transition emits FinalFailure, success emits Recovery, and the second pass emits nothing.
+- **Assert:** First-failures collapse onto one row, the terminal transition emits FinalFailure, success resolves without adding a row, and the second pass emits nothing.
 - **Guarantees:**
   - First-failures collapse onto one row and the terminal transition emits FinalFailure
   - Cursor advance stops re-emission on a second pass
   - Worker config provides the default channel
   - Default channel job alert is delivered
-  - Success resolves the open failure and emits one Recovery
+  - Success resolves the open failure and writes no new alert
   - A None alert-profile job projects no alerts
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
@@ -2269,13 +2269,13 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | --- | --- |
 | `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.GetAlertableEventsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.GetAlertableEventsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
 | `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
-| `IAlertStore.RaiseJobAlertAsync` | A deduplicated alert keeps the ref its first firing minted<br>Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.RaiseJobAlertAsync` | A deduplicated alert keeps the ref its first firing minted<br>Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.ResolveJobAlertsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures and recoveries off events<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.ResolveJobAlertsAsync` | Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
 | `IDefinitionStore.GetDefinitionAsync` | GetJobDefinition returns one definition by id and null for an unknown id |
 | `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade or retire |

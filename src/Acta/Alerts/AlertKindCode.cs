@@ -25,7 +25,4 @@ public enum AlertKindCode : byte
 
     [Code("manual", "Hand-raised; ctx.AlertAsync from inside a handler.")]
     Manual = 40,
-
-    [Code("recovery", "Recovery transition; emitted when a previously-failed Job succeeds.")]
-    Recovery = 50,
 }

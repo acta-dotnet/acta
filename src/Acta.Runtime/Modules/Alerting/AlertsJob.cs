@@ -126,9 +126,9 @@ internal sealed class AlertsJob(
     }
 
     // Classify one event and emit the alerts selected by its definition profile. Failure events can
-    // fire first-failure, final-failure, or threshold-reached alerts. A success closes the definition's
-    // open automatic failure alerts and emits one recovery alert when it actually resolved something,
-    // keeping the resolved timestamp as the single source of truth for open state.
+    // fire first-failure, final-failure, or threshold-reached alerts. A success emits nothing: it only
+    // closes this job's open automatic failure alerts, keeping the resolved timestamp as the single
+    // source of truth for open state.
     private async Task ProjectAsync(JobContext ctx, AlertableEvent e, DateTime windowStart, CancellationToken ct)
     {
         var profile = e.AlertProfile;
@@ -145,19 +145,15 @@ internal sealed class AlertsJob(
         var isSuccess = e.ExecutionStatus == ExecutionStatusCode.Succeeded;
         if (isSuccess)
         {
-            // Recovery is job-instance-scoped: a success resolves only THIS job's open automatic failure
-            // alerts, never a sibling job of the same definition. Resolve on EVERY success (no per-pass
-            // dedup): within one batch a job can go fail -> success -> fail -> success, where the second
-            // failure re-opened (resolved_at = NULL) the deduped alert; only resolving each success keeps it
-            // from lingering unresolved. The op is idempotent and a no-op success closes nothing, so the
-            // duplicate recovery alerts collapse to one row via the deduplication key.
+            // Resolution is job-instance-scoped: a success closes only THIS job's open automatic failure
+            // alerts, never a sibling job of the same definition, and writes no alert of its own. Resolve
+            // on EVERY success (no per-pass dedup): within one batch a job can go fail -> success -> fail
+            // -> success, where the second failure re-opened (resolved_at = NULL) the deduped alert; only
+            // resolving each success keeps it from lingering unresolved. The op is idempotent and a
+            // success with nothing open closes nothing, so the repeat costs a no-op.
             if (e.JobId is { } jobId)
             {
-                var resolved = await _store.ResolveJobAlertsAsync(ctx.NamespaceId, jobId, ct);
-                if (resolved > 0)
-                {
-                    await EmitAsync(ctx, e, channel, AlertKindCode.Recovery, AlertSeverityCode.Info, windowStart, ct);
-                }
+                await _store.ResolveJobAlertsAsync(ctx.NamespaceId, jobId, ct);
             }
             return;
         }
@@ -205,13 +201,10 @@ internal sealed class AlertsJob(
     )
     {
         // Job-instance-scoped deduplication key: includes the job id so a fan-out of sibling jobs of the same
-        // definition each get their own row (and recovery resolves only that job's failures), while
+        // definition each get their own row (and a success resolves only that job's failures), while
         // repeated failures of the SAME job still collapse onto one row.
         var jobReason = e.ReasonCode?.Code;
-        var deduplicationKey =
-            reason == AlertKindCode.Recovery
-                ? $"auto:{e.DefinitionId}:{e.JobId}:{reason.Code}"
-                : $"auto:{e.DefinitionId}:{e.JobId}:{reason.Code}:{jobReason ?? "none"}";
+        var deduplicationKey = $"auto:{e.DefinitionId}:{e.JobId}:{reason.Code}:{jobReason ?? "none"}";
 
         var (title, message) = Render(e, reason);
 
@@ -264,7 +257,6 @@ internal sealed class AlertsJob(
                 $"Job '{e.JobName}' failing repeatedly",
                 $"Repeated failures within the alert window: {reasonText}."
             ),
-            AlertKindCode.Recovery => ($"Job '{e.JobName}' recovered", "A previously-failing job completed successfully."),
             _ => ($"Job '{e.JobName}'", reasonText),
         };
     }

@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **30 families**, **167 values**.
+This release: **30 families**, **166 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -96,7 +96,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `ThresholdReached` | 20 | `threshold-reached` | Threshold-bound emission (e.g., LostClaimAlertThreshold reached). | Active |
 | `FinalFailure` | 30 | `final-failure` | Terminal failure; emitted by Automatic origin on Status to Failed. | Active |
 | `Manual` | 40 | `manual` | Hand-raised; ctx.AlertAsync from inside a handler. | Active |
-| `Recovery` | 50 | `recovery` | Recovery transition; emitted when a previously-failed Job succeeds. | Active |
 
 #### `AlertOriginCode` · `alert-origin` <a id="code-family-alertorigincode"></a>
 

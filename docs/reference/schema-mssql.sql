@@ -661,7 +661,7 @@ SELECT
     a.origin_code,
     CASE a.severity_code WHEN 10 THEN 'info' WHEN 20 THEN 'warning' WHEN 30 THEN 'error' WHEN 40 THEN 'critical' END AS severity,
     a.severity_code,
-    CASE a.kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' WHEN 50 THEN 'recovery' END AS kind,
+    CASE a.kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS kind,
     a.kind_code,
     CASE a.delivery_status_code WHEN 10 THEN 'pending' WHEN 20 THEN 'retry-after' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
     a.delivery_status_code,
