@@ -2225,13 +2225,13 @@
 
 ## Workers
 
-### Stale workers in any namespace are marked Dead by one global sweep
+### Stale workers in any namespace are marked Dead by a global sweep
 - **Contract:** MarkDeadWorkers marks every stale Active worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips non-Active workers.
 - **Arrange:** An aged Active worker, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.
-- **Act:** A single MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument.
+- **Act:** MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument, repeated until both aged workers settle Dead.
 - **Assert:** Both aged Active workers are Dead with a worker.died event in their namespace, while the fresh worker stays Active and the aged Stopped worker stays Stopped.
 - **Guarantees:**
-  - One global sweep marks aged workers Dead in every namespace, keeps fresh and cleanly-stopped workers, and attributes each event to the worker's namespace
+  - A global sweep marks aged workers Dead in every namespace, keeps fresh and cleanly-stopped workers, and attributes each event to the worker's namespace
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.MarkDeadWorkersAsync`
 
@@ -2353,7 +2353,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IWorkerStore.ExtendWorkerLeasesAsync` | Heartbeat extends a live lease and stamps last_seen |
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
-| `IWorkerStore.MarkDeadWorkersAsync` | Stale workers in any namespace are marked Dead by one global sweep |
+| `IWorkerStore.MarkDeadWorkersAsync` | Stale workers in any namespace are marked Dead by a global sweep |
 | `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker hash-gate-upserts namespace and appends a fresh worker row per call |
 | `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
 | `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |

@@ -9,31 +9,42 @@ namespace Acta.Tests.Conformance.Features.Workers;
 
 /// <summary>
 /// Conformance for <c>sys.recovery</c>'s dead-worker sweep (<c>mark_dead_workers</c>), now namespace-agnostic:
-/// one call flips every Active worker whose <c>last_seen_at_utc</c> is past the dead-after window to Dead
+/// a sweep flips every Active worker whose <c>last_seen_at_utc</c> is past the dead-after window to Dead
 /// across all namespaces, emitting one <c>worker.died</c> event per worker into that worker's own namespace.
 /// A worker is aged into the past and a positive window is used, so the sweep targets only the aged worker
 /// (a fresh worker in the same shared DB survives). A worker seeded in a second namespace is reaped by the
-/// same call, proving the sweep is global and that each event lands in the dead worker's namespace. An aged
-/// but cleanly-stopped worker pins the status half of the predicate: going silent is what retires a worker,
-/// so a worker that shut down cleanly stays Stopped however long ago it was last seen.
+/// same global sweep, proving the sweep is global and that each event lands in the dead worker's namespace.
+/// The routine claims its rows with <c>FOR UPDATE SKIP LOCKED</c>, and this spec shares its schema with
+/// every sibling spec sweeping the same table, so this spec re-sweeps until both aged workers settle Dead
+/// rather than trusting its own single call to be the one that applied the transition - what the sweep
+/// does, and the events it produces, are unchanged by how many times it is asked to run. An aged but
+/// cleanly-stopped worker pins the status half of the predicate: going silent is what retires a worker, so
+/// a worker that shut down cleanly stays Stopped however long ago it was last seen.
 /// </summary>
 [ConformanceSpec(
     "mark-dead-workers.global-heartbeat-sweep",
-    "Stale workers in any namespace are marked Dead by one global sweep",
+    "Stale workers in any namespace are marked Dead by a global sweep",
     Area = "Workers",
     Contract = "MarkDeadWorkers marks every stale Active worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips non-Active workers.",
     Arrange = "An aged Active worker, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.",
-    Act = "A single MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument.",
+    Act = "MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument, repeated until both aged workers settle Dead.",
     Assert = "Both aged Active workers are Dead with a worker.died event in their namespace, while the fresh worker stays Active and the aged Stopped worker stays Stopped."
 )]
 [CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.MarkDeadWorkersAsync))]
 public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private const int DeadAfterSeconds = 30;
+    // 300s, comfortably above SpecWaits.Converge's 90s bound below. The convergence loop re-sweeps with
+    // this same window every iteration, and the fresh worker's survival is asserted only after the loop
+    // exits; if this window were close to the loop's own bound, a slow convergence could age the fresh
+    // worker's heartbeat past the cutoff before the loop stops, and this spec's own re-sweep would retire
+    // the very worker it asserts stays Active. The margin over Converge keeps the hang guard from ever
+    // being able to falsify that assertion. The aged Active workers and the aged Stopped worker are all
+    // backdated a full hour, so a 300s window leaves them past the cutoff with room to spare.
+    private const int DeadAfterSeconds = 300;
 
     [Fact(
-        DisplayName = "One global sweep marks aged workers Dead in every namespace, keeps fresh and cleanly-stopped workers, and attributes each event to the worker's namespace"
+        DisplayName = "A global sweep marks aged workers Dead in every namespace, keeps fresh and cleanly-stopped workers, and attributes each event to the worker's namespace"
     )]
     public async Task Global_sweep_marks_aged_workers_across_namespaces()
     {
@@ -103,16 +114,42 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             ct
         );
 
-        // One global sweep: no namespace argument. The count it returns is deliberately not the fact.
-        // Being namespace-agnostic is the contract, so every sibling spec sharing the acta_test schema
-        // sweeps these same rows; one of them retiring the two aged workers first would leave this call
-        // nothing to mark, and a count assertion would then be reading which sweep won a race rather
-        // than what the sweep does. The settled rows and their events below say all of it, and say it
-        // identically whichever global sweep applied the transition.
-        await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
+        // Global sweep: no namespace argument. Being namespace-agnostic is the contract, so every
+        // sibling spec sharing the acta_test schema sweeps these same rows, and the routine claims them
+        // with FOR UPDATE SKIP LOCKED. When a sibling's concurrent sweep holds the lock on one of this
+        // spec's aged workers, this call steps over that row and returns without having marked it - the
+        // row still settles Dead, either because the lock holder commits the transition or because its
+        // transaction rolls back and a later sweep takes the row, but not necessarily before a single
+        // call returns. So this loops rather than reading once: it re-sweeps every iteration, not merely
+        // re-reads, because if the lock holder rolled back, nobody else marks the row and only another
+        // sweep from here will. Re-sweeping is safe because a sweep only transitions Active -> Dead, so
+        // a row already Dead is not matched again - exactly one worker.died event is written per worker
+        // however many sweeps run here, and the Assert.Single(...) checks below hold unchanged regardless
+        // of how many iterations it took.
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
+        JobWorker? afterA;
+        JobWorker? afterB;
+        while (true)
+        {
+            await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
+            afterA = await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).SingleOrDefaultAsync(ct);
+            afterB = await Db.From<JobWorker>().Where(w => w.Id == workerBId).SingleOrDefaultAsync(ct);
+            if (afterA?.Status == WorkerStatusCode.Dead && afterB?.Status == WorkerStatusCode.Dead)
+            {
+                break;
+            }
 
-        var afterA = await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).SingleOrDefaultAsync(ct);
-        var afterB = await Db.From<JobWorker>().Where(w => w.Id == workerBId).SingleOrDefaultAsync(ct);
+            // Say that convergence was tried and for how long. Falling through to the status assertions
+            // below would report only "Expected: Dead, Actual: Active", which is what this spec used to
+            // fail with and reads as the sweep being broken rather than as this having waited.
+            Assert.True(
+                DateTime.UtcNow < deadline,
+                $"aged workers never settled Dead within {SpecWaits.Converge}, re-sweeping throughout: "
+                    + $"A={afterA?.Status.ToString() ?? "<row gone>"}, B={afterB?.Status.ToString() ?? "<row gone>"}."
+            );
+            await Task.Delay(50, ct);
+        }
+
         var afterFresh = await Db.From<JobWorker>().Where(w => w.Id == freshWorkerId).SingleOrDefaultAsync(ct);
         var afterStopped = await Db.From<JobWorker>().Where(w => w.Id == stoppedWorkerId).SingleOrDefaultAsync(ct);
         Assert.Equal(WorkerStatusCode.Dead, afterA!.Status);

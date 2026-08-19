@@ -56,29 +56,39 @@ public abstract class TransactionalEnqueueContractSpec<TFixture> : ActaRuntimeTe
 
         await using var conn = await Db.OpenConnectionAsync(ct);
 
-        long typedCommitted;
-        long contractCommitted;
+        // Rows are looked up by job_ref, not by id, and on the rolled-back half that is load-bearing
+        // rather than stylistic. The id is a database counter; the ref is a UUIDv7 this process minted
+        // for this job and nothing else will ever carry it. Those differ exactly when a transaction
+        // rolls back on SQLite: sqlite_sequence is an ordinary table, so AUTOINCREMENT's counter is
+        // rolled back with everything else and the next insert is handed the same id - a concurrent
+        // spec's committed job then occupies it, and an absence-by-id assertion reads that stranger as
+        // this job surviving its rollback. Postgres and SQL Server sequences are non-transactional and
+        // burn the value, which is why this only ever failed on the SQLite head. The contract is
+        // untouched by any of that: what must not survive a rollback is THIS job, and the ref is the
+        // only handle that means this job.
+        Guid typedCommitted;
+        Guid contractCommitted;
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
-            typedCommitted = (await Jobs.EnqueueAsync(tx, new AddNumbers(2, 3), ct: ct)).JobId;
-            contractCommitted = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers, new AddNumbers(4, 5), ct: ct)).JobId;
+            typedCommitted = (await Jobs.EnqueueAsync(tx, new AddNumbers(2, 3), ct: ct)).JobRef.Value;
+            contractCommitted = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers, new AddNumbers(4, 5), ct: ct)).JobRef.Value;
             await tx.CommitAsync(ct);
         }
 
-        Assert.NotNull(await Db.From<Job>().Where(j => j.Id == typedCommitted).SingleOrDefaultAsync(ct));
-        Assert.NotNull(await Db.From<Job>().Where(j => j.Id == contractCommitted).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<Job>().Where(j => j.JobRef == typedCommitted).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<Job>().Where(j => j.JobRef == contractCommitted).SingleOrDefaultAsync(ct));
 
-        long typedRolledBack;
-        long contractRolledBack;
+        Guid typedRolledBack;
+        Guid contractRolledBack;
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
-            typedRolledBack = (await Jobs.EnqueueAsync(tx, new AddNumbers(6, 7), ct: ct)).JobId;
-            contractRolledBack = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers, new AddNumbers(8, 9), ct: ct)).JobId;
+            typedRolledBack = (await Jobs.EnqueueAsync(tx, new AddNumbers(6, 7), ct: ct)).JobRef.Value;
+            contractRolledBack = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers, new AddNumbers(8, 9), ct: ct)).JobRef.Value;
             await tx.RollbackAsync(ct);
         }
 
-        Assert.Null(await Db.From<Job>().Where(j => j.Id == typedRolledBack).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<Job>().Where(j => j.Id == contractRolledBack).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<Job>().Where(j => j.JobRef == typedRolledBack).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<Job>().Where(j => j.JobRef == contractRolledBack).SingleOrDefaultAsync(ct));
     }
 
     [Fact(DisplayName = "A deduplicated transactional outcome is provisional so rollback leaves no durable row")]
