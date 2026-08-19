@@ -33,15 +33,20 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
         // type name, so renaming an enum is not read as schema drift. Meta-enums (CodeKind == null) are
         // omitted; their CHECK-value drift is captured per-column by the column signature's value list.
         // Extensible families are omitted too: they emit no CHECK-list DDL at all (SqlSchemaEmitter skips
-        // them), so nothing about their membership is physical schema. Their evolution is still enforced,
-        // just elsewhere: `docs/reference/code-families.md` lists every family's full value set and is
-        // drift-checked by `Acta.Emit check` regardless of extensibility.
+        // them), so nothing about their membership is physical schema.
+        //
+        // Ids only. The whole DDL footprint of a closed family is the numeric IN-list of the synthetic
+        // check (`SqlSchemaEmitter.cs:133-143` renders `CHECK (col IN (<ids>))`), so a value's Code,
+        // Description and Lifecycle reach no `M*.sql` and no `docs/reference/schema-*.sql` dump. Recording
+        // them made editing a doc comment read as schema drift and mint an empty migration.
+        // They stay tracked, just not here: `docs/reference/code-families.md` tabulates every family's
+        // Member/Id/Code/Description/Lifecycle (`CodeFamilyEmitter.cs:137-147`, over DiscoverAll, so
+        // extensible families included) and is drift-checked by `Acta.Emit check` (`CheckCommand.cs:26`);
+        // `PersistedCodeContractTests` pins every id/code pair literally and hashes id+code+description
+        // across all 162 values (`PersistedCodeContractTests.cs:176,214-226`).
         var codeFamilies = families
             .Where(f => f.CodeKind is not null && !f.IsExtensible)
-            .Select(f => new CodeFamilySnapshot(
-                f.CodeKind!,
-                f.Values.OrderBy(v => v.Id).Select(v => new CodeValueSnapshot(v.Id, v.Code, v.Description, v.Lifecycle)).ToList()
-            ))
+            .Select(f => new CodeFamilySnapshot(f.CodeKind!, f.Values.Select(v => v.Id).Order().ToList()))
             .OrderBy(f => f.CodeKind, StringComparer.Ordinal)
             .ToList();
 
@@ -104,6 +109,7 @@ internal sealed record CheckSnapshot(string Name, string Sql);
 
 internal sealed record ForeignKeySnapshot(string Name, string Signature);
 
-internal sealed record CodeFamilySnapshot(string CodeKind, IReadOnlyList<CodeValueSnapshot> Values);
-
-internal sealed record CodeValueSnapshot(byte Id, string Code, string Description, string Lifecycle);
+/// <summary>A closed code family's physical footprint: the ascending id set that renders as the
+/// synthetic check's <c>IN (&lt;ids&gt;)</c> list. Codes, descriptions and lifecycles are deliberately
+/// absent — see the note in <see cref="SchemaSnapshot.Capture"/> for what tracks them instead.</summary>
+internal sealed record CodeFamilySnapshot(string CodeKind, IReadOnlyList<byte> ValueIds);

@@ -1339,714 +1339,229 @@
     "CodeFamilies": [
       {
         "CodeKind": "actor",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "sys",
-            "Description": "Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. ActorKey = \u0022sys:{jobNamespace}:{jobName}\u0022 or \u0022sys:{component}\u0022.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "operator",
-            "Description": "A human or admin tool acting from outside any job context (endpoint, dashboard, admin script). ActorKey carries the authenticated principal name as-is (e.g. http.User.Identity.Name); null when the host did not authenticate.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "job",
-            "Description": "ctx.* throw-to-transition inside a user handler. ActorKey = \u0022{jobId}\u0022.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 70,
-            "Code": "worker",
-            "Description": "Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey stores the acting worker\u0027s public ref as canonical lowercase uuid text; read projections render it as wrk_....",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20,
+          50,
+          70
         ]
       },
       {
         "CodeKind": "alert-channel-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "active",
-            "Description": "Channel accepts deliveries.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "disabled",
-            "Description": "Configured but intentionally muted; matching alerts are suppressed.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 240,
-            "Code": "deprecated",
-            "Description": "Configured but decommissioned; matching alerts are suppressed.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          30,
+          240
         ]
       },
       {
         "CodeKind": "alert-delivery-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "pending",
-            "Description": "Materialized; awaiting the first send attempt.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "retry-after",
-            "Description": "Send deferred until JobAlert.RetryAfterUtc instant.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "suppressed",
-            "Description": "Intentionally not sent because process-local channel policy rejected delivery.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "delivered",
-            "Description": "Successfully sent to the channel transport.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 200,
-            "Code": "failed",
-            "Description": "Send attempt failed; eligible for retry by the next sys.alerts system job tick.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20,
+          30,
+          100,
+          200
         ]
       },
       {
         "CodeKind": "alert-origin",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "automatic",
-            "Description": "System-emitted from a state-mutating SP (failure / timeout / orphan / deadline).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "manual",
-            "Description": "ctx.AlertAsync from inside a user handler.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20
         ]
       },
       {
         "CodeKind": "alert-profile",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "none",
-            "Description": "No automatic failure alerts. ctx.AlertAsync still creates rows.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 10,
-            "Code": "on-failure",
-            "Description": "Default. Alerts on every failure transition; dedupe-window collapses repeats. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "info",
-            "Description": "Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "on-terminal",
-            "Description": "Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step. Resolves on recovery. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "sys-critical",
-            "Description": "Reserved for system Jobs. Emits at Severity = Critical to the Job\u0027s channel, or the configured \u0022default\u0022 channel when none is declared.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          0,
+          10,
+          20,
+          30,
+          40
         ]
       },
       {
         "CodeKind": "alert-severity",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "info",
-            "Description": "Informational; not paging.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "warning",
-            "Description": "Non-terminal failure transition; dedupe-window collapses repeats.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "error",
-            "Description": "Terminal failure or operator-attention event.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "critical",
-            "Description": "Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel\u0027s transport and config.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20,
+          30,
+          40
         ]
       },
       {
         "CodeKind": "deadline-behavior",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "strict",
-            "Description": "Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "advisory",
-            "Description": "Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20
         ]
       },
       {
         "CodeKind": "execution-status",
-        "Values": [
-          {
-            "Id": 50,
-            "Code": "executing",
-            "Description": "Handler in flight.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "succeeded",
-            "Description": "Handler returned successfully. Resets the runtime failure count.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 150,
-            "Code": "rescheduled",
-            "Description": "Handler threw RescheduleJobException; does not charge budget.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 151,
-            "Code": "suspended",
-            "Description": "The attempt ended because the job parked: a ctx.SleepAsync timer, an awaited signal, or awaited children. Does not charge budget.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 152,
-            "Code": "paused",
-            "Description": "Handler threw PauseJobException.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 200,
-            "Code": "failed",
-            "Description": "Handler threw or ctx.Fail called. Charges failure budget.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 220,
-            "Code": "cancelled",
-            "Description": "Handler ended via cancel; does not charge budget.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 230,
-            "Code": "orphaned",
-            "Description": "Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          50,
+          100,
+          150,
+          151,
+          152,
+          200,
+          220,
+          230
         ]
       },
       {
         "CodeKind": "job-audit-level",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "off",
-            "Description": "No audit-filtered per-job events; always-on system/catalog events still emit.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 10,
-            "Code": "failures",
-            "Description": "Emit failed job.execution-finished only; suppress other audit-filtered per-job events.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "audit",
-            "Description": "Emit all audit-filtered per-job events. User Jobs default.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          0,
+          10,
+          20
         ]
       },
       {
         "CodeKind": "job-checkpoint-kind",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "variable",
-            "Description": "User variable slot; UPSERT, last-writer-wins, no state machine.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "signal",
-            "Description": "Signal slot; Pending while awaited, Set once raised.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "timer",
-            "Description": "Durable sleep timer; Pending until due, Consumed on replay past the due instant.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "progress",
-            "Description": "Progress slot; UPSERT, last-writer-wins, one per job.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "child-latch",
-            "Description": "Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20,
+          30,
+          40,
+          50
         ]
       },
       {
         "CodeKind": "job-checkpoint-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "pending",
-            "Description": "Awaited or armed; the slot has not been satisfied yet.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "set",
-            "Description": "Raised; the payload is stored and a waiting job proceeds.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "consumed",
-            "Description": "Due instant reached; the replayed handler consumed the timer and proceeded.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20,
+          100
         ]
       },
       {
         "CodeKind": "job-definition-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "active",
-            "Description": "Enqueue allowed; claim allowed.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 240,
-            "Code": "retired",
-            "Description": "Enqueue REJECTED; parked rows (Ready/Paused/Suspended) cancelled with ReasonCode = \u0027job.definition-retired\u0027; in-flight executions finish their attempt.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          240
         ]
       },
       {
         "CodeKind": "job-priority",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "bulk",
-            "Description": "Lowest practical priority; bulk-class workloads.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "normal",
-            "Description": "Default priority. Most jobs use this.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 70,
-            "Code": "high",
-            "Description": "Above normal; operator opt-in for time-sensitive work.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 85,
-            "Code": "critical",
-            "Description": "Critical priority; close-to-realtime operator workloads.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "realtime",
-            "Description": "Highest priority; always pages.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          0,
+          50,
+          70,
+          85,
+          100
         ]
       },
       {
         "CodeKind": "job-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "ready",
-            "Description": "Eligible for claim; the claim path selects rows in this Status.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "suspended",
-            "Description": "Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "paused",
-            "Description": "Not running, awaiting an external trigger to resume.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "dispatched",
-            "Description": "Claimed by a worker; lease active, handler invocation pending.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "executing",
-            "Description": "Handler is running. JobEvent(job.execution-started) has been appended; matching job.execution-finished pending.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "succeeded",
-            "Description": "Terminal success.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 200,
-            "Code": "failed",
-            "Description": "Terminal failure: MaxAttempts exhausted, expiration fired, or ctx.Fail called.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 220,
-            "Code": "cancelled",
-            "Description": "Terminal cancellation by IJobs.CancelAsync or ctx.Cancel.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20,
+          30,
+          40,
+          50,
+          100,
+          200,
+          220
         ]
       },
       {
         "CodeKind": "job-step-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "pending",
-            "Description": "Step in flight or retrying within MaxAttempts / RetryWindow.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "succeeded",
-            "Description": "Step completed successfully; Result populated (or ResultFormatId = 0 for void steps).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 200,
-            "Code": "exhausted",
-            "Description": "Step exhausted retry budget; parent handler receives StepExhaustedException.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 230,
-            "Code": "interrupted",
-            "Description": "At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          100,
+          200,
+          230
         ]
       },
       {
         "CodeKind": "job-tenant-requirement",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "optional",
-            "Description": "Jobs may carry a tenant or not; no enqueue-time tenant rule applies.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 10,
-            "Code": "required",
-            "Description": "Every enqueue must carry a tenant, by explicit TenantKey or parent inheritance; a tenant-less enqueue is rejected.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "forbidden",
-            "Description": "An explicit TenantKey is rejected and a child never inherits its parent\u0027s tenant; rows always store tenant NULL.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          0,
+          10,
+          20
         ]
       },
       {
         "CodeKind": "misfire-strategy",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "catch-up-once",
-            "Description": "After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "skip",
-            "Description": "After downtime, skip all missed occurrences and resume from the first occurrence strictly after now.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20
         ]
       },
       {
         "CodeKind": "namespace-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "active",
-            "Description": "Namespace resolves at enqueue; enqueue allowed.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "suspended",
-            "Description": "Enqueue into the namespace is rejected. Reversible (operator hold). Existing in-flight jobs are unaffected.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20
         ]
       },
       {
         "CodeKind": "outbox-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "pending",
-            "Description": "Due for relay claim; the claim path selects rows in this status once next_attempt_at_utc is reached.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "claimed",
-            "Description": "Leased by a relay claim; claim_token and claim_until_utc are set until the lease finalizes or expires.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 90,
-            "Code": "quarantined",
-            "Description": "Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20,
+          90
         ]
       },
       {
         "CodeKind": "schedule-expression-kind",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "cron",
-            "Description": "Cron expression (Cronos dialect). Set at compile time by the source generator.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "interval",
-            "Description": "Interval duration: human (e.g. \u00225m\u0022) or ISO 8601 (e.g. \u0022PT5M\u0022, \u0022P1D\u0022). Set at compile time by the source generator.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20
         ]
       },
       {
         "CodeKind": "schedule-origin",
-        "Values": [
-          {
-            "Id": 20,
-            "Code": "operator",
-            "Description": "Operator-driven schedule add/remove. No code path produces rows with this origin today.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "definition",
-            "Description": "Declared in [JobSchedule] attribute; refreshed by catalog upsert.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          20,
+          40
         ]
       },
       {
         "CodeKind": "schedule-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "active",
-            "Description": "Schedule is eligible to fire.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "paused",
-            "Description": "Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 230,
-            "Code": "orphaned",
-            "Description": "Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          30,
+          230
         ]
       },
       {
         "CodeKind": "setting-scope",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "global",
-            "Description": "Deployment-wide setting; scope_id is NULL.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "namespace",
-            "Description": "Setting scoped to one namespace; scope_id = namespaces.id.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "definition",
-            "Description": "Setting scoped to one job definition; scope_id = definitions.id.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          30,
+          40
         ]
       },
       {
         "CodeKind": "tag-scope",
-        "Values": [
-          {
-            "Id": 20,
-            "Code": "tenant",
-            "Description": "Tag attached to one tenant.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "namespace",
-            "Description": "Tag attached to one namespace.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "definition",
-            "Description": "Tag attached to one job definition.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "job",
-            "Description": "Tag attached to one job.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 60,
-            "Code": "schedule",
-            "Description": "Tag attached to one schedule.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 70,
-            "Code": "worker",
-            "Description": "Tag attached to one worker.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 80,
-            "Code": "alert",
-            "Description": "Tag attached to one alert.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 90,
-            "Code": "event",
-            "Description": "Tag attached to one event.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          20,
+          30,
+          40,
+          50,
+          60,
+          70,
+          80,
+          90
         ]
       },
       {
         "CodeKind": "tenant-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "active",
-            "Description": "Tenant key resolves at enqueue; enqueue allowed.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "suspended",
-            "Description": "Admission suspended: new enqueues naming the tenant key are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause).",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          20
         ]
       },
       {
         "CodeKind": "worker-status",
-        "Values": [
-          {
-            "Id": 10,
-            "Code": "active",
-            "Description": "Polling claim; accepting work.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 80,
-            "Code": "draining",
-            "Description": "Worker stopped polling; finishing in-flight.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "stopped",
-            "Description": "Worker shut down cleanly; terminal success.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 200,
-            "Code": "dead",
-            "Description": "Worker is dead; the sys.recovery system job reclaims leases.",
-            "Lifecycle": "Active"
-          }
+        "ValueIds": [
+          10,
+          80,
+          100,
+          200
         ]
       }
     ]

@@ -11,8 +11,7 @@ public sealed class SchemaDiffTests
     private static SchemaSnapshot Snap(IEnumerable<EntitySnapshot> entities, IEnumerable<CodeFamilySnapshot> families) =>
         new(entities.ToList(), families.ToList());
 
-    private static CodeFamilySnapshot Family(string kind, params byte[] ids) =>
-        new(kind, ids.Select(id => new CodeValueSnapshot(id, $"code-{id}", $"Description {id}.", "Active")).ToList());
+    private static CodeFamilySnapshot Family(string kind, params byte[] ids) => new(kind, ids);
 
     [Fact]
     public void Added_table_is_reported_and_its_members_are_not_double_counted()
@@ -72,15 +71,17 @@ public sealed class SchemaDiffTests
         Assert.Contains(diff.Warnings, w => w.Contains("job-status") && w.Contains("synthetic check"));
     }
 
+    // Renumbering a value keeps the family's size but changes the emitted `IN (<ids>)` list, so it is a
+    // real DDL change and must warn — and the warning must name both lists so the hand-edit is obvious.
     [Fact]
-    public void Frozen_code_pair_change_produces_a_warning()
+    public void Renumbered_code_value_produces_a_warning_naming_both_id_sets()
     {
-        var from = Snap([], [new CodeFamilySnapshot("job-status", [new CodeValueSnapshot(10, "ready", "Ready.", "Active")])]);
-        var to = Snap([], [new CodeFamilySnapshot("job-status", [new CodeValueSnapshot(20, "ready", "Ready.", "Active")])]);
+        var from = Snap([], [Family("job-status", 10)]);
+        var to = Snap([], [Family("job-status", 20)]);
 
         var diff = SchemaDiff.Compute(from, to);
 
-        Assert.Contains(diff.Warnings, w => w.Contains("frozen id/code/description contract"));
+        Assert.Contains(diff.Warnings, w => w.Contains("job-status value ids changed ('10' -> '20')"));
     }
 
     [Fact]

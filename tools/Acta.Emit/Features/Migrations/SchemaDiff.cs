@@ -111,18 +111,23 @@ internal sealed record SchemaDiff(
 
     private static void DiffCodeFamilies(SchemaSnapshot from, SchemaSnapshot to, List<string> warnings)
     {
-        var fromByName = from.CodeFamilies.ToDictionary(f => f.CodeKind, f => f.Values, StringComparer.Ordinal);
+        var fromByName = from.CodeFamilies.ToDictionary(f => f.CodeKind, f => f.ValueIds, StringComparer.Ordinal);
         foreach (var family in to.CodeFamilies.OrderBy(f => f.CodeKind, StringComparer.Ordinal))
         {
             // A brand-new family arrives with its table/columns; their checks render with the column.
-            if (!fromByName.TryGetValue(family.CodeKind, out var oldValues))
+            if (!fromByName.TryGetValue(family.CodeKind, out var oldIds))
             {
                 continue;
             }
-            if (!oldValues.SequenceEqual(family.Values))
+            // The snapshot carries ids and nothing else, so this fires only when the id set itself moved
+            // — which is exactly a change to the emitted `IN (<ids>)` list, hence advice that always
+            // applies. Renaming a code or rewording a description is no longer a trigger: it moves no
+            // DDL, and `docs/reference/code-families.md` plus PersistedCodeContractTests track it.
+            if (!oldIds.SequenceEqual(family.ValueIds))
             {
                 warnings.Add(
-                    $"code family {family.CodeKind} frozen id/code/description contract changed; regenerate the synthetic check (ck_*) on columns using it. Not drafted, hand-edit required."
+                    $"code family {family.CodeKind} value ids changed ('{string.Join(",", oldIds)}' -> '{string.Join(",", family.ValueIds)}'); "
+                        + "regenerate the synthetic check (ck_*) on columns using it. Not drafted, hand-edit required."
                 );
             }
         }
