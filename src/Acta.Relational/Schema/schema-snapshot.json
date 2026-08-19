@@ -35,7 +35,7 @@
           },
           {
             "Name": "kind_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind|values=0,10,20,30,40,50"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind|values="
           },
           {
             "Name": "title",
@@ -468,7 +468,7 @@
           },
           {
             "Name": "event_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values=0,10,11,12,20,21,22,30,40,41,50,60,61,70,71,72,73,74,75,76,80,81,90,100,101,102,103,104,120,121,122,140,141,160,180,181"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values="
           },
           {
             "Name": "created_at_utc",
@@ -532,7 +532,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,64,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values="
           },
           {
             "Name": "reason_message",
@@ -1088,7 +1088,7 @@
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values=0,10,20,21,22,23,24,25,30,40,41,42,50,51,52,53,54,60,61,62,63,64,100,101"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values="
           },
           {
             "Name": "reason_message",
@@ -1421,47 +1421,6 @@
         ]
       },
       {
-        "CodeKind": "alert-kind",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "unspecified",
-            "Description": "Alert kind not recognized by this build; the row was written by a newer Acta.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 10,
-            "Code": "first-failure",
-            "Description": "First failure in a window; emitted by Automatic origin on non-terminal failure.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "threshold-reached",
-            "Description": "Threshold-bound emission (e.g., LostClaimAlertThreshold reached).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "final-failure",
-            "Description": "Terminal failure; emitted by Automatic origin on Status to Failed.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "manual",
-            "Description": "Hand-raised; ctx.AlertAsync from inside a handler.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "recovery",
-            "Description": "Recovery transition; emitted when a previously-failed Job succeeds.",
-            "Lifecycle": "Active"
-          }
-        ]
-      },
-      {
         "CodeKind": "alert-origin",
         "Values": [
           {
@@ -1555,227 +1514,6 @@
             "Id": 20,
             "Code": "advisory",
             "Description": "Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue.",
-            "Lifecycle": "Active"
-          }
-        ]
-      },
-      {
-        "CodeKind": "event",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "unspecified",
-            "Description": "Event id not recognized by this build; the row was written by a newer Acta.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 10,
-            "Code": "tenant.suspended",
-            "Description": "An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 11,
-            "Code": "tenant.resumed",
-            "Description": "An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 12,
-            "Code": "tenant.updated",
-            "Description": "An operator changed a tenant display name / description. ReasonMessage carries the reason.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "namespace.suspended",
-            "Description": "An operator suspended a namespace; enqueue into it is rejected. ReasonMessage carries the reason.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 21,
-            "Code": "namespace.resumed",
-            "Description": "An operator resumed a suspended namespace; enqueue into it is allowed again. ReasonMessage carries the reason.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 22,
-            "Code": "namespace.updated",
-            "Description": "An operator changed a namespace owner team / description. ReasonMessage carries the reason.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "definition.overrides-updated",
-            "Description": "An operator changed a job definition\u0027s policy overrides; ReasonMessage summarizes the change.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "job.execution-started",
-            "Description": "Handler invocation began; paired with job.execution-finished on (JobId, ExecutionNumber).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 41,
-            "Code": "job.execution-finished",
-            "Description": "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "job.recurring-rolled-over",
-            "Description": "Recurring Job\u0027s NextRunAtUtc advanced to the next firing instant.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 60,
-            "Code": "job.suspended",
-            "Description": "Handler called ctx.SleepAsync; the Job re-armed to Ready with the sleep timer\u0027s due instant; budget-neutral.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 61,
-            "Code": "job.rescheduled",
-            "Description": "The job re-armed Ready with a new NextRunAtUtc: a handler reschedule or an operator RescheduleAsync; actor and reason distinguish.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 70,
-            "Code": "job.cancelled",
-            "Description": "Job was cancelled (Status to Cancelled, terminal).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 71,
-            "Code": "job.paused",
-            "Description": "Job was paused (Status to Paused).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 72,
-            "Code": "job.resumed",
-            "Description": "Job was resumed (Status to Ready).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 73,
-            "Code": "job.restarted",
-            "Description": "Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 74,
-            "Code": "job.reprioritized",
-            "Description": "Operator changed the job\u0027s claim priority; ReasonMessage carries the operator\u0027s reason, if any.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 75,
-            "Code": "job.purged",
-            "Description": "Operator hard-deleted a terminal job. job_id/job_ref are null (the row is gone); ReasonMessage carries the purged job\u0027s ref and name. Always emitted regardless of audit level.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 76,
-            "Code": "job.input-amended",
-            "Description": "Operator amended a job\u0027s stored input payload; Detail carries bounded JSON metadata (format name and byte count) about the previous payload and ReasonMessage carries the why.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 80,
-            "Code": "job.signal-raised",
-            "Description": "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 81,
-            "Code": "job.state-reset",
-            "Description": "Handler called ctx.ResetStateAsync; the Job\u0027s JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 90,
-            "Code": "job.note-recorded",
-            "Description": "Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "schedule.paused",
-            "Description": "A recurring schedule was paused; ReasonMessage carries the schedule name.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 101,
-            "Code": "schedule.resumed",
-            "Description": "A recurring schedule was resumed; ReasonMessage carries the schedule name.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 102,
-            "Code": "schedule.pause-expired",
-            "Description": "A timed pause elapsed; the scheduler auto-resumed the schedule. ReasonMessage carries the schedule name.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 103,
-            "Code": "schedule.overrides-updated",
-            "Description": "Operator changed a schedule\u0027s expression/timezone overrides; ReasonMessage summarizes the change and carries the schedule name.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 104,
-            "Code": "schedule.triggered",
-            "Description": "Operator fired a schedule manually; the slot\u0027s cursor was pulled to now. ReasonMessage carries the schedule name.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 120,
-            "Code": "worker.started",
-            "Description": "Worker process registered; a workers row was appended (Status: Active).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 121,
-            "Code": "worker.stopped",
-            "Description": "Worker process shut down cleanly (Status: Active/Draining to Stopped).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 122,
-            "Code": "worker.died",
-            "Description": "Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 140,
-            "Code": "alert.acknowledged",
-            "Description": "Operator acknowledged an alert; ReasonMessage carries the alert id and note.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 141,
-            "Code": "alert.resolved",
-            "Description": "Operator manually resolved an alert; ReasonMessage carries the alert id and note.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 160,
-            "Code": "setting.updated",
-            "Description": "A durable setting was written (created or overwritten); Detail carries the setting name.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 180,
-            "Code": "outbox.requeued",
-            "Description": "An operator command returned quarantined outbox rows to Pending; ReasonMessage carries the justification and the row ids.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 181,
-            "Code": "outbox.discarded",
-            "Description": "An operator command deleted quarantined outbox rows; ReasonMessage carries the justification and the deleted row ids.",
             "Lifecycle": "Active"
           }
         ]
@@ -1927,155 +1665,6 @@
             "Id": 240,
             "Code": "retired",
             "Description": "Enqueue REJECTED; parked rows (Ready/Paused/Suspended) cancelled with ReasonCode = \u0027job.definition-retired\u0027; in-flight executions finish their attempt.",
-            "Lifecycle": "Active"
-          }
-        ]
-      },
-      {
-        "CodeKind": "job-event-reason",
-        "Values": [
-          {
-            "Id": 0,
-            "Code": "unspecified",
-            "Description": "Reason id not recognized by this build; the row was written by a newer Acta.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 10,
-            "Code": "job.unclassified",
-            "Description": "None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 20,
-            "Code": "job.unhandled-exception",
-            "Description": "Handler threw an exception that was not raised via ctx.Fail.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 21,
-            "Code": "job.lease-expired",
-            "Description": "Worker lease expired; the sys.recovery system job reclaimed the Job.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 22,
-            "Code": "job.execution-timeout",
-            "Description": "Execution exceeded JobDefinition.ExecutionTimeout for this attempt.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 23,
-            "Code": "job.non-retryable-exception",
-            "Description": "Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException); terminal Failed without consuming the retry budget.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 24,
-            "Code": "job.deadline-exceeded",
-            "Description": "Job passed its whole-job deadline; the engine terminated it Cancelled without consuming the retry budget.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 25,
-            "Code": "job.attempt-aborted",
-            "Description": "Worker aborted the attempt mid-flight (lease renewal at risk, a held lock lost, or a step\u0027s ownership unconfirmed); retried under the failure budget.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 30,
-            "Code": "job.schedules-exhausted",
-            "Description": "Recurring slot has no live JobSchedule yielding a next instant; row is system-paused.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 40,
-            "Code": "job.control-manual",
-            "Description": "Operator-initiated control transition via an IJobs control verb (Cancel/Pause/Resume/Restart).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 41,
-            "Code": "job.parent-cancelled",
-            "Description": "Job was cancelled because an ancestor job in its lineage was cancelled (recursive cascade).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 42,
-            "Code": "job.definition-retired",
-            "Description": "Job was cancelled because its definition was retired by registration; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 50,
-            "Code": "job.handler-rescheduled",
-            "Description": "Handler called ctx.RescheduleAsync; attempt finalized as Rescheduled.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 51,
-            "Code": "job.handler-suspended",
-            "Description": "Handler called ctx.SleepAsync or ctx.WaitSignalAsync; attempt suspended (budget-neutral) until the sleep timer\u0027s due instant or a matching signal is raised.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 52,
-            "Code": "job.handler-failed",
-            "Description": "Handler called ctx.FailAsync; the attempt was finalized as a deliberate terminal Failed (no retry, budget untouched).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 53,
-            "Code": "job.handler-cancelled",
-            "Description": "Handler called ctx.CancelAsync; the attempt was finalized as a deliberate terminal Cancelled (no retry, budget untouched).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 54,
-            "Code": "job.handler-paused",
-            "Description": "Handler called ctx.PauseAsync; the Job was held in Paused until an external resume (budget untouched).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 60,
-            "Code": "job.signal-released",
-            "Description": "RaiseSignalAsync set a matching signal and moved a Suspended Job to Ready.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 61,
-            "Code": "job.step-retry-scheduled",
-            "Description": "An inline step failed within budget (or on replay still awaits its retry instant); the parent re-armed budget-neutral until the step\u0027s next_retry_at_utc.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 62,
-            "Code": "job.exclusive-key-held",
-            "Description": "A claimed exclusive-key job found its key lock held at execution admission; re-armed Ready after the fixed bounce delay (budget-neutral).",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 63,
-            "Code": "job.step-interrupted",
-            "Description": "An at-most-once step was re-entered on replay before its outcome was recorded (worker died mid-flight); the body is not re-run and the parent lands terminal Failed. Non-retryable; the outcome is unknown and must be reconciled externally.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 64,
-            "Code": "job.result-oversized",
-            "Description": "The handler returned successfully but its serialized result exceeded MaxInlinePayloadBytes, so the body was dropped rather than persisted. The job still succeeded; a typed read of the missing result throws.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 100,
-            "Code": "worker.clean-shutdown",
-            "Description": "Worker process exited cleanly via SIGTERM / IHostedService.StopAsync.",
-            "Lifecycle": "Active"
-          },
-          {
-            "Id": 101,
-            "Code": "worker.heartbeat-stale",
-            "Description": "Worker heartbeat exceeded the liveness window; the sys.recovery system job flipped Status to Dead.",
             "Lifecycle": "Active"
           }
         ]

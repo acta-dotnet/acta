@@ -32,8 +32,12 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
         // Catalog-backed families only, keyed by the stable CodeKind discriminator, never the CLR enum
         // type name, so renaming an enum is not read as schema drift. Meta-enums (CodeKind == null) are
         // omitted; their CHECK-value drift is captured per-column by the column signature's value list.
+        // Extensible families are omitted too: they emit no CHECK-list DDL at all (SqlSchemaEmitter skips
+        // them), so nothing about their membership is physical schema. Their evolution is still enforced,
+        // just elsewhere: `docs/reference/code-families.md` lists every family's full value set and is
+        // drift-checked by `Acta.Emit check` regardless of extensibility.
         var codeFamilies = families
-            .Where(f => f.CodeKind is not null)
+            .Where(f => f.CodeKind is not null && !f.IsExtensible)
             .Select(f => new CodeFamilySnapshot(
                 f.CodeKind!,
                 f.Values.OrderBy(v => v.Id).Select(v => new CodeValueSnapshot(v.Id, v.Code, v.Description, v.Lifecycle)).ToList()
@@ -53,8 +57,11 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
 
     // Coded identity is carried by the emitted CHECK value list (the real SQL artifact), plus IsCoded and
     // the stable CodeKind, never EnumTypeName, so a CLR enum rename is not treated as persistence drift.
+    // Extensible columns emit no CHECK list at all (SqlSchemaEmitter's own !IsExtensible guard), so the
+    // value list is omitted here too; keeping it would read adding/removing an extensible member as drift
+    // in a column that carries no physical constraint for it.
     private static string ColumnSignature(ColumnModel c) =>
-        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|values={SqlSchemaEmitter.EnumValueList(c)?.Replace(" ", "", StringComparison.Ordinal)}";
+        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|values={(c.IsExtensible ? null : SqlSchemaEmitter.EnumValueList(c)?.Replace(" ", "", StringComparison.Ordinal))}";
 
     private static string IndexSignature(DbIndexSpec i) =>
         $"{(i.IsUnique ? "U" : "I")}|cols={string.Join(",", i.Columns)}"
