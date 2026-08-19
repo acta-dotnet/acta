@@ -15,10 +15,13 @@ public enum AlertProfileCode : byte
     )]
     OnFailure = 10,
 
-    [Code("info", "Informational alerts on final failure only; low severity.")]
+    [Code("info", "Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal.")]
     Info = 20,
 
-    [Code("on-terminal", "Alert on terminal failure only (final exhaustion / orphan / deadline). Resolves on recovery.")]
+    [Code(
+        "on-terminal",
+        "Alert on terminal failure only (retry budget exhausted, deadline, or a handler-declared failure). Resolves on recovery. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so those never alert here; use on-failure to hear about them."
+    )]
     OnTerminal = 30,
 
     [Code(

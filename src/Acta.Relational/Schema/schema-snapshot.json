@@ -1459,13 +1459,13 @@
           {
             "Id": 20,
             "Code": "info",
-            "Description": "Informational alerts on final failure only; low severity.",
+            "Description": "Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal.",
             "Lifecycle": "Active"
           },
           {
             "Id": 30,
             "Code": "on-terminal",
-            "Description": "Alert on terminal failure only (final exhaustion / orphan / deadline). Resolves on recovery.",
+            "Description": "Alert on terminal failure only (retry budget exhausted, deadline, or a handler-declared failure). Resolves on recovery. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so those never alert here; use on-failure to hear about them.",
             "Lifecycle": "Active"
           },
           {

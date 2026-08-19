@@ -45,6 +45,17 @@ placement, or reconciliation paths.
 can re-run handler work that already finished in process. Use `Bulk` only for idempotent or safely
 repeatable work.
 
+A recurring job's failure is a rollover, not a terminal failure, and the quieter alert profiles wait
+for a terminal one. `MaxAttempts` is the one-shot retry budget: a recurring slot never exhausts it,
+re-arming for its next occurrence however many consecutive runs throw, which is deliberate — a nightly
+job should not die permanently after three bad nights. But it means `AlertProfile.OnTerminal` and
+`AlertProfile.Info`, which alert only on the terminal transition, stay silent for a recurring job that
+throws or loses its lease. They still fire on the terminal shapes a recurring slot *can* reach: a
+handler that declares failure through `ctx.Fail(...)`, which stops the whole slot, and a whole-job
+deadline. **Choose `AlertProfile.OnFailure` for recurring work you want to hear about**; it alerts on
+each failure transition, and the dedupe window collapses a repeating nightly failure onto one row
+rather than one per night.
+
 ## Ordering
 
 Acta orders claims, not work. The claim scan reads ready rows by priority (highest first), then by
