@@ -529,7 +529,8 @@ IAlertChannelRegistry. Every worker namespace has an implicit `default` log chan
 with `w.AddAlertChannel(...)`. Store real endpoints/secrets in appsettings, environment variables, or a
 secret store, then pass them into `AddAlertChannel` at startup. Route a job with
 `[Job(AlertChannelName = "...")]`; `AlertProfile` decides what fires,
-a fixed one-hour dedupe window collapses repeats, and delivery retries are capped at five. Alert rows
+the `AlertDedupeWindow` (4 hours, settable) collapses repeats, and delivery retries are capped at five.
+Alert rows
 are queryable like everything else:
 `SELECT * FROM acta.alerts_view WHERE delivery_status = 'pending'` shows what has not delivered yet.
 

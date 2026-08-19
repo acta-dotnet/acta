@@ -89,9 +89,16 @@ dead-worker window - and lengthen it to cut idle database chatter. Long-running 
 longer lease; they stay alive by heartbeating.
 
 Engine tuning with no operator-legible meaning is not configurable: the poll floor, claim jitter,
-exclusive-key bounce delay, alert dedupe window, alert delivery retries, and the Bulk-profile
-completion-buffer thresholds are fixed. A value nobody can set correctly is a way to break a
-deployment, not a feature.
+exclusive-key bounce delay, alert delivery retries, and the Bulk-profile completion-buffer thresholds
+are fixed. A value nobody can set correctly is a way to break a deployment, not a feature.
+
+`AlertDedupeWindow` (4 hours) is the exception, and it is settable because the correct value depends on
+something Acta cannot see: how often your jobs run. It is the rate limit on repeat alerts for a problem
+that has not gone away, and it is simultaneously the denominator for `AlertFailureThreshold`, which
+counts failures *within* one window. Widen it and a fast job stops re-notifying so often while a slow
+job becomes able to escalate at all; those move together. No single value serves both a five-second
+poller and a nightly report, so the default is the smallest one at which an hourly job can reach the
+default threshold of three.
 
 `JobEventsRetention` (365 days) intentionally outlives the per-definition `[Job(JobRetention =
 ...)]` default (90 days) that purges terminal job rows: events are the audit ledger, so the incident

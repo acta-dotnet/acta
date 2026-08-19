@@ -196,9 +196,17 @@ public sealed class JobsOptions
     /// the framework automatic-alert paths). Repeats sharing a <c>(namespace_id, deduplication_key)</c>
     /// that fall in the same window collapse onto one <c>alerts</c> row (incrementing
     /// <c>occurrence_count</c>); the window start is the caller's <c>now</c> floored to a multiple of
-    /// this span. The dedupe window is the rate limit. Fixed at 1 hour.
+    /// this span. The dedupe window is the rate limit. Default 4 hours.
+    ///
+    /// <para>It also decides whether <see cref="AlertFailureThreshold"/> is reachable at all, because that
+    /// threshold counts failures <em>within one window</em>: a job only escalates if its cadence fits
+    /// <see cref="AlertFailureThreshold"/> failures into this span. Four hours is the smallest default at
+    /// which an hourly job can escalate; at one hour only jobs running faster than roughly every twenty
+    /// minutes ever could. Widen it to cut repeat notifications for a fast job and to make escalation
+    /// reachable for a slow one; those move together, and no single value suits both a five-second poller
+    /// and a nightly report, which is why this is settable rather than fixed.</para>
     /// </summary>
-    internal TimeSpan AlertDedupeWindow { get; set; } = TimeSpan.FromHours(1);
+    public TimeSpan AlertDedupeWindow { get; set; } = TimeSpan.FromHours(4);
 
     /// <summary>
     /// How many failed delivery attempts the <c>sys.alerts</c> deliver phase makes before a <c>alerts</c>
@@ -213,6 +221,12 @@ public sealed class JobsOptions
     /// escalates to <c>ThresholdReached</c> (<c>Error</c> severity). The <c>sys.alerts</c> generate phase
     /// reads the post-upsert <c>occurrence_count</c> from <c>raise_job_alert</c> and escalates when it
     /// meets this value; reset-immune, with no JOIN to the mutable <c>runtimes.failure_count</c>. Default 3.
+    ///
+    /// <para>This counts failures inside one <see cref="AlertDedupeWindow"/>, not consecutive failures over
+    /// the job's life: <c>occurrence_count</c> belongs to the window's row and restarts at 1 in each new
+    /// window. So a job whose cadence cannot fit this many failures into one window never escalates,
+    /// however long it stays broken - a job failing every thirty minutes never reaches 3 in a one-hour
+    /// window. Choosing the threshold means choosing it against the window, not against the job.</para>
     /// </summary>
     public int AlertFailureThreshold { get; set; } = 3;
 
