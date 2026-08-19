@@ -28,7 +28,7 @@ internal static class ContractDriftPolicy
         foreach (var drift in drifts)
         {
             log.LogWarning(
-                "Payload contract drift for job {JobName} in namespace {Namespace}: {Detail}. Enqueues made from now on use the new contract.",
+                "Payload contract drift for job ({JobName}) in namespace ({Namespace}): ({Detail}). Enqueues made from now on use the new contract.",
                 drift.JobName,
                 ns,
                 $"input type {drift.Stored.InputTypeName} -> {drift.Incoming.InputTypeName}, "

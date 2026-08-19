@@ -19,6 +19,15 @@
 # value happens to serialize as. Anything an operator aggregates - averages, percentiles, sums - stays
 # a number, because a count or a duration written as text cannot be aggregated at all.
 #
+# A string-valued placeholder is set off in the message text by parentheses rather than by recasing the
+# value to make it stand out: a kebab or PascalCase token sitting bare in an English sentence has no
+# visible boundary, and the parens are what keep the value greppable and the boundary unambiguous
+# without bending the value's own spelling to fake one. A numeric placeholder is never parenthesized,
+# because a number already reads as a number, and a placeholder already set off by a key=value pair in
+# the template is left as it is rather than delimited twice. This is the one delimiter the vocabulary
+# uses; templates that used to wrap a value in single quotes carry the same parens instead, so a reader
+# never has to remember which of two conventions a given line follows.
+#
 # Format: Name;Type;Type;... - one line per field, listing every CLR type the field may carry.
 
 # The namespace, on every line that has one.

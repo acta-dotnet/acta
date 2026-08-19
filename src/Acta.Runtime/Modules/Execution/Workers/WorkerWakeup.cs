@@ -194,7 +194,7 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
         catch (Exception ex)
         {
             metrics?.RecordWakeupPublishFailure(NamespaceTag(channel), ChannelTag(channel.Kind), ReasonTag(reason), ex.GetType().Name);
-            _log.LogWarning(ex, "Wake publish failed for channel '{Detail}'; relying on the waiter's poll floor.", channel.Name);
+            _log.LogWarning(ex, "Wake publish failed for channel ({Detail}); relying on the waiter's poll floor.", channel.Name);
         }
     }
 

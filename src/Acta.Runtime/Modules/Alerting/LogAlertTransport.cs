@@ -38,7 +38,7 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
         // name and its numeric value. The rest is the delivered body and renders into the free-text tail.
         _log.Log(
             level,
-            "ACTA ALERT ns={Namespace} alert={Ref} job={SubjectRef} kind={Reason} x{Count}: {Detail}",
+            "ACTA ALERT ns={Namespace} alert={Ref} job={SubjectRef} kind={Reason} x{Count}: ({Detail})",
             n.JobNamespace,
             n.AlertRef.ToString(),
             n.JobRef?.ToString(),

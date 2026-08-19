@@ -117,7 +117,7 @@ internal sealed class AlertsJob(
 
         _log.LogWarning(
             exception,
-            "ACTA sys.alerts: skipped poison alert event {Detail} in namespace {Namespace}; reason {Reason}.",
+            "ACTA sys.alerts: skipped poison alert event ({Detail}) in namespace ({Namespace}); reason ({Reason}).",
             $"{e.EventId} (durable outcome recorded in job variable '{variableName}')",
             ctx.JobNamespace,
             reason
@@ -336,7 +336,7 @@ internal sealed class AlertsJob(
         {
             _log.LogWarning(
                 ex,
-                "ACTA sys.alerts: transport kind '{Detail}' threw delivering alert {Ref}; will retry.",
+                "ACTA sys.alerts: transport kind ({Detail}) threw delivering alert ({Ref}); will retry.",
                 channel.TransportKind,
                 new AlertRef(a.AlertRef).ToString()
             );
@@ -354,7 +354,7 @@ internal sealed class AlertsJob(
         if (reason == AlertChannelDecisionReason.MissingChannel)
         {
             _log.LogWarning(
-                "ACTA sys.alerts: channel '{Detail}' is not configured for namespace '{Namespace}'; marking alert {Ref} failed.",
+                "ACTA sys.alerts: channel ({Detail}) is not configured for namespace ({Namespace}); marking alert ({Ref}) failed.",
                 alert.ChannelName,
                 ctx.JobNamespace,
                 new AlertRef(alert.AlertRef).ToString()
@@ -363,7 +363,7 @@ internal sealed class AlertsJob(
         }
 
         _log.LogWarning(
-            "ACTA sys.alerts: no transport is registered for {Detail}; marking alert {Ref} delivery failed.",
+            "ACTA sys.alerts: no transport is registered for ({Detail}); marking alert ({Ref}) delivery failed.",
             $"kind '{channel!.TransportKind}' on channel '{channel.Name}'",
             new AlertRef(alert.AlertRef).ToString()
         );
@@ -379,7 +379,7 @@ internal sealed class AlertsJob(
         if (reason is AlertChannelDecisionReason.DisabledChannel or AlertChannelDecisionReason.DeprecatedChannel)
         {
             _log.LogInformation(
-                "ACTA sys.alerts: alert {Ref} in namespace '{Namespace}' is {Outcome}: channel '{Detail}' is {Reason}.",
+                "ACTA sys.alerts: alert ({Ref}) in namespace ({Namespace}) is ({Outcome}): channel ({Detail}) is ({Reason}).",
                 new AlertRef(alert.AlertRef).ToString(),
                 ctx.JobNamespace,
                 "Suppressed",
@@ -390,7 +390,7 @@ internal sealed class AlertsJob(
         }
 
         _log.LogInformation(
-            "ACTA sys.alerts: alert {Ref} is {Outcome}: {Detail}.",
+            "ACTA sys.alerts: alert ({Ref}) is ({Outcome}): ({Detail}).",
             new AlertRef(alert.AlertRef).ToString(),
             "Suppressed",
             $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'"

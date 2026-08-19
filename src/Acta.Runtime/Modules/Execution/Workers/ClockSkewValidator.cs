@@ -111,7 +111,7 @@ internal sealed class ClockSkewValidator(
         if (magnitude <= _warnThreshold)
         {
             _log.LogDebug(
-                "Acta worker clock skew {DurationMs}ms is within tolerance for namespace {Namespace} ({Detail}).",
+                "Acta worker clock skew {DurationMs}ms is within tolerance for namespace ({Namespace}) ({Detail}).",
                 (long)sample.Skew.TotalMilliseconds,
                 namespaceName,
                 $"round-trip {sample.RoundTrip.TotalMilliseconds:F0}ms"
@@ -122,7 +122,7 @@ internal sealed class ClockSkewValidator(
         if (magnitude <= _failThreshold)
         {
             _log.LogWarning(
-                "Acta worker clock skew {DurationMs}ms exceeds the warn threshold for namespace {Namespace} ({Detail}); lease and schedule timing may drift.",
+                "Acta worker clock skew {DurationMs}ms exceeds the warn threshold for namespace ({Namespace}) ({Detail}); lease and schedule timing may drift.",
                 (long)sample.Skew.TotalMilliseconds,
                 namespaceName,
                 $"warn threshold {_warnThreshold.TotalMilliseconds:F0}ms, round-trip {sample.RoundTrip.TotalMilliseconds:F0}ms"
@@ -133,7 +133,7 @@ internal sealed class ClockSkewValidator(
         if (_allowOverride)
         {
             _log.LogWarning(
-                "Acta worker clock skew {DurationMs}ms exceeds the fail threshold for namespace {Namespace} ({Detail}), but AllowClockSkew is set; proceeding.",
+                "Acta worker clock skew {DurationMs}ms exceeds the fail threshold for namespace ({Namespace}) ({Detail}), but AllowClockSkew is set; proceeding.",
                 (long)sample.Skew.TotalMilliseconds,
                 namespaceName,
                 $"fail threshold {_failThreshold.TotalMilliseconds:F0}ms"

@@ -81,7 +81,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         {
             _log.LogWarning(
                 ex,
-                "Redis wake publish failed for channel '{Detail}'; remote waiters fall back to their poll floors.",
+                "Redis wake publish failed for channel ({Detail}); remote waiters fall back to their poll floors.",
                 channel.Name
             );
         }
@@ -179,7 +179,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         catch (Exception ex)
         {
             _pendingJittered.TryRemove(channel, out _);
-            _log.LogWarning(ex, "Redis wake relay failed for channel '{Detail}'.", channel.Name);
+            _log.LogWarning(ex, "Redis wake relay failed for channel ({Detail}).", channel.Name);
         }
     }
 

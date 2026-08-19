@@ -179,6 +179,17 @@ free and it grows with every line anyone adds.
   enum through a translation table would need a `_ =>` fallback that silently swallows a member added
   later, and `.ToString()` keeps the enum the single source of truth, so a new state needs no telemetry
   change at all.
+- **A string value is delimited by parentheses in the message text - `({Detail})`, `({Reason})`,
+  `({Outcome})`, `({Operation})`, `({Namespace})`, `({Ref})`, `({SubjectRef})`, `({JobName})` - rather
+  than recased to stand out.** A kebab token sitting bare in an English sentence has no visible
+  boundary. Recasing the value to give it one makes the spelling do a delimiter's job, which is why the
+  spelling rules above and this one are separate: the parens make the boundary unambiguous and the
+  value greppable, and the value keeps whatever spelling its own nature earns it.
+  Numeric fields (`{JobId}`, `{Count}`, `{DurationMs}`) are never parenthesized - a number already reads
+  as a number - and a placeholder already delimited by a `key=value` pair, such as `ns={Namespace}` in
+  the alert transport's line, is left alone rather than double-delimited. This one rule replaces the
+  single quotes some templates used around a value (`'{Detail}'`), so the vocabulary has one delimiter
+  instead of three.
 - **Log `Outcome` values and metric `outcome` tags diverge on purpose, and neither should be "fixed" to
   match the other.** `JobExecution.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
   into `JobMetrics`, because metric tag values follow OpenTelemetry's lowercase convention and freeze

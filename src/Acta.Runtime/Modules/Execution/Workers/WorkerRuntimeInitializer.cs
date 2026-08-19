@@ -137,7 +137,7 @@ internal sealed class WorkerRuntimeInitializer(
         if (!frameworkNames.Contains("sys.recovery"))
         {
             _log.LogWarning(
-                "Namespace '{Namespace}': sys.recovery is not registered, so crashed workers are never marked dead and their "
+                "Namespace ({Namespace}): sys.recovery is not registered, so crashed workers are never marked dead and their "
                     + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
                     + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
                 ns

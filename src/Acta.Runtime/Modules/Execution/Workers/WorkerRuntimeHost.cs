@@ -113,7 +113,7 @@ internal sealed class WorkerRuntimeHost(
             (runtime, ex) =>
                 _log.LogWarning(
                     ex,
-                    "Acta: {Operation} stamp failed for worker namespace {Namespace}; lease recovery will reconcile it.",
+                    "Acta: ({Operation}) stamp failed for worker namespace ({Namespace}); lease recovery will reconcile it.",
                     phase,
                     runtime.WorkerNamespaceName
                 ),
@@ -121,7 +121,7 @@ internal sealed class WorkerRuntimeHost(
         );
         if (!completed)
         {
-            _log.LogWarning("Acta: {Operation} stamps exceeded their shutdown budget; continuing shutdown.", phase);
+            _log.LogWarning("Acta: ({Operation}) stamps exceeded their shutdown budget; continuing shutdown.", phase);
         }
     }
 

@@ -304,7 +304,7 @@ internal sealed class RuntimeJobContext(
             {
                 RecordStep(name, "exhausted");
                 _log.LogWarning(
-                    "Step '{Operation}' on job {JobId} exhausted after attempt {Count}: {Detail}",
+                    "Step ({Operation}) on job {JobId} exhausted after attempt {Count}: ({Detail})",
                     name,
                     JobId,
                     start.AttemptNumber,
@@ -315,7 +315,7 @@ internal sealed class RuntimeJobContext(
 
             RecordStep(name, "failed");
             _log.LogInformation(
-                "Step '{Operation}' on job {JobId} failed on attempt {Count}; retry at {Detail}.",
+                "Step ({Operation}) on job {JobId} failed on attempt {Count}; retry at ({Detail}).",
                 name,
                 JobId,
                 start.AttemptNumber,
@@ -459,7 +459,7 @@ internal sealed class RuntimeJobContext(
     {
         _log.LogWarning(
             exception,
-            "Failed to release the {Detail} held for job {JobId}; continuing because the lock TTL will clean it up.",
+            "Failed to release the ({Detail}) held for job {JobId}; continuing because the lock TTL will clean it up.",
             $"{lockKind} lock '{key}'",
             JobId
         );

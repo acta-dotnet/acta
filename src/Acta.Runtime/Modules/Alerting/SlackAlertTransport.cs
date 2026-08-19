@@ -27,7 +27,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
         if (string.IsNullOrWhiteSpace(target.Endpoint))
         {
             _log.LogWarning(
-                "Slack channel '{Detail}' has no endpoint; cannot deliver alert {Ref}.",
+                "Slack channel ({Detail}) has no endpoint; cannot deliver alert ({Ref}).",
                 target.ChannelName,
                 notification.AlertRef.ToString()
             );
@@ -57,7 +57,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
         {
             _log.LogWarning(
                 ex,
-                "Slack delivery to channel '{Detail}' failed transiently for alert {Ref}.",
+                "Slack delivery to channel ({Detail}) failed transiently for alert ({Ref}).",
                 target.ChannelName,
                 notification.AlertRef.ToString()
             );

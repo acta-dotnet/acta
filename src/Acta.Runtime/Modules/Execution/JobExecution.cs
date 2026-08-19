@@ -76,7 +76,7 @@ internal sealed class JobExecution(
             // guard (incl. the claim-time version) means we mutated nothing; clean skip, let the row
             // be re-claimed next tick.
             _log.LogInformation(
-                "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: {Outcome}; skipping.",
+                "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: ({Outcome}); skipping.",
                 job.JobId,
                 $"execution number {job.ExecutionNumber}",
                 start.ToString()
@@ -117,7 +117,7 @@ internal sealed class JobExecution(
             if (exclusiveKeyBounced)
             {
                 _log.LogDebug(
-                    "WorkerRuntime: {Operation} {Outcome} job {JobId} ({Reason}); exclusive key '{Detail}' is held elsewhere, so the job re-armed Ready in {DurationMs}ms.",
+                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); exclusive key ({Detail}) is held elsewhere, so the job re-armed Ready in {DurationMs}ms.",
                     "exclusive-key-admission",
                     "Bounced",
                     job.JobId,
@@ -188,7 +188,7 @@ internal sealed class JobExecution(
                         // existing "no result" shape (format 0, NULL) with job.result-oversized recording
                         // why. A typed read of the missing result throws rather than handing back a default.
                         _log.LogWarning(
-                            "Handler result for job '{JobName}' ({JobId}) is {Count} bytes, exceeding the {Detail}; the result body was dropped.",
+                            "Handler result for job ({JobName}) id {JobId} is {Count} bytes, exceeding the ({Detail}); the result body was dropped.",
                             descriptor.JobName,
                             job.JobId,
                             resultBytes.Length,
@@ -296,7 +296,11 @@ internal sealed class JobExecution(
                     // below decide re-arm vs terminal; a timeout is a retryable failure like an exception.
                     failureReason = JobEventReasonCode.JobExecutionTimeout;
                     failureMessage = "Execution exceeded the configured timeout.";
-                    _log.LogWarning("Handler for job '{JobName}' ({JobId}) exceeded its execution timeout.", descriptor.JobName, job.JobId);
+                    _log.LogWarning(
+                        "Handler for job ({JobName}) id {JobId} exceeded its execution timeout.",
+                        descriptor.JobName,
+                        job.JobId
+                    );
                 }
                 else
                 {
@@ -329,7 +333,7 @@ internal sealed class JobExecution(
                     ActaTextLimits.ReasonMessage
                 );
                 _log.LogInformation(
-                    "WorkerRuntime: job {JobId} lost ownership of step '{Detail}' mid-flight; aborting the attempt cooperatively.",
+                    "WorkerRuntime: job {JobId} lost ownership of step ({Detail}) mid-flight; aborting the attempt cooperatively.",
                     job.JobId,
                     ownershipLost.StepName
                 );
@@ -346,7 +350,7 @@ internal sealed class JobExecution(
                 failureMessage = interrupted.Message.Truncate(ActaTextLimits.ReasonMessage);
                 handlerStatusCode = (byte)JobStatusCode.Failed;
                 _log.LogWarning(
-                    "Handler for job '{JobName}' ({JobId}) did not handle StepInterruptedException for step '{Detail}'; failing terminally.",
+                    "Handler for job ({JobName}) id {JobId} did not handle StepInterruptedException for step ({Detail}); failing terminally.",
                     descriptor.JobName,
                     job.JobId,
                     interrupted.StepName
@@ -373,7 +377,7 @@ internal sealed class JobExecution(
                 {
                     _log.LogWarning(
                         ex,
-                        "Handler for job '{JobName}' ({JobId}) threw; transitioning to Failed.",
+                        "Handler for job ({JobName}) id {JobId} threw; transitioning to Failed.",
                         descriptor.JobName,
                         job.JobId
                     );
@@ -382,7 +386,7 @@ internal sealed class JobExecution(
                 {
                     _log.LogWarning(
                         ex,
-                        "Input deserialization for job '{JobName}' ({JobId}) failed; transitioning the attempt to Failed.",
+                        "Input deserialization for job ({JobName}) id {JobId} failed; transitioning the attempt to Failed.",
                         descriptor.JobName,
                         job.JobId
                     );

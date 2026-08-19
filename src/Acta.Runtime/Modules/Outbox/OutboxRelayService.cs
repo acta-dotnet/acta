@@ -196,7 +196,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         if (quarantinedIds.Count > 0)
         {
             _log.LogError(
-                "ACTA sys.outbox: {Operation} {Outcome} {Count} row(s) this tick; {Detail}.",
+                "ACTA sys.outbox: ({Operation}) ({Outcome}) {Count} row(s) this tick; ({Detail}).",
                 "outbox-relay",
                 "Quarantined",
                 quarantinedIds.Count,
@@ -258,7 +258,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
             await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList(), ct);
             _log.LogWarning(
                 ex,
-                "ACTA sys.outbox: target enqueue failed for source '{Detail}'; releasing claim and failing tick.",
+                "ACTA sys.outbox: target enqueue failed for source ({Detail}); releasing claim and failing tick.",
                 options.SourceName
             );
             throw;
@@ -310,7 +310,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
             }
 
             _log.LogInformation(
-                "ACTA sys.outbox: rejected a row group in namespace {Namespace}; {Count} row(s) quarantined ({Detail}).",
+                "ACTA sys.outbox: rejected a row group in namespace ({Namespace}); {Count} row(s) quarantined ({Detail}).",
                 group.Representative.JobNamespace,
                 groupQuarantined,
                 $"source '{options.SourceName}', dedup key '{group.Representative.DeduplicationKey}', "

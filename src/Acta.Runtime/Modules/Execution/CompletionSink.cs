@@ -256,7 +256,7 @@ internal sealed class CompletionSink
             // the completion sat buffered. Nothing was finalized here; recovery or the concurrent
             // winner owns the row now. Say so, or the buffered completion vanishes without a trace.
             _log.LogWarning(
-                "Bulk fallback completion for job {JobId} returned {Outcome}; nothing was finalized here.",
+                "Bulk fallback completion for job {JobId} returned ({Outcome}); nothing was finalized here.",
                 b.JobId,
                 result.Action.ToString()
             );
