@@ -141,8 +141,8 @@ review.
 
 - **`alr_` and `wrk_` join `job_`.** Both are UUIDv7 values minted in C# and passed into the write, so
   the database never defaults one; both get a unique index. `alerts.alert_ref` is applied on the
-  INSERT arm of the dedupe upsert only, so **an alert that re-fires inside its window keeps the ref
-  its first firing minted** — a delivered notification's link never goes stale.
+  INSERT arm of the dedupe upsert only, so **an alert that re-fires while its incident is open keeps
+  the ref its first firing minted** — a delivered notification's link never goes stale.
 - **Routes re-keyed.** `GET /alerts/{alertRef}` (new) plus the acknowledge / resolve verbs and the
   alert tag routes; `GET /workers/{workerRef}` and the worker tag routes;
   `GET|PATCH /definitions/{jobNamespace}/{jobName}` plus its `/events` and tag routes. `/events`
@@ -171,6 +171,37 @@ review.
   positional and the arity plus parameter types disambiguate — but a fresh provision (the documented
   0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
   anyway.
+
+### Breaking: automatic alert dedup is incident identity, not a time window
+
+Automatic alert dedup no longer buckets by a rolling window. An automatic alert's key —
+`auto:{definitionId}:{jobId}:{kind}:{reason}` — now names an *incident*: the unique
+`(namespace_id, dedupe_key)` index, filtered to unresolved rows, admits one OPEN row per key at a
+time, with no time component. The first failure opens it, repeats increment `occurrence_count` on
+that same row, a success resolves it, and resolution is terminal — the next failure on the same key
+opens a fresh incident rather than reopening the closed one. `dedupe_window_start_utc` is gone from
+the schema along with the check constraint that paired it with the key.
+
+`AlertFailureThreshold` now counts failures within one incident rather than within one window:
+`ThresholdReached` fires once the incident's occurrence count reaches it, reachable at any job
+cadence — the old coupling, where a slow job's cadence could make the threshold permanently
+unreachable, is gone.
+
+`AlertDedupeWindow` is replaced by `JobsOptions.AlertReminderInterval` (default 24 hours): a delivery
+policy, not a dedup rule. An unresolved incident whose delivery already settled (`Delivered` or
+`Failed` — a failed send does not silence an open incident forever) is re-selected for delivery at
+most once per interval; `Suppressed` rows are never reminded. It never changes which `alerts` rows
+exist or what `occurrence_count` they carry.
+
+Resolution now settles the delivery it closes: a `Pending` or `RetryAfter` row moves to `Suppressed`
+and its retry timer clears, while an already-settled row keeps its recorded status. Settlement writes
+a compare-and-swap against the version delivery selection read, so a resolve racing an in-flight send
+is never overwritten by a stale settlement. The delivery guarantee this leaves: an alert resolved
+before delivery selection is not sent; resolution suppresses further pending and retry attempts; a
+transport attempt already in progress may still complete.
+
+A 10,000-job outage now produces one open incident row per failing job (per kind and reason), not
+2–3 accumulated rows per job per rolling window.
 
 ### Execution correctness: a lost step CAS no longer terminalizes a healthy job
 

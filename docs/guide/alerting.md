@@ -95,7 +95,7 @@ system-job failures reach the logs with no operator configuration (`AlertsJob.Pr
 `None` suppresses automatic alerts only. `ctx.AlertAsync` still writes rows from a `None` job
 (`AlertProfileCode.None`).
 
-## Identity, the window, and deduplication
+## Identity and deduplication
 
 An automatic alert's deduplication key is
 
@@ -103,10 +103,13 @@ An automatic alert's deduplication key is
 auto:{DefinitionId}:{JobId}:{kind}:{reasonCode ?? "none"}
 ```
 
-(`AlertsJob.EmitAsync`). The `alerts` table is unique on
-`(namespace_id, dedupe_key, dedupe_window_start_utc)`, and a repeat inside one window folds onto that
-row: `occurrence_count + 1`, `resolved_at_utc` cleared, title/message/severity refreshed
-(`RaiseJobAlert.routine.sql`).
+(`AlertsJob.EmitAsync`). This key names an **incident**, not a time bucket: `alerts` carries a unique
+index on `(namespace_id, dedupe_key)` filtered to unresolved rows, so at most one OPEN row exists per
+key at any moment (`JobAlert.cs`). A repeat of the same condition while that row is open folds onto it
+— `occurrence_count + 1`, title/message/severity refreshed — with no time component at all
+(`RaiseJobAlert.routine.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
+once a success stamps it, the row never reopens, and the next failure on the same key opens a fresh
+incident with a fresh ref and fresh delivery state.
 
 Four things follow from the key's shape:
 
@@ -115,33 +118,21 @@ Four things follow from the key's shape:
 - **Kind-scoped.** `FirstFailure`, `ThresholdReached`, and `FinalFailure` are separate rows, not
   states of one row.
 - **Reason-scoped.** A job alternating between `job.unhandled-exception` and `job.lease-expired`
-  opens two rows in the same window.
+  opens a separate incident for each reason; both can be open at once.
 - **Stable across occurrences of a recurring job.** A recurring schedule is one job row re-armed, not
   a row per occurrence ([concepts](./concepts.md), glossary and "Schedules, workers, and providers"),
   so the job id — and therefore the alert identity — does not move from occurrence to occurrence.
 
-The window is `AlertWindow.FloorStart(event.CreatedAtUtc, AlertDedupeWindow)`
-(`AlertsJob.ProjectAsync`, `AlertWindow.FloorStart`): the automatic path floors the failure event's
-own write instant, never the projecting pass's clock, so which bucket an event lands in is a fact
-about the event, not about when the projector happened to run. (A manual `ctx.AlertAsync` has no
-event behind it and floors the caller's now — `AlertStoreSink.RaiseManualAsync`.) `AlertDedupeWindow`
-is a public `JobsOptions` setting defaulting to four hours (`JobsOptions.AlertDedupeWindow`). It is
-the rate limit on automatic alerting, and it also decides whether `ThresholdReached` is reachable for
-a given job at all — see
-[How much a broken job actually sends](#how-much-a-broken-job-actually-sends).
-
-The start is **floored**, so windows are aligned buckets (…00:00, 04:00, 08:00, 12:00 on the
-default), not "four hours from the first failure". Two failures a second apart but either side of a
-boundary land in different buckets and produce two rows.
-
-Automatic writes are replay-safe. Each carries the projecting event's id, and the upsert increments,
-re-opens, and re-stamps only when that id is strictly newer than the row's `last_projected_event_id`
-(`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`). Because the bucket is derived from the event, a
-replayed event re-floors the same instant and lands on the very row that guard protects — even when
-the retrying pass runs in a later bucket — so re-projecting a batch after a crash changes nothing.
-The public `alert_ref` is applied on the INSERT arm only, and is absent from the `DO UPDATE SET` list
-(`RaiseJobAlert.routine.sql`), so a row keeps the ref its first firing minted however many times it
-re-fires.
+Automatic writes are replay-safe. Each carries the projecting event's id, and the upsert increments and
+re-stamps only when that id is strictly newer than the row's `last_projected_event_id`
+(`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`). Because resolution is terminal, a failure event
+replayed after the incident it belongs to has already closed must not reopen it: the insert arm is
+guarded against every row of the identity, resolved ones included, not just the open one, so a raise
+whose event the identity has already absorbed at or past that id opens nothing — the ghost-incident
+guard (`RaiseJobAlert.routine.sql`). The public `alert_ref` is applied on the INSERT arm only, and is
+absent from the `DO UPDATE SET` list (`RaiseJobAlert.routine.sql`), so a row keeps the ref its first
+firing minted for as long as the incident stays open, and the next incident on the same key gets a ref
+of its own.
 
 ## Resolution
 
@@ -154,7 +145,8 @@ A successful execution resolves that job's open automatic alerts and writes noth
   event (`ResolveJobAlerts.sql`), so a replayed success cannot close an alert that a later failure
   opened.
 - **Idempotent, and run on every success.** Within one batch a job can go fail → success → fail →
-  success; resolving each success is what stops the re-opened row from lingering unresolved
+  success, where the second failure opens a fresh incident on the same key (the first is already
+  resolved); resolving each success is what keeps that second incident from lingering unresolved
   (`AlertsJob.ProjectAsync`).
 - **Dependent on the success event existing.** `AuditLevel = Failures` suppresses success events at the
   source (see [What projects an alert](#what-projects-an-alert)), so under it nothing ever drives this
@@ -177,55 +169,49 @@ count **equals** `AlertFailureThreshold` (`AlertsJob.ProjectAsync`; default 3,
 `JobsOptions.AlertFailureThreshold`). "Applies" is read off the raise's returned
 `last_projected_event_id`: only the event the row just absorbed may escalate, so a crash-replay —
 whose held raises all return the stored, already-at-threshold count — re-fires the escalation only
-from the true crossing event, where the `ThresholdReached` row's own high-water guard settles it.
-That count belongs to the window's row, so it restarts at 1 in each new window and the threshold is
-crossed at most once per window.
-
-### The threshold counts failures inside one window, not consecutive failures
-
-This is the limitation to read before tuning either setting. A job whose cadence does not fit
-`AlertFailureThreshold` failures into a single dedupe window can never escalate, however long it
-stays broken. With a four-hour window and a threshold of 3:
-
-| Failure interval | Failures per window | `ThresholdReached` |
-| --- | --- | --- |
-| 80 minutes or shorter | 3 or more, in every window | every window |
-| between 80 minutes and 2 hours | 2 or 3, depending on where the bucket boundary falls | some windows |
-| 2 hours or longer | at most 2 | never |
-
-The cutoff is the window divided by `AlertFailureThreshold`. At a one-hour window that put it at
-twenty minutes: an hourly job failing for a year would produce a `FirstFailure` row every hour and
-never once reach `ThresholdReached`. Four hours is the smallest window at which an hourly job
-escalates, which is the reason for the default — not the noise arithmetic below, which a wider window
-happens to improve as well. A nightly job still cannot escalate at any window you would want to
-configure; for that cadence, `FirstFailure` is the whole signal.
+from the true crossing event, where the `ThresholdReached` row's own high-water guard settles it. The
+count is monotonic **within one incident**: it starts at 1 when the incident opens and only climbs
+until a success resolves it, so the threshold is crossed at most once per incident and reads as "N
+failures since this broke" whatever the job's cadence — a slow job just takes longer to reach it, it
+never becomes unreachable. Only the next incident, opened by the next failure after a resolution,
+restarts the count at 1 (`JobsOptions.AlertFailureThreshold`).
 
 ### Volume
 
-Delivery selects rows in `Pending` or `RetryAfter` (`GetDeliverableAlerts.sql`), and every newly
-inserted row is born `Pending` (`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`). So each new
-window's rows are real notifications, not silent bookkeeping.
+Delivery selects an unresolved incident whose delivery is `Pending`/`RetryAfter` due now, or whose
+delivery already settled (`Delivered`/`Failed`) at least `AlertReminderInterval` ago
+(`GetDeliverableAlerts.sql`; see [Delivery](#delivery)). Every newly inserted row is born `Pending`
+(`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`), so a new incident's first notification is
+immediate.
 
-**A job on a five-second schedule that is permanently broken produces, on defaults, two rows and two
-notifications per four-hour window — 12 a day — while `occurrence_count` faithfully records the
-roughly 2,880 failures in each of those windows.** The pair is one `FirstFailure` row and one
-`ThresholdReached` row, new in each aligned bucket.
+**A job that is permanently broken produces exactly one open incident row per (kind, reason) — one for
+`FirstFailure`, one for `ThresholdReached` once the count crosses it — no matter how fast or how long
+it keeps failing.** `occurrence_count` on that row climbs with every repeat; no new row appears until
+the incident resolves. A 10,000-job outage is 10,000 open rows (one per failing job, per kind and
+reason it hits), not 2–3 accumulated rows per job per rolling window under the retired windowed model.
 
 | | One-shot job | Recurring slot |
 | --- | --- | --- |
 | Failures before it stops | at most `MaxAttempts` (default 15, `JobAttribute.MaxAttempts`) | unbounded; the slot re-arms forever (`JobExecution.ComputeRecurringOutcome`) |
-| Alert rows on defaults | at most three: `FirstFailure`, `ThresholdReached`, `FinalFailure` | two per dedupe window, forever |
+| Alert rows on defaults | at most three: `FirstFailure`, `ThresholdReached`, `FinalFailure` | two, for as long as the slot stays broken |
 | Ends by itself | yes, at the terminal `Failed` | only on a success, or operator intervention |
 
-The one lever over the recurring number is `AlertDedupeWindow`. Widening it divides the pair rate and
-raises the cadence at which escalation is reachable; narrowing it does the reverse. It does not make
-the sequence end.
+Row count does not grow with time or failure rate; what changes with time is how often an open
+incident is *delivered* again. `AlertReminderInterval` is that lever (default 24h,
+`JobsOptions.AlertReminderInterval`): once an incident's delivery has settled to `Delivered` or
+`Failed` — `Suppressed` is not reminded — it becomes eligible for another delivery pass once the
+interval has elapsed, so a permanently broken job pages at most once per incident per interval rather
+than once per failure. Widening the interval slows the reminder cadence; it does not change how many
+rows exist or whether `ThresholdReached` is reachable.
 
 ## Delivery
 
-The deliver phase reads due rows and settles each one (`AlertsJob.DeliverAsync`). Due means
-`Pending` or `RetryAfter` with `retry_after_utc` null or past, ordered by id, 256 per pass
-(`GetDeliverableAlerts.sql`).
+The deliver phase selects due rows and settles each one (`AlertsJob.DeliverAsync`). Due means an
+unresolved incident (`resolved_at_utc IS NULL`) and one of two arms: `Pending`/`RetryAfter` with
+`retry_after_utc` null or past — a first attempt or a due retry — or `Delivered`/`Failed` whose
+`modified_at_utc` is at least `AlertReminderInterval` in the past — a reminder. `Suppressed` rows are
+never reminded: that status recorded a routing decision about the channel, and re-sending would only
+re-take it. Ordered by id, 256 per pass (`GetDeliverableAlerts.sql`).
 
 For each row it resolves the channel by name in the firing namespace, resolves a transport by the
 channel's kind, and decides in this fixed order (`AlertChannelDecision.Decide`):
@@ -240,36 +226,45 @@ channel's kind, and decides in this fixed order (`AlertChannelDecision.Decide`):
 | Otherwise | Send | per the transport's outcome |
 
 A transport that throws is treated as retryable and logged at Warning, never propagated
-(`AlertsJob.SendAsync`). Settlement (`AlertsJob.SettleAsync`):
+(`AlertsJob.SendAsync`). Settlement (`AlertsJob.SettleAsync`) writes a compare-and-swap against the
+`version` the row carried at selection (`UpdateAlertDelivery.sql`): a row that moved in the
+meantime — an operator resolved it, or a competing worker already settled the same attempt — matches
+no version, and the write is skipped with a Debug log line rather than retried, because the newer state
+is the one that should stand (`AlertsJob.WriteSettlementAsync`).
 
-- `Delivered` (100) — terminal.
+- `Delivered` (100) — terminal, and `retry_count` resets to 0: the send series that just landed is
+  over.
 - `Retryable` — `retry_count + 1`; below `AlertDeliveryMaxRetries` the row becomes `RetryAfter` (20)
   with `retry_after_utc` set from a `30s..1h` doubling curve with 10% jitter, parsed once and
   independent of any job's backoff policy (`AlertsJob.RetryBackoff`, `AlertsJob.SettleAsync`).
 - At the cap — `Failed` (200), terminal.
 
-`AlertDeliveryMaxRetries` is `internal` and fixed at 5 (`JobsOptions.AlertDeliveryMaxRetries`). That
-is five send attempts and four waits of roughly 30s, 1m, 2m, and 4m
-(`BackoffSchedule.ComputeDelaySeconds`), so the one-hour ceiling in the curve is never reached and a
-row that cannot be delivered goes terminal in under ten minutes of tick time. Because delivery runs on
-the one-minute tick, each wait rounds up to the next tick boundary.
+`retry_count` is the budget for one **send series**, not a lifetime count on the row
+(`JobAlert.RetryCount`). `AlertDeliveryMaxRetries` is `internal` and fixed at 5
+(`JobsOptions.AlertDeliveryMaxRetries`): five send attempts and four waits of roughly 30s, 1m, 2m, and
+4m (`BackoffSchedule.ComputeDelaySeconds`), so the one-hour ceiling in the curve is never reached and a
+series that cannot be delivered goes terminal `Failed` in under ten minutes of tick time. Because
+delivery runs on the one-minute tick, each wait rounds up to the next tick boundary. `Delivered`
+resets the budget to 0, so a reminder for a still-open incident starts with the whole curve again
+rather than inheriting whatever the previous series spent — a row that took four attempts to land does
+not walk into its next reminder one throw from the cap.
 
 Delivery is at least once: a crash after send but before settlement can resend a duplicate
 (`AlertsJob`).
 
-Two behaviours to know before you rely on the delivery status:
+The delivery guarantee:
 
-- **A reopened alert does not have its delivery state reset.** The `ON CONFLICT … DO UPDATE` arm
-  clears `resolved_at_utc` and bumps `version` but never touches `delivery_status_code`,
-  `retry_count`, or `retry_after_utc` (`RaiseJobAlert.routine.sql`), while delivery selects
-  only `Pending` and `RetryAfter` (`GetDeliverableAlerts.sql`). An alert that already reached
-  `Delivered`, `Failed`, or `Suppressed` and then re-fires inside the same window is therefore
-  unresolved and unselectable: it shows as an open incident and sends nothing. This is a known defect
-  with a fix planned for the 1.0.0-rc.1 alerts track ("reopen leaves alerts undeliverable"); do not
-  treat a re-fire inside a window as a notification.
-- **Resolution does not cancel a queued delivery.** The due-row query filters on delivery status
-  only, with no `resolved_at_utc` predicate (`GetDeliverableAlerts.sql`), so an alert resolved
-  between projection and the deliver phase is still sent.
+> An alert resolved before delivery selection is not sent. Resolution suppresses further pending and
+> retry attempts. A transport attempt already in progress may still complete.
+
+Both resolve paths settle the delivery they close (`ResolveJobAlerts.sql`,
+`ResolveJobAlertManual.routine.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
+retry timer clears, so a notification queued for a condition that has cleared is cancelled rather than
+sent. An already-settled row (`Delivered`, `Failed`, `Suppressed`) keeps its status — resolving does
+not edit the record of what the send actually did. Selection itself excludes every resolved row
+(`GetDeliverableAlerts.sql`), and settlement's compare-and-swap is what makes a resolve race-safe
+against a send already in flight: the resolve writes unconditionally and wins, and the in-flight
+attempt's own settlement finds its expected version gone and quietly loses, per the guarantee above.
 
 ## Channels and routing
 
@@ -376,13 +371,15 @@ A whole-job deadline is **not** one of them: the deadline lands the job `Cancell
 `[Code]` description (`AlertProfileCode.OnTerminal`) and
 [Known limitations](../technical/known-limitations.md) both say the same.
 
-### 2. Alert volume is bounded for one-shot work and unbounded for recurring work
+### 2. A one-shot job's alerting ends by itself; a recurring job's does not
 
-A one-shot job fails at most `MaxAttempts` times and then terminalizes, so its alerting ends of its
-own accord. A permanently broken recurring slot keeps producing a fresh `FirstFailure` /
-`ThresholdReached` pair every dedupe window, forever, until it succeeds or an operator intervenes.
-Same profile, same configuration, bounded outcome in one case and unbounded in the other. The single
-lever is `AlertDedupeWindow`, which sets the rate of the repeat and not whether there is one.
+A one-shot job fails at most `MaxAttempts` times and then terminalizes, so its `FirstFailure` /
+`ThresholdReached` / `FinalFailure` incidents resolve or age out with the job. A permanently broken
+recurring slot never produces the success that would resolve its incident, so `FirstFailure` (and,
+once crossed, `ThresholdReached`) stay open indefinitely: one row each, `occurrence_count` climbing
+with every re-arm, delivered again on `AlertReminderInterval` rather than replaced by a fresh row.
+Same profile, same configuration, a lifecycle that ends by itself in one case and only on success or
+operator intervention in the other.
 
 Neither of these is a feature. They are the current behaviour, and they are the two places where
 reading the profile name does not tell you what the job will do.
@@ -391,21 +388,21 @@ reading the profile name does not tell you what the job will do.
 
 **One-shot work.** `OnFailure` (the default) is the honest choice. You get a `FirstFailure` warning
 on the first retryable failure, an `Error` escalation if the same reason recurs to the threshold
-inside one window, and a `FinalFailure` when the budget is exhausted — at most three rows, and the
-sequence ends by itself. Pick `OnTerminal` when the intermediate retries are noise and only the final
-outcome should page; it costs you the early warning, and for a one-shot job it costs nothing else.
-`Info` is `OnTerminal` at a severity most channels will not page on — useful for work whose failure is
-a note rather than an incident, but check the routed channel's `MinSeverity` first, because
-`Info` alerts are exactly what a `Warning` floor suppresses.
+before the job exhausts its retries, and a `FinalFailure` when the budget is exhausted — at most three
+rows, and the sequence ends by itself. Pick `OnTerminal` when the intermediate retries are noise and
+only the final outcome should page; it costs you the early warning, and for a one-shot job it costs
+nothing else. `Info` is `OnTerminal` at a severity most channels will not page on — useful for work
+whose failure is a note rather than an incident, but check the routed channel's `MinSeverity` first,
+because `Info` alerts are exactly what a `Warning` floor suppresses.
 
 **Recurring work.** `OnFailure`, or you will hear nothing. `OnTerminal` and `Info` are silent for the
-rollover case, which is how a recurring job fails nearly all the time. Accept that the alerting is
-unbounded in the sense described above: budget for at most two notifications per dedupe window per
-broken slot — six a day on the four-hour default — and treat "this alert is still open in the next
-window" as the signal that nobody has fixed it. Check the cadence against the escalation cutoff
-before you rely on `ThresholdReached`: at a slower cadence than window ÷ `AlertFailureThreshold`, the
-only alert a broken recurring job will ever raise is `FirstFailure`. If you want a recurring job to
-stop rather than keep failing, that is a handler decision — `ctx.FailAsync` — not a profile one.
+rollover case, which is how a recurring job fails nearly all the time. Accept that the incident does
+not close on its own: it opens once, reminds on `AlertReminderInterval` (once a day by default) for as
+long as the slot stays broken, and treat "this alert is still open" — not "a new alert appeared" — as
+the signal that nobody has fixed it. `ThresholdReached` is reachable at every cadence, because the
+count is per incident rather than per window: it fires once the Nth failure since the incident opened
+lands, however slowly that takes. If you want a recurring job to stop rather than keep failing, that
+is a handler decision — `ctx.FailAsync` — not a profile one.
 
 **System work.** `SysCritical` is reserved for Acta's own jobs (`sys.alerts`, `sys.recovery`,
 `sys.retention`, `sys.outbox`) and behaves as `OnFailure` pinned to `Critical` severity. There is no
@@ -424,11 +421,11 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | Cited as | Path |
 | --- | --- |
 | `AlertsJob.cs` | `src/Acta.Runtime/Modules/Alerting/AlertsJob.cs` |
-| `AlertWindow.cs` | `src/Acta.Runtime/Modules/Alerting/AlertWindow.cs` |
 | `AlertChannelDecision.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelDecision.cs` |
 | `AlertChannelRegistry.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelRegistry.cs` |
 | `AlertRoutingCheck.cs` | `src/Acta.Runtime/Modules/Alerting/AlertRoutingCheck.cs` |
 | `AlertStoreSink.cs` | `src/Acta.Runtime/Modules/Alerting/AlertStoreSink.cs` |
+| `JobAlert.cs` | `src/Acta.Relational/Entities/JobAlert.cs` |
 | `AlertProfileCode.cs` | `src/Acta/Alerts/AlertProfileCode.cs` |
 | `AlertChannelOptions.cs` | `src/Acta/Alerts/AlertChannelOptions.cs` |
 | `AlertTransportKinds.cs` | `src/Acta/Alerts/AlertTransportKinds.cs` |
@@ -451,6 +448,6 @@ webhook and a shared deduplication key), `406-automatic-failure-alerts` (no `Ale
 `411-alert-escalation` (`FirstFailure` → `ThresholdReached` → `FinalFailure`).
 
 For failure semantics behind the alerts, see [Failure modes](./failure-modes.md); for the day-2
-surfaces, [Operator guide](./operator-guide.md); for `AlertDedupeWindow`, `AlertFailureThreshold`,
+surfaces, [Operator guide](./operator-guide.md); for `AlertReminderInterval`, `AlertFailureThreshold`,
 and the rest of the option surface, [Configuration](./configuration.md); for startup wiring,
 [Production § alert channel setup](./production.md).

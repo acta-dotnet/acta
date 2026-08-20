@@ -65,7 +65,7 @@ namespace Acta.Concepts.RealAlertRouting
 
             if (input.Depth > 10_000)
             {
-                // deduplicationKey ties repeats together within the dedupe window.
+                // deduplicationKey ties repeats together onto one open incident row.
                 await context.AlertAsync(
                     title: $"Queue backlog: {input.Queue}",
                     message: $"'{input.Queue}' depth is {input.Depth}, above the 10k threshold.",

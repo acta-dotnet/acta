@@ -56,7 +56,7 @@ non-retryable exception, and an uncaught `StepInterruptedException` from a re-en
 step. A whole-job deadline is *not* among them — it lands the job `Cancelled` rather than `Failed`, and
 no alert profile fires on a cancellation. **Choose `AlertProfile.OnFailure` for recurring work you want
 to hear about**; it alerts on
-each failure transition, and the dedupe window collapses a repeating nightly failure onto one row
+each failure transition, and incident identity collapses a repeating nightly failure onto one row
 rather than one per night.
 
 ## Ordering

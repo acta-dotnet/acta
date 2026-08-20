@@ -528,10 +528,10 @@ or opaque transport config. Delivery configuration is process startup configurat
 IAlertChannelRegistry. Every worker namespace has an implicit `default` log channel unless overridden
 with `w.AddAlertChannel(...)`. Store real endpoints/secrets in appsettings, environment variables, or a
 secret store, then pass them into `AddAlertChannel` at startup. Route a job with
-`[Job(AlertChannelName = "...")]`; `AlertProfile` decides what fires,
-the `AlertDedupeWindow` (4 hours, settable) collapses repeats, and delivery retries are capped at five.
-Alert rows
-are queryable like everything else:
+`[Job(AlertChannelName = "...")]`; `AlertProfile` decides what fires, incident identity collapses
+repeats onto one open row per job and condition, `AlertReminderInterval` (24 hours, settable) governs
+how often a still-open incident pages again, and delivery retries are capped at five per send series.
+Alert rows are queryable like everything else:
 `SELECT * FROM acta.alerts_view WHERE delivery_status = 'pending'` shows what has not delivered yet.
 
 ## What maintenance does for you
