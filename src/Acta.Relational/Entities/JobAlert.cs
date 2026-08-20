@@ -155,7 +155,7 @@ internal sealed class JobAlert : IEntity<long>
 
     /// <summary>
     /// High-water mark of the <c>events</c> row that last moved this alert automatically: the id of the
-    /// failure event that last raised or re-opened it, or of the success event that last resolved it.
+    /// failure event that last raised it, or of the success event that last resolved it.
     /// NULL means no projected event has touched the row yet (a manual alert, or an automatic one whose
     /// first projection is still in flight), and sorts before every event id. The <c>sys.alerts</c>
     /// projector commits each event's alert write before it advances its cursor, so a crash mid-batch

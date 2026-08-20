@@ -1,4 +1,5 @@
 using Acta.Runtime.Modules.Alerting;
+using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,9 +12,10 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// End-to-end conformance for the <c>ThresholdReached</c> escalation path in <c>AlertsJob</c>:
 /// drives a real failing job (<c>retry-probe</c>, <c>OnFailure</c> profile, <c>MaxAttempts = 3</c>)
 /// to terminal Failed, runs the projector with per-fact thresholds, and pins exact alert state.
-/// Also exercises <c>RaiseJobAlert</c> / <c>ResolveJobAlerts</c> directly to prove that the count is
-/// per-incident: it climbs only while the incident is open, and the incident that opens after a
-/// resolution starts back at 1 and can therefore escalate again.
+/// Also proves the count is per-incident from both ends: at the store, where it climbs only while the
+/// incident is open and restarts at 1 in the row that opens after a resolution; and end to end on a
+/// recurring slot, where that restart is what makes the projector emit a second <c>ThresholdReached</c>
+/// for the next outage instead of falling silent once a key has escalated.
 /// </summary>
 [ConformanceSpec(
     "alert.threshold-reached",
@@ -21,8 +23,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution.",
     Arrange = "A retry-probe job with the OnFailure profile and MaxAttempts 3 is registered, with per-fact ThresholdReached thresholds of 1, 2, and 5.",
-    Act = "The job is driven to terminal Failed and the alerts projector runs, with RaiseJobAlert and ResolveJobAlerts also called directly on one key across a resolution.",
-    Assert = "One ThresholdReached fires at the crossing occurrence, further failures in that incident do not re-fire it, and the next incident counts from 1 again."
+    Act = "The job is driven to terminal Failed with the projector running, and a recurring slot is then failed, recovered, and failed again across projector passes.",
+    Assert = "One ThresholdReached fires at the crossing occurrence, further failures in that incident do not re-fire it, and the next incident emits one of its own."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
@@ -116,10 +118,61 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(2, first.OccurrenceCount);
     }
 
-    [Fact(
-        DisplayName = "The count climbs only inside one incident: after a resolution the same key starts a new row at 1 and can escalate again"
-    )]
-    public async Task Occurrence_count_is_per_incident_so_the_next_incident_can_escalate_again()
+    [Fact(DisplayName = "A fresh incident escalates again: the projector emits a second ThresholdReached after a resolution")]
+    public async Task A_fresh_incident_after_a_resolution_emits_its_own_threshold_reached()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RecurringPingHandler.Reset(TestNamespace);
+
+        // A recurring slot, because only a job that outlives its own success can break, recover, and
+        // break again on one job id - and the identity is per job id, so a second enqueue would be a
+        // different incident lineage rather than the same one re-opening.
+        var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
+
+        // Threshold 1: the first failure of an incident crosses it, so each incident should escalate
+        // exactly once and the second escalation is the whole subject of this fact.
+        await AlertTestOps.OrphanOneAttemptAsync(Services, NamespaceId, slotId, ct);
+        await RunAlertsWithThresholdAsync(slotId, alertFailureThreshold: 1, ct);
+        var firstEscalation = Assert.Single(await ReadAlertsAsync(NamespaceId, ct), a => a.Kind == AlertKindCode.ThresholdReached);
+        Assert.Equal(1, firstEscalation.OccurrenceCount);
+        Assert.Null(firstEscalation.ResolvedAtUtc);
+
+        // The success closes both incidents the failure opened.
+        await SucceedOneFireAsync(slotId, ct);
+        await RunAlertsWithThresholdAsync(slotId, alertFailureThreshold: 1, ct);
+        Assert.All(await ReadAlertsAsync(NamespaceId, ct), a => Assert.NotNull(a.ResolvedAtUtc));
+
+        // A genuinely new failure. The count restarting at 1 is what makes the threshold reachable
+        // again, so the projector emits a SECOND ThresholdReached row rather than finding the key
+        // already at or past the threshold and staying silent forever.
+        await AlertTestOps.OrphanOneAttemptAsync(Services, NamespaceId, slotId, ct);
+        await RunAlertsWithThresholdAsync(slotId, alertFailureThreshold: 1, ct);
+
+        var escalations = (await ReadAlertsAsync(NamespaceId, ct))
+            .Where(a => a.Kind == AlertKindCode.ThresholdReached)
+            .OrderBy(a => a.Id)
+            .ToList();
+        Assert.Equal(2, escalations.Count);
+        Assert.Equal(firstEscalation.Id, escalations[0].Id);
+        Assert.NotNull(escalations[0].ResolvedAtUtc);
+        Assert.Null(escalations[1].ResolvedAtUtc);
+        Assert.Equal(1, escalations[1].OccurrenceCount);
+        Assert.NotEqual(firstEscalation.AlertRef, escalations[1].AlertRef);
+    }
+
+    /// <summary>
+    /// One successful fire of the slot. The reclaim leaves it claimable immediately; no schedule is due,
+    /// so the handler runs with an empty triggering set and the slot rolls over to Ready.
+    /// </summary>
+    private async Task SucceedOneFireAsync(long slotId, CancellationToken ct)
+    {
+        var before = RecurringPingHandler.TriggersFor(TestNamespace).Count;
+        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Equal(before + 1, RecurringPingHandler.TriggersFor(TestNamespace).Count);
+    }
+
+    [Fact(DisplayName = "The count climbs only inside one incident: after a resolution the same key starts a new row at 1")]
+    public async Task Occurrence_count_restarts_in_the_incident_that_opens_after_a_resolution()
     {
         var ct = TestContext.Current.CancellationToken;
 

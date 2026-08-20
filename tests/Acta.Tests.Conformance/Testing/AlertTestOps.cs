@@ -103,6 +103,32 @@ internal static class AlertTestOps
         return id!.Value;
     }
 
+    // Claim with the lease already lapsed so the sys.recovery sweep reclaims the attempt with no
+    // real-time wait, exactly as ReclaimStuckJobsSpec does. Never reaches JobsOptions, which rejects a
+    // non-positive lease.
+    private const int ExpiredLeaseTtlSeconds = -5;
+
+    /// <summary>
+    /// One orphaned attempt on a recurring slot: claim it with a lease that is already in the past, then
+    /// let the recovery sweep reclaim it. That writes the slot's alertable failure event (Orphaned,
+    /// <c>JobLeaseExpired</c>, back to Ready) and leaves the slot alive for the next fire - the only
+    /// shape that produces an alertable failure with no real-time wait and without the handler running.
+    /// Shared, because more than one spec needs a failure it can put behind a success.
+    /// </summary>
+    public static async Task OrphanOneAttemptAsync(IServiceProvider services, short namespaceId, long slotId, CancellationToken ct)
+    {
+        await MakeSlotClaimableAsync(services, slotId, ct);
+
+        var db = services.GetRequiredService<IDbSession>();
+        var workerId = await ChaosSpecHelpers.WorkerIdAsync(db, namespaceId, ct);
+        var claim = await services
+            .GetRequiredService<IExecutionStore>()
+            .ClaimOneAsync(namespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
+        Assert.Equal(slotId, Assert.Single(claim).JobId);
+
+        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(services, namespaceId, ct)).Reclaimed);
+    }
+
     /// <summary>
     /// The harness parks seeded slots a day out; this pulls one back so a by-id claim, which filters
     /// on <c>next_run_at_utc</c> like every other claim, can take it.

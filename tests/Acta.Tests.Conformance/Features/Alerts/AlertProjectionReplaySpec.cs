@@ -38,11 +38,6 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
     // which is the whole reason this spec drives a schedule instead of a one-shot probe.
     private const string JobName = "recurring-ping";
 
-    // Claim with the lease already lapsed so the sys.recovery sweep reclaims the attempt with no
-    // real-time wait, exactly as ReclaimStuckJobsSpec does. Never reaches JobsOptions, which rejects a
-    // non-positive lease.
-    private const int ExpiredLeaseTtlSeconds = -5;
-
     private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "A flap is a new incident: the success closes the row for good and the next failure opens a fresh one")]
@@ -235,23 +230,8 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
 
     private Task<long> SlotIdAsync(CancellationToken ct) => AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, JobName, ct);
 
-    /// <summary>
-    /// One orphaned attempt on the slot: claim it with a lease that is already in the past, then let
-    /// the recovery sweep reclaim it. That writes the slot's alertable failure event (Orphaned,
-    /// <c>JobLeaseExpired</c>, back to Ready) and leaves the slot alive for the next fire.
-    /// </summary>
-    private async Task OrphanOneAttemptAsync(long slotId, CancellationToken ct)
-    {
-        await AlertTestOps.MakeSlotClaimableAsync(Services, slotId, ct);
-
-        var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, NamespaceId, ct);
-        var claim = await Services
-            .GetRequiredService<IExecutionStore>()
-            .ClaimOneAsync(NamespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
-        Assert.Equal(slotId, Assert.Single(claim).JobId);
-
-        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, NamespaceId, ct)).Reclaimed);
-    }
+    private Task OrphanOneAttemptAsync(long slotId, CancellationToken ct) =>
+        AlertTestOps.OrphanOneAttemptAsync(Services, NamespaceId, slotId, ct);
 
     /// <summary>
     /// One orphaned attempt that leaves the slot re-armed however many times it is called: the slot's

@@ -1,5 +1,11 @@
--- The unknown-jobId guard lives in the job_ref CASE below, not a preceding statement: this file's
--- outcome is read from its LAST result set, and a standalone guard SELECT would displace it.
+-- Its own leading statement (the EnqueueOne guard-stack shape), because the insert below is filtered
+-- by the ghost guard: a raise whose row that guard removes never evaluates its SELECT list, so an
+-- unknown job would pass silently where the other two dialects reject it before any guard runs.
+SELECT ACTA_ERROR('ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id')
+WHERE
+    @p_job_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.id = @p_job_id);
+
 INSERT INTO {{schema}}.alerts (
     namespace_id, alert_ref, job_id, job_ref,
     origin_code, severity_code, kind_code, title, message, channel_name,
@@ -10,11 +16,7 @@ SELECT
     ns.id,
     @p_alert_ref,
     @p_job_id,
-    CASE
-        WHEN @p_job_id IS NOT NULL AND jr.job_ref IS NULL
-            THEN ACTA_ERROR('ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id')
-        ELSE jr.job_ref
-    END,
+    jr.job_ref,
     @p_origin_code,
     @p_severity_code,
     @p_kind_code,
@@ -72,10 +74,14 @@ WHERE
     (@p_dedupe_key IS NULL AND a.alert_ref = @p_alert_ref) -- keyless: the row just minted
     OR (
         @p_dedupe_key IS NOT NULL
-        AND a.namespace_id = (SELECT ns.id FROM {{schema}}.namespaces ns WHERE ns.name = @p_namespace_name)
-        AND a.dedupe_key = @p_dedupe_key
-    )
--- The identity's newest row: the open incident when there is one, the last-resolved one when a guard
--- held the write back.
-ORDER BY a.id DESC
-LIMIT 1;
+        -- MAX(id), not ORDER BY id DESC LIMIT 1: both name the identity's newest row - the open
+        -- incident, or the last-resolved one when a guard held the write back - but a top-level OR is
+        -- served by a multi-index union that cannot also satisfy an ORDER BY, so sorting cost a b-tree.
+        AND a.id = (
+            SELECT MAX(b.id)
+            FROM {{schema}}.alerts b
+            WHERE
+                b.namespace_id = (SELECT ns.id FROM {{schema}}.namespaces ns WHERE ns.name = @p_namespace_name)
+                AND b.dedupe_key = @p_dedupe_key
+        )
+    );

@@ -1042,9 +1042,9 @@ BEGIN
         OR p_source_event_id > acta.alerts.last_projected_event_id
     RETURNING occurrence_count, last_projected_event_id INTO v_occurrence_count, v_last_projected_event_id;
 
-    -- Nothing written: a replay-held update or a ghost-blocked insert. The caller's failure threshold
-    -- reads the count the identity's newest row already carries, and that row's mark - never the
-    -- incoming event id, since nothing absorbed it - is what keeps this raise from escalating.
+    -- Nothing written: a replay-held update or a ghost-blocked insert. The identity's newest row has
+    -- already absorbed this event or a newer one, so its count and mark let the caller re-assert only
+    -- the escalation this very event earned - never one for a neighbour the incident never counted.
     IF v_occurrence_count IS NULL THEN
         SELECT a.occurrence_count, a.last_projected_event_id
         INTO v_occurrence_count, v_last_projected_event_id

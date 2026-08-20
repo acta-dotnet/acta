@@ -14,17 +14,17 @@ internal interface IAlertStore
     /// Persists one <c>alerts</c> row and returns its post-upsert <c>occurrence_count</c> and
     /// <c>last_projected_event_id</c>. A null deduplication key always inserts (count 1, the command's
     /// <c>SourceEventId</c> as the mark); a non-null key names an incident identity
-    /// <c>(namespace_id, deduplication_key)</c> that has at most one OPEN row, so a repeat increments
-    /// that row while it is unresolved and opens a fresh row - fresh ref, count 1, fresh delivery - once
-    /// it is resolved. Resolution is never undone by a raise.
+    /// <c>(namespace_id, deduplication_key)</c> holding at most one OPEN row, so a repeat increments
+    /// that row while it is unresolved and opens a fresh one - fresh ref, count 1, fresh delivery - once
+    /// it is resolved. A raise never undoes a resolution.
     ///
-    /// <para>A command carrying a <c>SourceEventId</c> only increments and re-stamps the open row when
-    /// that id is newer than the row's <c>last_projected_event_id</c>, and only opens a new row when no
-    /// row of the identity already carries a mark at or past it - so a replayed failure neither inflates
-    /// a count nor resurrects a closed incident. When nothing is written, the identity's newest row
-    /// supplies the returned count and mark, which never equal the incoming event id and therefore never
-    /// escalate. A null <c>SourceEventId</c> (a manual raise) always applies. Throws
-    /// <see cref="ArgumentException"/> when the referenced job id does not exist.</para>
+    /// <para>A <c>SourceEventId</c> increments and re-stamps the open row only when it is newer than the
+    /// row's mark, and opens a new row only when no row of the identity is already marked at or past it,
+    /// so a replayed failure neither inflates a count nor resurrects a closed incident. A held write
+    /// returns the identity's newest row, already marked at this event or a newer one: that pair can
+    /// re-assert the escalation this event earned - the crash-recovery case the caller's threshold emit
+    /// is idempotent about - but never invent one for a neighbour. A null <c>SourceEventId</c> always
+    /// applies; an unknown job id throws <see cref="ArgumentException"/>.</para>
     /// </summary>
     Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct);
 

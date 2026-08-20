@@ -120,9 +120,9 @@ BEGIN
 
                 IF NOT EXISTS (SELECT 1 FROM @updated)
                     BEGIN
-                        -- Nothing written: a replay-held update or a ghost-blocked insert. The threshold
-                        -- reads the count the identity's newest row carries, and that row's mark - never
-                        -- the incoming event id - is what keeps this raise from escalating.
+                        -- Nothing written: a replay-held update or a ghost-blocked insert. The newest
+                        -- row has already absorbed this event or a newer one, so its count and mark
+                        -- re-assert only this event's own escalation, never a neighbour's.
                         INSERT INTO @updated (occurrence_count, last_projected_event_id)
                         SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
                         FROM {{schema}}.alerts AS ja

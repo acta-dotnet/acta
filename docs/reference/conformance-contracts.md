@@ -160,13 +160,14 @@
 ### ThresholdReached fires once per incident at the exact occurrence
 - **Contract:** AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution.
 - **Arrange:** A retry-probe job with the OnFailure profile and MaxAttempts 3 is registered, with per-fact ThresholdReached thresholds of 1, 2, and 5.
-- **Act:** The job is driven to terminal Failed and the alerts projector runs, with RaiseJobAlert and ResolveJobAlerts also called directly on one key across a resolution.
-- **Assert:** One ThresholdReached fires at the crossing occurrence, further failures in that incident do not re-fire it, and the next incident counts from 1 again.
+- **Act:** The job is driven to terminal Failed with the projector running, and a recurring slot is then failed, recovered, and failed again across projector passes.
+- **Assert:** One ThresholdReached fires at the crossing occurrence, further failures in that incident do not re-fire it, and the next incident emits one of its own.
 - **Guarantees:**
   - Threshold fires exactly once per incident, at the crossing occurrence
   - A further failure in the same incident does not re-emit ThresholdReached
   - Below-threshold drive emits no ThresholdReached alert
-  - The count climbs only inside one incident: after a resolution the same key starts a new row at 1 and can escalate again
+  - A fresh incident escalates again: the projector emits a second ThresholdReached after a resolution
+  - The count climbs only inside one incident: after a resolution the same key starts a new row at 1
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
