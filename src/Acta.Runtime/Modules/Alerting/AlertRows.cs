@@ -25,12 +25,14 @@ internal sealed record AlertableEvent(
 );
 
 /// <summary>
-/// One <c>alerts</c> row due for delivery - a first attempt, a due retry, or a reminder for an
-/// incident still open past the reminder interval. Carries notification content and the logical
-/// channel name; transport resolution happens against the worker's in-memory channel registry.
+/// One <c>alerts</c> row due for delivery - a first attempt, a due retry, or a due reminder for an
+/// incident that is still open. Carries notification content and the logical channel name; transport
+/// resolution happens against the worker's in-memory channel registry.
 /// <see cref="Version"/> is the row's version at selection: settlement compares against it so an
 /// attempt that raced a resolve (or another settlement) writes nothing instead of overwriting the
-/// newer state.
+/// newer state. <see cref="Origin"/> decides whether settling this send schedules the next reminder:
+/// an automatic alert tracks a condition Acta itself watches and re-notifies while it stays open; a
+/// manual one belongs to the handler that raised it.
 /// </summary>
 internal sealed record DeliverableAlert(
     long AlertId,
@@ -46,7 +48,8 @@ internal sealed record DeliverableAlert(
     string ChannelName,
     Guid AlertRef,
     Guid? JobRef,
-    int Version
+    int Version,
+    AlertOriginCode Origin
 );
 
 /// <summary>

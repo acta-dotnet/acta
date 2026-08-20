@@ -14,15 +14,17 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// event regardless of the alert's job's audit level (low-volume operator activity). Resolve also
 /// settles the alert's delivery exactly as the automatic resolve does: a queued Pending or RetryAfter
 /// row becomes Suppressed with its retry instant cleared, and an already-sent row keeps its status.
+/// Acknowledge settles nothing - it records that an operator has seen the alert, not that the condition
+/// cleared - so a reminder already due still fires.
 /// </summary>
 [ConformanceSpec(
     "alert.acknowledge-resolve",
     "Operator acknowledge/resolve verbs on IAlerts.",
     Area = "Control",
-    Contract = "AcknowledgeAsync/ResolveAsync stamp and audit once, are idempotent, return NotFound for an unknown id, and ResolveAsync suppresses a queued delivery.",
-    Arrange = "One open alert raised in the test namespace, plus one parked mid-retry and one already delivered for the settlement fact.",
+    Contract = "AcknowledgeAsync and ResolveAsync stamp and audit once and are idempotent, and only ResolveAsync suppresses a queued delivery and ends the reminders.",
+    Arrange = "One open alert raised in the test namespace, plus one parked mid-retry, one already delivered, and one whose reminder has come round.",
     Act = "AcknowledgeAsync/ResolveAsync are invoked once, then again, then against an unknown alert ref, and against alerts in RetryAfter and Delivered.",
-    Assert = "The first call is Applied with its timestamp and one event, the second changes nothing, an unknown id is NotFound, and a resolved RetryAfter row is Suppressed."
+    Assert = "Applied with its timestamp and one event, unchanged on the second call, NotFound for an unknown id, a resolved RetryAfter row Suppressed, a due reminder intact."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.AcknowledgeJobAlertAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertManualAsync))]
@@ -162,6 +164,44 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var resolvedSent = await AlertRowAsync(sentJobId, ct);
         Assert.NotNull(resolvedSent.ResolvedAtUtc);
         Assert.Equal(AlertDeliveryStatusCode.Delivered, resolvedSent.DeliveryStatusCode);
+    }
+
+    [Fact(DisplayName = "AcknowledgeAsync does not defer a reminder that is already due")]
+    public async Task Acknowledge_does_not_defer_a_due_reminder()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = Services.GetRequiredService<IAlertStore>();
+        var (alertRef, jobId) = await RaiseAlertAsync(ct);
+
+        // A delivered alert whose next notification has come round.
+        var row = await AlertRowAsync(jobId, ct);
+        Assert.True(
+            await store.UpdateAlertDeliveryAsync(
+                row.Id,
+                row.Version,
+                AlertDeliveryStatusCode.Delivered,
+                retryCount: 0,
+                retryAfterUtc: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                ct
+            )
+        );
+        Assert.Contains(
+            await store.GetDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct),
+            a => a.AlertId == row.Id
+        );
+
+        Assert.Equal(ControlAction.Applied, (await Operations.Alerts.AcknowledgeAsync(alertRef, ct: ct)).Action);
+
+        // Acknowledging says an operator has seen it, not that the condition cleared - only resolving says
+        // that. It bumps the row (modified_at_utc, version), and the reminder still fires: an alert nobody
+        // has fixed must not go quiet because somebody clicked it.
+        var acknowledged = await AlertRowAsync(jobId, ct);
+        Assert.NotNull(acknowledged.AcknowledgedAtUtc);
+        Assert.Null(acknowledged.ResolvedAtUtc);
+        Assert.Contains(
+            await store.GetDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct),
+            a => a.AlertId == row.Id
+        );
     }
 
     [Fact(DisplayName = "AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref")]

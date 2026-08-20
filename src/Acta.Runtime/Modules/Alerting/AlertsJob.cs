@@ -281,7 +281,7 @@ internal sealed class AlertsJob(
 
     private async Task DeliverAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {
-        var due = await _store.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, _reminderInterval, ct);
+        var due = await _store.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct);
         foreach (var a in due)
         {
             var channel = _channels.Resolve(ctx.JobNamespace, a.ChannelName);
@@ -414,26 +414,39 @@ internal sealed class AlertsJob(
     {
         switch (outcome)
         {
-            // Back to zero, because retry_count is the budget for one send series and this series just
+            // retry_count back to zero, because it is the budget for one send series and this series just
             // ended. A row that took four attempts to land would otherwise carry that four into its next
             // reminder, where one throw is enough to reach the cap - a reminder that goes terminal on its
             // first failure, having never once been retried. Each series starts with the whole curve.
             case AlertDeliveryOutcome.Delivered:
-                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, retryCount: 0, retryAfterUtc: null, ct);
+                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, retryCount: 0, ReminderAfter(a, nowUtc), ct);
 
             case AlertDeliveryOutcome.Retryable:
                 var nextRetryCount = (byte)Math.Min(a.RetryCount + 1, byte.MaxValue);
                 if (nextRetryCount >= _maxDeliveryRetries)
                 {
-                    return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, nextRetryCount, retryAfterUtc: null, ct);
+                    // Out of retries, but the incident is still open, so the row keeps a reminder instant:
+                    // a transport that was down must not be the reason nobody hears about the outage
+                    // again. True for a manual alert too - that send genuinely failed.
+                    return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, nextRetryCount, nowUtc + _reminderInterval, ct);
                 }
                 var delaySeconds = BackoffSchedule.ComputeDelaySeconds(nextRetryCount, RetryBackoff);
                 return WriteSettlementAsync(a, AlertDeliveryStatusCode.RetryAfter, nextRetryCount, nowUtc.AddSeconds(delaySeconds), ct);
 
+            // Permanent: no channel, or no transport for its kind. Same reasoning as the exhausted arm -
+            // the send failed, so the row stays on the reminder cadence until the incident closes.
             default:
-                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, a.RetryCount, retryAfterUtc: null, ct);
+                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, a.RetryCount, nowUtc + _reminderInterval, ct);
         }
     }
+
+    // When a delivered send should be repeated, written into retry_after_utc as the row's one "not
+    // before" instant. Automatic alerts track a condition Acta watches, so while the incident stays open
+    // the operator is re-notified on the interval. A manual alert is one handler's statement at one
+    // moment: nothing in Acta knows whether it still holds, and the caller owns resolving it, so turning
+    // every ctx.AlertAsync into an unbounded daily nag would be Acta inventing a lifecycle it cannot see.
+    private DateTime? ReminderAfter(DeliverableAlert a, DateTime nowUtc) =>
+        a.Origin == AlertOriginCode.Automatic ? nowUtc + _reminderInterval : null;
 
     // Every settlement writes against the version the row carried when this pass selected it. Losing
     // that compare-and-swap is a correct outcome, not an error: the row moved on and the newer state is
@@ -441,11 +454,12 @@ internal sealed class AlertsJob(
     // settlement of the same attempt, both leave the row settled, so the lost write changes nothing that
     // matters. The most frequent one is quieter: the raise path's collapse arm bumps version too, so a
     // repeat of the same condition - a ctx.AlertAsync landing inside the send window - makes this settle
-    // lose, and the row stays Pending. That is a re-send on the next pass, which delivery is allowed
-    // (at least once) and which is the better answer anyway: the re-send carries the occurrence count the
-    // repeat just wrote. So there is no retry and no warning here; the next pass re-selects whatever is
-    // genuinely due. Debug, because the only reader who wants this line is someone tracing why one
-    // attempt left no trace.
+    // lose, and the row keeps the state the read found it in - Pending, or RetryAfter with an instant
+    // already elapsed, either of which arm 1 selects again. That is a re-send on the next pass, which
+    // delivery is allowed (at least once) and which is the better answer anyway: the re-send carries the
+    // occurrence count the repeat just wrote. So there is no retry and no warning here; the next pass
+    // re-selects whatever is genuinely due. Debug, because the only reader who wants this line is someone
+    // tracing why one attempt left no trace.
     private async Task WriteSettlementAsync(
         DeliverableAlert a,
         AlertDeliveryStatusCode status,

@@ -72,27 +72,12 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             ct
         );
 
-    public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(
-        short namespaceId,
-        int batchSize,
-        TimeSpan reminderInterval,
-        CancellationToken ct
-    ) =>
+    public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<DeliverableAlert>>(
             "Sql/Alerting/GetDeliverableAlerts.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
-                // Whole seconds: the option is validated positive, and the reminder arm compares against a
-                // day-scale spacing where sub-second precision would mean nothing. Clamped at both ends so
-                // a sub-second interval still means "one second" rather than "immediately, every tick",
-                // and a decade-long one cannot overflow the INT the three dialects take.
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(
-                        ActaSchema.Sql.AlertReminderSeconds,
-                        (int)Math.Clamp(reminderInterval.TotalSeconds, 1d, int.MaxValue)
-                    )
-                );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, batchSize));
             },
             async (reader, token) =>

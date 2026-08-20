@@ -12,7 +12,8 @@ SELECT
     a.channel_name,
     a.alert_ref,
     a.job_ref,
-    a.version
+    a.version,
+    a.origin_code
 FROM {{schema}}.alerts a
 LEFT JOIN {{schema}}.jobs j
     ON j.id = a.job_id
@@ -29,12 +30,13 @@ WHERE
             a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
             AND (a.retry_after_utc IS NULL OR a.retry_after_utc <= {{now}})
         )
-        /* Arm 2 - reminder: the incident is still open and its delivery already settled, one way or the
-           other, at least an interval ago. Failed is included so a failed send cannot silence an open
-           incident forever; Suppressed is not, because re-sending would only re-take a routing decision. */
+        /* Arm 2 - reminder. Delivery settled, the incident did not, and the instant that settlement
+           scheduled has come. Failed is included so a send that failed cannot silence an open incident;
+           Suppressed is not, because re-sending would only re-take the channel's routing decision. */
         OR (
             a.delivery_status_code IN (100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
-            AND a.modified_at_utc <= {{now}} - (@p_alert_reminder_seconds * 1000)
+            AND a.retry_after_utc IS NOT NULL
+            AND a.retry_after_utc <= {{now}}
         )
     )
 ORDER BY a.id

@@ -34,6 +34,9 @@ namespace Acta.Relational.Entities;
     Filter = "dedupe_key IS NOT NULL",
     Usage = "alert_raise"
 )]
+// Serves the whole delivery read, not just the retry arm: both arms filter on the namespace, then a
+// delivery status, then retry_after_utc, so the reminder arm seeks the same three columns in the same
+// order and the ORDER BY id rides the trailing key.
 [DbIndex(
     Name = "ix_alerts_delivery_due",
     Columns = ["namespace_id", "delivery_status_code", "retry_after_utc", "id"],
@@ -203,7 +206,14 @@ internal sealed class JobAlert : IEntity<long>
     public byte RetryCount { get; set; }
 
     /// <summary>
-    /// Earliest instant the next delivery attempt may run; null when no retry is pending.
+    /// Earliest instant this row may be sent again, whether that send is a retry or a reminder. While
+    /// delivery is unsettled it is the backoff instant of the next retry. On a settled unresolved row it
+    /// is the reminder schedule the settling send wrote - one <c>AlertReminderInterval</c> out - which is
+    /// how an incident that stays open keeps re-notifying. Deliberately not derived from
+    /// <see cref="ModifiedAtUtc"/>: every repeat the open incident absorbs re-stamps that column, so a
+    /// job failing faster than the interval would be permanently too young to remind. Null means nothing
+    /// is scheduled: a manual alert that delivered (its caller owns the lifecycle), a suppressed row, or
+    /// any resolved row, since both resolve paths clear it.
     /// </summary>
     [DbColumn("retry_after_utc", DbKind.UtcInstant)]
     public DateTime? RetryAfterUtc { get; set; }

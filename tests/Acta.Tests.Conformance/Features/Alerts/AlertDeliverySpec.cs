@@ -9,21 +9,22 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 
 /// <summary>
 /// Conformance for the delivery read + settle ops (<c>GetDeliverableAlerts</c> / <c>UpdateAlertDelivery</c>)
-/// against the incident model: a Pending alert is due by logical channel name and settles to Delivered;
-/// RetryAfter is due only after its instant elapses; a settled row is not re-selected by the retry path
-/// but an unresolved Delivered or Failed one is re-selected as a reminder once it is older than the
-/// reminder interval, while Suppressed never is; a resolved row is selected on neither arm and its
-/// queued delivery is settled by the resolve; and settlement is a compare-and-swap on the version the
-/// read handed out, so an attempt that raced a resolve writes nothing.
+/// against the incident model. Both arms of the read key off <c>retry_after_utc</c>: Pending and
+/// RetryAfter are due when their instant elapses or is unset, and an unresolved Delivered or Failed row
+/// is due when the reminder its settlement scheduled arrives, while Suppressed never is. A repeat
+/// landing on the open incident does not move that schedule, which is the point of putting it there. A
+/// resolved row is selected on neither arm and its queued delivery is settled by the resolve, and
+/// settlement is a compare-and-swap on the version the read handed out, so an attempt that raced a
+/// resolve writes nothing.
 /// </summary>
 [ConformanceSpec(
     "alert-delivery.read-and-settle",
     "Deliverable alerts read due rows, remind open incidents, and settle by version",
     Area = "Alerts",
-    Contract = "Delivery selects unresolved due rows plus settled rows past the reminder interval, resolve suppresses a queued send, and settlement is version-checked.",
-    Arrange = "Pending alerts are raised in the test namespace, some against a seeded job the resolve verb can close, with modified_at_utc aged backwards.",
-    Act = "GetDeliverableAlerts reads due rows and UpdateAlertDelivery settles them at the version it handed out, interleaved with ResolveJobAlerts.",
-    Assert = "A resolved alert is never selected and its Pending row is Suppressed, an aged unresolved Delivered or Failed row is re-selected, and a stale settle is a no-op."
+    Contract = "Delivery selects unresolved rows whose retry_after_utc has come, on the retry arm or the reminder arm, and settles only at the version the read handed out.",
+    Arrange = "Pending alerts are raised in the test namespace, some against a seeded job the resolve verb can close, with retry_after_utc moved to stage due-ness.",
+    Act = "GetDeliverableAlerts reads due rows and UpdateAlertDelivery settles them at the version it handed out, interleaved with ResolveJobAlerts and repeat raises.",
+    Assert = "A resolved alert is never selected and its Pending row is Suppressed, a due Delivered or Failed row is re-selected after a repeat, and a stale settle no-ops."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetDeliverableAlertsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.UpdateAlertDeliveryAsync))]
@@ -33,10 +34,6 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
 {
     private static readonly DateTime PastInstant = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime FutureInstant = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    // The reminder spacing every fact here reads with. Long enough that nothing qualifies by accident on
-    // a slow run; a fact that wants a reminder ages the row's modified_at_utc past it explicitly.
-    private static readonly TimeSpan ReminderInterval = TimeSpan.FromHours(24);
 
     // A real definition + job, so the automatic resolve (which filters on job_id, Automatic origin, and
     // the failure kinds) has something to close and ck_alerts_job_ref_pair is satisfied.
@@ -98,14 +95,14 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
         await RaisePendingAsync("ops", AlertSeverityCode.Error, ct);
 
         var due = Assert.Single(await DueAsync(ct));
-        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Failed, 5, null, ct));
+        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Failed, 5, FutureInstant, ct));
 
-        // Terminal for the retry path: only the reminder arm can pick it up again, and not for a whole
-        // interval after this settle.
+        // Terminal for the retry path: arm 1 does not take a Failed row at all, and the reminder arm
+        // only takes it once the instant this settle scheduled has come.
         Assert.Empty(await DueAsync(ct));
     }
 
-    [Fact(DisplayName = "Suppressed is never redelivered, however old the row gets")]
+    [Fact(DisplayName = "Suppressed is never redelivered, even carrying a due instant")]
     public async Task Suppressed_is_never_redelivered()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -118,8 +115,9 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
         Assert.Empty(await DueAsync(ct));
 
         // Suppression was a routing decision about the channel, not a send that failed: re-sending would
-        // only re-take it, so age is irrelevant.
-        await AgeModifiedAsync(due.AlertId, ReminderInterval + TimeSpan.FromHours(1), ct);
+        // only re-take it. So even a row deliberately stamped with an elapsed instant stays unselected -
+        // the reminder arm is gated on the status, not only on the clock.
+        await ScheduleAsync(due.AlertId, PastInstant, ct);
         Assert.Empty(await DueAsync(ct));
     }
 
@@ -189,58 +187,81 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
         Assert.Null(row.RetryAfterUtc);
     }
 
-    [Fact(DisplayName = "An unresolved Delivered row is reminded once it is older than the reminder interval")]
-    public async Task Unresolved_delivered_row_is_reminded_when_it_ages_past_the_interval()
+    [Fact(DisplayName = "An unresolved Delivered row is reminded once its scheduled instant arrives")]
+    public async Task Unresolved_delivered_row_is_reminded_when_its_instant_arrives()
     {
         var ct = TestContext.Current.CancellationToken;
 
         await RaiseAutomaticAsync("delivered-reminder", ct);
         var due = Assert.Single(await DueAsync(ct));
-        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Delivered, due.RetryCount, null, ct));
 
-        // Younger than the interval: the incident is open but was just notified about.
-        Assert.Empty(await DueAsync(ct));
-        await AgeModifiedAsync(due.AlertId, ReminderInterval - TimeSpan.FromHours(1), ct);
+        // Settling schedules the next notification; until that instant, the incident is open but has
+        // just been notified about, so nothing is due.
+        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Delivered, due.RetryCount, FutureInstant, ct));
         Assert.Empty(await DueAsync(ct));
 
-        // Older than the interval: the incident is still open, so it is re-notified.
-        await AgeModifiedAsync(due.AlertId, ReminderInterval + TimeSpan.FromHours(1), ct);
+        // The instant arrives and the incident is still open, so it is re-notified.
+        await ScheduleAsync(due.AlertId, PastInstant, ct);
         var reminder = Assert.Single(await DueAsync(ct));
         Assert.Equal(due.AlertId, reminder.AlertId);
         Assert.Equal(AlertDeliveryStatusCode.Delivered, (await ReadAlertsAsync(TestNamespaceId, ct))[0].DeliveryStatusCode);
     }
 
+    [Fact(DisplayName = "A repeat landing after the delivery settled does not postpone the reminder")]
+    public async Task A_repeat_after_settlement_does_not_postpone_the_reminder()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        await RaiseAutomaticAsync("repeat-vs-reminder", ct);
+        var due = Assert.Single(await DueAsync(ct));
+        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Delivered, due.RetryCount, PastInstant, ct));
+
+        // The condition fires again while the incident is open. The raise collapses onto the same row,
+        // bumping occurrence_count, modified_at_utc, and version - and leaving delivery alone.
+        await RaiseAutomaticAsync("repeat-vs-reminder", ct);
+        var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(2, row.OccurrenceCount);
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, row.DeliveryStatusCode);
+
+        // The reminder still fires. This is the whole reason the schedule lives on retry_after_utc: a job
+        // failing faster than the reminder interval re-stamps modified_at_utc on every repeat, so an
+        // age-of-last-change rule would leave exactly the loudest outage permanently too young to remind.
+        var reminder = Assert.Single(await DueAsync(ct));
+        Assert.Equal(due.AlertId, reminder.AlertId);
+        Assert.Equal(2, reminder.OccurrenceCount);
+    }
+
     [Fact(DisplayName = "An unresolved Failed row is reminded rather than silenced forever")]
-    public async Task Unresolved_failed_row_is_reminded_when_it_ages_past_the_interval()
+    public async Task Unresolved_failed_row_is_reminded_when_its_instant_arrives()
     {
         var ct = TestContext.Current.CancellationToken;
 
         await RaiseAutomaticAsync("failed-reminder", ct);
         var due = Assert.Single(await DueAsync(ct));
-        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Failed, 5, null, ct));
-
-        await AgeModifiedAsync(due.AlertId, ReminderInterval + TimeSpan.FromHours(1), ct);
+        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Failed, 5, PastInstant, ct));
 
         var reminder = Assert.Single(await DueAsync(ct));
         Assert.Equal(due.AlertId, reminder.AlertId);
         Assert.Equal((byte)5, reminder.RetryCount);
     }
 
-    [Fact(DisplayName = "A resolved Delivered row is never reminded, however old it gets")]
+    [Fact(DisplayName = "A resolved Delivered row is never reminded: the resolve took its schedule away")]
     public async Task Resolved_delivered_row_is_never_reminded()
     {
         var ct = TestContext.Current.CancellationToken;
 
         await RaiseAutomaticAsync("resolved-no-reminder", ct);
         var due = Assert.Single(await DueAsync(ct));
-        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Delivered, due.RetryCount, null, ct));
-        Assert.Equal(1, await ResolveAsync(ct));
+        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Delivered, due.RetryCount, PastInstant, ct));
 
-        await AgeModifiedAsync(due.AlertId, ReminderInterval + TimeSpan.FromHours(1), ct);
+        // Due for a reminder at the moment it resolves - the tightest version of the race.
+        Assert.Single(await DueAsync(ct));
+        Assert.Equal(1, await ResolveAsync(ct));
 
         Assert.Empty(await DueAsync(ct));
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, row.DeliveryStatusCode);
+        Assert.Null(row.RetryAfterUtc);
     }
 
     [Fact(DisplayName = "The fresh incident opened after a resolution delivers on its own")]
@@ -274,7 +295,7 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
     // --- Helpers ---
 
     private Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct) =>
-        Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct);
+        Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct);
 
     private Task<bool> SettleAsync(
         long alertId,
@@ -295,15 +316,13 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
             .GetRequiredService<IAlertStore>()
             .ResolveJobAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
 
-    // Pushes the row's modified_at_utc back so the reminder arm sees it as that old, which is the one
-    // thing the delivery read measures against the server clock. Cheaper and more honest than a clock
-    // abstraction: the SQL under test still compares against the database's own now().
-    private async Task AgeModifiedAsync(long alertId, TimeSpan age, CancellationToken ct) =>
+    // Moves the row's scheduled instant without touching anything else, which is how these facts travel
+    // in time: the delivery read compares retry_after_utc against the database's own clock, so rewinding
+    // the column is the honest way to say "the moment arrived" and parking it forward says "not yet".
+    private async Task ScheduleAsync(long alertId, DateTime whenUtc, CancellationToken ct) =>
         Assert.Equal(
             1,
-            await Db.From<JobAlert>()
-                .Where(a => a.Id == alertId)
-                .UpdateOnlyAsync(() => new JobAlert { ModifiedAtUtc = DateTime.UtcNow - age }, ct)
+            await Db.From<JobAlert>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new JobAlert { RetryAfterUtc = whenUtc }, ct)
         );
 
     // One incident on its own job, left in the requested delivery state; returns the job id the resolve

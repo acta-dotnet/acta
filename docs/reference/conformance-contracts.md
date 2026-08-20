@@ -101,21 +101,22 @@
   - Disabled channel counts as configured for validation
 
 ### Deliverable alerts read due rows, remind open incidents, and settle by version
-- **Contract:** Delivery selects unresolved due rows plus settled rows past the reminder interval, resolve suppresses a queued send, and settlement is version-checked.
-- **Arrange:** Pending alerts are raised in the test namespace, some against a seeded job the resolve verb can close, with modified_at_utc aged backwards.
-- **Act:** GetDeliverableAlerts reads due rows and UpdateAlertDelivery settles them at the version it handed out, interleaved with ResolveJobAlerts.
-- **Assert:** A resolved alert is never selected and its Pending row is Suppressed, an aged unresolved Delivered or Failed row is re-selected, and a stale settle is a no-op.
+- **Contract:** Delivery selects unresolved rows whose retry_after_utc has come, on the retry arm or the reminder arm, and settles only at the version the read handed out.
+- **Arrange:** Pending alerts are raised in the test namespace, some against a seeded job the resolve verb can close, with retry_after_utc moved to stage due-ness.
+- **Act:** GetDeliverableAlerts reads due rows and UpdateAlertDelivery settles them at the version it handed out, interleaved with ResolveJobAlerts and repeat raises.
+- **Assert:** A resolved alert is never selected and its Pending row is Suppressed, a due Delivered or Failed row is re-selected after a repeat, and a stale settle no-ops.
 - **Guarantees:**
   - Pending alert is deliverable by channel name and settles Delivered
   - RetryAfter redelivers only when due
   - A freshly settled Failed row is not re-selected by the retry path
-  - Suppressed is never redelivered, however old the row gets
+  - Suppressed is never redelivered, even carrying a due instant
   - An alert resolved before the deliver pass is not selected and its Pending row is Suppressed
   - Resolve settles each delivery status per the settlement table and clears retry_after_utc
   - A settle at the version a resolve has already superseded applies nothing
-  - An unresolved Delivered row is reminded once it is older than the reminder interval
+  - An unresolved Delivered row is reminded once its scheduled instant arrives
+  - A repeat landing after the delivery settled does not postpone the reminder
   - An unresolved Failed row is reminded rather than silenced forever
-  - A resolved Delivered row is never reminded, however old it gets
+  - A resolved Delivered row is never reminded: the resolve took its schedule away
   - The fresh incident opened after a resolution delivers on its own
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
@@ -133,10 +134,10 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
 
 ### Alert delivery retries with backoff, goes terminal, and reminds open incidents
-- **Contract:** A throwing transport retries with backoff to terminal Failed, a missing transport fails at once, and an unresolved Delivered row is re-sent once per interval.
-- **Arrange:** Pending alerts are seeded against a throwing transport, a missing transport kind, and a transport that resolves the row while it sends.
-- **Act:** The delivery phase settles each attempt while the clock advances past each backoff and modified_at_utc is aged past the reminder interval.
-- **Assert:** Retries park with backoff until Failed, a missing transport fails at once, an aged unresolved Delivered row is re-sent, and a mid-send resolve voids the settle.
+- **Contract:** A throwing transport retries to terminal Failed, a missing transport fails at once, and settling schedules the reminder that re-sends an open automatic alert.
+- **Arrange:** Pending alerts of both origins are seeded against a throwing transport, a missing transport kind, and a transport that resolves the row while it sends.
+- **Act:** The delivery phase settles each attempt while the clock advances past each backoff and retry_after_utc is moved to stage a due reminder.
+- **Assert:** Retries park until Failed, a due automatic reminder re-sends and reschedules, a delivered manual alert never reminds, and a mid-send resolve voids the settle.
 - **Guarantees:**
   - Throwing transport bumps retry_count and parks with a backoff instant
   - Transport throws at max retries and marks the alert terminal Failed
@@ -146,7 +147,9 @@
   - Deprecated channel suppresses the alert and is not reread
   - Below min severity suppresses the alert and is not reread
   - Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully
-  - An unresolved Delivered alert is re-sent once it ages past the reminder interval and stays Delivered
+  - Delivering an automatic alert schedules the next reminder, which re-sends and reschedules
+  - A delivered manual alert is never reminded: its caller owns the incident
+  - A manual alert whose send failed is re-attempted on the reminder cadence until it lands
   - A delivered send hands the next reminder a whole retry budget, not the one it spent
   - A resolve that lands while the transport is sending leaves the settlement without effect
 - **Store methods:**
@@ -509,16 +512,17 @@
 ## Control
 
 ### Operator acknowledge/resolve verbs on IAlerts.
-- **Contract:** AcknowledgeAsync/ResolveAsync stamp and audit once, are idempotent, return NotFound for an unknown id, and ResolveAsync suppresses a queued delivery.
-- **Arrange:** One open alert raised in the test namespace, plus one parked mid-retry and one already delivered for the settlement fact.
+- **Contract:** AcknowledgeAsync and ResolveAsync stamp and audit once and are idempotent, and only ResolveAsync suppresses a queued delivery and ends the reminders.
+- **Arrange:** One open alert raised in the test namespace, plus one parked mid-retry, one already delivered, and one whose reminder has come round.
 - **Act:** AcknowledgeAsync/ResolveAsync are invoked once, then again, then against an unknown alert ref, and against alerts in RetryAfter and Delivered.
-- **Assert:** The first call is Applied with its timestamp and one event, the second changes nothing, an unknown id is NotFound, and a resolved RetryAfter row is Suppressed.
+- **Assert:** Applied with its timestamp and one event, unchanged on the second call, NotFound for an unknown id, a resolved RetryAfter row Suppressed, a due reminder intact.
 - **Guarantees:**
   - AcknowledgeAsync sets the timestamp, audits alert.acknowledged, and updates the acknowledged list filter
   - Re-acknowledging an already-acknowledged alert is Applied without mutation and emits no second event
   - ResolveAsync sets resolved_at_utc and audits alert.resolved without requiring a prior acknowledge
   - Re-resolving an already-resolved alert is Applied without mutation and emits no second event
   - ResolveAsync suppresses a queued delivery and clears retry_after_utc, leaving an already-sent one alone
+  - AcknowledgeAsync does not defer a reminder that is already due
   - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.AcknowledgeJobAlertAsync`

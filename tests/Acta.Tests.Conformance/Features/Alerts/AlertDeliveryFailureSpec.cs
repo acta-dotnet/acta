@@ -20,18 +20,19 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// backoff (bumping <c>retry_count</c> and setting <c>retry_after_utc</c>), reaches terminal Failed at max
 /// retries, a missing transport fails immediately (Permanent path, <c>retry_count</c> stays 0), and a
 /// null-<c>job_id</c> (framework) alert is not dropped by the LEFT JOIN and delivers successfully. Also
-/// the two whole-pass facts about an incident that outlives its first notification: a delivered row still
-/// unresolved past the reminder interval is re-sent and stays Delivered, and a resolve that lands while
-/// the transport is mid-send leaves the settlement without effect.
+/// the whole-pass facts about an incident that outlives its first notification: settling a send writes
+/// the next reminder's instant, an automatic alert keeps re-notifying on that cadence while it is open, a
+/// delivered manual one never does, a failed manual one is re-attempted until it lands, and a resolve
+/// arriving mid-send leaves the settlement without effect.
 /// </summary>
 [ConformanceSpec(
     "alert.delivery-failure",
     "Alert delivery retries with backoff, goes terminal, and reminds open incidents",
     Area = "Alerts",
-    Contract = "A throwing transport retries with backoff to terminal Failed, a missing transport fails at once, and an unresolved Delivered row is re-sent once per interval.",
-    Arrange = "Pending alerts are seeded against a throwing transport, a missing transport kind, and a transport that resolves the row while it sends.",
-    Act = "The delivery phase settles each attempt while the clock advances past each backoff and modified_at_utc is aged past the reminder interval.",
-    Assert = "Retries park with backoff until Failed, a missing transport fails at once, an aged unresolved Delivered row is re-sent, and a mid-send resolve voids the settle."
+    Contract = "A throwing transport retries to terminal Failed, a missing transport fails at once, and settling schedules the reminder that re-sends an open automatic alert.",
+    Arrange = "Pending alerts of both origins are seeded against a throwing transport, a missing transport kind, and a transport that resolves the row while it sends.",
+    Act = "The delivery phase settles each attempt while the clock advances past each backoff and retry_after_utc is moved to stage a due reminder.",
+    Assert = "Retries park until Failed, a due automatic reminder re-sends and reschedules, a delivered manual alert never reminds, and a mid-send resolve voids the settle."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetDeliverableAlertsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.UpdateAlertDeliveryAsync))]
@@ -42,9 +43,14 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
     private const string MissingKind = "spy-missing";
     private const string ResolvingKind = "spy-resolve-mid-send";
 
-    // The reminder spacing these facts read with: long enough that nothing qualifies by accident, so the
-    // one fact that wants a reminder has to age the row past it on purpose.
+    // The reminder spacing these passes settle with; a fact that wants the reminder to come round moves
+    // the row's instant itself rather than waiting.
     private static readonly TimeSpan ReminderInterval = TimeSpan.FromHours(24);
+
+    // Staging instants for "already come round" and "not for a long while", picked far enough from any
+    // real or fake clock in play that neither can drift into the other.
+    private static readonly DateTime LongPast = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime FarFuture = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private AdvancableClock Clock { get; set; } = null!;
     private TestAlertChannelRegistry Channels { get; } = new();
@@ -111,9 +117,13 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         var row2 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row2.DeliveryStatusCode);
         Assert.Equal((byte)2, row2.RetryCount);
-        Assert.Null(row2.RetryAfterUtc);
+        // Out of retries, but the incident is open, so the row carries a reminder instant rather than
+        // nothing. Parked forward because this spec's clock lives in its own era, which would otherwise
+        // make that instant already due and turn pass 3 into a reminder instead of the no-op it tests.
+        Assert.NotNull(row2.RetryAfterUtc);
+        await ScheduleAsync(row2.Id, FarFuture, ct);
 
-        // Pass 3: Failed is terminal: a further pass leaves it unchanged.
+        // Pass 3: Failed is terminal for the retry path: a further pass leaves it unchanged.
         await RunDeliveryAsync(maxRetries: 2, ct);
         var row3 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row3.DeliveryStatusCode);
@@ -134,7 +144,8 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row.DeliveryStatusCode);
         Assert.Equal((byte)0, row.RetryCount);
-        Assert.Null(row.RetryAfterUtc);
+        // A reminder is still scheduled: the transport may be registered by the time it comes round.
+        Assert.NotNull(row.RetryAfterUtc);
     }
 
     [Fact(DisplayName = "Missing configured channel marks the alert Failed immediately")]
@@ -149,7 +160,8 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row.DeliveryStatusCode);
         Assert.Equal((byte)0, row.RetryCount);
-        Assert.Null(row.RetryAfterUtc);
+        // As above: a reminder is scheduled, because the channel may be configured before it comes round.
+        Assert.NotNull(row.RetryAfterUtc);
     }
 
     [Fact(DisplayName = "Disabled channel suppresses the alert and is not reread")]
@@ -164,7 +176,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct));
+        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
     }
 
     [Fact(DisplayName = "Deprecated channel suppresses the alert and is not reread")]
@@ -179,7 +191,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct));
+        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
     }
 
     [Fact(DisplayName = "Below min severity suppresses the alert and is not reread")]
@@ -207,7 +219,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct));
+        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
     }
 
     [Fact(DisplayName = "Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully")]
@@ -220,9 +232,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
 
         // Confirm the alert IS returned (not dropped by the LEFT JOIN on job → definitions).
-        var due = Assert.Single(
-            await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct)
-        );
+        var due = Assert.Single(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
         Assert.Null(due.JobId);
         Assert.Null(due.RunbookUrl); // no job → no definition → runbook is null
 
@@ -235,8 +245,8 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         Assert.Null(row.JobId);
     }
 
-    [Fact(DisplayName = "An unresolved Delivered alert is re-sent once it ages past the reminder interval and stays Delivered")]
-    public async Task Aged_unresolved_delivered_alert_is_reminded_and_stays_delivered()
+    [Fact(DisplayName = "Delivering an automatic alert schedules the next reminder, which re-sends and reschedules")]
+    public async Task Delivering_an_automatic_alert_schedules_and_repeats_the_reminder()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -246,28 +256,74 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         await RunDeliveryAsync(maxRetries: 5, ct);
         var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
+        // The settlement wrote the next notification's instant, one interval out on the job's own clock.
+        AssertScheduledOneIntervalOut(delivered.RetryAfterUtc);
 
-        // A pass while the row is young re-sends nothing.
+        // Before it comes round, a pass re-sends nothing. (Staging the instant writes only that column,
+        // so an unchanged version is proof the pass itself did nothing.)
+        await ScheduleAsync(delivered.Id, FarFuture, ct);
         await RunDeliveryAsync(maxRetries: 5, ct);
         Assert.Equal(delivered.Version, Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct)).Version);
 
-        // Aged past the interval, the still-open incident is notified again. Settling the reminder
-        // re-stamps modified_at_utc, so the next reminder waits a full interval from this send.
-        await AgeModifiedAsync(delivered.Id, ReminderInterval + TimeSpan.FromHours(1), ct);
-        var aged = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        // The instant arrives; the incident is still open, so it is notified again - and the reminder's
+        // own settlement schedules the one after it, so the cadence continues without any other input.
+        await ScheduleAsync(delivered.Id, LongPast, ct);
+        var due = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         await RunDeliveryAsync(maxRetries: 5, ct);
 
         var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, reminded.DeliveryStatusCode);
         Assert.Equal((byte)0, reminded.RetryCount);
-        Assert.Equal(delivered.Version + 1, reminded.Version);
-        // Measured against the aged stamp, not the first settle's: the two settles can land inside one
-        // tick of the column's precision, and it is the reset from "an interval ago" that matters.
-        Assert.True(reminded.ModifiedAtUtc > aged.ModifiedAtUtc, "settling the reminder must re-stamp modified_at_utc");
+        Assert.Equal(due.Version + 1, reminded.Version);
+        AssertScheduledOneIntervalOut(reminded.RetryAfterUtc);
+    }
 
-        // And with the stamp refreshed, the very next pass finds nothing due again.
+    [Fact(DisplayName = "A delivered manual alert is never reminded: its caller owns the incident")]
+    public async Task Delivered_manual_alert_is_never_reminded()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        await SeedChannelAsync(Db, "ch-log", "log", ct);
+        await RaiseAlertAsync(Db, "ch-log", jobId: null, ct, AlertOriginCode.Manual);
+
         await RunDeliveryAsync(maxRetries: 5, ct);
-        Assert.Equal(reminded.Version, Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct)).Version);
+
+        // One notification per incident, and no schedule left behind. A ctx.AlertAsync is one handler's
+        // statement at one moment; Acta cannot tell whether it still holds, so it does not nag about it.
+        var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, row.DeliveryStatusCode);
+        Assert.Null(row.RetryAfterUtc);
+        Assert.Null(row.ResolvedAtUtc);
+
+        // Nothing is due, on this pass or any other: an unscheduled row cannot come round.
+        await RunDeliveryAsync(maxRetries: 5, ct);
+        Assert.Equal(row.Version, Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct)).Version);
+    }
+
+    [Fact(DisplayName = "A manual alert whose send failed is re-attempted on the reminder cadence until it lands")]
+    public async Task Failed_manual_alert_is_reattempted_on_the_reminder_cadence()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // No transport for this kind: the send fails permanently on the first pass.
+        await SeedChannelAsync(Db, "ch-manual", MissingKind, ct);
+        await RaiseAlertAsync(Db, "ch-manual", jobId: null, ct, AlertOriginCode.Manual);
+
+        await RunDeliveryAsync(maxRetries: 5, ct);
+        var failed = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.Failed, failed.DeliveryStatusCode);
+        // Origin does not exempt a failed send: nobody has been told yet, so it is scheduled to try again.
+        AssertScheduledOneIntervalOut(failed.RetryAfterUtc);
+
+        // The instant comes round with the transport now available, and the alert finally lands.
+        await ScheduleAsync(failed.Id, LongPast, ct);
+        RegisterChannel("ch-manual", "log", AlertChannelStatusCode.Active, AlertSeverityCode.Info);
+        await RunDeliveryAsync(maxRetries: 5, ct);
+
+        var landed = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, landed.DeliveryStatusCode);
+        // Delivered and manual: the re-attempts stop here rather than turning into a daily reminder.
+        Assert.Null(landed.RetryAfterUtc);
     }
 
     [Fact(DisplayName = "A delivered send hands the next reminder a whole retry budget, not the one it spent")]
@@ -288,10 +344,10 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
         Assert.Equal((byte)0, delivered.RetryCount);
 
-        // A day on, the incident is still open and the channel's transport now throws. Carrying the old
-        // count would have put this reminder at 5 of 5 on its first throw - terminal without ever being
-        // retried. With a fresh budget it enters the curve like any other first attempt.
-        await AgeModifiedAsync(delivered.Id, ReminderInterval + TimeSpan.FromHours(1), ct);
+        // The reminder comes round, the incident is still open, and the channel's transport now throws.
+        // Carrying the old count would have put this reminder at 5 of 5 on its first throw - terminal
+        // without ever being retried. With a fresh budget it enters the curve like any first attempt.
+        await ScheduleAsync(delivered.Id, LongPast, ct);
         RegisterChannel("ch-swap", ThrowingKind, AlertChannelStatusCode.Active, AlertSeverityCode.Info);
         await RunDeliveryAsync(maxRetries: 5, ct);
 
@@ -358,14 +414,20 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
     private void RegisterChannel(string name, string transportKind, AlertChannelStatusCode status, AlertSeverityCode minSeverity) =>
         Channels.Register(TestNamespace, new AlertChannelDeclaration(name, transportKind, Endpoint: "endpoint", status, minSeverity));
 
-    private Task RaiseAlertAsync(IDbSession db, string channel, long? jobId, CancellationToken ct) =>
+    private Task RaiseAlertAsync(
+        IDbSession db,
+        string channel,
+        long? jobId,
+        CancellationToken ct,
+        AlertOriginCode origin = AlertOriginCode.Automatic
+    ) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
             jobId,
-            AlertOriginCode.Automatic,
+            origin,
             AlertSeverityCode.Error,
-            AlertKindCode.FinalFailure,
+            origin == AlertOriginCode.Manual ? AlertKindCode.Manual : AlertKindCode.FinalFailure,
             title: "test-alert",
             message: "test-message",
             channelName: channel,
@@ -386,16 +448,26 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         return alerts.Handle(BuildAlertsCtx(), ct);
     }
 
-    // Pushes the row's modified_at_utc back so the reminder arm sees it as that old. The delivery read
-    // measures that column against the database's own clock, so aging the column is what stages a
-    // reminder - the spec's fake IActaClock cannot, and does not, move the server's now().
-    private async Task AgeModifiedAsync(long alertId, TimeSpan age, CancellationToken ct) =>
+    // Moves the row's scheduled instant, which is how these facts travel in time. The delivery read
+    // compares retry_after_utc against the DATABASE's clock while settlement writes it from the spec's
+    // fake IActaClock, so the two live in different eras: what a settle scheduled is asserted against the
+    // fake clock, and whether it has come round is staged here against the real one.
+    private async Task ScheduleAsync(long alertId, DateTime whenUtc, CancellationToken ct) =>
         Assert.Equal(
             1,
-            await Db.From<JobAlert>()
-                .Where(a => a.Id == alertId)
-                .UpdateOnlyAsync(() => new JobAlert { ModifiedAtUtc = DateTime.UtcNow - age }, ct)
+            await Db.From<JobAlert>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new JobAlert { RetryAfterUtc = whenUtc }, ct)
         );
+
+    // The settlement scheduled the next notification exactly one interval past the job's clock. Compared
+    // with a tolerance because the three providers store the instant at different precisions.
+    private void AssertScheduledOneIntervalOut(DateTime? scheduledUtc)
+    {
+        Assert.NotNull(scheduledUtc);
+        Assert.True(
+            (scheduledUtc!.Value - (Clock.Now + ReminderInterval)).Duration() < TimeSpan.FromSeconds(1),
+            $"expected a reminder about {Clock.Now + ReminderInterval:O}, found {scheduledUtc:O}"
+        );
+    }
 
     private RuntimeJobContext BuildAlertsCtx()
     {

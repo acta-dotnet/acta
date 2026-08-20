@@ -334,20 +334,6 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // sys.alerts reminder spacing (JobsOptions.AlertReminderInterval, in whole seconds): the delivery
-        // read re-selects an unresolved alert already in a settled delivery state once its
-        // modified_at_utc is this far behind the database clock, so an open incident keeps notifying.
-        // Seconds against the server clock rather than a caller-computed cutoff instant, so the
-        // comparison uses the same clock that stamps modified_at_utc.
-        public static readonly DbValueSpec<int> AlertReminderSeconds = new(
-            ParameterName: "p_alert_reminder_seconds",
-            Kind: DbKind.Int32,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
-
         // sys.alerts batch cap: max rows the projection / delivery read returns per tick.
         public static readonly DbValueSpec<int> AlertBatchSize = new(
             ParameterName: "p_alert_batch_size",

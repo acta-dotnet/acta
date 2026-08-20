@@ -35,28 +35,26 @@ internal interface IAlertStore
     Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(short namespaceId, long cursorEventId, int batchSize, CancellationToken ct);
 
     /// <summary>
-    /// Reads the namespace's unresolved alerts due for delivery, in two arms: rows in
-    /// <c>{Pending, RetryAfter}</c> whose <c>retry_after_utc</c> has elapsed (or is unset), and rows
-    /// already in a settled delivery state - <c>Delivered</c> or <c>Failed</c> - whose
-    /// <c>modified_at_utc</c> is at least <paramref name="reminderInterval"/> behind the database
-    /// clock, which re-notifies an incident that is still open. A failed send therefore does not
-    /// silence an open incident forever, while <c>Suppressed</c> is never reminded: suppression was a
-    /// routing decision about the channel, not a send that failed.
+    /// Reads the namespace's unresolved alerts due for delivery. Both arms key off
+    /// <c>retry_after_utc</c>, the row's one "not before" instant: <c>{Pending, RetryAfter}</c> when it
+    /// has elapsed or is unset, and <c>{Delivered, Failed}</c> when the reminder their settlement
+    /// scheduled has elapsed - so a failed send does not silence an open incident, while
+    /// <c>Suppressed</c> is never reminded (a routing decision, not a failed send).
+    ///
+    /// <para>Deliberately not <c>modified_at_utc</c>: every repeat the open incident absorbs re-stamps
+    /// that column, so a job failing faster than the reminder interval would be permanently too young
+    /// to remind - the outage that most needs re-notifying.</para>
     ///
     /// <para>Resolved rows are excluded from both arms: an alert resolved before delivery selection is
     /// not sent. Resolution suppresses further pending and retry attempts. A transport attempt already
     /// in progress may still complete.</para>
     /// </summary>
-    Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(
-        short namespaceId,
-        int batchSize,
-        TimeSpan reminderInterval,
-        CancellationToken ct
-    );
+    Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct);
 
     /// <summary>
-    /// Records the outcome of one alert delivery attempt: sets <c>delivery_status_code</c> and, on a
-    /// retryable failure, bumps <c>retry_count</c> and stamps <c>retry_after_utc</c>. Compare-and-swap
+    /// Records the outcome of one alert delivery attempt: sets <c>delivery_status_code</c>,
+    /// <c>retry_count</c>, and <c>retry_after_utc</c> - which carries the next retry instant on a
+    /// retryable failure and the next reminder instant on a settled one. Compare-and-swap
     /// on <paramref name="expectedVersion"/> - the version the row carried when delivery selected it -
     /// and returns whether the swap applied. A miss means the row moved while the attempt was in
     /// flight (an operator resolved it, or another worker settled it); the newer state stands and the
