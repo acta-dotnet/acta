@@ -207,8 +207,8 @@ incident is *delivered* again. `AlertReminderInterval` is that lever (default 24
 `JobsOptions.AlertReminderInterval`): settling an incident's delivery to `Delivered` or `Failed` —
 `Suppressed` is not reminded — schedules the next pass an interval out, so a permanently broken job
 pages at most once per incident per interval rather than once per failure. A manual alert that
-delivered schedules nothing (see [above](#what-projects-an-alert)). Widening the interval slows the reminder cadence; it does not change how many
-rows exist or whether `ThresholdReached` is reachable.
+delivered schedules nothing (see [Resolution](#resolution)). Widening the interval slows the
+reminder cadence; it does not change how many rows exist or whether `ThresholdReached` is reachable.
 
 ## Delivery
 

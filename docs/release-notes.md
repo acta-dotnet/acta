@@ -190,8 +190,10 @@ unreachable, is gone.
 `AlertDedupeWindow` is replaced by `JobsOptions.AlertReminderInterval` (default 24 hours): a delivery
 policy, not a dedup rule. An unresolved incident whose delivery already settled (`Delivered` or
 `Failed` — a failed send does not silence an open incident forever) is re-selected for delivery at
-most once per interval; `Suppressed` rows are never reminded. It never changes which `alerts` rows
-exist or what `occurrence_count` they carry.
+most once per interval; `Suppressed` rows are never reminded. Reminders belong to automatic alerts:
+a manual alert that delivered is notified once and the caller owns resolving it, while a manual send
+that failed re-attempts on the cadence. It never changes which `alerts` rows exist or what
+`occurrence_count` they carry.
 
 Resolution now settles the delivery it closes: a `Pending` or `RetryAfter` row moves to `Suppressed`
 and its retry timer clears, while an already-settled row keeps its recorded status. Settlement writes

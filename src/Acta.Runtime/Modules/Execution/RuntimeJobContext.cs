@@ -492,7 +492,7 @@ internal sealed class RuntimeJobContext(
         CancellationToken ct
     )
     {
-        // Alert policy (origin/kind, default channel, dedupe-window bucketing) lives behind the
+        // Alert policy (origin/kind, default channel, the incident-identity upsert) lives behind the
         // sink on the alerting side; execution only states the intent.
         await _alerts.RaiseManualAsync(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey, ct);
     }

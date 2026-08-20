@@ -198,6 +198,10 @@ public sealed class JobsOptions
     /// one reminder per incident per interval, so a job that has been broken all week pages daily rather
     /// than on every failure. Default 24 hours.
     ///
+    /// <para>Reminders belong to automatic alerts. A manual alert that delivered is notified once and not
+    /// reminded - the caller owns resolving it; only a manual alert whose send failed re-attempts on this
+    /// cadence, because nobody has been told.</para>
+    ///
     /// <para>This is a delivery policy, not a deduplication rule: it never affects which
     /// <c>alerts</c> rows exist or what <c>occurrence_count</c> they carry. Widen it for a noisy incident,
     /// narrow it when a long-lived incident must keep nagging.</para>

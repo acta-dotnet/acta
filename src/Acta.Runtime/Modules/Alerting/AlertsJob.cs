@@ -427,7 +427,10 @@ internal sealed class AlertsJob(
                 {
                     // Out of retries, but the incident is still open, so the row keeps a reminder instant:
                     // a transport that was down must not be the reason nobody hears about the outage
-                    // again. True for a manual alert too - that send genuinely failed.
+                    // again. True for a manual alert too - that send genuinely failed. The count stays at
+                    // the cap on purpose: a Failed row's reminder gets one attempt per interval, because
+                    // the retry curve belonged to the original send series and the transport already
+                    // proved it needs more than a curve.
                     return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, nextRetryCount, nowUtc + _reminderInterval, ct);
                 }
                 var delaySeconds = BackoffSchedule.ComputeDelaySeconds(nextRetryCount, RetryBackoff);
@@ -454,8 +457,9 @@ internal sealed class AlertsJob(
     // settlement of the same attempt, both leave the row settled, so the lost write changes nothing that
     // matters. The most frequent one is quieter: the raise path's collapse arm bumps version too, so a
     // repeat of the same condition - a ctx.AlertAsync landing inside the send window - makes this settle
-    // lose, and the row keeps the state the read found it in - Pending, or RetryAfter with an instant
-    // already elapsed, either of which arm 1 selects again. That is a re-send on the next pass, which
+    // lose, and the row keeps the state the read found it in - Pending, RetryAfter with an instant
+    // already elapsed, or a settled row whose reminder instant has passed - each of which the next
+    // pass selects again. That is a re-send on the next pass, which
     // delivery is allowed (at least once) and which is the better answer anyway: the re-send carries the
     // occurrence count the repeat just wrote. So there is no retry and no warning here; the next pass
     // re-selects whatever is genuinely due. Debug, because the only reader who wants this line is someone
