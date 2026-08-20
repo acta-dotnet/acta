@@ -1,16 +1,8 @@
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Alerting;
-using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Signals;
-using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 
@@ -103,13 +95,7 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
 
     // ---------- driving the slot ----------
 
-    private async Task<long> SlotIdAsync(CancellationToken ct)
-    {
-        // The recurring slot's deduplication_key is the definition's job name.
-        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(CancellationToken ct) => AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, JobName, ct);
 
     /// <summary>
     /// One fire of the slot whose handler throws. A claim can be lost to provider timing, so the loop
@@ -119,7 +105,7 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
     /// </summary>
     private async Task FailOneFireAsync(long slotId, int expectedFires, CancellationToken ct)
     {
-        await MakeSlotClaimableAsync(slotId, ct);
+        await AlertTestOps.MakeSlotClaimableAsync(Services, slotId, ct);
         for (var i = 0; i < 12 && RecurringPingHandler.TriggersFor(TestNamespace).Count < expectedFires; i++)
         {
             await Runtime.RunOnceAsync(slotId, ct);
@@ -128,67 +114,8 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(expectedFires, RecurringPingHandler.TriggersFor(TestNamespace).Count);
     }
 
-    // The harness parks seeded slots a day out; pull this one back so the by-id claim, which filters on
-    // next_run_at_utc like every other claim, can take it.
-    private async Task MakeSlotClaimableAsync(long slotId, CancellationToken ct)
-    {
-        var due = DateTime.UtcNow.AddMinutes(-5);
-        await Db.From<JobRuntime>().Where(r => r.Id == slotId).UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = due }, ct);
-    }
-
     // ---------- driving the projector ----------
 
-    private async Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct)
-    {
-        var alertsJob = new AlertsJob(
-            Services.GetRequiredService<IAlertStore>(),
-            Services.GetRequiredService<IActaClock>(),
-            Services.GetRequiredService<IAlertChannelRegistry>(),
-            Services.GetRequiredService<IAlertTransportRegistry>(),
-            Services.GetRequiredService<IOptions<JobsOptions>>()
-        );
-
-        await alertsJob.Handle(BuildAlertsContext(cursorOwnerJobId), ct);
-    }
-
-    // A JobContext standing in for the sys.alerts slot: the projector reads ctx.NamespaceId / JobNamespace
-    // and stores the cursor variable as a checkpoints row keyed by the supplied (real) job's id.
-    private RuntimeJobContext BuildAlertsContext(long cursorOwnerJobId)
-    {
-        var slot = new ClaimedJob(
-            JobId: cursorOwnerJobId,
-            JobRef: Guid.Empty,
-            NamespaceId: NamespaceId,
-            DefinitionId: 1,
-            TenantId: null,
-            ExecutionNumber: 1,
-            DeduplicationKey: null,
-            CorrelationKey: null,
-            ExclusiveKey: null,
-            InputFormatId: 0,
-            Input: ReadOnlyMemory<byte>.Empty,
-            NextRunAtUtc: null,
-            LeaseExpiresAtUtc: default,
-            CreatedAtUtc: default,
-            FailureCount: 0,
-            Version: 0
-        );
-
-        return new RuntimeJobContext(
-            slot,
-            jobName: "sys.alerts",
-            namespaceName: TestNamespace,
-            namespaceId: NamespaceId,
-            leaseTtlSeconds: 180,
-            jobStore: Services.GetRequiredService<IJobStore>(),
-            signalStore: Services.GetRequiredService<ISignalStore>(),
-            alerts: Services.GetRequiredService<IAlertSink>(),
-            executionStore: Services.GetRequiredService<IExecutionStore>(),
-            serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            lockStore: Services.GetRequiredService<ILockStore>(),
-            cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
-            deadlineAtUtc: null
-        );
-    }
+    private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
+        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, ct);
 }

@@ -1,16 +1,9 @@
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Alerting;
-using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Signals;
-using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 
@@ -45,10 +38,6 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
     // A recurring slot: one stable job id that survives its own success and can fail again after it,
     // which is the whole reason this spec drives a schedule instead of a one-shot probe.
     private const string JobName = "recurring-ping";
-
-    // sys.alerts keeps its projection cursor under this name on its own slot's variable bag; losing
-    // that one write is the crash this spec stages.
-    private const string CursorVariableName = "alerts-cursor";
 
     // Claim with the lease already lapsed so the sys.recovery sweep reclaims the attempt with no
     // real-time wait, exactly as ReclaimStuckJobsSpec does. Never reaches JobsOptions, which rejects a
@@ -142,13 +131,7 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
 
     // ---------- driving the slot ----------
 
-    private async Task<long> SlotIdAsync(CancellationToken ct)
-    {
-        // The recurring slot's deduplication_key is the definition's job name.
-        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(CancellationToken ct) => AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, JobName, ct);
 
     /// <summary>
     /// One orphaned attempt on the slot: claim it with a lease that is already in the past, then let
@@ -157,7 +140,7 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
     /// </summary>
     private async Task OrphanOneAttemptAsync(long slotId, CancellationToken ct)
     {
-        await MakeSlotClaimableAsync(slotId, ct);
+        await AlertTestOps.MakeSlotClaimableAsync(Services, slotId, ct);
 
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, NamespaceId, ct);
         var claim = await Services
@@ -184,72 +167,15 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal((short)0, slot.FailureCount);
     }
 
-    // The harness parks seeded slots a day out; pull this one back so the by-id claim, which filters on
-    // next_run_at_utc like every other claim, can take it.
-    private async Task MakeSlotClaimableAsync(long slotId, CancellationToken ct)
-    {
-        var due = DateTime.UtcNow.AddMinutes(-5);
-        await Db.From<JobRuntime>().Where(r => r.Id == slotId).UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = due }, ct);
-    }
-
     // ---------- driving the projector ----------
 
+    // The compiled AlertsJob constant names the cursor variable, so the crash this spec stages keeps
+    // targeting the projector's real checkpoint even if the projector renames it.
     private Task<int> ForgetAlertsCursorAsync(long slotId, CancellationToken ct) =>
         Db.From<JobCheckpoint>()
-            .Where(v => v.JobId == slotId && v.Kind == JobCheckpointKindCode.Variable && v.Name == CursorVariableName)
+            .Where(v => v.JobId == slotId && v.Kind == JobCheckpointKindCode.Variable && v.Name == AlertsJob.CursorVariableName)
             .DeleteAsync(ct);
 
-    private async Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct)
-    {
-        var alertsJob = new AlertsJob(
-            Services.GetRequiredService<IAlertStore>(),
-            Services.GetRequiredService<IActaClock>(),
-            Services.GetRequiredService<IAlertChannelRegistry>(),
-            Services.GetRequiredService<IAlertTransportRegistry>(),
-            Services.GetRequiredService<IOptions<JobsOptions>>()
-        );
-
-        await alertsJob.Handle(BuildAlertsContext(cursorOwnerJobId), ct);
-    }
-
-    // A JobContext standing in for the sys.alerts slot: the projector reads ctx.NamespaceId / JobNamespace
-    // and stores the cursor variable as a checkpoints row keyed by the supplied (real) job's id.
-    private RuntimeJobContext BuildAlertsContext(long cursorOwnerJobId)
-    {
-        var slot = new ClaimedJob(
-            JobId: cursorOwnerJobId,
-            JobRef: Guid.Empty,
-            NamespaceId: NamespaceId,
-            DefinitionId: 1,
-            TenantId: null,
-            ExecutionNumber: 1,
-            DeduplicationKey: null,
-            CorrelationKey: null,
-            ExclusiveKey: null,
-            InputFormatId: 0,
-            Input: ReadOnlyMemory<byte>.Empty,
-            NextRunAtUtc: null,
-            LeaseExpiresAtUtc: default,
-            CreatedAtUtc: default,
-            FailureCount: 0,
-            Version: 0
-        );
-
-        return new RuntimeJobContext(
-            slot,
-            jobName: "sys.alerts",
-            namespaceName: TestNamespace,
-            namespaceId: NamespaceId,
-            leaseTtlSeconds: 180,
-            jobStore: Services.GetRequiredService<IJobStore>(),
-            signalStore: Services.GetRequiredService<ISignalStore>(),
-            alerts: Services.GetRequiredService<IAlertSink>(),
-            executionStore: Services.GetRequiredService<IExecutionStore>(),
-            serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            lockStore: Services.GetRequiredService<ILockStore>(),
-            cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
-            deadlineAtUtc: null
-        );
-    }
+    private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
+        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, ct);
 }

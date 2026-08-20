@@ -1057,15 +1057,15 @@
 - **Contract:** Under ExecutionProfile.Bulk, plain terminal completions are buffered and group-committed by parallel flushers, and the whole backlog still drains exactly once.
 - **Arrange:** A backlog larger than BatchCompletionSize is preloaded under ExecutionProfile.Bulk.
 - **Act:** The combined claim-execute loop drains the backlog through the buffered completion sink and its parallel flushers.
-- **Assert:** Every enqueued job finalizes exactly once, yielding one latency sample per job.
+- **Assert:** Every enqueued job finalizes exactly once, counted as one execution per job.
 - **Guarantees:**
   - Every enqueued job is group-committed exactly once under Bulk and the whole backlog drains to completion
 
 ### The combined claim-execute loop drains a backlog exactly once
 - **Contract:** Under ExecutionProfile.Direct the combined claim-execute loop drains a backlog exactly once, claiming Ready to Executing in one round-trip.
-- **Arrange:** A worker is configured with ExecutionProfile.Direct, 8 concurrent executors, and a latency sink, and a 50-job backlog is enqueued.
+- **Arrange:** A worker is configured with ExecutionProfile.Direct, 8 concurrent executors, and an execution counter, and a 50-job backlog is enqueued.
 - **Act:** The run loop drains the backlog through the combined claim-execute coordinator.
-- **Assert:** Every enqueued job executes exactly once, with the latency sink recording one sample per job.
+- **Assert:** Every enqueued job executes exactly once, with the counter recording one execution per job.
 - **Guarantees:**
   - Every enqueued job executes exactly once via the combined loop and the whole backlog drains to completion
 

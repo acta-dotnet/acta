@@ -1,15 +1,7 @@
 using Acta.Runtime.Modules.Alerting;
-using Acta.Runtime.Modules.Alerting.Api;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Signals;
-using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 
@@ -182,55 +174,6 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Equal(target, attempts());
     }
 
-    private async Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct)
-    {
-        var alertsJob = new AlertsJob(
-            Services.GetRequiredService<IAlertStore>(),
-            Services.GetRequiredService<IActaClock>(),
-            Services.GetRequiredService<IAlertChannelRegistry>(),
-            Services.GetRequiredService<IAlertTransportRegistry>(),
-            Services.GetRequiredService<IOptions<JobsOptions>>()
-        );
-
-        await alertsJob.Handle(BuildAlertsContext(cursorOwnerJobId), ct);
-    }
-
-    private RuntimeJobContext BuildAlertsContext(long cursorOwnerJobId)
-    {
-        var slot = new ClaimedJob(
-            JobId: cursorOwnerJobId,
-            JobRef: Guid.Empty,
-            NamespaceId: NamespaceId,
-            DefinitionId: 1,
-            TenantId: null,
-            ExecutionNumber: 1,
-            DeduplicationKey: null,
-            CorrelationKey: null,
-            ExclusiveKey: null,
-            InputFormatId: 0,
-            Input: ReadOnlyMemory<byte>.Empty,
-            NextRunAtUtc: null,
-            LeaseExpiresAtUtc: default,
-            CreatedAtUtc: default,
-            FailureCount: 0,
-            Version: 0
-        );
-
-        return new RuntimeJobContext(
-            slot,
-            jobName: "sys.alerts",
-            namespaceName: TestNamespace,
-            namespaceId: NamespaceId,
-            leaseTtlSeconds: 180,
-            jobStore: Services.GetRequiredService<IJobStore>(),
-            signalStore: Services.GetRequiredService<ISignalStore>(),
-            alerts: Services.GetRequiredService<IAlertSink>(),
-            executionStore: Services.GetRequiredService<IExecutionStore>(),
-            serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            lockStore: Services.GetRequiredService<ILockStore>(),
-            cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
-            deadlineAtUtc: null
-        );
-    }
+    private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
+        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, ct);
 }

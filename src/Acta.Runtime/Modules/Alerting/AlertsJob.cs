@@ -27,8 +27,10 @@ internal sealed class AlertsJob(
 )
 {
     // User-kebab: stored on the sys.alerts slot's own variable bag, so no user
-    // variable collides.
-    private const string CursorVariableName = "alerts-cursor";
+    // variable collides. Internal because the crash-replay and poison-event tests stage their
+    // failures against this exact checkpoint name; referencing the constant makes a rename a compile
+    // error instead of a spec that quietly stops staging its crash.
+    internal const string CursorVariableName = "alerts-cursor";
     private const string SkipVariablePrefix = "alerts-skip-";
     private const string DefaultChannelName = "default";
     private const int GenerateBatchSize = 256;
@@ -251,6 +253,9 @@ internal sealed class AlertsJob(
         }
     }
 
+    // Encodes the render-don't-pass-typed rule for log sites: a serializing sink must never see the raw uuid.
+    private static string RenderRef(Guid alertRef) => new AlertRef(alertRef).ToString();
+
     private static (string Title, string Message) Render(AlertableEvent e, AlertKindCode reason)
     {
         var reasonText = e.ReasonMessage ?? e.ReasonCode?.Code ?? "no reason recorded";
@@ -335,7 +340,7 @@ internal sealed class AlertsJob(
                 ex,
                 "ACTA sys.alerts: transport kind ({Detail}) threw delivering alert ({Ref}); will retry.",
                 channel.TransportKind,
-                new AlertRef(a.AlertRef).ToString()
+                RenderRef(a.AlertRef)
             );
             return AlertDeliveryOutcome.Retryable;
         }
@@ -354,7 +359,7 @@ internal sealed class AlertsJob(
                 "ACTA sys.alerts: channel ({Detail}) is not configured for namespace ({Namespace}); marking alert ({Ref}) failed.",
                 alert.ChannelName,
                 ctx.JobNamespace,
-                new AlertRef(alert.AlertRef).ToString()
+                RenderRef(alert.AlertRef)
             );
             return;
         }
@@ -362,7 +367,7 @@ internal sealed class AlertsJob(
         _log.LogWarning(
             "ACTA sys.alerts: no transport is registered for ({Detail}); marking alert ({Ref}) delivery failed.",
             $"kind '{channel!.TransportKind}' on channel '{channel.Name}'",
-            new AlertRef(alert.AlertRef).ToString()
+            RenderRef(alert.AlertRef)
         );
     }
 
@@ -377,7 +382,7 @@ internal sealed class AlertsJob(
         {
             _log.LogInformation(
                 "ACTA sys.alerts: alert ({Ref}) in namespace ({Namespace}) is ({Outcome}): channel ({Detail}) is ({Reason}).",
-                new AlertRef(alert.AlertRef).ToString(),
+                RenderRef(alert.AlertRef),
                 ctx.JobNamespace,
                 "Suppressed",
                 channel.Name,
@@ -388,7 +393,7 @@ internal sealed class AlertsJob(
 
         _log.LogInformation(
             "ACTA sys.alerts: alert ({Ref}) is ({Outcome}): ({Detail}).",
-            new AlertRef(alert.AlertRef).ToString(),
+            RenderRef(alert.AlertRef),
             "Suppressed",
             $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'"
         );

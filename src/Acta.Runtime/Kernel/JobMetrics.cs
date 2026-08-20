@@ -129,7 +129,7 @@ internal sealed class JobMetrics : IDisposable
         _wakeupWaits.Add(1, new TagList { { "namespace", @namespace }, { "result", result } });
 
     // outcome is one of { replayed, interrupted, succeeded, failed, exhausted } - the five RuntimeJobContext
-    // actually emits, now pinned one per fact in JobMetricsTests. step_name is
+    // actually emits, pinned as a set in JobMetricsTests. step_name is
     // deliberately excluded: it is user-defined and would blow up cardinality; it stays on the log scope.
     public void RecordStep(string @namespace, string jobName, string outcome) =>
         _steps.Add(

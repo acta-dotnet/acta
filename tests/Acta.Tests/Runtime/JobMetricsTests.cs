@@ -94,69 +94,31 @@ public sealed class JobMetricsTests
         Assert.Equal("nothing-claimed", Tags["result"]);
     }
 
-    [Fact]
-    public void RecordStep_increments_steps_counter_with_outcome_tag()
+    // The frozen surface here is the instrument itself: the "acta.steps" name, its "{step}" unit, and
+    // the tag KEYS a dashboard query binds to. The outcome values are pinned only as the set
+    // RuntimeJobContext.RunStepImplAsync is known to emit - this test supplies each string itself, so
+    // a renamed or dropped outcome in the producer cannot fail here. Catching that would take a test
+    // that drives real steps while listening to the meter; the conformance specs that drive real
+    // steps assert behavior, not metric tags.
+    [Theory]
+    [InlineData("succeeded")]
+    [InlineData("replayed")]
+    [InlineData("interrupted")]
+    [InlineData("failed")]
+    [InlineData("exhausted")]
+    public void RecordStep_increments_steps_counter_with_outcome_tag(string outcome)
     {
         using var metrics = new JobMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(metrics, "acta.steps", () => metrics.RecordStep("billing", "send-receipt", "succeeded"))
+            Collect<long>(metrics, "acta.steps", () => metrics.RecordStep("billing", "send-receipt", outcome))
         );
 
         Assert.Equal(1, Value);
         Assert.Equal("billing", Tags["namespace"]);
         Assert.Equal("send-receipt", Tags["job_name"]);
-        Assert.Equal("succeeded", Tags["outcome"]);
+        Assert.Equal(outcome, Tags["outcome"]);
         Assert.Equal("{step}", CollectUnit(metrics, "acta.steps"));
-    }
-
-    // RunStepImplAsync (Acta.Runtime.Modules.Execution.RuntimeJobContext) is the only caller and drives
-    // every distinct outcome value the counter is tagged with; each is pinned here so a renamed or
-    // dropped outcome string breaks a test instead of only a dashboard query.
-    [Fact]
-    public void RecordStep_tags_replayed_outcome_for_an_at_most_once_replay()
-    {
-        using var metrics = new JobMetrics();
-
-        var (_, Tags) = Assert.Single(
-            Collect<long>(metrics, "acta.steps", () => metrics.RecordStep("billing", "send-receipt", "replayed"))
-        );
-
-        Assert.Equal("replayed", Tags["outcome"]);
-    }
-
-    [Fact]
-    public void RecordStep_tags_interrupted_outcome_when_an_at_most_once_step_re_enters_ambiguously()
-    {
-        using var metrics = new JobMetrics();
-
-        var (_, Tags) = Assert.Single(
-            Collect<long>(metrics, "acta.steps", () => metrics.RecordStep("billing", "send-receipt", "interrupted"))
-        );
-
-        Assert.Equal("interrupted", Tags["outcome"]);
-    }
-
-    [Fact]
-    public void RecordStep_tags_failed_outcome_on_a_retryable_step_failure()
-    {
-        using var metrics = new JobMetrics();
-
-        var (_, Tags) = Assert.Single(Collect<long>(metrics, "acta.steps", () => metrics.RecordStep("billing", "send-receipt", "failed")));
-
-        Assert.Equal("failed", Tags["outcome"]);
-    }
-
-    [Fact]
-    public void RecordStep_tags_exhausted_outcome_when_the_retry_budget_is_spent()
-    {
-        using var metrics = new JobMetrics();
-
-        var (_, Tags) = Assert.Single(
-            Collect<long>(metrics, "acta.steps", () => metrics.RecordStep("billing", "send-receipt", "exhausted"))
-        );
-
-        Assert.Equal("exhausted", Tags["outcome"]);
     }
 
     [Fact]

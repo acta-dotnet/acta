@@ -27,18 +27,24 @@ public static class NamespaceIdBudget
     public const int Ceiling = short.MaxValue;
 
     /// <summary>
-    /// Measured, not estimated: one full-solution <c>dotnet test Acta.slnx</c> run advances the
-    /// namespaces id counter by exactly this many, deterministically, because every conformance spec
-    /// in the run shares the one append-only <c>acta_test</c> schema.
+    /// The namespaces-id cost of one full-solution <c>dotnet test Acta.slnx</c> run, measured on
+    /// 2026-08-19. The number drifts whenever a spec is added or removed, and nothing fails when it
+    /// does: it only sizes <see cref="Threshold"/> and the runs-remaining figure in the failure
+    /// message, never whether the guard runs. The drift is bounded-safe: the guard always stops a
+    /// run while at least <see cref="Threshold"/> ids remain, so a stale value here shifts when the
+    /// warning fires - a shrunken suite fires it earlier, a grown suite later - and could let a run
+    /// hit the ceiling mid-suite only if the real per-run cost outgrew this constant by a factor of
+    /// <see cref="WarningRuns"/>. When the guard fires, a human resets the database and can
+    /// re-measure this constant; there is deliberately no automatic reset.
     /// </summary>
     public const int IdsPerRun = 658;
 
     /// <summary>
-    /// Warn this many runs before the wall. A fresh database has roughly <c>Ceiling / IdsPerRun</c>
-    /// ~= 49 runs of total budget; 5 runs of headroom (3,290 ids) is enough warning to notice the
-    /// message, let whatever is already in flight finish, and reset before the counter actually
-    /// reaches <see cref="Ceiling"/> - without firing so early that most of that 49-run budget reads
-    /// as "nearly exhausted."
+    /// Warn this many runs before the wall, at the measured <see cref="IdsPerRun"/> rate. A fresh
+    /// database has roughly <c>Ceiling / IdsPerRun</c> runs of total budget; five runs of headroom
+    /// is enough warning to notice the message, let whatever is already in flight finish, and reset
+    /// before the counter actually reaches <see cref="Ceiling"/> - without firing so early that
+    /// most of the budget reads as "nearly exhausted."
     /// </summary>
     public const int WarningRuns = 5;
 

@@ -34,11 +34,12 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 {
     protected override bool RunAsWorker => true;
 
-    // The WaitTimeout fact's two knobs, named so the assertions can quote them. The interval is an
-    // order of magnitude above the wait budget, which is what makes "clamped or not" a visible
-    // difference, and no further: an unclamped wait has to finish for the fact to fail, so a wider
-    // gap would only buy a slower red.
-    private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(2);
+    // The WaitTimeout fact's two knobs, named so the assertions can quote them. The interval sits far
+    // above the wait budget, which is what makes "clamped or not" a visible difference. The budget is
+    // pure dead time - no worker runs in that fact, so the call always sleeps it in full before
+    // timing out - and every assertion holds at any budget value, so a bigger number would buy
+    // nothing but a slower suite.
+    private static readonly TimeSpan WaitTimeout = TimeSpan.FromMilliseconds(500);
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
 

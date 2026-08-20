@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// loop (like Direct) plus group-committed completions: plain terminal completions are buffered and
 /// flushed by parallel flushers, each group-committing a batch via <c>complete_execution</c> in one
 /// transaction. The backlog is larger than the batch size so multiple flushes occur. Asserting one
-/// latency sample per enqueued job proves the relaxed-durability buffer still finalizes every job
+/// counted execution per enqueued job proves the relaxed-durability buffer still finalizes every job
 /// exactly once. On SQLite, Bulk behaves as Direct (no batching); on SqlServer/Postgres it exercises the
 /// real group-commit path.
 /// </summary>
@@ -22,7 +22,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Contract = "Under ExecutionProfile.Bulk, plain terminal completions are buffered and group-committed by parallel flushers, and the whole backlog still drains exactly once.",
     Arrange = "A backlog larger than BatchCompletionSize is preloaded under ExecutionProfile.Bulk.",
     Act = "The combined claim-execute loop drains the backlog through the buffered completion sink and its parallel flushers.",
-    Assert = "Every enqueued job finalizes exactly once, yielding one latency sample per job."
+    Assert = "Every enqueued job finalizes exactly once, counted as one execution per job."
 )]
 public abstract class BulkCompletionParitySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -36,7 +36,7 @@ public abstract class BulkCompletionParitySpec<TFixture> : ActaRuntimeTestBase<T
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         base.ConfigureServices(services, testNamespace);
-        services.AddSingleton<LoadLatencySink>();
+        services.AddSingleton<LoadExecutionCounter>();
         services.Configure<JobsOptions>(o =>
         {
             o.ExecutionProfile = ExecutionProfile.Bulk;
@@ -49,12 +49,12 @@ public abstract class BulkCompletionParitySpec<TFixture> : ActaRuntimeTestBase<T
     public async Task Bulk_profile_drains_a_backlog_exactly_once()
     {
         var ct = TestContext.Current.CancellationToken;
-        var sink = Services.GetRequiredService<LoadLatencySink>();
+        var counter = Services.GetRequiredService<LoadExecutionCounter>();
 
         var batch = new List<JobEnqueueRequest>(JobCount);
         for (var i = 0; i < JobCount; i++)
         {
-            batch.Add(new JobEnqueueRequest(TestNamespace, "load-echo", JobPayload.Json(new LoadEcho(0))));
+            batch.Add(new JobEnqueueRequest(TestNamespace, "load-echo", JobPayload.Json(new LoadEcho())));
         }
         await Jobs.EnqueueBatchAsync(batch, ct);
 
@@ -63,7 +63,7 @@ public abstract class BulkCompletionParitySpec<TFixture> : ActaRuntimeTestBase<T
 
         var deadline = SpecWaits.Converge;
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        while (sink.ElapsedTicks.Count < JobCount && sw.Elapsed < deadline)
+        while (counter.Executions < JobCount && sw.Elapsed < deadline)
         {
             await Task.Delay(25, ct);
         }
@@ -71,6 +71,6 @@ public abstract class BulkCompletionParitySpec<TFixture> : ActaRuntimeTestBase<T
         await loopCts.CancelAsync();
         await loop;
 
-        Assert.Equal(JobCount, sink.ElapsedTicks.Count);
+        Assert.Equal(JobCount, counter.Executions);
     }
 }

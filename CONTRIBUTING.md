@@ -70,7 +70,7 @@ Docker notes (all optional):
 | `ACTA_TEST_REDIS` | Redis wakeup concept and tests | Redis endpoint |
 | `ACTA_LOCAL_PROVIDER` | concepts, demos | provider selector; SQLite default, `postgres` or `sqlserver` to opt in |
 
-Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_LOAD_JOBS` / `ACTA_LOAD_EXECUTORS` (perf load size / executors), `ACTA_PERF_PROBE`, `ACTA_AOT_PUBLISH_TEST`, `ASPNETCORE_ENVIRONMENT`.
+Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_AOT_PUBLISH_TEST`, `ASPNETCORE_ENVIRONMENT`.
 
 ## Database lifecycle: create, migrate, reset, destroy
 
@@ -97,13 +97,15 @@ append-only rows get unwieldy or after a destructive schema change.
 
 **Namespace id budget (Postgres / SQL Server).** `namespaces.id` is a `smallint` IDENTITY/sequence
 column on both server providers, and the shared `acta_test` schema is append-only: ids are never
-reclaimed between runs. A full-solution `dotnet test Acta.slnx` run measurably advances the counter
-by exactly 658, so a fresh `acta-test` database survives about 49 runs before the sequence reaches
-its 32767 ceiling, at which point both providers fail every conformance spec at once with a
-`nextval` / `IDENTITY` overflow that has nothing to do with whatever you were actually testing. The
-per-process bootstrap (`PgIntegrationSchema.BootstrapAsync`, `SqlServerIntegrationSchema.BootstrapAsync`)
-fails fast with an actionable message once headroom drops below five runs' worth, well ahead of that
-wall. When it does, drop the whole `acta-test` database - not just the schema, since
+reclaimed between runs, so every full-solution `dotnet test Acta.slnx` run spends a suite-sized
+slice of the sequence until it reaches its ceiling, at which point both providers fail every
+conformance spec at once with a `nextval` / `IDENTITY` overflow that has nothing to do with
+whatever you were actually testing. The measured per-run cost and the warning arithmetic live in
+one place, `tests/Acta.Tests.Conformance/Testing/NamespaceIdBudget.cs`, so they are not restated
+here. The per-process bootstrap (`PgIntegrationSchema.BootstrapAsync`,
+`SqlServerIntegrationSchema.BootstrapAsync`) fails fast with an actionable message while several
+runs of headroom remain, well ahead of that wall. When it does, drop the whole `acta-test`
+database - not just the schema, since
 `EnsureDatabaseAndApplyAsync` recreates the database and reapplies the schema on the next run -
 and never `acta-dev`:
 

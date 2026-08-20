@@ -21,7 +21,7 @@ public sealed class AlertsJobPoisonEventTests
         await job.Handle(ctx, ct);
 
         Assert.Equal([11L, 12L], store.RaiseAttempts);
-        Assert.Equal(12L, await ctx.GetRequiredVariableAsync<long>("alerts-cursor", ct));
+        Assert.Equal(12L, await ctx.GetRequiredVariableAsync<long>(AlertsJob.CursorVariableName, ct));
         var skip = await ctx.GetRequiredVariableAsync<string>("alerts-skip-11", ct);
         Assert.Contains("namespace=test-ns", skip);
         Assert.Contains("eventId=11", skip);
@@ -42,7 +42,7 @@ public sealed class AlertsJobPoisonEventTests
 
         await Assert.ThrowsAsync<TimeoutException>(() => job.Handle(ctx, ct));
 
-        Assert.Equal(0L, await ctx.GetVariableOrDefaultAsync("alerts-cursor", 0L, ct));
+        Assert.Equal(0L, await ctx.GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, 0L, ct));
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
     }
 
@@ -59,7 +59,7 @@ public sealed class AlertsJobPoisonEventTests
 
         await Assert.ThrowsAsync<ArgumentException>(() => job.Handle(ctx, ct));
 
-        Assert.Equal(0L, await ctx.GetVariableOrDefaultAsync("alerts-cursor", 0L, ct));
+        Assert.Equal(0L, await ctx.GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, 0L, ct));
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
     }
 
