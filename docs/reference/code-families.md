@@ -92,7 +92,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Alert kind not recognized by this build; the row was written by a newer Acta. | Active |
-| `FirstFailure` | 10 | `first-failure` | First failure in a window; emitted by Automatic origin on non-terminal failure. | Active |
+| `FirstFailure` | 10 | `first-failure` | Failure that opened the incident; emitted by Automatic origin on non-terminal failure. | Active |
 | `ThresholdReached` | 20 | `threshold-reached` | Threshold-bound emission (e.g., LostClaimAlertThreshold reached). | Active |
 | `FinalFailure` | 30 | `final-failure` | Terminal failure; emitted by Automatic origin on Status to Failed. | Active |
 | `Manual` | 40 | `manual` | Hand-raised; ctx.AlertAsync from inside a handler. | Active |
@@ -109,7 +109,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `None` | 0 | `none` | No automatic failure alerts. ctx.AlertAsync still creates rows. | Active |
-| `OnFailure` | 10 | `on-failure` | Default. Alerts on every failure transition; dedupe-window collapses repeats. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery. | Active |
+| `OnFailure` | 10 | `on-failure` | Default. Alerts on every failure transition; repeats collapse onto the job's one open incident. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery. | Active |
 | `Info` | 20 | `info` | Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal. | Active |
 | `OnTerminal` | 30 | `on-terminal` | Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step. Resolves on recovery. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those. | Active |
 | `SysCritical` | 40 | `sys-critical` | Reserved for system Jobs. Emits at Severity = Critical to the Job's channel, or the configured "default" channel when none is declared. | Active |
@@ -119,7 +119,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Info` | 10 | `info` | Informational; not paging. | Active |
-| `Warning` | 20 | `warning` | Non-terminal failure transition; dedupe-window collapses repeats. | Active |
+| `Warning` | 20 | `warning` | Non-terminal failure transition; repeats collapse onto the one open incident. | Active |
 | `Error` | 30 | `error` | Terminal failure or operator-attention event. | Active |
 | `Critical` | 40 | `critical` | Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel's transport and config. | Active |
 

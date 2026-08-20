@@ -160,6 +160,12 @@ resolve never matches. The operator verbs `IAlerts.AcknowledgeAsync` and `IAlert
 `EventCode.AlertResolved`), and leave `last_projected_event_id` untouched
 (`ResolveJobAlertManual.routine.sql`). Neither verb changes the underlying job.
 
+Reminders follow the same split. A manual alert that delivers is notified once and never again: Acta
+has no way to tell whether one handler's statement still holds, so it schedules no reminder and the
+caller owns resolving the row (`AlertsJob.SettleAsync`). A manual alert whose *send* failed is the
+exception — nobody has been told yet, so it is re-attempted on the reminder cadence until it lands,
+and stops there.
+
 ## How much a broken job actually sends
 
 These numbers are measured against the code, not estimated.
@@ -179,7 +185,7 @@ restarts the count at 1 (`JobsOptions.AlertFailureThreshold`).
 ### Volume
 
 Delivery selects an unresolved incident whose delivery is `Pending`/`RetryAfter` due now, or whose
-delivery already settled (`Delivered`/`Failed`) at least `AlertReminderInterval` ago
+delivery already settled (`Delivered`/`Failed`) and whose scheduled reminder has come
 (`GetDeliverableAlerts.sql`; see [Delivery](#delivery)). Every newly inserted row is born `Pending`
 (`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`), so a new incident's first notification is
 immediate.
@@ -198,20 +204,27 @@ reason it hits), not 2–3 accumulated rows per job per rolling window under the
 
 Row count does not grow with time or failure rate; what changes with time is how often an open
 incident is *delivered* again. `AlertReminderInterval` is that lever (default 24h,
-`JobsOptions.AlertReminderInterval`): once an incident's delivery has settled to `Delivered` or
-`Failed` — `Suppressed` is not reminded — it becomes eligible for another delivery pass once the
-interval has elapsed, so a permanently broken job pages at most once per incident per interval rather
-than once per failure. Widening the interval slows the reminder cadence; it does not change how many
+`JobsOptions.AlertReminderInterval`): settling an incident's delivery to `Delivered` or `Failed` —
+`Suppressed` is not reminded — schedules the next pass an interval out, so a permanently broken job
+pages at most once per incident per interval rather than once per failure. A manual alert that
+delivered schedules nothing (see [above](#what-projects-an-alert)). Widening the interval slows the reminder cadence; it does not change how many
 rows exist or whether `ThresholdReached` is reachable.
 
 ## Delivery
 
 The deliver phase selects due rows and settles each one (`AlertsJob.DeliverAsync`). Due means an
-unresolved incident (`resolved_at_utc IS NULL`) and one of two arms: `Pending`/`RetryAfter` with
-`retry_after_utc` null or past — a first attempt or a due retry — or `Delivered`/`Failed` whose
-`modified_at_utc` is at least `AlertReminderInterval` in the past — a reminder. `Suppressed` rows are
-never reminded: that status recorded a routing decision about the channel, and re-sending would only
-re-take it. Ordered by id, 256 per pass (`GetDeliverableAlerts.sql`).
+unresolved incident (`resolved_at_utc IS NULL`) and one of two arms, both reading `retry_after_utc`
+as the row's "not before" instant: `Pending`/`RetryAfter` with it null or past — a first attempt or a
+due retry — or `Delivered`/`Failed` with it past — a reminder, at the instant that settlement
+scheduled. `Suppressed` rows are never reminded: that status recorded a routing decision about the
+channel, and re-sending would only re-take it. Ordered by id, 256 per pass
+(`GetDeliverableAlerts.sql`).
+
+The reminder is scheduled rather than inferred from `modified_at_utc`, and that is not a detail: every
+repeat an open incident absorbs re-stamps that column, so an age rule would leave a job failing faster
+than the interval permanently too young to remind — silencing exactly the outage worth re-notifying.
+Nothing but a settlement or a resolution moves the instant, so neither a repeat nor an operator's
+acknowledge can postpone a reminder.
 
 For each row it resolves the channel by name in the firing namespace, resolves a transport by the
 channel's kind, and decides in this fixed order (`AlertChannelDecision.Decide`):
@@ -330,7 +343,10 @@ name in `ActaEndpointOptions.ControlConfirmationHeaderName`; the verbs themselve
 ready queries.
 
 Acknowledge means an operator has seen the alert; resolve means the incident is considered settled.
-Neither changes the job.
+Neither changes the job. Acknowledging also does not quiet the alert: a reminder already due still
+fires, because seeing an outage is not fixing one. Resolving is what ends the reminders — it clears
+the row's scheduled instant along with everything else it settles
+(`ResolveJobAlertManual.routine.sql`).
 
 Retention is separate from the job's. `sys.retention` deletes alerts older than `AlertRetention`
 (default 90 days, `JobsOptions.AlertRetention`) **only when delivery has settled** — `Suppressed`,

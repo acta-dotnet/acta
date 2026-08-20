@@ -34,8 +34,8 @@
     <!-- The outbox staging core reuses the shared enqueue normalization/validation. -->
     <InternalsVisibleTo Include="Acta.Relational" />
     <!-- Conformance drives engine tuning that is deliberately not on the public surface: a bounce delay
-         of 0, a batch size of 2, a short alert window. A spec proving the behaviour has to reach the
-         knob a deployment must not. -->
+         of 0, a batch size of 2, an alert delivery retry cap of 2. A spec proving the behaviour has to
+         reach the knob a deployment must not. -->
     <InternalsVisibleTo Include="Acta.Tests.Conformance" />
     <!-- The benchmark sweeps the lease window as an experiment variable, which a deployment cannot. -->
     <InternalsVisibleTo Include="Anvil.Bench" />

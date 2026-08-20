@@ -98,7 +98,10 @@ broken. It is a delivery policy, not a deduplication rule: an unresolved inciden
 already settled — `Delivered` or `Failed` — is re-selected for delivery once this interval has passed,
 so a job that has been broken all week pages daily rather than on every failure. It has no bearing on
 `AlertFailureThreshold`, which counts failures within the incident itself and is reachable at any job
-cadence; the two settings no longer move together.
+cadence; the two settings no longer move together. Each delivery stamps its own next reminder as it
+settles, so a changed interval applies to deliveries settled after the change — incidents already
+waiting keep the instant their last send scheduled, and pick up the new spacing on the reminder after
+that.
 
 `JobEventsRetention` (365 days) intentionally outlives the per-definition `[Job(JobRetention =
 ...)]` default (90 days) that purges terminal job rows: events are the audit ledger, so the incident

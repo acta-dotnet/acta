@@ -8,7 +8,7 @@ namespace Acta;
 /// characters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert
 /// transports address alerts by this value; the numeric alert id stays the internal engine
 /// identity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication
-/// never re-mints it: an alert that re-fires inside its dedupe window keeps its first ref.
+/// never re-mints it: a condition that re-fires while its incident is open keeps that incident's ref.
 /// </summary>
 [JsonConverter(typeof(AlertRefJsonConverter))]
 public readonly record struct AlertRef(Guid Value)

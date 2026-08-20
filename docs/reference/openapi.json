@@ -7694,7 +7694,7 @@
             "format": "date-time"
           }
         },
-        "description": "The single-alert read model returned by ValueTask&lt;AlertDetail?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). Today it carries the\nlist row's fields; it is a distinct type because a detail read can grow additively (delivery\nhistory, the alerting event's detail) without the list row paying for it."
+        "description": "The single-alert read model returned by ValueTask&lt;AlertDetail?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). Today it carries the\nlist row's fields; it is a distinct type because a detail read can grow additively (delivery\nhistory, the alerting event's detail) without the list row paying for it.\n\nTwo delivery fields read differently than their names suggest. RetryCount is the\nattempts spent in the current send series, not over the row's life: a delivered send ends the\nseries and resets it. RetryAfterUtc is the earliest instant the alert may be sent again -\nthe next retry while delivery is unsettled, the next reminder once it has settled - and null when\nnothing is scheduled."
       },
       "AlertKindCode": { },
       "AlertListItem": {
@@ -7789,7 +7789,7 @@
               "integer",
               "string"
             ],
-            "description": "Delivery retry attempts so far.",
+            "description": "Attempts spent in the current send series; a delivered send ends the series and resets it.",
             "format": "uint8"
           },
           "retryAfterUtc": {
@@ -7797,7 +7797,7 @@
               "null",
               "string"
             ],
-            "description": "Earliest next delivery attempt, or null.",
+            "description": "Earliest instant this alert may be sent again - the next retry while delivery is unsettled, the next reminder once it has settled - or null when nothing is scheduled.",
             "format": "date-time"
           },
           "createdAtUtc": {
@@ -7824,7 +7824,7 @@
       "AlertOriginCode": { },
       "AlertProfileCode": { },
       "AlertRef": {
-        "description": "Public stable reference for one alert row: \"alr_\" plus 26 lowercase Crockford Base32\ncharacters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert\ntransports address alerts by this value; the numeric alert id stays the internal engine\nidentity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication\nnever re-mints it: an alert that re-fires inside its dedupe window keeps its first ref."
+        "description": "Public stable reference for one alert row: \"alr_\" plus 26 lowercase Crockford Base32\ncharacters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert\ntransports address alerts by this value; the numeric alert id stays the internal engine\nidentity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication\nnever re-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
       "AlertSeverityCode": { },
       "CapabilitiesResponse": {

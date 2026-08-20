@@ -14,7 +14,8 @@ namespace Acta;
 /// <param name="Title">Alert title.</param> <param name="Message">Alert message.</param>
 /// <param name="ChannelName">Logical delivery channel name.</param> <param name="OccurrenceCount">Deduplicated occurrence count.</param>
 /// <param name="ResolvedAtUtc">When the alert resolved, or null while open.</param> <param name="DeliveryStatus">Delivery pipeline status.</param>
-/// <param name="RetryCount">Delivery retry attempts so far.</param> <param name="RetryAfterUtc">Earliest next delivery attempt, or null.</param>
+/// <param name="RetryCount">Attempts spent in the current send series; a delivered send ends the series and resets it.</param>
+/// <param name="RetryAfterUtc">Earliest instant this alert may be sent again - the next retry while delivery is unsettled, the next reminder once it has settled - or null when nothing is scheduled.</param>
 /// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 /// <param name="AcknowledgedAtUtc">When the alert was acknowledged, or null while open.</param>
 public sealed record AlertListItem(

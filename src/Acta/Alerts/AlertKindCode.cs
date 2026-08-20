@@ -14,7 +14,7 @@ public enum AlertKindCode : byte
     Unspecified = 0,
 
     // Sparse catalog ids leave insertion room; numeric ordering is not behavioral.
-    [Code("first-failure", "First failure in a window; emitted by Automatic origin on non-terminal failure.")]
+    [Code("first-failure", "Failure that opened the incident; emitted by Automatic origin on non-terminal failure.")]
     FirstFailure = 10,
 
     [Code("threshold-reached", "Threshold-bound emission (e.g., LostClaimAlertThreshold reached).")]

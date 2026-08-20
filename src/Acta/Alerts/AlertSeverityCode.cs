@@ -9,7 +9,7 @@ public enum AlertSeverityCode : byte
     [Code("info", "Informational; not paging.")]
     Info = 10,
 
-    [Code("warning", "Non-terminal failure transition; dedupe-window collapses repeats.")]
+    [Code("warning", "Non-terminal failure transition; repeats collapse onto the one open incident.")]
     Warning = 20,
 
     [Code("error", "Terminal failure or operator-attention event.")]
