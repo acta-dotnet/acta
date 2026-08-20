@@ -114,13 +114,13 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.UpdateAlertDeliveryAsync`
 
-### A deduplicated alert keeps the ref its first firing minted
-- **Contract:** A repeat firing inside the dedupe window bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it.
-- **Arrange:** A seeded job and definition give the alert a subject, and one deduplication key with a fixed window bucket collapses every firing onto one row.
-- **Act:** The same deduplication key is raised three times inside one window while a second key is raised alongside it.
+### An open incident keeps the ref its first firing minted
+- **Contract:** A repeat firing absorbed by an open incident bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it.
+- **Arrange:** A seeded job and definition give the alert a subject, and one deduplication key names the incident every firing collapses onto.
+- **Act:** The same deduplication key is raised three times while the incident stays open, and a second key is raised alongside it.
 - **Assert:** Occurrence count grows with each firing while the alert ref is unchanged, and the second key mints a ref of its own.
 - **Guarantees:**
-  - Repeat firings inside the dedupe window bump occurrence_count and keep the ref the first firing minted
+  - Repeat firings absorbed by an open incident bump occurrence_count and keep the ref the first firing minted
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
 
@@ -143,30 +143,30 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.UpdateAlertDeliveryAsync`
 
 ### Alert profiles gate emission and severity per profile
-- **Contract:** Each alert profile gates non-terminal emission and severity, and a resolved alert re-opens when the same deduplication key re-fires within the window.
+- **Contract:** Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it.
 - **Arrange:** Probe jobs with OnTerminal, Info, and SysCritical alert profiles are registered in the test namespace.
 - **Act:** Each probe fails non-terminally then terminally with the projector run after each attempt, and a resolved FinalFailure re-fires on its deduplication key.
-- **Assert:** OnTerminal and Info emit only a terminal FinalFailure at their profile severity, SysCritical always emits Critical, and the resolved alert re-opens.
+- **Assert:** OnTerminal and Info emit only a terminal FinalFailure at their profile severity, SysCritical always emits Critical, and a resolved alert stays resolved.
 - **Guarantees:**
   - OnTerminal emits no alert on non-terminal failure then one FinalFailure Error on terminal
   - Info emits no alert on non-terminal failure then one FinalFailure at Info severity on terminal
   - SysCritical emits Critical FirstFailure on non-terminal and Critical FinalFailure on terminal
-  - Resolved OnTerminal FinalFailure re-opens with incremented occurrence_count when the same key re-fires
+  - A resolved OnTerminal FinalFailure stays resolved and the same key's next firing opens a second incident
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
 
-### ThresholdReached fires at the exact occurrence and dedupes resolved re-opens
-- **Contract:** AlertsJob emits exactly one ThresholdReached alert when occurrence_count hits the threshold and re-opens a resolved row rather than inserting a duplicate.
-- **Arrange:** A retry-probe job with the OnFailure profile and MaxAttempts 3 is registered, with per-fact ThresholdReached thresholds of 2 and 5.
-- **Act:** The job is driven to terminal Failed and the alerts projector runs, with RaiseJobAlert and ResolveJobAlerts also called directly on the same key.
-- **Assert:** Exactly one ThresholdReached alert fires at the crossing occurrence and a resolved row re-opens on the same key without a duplicate.
+### ThresholdReached fires once per incident at the exact occurrence
+- **Contract:** AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution.
+- **Arrange:** A retry-probe job with the OnFailure profile and MaxAttempts 3 is registered, with per-fact ThresholdReached thresholds of 1, 2, and 5.
+- **Act:** The job is driven to terminal Failed and the alerts projector runs, with RaiseJobAlert and ResolveJobAlerts also called directly on one key across a resolution.
+- **Assert:** One ThresholdReached fires at the crossing occurrence, further failures in that incident do not re-fire it, and the next incident counts from 1 again.
 - **Guarantees:**
-  - Threshold fires exactly once at the crossing occurrence
-  - Occurrence above threshold does not re-emit ThresholdReached
+  - Threshold fires exactly once per incident, at the crossing occurrence
+  - A further failure in the same incident does not re-emit ThresholdReached
   - Below-threshold drive emits no ThresholdReached alert
-  - Resolved threshold alert re-opens on the same deduplication key without inserting a duplicate
+  - The count climbs only inside one incident: after a resolution the same key starts a new row at 1 and can escalate again
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
@@ -201,32 +201,33 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
 
-### A replayed alert batch neither inflates a count nor re-closes an alert
-- **Contract:** Re-projecting events the sys.alerts cursor never advanced past leaves every alert those events already moved untouched.
+### A replayed alert batch neither inflates an incident nor opens a ghost one
+- **Contract:** Re-projecting events the sys.alerts cursor never advanced past leaves the incidents they moved untouched and opens none behind a resolution.
 - **Arrange:** A recurring slot is orphaned, then fires successfully, then is orphaned again, with the projector cursor still at zero.
 - **Act:** The projector consumes the whole batch, loses its cursor advance to a crash, and consumes the identical batch again.
-- **Assert:** The single alert keeps the occurrence count and open state the first pass left it, unwritten by the replay.
+- **Assert:** The two incident rows keep the counts, refs, and open/resolved state the first pass left them, unwritten by the replay.
 - **Guarantees:**
-  - A success closes the slot's open failure alert and a later failure re-opens the same row
+  - A flap is a new incident: the success closes the row for good and the next failure opens a fresh one
   - Replaying the batch a crashed pass never checkpointed changes nothing it already projected
-  - The dedupe bucket derives from the event's own instant, so a replay in a later bucket lands on the same row
+  - A failure replayed after its incident resolved opens no ghost incident and escalates nothing
   - A crash between the crossing event's FirstFailure and ThresholdReached emits recovers one correctly-sourced escalation
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
 
-### Manual alert write inserts or dedupes by key and truncates bounded prose
-- **Contract:** A null deduplication key always inserts while a non-null key collapses repeats in the window, bumping occurrence_count and leaving delivery state intact.
-- **Arrange:** A test namespace is seeded and a job context is configured with a one-hour alert dedupe window.
-- **Act:** RaiseJobAlert.Run and ctx.AlertAsync are called with null, repeated, and oversized dedupe and prose inputs.
-- **Assert:** A null deduplication key always inserts a fresh alert row while a repeated key collapses onto one row bumping occurrence_count.
+### Manual alert write collapses onto the open incident and truncates bounded prose
+- **Contract:** A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.
+- **Arrange:** A test namespace is seeded and a job context is configured over a seeded definition and job.
+- **Act:** RaiseJobAlert.Run and ctx.AlertAsync are called with null, repeated, post-resolution, and oversized dedupe and prose inputs.
+- **Assert:** A null key always inserts a fresh row, a repeated key collapses onto one row bumping occurrence_count, and a post-resolution raise opens a second row.
 - **Guarantees:**
   - A null deduplication key inserts one manual alert row stamping Manual origin and Pending delivery
   - Repeated null deduplication keys always insert fresh rows
-  - A non-null key collapses repeats and bumps occurrence_count while leaving delivery and resolution untouched
+  - A non-null key collapses repeats onto its one open row and bumps occurrence_count, leaving delivery and resolution untouched
+  - A raise after the incident resolved opens a fresh row with fresh delivery, leaving the resolved row resolved
   - Bounded prose truncates to column width
-  - AlertAsync stamps the Manual origin and buckets the dedupe window to the hour
+  - AlertAsync stamps the Manual origin and carries the caller's deduplication key
   - Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error
   - Raising with a null jobId still inserts a job-less alert
 - **Store methods:**
@@ -2025,14 +2026,15 @@
 ## Schema
 
 ### Hardened schema enforces its checks, seed, and denormalized invariants
-- **Contract:** The hardened M001 schema enforces every new CHECK, seeds the sys namespace, and keeps runtimes, tags, and schedules in step with jobs.
+- **Contract:** The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs.
 - **Arrange:** A live provider schema carries the seeded sys namespace and jobs enqueued through EnqueueOne, EnqueueBatch, a child enqueue, and Restart.
-- **Act:** Constraint-violating INSERTs and UPDATEs are attempted directly, and the denormalized rows are read back after each write path.
-- **Assert:** Every violating statement fails with a provider exception, and the denormalized rows agree with jobs.
+- **Act:** Constraint-violating writes are attempted directly, a second unresolved alert is inserted on a key that already has one, and denormalized rows are read back.
+- **Assert:** Every violating statement fails with a provider exception, a deduplication key admits a new row only once its incident is resolved, and denormalized rows agree.
 - **Guarantees:**
   - The seeded sys namespace (id 1, name sys) exists on a fresh install
   - ck_definitions_max_attempts rejects an UPDATE to zero while a positive value updates cleanly
-  - ck_alerts_job_ref_pair, ck_alerts_dedupe_pair, and ck_alerts_occurrence_count each reject their violating INSERT
+  - ck_alerts_job_ref_pair and ck_alerts_occurrence_count each reject their violating INSERT
+  - ux_alerts_dedupe admits one unresolved row per (namespace_id, dedupe_key) and stops filtering once it is resolved
   - ck_runtimes_counters rejects an UPDATE to a negative failure_count
   - Closed-family constraints reject unassigned values and 255
   - Consumer payload format 255 remains storable
@@ -2296,13 +2298,13 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | --- | --- |
 | `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
 | `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
-| `IAlertStore.RaiseJobAlertAsync` | A deduplicated alert keeps the ref its first firing minted<br>A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>Manual alert write inserts or dedupes by key and truncates bounded prose<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.RaiseJobAlertAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>An open incident keeps the ref its first firing minted<br>Manual alert write collapses onto the open incident and truncates bounded prose<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates a count nor re-closes an alert<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires at the exact occurrence and dedupes resolved re-opens |
+| `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
 | `IDefinitionStore.GetDefinitionAsync` | GetJobDefinition returns one definition by id and null for an unknown id |
 | `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade or retire |

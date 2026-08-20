@@ -1,22 +1,3 @@
--- The raise grew from RETURNS INT to a two-column row, and CREATE OR REPLACE cannot change a return
--- type: the retired form is dropped FIRST. A trailing drop, the arity-change pattern elsewhere, does
--- not fit here - old and new share one argument signature. DROP matches the types; names ride along.
-DROP FUNCTION IF EXISTS {{schema}}.raise_job_alert(
-    p_namespace_name VARCHAR,
-    p_job_id BIGINT,
-    p_origin_code SMALLINT,
-    p_severity_code SMALLINT,
-    p_kind_code SMALLINT,
-    p_title VARCHAR,
-    p_message VARCHAR,
-    p_channel_name VARCHAR,
-    p_delivery_status_code SMALLINT,
-    p_dedupe_key VARCHAR,
-    p_dedupe_window_start_utc TIMESTAMPTZ,
-    p_source_event_id BIGINT,
-    p_alert_ref UUID
-);
-
 CREATE OR REPLACE FUNCTION {{schema}}.raise_job_alert(
     p_namespace_name VARCHAR,
     p_job_id BIGINT,
@@ -28,7 +9,6 @@ CREATE OR REPLACE FUNCTION {{schema}}.raise_job_alert(
     p_channel_name VARCHAR,
     p_delivery_status_code SMALLINT,
     p_dedupe_key VARCHAR,
-    p_dedupe_window_start_utc TIMESTAMPTZ,
     p_source_event_id BIGINT,
     p_alert_ref UUID
 )
@@ -69,7 +49,6 @@ BEGIN
             message,
             channel_name,
             dedupe_key,
-            dedupe_window_start_utc,
             occurrence_count,
             last_projected_event_id,
             delivery_status_code,
@@ -89,7 +68,6 @@ BEGIN
             p_message,
             p_channel_name,
             NULL,
-            NULL,
             1,
             p_source_event_id,
             p_delivery_status_code,
@@ -101,6 +79,8 @@ BEGIN
         RETURN;
     END IF;
 
+    -- One OPEN row per (namespace_id, dedupe_key) - the incident. INSERT ... SELECT rather than VALUES
+    -- so the insert arm can carry the ghost guard below.
     INSERT INTO {{schema}}.alerts (
         namespace_id,
         alert_ref,
@@ -113,7 +93,6 @@ BEGIN
         message,
         channel_name,
         dedupe_key,
-        dedupe_window_start_utc,
         occurrence_count,
         last_projected_event_id,
         delivery_status_code,
@@ -121,7 +100,7 @@ BEGIN
         created_at_utc,
         modified_at_utc,
         version)
-    VALUES (
+    SELECT
         v_ns,
         p_alert_ref,
         p_job_id,
@@ -133,15 +112,27 @@ BEGIN
         p_message,
         p_channel_name,
         p_dedupe_key,
-        p_dedupe_window_start_utc,
         1,
         p_source_event_id,
         p_delivery_status_code,
         0,
         now(),
         now(),
-        0)
-    ON CONFLICT (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL
+        0
+    -- Ghost guard: a failure replayed after its incident closed must not open one behind the events
+    -- this identity has already absorbed - which is why it compares against every row of the identity,
+    -- not just an open one. NULL, hence never blocking, for a manual raise, which carries no event.
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.alerts g
+        WHERE
+            g.namespace_id = v_ns
+            AND g.dedupe_key = p_dedupe_key
+            AND g.last_projected_event_id >= p_source_event_id
+    )
+    -- The conflict target is the filtered unique index, so a resolved row is invisible to it and the
+    -- next failure opens a fresh incident instead of re-opening the closed one.
+    ON CONFLICT (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL
     DO UPDATE SET
         job_id = EXCLUDED.job_id,
         job_ref = EXCLUDED.job_ref,
@@ -152,7 +143,6 @@ BEGIN
         message = EXCLUDED.message,
         channel_name = EXCLUDED.channel_name,
         occurrence_count = {{schema}}.alerts.occurrence_count + 1,
-        resolved_at_utc = NULL,
         last_projected_event_id = COALESCE(EXCLUDED.last_projected_event_id, {{schema}}.alerts.last_projected_event_id),
         modified_at_utc = now(),
         version = {{schema}}.alerts.version + 1
@@ -162,9 +152,9 @@ BEGIN
         OR p_source_event_id > {{schema}}.alerts.last_projected_event_id
     RETURNING occurrence_count, last_projected_event_id INTO v_occurrence_count, v_last_projected_event_id;
 
-    -- The WHERE above held the row back: a replay of an event it already absorbed. Nothing was written;
-    -- the caller's failure threshold reads the count the row already carries, and the mark tells it
-    -- whether THIS event is the one the row absorbed last.
+    -- Nothing written: a replay-held update or a ghost-blocked insert. The caller's failure threshold
+    -- reads the count the identity's newest row already carries, and that row's mark - never the
+    -- incoming event id, since nothing absorbed it - is what keeps this raise from escalating.
     IF v_occurrence_count IS NULL THEN
         SELECT a.occurrence_count, a.last_projected_event_id
         INTO v_occurrence_count, v_last_projected_event_id
@@ -172,9 +162,17 @@ BEGIN
         WHERE
             a.namespace_id = v_ns
             AND a.dedupe_key = p_dedupe_key
-            AND a.dedupe_window_start_utc = p_dedupe_window_start_utc;
+        ORDER BY a.id DESC
+        LIMIT 1;
     END IF;
 
     RETURN QUERY SELECT v_occurrence_count, v_last_projected_event_id;
 END;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
+-- signature (with p_dedupe_window_start_utc) so pre-existing installs cannot resolve the stale form.
+DROP FUNCTION IF EXISTS {{schema}}.raise_job_alert(
+    VARCHAR, BIGINT, SMALLINT, SMALLINT, SMALLINT, VARCHAR, VARCHAR, VARCHAR, SMALLINT, VARCHAR,
+    TIMESTAMPTZ, BIGINT, UUID
+);

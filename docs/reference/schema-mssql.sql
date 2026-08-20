@@ -55,7 +55,6 @@ CREATE TABLE acta.alerts (
     message nvarchar(512) NOT NULL,
     channel_name varchar(128) NOT NULL,
     dedupe_key varchar(512) NULL,
-    dedupe_window_start_utc datetime2(3) NULL,
     occurrence_count int NOT NULL,
     last_projected_event_id bigint NULL,
     resolved_at_utc datetime2(3) NULL,
@@ -68,7 +67,6 @@ CREATE TABLE acta.alerts (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_alerts PRIMARY KEY (id)
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
-    , CONSTRAINT ck_alerts_dedupe_pair CHECK ((dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
     , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
     , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
@@ -78,7 +76,7 @@ CREATE INDEX ix_alerts_delivery_due ON acta.alerts (namespace_id, delivery_statu
 CREATE INDEX ix_alerts_namespace_created ON acta.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX ix_alerts_namespace_unresolved ON acta.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
 CREATE UNIQUE INDEX ux_alerts_ref ON acta.alerts (alert_ref);
-CREATE UNIQUE INDEX ux_alerts_dedupe ON acta.alerts (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL;
+CREATE UNIQUE INDEX ux_alerts_dedupe ON acta.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL;
 END
 GO
 
@@ -670,7 +668,6 @@ SELECT
     a.message,
     a.channel_name,
     a.dedupe_key AS deduplication_key,
-    a.dedupe_window_start_utc,
     a.occurrence_count,
     a.resolved_at_utc,
     a.retry_count,
@@ -1107,7 +1104,6 @@ CREATE OR ALTER PROCEDURE acta.raise_job_alert
     @p_channel_name VARCHAR(128),
     @p_delivery_status_code TINYINT,
     @p_dedupe_key VARCHAR(512),
-    @p_dedupe_window_start_utc DATETIME2(3),
     @p_source_event_id BIGINT,
     @p_alert_ref UNIQUEIDENTIFIER
 AS
@@ -1137,14 +1133,14 @@ BEGIN
             INSERT INTO acta.alerts (
                 namespace_id, alert_ref, job_id, job_ref,
                 origin_code, severity_code, kind_code, title, message, channel_name,
-                dedupe_key, dedupe_window_start_utc, occurrence_count, last_projected_event_id,
+                dedupe_key, occurrence_count, last_projected_event_id,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
             )
             VALUES (
                 @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                 @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                NULL, NULL, 1, @p_source_event_id,
+                NULL, 1, @p_source_event_id,
                 @p_delivery_status_code, 0,
                 @now, @now, 0
             );
@@ -1157,6 +1153,9 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- The identity's one OPEN row absorbs the repeat; resolution being terminal, a resolved row must
+        -- be left for the insert arm below. UPDLOCK/HOLDLOCK over the equality predicate serializes
+        -- concurrent raisers - no named-index hint, which a rename in JobAlert.cs would leave stale.
         UPDATE ja
         SET
             job_id = @p_job_id,
@@ -1168,16 +1167,15 @@ BEGIN
             message = @p_message,
             channel_name = @p_channel_name,
             occurrence_count = ja.occurrence_count + 1,
-            resolved_at_utc = NULL,
             last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
             modified_at_utc = @now,
             version = ja.version + 1
         OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-        FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, INDEX (ux_alerts_dedupe))
+        FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK)
         WHERE
             ja.namespace_id = @v_ns
             AND ja.dedupe_key = @p_dedupe_key
-            AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc
+            AND ja.resolved_at_utc IS NULL
             AND (
                 @p_source_event_id IS NULL
                 OR ja.last_projected_event_id IS NULL
@@ -1186,45 +1184,47 @@ BEGIN
 
         IF NOT EXISTS (SELECT 1 FROM @updated)
             BEGIN
-                -- Either no row is there yet and this raise inserts it, or one is and this is a replay
-                -- of an event it already absorbed. Reading under the range lock the UPDATE already
-                -- took tells the two apart without a race.
-                DECLARE @v_existing_count INT;
-                DECLARE @v_existing_last_projected_event_id BIGINT;
+                -- No open row took it, or one is there and held a replayed event back. The insert opens a
+                -- fresh incident only when neither holds: no open row at all, AND - the ghost guard - no
+                -- row of this identity already marked at or past this event.
+                INSERT INTO acta.alerts (
+                    namespace_id, alert_ref, job_id, job_ref,
+                    origin_code, severity_code, kind_code, title, message, channel_name,
+                    dedupe_key, occurrence_count, last_projected_event_id,
+                    delivery_status_code, retry_count,
+                    created_at_utc, modified_at_utc, version
+                )
+                OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
                 SELECT
-                    @v_existing_count = ja.occurrence_count,
-                    @v_existing_last_projected_event_id = ja.last_projected_event_id
-                FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, INDEX (ux_alerts_dedupe))
-                WHERE
-                    ja.namespace_id = @v_ns
-                    AND ja.dedupe_key = @p_dedupe_key
-                    AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc;
+                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
+                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                    @p_dedupe_key, 1, @p_source_event_id,
+                    @p_delivery_status_code, 0,
+                    @now, @now, 0
+                -- No lock hint: this reads the whole identity, resolved rows included, which the
+                -- unresolved-only index cannot serve - hinting it would hold a scan's worth of locks
+                -- and the UPDATE above already serializes raisers of this identity.
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM acta.alerts AS g
+                    WHERE
+                        g.namespace_id = @v_ns
+                        AND g.dedupe_key = @p_dedupe_key
+                        AND (g.resolved_at_utc IS NULL OR g.last_projected_event_id >= @p_source_event_id)
+                );
 
-                IF @v_existing_count IS NULL
+                IF NOT EXISTS (SELECT 1 FROM @updated)
                     BEGIN
-                        INSERT INTO acta.alerts (
-                            namespace_id, alert_ref, job_id, job_ref,
-                            origin_code, severity_code, kind_code, title, message, channel_name,
-                            dedupe_key, dedupe_window_start_utc, occurrence_count, last_projected_event_id,
-                            delivery_status_code, retry_count,
-                            created_at_utc, modified_at_utc, version
-                        )
-                        OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-                        VALUES (
-                            @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                            @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                            @p_dedupe_key, @p_dedupe_window_start_utc, 1, @p_source_event_id,
-                            @p_delivery_status_code, 0,
-                            @now, @now, 0
-                        );
-                    END
-                ELSE
-                    BEGIN
-                        -- A replay: nothing written. The caller's failure threshold reads the count the
-                        -- row already carries, and the mark tells it whether THIS event is the one the
-                        -- row absorbed last.
+                        -- Nothing written: a replay-held update or a ghost-blocked insert. The threshold
+                        -- reads the count the identity's newest row carries, and that row's mark - never
+                        -- the incoming event id - is what keeps this raise from escalating.
                         INSERT INTO @updated (occurrence_count, last_projected_event_id)
-                        VALUES (@v_existing_count, @v_existing_last_projected_event_id);
+                        SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
+                        FROM acta.alerts AS ja
+                        WHERE
+                            ja.namespace_id = @v_ns
+                            AND ja.dedupe_key = @p_dedupe_key
+                        ORDER BY ja.id DESC;
                     END
             END
 

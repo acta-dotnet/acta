@@ -4,7 +4,7 @@ using Acta.Runtime.Modules.Execution.Api;
 namespace Acta.Runtime.Modules.Alerting;
 
 /// <summary>
-/// Persistence port for job alerts: the dedupe-window upsert raise, the <c>sys.alerts</c> generate
+/// Persistence port for job alerts: the incident-identity upsert raise, the <c>sys.alerts</c> generate
 /// and deliver phase reads, the delivery-outcome update, the success auto-resolve, the operator
 /// acknowledge/resolve verbs, and the paged operator list.
 /// </summary>
@@ -13,13 +13,18 @@ internal interface IAlertStore
     /// <summary>
     /// Persists one <c>alerts</c> row and returns its post-upsert <c>occurrence_count</c> and
     /// <c>last_projected_event_id</c>. A null deduplication key always inserts (count 1, the command's
-    /// <c>SourceEventId</c> as the mark); a non-null key upserts on
-    /// <c>(namespace_id, deduplication_key, dedupe_window_start_utc)</c>, collapsing repeats inside the
-    /// window onto one row. A command carrying a <c>SourceEventId</c> only increments, re-opens, and
-    /// re-stamps the row when that id is newer than the row's <c>last_projected_event_id</c>; a replay of
-    /// an already-projected event changes nothing and returns the stored count and mark. A null
-    /// <c>SourceEventId</c> (a manual raise) always applies. Throws <see cref="ArgumentException"/> when
-    /// the referenced job id does not exist.
+    /// <c>SourceEventId</c> as the mark); a non-null key names an incident identity
+    /// <c>(namespace_id, deduplication_key)</c> that has at most one OPEN row, so a repeat increments
+    /// that row while it is unresolved and opens a fresh row - fresh ref, count 1, fresh delivery - once
+    /// it is resolved. Resolution is never undone by a raise.
+    ///
+    /// <para>A command carrying a <c>SourceEventId</c> only increments and re-stamps the open row when
+    /// that id is newer than the row's <c>last_projected_event_id</c>, and only opens a new row when no
+    /// row of the identity already carries a mark at or past it - so a replayed failure neither inflates
+    /// a count nor resurrects a closed incident. When nothing is written, the identity's newest row
+    /// supplies the returned count and mark, which never equal the incoming event id and therefore never
+    /// escalate. A null <c>SourceEventId</c> (a manual raise) always applies. Throws
+    /// <see cref="ArgumentException"/> when the referenced job id does not exist.</para>
     /// </summary>
     Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct);
 
@@ -94,7 +99,6 @@ internal sealed record RaiseJobAlertCommand(
     string ChannelName,
     AlertDeliveryStatusCode DeliveryStatus,
     string? DeduplicationKey,
-    DateTime? DedupeWindowStartUtc,
     long? SourceEventId,
     Guid AlertRef
 )
@@ -110,7 +114,6 @@ internal sealed record RaiseJobAlertCommand(
         string channelName,
         AlertDeliveryStatusCode deliveryStatus,
         string? deduplicationKey,
-        DateTime? dedupeWindowStartUtc,
         long? sourceEventId
     )
     {
@@ -131,10 +134,10 @@ internal sealed record RaiseJobAlertCommand(
             channelName,
             deliveryStatus,
             deduplicationKey.Truncate(ActaTextLimits.AlertDedupeKey),
-            dedupeWindowStartUtc,
             sourceEventId,
             // The candidate public ref is minted here so every caller carries one; the raise consumes it
-            // only when the upsert actually inserts, leaving a deduped row's ref stable across re-fires.
+            // only when the upsert actually inserts, so one incident keeps one ref across every repeat it
+            // absorbs and the next incident on the same key gets a new one.
             Acta.AlertRef.New().Value
         );
     }

@@ -150,7 +150,6 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
             "default",
             AlertDeliveryStatusCode.Pending,
             null,
-            null,
             ct
         );
 

@@ -1,3 +1,4 @@
+using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Alerting;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Api;
@@ -14,19 +15,20 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// <summary>
 /// Conformance for the manual-alert write path - the <c>raise_job_alert</c> slice and the
 /// <see cref="JobContext.AlertAsync"/> seam that wraps it. Asserts the SQL contract (a null deduplication key
-/// always inserts; a non-null key collapses repeats inside the window onto one row, bumping
-/// <c>occurrence_count</c> and leaving delivery/resolution untouched), that bounded prose is truncated to
+/// always inserts; a non-null key names an incident whose one open row absorbs every repeat, bumping
+/// <c>occurrence_count</c> and leaving delivery/resolution untouched; once that row is resolved the next
+/// raise opens a fresh incident rather than re-opening it), that bounded prose is truncated to
 /// its column width, and that <c>ctx.AlertAsync</c> stamps the framework origin (Manual / Notice /
-/// Pending) and buckets the dedupe window. Runs against SqlServer and Postgres via the provider one-liners.
+/// Pending) and the caller's key. Runs against SqlServer and Postgres via the provider one-liners.
 /// </summary>
 [ConformanceSpec(
     "raise-job-alert.write-and-dedupe",
-    "Manual alert write inserts or dedupes by key and truncates bounded prose",
+    "Manual alert write collapses onto the open incident and truncates bounded prose",
     Area = "Alerts",
-    Contract = "A null deduplication key always inserts while a non-null key collapses repeats in the window, bumping occurrence_count and leaving delivery state intact.",
-    Arrange = "A test namespace is seeded and a job context is configured with a one-hour alert dedupe window.",
-    Act = "RaiseJobAlert.Run and ctx.AlertAsync are called with null, repeated, and oversized dedupe and prose inputs.",
-    Assert = "A null deduplication key always inserts a fresh alert row while a repeated key collapses onto one row bumping occurrence_count."
+    Contract = "A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.",
+    Arrange = "A test namespace is seeded and a job context is configured over a seeded definition and job.",
+    Act = "RaiseJobAlert.Run and ctx.AlertAsync are called with null, repeated, post-resolution, and oversized dedupe and prose inputs.",
+    Assert = "A null key always inserts a fresh row, a repeated key collapses onto one row bumping occurrence_count, and a post-resolution raise opens a second row."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
 public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture>
@@ -65,7 +67,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             channelName: "ops",
             AlertDeliveryStatusCode.Pending,
             deduplicationKey: null,
-            dedupeWindowStartUtc: null,
             ct
         );
 
@@ -78,7 +79,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
         Assert.Equal(JobIdValue, row.JobId);
         Assert.Equal(1, row.OccurrenceCount);
         Assert.Null(row.DedupeKey);
-        Assert.Null(row.DedupeWindowStartUtc);
         Assert.Null(row.ResolvedAtUtc);
     }
 
@@ -87,31 +87,74 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
     {
         var ct = TestContext.Current.CancellationToken;
 
-        await RunAsync(Db, deduplicationKey: null, windowStart: null, title: "first", ct);
-        await RunAsync(Db, deduplicationKey: null, windowStart: null, title: "second", ct);
+        await RunAsync(Db, deduplicationKey: null, title: "first", ct);
+        await RunAsync(Db, deduplicationKey: null, title: "second", ct);
 
         var rows = await ReadAlertsAsync(TestNamespaceId, ct);
         Assert.Equal(2, rows.Count);
         Assert.All(rows, r => Assert.Null(r.DedupeKey));
-        Assert.All(rows, r => Assert.Null(r.DedupeWindowStartUtc));
         Assert.All(rows, r => Assert.Equal(1, r.OccurrenceCount));
     }
 
-    [Fact(DisplayName = "A non-null key collapses repeats and bumps occurrence_count while leaving delivery and resolution untouched")]
-    public async Task Non_null_deduplication_key_collapses_repeats_inside_the_window()
+    [Fact(
+        DisplayName = "A non-null key collapses repeats onto its one open row and bumps occurrence_count, leaving delivery and resolution untouched"
+    )]
+    public async Task Non_null_deduplication_key_collapses_repeats_onto_the_open_incident()
     {
         var ct = TestContext.Current.CancellationToken;
-        var window = new DateTime(2026, 5, 30, 0, 0, 0, DateTimeKind.Utc);
 
-        await RunAsync(Db, deduplicationKey: "same-key", windowStart: window, title: "first", ct);
-        await RunAsync(Db, deduplicationKey: "same-key", windowStart: window, title: "second", ct);
+        await RunAsync(Db, deduplicationKey: "same-key", title: "first", ct);
+        await RunAsync(Db, deduplicationKey: "same-key", title: "second", ct);
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(2, row.OccurrenceCount);
         Assert.Equal("second", row.Title); // content refreshed on a hit
-        // Suppress: a hit leaves delivery + resolution state alone (notify once per window).
+        // Suppress: a hit leaves delivery + resolution state alone (notify once per incident).
         Assert.Equal(AlertDeliveryStatusCode.Pending, row.DeliveryStatusCode);
         Assert.Null(row.ResolvedAtUtc);
+    }
+
+    [Fact(DisplayName = "A raise after the incident resolved opens a fresh row with fresh delivery, leaving the resolved row resolved")]
+    public async Task Raise_after_resolution_opens_a_fresh_incident_rather_than_reopening()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = Services.GetRequiredService<IAlertStore>();
+
+        await RunAsync(Db, deduplicationKey: "incident-key", title: "first", ct);
+        var opened = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+
+        // Settle the first incident's delivery before closing it. Without this the fresh row's Pending
+        // status would be indistinguishable from an untouched one, and the fact would prove nothing about
+        // the second incident notifying on its own.
+        await store.UpdateAlertDeliveryAsync(opened.Id, AlertDeliveryStatusCode.Failed, retryCount: 4, retryAfterUtc: null, ct);
+
+        // Stamped directly rather than through a resolve verb: this fact is about the raise path's
+        // reading of a resolved row, and the two resolve verbs each filter on origin and kind of their
+        // own.
+        Assert.Equal(
+            1,
+            await Db.From<JobAlert>()
+                .Where(a => a.Id == opened.Id)
+                .UpdateOnlyAsync(() => new JobAlert { ResolvedAtUtc = DateTime.UtcNow }, ct)
+        );
+
+        await RunAsync(Db, deduplicationKey: "incident-key", title: "second", ct);
+
+        var rows = (await ReadAlertsAsync(TestNamespaceId, ct)).OrderBy(r => r.Id).ToList();
+        Assert.Equal(2, rows.Count);
+
+        // The closed row is untouched: same count, still resolved. A re-opening upsert would have moved
+        // both.
+        Assert.Equal(opened.Id, rows[0].Id);
+        Assert.Equal(1, rows[0].OccurrenceCount);
+        Assert.NotNull(rows[0].ResolvedAtUtc);
+
+        // The new incident notifies on its own: its own ref, Pending again, retry counter back at zero.
+        Assert.NotEqual(opened.AlertRef, rows[1].AlertRef);
+        Assert.Equal(1, rows[1].OccurrenceCount);
+        Assert.Null(rows[1].ResolvedAtUtc);
+        Assert.Equal(AlertDeliveryStatusCode.Pending, rows[1].DeliveryStatusCode);
+        Assert.Equal((byte)0, rows[1].RetryCount);
     }
 
     [Fact(DisplayName = "Bounded prose truncates to column width")]
@@ -131,7 +174,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             channelName: "ops",
             AlertDeliveryStatusCode.Pending,
             deduplicationKey: null,
-            dedupeWindowStartUtc: null,
             ct
         );
 
@@ -140,8 +182,8 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
         Assert.Equal(ActaSchema.JobAlert.Message.Size, row.Message.Length);
     }
 
-    [Fact(DisplayName = "AlertAsync stamps the Manual origin and buckets the dedupe window to the hour")]
-    public async Task AlertAsync_through_context_stamps_origin_and_buckets_dedupe()
+    [Fact(DisplayName = "AlertAsync stamps the Manual origin and carries the caller's deduplication key")]
+    public async Task AlertAsync_through_context_stamps_origin_and_key()
     {
         var ct = TestContext.Current.CancellationToken;
         var ctx = BuildContext();
@@ -154,13 +196,12 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
         Assert.Equal(AlertDeliveryStatusCode.Pending, row.DeliveryStatusCode);
         Assert.Equal(AlertKindCode.Manual, row.Kind);
         Assert.Equal("ctx-key", row.DedupeKey);
+        Assert.Equal(1, row.OccurrenceCount);
+        Assert.Null(row.ResolvedAtUtc);
 
-        // The window start is the caller's UTC now floored to a 1h multiple.
-        Assert.NotNull(row.DedupeWindowStartUtc);
-        var ws = row.DedupeWindowStartUtc!.Value;
-        Assert.Equal(0, ws.Minute);
-        Assert.Equal(0, ws.Second);
-        Assert.Equal(0, ws.Millisecond);
+        // No projected event behind an in-handler raise, so the row carries no projection mark and the
+        // replay guard has nothing to hold back.
+        Assert.Null(row.LastProjectedEventId);
     }
 
     [Fact(DisplayName = "Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error")]
@@ -179,7 +220,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
                 "m",
                 "default",
                 AlertDeliveryStatusCode.Pending,
-                null,
                 null,
                 ct
             )
@@ -202,7 +242,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             "m",
             "default",
             AlertDeliveryStatusCode.Pending,
-            null,
             null,
             ct
         );
@@ -248,7 +287,7 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
         );
     }
 
-    private Task RunAsync(IDbSession db, string? deduplicationKey, DateTime? windowStart, string title, CancellationToken ct) =>
+    private Task RunAsync(IDbSession db, string? deduplicationKey, string title, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
@@ -261,7 +300,6 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             channelName: "ops",
             AlertDeliveryStatusCode.Pending,
             deduplicationKey,
-            windowStart,
             ct
         );
 }

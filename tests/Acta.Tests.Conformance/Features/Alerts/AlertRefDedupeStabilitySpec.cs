@@ -6,28 +6,24 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Alerts;
 
 /// <summary>
-/// Conformance for the public identity of a deduplicated alert: the ref minted by the first firing is
-/// the alert's ref for the life of the row. Every later firing inside the window takes the UPDATE arm
-/// of the upsert, which bumps <c>occurrence_count</c> and refreshes the prose but never touches
+/// Conformance for the public identity of an open incident: the ref minted when the incident opened is
+/// the alert's ref for the life of the row. Every repeat the open row absorbs takes the UPDATE arm of the
+/// upsert, which bumps <c>occurrence_count</c> and refreshes the prose but never touches
 /// <c>alert_ref</c> - so a link an operator followed, or a transport already delivered, keeps resolving.
 /// </summary>
 [ConformanceSpec(
     "alert-ref.survives-dedupe",
-    "A deduplicated alert keeps the ref its first firing minted",
+    "An open incident keeps the ref its first firing minted",
     Area = "Alerts",
-    Contract = "A repeat firing inside the dedupe window bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it.",
-    Arrange = "A seeded job and definition give the alert a subject, and one deduplication key with a fixed window bucket collapses every firing onto one row.",
-    Act = "The same deduplication key is raised three times inside one window while a second key is raised alongside it.",
+    Contract = "A repeat firing absorbed by an open incident bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it.",
+    Arrange = "A seeded job and definition give the alert a subject, and one deduplication key names the incident every firing collapses onto.",
+    Act = "The same deduplication key is raised three times while the incident stays open, and a second key is raised alongside it.",
     Assert = "Occurrence count grows with each firing while the alert ref is unchanged, and the second key mints a ref of its own."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
 public abstract class AlertRefDedupeStabilitySpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
-    // A fixed bucket start, so every firing lands in the same window without depending on wall-clock
-    // timing: the window is an argument to the raise, not something the test has to wait out.
-    private static readonly DateTime Window = new(2026, 5, 30, 0, 0, 0, DateTimeKind.Utc);
-
     private long JobIdValue;
 
     protected override async ValueTask AfterInitializeAsync()
@@ -38,7 +34,7 @@ public abstract class AlertRefDedupeStabilitySpec<TFixture> : ActaStorageTestBas
         (JobIdValue, _) = await Seeder.SeedJobAsync(TestNamespaceId, definitionId, ct: ct);
     }
 
-    [Fact(DisplayName = "Repeat firings inside the dedupe window bump occurrence_count and keep the ref the first firing minted")]
+    [Fact(DisplayName = "Repeat firings absorbed by an open incident bump occurrence_count and keep the ref the first firing minted")]
     public async Task Repeat_firings_keep_the_first_minted_alert_ref()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -85,7 +81,6 @@ public abstract class AlertRefDedupeStabilitySpec<TFixture> : ActaStorageTestBas
             channelName: "ops",
             AlertDeliveryStatusCode.Pending,
             deduplicationKey,
-            Window,
             ct
         );
 }

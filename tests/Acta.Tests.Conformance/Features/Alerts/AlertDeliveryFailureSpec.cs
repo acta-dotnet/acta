@@ -189,7 +189,6 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             channelName: "ch-floor",
             AlertDeliveryStatusCode.Pending,
             deduplicationKey: null,
-            dedupeWindowStartUtc: null,
             ct
         );
 
@@ -247,7 +246,6 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             channelName: channel,
             AlertDeliveryStatusCode.Pending,
             deduplicationKey: null,
-            dedupeWindowStartUtc: null,
             ct
         );
 

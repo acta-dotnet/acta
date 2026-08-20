@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS main.alerts (
     message text NOT NULL,
     channel_name text NOT NULL,
     dedupe_key text NULL,
-    dedupe_window_start_utc integer NULL,
     occurrence_count integer NOT NULL,
     last_projected_event_id integer NULL,
     resolved_at_utc integer NULL,
@@ -55,7 +54,6 @@ CREATE TABLE IF NOT EXISTS main.alerts (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
-    , CONSTRAINT ck_alerts_dedupe_pair CHECK ((dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
     , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
     , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
@@ -66,7 +64,7 @@ CREATE INDEX IF NOT EXISTS main.ix_alerts_delivery_due ON alerts (namespace_id, 
 CREATE INDEX IF NOT EXISTS main.ix_alerts_namespace_created ON alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX IF NOT EXISTS main.ix_alerts_namespace_unresolved ON alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS main.ux_alerts_ref ON alerts (alert_ref);
-CREATE UNIQUE INDEX IF NOT EXISTS main.ux_alerts_dedupe ON alerts (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS main.ux_alerts_dedupe ON alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL;
 
 -- JobDefinition
 CREATE TABLE IF NOT EXISTS main.definitions (
@@ -465,7 +463,6 @@ SELECT
     a.message,
     a.channel_name,
     a.dedupe_key AS deduplication_key,
-    a.dedupe_window_start_utc,
     a.occurrence_count,
     a.resolved_at_utc,
     a.retry_count,

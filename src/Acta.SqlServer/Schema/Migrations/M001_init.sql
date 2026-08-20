@@ -21,7 +21,6 @@ CREATE TABLE {{schema}}.alerts (
     message nvarchar(512) NOT NULL,
     channel_name varchar(128) NOT NULL,
     dedupe_key varchar(512) NULL,
-    dedupe_window_start_utc datetime2(3) NULL,
     occurrence_count int NOT NULL,
     last_projected_event_id bigint NULL,
     resolved_at_utc datetime2(3) NULL,
@@ -34,7 +33,6 @@ CREATE TABLE {{schema}}.alerts (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_alerts PRIMARY KEY (id)
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
-    , CONSTRAINT ck_alerts_dedupe_pair CHECK ((dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
     , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
     , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
@@ -44,7 +42,7 @@ CREATE INDEX ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery
 CREATE INDEX ix_alerts_namespace_created ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX ix_alerts_namespace_unresolved ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
 CREATE UNIQUE INDEX ux_alerts_ref ON {{schema}}.alerts (alert_ref);
-CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_key, dedupe_window_start_utc) WHERE dedupe_key IS NOT NULL;
+CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL;
 END
 GO
 

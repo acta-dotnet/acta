@@ -279,7 +279,6 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             "default",
             AlertDeliveryStatusCode.Pending,
             null,
-            null,
             ct
         );
         var alert = Assert.Single(await Db.From<JobAlert>().Where(x => x.JobId == jobId).ToListAsync(ct));
@@ -368,7 +367,6 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
             "tags spec",
             "default",
             AlertDeliveryStatusCode.Pending,
-            null,
             null,
             ct
         );

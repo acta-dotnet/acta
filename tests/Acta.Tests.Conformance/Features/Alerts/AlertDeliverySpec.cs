@@ -114,7 +114,6 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
             channelName: channel,
             AlertDeliveryStatusCode.Pending,
             deduplicationKey: null,
-            dedupeWindowStartUtc: null,
             ct
         );
 }

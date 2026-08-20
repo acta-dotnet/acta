@@ -38,7 +38,6 @@ internal static class AlertTestOps
         string channelName,
         AlertDeliveryStatusCode deliveryStatus,
         string? deduplicationKey,
-        DateTime? dedupeWindowStartUtc,
         CancellationToken ct
     ) =>
         services
@@ -55,7 +54,6 @@ internal static class AlertTestOps
                     channelName,
                     deliveryStatus,
                     deduplicationKey,
-                    dedupeWindowStartUtc,
                     sourceEventId: null
                 ),
                 ct

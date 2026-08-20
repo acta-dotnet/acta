@@ -11,17 +11,18 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// End-to-end conformance for the <c>ThresholdReached</c> escalation path in <c>AlertsJob</c>:
 /// drives a real failing job (<c>retry-probe</c>, <c>OnFailure</c> profile, <c>MaxAttempts = 3</c>)
 /// to terminal Failed, runs the projector with per-fact thresholds, and pins exact alert state.
-/// Also exercises <c>RaiseJobAlert</c> / <c>ResolveJobAlerts</c> directly to prove the dedupe
-/// re-open guarantee (resolved row re-opens on the same key rather than inserting a duplicate).
+/// Also exercises <c>RaiseJobAlert</c> / <c>ResolveJobAlerts</c> directly to prove that the count is
+/// per-incident: it climbs only while the incident is open, and the incident that opens after a
+/// resolution starts back at 1 and can therefore escalate again.
 /// </summary>
 [ConformanceSpec(
     "alert.threshold-reached",
-    "ThresholdReached fires at the exact occurrence and dedupes resolved re-opens",
+    "ThresholdReached fires once per incident at the exact occurrence",
     Area = "Alerts",
-    Contract = "AlertsJob emits exactly one ThresholdReached alert when occurrence_count hits the threshold and re-opens a resolved row rather than inserting a duplicate.",
-    Arrange = "A retry-probe job with the OnFailure profile and MaxAttempts 3 is registered, with per-fact ThresholdReached thresholds of 2 and 5.",
-    Act = "The job is driven to terminal Failed and the alerts projector runs, with RaiseJobAlert and ResolveJobAlerts also called directly on the same key.",
-    Assert = "Exactly one ThresholdReached alert fires at the crossing occurrence and a resolved row re-opens on the same key without a duplicate."
+    Contract = "AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution.",
+    Arrange = "A retry-probe job with the OnFailure profile and MaxAttempts 3 is registered, with per-fact ThresholdReached thresholds of 1, 2, and 5.",
+    Act = "The job is driven to terminal Failed and the alerts projector runs, with RaiseJobAlert and ResolveJobAlerts also called directly on one key across a resolution.",
+    Assert = "One ThresholdReached fires at the crossing occurrence, further failures in that incident do not re-fire it, and the next incident counts from 1 again."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
@@ -31,7 +32,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
 {
     private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    [Fact(DisplayName = "Threshold fires exactly once at the crossing occurrence")]
+    [Fact(DisplayName = "Threshold fires exactly once per incident, at the crossing occurrence")]
     public async Task Threshold_emits_exactly_once_above_does_not_duplicate()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -63,7 +64,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(2, first.OccurrenceCount);
     }
 
-    [Fact(DisplayName = "Occurrence above threshold does not re-emit ThresholdReached")]
+    [Fact(DisplayName = "A further failure in the same incident does not re-emit ThresholdReached")]
     public async Task Occurrence_above_threshold_does_not_re_emit_threshold_reached()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -115,51 +116,48 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(2, first.OccurrenceCount);
     }
 
-    [Fact(DisplayName = "Resolved threshold alert re-opens on the same deduplication key without inserting a duplicate")]
-    public async Task Resolved_threshold_alert_reopens_within_same_window()
+    [Fact(
+        DisplayName = "The count climbs only inside one incident: after a resolution the same key starts a new row at 1 and can escalate again"
+    )]
+    public async Task Occurrence_count_is_per_incident_so_the_next_incident_can_escalate_again()
     {
         var ct = TestContext.Current.CancellationToken;
 
         // Enqueue a job to get a real jobId; not run: only the id is needed for alert rows.
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         var jobId = job.JobId;
-
-        // Fixed window in the past so both raises share the same bucket.
-        var windowStart = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var deduplicationKey = $"auto:99:{jobId}:threshold-reached:test-{TestId}";
 
-        // First raise: inserts the alert (occurrence 1).
-        var occ1 = await AlertTestOps.RaiseAsync(
-            Services,
-            TestNamespace,
-            jobId,
-            AlertOriginCode.Automatic,
-            AlertSeverityCode.Error,
-            AlertKindCode.ThresholdReached,
-            "Threshold test",
-            "Repeated failures.",
-            "default",
-            AlertDeliveryStatusCode.Pending,
-            deduplicationKey,
-            windowStart,
-            ct
-        );
-        Assert.Equal(1, occ1.OccurrenceCount);
+        // The incident opens, then absorbs a repeat: the count the escalation reads is 1 then 2.
+        Assert.Equal(1, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
+        Assert.Equal(2, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
 
-        // Capture the row id; confirm alert is unresolved.
-        var afterRaise = await ReadAlertsAsync(NamespaceId, ct);
-        var raised = Assert.Single(afterRaise, a => a.Kind == AlertKindCode.ThresholdReached && a.DedupeKey == deduplicationKey);
-        var capturedId = raised.Id;
-        Assert.Null(raised.ResolvedAtUtc);
+        var opened = Assert.Single(await ReadAlertsAsync(NamespaceId, ct), a => a.DedupeKey == deduplicationKey);
+        Assert.Null(opened.ResolvedAtUtc);
 
-        // Resolve the alert (simulates a recovery event closing the row).
+        // Resolve it (simulates a recovery event closing the row).
         await Services.GetRequiredService<IAlertStore>().ResolveJobAlertsAsync(NamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
-        var afterResolve = await ReadAlertsAsync(NamespaceId, ct);
-        var resolvedAlert = Assert.Single(afterResolve, a => a.Id == capturedId);
-        Assert.NotNull(resolvedAlert.ResolvedAtUtc);
+        var resolved = Assert.Single(await ReadAlertsAsync(NamespaceId, ct), a => a.Id == opened.Id);
+        Assert.NotNull(resolved.ResolvedAtUtc);
 
-        // Second raise with the SAME deduplication key and window: must re-open the existing row.
-        var occ2 = await AlertTestOps.RaiseAsync(
+        // The same key again. Resolution is terminal, so this is a NEW incident: a new row counting from
+        // 1, which is what lets the threshold be crossed a second time rather than the count carrying the
+        // old incident's total past it forever.
+        Assert.Equal(1, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
+        Assert.Equal(2, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
+
+        var rows = (await ReadAlertsAsync(NamespaceId, ct)).Where(a => a.DedupeKey == deduplicationKey).OrderBy(a => a.Id).ToList();
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(opened.Id, rows[0].Id);
+        Assert.Equal(resolved.ResolvedAtUtc, rows[0].ResolvedAtUtc); // never cleared back to NULL
+        Assert.Equal(2, rows[0].OccurrenceCount);
+        Assert.Null(rows[1].ResolvedAtUtc);
+        Assert.Equal(2, rows[1].OccurrenceCount);
+        Assert.NotEqual(rows[0].AlertRef, rows[1].AlertRef);
+    }
+
+    private Task<AlertRaiseOutcome> RaiseThresholdAsync(long jobId, string deduplicationKey, CancellationToken ct) =>
+        AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
             jobId,
@@ -171,18 +169,8 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
             "default",
             AlertDeliveryStatusCode.Pending,
             deduplicationKey,
-            windowStart,
             ct
         );
-        Assert.Equal(2, occ2.OccurrenceCount);
-
-        // Same row id (no new row), resolved_at_utc back to NULL, occurrence_count bumped to 2.
-        var afterReopen = await ReadAlertsAsync(NamespaceId, ct);
-        var reopened = Assert.Single(afterReopen, a => a.Kind == AlertKindCode.ThresholdReached && a.DedupeKey == deduplicationKey);
-        Assert.Equal(capturedId, reopened.Id);
-        Assert.Null(reopened.ResolvedAtUtc);
-        Assert.Equal(2, reopened.OccurrenceCount);
-    }
 
     private async Task RunUntilAttemptsAsync(JobEnqueueOutcome job, Func<int> attempts, int target, CancellationToken ct)
     {
@@ -193,15 +181,16 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(target, attempts());
     }
 
-    // Per-fact thresholds ride an options override into the shared driver; the one-hour dedupe window
-    // keeps every occurrence a fact drives inside a single window so the counts are deterministic.
+    // Per-fact thresholds ride an options override into the shared driver. No success interrupts the
+    // drives below, so every failure a fact produces lands on one open incident and the counts are
+    // deterministic without pinning any clock.
     private Task RunAlertsWithThresholdAsync(long cursorOwnerJobId, int alertFailureThreshold, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(
             Services,
             TestNamespace,
             NamespaceId,
             cursorOwnerJobId,
-            new JobsOptions { AlertFailureThreshold = alertFailureThreshold, AlertDedupeWindow = TimeSpan.FromHours(1) },
+            new JobsOptions { AlertFailureThreshold = alertFailureThreshold },
             ct
         );
 }

@@ -10,18 +10,17 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// <summary>
 /// Conformance for alert profile gating: <c>OnTerminal</c> and <c>Info</c> profiles suppress
 /// non-terminal failures and only emit on terminal transitions; <c>SysCritical</c> always emits
-/// at Critical severity for every failure transition; and a resolved FinalFailure alert re-opens
-/// (<c>resolved_at_utc</c> → NULL, <c>occurrence_count</c> incremented) when the same deduplication key fires
-/// again within the window.
+/// at Critical severity for every failure transition; and a resolved FinalFailure alert stays resolved
+/// when the same deduplication key fires again - that firing opens a second incident row of its own.
 /// </summary>
 [ConformanceSpec(
     "alert.profile-matrix",
     "Alert profiles gate emission and severity per profile",
     Area = "Alerts",
-    Contract = "Each alert profile gates non-terminal emission and severity, and a resolved alert re-opens when the same deduplication key re-fires within the window.",
+    Contract = "Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it.",
     Arrange = "Probe jobs with OnTerminal, Info, and SysCritical alert profiles are registered in the test namespace.",
     Act = "Each probe fails non-terminally then terminally with the projector run after each attempt, and a resolved FinalFailure re-fires on its deduplication key.",
-    Assert = "OnTerminal and Info emit only a terminal FinalFailure at their profile severity, SysCritical always emits Critical, and the resolved alert re-opens."
+    Assert = "OnTerminal and Info emit only a terminal FinalFailure at their profile severity, SysCritical always emits Critical, and a resolved alert stays resolved."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
@@ -112,8 +111,8 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.All(afterTerminal, a => Assert.Equal(AlertSeverityCode.Critical, a.SeverityCode));
     }
 
-    [Fact(DisplayName = "Resolved OnTerminal FinalFailure re-opens with incremented occurrence_count when the same key re-fires")]
-    public async Task Resolved_alert_reopens_on_same_key_reupsert_within_dedupe_window()
+    [Fact(DisplayName = "A resolved OnTerminal FinalFailure stays resolved and the same key's next firing opens a second incident")]
+    public async Task Resolved_alert_is_not_reopened_by_a_later_raise_on_its_key()
     {
         var ct = TestContext.Current.CancellationToken;
         OnTerminalProbe.Reset(TestNamespace);
@@ -123,13 +122,12 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         await RunUntilAttemptsAsync(job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
-        // Capture the emitted alert's dedupe coordinates.
+        // Capture the emitted alert's incident identity.
         var alerts = await ReadAlertsAsync(NamespaceId, ct);
         var seeded = Assert.Single(alerts, a => a.Kind == AlertKindCode.FinalFailure);
         Assert.Equal(1, seeded.OccurrenceCount);
         Assert.Null(seeded.ResolvedAtUtc);
         Assert.NotNull(seeded.DedupeKey);
-        Assert.NotNull(seeded.DedupeWindowStartUtc);
 
         // Resolve it, standing in for the success event that would close it: an id past every failure
         // event the projector already stamped on the row.
@@ -137,9 +135,11 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
             .GetRequiredService<IAlertStore>()
             .ResolveJobAlertsAsync(NamespaceId, job.JobId, await NextEventIdAsync(job.JobId, ct), ct);
         var afterResolve = await ReadAlertsAsync(NamespaceId, ct);
-        Assert.NotNull(Assert.Single(afterResolve, a => a.Kind == AlertKindCode.FinalFailure).ResolvedAtUtc);
+        var resolved = Assert.Single(afterResolve, a => a.Kind == AlertKindCode.FinalFailure);
+        Assert.NotNull(resolved.ResolvedAtUtc);
 
-        // Re-raise with the identical deduplication key within the same window: re-opens and bumps occurrence_count.
+        // Re-raise on the identical deduplication key. Resolution is terminal, so this cannot land on the
+        // closed row: it opens a second incident beside it.
         await AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
@@ -152,15 +152,21 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
             seeded.ChannelName,
             AlertDeliveryStatusCode.Pending,
             seeded.DedupeKey,
-            seeded.DedupeWindowStartUtc,
             ct
         );
 
-        // Same single row: re-opened (resolved_at_utc = NULL) with occurrence_count = 2.
-        var afterReopen = await ReadAlertsAsync(NamespaceId, ct);
-        var reopened = Assert.Single(afterReopen, a => a.Kind == AlertKindCode.FinalFailure);
-        Assert.Null(reopened.ResolvedAtUtc);
-        Assert.Equal(2, reopened.OccurrenceCount);
+        // Two rows on the one key: the first still closed at the instant it closed, the second open and
+        // counting from 1. The resolved timestamp is asserted equal, not merely non-null, because a raise
+        // that re-stamped it would look identical to one that left it alone.
+        var afterRefire = await ReadAlertsAsync(NamespaceId, ct);
+        var incidents = afterRefire.Where(a => a.Kind == AlertKindCode.FinalFailure).OrderBy(a => a.Id).ToList();
+        Assert.Equal(2, incidents.Count);
+        Assert.Equal(seeded.Id, incidents[0].Id);
+        Assert.Equal(resolved.ResolvedAtUtc, incidents[0].ResolvedAtUtc);
+        Assert.Equal(1, incidents[0].OccurrenceCount);
+        Assert.Null(incidents[1].ResolvedAtUtc);
+        Assert.Equal(1, incidents[1].OccurrenceCount);
+        Assert.NotEqual(seeded.AlertRef, incidents[1].AlertRef);
     }
 
     // RunOnceAsync can no-op when a claim is lost to provider timing (notably MSSQL); loop until the probe

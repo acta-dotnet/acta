@@ -10,11 +10,11 @@ namespace Acta.Runtime.Modules.Alerting;
 /// <summary>
 /// Recurring <c>sys.alerts</c> projector and delivery job, competitively claimed once per namespace.
 /// Generate classifies alertable events from their immutable transition triple, applies the definition
-/// profile, and deduplicates automatic alerts per job and window. Deterministic poison events are
-/// durably recorded on the projector job before its cursor advances; transient failures retain the
-/// cursor for retry. Deliver resolves logical channels and transports, then records delivered,
-/// suppressed, retryable, or terminal outcomes. Delivery is at least once: a crash after send but
-/// before settlement may resend a rare duplicate.
+/// profile, and collapses automatic alerts onto one open incident row per job and condition.
+/// Deterministic poison events are durably recorded on the projector job before its cursor advances;
+/// transient failures retain the cursor for retry. Deliver resolves logical channels and transports,
+/// then records delivered, suppressed, retryable, or terminal outcomes. Delivery is at least once: a
+/// crash after send but before settlement may resend a rare duplicate.
 /// </summary>
 internal sealed class AlertsJob(
     IAlertStore store,
@@ -46,7 +46,6 @@ internal sealed class AlertsJob(
     private readonly IAlertTransportRegistry _transports = transports;
     private readonly int _maxDeliveryRetries = options.Value.AlertDeliveryMaxRetries;
     private readonly int _failureThreshold = options.Value.AlertFailureThreshold;
-    private readonly TimeSpan _dedupeWindow = options.Value.AlertDedupeWindow;
     private readonly ILogger _log = log ?? NullLogger<AlertsJob>.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -138,14 +137,6 @@ internal sealed class AlertsJob(
             return;
         }
 
-        // The dedupe bucket comes from the EVENT's write instant, never this pass's clock: projection
-        // is then a pure function of the event stream, so a crash-replay near a window boundary
-        // re-floors the same instant and lands on the row the first pass wrote, where the
-        // last_projected_event_id guard holds. Flooring the pass's now instead let a replay in the
-        // next bucket mint a fresh row and re-deliver everything. Manual alerts (AlertStoreSink) have
-        // no event and keep flooring the caller's now.
-        var windowStart = AlertWindow.FloorStart(e.CreatedAtUtc, _dedupeWindow);
-
         // SysCritical only raises the severity to Critical; the channel is uniform (the declared
         // one, else the configured "default" log channel), so system-job failures sink to logs out of the box.
         var system = profile == AlertProfileCode.SysCritical;
@@ -157,7 +148,7 @@ internal sealed class AlertsJob(
             // Resolution is job-instance-scoped: a success closes only THIS job's open automatic failure
             // alerts, never a sibling job of the same definition, and writes no alert of its own. Resolve
             // on EVERY success (no per-pass dedup): within one batch a job can go fail -> success -> fail
-            // -> success, where the second failure re-opened (resolved_at = NULL) the deduped alert; only
+            // -> success, where the second failure opened a SECOND incident on the same key; only
             // resolving each success keeps it from lingering unresolved. The op is idempotent and a
             // success with nothing open closes nothing, so the repeat costs a no-op. The success event's
             // own id rides along: the store closes only alerts an OLDER event moved, so replaying this
@@ -174,7 +165,7 @@ internal sealed class AlertsJob(
             var severity = system
                 ? AlertSeverityCode.Critical
                 : (profile == AlertProfileCode.Info ? AlertSeverityCode.Info : AlertSeverityCode.Error);
-            await EmitAsync(ctx, e, channel, AlertKindCode.FinalFailure, severity, windowStart, ct);
+            await EmitAsync(ctx, e, channel, AlertKindCode.FinalFailure, severity, ct);
             return;
         }
 
@@ -186,7 +177,7 @@ internal sealed class AlertsJob(
         }
 
         var firstSeverity = system ? AlertSeverityCode.Critical : AlertSeverityCode.Warning;
-        var raise = await EmitAsync(ctx, e, channel, AlertKindCode.FirstFailure, firstSeverity, windowStart, ct);
+        var raise = await EmitAsync(ctx, e, channel, AlertKindCode.FirstFailure, firstSeverity, ct);
         // Escalate only when THIS event is the one the row just absorbed. An applied raise stamps the
         // incoming id as the row's mark, so on a first pass the extra condition changes nothing. A
         // replay-held raise returns the STORED count - already at the threshold - with a newer mark;
@@ -202,7 +193,6 @@ internal sealed class AlertsJob(
                 channel,
                 AlertKindCode.ThresholdReached,
                 system ? AlertSeverityCode.Critical : AlertSeverityCode.Error,
-                windowStart,
                 ct
             );
         }
@@ -214,13 +204,12 @@ internal sealed class AlertsJob(
         string channel,
         AlertKindCode reason,
         AlertSeverityCode severity,
-        DateTime windowStart,
         CancellationToken ct
     )
     {
-        // Job-instance-scoped deduplication key: includes the job id so a fan-out of sibling jobs of the same
+        // Job-instance-scoped incident identity: includes the job id so a fan-out of sibling jobs of the same
         // definition each get their own row (and a success resolves only that job's failures), while
-        // repeated failures of the SAME job still collapse onto one row.
+        // repeated failures of the SAME job still collapse onto its one open row.
         var jobReason = e.ReasonCode?.Code;
         var deduplicationKey = $"auto:{e.DefinitionId}:{e.JobId}:{reason.Code}:{jobReason ?? "none"}";
 
@@ -242,9 +231,9 @@ internal sealed class AlertsJob(
                 channel,
                 AlertDeliveryStatusCode.Pending,
                 deduplicationKey,
-                windowStart,
-                // The projecting event's id: the store increments, re-opens, and re-stamps only when it
-                // is newer than the row's mark, so re-projecting a batch after a crash changes nothing.
+                // The projecting event's id: the store increments and re-stamps only when it is newer
+                // than the row's mark, and refuses to open an incident behind a mark this identity
+                // already carries, so re-projecting a batch after a crash changes nothing.
                 e.EventId
             );
         }
@@ -279,7 +268,7 @@ internal sealed class AlertsJob(
             AlertKindCode.FirstFailure => ($"Job '{e.JobName}' attempt failed", $"Attempt failed: {reasonText}. Retrying."),
             AlertKindCode.ThresholdReached => (
                 $"Job '{e.JobName}' failing repeatedly",
-                $"Repeated failures within the alert window: {reasonText}."
+                $"Repeated failures since this incident opened: {reasonText}."
             ),
             _ => ($"Job '{e.JobName}'", reasonText),
         };

@@ -66,7 +66,6 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             "default",
             AlertDeliveryStatusCode.Pending,
             null,
-            null,
             ct
         );
         var alertRow = Assert.Single(await Db.From<JobAlert>().Where(a => a.JobId == jobId).ToListAsync(ct));
@@ -265,7 +264,6 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             channelName: "default",
             delivery,
             deduplicationKey: null,
-            dedupeWindowStartUtc: null,
             ct
         );
 

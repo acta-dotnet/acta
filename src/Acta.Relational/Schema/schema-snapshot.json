@@ -54,10 +54,6 @@
             "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "dedupe_window_start_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
-          },
-          {
             "Name": "occurrence_count",
             "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
@@ -113,7 +109,7 @@
           },
           {
             "Name": "ux_alerts_dedupe",
-            "Signature": "U|cols=namespace_id,dedupe_key,dedupe_window_start_utc|inc=|desc=|filter=dedupe_key IS NOT NULL"
+            "Signature": "U|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL AND resolved_at_utc IS NULL"
           },
           {
             "Name": "ux_alerts_ref",
@@ -121,10 +117,6 @@
           }
         ],
         "Checks": [
-          {
-            "Name": "ck_alerts_dedupe_pair",
-            "Sql": "(dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL)"
-          },
           {
             "Name": "ck_alerts_job_ref_pair",
             "Sql": "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)"

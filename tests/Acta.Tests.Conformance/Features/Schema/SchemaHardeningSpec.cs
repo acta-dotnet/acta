@@ -19,10 +19,10 @@ namespace Acta.Tests.Conformance.Features.Schema;
     "schema.hardening-facts",
     "Hardened schema enforces its checks, seed, and denormalized invariants",
     Area = "Schema",
-    Contract = "The hardened M001 schema enforces every new CHECK, seeds the sys namespace, and keeps runtimes, tags, and schedules in step with jobs.",
+    Contract = "The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs.",
     Arrange = "A live provider schema carries the seeded sys namespace and jobs enqueued through EnqueueOne, EnqueueBatch, a child enqueue, and Restart.",
-    Act = "Constraint-violating INSERTs and UPDATEs are attempted directly, and the denormalized rows are read back after each write path.",
-    Assert = "Every violating statement fails with a provider exception, and the denormalized rows agree with jobs."
+    Act = "Constraint-violating writes are attempted directly, a second unresolved alert is inserted on a key that already has one, and denormalized rows are read back.",
+    Assert = "Every violating statement fails with a provider exception, a deduplication key admits a new row only once its incident is resolved, and denormalized rows agree."
 )]
 public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -56,54 +56,77 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         );
     }
 
-    [Fact(DisplayName = "ck_alerts_job_ref_pair, ck_alerts_dedupe_pair, and ck_alerts_occurrence_count each reject their violating INSERT")]
-    public async Task Alerts_checks_reject_job_ref_pair_dedupe_pair_and_zero_occurrence_count()
+    [Fact(DisplayName = "ck_alerts_job_ref_pair and ck_alerts_occurrence_count each reject their violating INSERT")]
+    public async Task Alerts_checks_reject_job_ref_pair_and_zero_occurrence_count()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
-
-        JobAlert NewAlert(
-            long? jobId = null,
-            Guid? jobRef = null,
-            string? deduplicationKey = null,
-            DateTime? dedupeWindow = null,
-            int occurrenceCount = 1
-        ) =>
-            new()
-            {
-                NamespaceId = nsId,
-                // A fresh ref per row: ux_alerts_ref accepts the all-zero default exactly once per
-                // schema, and the conformance schema is append-only, so defaulting it made the
-                // positive control below fail on every run after the first. Minting also makes that
-                // control prove what it claims - that a valid alert row inserts.
-                AlertRef = Acta.AlertRef.New().Value,
-                JobId = jobId,
-                JobRef = jobRef,
-                OriginCode = AlertOriginCode.Manual,
-                SeverityCode = AlertSeverityCode.Info,
-                Kind = AlertKindCode.FirstFailure,
-                Title = "schema-hardening check",
-                Message = "schema-hardening check",
-                ChannelName = "default",
-                DedupeKey = deduplicationKey,
-                DedupeWindowStartUtc = dedupeWindow,
-                OccurrenceCount = occurrenceCount,
-                DeliveryStatusCode = AlertDeliveryStatusCode.Pending,
-            };
 
         // Positive control: the same shape with no violation inserts cleanly.
-        Assert.True(await Db.From<JobAlert>().InsertAsync<long>(NewAlert(), ct) > 0);
+        Assert.True(await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(), ct) > 0);
 
         // ck_alerts_job_ref_pair: job_id set without job_ref (the shape raise_job_alert produces for an
         // unknown job_id, load-bearing on the alert write path since the data-model-hardening re-cut).
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlert(jobId: 999_999_999), ct));
-
-        // ck_alerts_dedupe_pair: deduplication_key set without its window.
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlert(deduplicationKey: "x"), ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(jobId: 999_999_999), ct));
 
         // ck_alerts_occurrence_count: occurrence_count below 1.
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlert(occurrenceCount: 0), ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(occurrenceCount: 0), ct));
     }
+
+    [Fact(
+        DisplayName = "ux_alerts_dedupe admits one unresolved row per (namespace_id, dedupe_key) and stops filtering once it is resolved"
+    )]
+    public async Task Alerts_dedupe_index_admits_one_open_incident_per_key()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var key = $"schema-hardening:{TestId}";
+
+        // The incident: one unresolved row on the key.
+        var openId = await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct);
+        Assert.True(openId > 0);
+
+        // A second unresolved row on the same key is what the index exists to refuse - this is the
+        // constraint the raise leans on to keep an incident single.
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct));
+
+        // Resolving the row takes it out of the filtered index, which is what frees the key for the next
+        // incident. Without the filter this insert would fail exactly like the one above.
+        Assert.Equal(
+            1,
+            await Db.From<JobAlert>().Where(a => a.Id == openId).UpdateOnlyAsync(() => new JobAlert { ResolvedAtUtc = DateTime.UtcNow }, ct)
+        );
+        Assert.True(await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct) > 0);
+
+        // And resolved rows do not collide with each other either: the filter excludes every one of them.
+        Assert.Equal(
+            1,
+            await Db.From<JobAlert>()
+                .Where(a => a.DedupeKey == key && a.Id != openId)
+                .UpdateOnlyAsync(() => new JobAlert { ResolvedAtUtc = DateTime.UtcNow }, ct)
+        );
+        Assert.True(await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct) > 0);
+    }
+
+    private JobAlert NewAlertRow(long? jobId = null, Guid? jobRef = null, string? deduplicationKey = null, int occurrenceCount = 1) =>
+        new()
+        {
+            NamespaceId = Runtime.RegisteredNamespaceIds[TestNamespace],
+            // A fresh ref per row: ux_alerts_ref accepts the all-zero default exactly once per
+            // schema, and the conformance schema is append-only, so defaulting it made the
+            // positive control fail on every run after the first. Minting also makes that
+            // control prove what it claims - that a valid alert row inserts.
+            AlertRef = Acta.AlertRef.New().Value,
+            JobId = jobId,
+            JobRef = jobRef,
+            OriginCode = AlertOriginCode.Manual,
+            SeverityCode = AlertSeverityCode.Info,
+            Kind = AlertKindCode.FirstFailure,
+            Title = "schema-hardening check",
+            Message = "schema-hardening check",
+            ChannelName = "default",
+            DedupeKey = deduplicationKey,
+            OccurrenceCount = occurrenceCount,
+            DeliveryStatusCode = AlertDeliveryStatusCode.Pending,
+        };
 
     [Fact(DisplayName = "ck_runtimes_counters rejects an UPDATE to a negative failure_count")]
     public async Task Runtimes_check_rejects_negative_failure_count()

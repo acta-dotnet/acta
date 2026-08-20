@@ -1122,9 +1122,9 @@ public abstract class JobContext
     /// <summary>
     /// Persists an operator-facing alert from inside the handler. The framework stamps the origin
     /// (<c>source = Manual</c>, <c>reason = Manual</c>, <c>delivery = Pending</c>) and the job context
-    /// (namespace, job). A non-null <paramref name="deduplicationKey"/> collapses repeats within
-    /// <c>JobsOptions.AlertDedupeWindow</c> onto one row (<c>occurrence_count</c>++, content refreshed);
-    /// a null key always inserts a fresh row. A null <paramref name="channelName"/> routes to the
+    /// (namespace, job). A non-null <paramref name="deduplicationKey"/> collapses repeats onto the one
+    /// unresolved row carrying that key (<c>occurrence_count</c>++, content refreshed) and opens a fresh
+    /// row once that one is resolved; a null key always inserts a fresh row. A null <paramref name="channelName"/> routes to the
     /// configured <c>default</c> channel. Writing the row is independent of delivery. Title and message
     /// are capped to column width at the persistence boundary; <paramref name="ct"/> is linked with
     /// the per-attempt token.
@@ -1151,7 +1151,7 @@ public abstract class JobContext
 
     /// <summary>
     /// Subclass sink: persist the alert. Bounded text fields are truncated to their column widths and
-    /// the dedupe-window bucket is computed in the concrete implementation.
+    /// the deduplication key is normalized in the concrete implementation.
     /// </summary>
     protected abstract Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,

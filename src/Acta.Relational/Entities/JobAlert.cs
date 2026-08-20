@@ -3,20 +3,21 @@ using Acta.Relational.Schema;
 namespace Acta.Relational.Entities;
 
 /// <summary>
-/// One materialized alert. Rows carrying a non-null <see cref="DedupeKey"/> collapse repeats inside the
-/// window onto a single row (incrementing <see cref="OccurrenceCount"/>); the unique
-/// <c>(namespace_id, dedupe_key, dedupe_window_start_utc)</c> index is the rate limit, and a null
-/// <see cref="DedupeKey"/> always inserts a fresh row. <see cref="ResolvedAtUtc"/> is the single source
-/// of truth for whether the alert is resolved: set when the underlying condition clears, cleared back to
-/// NULL if the condition re-fires inside the same window.
+/// One materialized alert. A row carrying a non-null <see cref="DedupeKey"/> is an <em>incident</em>: the
+/// unique <c>(namespace_id, dedupe_key)</c> index, filtered to unresolved rows, admits exactly one OPEN
+/// row per key, so repeats of the same condition collapse onto it (incrementing
+/// <see cref="OccurrenceCount"/>) while it stays open. A null <see cref="DedupeKey"/> always inserts a
+/// fresh row. <see cref="ResolvedAtUtc"/> is the single source of truth for resolution and is terminal
+/// for the row: once stamped it is never cleared back to NULL, and the next firing of the same condition
+/// opens a new incident row on the same key.
 /// </summary>
 [DbTable("alerts")]
 [DbPrimaryKey(Name = "pk_alerts", Columns = ["id"])]
 [DbUniqueIndex(Name = "ux_alerts_ref", Columns = ["alert_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(
     Name = "ux_alerts_dedupe",
-    Columns = ["namespace_id", "dedupe_key", "dedupe_window_start_utc"],
-    Filter = "dedupe_key IS NOT NULL",
+    Columns = ["namespace_id", "dedupe_key"],
+    Filter = "dedupe_key IS NOT NULL AND resolved_at_utc IS NULL",
     Usage = "uniqueness"
 )]
 [DbIndex(
@@ -38,10 +39,6 @@ namespace Acta.Relational.Entities;
     Usage = "dashboard_grid"
 )]
 [DbCheck(Name = "ck_alerts_job_ref_pair", Sql = "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)")]
-[DbCheck(
-    Name = "ck_alerts_dedupe_pair",
-    Sql = "(dedupe_key IS NULL AND dedupe_window_start_utc IS NULL) OR (dedupe_key IS NOT NULL AND dedupe_window_start_utc IS NOT NULL)"
-)]
 [DbCheck(Name = "ck_alerts_occurrence_count", Sql = "occurrence_count >= 1")]
 internal sealed class JobAlert : IEntity<long>
 {
@@ -55,15 +52,16 @@ internal sealed class JobAlert : IEntity<long>
     /// Public stable reference exposed to dashboards, HTTP APIs, and alert transports in place of the
     /// numeric id; rendered externally as "alr_" plus 26 lowercase Crockford Base32 characters.
     /// Allocated in C# (a UUIDv7 via <see cref="Acta.AlertRef.New"/>) and passed into the raising
-    /// routine, never defaulted by the database. The upsert applies it on the INSERT arm only, so a
-    /// deduplicated repeat keeps the ref its first firing minted.
+    /// routine, never defaulted by the database. The upsert applies it on the INSERT arm only, so every
+    /// repeat absorbed by an open incident keeps the ref that incident's first firing minted, and the
+    /// next incident on the same key gets a ref of its own.
     /// </summary>
     [DbColumn("alert_ref", DbKind.Guid)]
     public Guid AlertRef { get; init; }
 
     /// <summary>
-    /// Scope of the dedupe window; alerts collapse onto one row per
-    /// <c>(namespace_id, dedupe_key, dedupe_window_start_utc)</c>.
+    /// Scope of the incident identity; at most one unresolved alert exists per
+    /// <c>(namespace_id, dedupe_key)</c>.
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int16)]
     public short NamespaceId { get; init; }
@@ -122,10 +120,10 @@ internal sealed class JobAlert : IEntity<long>
     public string ChannelName { get; init; } = default!;
 
     /// <summary>
-    /// Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null, the unique
-    /// <c>(namespace_id, dedupe_key, dedupe_window_start_utc)</c> index collapses repeats inside the
-    /// window onto one row; when null, every call inserts a fresh row. Sized for the Automatic-origin
-    /// default template <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c> - wider than
+    /// Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null it names the
+    /// incident identity: the unique <c>(namespace_id, dedupe_key)</c> index over unresolved rows
+    /// collapses repeats onto the one open row; when null, every call inserts a fresh row. Sized for the
+    /// Automatic-origin default template <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c> - wider than
     /// the caller-supplied <c>jobs.dedupe_key</c> (128) because Acta composes this one; the
     /// concept is the same deduplication both spell.
     /// </summary>
@@ -133,17 +131,10 @@ internal sealed class JobAlert : IEntity<long>
     public string? DedupeKey { get; init; }
 
     /// <summary>
-    /// Window-bucket start, floored to a multiple of <c>JobsOptions.AlertDedupeWindow</c> (4 hours by
-    /// default, settable): the projecting event's <c>created_at_utc</c> for automatic alerts (so a
-    /// crash-replay re-derives the same bucket), the raising caller's now for manual ones. That window
-    /// IS the rate limit. NULL when <see cref="DedupeKey"/> is null (no dedupe).
-    /// </summary>
-    [DbColumn("dedupe_window_start_utc", DbKind.UtcInstant)]
-    public DateTime? DedupeWindowStartUtc { get; init; }
-
-    /// <summary>
-    /// How many times this alert condition has fired within the dedupe window. Seeded to 1 by the
-    /// alert-emitting operation on first insert (no server default); increments on repeat.
+    /// How many times this alert condition has fired within THIS incident - since the row opened, not
+    /// over the job's life. Seeded to 1 by the alert-emitting operation on first insert (no server
+    /// default); increments on every repeat the open row absorbs, and never decreases. The next incident
+    /// on the same key starts a new row back at 1.
     /// </summary>
     [DbColumn("occurrence_count", DbKind.Int32)]
     public int OccurrenceCount { get; set; }
@@ -156,17 +147,19 @@ internal sealed class JobAlert : IEntity<long>
     /// projector commits each event's alert write before it advances its cursor, so a crash mid-batch
     /// replays events already projected; every automatic transition is conditional on the incoming event
     /// id being strictly greater than this mark, which makes that replay a no-op instead of an inflated
-    /// <see cref="OccurrenceCount"/> or a re-opened resolution. Manual raises and the operator resolve
-    /// verb carry no event and leave this untouched.
+    /// <see cref="OccurrenceCount"/>. The mark also survives resolution, so a failure event replayed
+    /// after the incident closed cannot open a ghost incident behind the events that already landed.
+    /// Manual raises and the operator resolve verb carry no event and leave this untouched.
     /// </summary>
     [DbColumn("last_projected_event_id", DbKind.Int64)]
     public long? LastProjectedEventId { get; set; }
 
     /// <summary>
     /// When the underlying condition cleared (recovery instant). NULL means the alert is still unresolved
-    /// and is the single source of truth for resolution. Set by <c>complete_execution</c> when a
-    /// previously-failed Job's next execution succeeds; cleared back to NULL when a re-failure inside the
-    /// same dedupe window re-opens the row.
+    /// and is the single source of truth for resolution. Set when a previously-failed Job's next
+    /// execution succeeds, or by the operator resolve verb. Terminal for the row: no raise ever clears it
+    /// back to NULL - the next failure on the same <see cref="DedupeKey"/> opens a new incident row
+    /// instead, which is also what frees the filtered unique index for that key again.
     /// </summary>
     [DbColumn("resolved_at_utc", DbKind.UtcInstant)]
     public DateTime? ResolvedAtUtc { get; set; }

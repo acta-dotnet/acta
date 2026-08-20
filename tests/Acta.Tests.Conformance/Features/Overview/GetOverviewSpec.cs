@@ -194,7 +194,6 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
             "ops",
             AlertDeliveryStatusCode.Pending,
             null,
-            null,
             ct
         );
         await AlertTestOps.RaiseAsync(
@@ -208,7 +207,6 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
             "critical body",
             "ops",
             AlertDeliveryStatusCode.Pending,
-            null,
             null,
             ct
         );

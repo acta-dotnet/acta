@@ -50,7 +50,6 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
             "default",
             AlertDeliveryStatusCode.Pending,
             null,
-            null,
             ct
         );
         Assert.NotEmpty(await Db.From<JobEvent>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));

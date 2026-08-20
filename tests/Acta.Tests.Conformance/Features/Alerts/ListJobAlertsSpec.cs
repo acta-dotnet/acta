@@ -48,7 +48,6 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
                 "default",
                 AlertDeliveryStatusCode.Pending,
                 null,
-                null,
                 ct
             );
         }
@@ -95,7 +94,6 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             "default",
             AlertDeliveryStatusCode.Pending,
             null,
-            null,
             ct
         );
 
@@ -127,7 +125,6 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
                 "list-spec message",
                 "default",
                 AlertDeliveryStatusCode.Pending,
-                null,
                 null,
                 ct
             );
@@ -173,7 +170,6 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             "default",
             AlertDeliveryStatusCode.Pending,
             null,
-            null,
             ct
         );
         await AlertTestOps.RaiseAsync(
@@ -187,7 +183,6 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             "acknowledge test",
             "default",
             AlertDeliveryStatusCode.Pending,
-            null,
             null,
             ct
         );
@@ -226,7 +221,6 @@ public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture
             "get-spec message",
             "default",
             AlertDeliveryStatusCode.Pending,
-            null,
             null,
             ct
         );

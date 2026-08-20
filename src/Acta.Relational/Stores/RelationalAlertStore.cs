@@ -9,7 +9,7 @@ namespace Acta.Relational.Stores;
 
 /// <summary>
 /// Shared relational <see cref="IAlertStore"/> over <see cref="IDbSession"/>. One implementation for
-/// every SQL provider: the dedupe-window raise, the generate/deliver reads, the delivery-outcome and
+/// every SQL provider: the incident-identity raise, the generate/deliver reads, the delivery-outcome and
 /// auto-resolve writes, the operator acknowledge/resolve verbs, and the paged list are written once.
 /// Provider differences live behind the session (routine vs inline, result-set selection) and the
 /// dialect (parameter creation). The delivery-outcome and auto-resolve writes are inline SQL in every
@@ -203,7 +203,6 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.ChannelName, command.ChannelName));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)command.DeliveryStatus));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeKey, command.DeduplicationKey));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DedupeWindowStartUtc, command.DedupeWindowStartUtc));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SourceEventId, command.SourceEventId));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, command.AlertRef));
     }
