@@ -1,3 +1,4 @@
+using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Alerting;
 using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Modules.Execution;
@@ -18,16 +19,19 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// Conformance for the <c>sys.alerts</c> deliver-phase failure branches: a throwing transport retries with
 /// backoff (bumping <c>retry_count</c> and setting <c>retry_after_utc</c>), reaches terminal Failed at max
 /// retries, a missing transport fails immediately (Permanent path, <c>retry_count</c> stays 0), and a
-/// null-<c>job_id</c> (framework) alert is not dropped by the LEFT JOIN and delivers successfully.
+/// null-<c>job_id</c> (framework) alert is not dropped by the LEFT JOIN and delivers successfully. Also
+/// the two whole-pass facts about an incident that outlives its first notification: a delivered row still
+/// unresolved past the reminder interval is re-sent and stays Delivered, and a resolve that lands while
+/// the transport is mid-send leaves the settlement without effect.
 /// </summary>
 [ConformanceSpec(
     "alert.delivery-failure",
-    "Alert delivery retries with backoff and goes terminal at max retries",
+    "Alert delivery retries with backoff, goes terminal, and reminds open incidents",
     Area = "Alerts",
-    Contract = "A throwing transport retries with backoff up to max retries then goes terminal Failed, a missing transport fails immediately, and a null-job-id alert delivers.",
-    Arrange = "Pending alerts are seeded against a throwing transport, a missing transport kind, and one system alert with a null job id.",
-    Act = "The delivery phase reads deliverable alerts and settles each attempt while the clock advances past each backoff.",
-    Assert = "The throwing transport parks retries with backoff until terminal Failed, a missing transport fails at once, and the null-job-id alert delivers."
+    Contract = "A throwing transport retries with backoff to terminal Failed, a missing transport fails at once, and an unresolved Delivered row is re-sent once per interval.",
+    Arrange = "Pending alerts are seeded against a throwing transport, a missing transport kind, and a transport that resolves the row while it sends.",
+    Act = "The delivery phase settles each attempt while the clock advances past each backoff and modified_at_utc is aged past the reminder interval.",
+    Assert = "Retries park with backoff until Failed, a missing transport fails at once, an aged unresolved Delivered row is re-sent, and a mid-send resolve voids the settle."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetDeliverableAlertsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.UpdateAlertDeliveryAsync))]
@@ -36,17 +40,24 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 {
     private const string ThrowingKind = "spy-throw";
     private const string MissingKind = "spy-missing";
+    private const string ResolvingKind = "spy-resolve-mid-send";
+
+    // The reminder spacing these facts read with: long enough that nothing qualifies by accident, so the
+    // one fact that wants a reminder has to age the row past it on purpose.
+    private static readonly TimeSpan ReminderInterval = TimeSpan.FromHours(24);
 
     private AdvancableClock Clock { get; set; } = null!;
     private TestAlertChannelRegistry Channels { get; } = new();
+    private ResolvingTransport Resolver { get; } = new();
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         // Register FakeClock before UseActa so the TryAddSingleton<IActaClock, DbClock> no-ops.
         Clock = new AdvancableClock(new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc));
         services.AddSingleton<IActaClock>(Clock);
-        // Add spy transport; LogAlertTransport (kind="log") is still registered by UseActa.
+        // Add spy transports; LogAlertTransport (kind="log") is still registered by UseActa.
         services.AddSingleton<IAlertTransport>(new ThrowingTransport());
+        services.AddSingleton<IAlertTransport>(Resolver);
         base.ConfigureServices(services, testNamespace);
         services.AddSingleton<IAlertChannelRegistry>(Channels);
     }
@@ -153,7 +164,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
+        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct));
     }
 
     [Fact(DisplayName = "Deprecated channel suppresses the alert and is not reread")]
@@ -168,7 +179,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
+        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct));
     }
 
     [Fact(DisplayName = "Below min severity suppresses the alert and is not reread")]
@@ -196,7 +207,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
+        Assert.Empty(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct));
     }
 
     [Fact(DisplayName = "Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully")]
@@ -209,7 +220,9 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
 
         // Confirm the alert IS returned (not dropped by the LEFT JOIN on job → definitions).
-        var due = Assert.Single(await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct));
+        var due = Assert.Single(
+            await Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ReminderInterval, ct)
+        );
         Assert.Null(due.JobId);
         Assert.Null(due.RunbookUrl); // no job → no definition → runbook is null
 
@@ -220,6 +233,87 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         Assert.Equal(AlertDeliveryStatusCode.Delivered, row.DeliveryStatusCode);
         Assert.Equal((byte)0, row.RetryCount);
         Assert.Null(row.JobId);
+    }
+
+    [Fact(DisplayName = "An unresolved Delivered alert is re-sent once it ages past the reminder interval and stays Delivered")]
+    public async Task Aged_unresolved_delivered_alert_is_reminded_and_stays_delivered()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        await SeedChannelAsync(Db, "ch-log", "log", ct);
+        await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
+
+        await RunDeliveryAsync(maxRetries: 5, ct);
+        var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
+
+        // A pass while the row is young re-sends nothing.
+        await RunDeliveryAsync(maxRetries: 5, ct);
+        Assert.Equal(delivered.Version, Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct)).Version);
+
+        // Aged past the interval, the still-open incident is notified again. Settling the reminder
+        // re-stamps modified_at_utc, so the next reminder waits a full interval from this send.
+        await AgeModifiedAsync(delivered.Id, ReminderInterval + TimeSpan.FromHours(1), ct);
+        var aged = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        await RunDeliveryAsync(maxRetries: 5, ct);
+
+        var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, reminded.DeliveryStatusCode);
+        Assert.Equal((byte)0, reminded.RetryCount);
+        Assert.Equal(delivered.Version + 1, reminded.Version);
+        // Measured against the aged stamp, not the first settle's: the two settles can land inside one
+        // tick of the column's precision, and it is the reset from "an interval ago" that matters.
+        Assert.True(reminded.ModifiedAtUtc > aged.ModifiedAtUtc, "settling the reminder must re-stamp modified_at_utc");
+
+        // And with the stamp refreshed, the very next pass finds nothing due again.
+        await RunDeliveryAsync(maxRetries: 5, ct);
+        Assert.Equal(reminded.Version, Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct)).Version);
+    }
+
+    [Fact(DisplayName = "A resolve that lands while the transport is sending leaves the settlement without effect")]
+    public async Task Resolve_during_the_send_voids_the_settlement()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        await SeedChannelAsync(Db, "ch-resolve", ResolvingKind, ct);
+        await RaiseAlertAsync(Db, "ch-resolve", jobId: null, ct);
+        var raised = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+
+        // The transport resolves the row from inside SendAsync, then reports success: the exact window
+        // where an operator's resolve races an attempt already handed to a transport. The write applies
+        // what a resolve applies - resolved, its queued Pending settled to Suppressed, version bumped -
+        // rather than going through the resolve verb, which would need a real job to audit against.
+        Resolver.ResolveDuringSend(async () =>
+            Assert.Equal(
+                1,
+                await Db.From<JobAlert>()
+                    .Where(a => a.Id == raised.Id)
+                    .UpdateOnlyAsync(
+                        () =>
+                            new JobAlert
+                            {
+                                ResolvedAtUtc = DateTime.UtcNow,
+                                DeliveryStatusCode = AlertDeliveryStatusCode.Suppressed,
+                                RetryAfterUtc = null,
+                                Version = raised.Version + 1,
+                            },
+                        ct
+                    )
+            )
+        );
+
+        await RunDeliveryAsync(maxRetries: 5, ct);
+
+        // The settle lost the compare-and-swap, so the resolved row keeps the state the resolve left it in.
+        var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.NotNull(row.ResolvedAtUtc);
+        Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
+        Assert.Equal((byte)0, row.RetryCount);
+        Assert.Equal(raised.Version + 1, row.Version);
+
+        // And the resolved row is not picked up again on the next pass.
+        await RunDeliveryAsync(maxRetries: 5, ct);
+        Assert.Equal(raised.Version + 1, Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct)).Version);
     }
 
     // --- Helpers ---
@@ -256,10 +350,21 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             Clock,
             Channels,
             Services.GetRequiredService<IAlertTransportRegistry>(),
-            Options.Create(new JobsOptions { AlertDeliveryMaxRetries = maxRetries })
+            Options.Create(new JobsOptions { AlertDeliveryMaxRetries = maxRetries, AlertReminderInterval = ReminderInterval })
         );
         return alerts.Handle(BuildAlertsCtx(), ct);
     }
+
+    // Pushes the row's modified_at_utc back so the reminder arm sees it as that old. The delivery read
+    // measures that column against the database's own clock, so aging the column is what stages a
+    // reminder - the spec's fake IActaClock cannot, and does not, move the server's now().
+    private async Task AgeModifiedAsync(long alertId, TimeSpan age, CancellationToken ct) =>
+        Assert.Equal(
+            1,
+            await Db.From<JobAlert>()
+                .Where(a => a.Id == alertId)
+                .UpdateOnlyAsync(() => new JobAlert { ModifiedAtUtc = DateTime.UtcNow - age }, ct)
+        );
 
     private RuntimeJobContext BuildAlertsCtx()
     {
@@ -318,6 +423,32 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         public Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct) =>
             throw new InvalidOperationException("Test: simulated transport failure.");
+    }
+
+    /// <summary>
+    /// A transport that runs one staged action inside the send, then reports success. This is how the
+    /// resolve-versus-in-flight-attempt race is tested without racing anything: the window between the
+    /// delivery read handing out a row and the settle writing it back is normally microseconds wide, so a
+    /// second thread would only prove which side happened to win on that run. Suspending the send instead
+    /// makes the interleaving the spec's choice and the outcome the same on every provider.
+    /// </summary>
+    private sealed class ResolvingTransport : IAlertTransport
+    {
+        private Func<Task>? _duringSend;
+
+        public string TransportKind => ResolvingKind;
+
+        public void ResolveDuringSend(Func<Task> action) => Interlocked.Exchange(ref _duringSend, action);
+
+        public async Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct)
+        {
+            if (Interlocked.Exchange(ref _duringSend, null) is { } action)
+            {
+                await action();
+            }
+
+            return AlertDeliveryOutcome.Delivered;
+        }
     }
 
     private sealed class TestAlertChannelRegistry : IAlertChannelRegistry

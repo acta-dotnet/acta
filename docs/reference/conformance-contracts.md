@@ -100,18 +100,26 @@
   - Off mode skips missing-channel validation
   - Disabled channel counts as configured for validation
 
-### Deliverable alerts read due rows and settle by status
-- **Contract:** A Pending alert settles Delivered, RetryAfter re-delivers once due, and Failed/Suppressed are terminal.
-- **Arrange:** A Pending alert targeting the ops channel is raised in the test namespace.
-- **Act:** GetDeliverableAlerts reads due rows by channel name and UpdateAlertDelivery settles them to Delivered, RetryAfter, Failed, or Suppressed.
-- **Assert:** A Delivered alert stops being due, RetryAfter re-delivers only once its instant elapses, and Failed and Suppressed are never redelivered.
+### Deliverable alerts read due rows, remind open incidents, and settle by version
+- **Contract:** Delivery selects unresolved due rows plus settled rows past the reminder interval, resolve suppresses a queued send, and settlement is version-checked.
+- **Arrange:** Pending alerts are raised in the test namespace, some against a seeded job the resolve verb can close, with modified_at_utc aged backwards.
+- **Act:** GetDeliverableAlerts reads due rows and UpdateAlertDelivery settles them at the version it handed out, interleaved with ResolveJobAlerts.
+- **Assert:** A resolved alert is never selected and its Pending row is Suppressed, an aged unresolved Delivered or Failed row is re-selected, and a stale settle is a no-op.
 - **Guarantees:**
   - Pending alert is deliverable by channel name and settles Delivered
   - RetryAfter redelivers only when due
-  - Failed is never redelivered
-  - Suppressed is never redelivered
+  - A freshly settled Failed row is not re-selected by the retry path
+  - Suppressed is never redelivered, however old the row gets
+  - An alert resolved before the deliver pass is not selected and its Pending row is Suppressed
+  - Resolve settles each delivery status per the settlement table and clears retry_after_utc
+  - A settle at the version a resolve has already superseded applies nothing
+  - An unresolved Delivered row is reminded once it is older than the reminder interval
+  - An unresolved Failed row is reminded rather than silenced forever
+  - A resolved Delivered row is never reminded, however old it gets
+  - The fresh incident opened after a resolution delivers on its own
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.UpdateAlertDeliveryAsync`
 
 ### An open incident keeps the ref its first firing minted
@@ -124,11 +132,11 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
 
-### Alert delivery retries with backoff and goes terminal at max retries
-- **Contract:** A throwing transport retries with backoff up to max retries then goes terminal Failed, a missing transport fails immediately, and a null-job-id alert delivers.
-- **Arrange:** Pending alerts are seeded against a throwing transport, a missing transport kind, and one system alert with a null job id.
-- **Act:** The delivery phase reads deliverable alerts and settles each attempt while the clock advances past each backoff.
-- **Assert:** The throwing transport parks retries with backoff until terminal Failed, a missing transport fails at once, and the null-job-id alert delivers.
+### Alert delivery retries with backoff, goes terminal, and reminds open incidents
+- **Contract:** A throwing transport retries with backoff to terminal Failed, a missing transport fails at once, and an unresolved Delivered row is re-sent once per interval.
+- **Arrange:** Pending alerts are seeded against a throwing transport, a missing transport kind, and a transport that resolves the row while it sends.
+- **Act:** The delivery phase settles each attempt while the clock advances past each backoff and modified_at_utc is aged past the reminder interval.
+- **Assert:** Retries park with backoff until Failed, a missing transport fails at once, an aged unresolved Delivered row is re-sent, and a mid-send resolve voids the settle.
 - **Guarantees:**
   - Throwing transport bumps retry_count and parks with a backoff instant
   - Transport throws at max retries and marks the alert terminal Failed
@@ -138,6 +146,8 @@
   - Deprecated channel suppresses the alert and is not reread
   - Below min severity suppresses the alert and is not reread
   - Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully
+  - An unresolved Delivered alert is re-sent once it ages past the reminder interval and stays Delivered
+  - A resolve that lands while the transport is sending leaves the settlement without effect
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.UpdateAlertDeliveryAsync`
@@ -498,15 +508,16 @@
 ## Control
 
 ### Operator acknowledge/resolve verbs on IAlerts.
-- **Contract:** AcknowledgeAsync/ResolveAsync set their timestamp and emit their event once, are idempotent on reapplication, and return NotFound for an unknown id.
-- **Arrange:** One open alert raised in the test namespace.
-- **Act:** AcknowledgeAsync/ResolveAsync are invoked once, then invoked again, then invoked against an unknown alert ref.
-- **Assert:** The first call is Applied with the timestamp set and one audit event, the second is Applied unchanged with the same event count, and the unknown id is NotFound.
+- **Contract:** AcknowledgeAsync/ResolveAsync stamp and audit once, are idempotent, return NotFound for an unknown id, and ResolveAsync suppresses a queued delivery.
+- **Arrange:** One open alert raised in the test namespace, plus one parked mid-retry and one already delivered for the settlement fact.
+- **Act:** AcknowledgeAsync/ResolveAsync are invoked once, then again, then against an unknown alert ref, and against alerts in RetryAfter and Delivered.
+- **Assert:** The first call is Applied with its timestamp and one event, the second changes nothing, an unknown id is NotFound, and a resolved RetryAfter row is Suppressed.
 - **Guarantees:**
   - AcknowledgeAsync sets the timestamp, audits alert.acknowledged, and updates the acknowledged list filter
   - Re-acknowledging an already-acknowledged alert is Applied without mutation and emits no second event
   - ResolveAsync sets resolved_at_utc and audits alert.resolved without requiring a prior acknowledge
   - Re-resolving an already-resolved alert is Applied without mutation and emits no second event
+  - ResolveAsync suppresses a queued delivery and clears retry_after_utc, leaving an already-sent one alone
   - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.AcknowledgeJobAlertAsync`
@@ -2300,13 +2311,13 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
-| `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
+| `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
 | `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.RaiseJobAlertAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>An open incident keeps the ref its first firing minted<br>Manual alert write collapses onto the open incident and truncates bounded prose<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
-| `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff and goes terminal at max retries<br>Deliverable alerts read due rows and settle by status |
+| `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Deliverable alerts read due rows, remind open incidents, and settle by version<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
+| `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
 | `IDefinitionStore.GetDefinitionAsync` | GetJobDefinition returns one definition by id and null for an unknown id |
 | `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade or retire |
 | `IDefinitionStore.ListDefinitionsAsync` | ListJobDefinitions filter-matrix selects exactly matching rows per dimension<br>ListJobDefinitions pages the catalog by name order without duplicates |

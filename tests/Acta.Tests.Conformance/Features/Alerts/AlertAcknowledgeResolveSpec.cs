@@ -2,6 +2,7 @@ using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Alerting;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
@@ -10,16 +11,18 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// <summary>
 /// Operator acknowledge/resolve verbs: the first write surface on <see cref="IAlerts"/>. Each verb is
 /// idempotent (re-applying it is Applied without mutation, no second event) and always emits its
-/// event regardless of the alert's job's audit level (low-volume operator activity).
+/// event regardless of the alert's job's audit level (low-volume operator activity). Resolve also
+/// settles the alert's delivery exactly as the automatic resolve does: a queued Pending or RetryAfter
+/// row becomes Suppressed with its retry instant cleared, and an already-sent row keeps its status.
 /// </summary>
 [ConformanceSpec(
     "alert.acknowledge-resolve",
     "Operator acknowledge/resolve verbs on IAlerts.",
     Area = "Control",
-    Contract = "AcknowledgeAsync/ResolveAsync set their timestamp and emit their event once, are idempotent on reapplication, and return NotFound for an unknown id.",
-    Arrange = "One open alert raised in the test namespace.",
-    Act = "AcknowledgeAsync/ResolveAsync are invoked once, then invoked again, then invoked against an unknown alert ref.",
-    Assert = "The first call is Applied with the timestamp set and one audit event, the second is Applied unchanged with the same event count, and the unknown id is NotFound."
+    Contract = "AcknowledgeAsync/ResolveAsync stamp and audit once, are idempotent, return NotFound for an unknown id, and ResolveAsync suppresses a queued delivery.",
+    Arrange = "One open alert raised in the test namespace, plus one parked mid-retry and one already delivered for the settlement fact.",
+    Act = "AcknowledgeAsync/ResolveAsync are invoked once, then again, then against an unknown alert ref, and against alerts in RetryAfter and Delivered.",
+    Assert = "The first call is Applied with its timestamp and one event, the second changes nothing, an unknown id is NotFound, and a resolved RetryAfter row is Suppressed."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.AcknowledgeJobAlertAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertManualAsync))]
@@ -112,6 +115,55 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(1, eventCount);
     }
 
+    [Fact(DisplayName = "ResolveAsync suppresses a queued delivery and clears retry_after_utc, leaving an already-sent one alone")]
+    public async Task Resolve_settles_the_queued_delivery()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = Services.GetRequiredService<IAlertStore>();
+
+        // One alert parked mid-retry, one already delivered: the two halves of the settlement table the
+        // operator verb has to honour.
+        var (queuedRef, queuedJobId) = await RaiseAlertAsync(ct);
+        var (sentRef, sentJobId) = await RaiseAlertAsync(ct);
+        var queued = await AlertRowAsync(queuedJobId, ct);
+        var sent = await AlertRowAsync(sentJobId, ct);
+        Assert.True(
+            await store.UpdateAlertDeliveryAsync(
+                queued.Id,
+                queued.Version,
+                AlertDeliveryStatusCode.RetryAfter,
+                retryCount: 2,
+                retryAfterUtc: new DateTime(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                ct
+            )
+        );
+        Assert.True(
+            await store.UpdateAlertDeliveryAsync(
+                sent.Id,
+                sent.Version,
+                AlertDeliveryStatusCode.Delivered,
+                retryCount: 0,
+                retryAfterUtc: null,
+                ct
+            )
+        );
+
+        Assert.Equal(ControlAction.Applied, (await Operations.Alerts.ResolveAsync(queuedRef, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Operations.Alerts.ResolveAsync(sentRef, ct: ct)).Action);
+
+        // The queued notification is cancelled: the condition it was about has been declared cleared.
+        var resolvedQueued = await AlertRowAsync(queuedJobId, ct);
+        Assert.NotNull(resolvedQueued.ResolvedAtUtc);
+        Assert.Equal(AlertDeliveryStatusCode.Suppressed, resolvedQueued.DeliveryStatusCode);
+        Assert.Null(resolvedQueued.RetryAfterUtc);
+        Assert.Equal((byte)2, resolvedQueued.RetryCount);
+
+        // The delivered one keeps its status: it records what actually happened to the send.
+        var resolvedSent = await AlertRowAsync(sentJobId, ct);
+        Assert.NotNull(resolvedSent.ResolvedAtUtc);
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, resolvedSent.DeliveryStatusCode);
+    }
+
     [Fact(DisplayName = "AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref")]
     public async Task Unknown_alert_is_notfound()
     {
@@ -156,5 +208,12 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         var alert = await Db.From<JobAlert>().Where(a => a.JobId == enqueued.JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(alert);
         return (new AlertRef(alert!.AlertRef), enqueued.JobId);
+    }
+
+    private async Task<JobAlert> AlertRowAsync(long jobId, CancellationToken ct)
+    {
+        var alert = await Db.From<JobAlert>().Where(a => a.JobId == jobId).SingleOrDefaultAsync(ct);
+        Assert.NotNull(alert);
+        return alert!;
     }
 }
