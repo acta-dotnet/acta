@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS main.alerts (
     , CONSTRAINT ck_alerts_delivery_status_code CHECK (delivery_status_code IN (10, 20, 30, 100, 200))
     , CONSTRAINT ck_alerts_retry_count_byte CHECK (retry_count BETWEEN 0 AND 255)
 ) STRICT;
+CREATE INDEX IF NOT EXISTS main.ix_alerts_dedupe_identity ON alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS main.ix_alerts_delivery_due ON alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX IF NOT EXISTS main.ix_alerts_namespace_created ON alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX IF NOT EXISTS main.ix_alerts_namespace_unresolved ON alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;

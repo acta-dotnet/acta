@@ -96,6 +96,10 @@
         ],
         "Indexes": [
           {
+            "Name": "ix_alerts_dedupe_identity",
+            "Signature": "I|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL"
+          },
+          {
             "Name": "ix_alerts_delivery_due",
             "Signature": "I|cols=namespace_id,delivery_status_code,retry_after_utc,id|inc=|desc=|filter="
           },

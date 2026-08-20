@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **226 columns**, **31 indexes**, **26 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **226 columns**, **32 indexes**, **26 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -63,6 +63,7 @@ One materialized alert. A row carrying a non-null `DedupeKey` is an incident: th
 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
+| `ix_alerts_dedupe_identity` | `namespace_id`, `dedupe_key` | not unique | `dedupe_key IS NOT NULL` | `alert_raise` |
 | `ix_alerts_delivery_due` | `namespace_id`, `delivery_status_code`, `retry_after_utc`, `id` | not unique | none | `maintenance` |
 | `ix_alerts_namespace_created` | `namespace_id`, `created_at_utc` DESC, `id` DESC | not unique | none | `dashboard_grid` |
 | `ix_alerts_namespace_unresolved` | `namespace_id`, `created_at_utc` DESC, `id` DESC | not unique | `resolved_at_utc IS NULL` | `dashboard_grid` |

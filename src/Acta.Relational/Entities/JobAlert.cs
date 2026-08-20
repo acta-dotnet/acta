@@ -20,6 +20,20 @@ namespace Acta.Relational.Entities;
     Filter = "dedupe_key IS NOT NULL AND resolved_at_utc IS NULL",
     Usage = "uniqueness"
 )]
+// ux_alerts_dedupe covers only the OPEN row of an identity, but the raise also has to see the closed
+// ones: its ghost guard asks whether ANY row of the identity already carries a mark at or past the
+// incoming event, and its held-write fallback reads the identity's newest row whatever its resolution.
+// Neither can use the resolved_at_utc arm of that filter, so without this they degrade to a
+// namespace-wide scan on every raise that opens an incident or is blocked from opening one. The
+// dedupe_key arm is kept: an equality on the column implies it, so all three planners still seek, and
+// keyless rows - which no raise ever looks up this way - stay out. Two columns is enough: one identity
+// holds a handful of incidents, so the ORDER BY id the fallback adds sorts almost nothing.
+[DbIndex(
+    Name = "ix_alerts_dedupe_identity",
+    Columns = ["namespace_id", "dedupe_key"],
+    Filter = "dedupe_key IS NOT NULL",
+    Usage = "alert_raise"
+)]
 [DbIndex(
     Name = "ix_alerts_delivery_due",
     Columns = ["namespace_id", "delivery_status_code", "retry_after_utc", "id"],

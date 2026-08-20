@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS acta.alerts (
     , CONSTRAINT ck_alerts_delivery_status_code CHECK (delivery_status_code IN (10, 20, 30, 100, 200))
     , CONSTRAINT ck_alerts_retry_count_byte CHECK (retry_count BETWEEN 0 AND 255)
 );
+CREATE INDEX IF NOT EXISTS ix_alerts_dedupe_identity ON acta.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_alerts_delivery_due ON acta.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX IF NOT EXISTS ix_alerts_namespace_created ON acta.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX IF NOT EXISTS ix_alerts_namespace_unresolved ON acta.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
