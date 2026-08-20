@@ -414,8 +414,12 @@ internal sealed class AlertsJob(
     {
         switch (outcome)
         {
+            // Back to zero, because retry_count is the budget for one send series and this series just
+            // ended. A row that took four attempts to land would otherwise carry that four into its next
+            // reminder, where one throw is enough to reach the cap - a reminder that goes terminal on its
+            // first failure, having never once been retried. Each series starts with the whole curve.
             case AlertDeliveryOutcome.Delivered:
-                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, a.RetryCount, retryAfterUtc: null, ct);
+                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, retryCount: 0, retryAfterUtc: null, ct);
 
             case AlertDeliveryOutcome.Retryable:
                 var nextRetryCount = (byte)Math.Min(a.RetryCount + 1, byte.MaxValue);
@@ -432,11 +436,16 @@ internal sealed class AlertsJob(
     }
 
     // Every settlement writes against the version the row carried when this pass selected it. Losing
-    // that compare-and-swap is a correct outcome, not an error: the row moved on - an operator resolved
-    // it mid-send, or a competing worker settled the same attempt - and the newer state is the one that
-    // should stand. So there is no retry and no warning; the next pass re-selects whatever is genuinely
-    // due, and a reminder that lands just after a resolve simply loses. Debug, because the only reader
-    // who wants this line is someone tracing why one attempt left no trace.
+    // that compare-and-swap is a correct outcome, not an error: the row moved on and the newer state is
+    // the one that should stand. Three partners move it. An operator resolve, and a competing worker's
+    // settlement of the same attempt, both leave the row settled, so the lost write changes nothing that
+    // matters. The most frequent one is quieter: the raise path's collapse arm bumps version too, so a
+    // repeat of the same condition - a ctx.AlertAsync landing inside the send window - makes this settle
+    // lose, and the row stays Pending. That is a re-send on the next pass, which delivery is allowed
+    // (at least once) and which is the better answer anyway: the re-send carries the occurrence count the
+    // repeat just wrote. So there is no retry and no warning here; the next pass re-selects whatever is
+    // genuinely due. Debug, because the only reader who wants this line is someone tracing why one
+    // attempt left no trace.
     private async Task WriteSettlementAsync(
         DeliverableAlert a,
         AlertDeliveryStatusCode status,

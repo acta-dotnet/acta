@@ -34,7 +34,7 @@ WHERE
            incident forever; Suppressed is not, because re-sending would only re-take a routing decision. */
         OR (
             a.delivery_status_code IN (100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
-            AND a.modified_at_utc <= {{now}} - (@p_alert_reminder_seconds) * 1000
+            AND a.modified_at_utc <= {{now}} - (@p_alert_reminder_seconds * 1000)
         )
     )
 ORDER BY a.id

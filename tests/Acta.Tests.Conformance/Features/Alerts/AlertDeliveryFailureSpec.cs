@@ -270,6 +270,37 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         Assert.Equal(reminded.Version, Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct)).Version);
     }
 
+    [Fact(DisplayName = "A delivered send hands the next reminder a whole retry budget, not the one it spent")]
+    public async Task Delivered_settlement_resets_the_retry_budget_for_the_next_series()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        await SeedChannelAsync(Db, "ch-swap", "log", ct);
+        await RaiseAlertAsync(Db, "ch-swap", jobId: null, ct);
+        var raised = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+
+        // Mid-series: four attempts spent, one left under the cap this pass runs with.
+        Assert.Equal(1, await Db.From<JobAlert>().Where(a => a.Id == raised.Id).UpdateOnlyAsync(() => new JobAlert { RetryCount = 4 }, ct));
+
+        // The fifth attempt lands. retry_count is the budget for a send series, and that series is over.
+        await RunDeliveryAsync(maxRetries: 5, ct);
+        var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
+        Assert.Equal((byte)0, delivered.RetryCount);
+
+        // A day on, the incident is still open and the channel's transport now throws. Carrying the old
+        // count would have put this reminder at 5 of 5 on its first throw - terminal without ever being
+        // retried. With a fresh budget it enters the curve like any other first attempt.
+        await AgeModifiedAsync(delivered.Id, ReminderInterval + TimeSpan.FromHours(1), ct);
+        RegisterChannel("ch-swap", ThrowingKind, AlertChannelStatusCode.Active, AlertSeverityCode.Info);
+        await RunDeliveryAsync(maxRetries: 5, ct);
+
+        var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.RetryAfter, reminded.DeliveryStatusCode);
+        Assert.Equal((byte)1, reminded.RetryCount);
+        Assert.NotNull(reminded.RetryAfterUtc);
+    }
+
     [Fact(DisplayName = "A resolve that lands while the transport is sending leaves the settlement without effect")]
     public async Task Resolve_during_the_send_voids_the_settlement()
     {

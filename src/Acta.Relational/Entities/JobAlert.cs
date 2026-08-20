@@ -194,7 +194,10 @@ internal sealed class JobAlert : IEntity<long>
     public AlertDeliveryStatusCode DeliveryStatusCode { get; set; }
 
     /// <summary>
-    /// How many delivery attempts this row has had so far.
+    /// Attempts spent in the current send series, which is the delivery retry budget and not a lifetime
+    /// count: a delivered send ends its series and resets this to 0, so a reminder that re-notifies a
+    /// still-open incident starts with the whole retry curve rather than whatever the last series
+    /// happened to spend. A row sitting at the cap in <c>Failed</c> is a series that ran out.
     /// </summary>
     [DbColumn("retry_count", DbKind.Byte)]
     public byte RetryCount { get; set; }

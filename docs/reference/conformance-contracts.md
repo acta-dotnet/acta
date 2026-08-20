@@ -147,6 +147,7 @@
   - Below min severity suppresses the alert and is not reread
   - Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully
   - An unresolved Delivered alert is re-sent once it ages past the reminder interval and stays Delivered
+  - A delivered send hands the next reminder a whole retry budget, not the one it spent
   - A resolve that lands while the transport is sending leaves the settlement without effect
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
