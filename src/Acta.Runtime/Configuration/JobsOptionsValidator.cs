@@ -109,9 +109,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.AlertFailureThreshold must be >= 1: it is the failure count that escalates severity.");
         }
 
-        if (options.AlertDedupeWindow <= TimeSpan.Zero)
+        if (options.AlertReminderInterval <= TimeSpan.Zero)
         {
-            failures.Add("JobsOptions.AlertDedupeWindow must be > 0: it is the alert rate-limit bucket width.");
+            failures.Add("JobsOptions.AlertReminderInterval must be > 0: it is the re-notification spacing for an unresolved alert.");
         }
 
         // Coordination invariants. Each base value must be positive on its own before the cross-field

@@ -192,22 +192,17 @@ public sealed class JobsOptions
     public int MaxInlinePayloadBytes { get; set; } = 1024 * 1024;
 
     /// <summary>
-    /// Width of the dedupe bucket for alerts raised with a non-null deduplication key (<c>ctx.AlertAsync</c> and
-    /// the framework automatic-alert paths). Repeats sharing a <c>(namespace_id, deduplication_key)</c> in one
-    /// window collapse onto one <c>alerts</c> row (incrementing <c>occurrence_count</c>); the window start is
-    /// an instant floored to a multiple of this span - the projected failure event's own write instant on the
-    /// automatic paths (a replayed event re-derives its first bucket), the caller's <c>now</c> for a manual
-    /// <c>ctx.AlertAsync</c>. The dedupe window is the rate limit. Default 4 hours.
+    /// How often an alert that is still unresolved re-notifies its channel. An incident notifies once when
+    /// it opens; while it stays open, repeats collapse onto its row without re-sending. Once the row's
+    /// delivery has settled, it becomes eligible to be delivered again after this span has passed - at most
+    /// one reminder per incident per interval, so a job that has been broken all week pages daily rather
+    /// than on every failure. Default 24 hours.
     ///
-    /// <para>It also decides whether <see cref="AlertFailureThreshold"/> is reachable at all, because that
-    /// threshold counts failures <em>within one window</em>: a job only escalates if its cadence fits
-    /// <see cref="AlertFailureThreshold"/> failures into this span. Four hours is the smallest default at
-    /// which an hourly job can escalate; at one hour only jobs running faster than roughly every twenty
-    /// minutes ever could. Widen it to cut repeat notifications for a fast job and to make escalation
-    /// reachable for a slow one; those move together, and no single value suits both a five-second poller
-    /// and a nightly report, which is why this is settable rather than fixed.</para>
+    /// <para>This is a delivery policy, not a deduplication rule: it never affects which
+    /// <c>alerts</c> rows exist or what <c>occurrence_count</c> they carry. Widen it for a noisy incident,
+    /// narrow it when a long-lived incident must keep nagging.</para>
     /// </summary>
-    public TimeSpan AlertDedupeWindow { get; set; } = TimeSpan.FromHours(4);
+    public TimeSpan AlertReminderInterval { get; set; } = TimeSpan.FromHours(24);
 
     /// <summary>
     /// How many failed delivery attempts the <c>sys.alerts</c> deliver phase makes before a <c>alerts</c>
@@ -218,18 +213,18 @@ public sealed class JobsOptions
     internal int AlertDeliveryMaxRetries { get; set; } = 5;
 
     /// <summary>
-    /// Number of failures within the <see cref="AlertDedupeWindow"/> at which an automatic failure alert
-    /// escalates to <c>ThresholdReached</c> (<c>Error</c> severity). The <c>sys.alerts</c> generate phase
-    /// reads the post-upsert <c>occurrence_count</c> from <c>raise_job_alert</c> and escalates when it
-    /// meets this value and the raise applied (the row's high-water mark is the projecting event, so a
-    /// crash-replay cannot re-fire the escalation from a held raise); reset-immune, with no JOIN to the
-    /// mutable <c>runtimes.failure_count</c>. Default 3.
+    /// Number of failures within one incident at which an automatic failure alert escalates to
+    /// <c>ThresholdReached</c> (<c>Error</c> severity). The <c>sys.alerts</c> generate phase reads the
+    /// post-upsert <c>occurrence_count</c> from <c>raise_job_alert</c> and escalates when it meets this
+    /// value and the raise applied (the row's high-water mark is the projecting event, so a crash-replay
+    /// cannot re-fire the escalation from a held raise); reset-immune, with no JOIN to the mutable
+    /// <c>runtimes.failure_count</c>. Default 3.
     ///
-    /// <para>This counts failures inside one <see cref="AlertDedupeWindow"/>, not consecutive failures over
-    /// the job's life: <c>occurrence_count</c> belongs to the window's row and restarts at 1 in each new
-    /// window. So a job whose cadence cannot fit this many failures into one window never escalates,
-    /// however long it stays broken - a job failing every thirty minutes never reaches 3 in a one-hour
-    /// window. Choosing the threshold means choosing it against the window, not against the job.</para>
+    /// <para>The count is monotonic within an incident - it starts at 1 when the incident opens and only
+    /// climbs until a success resolves it - so the escalation fires exactly once per incident and the
+    /// threshold reads as "N failures since this broke", whatever the job's cadence. A slow job takes
+    /// longer to reach it; it never becomes unreachable. The success that resolves the incident is what
+    /// resets the count, because the next failure opens a fresh row at 1.</para>
     /// </summary>
     public int AlertFailureThreshold { get; set; } = 3;
 

@@ -1729,7 +1729,7 @@ sealed class Acta.JobsOptions
     System.Nullable<System.DateTime> ManifestGenerationUtc { get;set; }
     System.String DeploymentVersion { get;set; }
     System.String EnvironmentName { get;set; }
-    System.TimeSpan AlertDedupeWindow { get;set; }
+    System.TimeSpan AlertReminderInterval { get;set; }
     System.TimeSpan AlertRetention { get;set; }
     System.TimeSpan HeartbeatInterval { get;set; }
     System.TimeSpan JobEventsRetention { get;set; }

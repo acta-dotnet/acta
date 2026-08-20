@@ -76,11 +76,11 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
-    public void AlertDedupeWindow_non_positive_fails()
+    public void AlertReminderInterval_non_positive_fails()
     {
-        var result = Validate(o => o.AlertDedupeWindow = TimeSpan.Zero);
+        var result = Validate(o => o.AlertReminderInterval = TimeSpan.Zero);
         Assert.True(result.Failed);
-        Assert.Contains("AlertDedupeWindow", result.FailureMessage);
+        Assert.Contains("AlertReminderInterval", result.FailureMessage);
     }
 
     [Fact]
