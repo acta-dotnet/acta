@@ -25,8 +25,12 @@ internal sealed record AlertableEvent(
 );
 
 /// <summary>
-/// One <c>alerts</c> row due for delivery. Carries notification content and the logical channel name;
-/// transport resolution happens against the worker's in-memory channel registry.
+/// One <c>alerts</c> row due for delivery - a first attempt, a due retry, or a reminder for an
+/// incident still open past the reminder interval. Carries notification content and the logical
+/// channel name; transport resolution happens against the worker's in-memory channel registry.
+/// <see cref="Version"/> is the row's version at selection: settlement compares against it so an
+/// attempt that raced a resolve (or another settlement) writes nothing instead of overwriting the
+/// newer state.
 /// </summary>
 internal sealed record DeliverableAlert(
     long AlertId,
@@ -41,7 +45,8 @@ internal sealed record DeliverableAlert(
     byte RetryCount,
     string ChannelName,
     Guid AlertRef,
-    Guid? JobRef
+    Guid? JobRef,
+    int Version
 );
 
 /// <summary>

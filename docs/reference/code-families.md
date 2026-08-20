@@ -85,7 +85,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `RetryAfter` | 20 | `retry-after` | Send deferred until JobAlert.RetryAfterUtc instant. | Active |
 | `Suppressed` | 30 | `suppressed` | Intentionally not sent because process-local channel policy rejected delivery. | Active |
 | `Delivered` | 100 | `delivered` | Successfully sent to the channel transport. | Active |
-| `Failed` | 200 | `failed` | Send attempt failed; eligible for retry by the next sys.alerts system job tick. | Active |
+| `Failed` | 200 | `failed` | Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved. | Active |
 
 #### `AlertKindCode` · `alert-kind` <a id="code-family-alertkindcode"></a>
 

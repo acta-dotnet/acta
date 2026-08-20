@@ -126,7 +126,16 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
         // Settle the first incident's delivery before closing it. Without this the fresh row's Pending
         // status would be indistinguishable from an untouched one, and the fact would prove nothing about
         // the second incident notifying on its own.
-        await store.UpdateAlertDeliveryAsync(opened.Id, AlertDeliveryStatusCode.Failed, retryCount: 4, retryAfterUtc: null, ct);
+        Assert.True(
+            await store.UpdateAlertDeliveryAsync(
+                opened.Id,
+                opened.Version,
+                AlertDeliveryStatusCode.Failed,
+                retryCount: 4,
+                retryAfterUtc: null,
+                ct
+            )
+        );
 
         // Stamped directly rather than through a resolve verb: this fact is about the raise path's
         // reading of a resolved row, and the two resolve verbs each filter on origin and kind of their

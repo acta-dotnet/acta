@@ -159,11 +159,16 @@ public sealed class FacadeReadValidationTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
-            throw new NotSupportedException();
+        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(
+            short namespaceId,
+            int batchSize,
+            TimeSpan reminderInterval,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
 
-        public Task UpdateAlertDeliveryAsync(
+        public Task<bool> UpdateAlertDeliveryAsync(
             long alertId,
+            int expectedVersion,
             AlertDeliveryStatusCode status,
             byte retryCount,
             DateTime? retryAfterUtc,

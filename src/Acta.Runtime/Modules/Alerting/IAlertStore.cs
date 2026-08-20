@@ -35,17 +35,37 @@ internal interface IAlertStore
     Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(short namespaceId, long cursorEventId, int batchSize, CancellationToken ct);
 
     /// <summary>
-    /// Reads the namespace's alerts due for delivery: <c>delivery_status</c> in
-    /// <c>{Pending, RetryAfter}</c> with <c>retry_after_utc</c> elapsed (or unset).
+    /// Reads the namespace's unresolved alerts due for delivery, in two arms: rows in
+    /// <c>{Pending, RetryAfter}</c> whose <c>retry_after_utc</c> has elapsed (or is unset), and rows
+    /// already in a settled delivery state - <c>Delivered</c> or <c>Failed</c> - whose
+    /// <c>modified_at_utc</c> is at least <paramref name="reminderInterval"/> behind the database
+    /// clock, which re-notifies an incident that is still open. A failed send therefore does not
+    /// silence an open incident forever, while <c>Suppressed</c> is never reminded: suppression was a
+    /// routing decision about the channel, not a send that failed.
+    ///
+    /// <para>Resolved rows are excluded from both arms: an alert resolved before delivery selection is
+    /// not sent. Resolution suppresses further pending and retry attempts. A transport attempt already
+    /// in progress may still complete.</para>
     /// </summary>
-    Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct);
+    Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(
+        short namespaceId,
+        int batchSize,
+        TimeSpan reminderInterval,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Records the outcome of one alert delivery attempt: sets <c>delivery_status_code</c> and, on a
-    /// retryable failure, bumps <c>retry_count</c> and stamps <c>retry_after_utc</c>.
+    /// retryable failure, bumps <c>retry_count</c> and stamps <c>retry_after_utc</c>. Compare-and-swap
+    /// on <paramref name="expectedVersion"/> - the version the row carried when delivery selected it -
+    /// and returns whether the swap applied. A miss means the row moved while the attempt was in
+    /// flight (an operator resolved it, or another worker settled it); the newer state stands and the
+    /// caller writes nothing. A post-resolution re-fire is a different row with its own id, so it is
+    /// never the loser of this race.
     /// </summary>
-    Task UpdateAlertDeliveryAsync(
+    Task<bool> UpdateAlertDeliveryAsync(
         long alertId,
+        int expectedVersion,
         AlertDeliveryStatusCode status,
         byte retryCount,
         DateTime? retryAfterUtc,
@@ -58,6 +78,11 @@ internal interface IAlertStore
     /// on every row it closes. Only alerts whose <c>last_projected_event_id</c> precedes that id are
     /// closed, so replaying a success behind a newer failure leaves the alert that failure opened alone.
     /// Idempotent: a second success closes nothing.
+    ///
+    /// <para>Closing a row also settles its delivery: a <c>Pending</c> or <c>RetryAfter</c> row becomes
+    /// <c>Suppressed</c> and every closed row's <c>retry_after_utc</c> is cleared, so the recovery
+    /// cancels the notification instead of leaving it queued. A row already <c>Delivered</c>,
+    /// <c>Failed</c>, or <c>Suppressed</c> keeps that status: it records what actually happened.</para>
     /// </summary>
     Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct);
 
@@ -70,7 +95,9 @@ internal interface IAlertStore
     /// <summary>
     /// Manually resolve one alert: missing row is NotFound; an already-resolved row is Applied without
     /// mutation; else stamps <c>resolved_at_utc</c> and emits <c>alert.resolved</c>. Does not require a
-    /// prior acknowledge.
+    /// prior acknowledge. Settles delivery exactly as the automatic resolve does: <c>Pending</c> and
+    /// <c>RetryAfter</c> become <c>Suppressed</c>, <c>retry_after_utc</c> is cleared, and an already
+    /// settled status stands.
     /// </summary>
     Task<AlertControlOutcome> ResolveJobAlertManualAsync(AlertControlCommand command, CancellationToken ct);
 

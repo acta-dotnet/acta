@@ -95,11 +95,16 @@ public sealed class AlertsJobPoisonEventTests
             CancellationToken ct
         ) => Task.FromResult<IReadOnlyList<AlertableEvent>>(Events.Where(e => e.EventId > cursorEventId).Take(batchSize).ToArray());
 
-        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<DeliverableAlert>>([]);
+        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(
+            short namespaceId,
+            int batchSize,
+            TimeSpan reminderInterval,
+            CancellationToken ct
+        ) => Task.FromResult<IReadOnlyList<DeliverableAlert>>([]);
 
-        public Task UpdateAlertDeliveryAsync(
+        public Task<bool> UpdateAlertDeliveryAsync(
             long alertId,
+            int expectedVersion,
             AlertDeliveryStatusCode status,
             byte retryCount,
             DateTime? retryAfterUtc,

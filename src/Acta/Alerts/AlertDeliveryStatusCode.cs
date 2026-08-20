@@ -19,6 +19,6 @@ public enum AlertDeliveryStatusCode : byte
     [Code("delivered", "Successfully sent to the channel transport.")]
     Delivered = 100,
 
-    [Code("failed", "Send attempt failed; eligible for retry by the next sys.alerts system job tick.")]
+    [Code("failed", "Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved.")]
     Failed = 200,
 }

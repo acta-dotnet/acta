@@ -13,8 +13,12 @@ namespace Acta.Runtime.Modules.Alerting;
 /// profile, and collapses automatic alerts onto one open incident row per job and condition.
 /// Deterministic poison events are durably recorded on the projector job before its cursor advances;
 /// transient failures retain the cursor for retry. Deliver resolves logical channels and transports,
-/// then records delivered, suppressed, retryable, or terminal outcomes. Delivery is at least once: a
-/// crash after send but before settlement may resend a rare duplicate.
+/// then records delivered, suppressed, retryable, or terminal outcomes against the version the row
+/// carried at selection. Delivery is at least once: a crash after send but before settlement may
+/// resend a rare duplicate.
+///
+/// <para>An alert resolved before delivery selection is not sent. Resolution suppresses further pending
+/// and retry attempts. A transport attempt already in progress may still complete.</para>
 /// </summary>
 internal sealed class AlertsJob(
     IAlertStore store,
@@ -46,6 +50,7 @@ internal sealed class AlertsJob(
     private readonly IAlertTransportRegistry _transports = transports;
     private readonly int _maxDeliveryRetries = options.Value.AlertDeliveryMaxRetries;
     private readonly int _failureThreshold = options.Value.AlertFailureThreshold;
+    private readonly TimeSpan _reminderInterval = options.Value.AlertReminderInterval;
     private readonly ILogger _log = log ?? NullLogger<AlertsJob>.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -276,7 +281,7 @@ internal sealed class AlertsJob(
 
     private async Task DeliverAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {
-        var due = await _store.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct);
+        var due = await _store.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, _reminderInterval, ct);
         foreach (var a in due)
         {
             var channel = _channels.Resolve(ctx.JobNamespace, a.ChannelName);
@@ -403,38 +408,51 @@ internal sealed class AlertsJob(
     }
 
     private Task SuppressAsync(DeliverableAlert a, CancellationToken ct) =>
-        _store.UpdateAlertDeliveryAsync(a.AlertId, AlertDeliveryStatusCode.Suppressed, a.RetryCount, retryAfterUtc: null, ct);
+        WriteSettlementAsync(a, AlertDeliveryStatusCode.Suppressed, a.RetryCount, retryAfterUtc: null, ct);
 
     private Task SettleAsync(DeliverableAlert a, AlertDeliveryOutcome outcome, DateTime nowUtc, CancellationToken ct)
     {
         switch (outcome)
         {
             case AlertDeliveryOutcome.Delivered:
-                return _store.UpdateAlertDeliveryAsync(a.AlertId, AlertDeliveryStatusCode.Delivered, a.RetryCount, retryAfterUtc: null, ct);
+                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, a.RetryCount, retryAfterUtc: null, ct);
 
             case AlertDeliveryOutcome.Retryable:
                 var nextRetryCount = (byte)Math.Min(a.RetryCount + 1, byte.MaxValue);
                 if (nextRetryCount >= _maxDeliveryRetries)
                 {
-                    return _store.UpdateAlertDeliveryAsync(
-                        a.AlertId,
-                        AlertDeliveryStatusCode.Failed,
-                        nextRetryCount,
-                        retryAfterUtc: null,
-                        ct
-                    );
+                    return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, nextRetryCount, retryAfterUtc: null, ct);
                 }
                 var delaySeconds = BackoffSchedule.ComputeDelaySeconds(nextRetryCount, RetryBackoff);
-                return _store.UpdateAlertDeliveryAsync(
-                    a.AlertId,
-                    AlertDeliveryStatusCode.RetryAfter,
-                    nextRetryCount,
-                    nowUtc.AddSeconds(delaySeconds),
-                    ct
-                );
+                return WriteSettlementAsync(a, AlertDeliveryStatusCode.RetryAfter, nextRetryCount, nowUtc.AddSeconds(delaySeconds), ct);
 
             default:
-                return _store.UpdateAlertDeliveryAsync(a.AlertId, AlertDeliveryStatusCode.Failed, a.RetryCount, retryAfterUtc: null, ct);
+                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, a.RetryCount, retryAfterUtc: null, ct);
+        }
+    }
+
+    // Every settlement writes against the version the row carried when this pass selected it. Losing
+    // that compare-and-swap is a correct outcome, not an error: the row moved on - an operator resolved
+    // it mid-send, or a competing worker settled the same attempt - and the newer state is the one that
+    // should stand. So there is no retry and no warning; the next pass re-selects whatever is genuinely
+    // due, and a reminder that lands just after a resolve simply loses. Debug, because the only reader
+    // who wants this line is someone tracing why one attempt left no trace.
+    private async Task WriteSettlementAsync(
+        DeliverableAlert a,
+        AlertDeliveryStatusCode status,
+        byte retryCount,
+        DateTime? retryAfterUtc,
+        CancellationToken ct
+    )
+    {
+        if (!await _store.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct))
+        {
+            _log.LogDebug(
+                "ACTA sys.alerts: alert ({Ref}) moved while its delivery attempt was in flight; settlement is ({Outcome}) ({Detail}).",
+                RenderRef(a.AlertRef),
+                "Skipped",
+                $"expected version {a.Version}"
+            );
         }
     }
 }

@@ -58,6 +58,15 @@ WHERE t.already_resolved = 0;
 UPDATE {{schema}}.alerts
 SET
     resolved_at_utc = (SELECT now_utc FROM temp._resolve_job_alert),
+    /* Same settlement as the automatic resolve: a queued notification for a condition an operator has
+       declared cleared is cancelled, and an already-settled status stands as the record of what the
+       send actually did. */
+    delivery_status_code = CASE
+        WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+            THEN 30 /* AlertDeliveryStatusCode.Suppressed */
+        ELSE delivery_status_code
+    END,
+    retry_after_utc = NULL,
     modified_at_utc = (SELECT now_utc FROM temp._resolve_job_alert),
     version = version + 1
 WHERE

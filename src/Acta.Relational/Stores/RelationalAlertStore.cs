@@ -72,12 +72,27 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             ct
         );
 
-    public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
+    public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(
+        short namespaceId,
+        int batchSize,
+        TimeSpan reminderInterval,
+        CancellationToken ct
+    ) =>
         session.QueryAsync<IReadOnlyList<DeliverableAlert>>(
             "Sql/Alerting/GetDeliverableAlerts.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
+                // Whole seconds: the option is validated positive, and the reminder arm compares against a
+                // day-scale spacing where sub-second precision would mean nothing. Clamped at both ends so
+                // a sub-second interval still means "one second" rather than "immediately, every tick",
+                // and a decade-long one cannot overflow the INT the three dialects take.
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(
+                        ActaSchema.Sql.AlertReminderSeconds,
+                        (int)Math.Clamp(reminderInterval.TotalSeconds, 1d, int.MaxValue)
+                    )
+                );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, batchSize));
             },
             async (reader, token) =>
@@ -95,24 +110,28 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         );
 
     // Inline UPDATE in every provider (no routine), so it loads by literal path with no write
-    // transaction, matching the provider stores' ExecuteNonQuery-without-transaction shape.
-    public Task UpdateAlertDeliveryAsync(
+    // transaction, matching the provider stores' ExecuteNonQuery-without-transaction shape. The CAS
+    // result is read as a returned row (RETURNING / OUTPUT, as extend_worker_leases already does)
+    // rather than from rows-affected, which is a driver-dependent number across the three providers.
+    public Task<bool> UpdateAlertDeliveryAsync(
         long alertId,
+        int expectedVersion,
         AlertDeliveryStatusCode status,
         byte retryCount,
         DateTime? retryAfterUtc,
         CancellationToken ct
     ) =>
-        session.QueryAsync<object?>(
+        session.QueryAsync(
             "Sql/Alerting/UpdateAlertDelivery.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Version, expectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryCount, retryCount));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryAfterUtc, retryAfterUtc));
             },
-            (reader, token) => Task.FromResult<object?>(null),
+            async (reader, token) => await reader.ReadAsync(token),
             ct
         );
 
