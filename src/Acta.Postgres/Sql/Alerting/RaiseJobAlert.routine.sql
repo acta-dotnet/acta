@@ -1,3 +1,22 @@
+-- The raise grew from RETURNS INT to a two-column row, and CREATE OR REPLACE cannot change a return
+-- type: the retired form is dropped FIRST. A trailing drop, the arity-change pattern elsewhere, does
+-- not fit here - old and new share one argument signature. DROP matches the types; names ride along.
+DROP FUNCTION IF EXISTS {{schema}}.raise_job_alert(
+    p_namespace_name VARCHAR,
+    p_job_id BIGINT,
+    p_origin_code SMALLINT,
+    p_severity_code SMALLINT,
+    p_kind_code SMALLINT,
+    p_title VARCHAR,
+    p_message VARCHAR,
+    p_channel_name VARCHAR,
+    p_delivery_status_code SMALLINT,
+    p_dedupe_key VARCHAR,
+    p_dedupe_window_start_utc TIMESTAMPTZ,
+    p_source_event_id BIGINT,
+    p_alert_ref UUID
+);
+
 CREATE OR REPLACE FUNCTION {{schema}}.raise_job_alert(
     p_namespace_name VARCHAR,
     p_job_id BIGINT,
@@ -13,11 +32,14 @@ CREATE OR REPLACE FUNCTION {{schema}}.raise_job_alert(
     p_source_event_id BIGINT,
     p_alert_ref UUID
 )
-RETURNS INT
+-- out_-prefixed (RegisterScheduledJobs precedent): RETURNS TABLE names become plpgsql variables, and
+-- bare column names would make every occurrence_count / last_projected_event_id reference ambiguous.
+RETURNS TABLE (out_occurrence_count INT, out_last_projected_event_id BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_occurrence_count INT;
+    v_last_projected_event_id BIGINT;
     v_ns SMALLINT;
     v_job_ref UUID;
 BEGIN
@@ -75,7 +97,8 @@ BEGIN
             now(),
             now(),
             0);
-        RETURN 1;
+        RETURN QUERY SELECT 1, p_source_event_id;
+        RETURN;
     END IF;
 
     INSERT INTO {{schema}}.alerts (
@@ -137,19 +160,21 @@ BEGIN
         p_source_event_id IS NULL
         OR {{schema}}.alerts.last_projected_event_id IS NULL
         OR p_source_event_id > {{schema}}.alerts.last_projected_event_id
-    RETURNING occurrence_count INTO v_occurrence_count;
+    RETURNING occurrence_count, last_projected_event_id INTO v_occurrence_count, v_last_projected_event_id;
 
-    -- The WHERE above held the row back: a replay of an event it already absorbed. Nothing was written,
-    -- and the count the row already carries is what the caller's failure threshold must read.
+    -- The WHERE above held the row back: a replay of an event it already absorbed. Nothing was written;
+    -- the caller's failure threshold reads the count the row already carries, and the mark tells it
+    -- whether THIS event is the one the row absorbed last.
     IF v_occurrence_count IS NULL THEN
-        SELECT occurrence_count INTO v_occurrence_count
-        FROM {{schema}}.alerts
+        SELECT a.occurrence_count, a.last_projected_event_id
+        INTO v_occurrence_count, v_last_projected_event_id
+        FROM {{schema}}.alerts a
         WHERE
-            namespace_id = v_ns
-            AND dedupe_key = p_dedupe_key
-            AND dedupe_window_start_utc = p_dedupe_window_start_utc;
+            a.namespace_id = v_ns
+            AND a.dedupe_key = p_dedupe_key
+            AND a.dedupe_window_start_utc = p_dedupe_window_start_utc;
     END IF;
 
-    RETURN v_occurrence_count;
+    RETURN QUERY SELECT v_occurrence_count, v_last_projected_event_id;
 END;
 $$;

@@ -50,10 +50,10 @@ WHERE
     OR {{schema}}.alerts.last_projected_event_id IS NULL
     OR @p_source_event_id > {{schema}}.alerts.last_projected_event_id;
 
--- Read back rather than RETURNed: a replay the guard holds back writes nothing, so RETURNING yields no
--- row while the caller's failure threshold still needs the stored count. One row either way - the
--- insert arm by the ref it just minted, the conflict arm by its dedupe coordinates, both one row.
-SELECT a.occurrence_count
+-- Read back rather than RETURNed: a replay the guard holds back writes nothing, so RETURNING yields
+-- no row while the caller still needs the stored count and mark. One row either way - the insert arm
+-- by the ref it just minted, the conflict arm by its dedupe coordinates.
+SELECT a.occurrence_count, a.last_projected_event_id
 FROM {{schema}}.alerts a
 WHERE
     a.alert_ref = @p_alert_ref

@@ -111,7 +111,9 @@ internal sealed record SchemaDiff(
 
     private static void DiffCodeFamilies(SchemaSnapshot from, SchemaSnapshot to, List<string> warnings)
     {
-        var fromByName = from.CodeFamilies.ToDictionary(f => f.CodeKind, f => f.ValueIds, StringComparer.Ordinal);
+        // A pre-narrowing schema-snapshot.json (no ValueIds field) deserializes them null; treated as
+        // empty, an old-format snapshot reports every family as drift instead of throwing an NRE.
+        var fromByName = from.CodeFamilies.ToDictionary(f => f.CodeKind, f => f.ValueIds ?? [], StringComparer.Ordinal);
         foreach (var family in to.CodeFamilies.OrderBy(f => f.CodeKind, StringComparer.Ordinal))
         {
             // A brand-new family arrives with its table/columns; their checks render with the column.

@@ -728,9 +728,12 @@ internal sealed class JobExecution(
     //
     // The Ready rollover carries the attempt's reason through, like every other completion shape: the
     // status says the slot is armed for its next occurrence, the reason says how the attempt that just
-    // ended ended. Dropping it left a nightly job that throws every night writing an unreasoned event,
-    // which is the one shape GetAlertableEvents cannot see - so the failure never alerted and jobs
-    // explain had nothing to show. A clean success supplies no reason and so still records none.
+    // ended ended. The alertable set admits a Ready event only for reasons 20/21/22 (unhandled
+    // exception, lease expired, execution timeout - GetAlertableEvents.sql), so dropping the reason
+    // left a nightly job that throws every night writing an unreasoned event that filter could never
+    // see: the failure never alerted and jobs explain had nothing to show. An aborted attempt (25,
+    // JobAttemptAborted) also rolls over Ready and stays non-alerting by design, symmetric with a
+    // one-shot re-arm for the same reason. A clean success supplies no reason and so still records none.
     internal static (
         JobStatusCode FinalStatus,
         short FailureCount,

@@ -11,16 +11,17 @@ namespace Acta.Runtime.Modules.Alerting;
 internal interface IAlertStore
 {
     /// <summary>
-    /// Persists one <c>alerts</c> row and returns its post-upsert <c>occurrence_count</c>. A null
-    /// deduplication key always inserts (returns 1); a non-null key upserts on
+    /// Persists one <c>alerts</c> row and returns its post-upsert <c>occurrence_count</c> and
+    /// <c>last_projected_event_id</c>. A null deduplication key always inserts (count 1, the command's
+    /// <c>SourceEventId</c> as the mark); a non-null key upserts on
     /// <c>(namespace_id, deduplication_key, dedupe_window_start_utc)</c>, collapsing repeats inside the
     /// window onto one row. A command carrying a <c>SourceEventId</c> only increments, re-opens, and
     /// re-stamps the row when that id is newer than the row's <c>last_projected_event_id</c>; a replay of
-    /// an already-projected event changes nothing and returns the stored count. A null
+    /// an already-projected event changes nothing and returns the stored count and mark. A null
     /// <c>SourceEventId</c> (a manual raise) always applies. Throws <see cref="ArgumentException"/> when
     /// the referenced job id does not exist.
     /// </summary>
-    Task<int> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct);
+    Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct);
 
     /// <summary>
     /// Reads the namespace's alert-relevant <c>events</c> rows above the <c>sys.alerts</c> cursor,

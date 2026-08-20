@@ -1148,11 +1148,11 @@ BEGIN
                 @p_delivery_status_code, 0,
                 @now, @now, 0
             );
-            SELECT 1;
+            SELECT 1, @p_source_event_id;
             RETURN;
         END
 
-    DECLARE @updated TABLE (occurrence_count INT NOT NULL);
+    DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
 
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -1172,7 +1172,7 @@ BEGIN
             last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
             modified_at_utc = @now,
             version = ja.version + 1
-        OUTPUT INSERTED.occurrence_count INTO @updated
+        OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
         FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, INDEX (ux_alerts_dedupe))
         WHERE
             ja.namespace_id = @v_ns
@@ -1189,14 +1189,16 @@ BEGIN
                 -- Either no row is there yet and this raise inserts it, or one is and this is a replay
                 -- of an event it already absorbed. Reading under the range lock the UPDATE already
                 -- took tells the two apart without a race.
-                DECLARE @v_existing_count INT = (
-                    SELECT ja.occurrence_count
-                    FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, INDEX (ux_alerts_dedupe))
-                    WHERE
-                        ja.namespace_id = @v_ns
-                        AND ja.dedupe_key = @p_dedupe_key
-                        AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc
-                );
+                DECLARE @v_existing_count INT;
+                DECLARE @v_existing_last_projected_event_id BIGINT;
+                SELECT
+                    @v_existing_count = ja.occurrence_count,
+                    @v_existing_last_projected_event_id = ja.last_projected_event_id
+                FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, INDEX (ux_alerts_dedupe))
+                WHERE
+                    ja.namespace_id = @v_ns
+                    AND ja.dedupe_key = @p_dedupe_key
+                    AND ja.dedupe_window_start_utc = @p_dedupe_window_start_utc;
 
                 IF @v_existing_count IS NULL
                     BEGIN
@@ -1207,7 +1209,7 @@ BEGIN
                             delivery_status_code, retry_count,
                             created_at_utc, modified_at_utc, version
                         )
-                        OUTPUT INSERTED.occurrence_count INTO @updated
+                        OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
                         VALUES (
                             @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                             @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
@@ -1218,15 +1220,17 @@ BEGIN
                     END
                 ELSE
                     BEGIN
-                        -- A replay: nothing written, and the caller's failure threshold reads the count
-                        -- the row already carries.
-                        INSERT INTO @updated (occurrence_count) VALUES (@v_existing_count);
+                        -- A replay: nothing written. The caller's failure threshold reads the count the
+                        -- row already carries, and the mark tells it whether THIS event is the one the
+                        -- row absorbed last.
+                        INSERT INTO @updated (occurrence_count, last_projected_event_id)
+                        VALUES (@v_existing_count, @v_existing_last_projected_event_id);
                     END
             END
 
         COMMIT TRANSACTION;
 
-        SELECT TOP (1) occurrence_count FROM @updated;
+        SELECT TOP (1) occurrence_count, last_projected_event_id FROM @updated;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0

@@ -129,6 +129,107 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(AlertKindCode.FirstFailure, Assert.Single(afterReplay).Kind);
     }
 
+    [Fact(DisplayName = "The dedupe bucket derives from the event's own instant, so a replay in a later bucket lands on the same row")]
+    public async Task Window_bucket_derives_from_the_event_not_from_the_projecting_pass()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RecurringPingHandler.Reset(TestNamespace);
+        var slotId = await SlotIdAsync(ct);
+
+        // Two orphaned attempts whose failure events are then back-dated into a bucket hours closed.
+        // A projection that is a pure function of the event stream must land the alert there; one that
+        // floors the pass's own clock lands it in the current bucket instead - and a crash-replay in
+        // the NEXT bucket then mints a second row and re-delivers everything. A success between the
+        // orphans resets the failure count: the recovery sweep terminalizes at the probe's MaxAttempts
+        // (2), so back-to-back orphans would end in FinalFailure instead of a counted repeat. The
+        // success event rides through the back-dating too, harmlessly - resolution has no bucket.
+        await OrphanOneAttemptAsync(slotId, ct);
+        await SucceedOneFireAsync(slotId, ct);
+        await OrphanOneAttemptAsync(slotId, ct);
+
+        var eventInstant = DateTime.UtcNow.AddHours(-3);
+        Assert.Equal(3, await BackdateFinishedEventsAsync(slotId, eventInstant, ct));
+        var expectedWindowStart = AlertWindow.FloorStart(eventInstant, DedupeWindow);
+
+        await RunAlertsPinnedAsync(slotId, ct);
+        var projected = Assert.Single(await ReadAlertsAsync(NamespaceId, ct));
+        Assert.Equal(AlertKindCode.FirstFailure, projected.Kind);
+        Assert.Equal(2, projected.OccurrenceCount);
+        Assert.Equal(expectedWindowStart, projected.DedupeWindowStartUtc);
+
+        // The crash: every alert write committed, the cursor write lost. The replay re-floors the same
+        // event instants, lands every raise on the row above, and the high-water guard holds - the
+        // whole alert set must come through unwritten.
+        Assert.Equal(1, await ForgetAlertsCursorAsync(slotId, ct));
+        await RunAlertsPinnedAsync(slotId, ct);
+
+        var afterReplay = Assert.Single(await ReadAlertsAsync(NamespaceId, ct));
+        Assert.Equal(projected.Id, afterReplay.Id);
+        Assert.Equal(2, afterReplay.OccurrenceCount);
+        Assert.Equal(expectedWindowStart, afterReplay.DedupeWindowStartUtc);
+        Assert.Equal(projected.Version, afterReplay.Version);
+    }
+
+    [Fact(
+        DisplayName = "A crash between the crossing event's FirstFailure and ThresholdReached emits recovers one correctly-sourced escalation"
+    )]
+    public async Task Interrupted_threshold_crossing_recovers_single_sourced_not_inflated()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RecurringPingHandler.Reset(TestNamespace);
+        var slotId = await SlotIdAsync(ct);
+
+        // Three failures on one slot, all back-dated to one instant so they deterministically share a
+        // bucket and count 1, 2, 3 on one FirstFailure row; the third is the true crossing event. The
+        // interleaved successes keep the slot under the recovery sweep's MaxAttempts (2) terminal, and
+        // their resolves do not break the count: each re-raise re-opens the SAME row and keeps
+        // incrementing it, so the crossing arithmetic is unchanged.
+        await OrphanOneAttemptAsync(slotId, ct);
+        await SucceedOneFireAsync(slotId, ct);
+        await OrphanOneAttemptAsync(slotId, ct);
+        await SucceedOneFireAsync(slotId, ct);
+        await OrphanOneAttemptAsync(slotId, ct);
+        Assert.Equal(5, await BackdateFinishedEventsAsync(slotId, DateTime.UtcNow.AddHours(-3), ct));
+        var crossingEventId = (await ReadLatestEventAsync(slotId, EventCode.JobExecutionFinished, ct)).Id;
+
+        await RunAlertsPinnedAsync(slotId, ct);
+        var alerts = await ReadAlertsAsync(NamespaceId, ct);
+        Assert.Equal(3, Assert.Single(alerts, a => a.Kind == AlertKindCode.FirstFailure).OccurrenceCount);
+        var threshold = Assert.Single(alerts, a => a.Kind == AlertKindCode.ThresholdReached);
+        Assert.Equal(1, threshold.OccurrenceCount);
+        Assert.Equal(crossingEventId, threshold.LastProjectedEventId);
+
+        // The staged crash: the pass emitted the crossing event's FirstFailure but died before its
+        // ThresholdReached landed. Both emits above DID land, so deleting the ThresholdReached row and
+        // the cursor restores exactly that state, and the replay must recover the escalation.
+        Assert.Equal(1, await Db.From<JobAlert>().Where(a => a.Id == threshold.Id).DeleteAsync(ct));
+        Assert.Equal(1, await ForgetAlertsCursorAsync(slotId, ct));
+        await RunAlertsPinnedAsync(slotId, ct);
+
+        // Only the crossing event re-fires: the two earlier events' held raises return the stored
+        // count (already at the threshold) with a newer mark and stay silent. Count 1 is asserted
+        // first because inflation is the failure this fact exists to catch: under a bare
+        // count-equals-threshold condition all three replayed raises re-fired, the first one minted
+        // the row blaming the wrong event, and the other two inflated it to 3.
+        var recovered = Assert.Single(await ReadAlertsAsync(NamespaceId, ct), a => a.Kind == AlertKindCode.ThresholdReached);
+        Assert.Equal(1, recovered.OccurrenceCount);
+        Assert.Equal(crossingEventId, recovered.LastProjectedEventId);
+
+        // A second replay leaves the recovered row untouched: the crossing event's re-fire lands on
+        // the row's own high-water guard now, and the unchanged version proves it wrote nothing.
+        Assert.Equal(1, await ForgetAlertsCursorAsync(slotId, ct));
+        await RunAlertsPinnedAsync(slotId, ct);
+        var afterSecondReplay = await ReadAlertsAsync(NamespaceId, ct);
+        var settled = Assert.Single(afterSecondReplay, a => a.Kind == AlertKindCode.ThresholdReached);
+        Assert.Equal(recovered.Id, settled.Id);
+        Assert.Equal(1, settled.OccurrenceCount);
+        Assert.Equal(crossingEventId, settled.LastProjectedEventId);
+        Assert.Equal(recovered.Version, settled.Version);
+
+        // The FirstFailure row rode through both replays untouched as well.
+        Assert.Equal(3, Assert.Single(afterSecondReplay, a => a.Kind == AlertKindCode.FirstFailure).OccurrenceCount);
+    }
+
     // ---------- driving the slot ----------
 
     private Task<long> SlotIdAsync(CancellationToken ct) => AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, JobName, ct);
@@ -167,6 +268,19 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal((short)0, slot.FailureCount);
     }
 
+    /// <summary>
+    /// Re-stamps every execution-finished event of the slot to <paramref name="instant"/> (the suite's
+    /// UpdateOnlyAsync back-dating pattern): the projector derives the dedupe bucket from these
+    /// stamps, so parking them hours in the past pins which bucket a correct projection lands in -
+    /// deterministically, where events written at "now" would be at the mercy of a boundary crossing
+    /// mid-fact. Success events are re-stamped along with the failures, harmlessly: resolution carries
+    /// no bucket.
+    /// </summary>
+    private Task<int> BackdateFinishedEventsAsync(long slotId, DateTime instant, CancellationToken ct) =>
+        Db.From<JobEvent>()
+            .Where(e => e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished)
+            .UpdateOnlyAsync(() => new JobEvent { CreatedAtUtc = instant }, ct);
+
     // ---------- driving the projector ----------
 
     // The compiled AlertsJob constant names the cursor variable, so the crash this spec stages keeps
@@ -178,4 +292,19 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, ct);
+
+    // The crash-staging facts pin the window and threshold instead of inheriting the container's,
+    // because their back-dated instants and expected counts are chosen against exactly these values -
+    // and both passes of a staged crash must floor with the same window to mean anything.
+    private static readonly TimeSpan DedupeWindow = TimeSpan.FromHours(1);
+
+    private Task RunAlertsPinnedAsync(long cursorOwnerJobId, CancellationToken ct) =>
+        AlertTestOps.RunAlertsJobAsync(
+            Services,
+            TestNamespace,
+            NamespaceId,
+            cursorOwnerJobId,
+            new JobsOptions { AlertDedupeWindow = DedupeWindow, AlertFailureThreshold = 3 },
+            ct
+        );
 }

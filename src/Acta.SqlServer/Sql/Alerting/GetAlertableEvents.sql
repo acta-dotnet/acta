@@ -8,7 +8,8 @@ SELECT TOP (@p_alert_batch_size)
     e.execution_status_code,
     e.to_status_code,
     e.reason_code,
-    e.reason_message
+    e.reason_message,
+    e.created_at_utc
 FROM {{schema}}.events e
 INNER JOIN {{schema}}.definitions jd ON jd.id = e.definition_id
 WHERE

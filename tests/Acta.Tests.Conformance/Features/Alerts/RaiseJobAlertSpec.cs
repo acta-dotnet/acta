@@ -206,7 +206,7 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             null,
             ct
         );
-        Assert.Equal(1, count);
+        Assert.Equal(1, count.OccurrenceCount);
     }
 
     private RuntimeJobContext BuildContext()

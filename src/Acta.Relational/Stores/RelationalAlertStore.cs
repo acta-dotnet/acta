@@ -17,19 +17,25 @@ namespace Acta.Relational.Stores;
 /// </summary>
 internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect dialect) : IAlertStore
 {
-    public async Task<int> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
+    public async Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
     {
         try
         {
             var rows = await session.ExecuteAsync(
                 new StoreCommand("Alerting", "RaiseJobAlert"),
                 cmd => AddRaiseParameters(cmd, command),
-                reader => reader.IsDBNull(0) ? (int?)null : Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                reader =>
+                    reader.IsDBNull(0)
+                        ? null
+                        : new AlertRaiseOutcome(
+                            Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                            reader.IsDBNull(1) ? null : Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture)
+                        ),
                 ct
             );
 
-            return rows.Count > 0 && rows[^1] is { } count
-                ? count
+            return rows.Count > 0 && rows[^1] is { } outcome
+                ? outcome
                 : throw new InvalidOperationException("raise_job_alert returned no occurrence_count.");
         }
         catch (DbException ex) when (ex.Message.Contains("ACTA:ALERT_UNKNOWN_JOB:", StringComparison.Ordinal))

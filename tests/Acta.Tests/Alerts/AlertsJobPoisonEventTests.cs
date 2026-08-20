@@ -72,12 +72,12 @@ public sealed class AlertsJobPoisonEventTests
 
         public List<long> RaiseAttempts { get; } = [];
 
-        public Task<int> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
+        public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
         {
             var eventId = command.JobId == 101 ? 11L : 12L;
             RaiseAttempts.Add(eventId);
             return command.JobId == 101
-                ? Task.FromException<int>(
+                ? Task.FromException<AlertRaiseOutcome>(
                     failure
                         ?? (
                             deterministicFailure
@@ -85,7 +85,7 @@ public sealed class AlertsJobPoisonEventTests
                                 : new TimeoutException("provider timeout")
                         )
                 )
-                : Task.FromResult(1);
+                : Task.FromResult(new AlertRaiseOutcome(1, command.SourceEventId));
         }
 
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
@@ -130,7 +130,8 @@ public sealed class AlertsJobPoisonEventTests
                 ExecutionStatus: ExecutionStatusCode.Failed,
                 ToStatus: JobStatusCode.Failed,
                 ReasonCode: JobEventReasonCode.JobUnhandledException,
-                ReasonMessage: "boom"
+                ReasonMessage: "boom",
+                CreatedAtUtc: DateTime.UnixEpoch
             );
     }
 

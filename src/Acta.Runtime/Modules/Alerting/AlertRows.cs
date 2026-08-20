@@ -6,6 +6,9 @@ namespace Acta.Runtime.Modules.Alerting;
 /// One alert-relevant <c>events</c> row projected for the <c>sys.alerts</c> generate phase, joined to
 /// its definition's alert policy. The projector classifies the reason in C# from the
 /// <c>(ExecutionStatus, ToStatus, ReasonCode)</c> triple, never from the mutable <c>runtimes.failure_count</c>.
+/// <see cref="CreatedAtUtc"/> is the event's own write instant: the projector floors it into the
+/// dedupe-window bucket, so a crash-replay re-derives the bucket from the event rather than from the
+/// replaying pass's clock.
 /// </summary>
 internal sealed record AlertableEvent(
     long EventId,
@@ -17,7 +20,8 @@ internal sealed record AlertableEvent(
     ExecutionStatusCode? ExecutionStatus,
     JobStatusCode? ToStatus,
     JobEventReasonCode? ReasonCode,
-    string? ReasonMessage
+    string? ReasonMessage,
+    DateTime CreatedAtUtc
 );
 
 /// <summary>
@@ -46,6 +50,15 @@ internal sealed record DeliverableAlert(
 /// each return one <c>(action, acknowledged_at_utc, resolved_at_utc)</c> row.
 /// </summary>
 internal sealed record AlertControlOutcome(JobControlActionInternal Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);
+
+/// <summary>
+/// Result of one alert raise: the row's post-raise <c>occurrence_count</c> and
+/// <c>last_projected_event_id</c>. When the raise applied, the mark equals the command's
+/// <c>SourceEventId</c> by definition; when the replay guard held the write back, both values are the
+/// stored ones - which is how the projector tells the true threshold-crossing event (the mark still
+/// names it) apart from a replayed neighbour whose raise the row had already absorbed.
+/// </summary>
+internal sealed record AlertRaiseOutcome(int OccurrenceCount, long? LastProjectedEventId);
 
 /// <summary>
 /// Flat alert list row in SELECT order; dedupe and channel-config columns are never selected.

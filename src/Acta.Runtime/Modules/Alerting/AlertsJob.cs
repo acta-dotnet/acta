@@ -65,14 +65,13 @@ internal sealed class AlertsJob(
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
         var nowUtc = await _clock.GetUtcNowAsync(ct);
-        await GenerateAsync(ctx, nowUtc, ct);
+        await GenerateAsync(ctx, ct);
         await DeliverAsync(ctx, nowUtc, ct);
     }
 
-    private async Task GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
+    private async Task GenerateAsync(JobContext ctx, CancellationToken ct)
     {
         var cursor = await ctx.GetVariableOrDefaultAsync<long>(CursorVariableName, 0L, ct);
-        var windowStart = AlertWindow.FloorStart(nowUtc, _dedupeWindow);
 
         var events = await _store.GetAlertableEventsAsync(ctx.NamespaceId, cursor, GenerateBatchSize, ct);
         if (events.Count == 0)
@@ -86,7 +85,7 @@ internal sealed class AlertsJob(
             maxId = Math.Max(maxId, e.EventId);
             try
             {
-                await ProjectAsync(ctx, e, windowStart, ct);
+                await ProjectAsync(ctx, e, ct);
             }
             catch (AlertProjectionDataException ex)
             {
@@ -131,13 +130,21 @@ internal sealed class AlertsJob(
     // fire first-failure, final-failure, or threshold-reached alerts. A success emits nothing: it only
     // closes this job's open automatic failure alerts, keeping the resolved timestamp as the single
     // source of truth for open state.
-    private async Task ProjectAsync(JobContext ctx, AlertableEvent e, DateTime windowStart, CancellationToken ct)
+    private async Task ProjectAsync(JobContext ctx, AlertableEvent e, CancellationToken ct)
     {
         var profile = e.AlertProfile;
         if (profile == AlertProfileCode.None)
         {
             return;
         }
+
+        // The dedupe bucket comes from the EVENT's write instant, never this pass's clock: projection
+        // is then a pure function of the event stream, so a crash-replay near a window boundary
+        // re-floors the same instant and lands on the row the first pass wrote, where the
+        // last_projected_event_id guard holds. Flooring the pass's now instead let a replay in the
+        // next bucket mint a fresh row and re-deliver everything. Manual alerts (AlertStoreSink) have
+        // no event and keep flooring the caller's now.
+        var windowStart = AlertWindow.FloorStart(e.CreatedAtUtc, _dedupeWindow);
 
         // SysCritical only raises the severity to Critical; the channel is uniform (the declared
         // one, else the configured "default" log channel), so system-job failures sink to logs out of the box.
@@ -179,8 +186,15 @@ internal sealed class AlertsJob(
         }
 
         var firstSeverity = system ? AlertSeverityCode.Critical : AlertSeverityCode.Warning;
-        var occurrence = await EmitAsync(ctx, e, channel, AlertKindCode.FirstFailure, firstSeverity, windowStart, ct);
-        if (occurrence == _failureThreshold)
+        var raise = await EmitAsync(ctx, e, channel, AlertKindCode.FirstFailure, firstSeverity, windowStart, ct);
+        // Escalate only when THIS event is the one the row just absorbed. An applied raise stamps the
+        // incoming id as the row's mark, so on a first pass the extra condition changes nothing. A
+        // replay-held raise returns the STORED count - already at the threshold - with a newer mark;
+        // without the mark check every replayed event under that count re-fired ThresholdReached,
+        // blaming the wrong events and inflating the row. The true crossing event still matches the
+        // mark on replay, and the ThresholdReached row's own high-water guard makes that re-emit a
+        // no-op when the pre-crash emit landed - or a correct single-source recovery when it did not.
+        if (raise.OccurrenceCount == _failureThreshold && raise.LastProjectedEventId == e.EventId)
         {
             await EmitAsync(
                 ctx,
@@ -194,7 +208,7 @@ internal sealed class AlertsJob(
         }
     }
 
-    private async Task<int> EmitAsync(
+    private async Task<AlertRaiseOutcome> EmitAsync(
         JobContext ctx,
         AlertableEvent e,
         string channel,

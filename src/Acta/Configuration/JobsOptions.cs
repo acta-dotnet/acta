@@ -193,10 +193,11 @@ public sealed class JobsOptions
 
     /// <summary>
     /// Width of the dedupe bucket for alerts raised with a non-null deduplication key (<c>ctx.AlertAsync</c> and
-    /// the framework automatic-alert paths). Repeats sharing a <c>(namespace_id, deduplication_key)</c>
-    /// that fall in the same window collapse onto one <c>alerts</c> row (incrementing
-    /// <c>occurrence_count</c>); the window start is the caller's <c>now</c> floored to a multiple of
-    /// this span. The dedupe window is the rate limit. Default 4 hours.
+    /// the framework automatic-alert paths). Repeats sharing a <c>(namespace_id, deduplication_key)</c> in one
+    /// window collapse onto one <c>alerts</c> row (incrementing <c>occurrence_count</c>); the window start is
+    /// an instant floored to a multiple of this span - the projected failure event's own write instant on the
+    /// automatic paths (a replayed event re-derives its first bucket), the caller's <c>now</c> for a manual
+    /// <c>ctx.AlertAsync</c>. The dedupe window is the rate limit. Default 4 hours.
     ///
     /// <para>It also decides whether <see cref="AlertFailureThreshold"/> is reachable at all, because that
     /// threshold counts failures <em>within one window</em>: a job only escalates if its cadence fits
@@ -220,7 +221,9 @@ public sealed class JobsOptions
     /// Number of failures within the <see cref="AlertDedupeWindow"/> at which an automatic failure alert
     /// escalates to <c>ThresholdReached</c> (<c>Error</c> severity). The <c>sys.alerts</c> generate phase
     /// reads the post-upsert <c>occurrence_count</c> from <c>raise_job_alert</c> and escalates when it
-    /// meets this value; reset-immune, with no JOIN to the mutable <c>runtimes.failure_count</c>. Default 3.
+    /// meets this value and the raise applied (the row's high-water mark is the projecting event, so a
+    /// crash-replay cannot re-fire the escalation from a held raise); reset-immune, with no JOIN to the
+    /// mutable <c>runtimes.failure_count</c>. Default 3.
     ///
     /// <para>This counts failures inside one <see cref="AlertDedupeWindow"/>, not consecutive failures over
     /// the job's life: <c>occurrence_count</c> belongs to the window's row and restarts at 1 in each new

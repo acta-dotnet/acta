@@ -45,6 +45,15 @@ Only `job.execution-finished` events, and only three shapes of them (`GetAlertab
 | Re-arm after a failed attempt | `Ready` (10) | `job.unhandled-exception` (20), `job.lease-expired` (21), `job.execution-timeout` (22) | Non-terminal failure |
 | Successful execution | any | any | Resolution |
 
+All of this rides the event stream, so the job's `AuditLevel` decides whether alerting can see the job
+at all. The default `Audit` writes every `job.execution-finished`; **`AuditLevel = Failures` writes it
+only for terminal, non-re-arm failures** (`CompleteExecution.routine.sql`). Under `Failures` there are
+no re-arm events — so `FirstFailure` and `ThresholdReached` never fire — and no success events — so
+automatic resolution never runs, and a `FinalFailure` raised for a job an operator later restarts to
+success stays open until resolved by hand. A job that opts down to `Failures` keeps exactly one working
+alert shape, `FinalFailure`, with no self-resolution. The full alert lifecycle requires the default
+audit level.
+
 Everything else is invisible to alerting. Two exclusions are worth stating outright:
 
 - **A `Cancelled` landing never alerts, under any profile.** An operator cancel, `ctx.CancelAsync`
@@ -111,22 +120,28 @@ Four things follow from the key's shape:
   a row per occurrence ([concepts](./concepts.md), glossary and "Schedules, workers, and providers"),
   so the job id — and therefore the alert identity — does not move from occurrence to occurrence.
 
-The window is `AlertWindow.FloorStart(now, AlertDedupeWindow)` (`AlertsJob.GenerateAsync`,
-`AlertWindow.FloorStart`). `AlertDedupeWindow` is a public `JobsOptions` setting defaulting to four
-hours (`JobsOptions.AlertDedupeWindow`). It is the rate limit on automatic alerting, and it also
-decides whether `ThresholdReached` is reachable for a given job at all — see
+The window is `AlertWindow.FloorStart(event.CreatedAtUtc, AlertDedupeWindow)`
+(`AlertsJob.ProjectAsync`, `AlertWindow.FloorStart`): the automatic path floors the failure event's
+own write instant, never the projecting pass's clock, so which bucket an event lands in is a fact
+about the event, not about when the projector happened to run. (A manual `ctx.AlertAsync` has no
+event behind it and floors the caller's now — `AlertStoreSink.RaiseManualAsync`.) `AlertDedupeWindow`
+is a public `JobsOptions` setting defaulting to four hours (`JobsOptions.AlertDedupeWindow`). It is
+the rate limit on automatic alerting, and it also decides whether `ThresholdReached` is reachable for
+a given job at all — see
 [How much a broken job actually sends](#how-much-a-broken-job-actually-sends).
 
-The start is **floored on the wall clock**, so windows are aligned buckets (…00:00, 04:00, 08:00,
-12:00 on the default), not "four hours from the first failure". Two failures a second apart but
-either side of a boundary land in different buckets and produce two rows.
+The start is **floored**, so windows are aligned buckets (…00:00, 04:00, 08:00, 12:00 on the
+default), not "four hours from the first failure". Two failures a second apart but either side of a
+boundary land in different buckets and produce two rows.
 
 Automatic writes are replay-safe. Each carries the projecting event's id, and the upsert increments,
 re-opens, and re-stamps only when that id is strictly newer than the row's `last_projected_event_id`
-(`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`). Re-projecting a batch after a crash changes
-nothing. The public `alert_ref` is applied on the INSERT arm only, and is absent from the
-`DO UPDATE SET` list (`RaiseJobAlert.routine.sql`), so a row keeps the ref its first firing minted
-however many times it re-fires.
+(`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`). Because the bucket is derived from the event, a
+replayed event re-floors the same instant and lands on the very row that guard protects — even when
+the retrying pass runs in a later bucket — so re-projecting a batch after a crash changes nothing.
+The public `alert_ref` is applied on the INSERT arm only, and is absent from the `DO UPDATE SET` list
+(`RaiseJobAlert.routine.sql`), so a row keeps the ref its first firing minted however many times it
+re-fires.
 
 ## Resolution
 
@@ -141,6 +156,9 @@ A successful execution resolves that job's open automatic alerts and writes noth
 - **Idempotent, and run on every success.** Within one batch a job can go fail → success → fail →
   success; resolving each success is what stops the re-opened row from lingering unresolved
   (`AlertsJob.ProjectAsync`).
+- **Dependent on the success event existing.** `AuditLevel = Failures` suppresses success events at the
+  source (see [What projects an alert](#what-projects-an-alert)), so under it nothing ever drives this
+  path — recovery does not resolve, whatever the profile's description promises.
 
 Manual alerts are a separate path throughout. `ctx.AlertAsync` writes `origin = Manual`,
 `kind = Manual` (`JobContext.AlertAsync`, `AlertStoreSink.RaiseManualAsync`), which the automatic
@@ -154,8 +172,12 @@ resolve never matches. The operator verbs `IAlerts.AcknowledgeAsync` and `IAlert
 
 These numbers are measured against the code, not estimated.
 
-`ThresholdReached` fires when the `FirstFailure` row's post-upsert occurrence count **equals**
-`AlertFailureThreshold` (`AlertsJob.ProjectAsync`; default 3, `JobsOptions.AlertFailureThreshold`).
+`ThresholdReached` fires when the `FirstFailure` raise applies and the row's post-upsert occurrence
+count **equals** `AlertFailureThreshold` (`AlertsJob.ProjectAsync`; default 3,
+`JobsOptions.AlertFailureThreshold`). "Applies" is read off the raise's returned
+`last_projected_event_id`: only the event the row just absorbed may escalate, so a crash-replay —
+whose held raises all return the stored, already-at-threshold count — re-fires the escalation only
+from the true crossing event, where the `ThresholdReached` row's own high-water guard settles it.
 That count belongs to the window's row, so it restarts at 1 in each new window and the threshold is
 crossed at most once per window.
 

@@ -252,7 +252,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         );
     }
 
-    private Task<int> RaiseAlertAsync(IDbSession db, string jobNamespace, AlertDeliveryStatusCode delivery, CancellationToken ct) =>
+    private Task RaiseAlertAsync(IDbSession db, string jobNamespace, AlertDeliveryStatusCode delivery, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
             jobNamespace,

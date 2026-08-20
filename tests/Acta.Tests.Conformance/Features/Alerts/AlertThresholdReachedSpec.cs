@@ -144,7 +144,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
             windowStart,
             ct
         );
-        Assert.Equal(1, occ1);
+        Assert.Equal(1, occ1.OccurrenceCount);
 
         // Capture the row id; confirm alert is unresolved.
         var afterRaise = await ReadAlertsAsync(NamespaceId, ct);
@@ -174,7 +174,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
             windowStart,
             ct
         );
-        Assert.Equal(2, occ2);
+        Assert.Equal(2, occ2.OccurrenceCount);
 
         // Same row id (no new row), resolved_at_utc back to NULL, occurrence_count bumped to 2.
         var afterReopen = await ReadAlertsAsync(NamespaceId, ct);

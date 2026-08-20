@@ -209,6 +209,8 @@
 - **Guarantees:**
   - A success closes the slot's open failure alert and a later failure re-opens the same row
   - Replaying the batch a crashed pass never checkpointed changes nothing it already projected
+  - The dedupe bucket derives from the event's own instant, so a replay in a later bucket lands on the same row
+  - A crash between the crossing event's FirstFailure and ThresholdReached emits recovers one correctly-sourced escalation
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`

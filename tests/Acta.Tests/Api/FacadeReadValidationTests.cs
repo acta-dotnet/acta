@@ -149,7 +149,8 @@ public sealed class FacadeReadValidationTests
 
     private sealed class EmptyAlertStore : IAlertStore
     {
-        public Task<int> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
+            throw new NotSupportedException();
 
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
             short namespaceId,
