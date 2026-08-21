@@ -234,7 +234,8 @@ test('read-only deployment hides controls and rejects a direct request', async (
   await mockDashboard(page, { controls: false });
   await page.goto(`/#/jobs/${jobRef}`);
 
-  await expect(page.getByText('Read-only - controls disabled on this host.')).toBeVisible();
+  await expect(page.locator('.mode-chip')).toBeVisible();
+  await expect(page.locator('.mode-chip')).toContainText('read-only');
   await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
   const status = await page.evaluate(async (ref) => {
     const response = await fetch(`api/v1/jobs/${ref}/restart`, {

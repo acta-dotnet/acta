@@ -115,6 +115,8 @@
                the safe default, so it states itself in the dashboard's own label voice. -->
           <div
             class="mode-chip"
+            role="status"
+            aria-label="Read-only host: controls are disabled. Reads work everywhere; enable controls with EnableControls."
             title="Controls are disabled on this host. Reads work everywhere; enable controls with EnableControls."
           >
             <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5" width="8" height="5.5" rx="1" /><path d="M4 5V3.6a2 2 0 0 1 4 0V5" fill="none" /></svg>

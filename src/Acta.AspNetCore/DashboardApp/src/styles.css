@@ -258,6 +258,7 @@ nav.side a:focus-visible,
 
 .mode-chip {
   display: inline-flex;
+  align-self: flex-start;   /* a flex item of the brand column would otherwise stretch full-width */
   align-items: center;
   gap: 6px;
   margin-top: 8px;
@@ -519,7 +520,7 @@ button.side-collapse:hover:not(:disabled) { color: var(--ink); background: var(-
   nav.side.rail .nav-group-label,
   nav.side.rail .side-scope { display: none; }
   /* The mode survives the rail as its glyph alone: the lock still marks the host read-only. */
-  nav.side.rail .mode-chip { padding: 3px; border-radius: 6px; font-size: 0; gap: 0; }
+  nav.side.rail .mode-chip { padding: 3px; border-radius: 6px; font-size: 0; gap: 0; align-self: center; justify-content: center; }
   nav.side.rail .brand-q { padding: 10px 0 14px; }
   nav.side.rail .brand { justify-content: center; }
   nav.side.rail a,
