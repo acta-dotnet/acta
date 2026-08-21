@@ -49,15 +49,24 @@ internal static class JobLineageMapper
             r.ModifiedAtUtc
         );
 
-    // The focused job is blocked on a pending signal or a pending timer checkpoint; a signal wins when
-    // both are present (a job awaits one primitive at a time, and the signal is the operator-actionable one).
+    // The focused job is blocked on a pending signal, child latch, or timer checkpoint; the precedence
+    // is the explainer's (a job awaits one primitive at a time, and a signal is the operator-actionable
+    // one). Each carries its due, so a map shows a bounded wait's deadline and leaves an unbounded
+    // wait's null; a parent parked on a child is the case a lineage map exists to show.
     private static JobExplainWait? FindWait(IReadOnlyList<ExplainCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
         {
             if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, null);
+                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+            }
+        }
+        foreach (var c in checkpoints)
+        {
+            if (c.Kind == JobCheckpointKindCode.ChildLatch && c.Status == JobCheckpointStatusCode.Pending)
+            {
+                return new JobExplainWait(JobCheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
