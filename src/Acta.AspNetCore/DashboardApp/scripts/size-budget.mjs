@@ -14,7 +14,9 @@
 //     half-exist.
 //
 // So the lever that matters is total size, and this script is the ratchet on it. Run after
-// `npm run build`; it reads dist/.vite/manifest.json rather than guessing hashed filenames.
+// `npm run build`; it reads dist/.vite/manifest.json rather than guessing hashed filenames. It
+// checks two things: that the build is still one JS file and one CSS file, and that they fit the
+// budget below. The shape check is what keeps the reasoning above from being advice.
 //
 // BASELINE is what the bundle measured when this gate went in. BUDGET is that plus ~10% headroom.
 // When this fails, the fix is not to raise BUDGET reflexively: find what grew (`npx vite build
@@ -39,16 +41,22 @@ const manifestPath = join(distDir, '.vite', 'manifest.json');
 let manifest;
 try {
   manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-} catch {
-  console.error(`No build manifest at ${manifestPath}. Run \`npm run build\` first.`);
+} catch (error) {
+  // Two different problems with two different fixes: nothing built yet, versus a manifest that is
+  // there but wrong. Saying "no manifest" for the second sends the reader hunting the wrong thing.
+  if (error.code === 'ENOENT') {
+    console.error(`No build manifest at ${manifestPath}. Run \`npm run build\` first.`);
+  } else {
+    console.error(`Could not read the build manifest at ${manifestPath}: ${error.message}`);
+  }
   process.exit(1);
 }
 
-// Every emitted script and stylesheet, found through the manifest so a second chunk appearing would
-// be counted rather than quietly missed. index.html is a manifest key, not an asset, so it is not
-// part of the byte count; it is a few hundred bytes and it is not what anyone would regress.
+// Every emitted asset, found through the manifest so a new chunk is counted rather than quietly
+// missed. The manifest's keys are source ids (index.html among them); the paths that matter are the
+// `file` and `css` values, and for the html entry `file` is already the emitted JS, not the page.
 const files = [...new Set(Object.values(manifest).flatMap((node) => [node.file, ...(node.css ?? [])]))]
-  .filter((file) => file && file !== 'index.html')
+  .filter(Boolean)
   .sort();
 
 if (files.length === 0) {
@@ -60,6 +68,9 @@ const measured = { raw: 0, gzip: 0 };
 const rows = [];
 for (const file of files) {
   const bytes = readFileSync(join(distDir, file));
+  // zlib's default level, and that is the number the budget is set from. Vite's build log compresses
+  // at a different level, so its gzip figures read a little lower; compare against this script, not
+  // against the log.
   const gzip = gzipSync(bytes).length;
   measured.raw += bytes.length;
   measured.gzip += gzip;
@@ -78,6 +89,24 @@ console.log(`  ${''.padEnd(34)} ${'--------'.padStart(8)}       ${'--------'.pad
 console.log(`  ${'total'.padEnd(34)} ${kb(measured.raw)}  gzip ${kb(measured.gzip)}`);
 console.log(`  ${'budget'.padEnd(34)} ${kb(BUDGET.raw)}  gzip ${kb(BUDGET.gzip)}`);
 console.log(`\n  raw  ${delta(measured.raw, BASELINE.raw)}\n  gzip ${delta(measured.gzip, BASELINE.gzip)}`);
+
+// Shape, not just size. A split build can sit comfortably under the byte budget while breaking the
+// ruling this gate exists to hold, so the count of emitted scripts and stylesheets is an assertion
+// in its own right - otherwise the single-file decision is enforced by a comment and good manners.
+const scripts = files.filter((file) => file.endsWith('.js'));
+const stylesheets = files.filter((file) => file.endsWith('.css'));
+const wrongShape = [];
+if (scripts.length !== 1) wrongShape.push(`${scripts.length} JS files, expected 1:\n    ${scripts.join('\n    ')}`);
+if (stylesheets.length !== 1) wrongShape.push(`${stylesheets.length} CSS files, expected 1:\n    ${stylesheets.join('\n    ')}`);
+
+if (wrongShape.length > 0) {
+  console.error(`\nThe dashboard build is no longer one file:\n  ${wrongShape.join('\n  ')}`);
+  console.error('\nThe bundle is embedded in the Acta.AspNetCore assembly, so splitting it does not');
+  console.error('reduce what ships and does let a redeploy strand an open session on chunk names the');
+  console.error('new assembly no longer has. Read the decision comment above build in vite.config.ts');
+  console.error('before changing this - and if the decision is genuinely being reversed, change both.');
+  process.exit(1);
+}
 
 const over = [];
 if (measured.raw > BUDGET.raw) over.push(`raw ${kb(measured.raw).trim()} exceeds the ${kb(BUDGET.raw).trim()} budget`);
