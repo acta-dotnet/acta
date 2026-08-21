@@ -103,6 +103,15 @@ public class ScenarioSession<TInput>
     public Task FastForwardToWaitTimeoutAsync(string name, CancellationToken ct = default) =>
         Host.ForceWaitTimeoutDueAsync(JobId, name, ct);
 
+    /// <summary>
+    /// Stage a bounded group wait's expiry: moves the group's one stored deadline, every child latch it
+    /// armed, and the job's next-run instant into the past, so the next <see cref="RunOnceAsync"/>
+    /// claims the Suspended job and the group resolves timed out. Names no wait, because a group spends
+    /// one deadline rather than a per-child one. Throws when the job stores no group deadline, which an
+    /// unbounded group wait never does.
+    /// </summary>
+    public Task FastForwardToGroupWaitTimeoutAsync(CancellationToken ct = default) => Host.ForceGroupWaitTimeoutDueAsync(JobId, ct);
+
     public Task FastForwardToStepRetryAsync(CancellationToken ct = default) => Host.ForceStepRetryDueAsync(JobId, ct: ct);
 
     public Task FastForwardToStepRetryAsync(string name, CancellationToken ct = default) => Host.ForceStepRetryDueAsync(JobId, name, ct);

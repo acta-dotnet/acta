@@ -99,6 +99,17 @@ public interface IActaTestHost : IAsyncDisposable
     /// </summary>
     Task ForceWaitTimeoutDueAsync(long jobId, string? name = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// The group twin of <see cref="ForceWaitTimeoutDueAsync"/>: move the job's stored group wait
+    /// deadline, every child latch it has armed, and the job's next-run instant into the past, so the
+    /// next tick claims the Suspended job and the group resolves timed out. A group spends one stored
+    /// deadline rather than a per-slot one, so rewinding the latches alone would leave a member armed
+    /// after the rewind counting down from a fresh budget. Takes no wait name because the deadline is
+    /// the group's, not any one child's. Throws when the job stores no group deadline, because an
+    /// unbounded group wait can never time out and a silent no-op would look like a passing test.
+    /// </summary>
+    Task ForceGroupWaitTimeoutDueAsync(long jobId, CancellationToken ct = default);
+
     /// <summary>Expire the current execution lease for a claimed job.</summary>
     Task ExpireExecutionLeaseAsync(long jobId, CancellationToken ct = default);
 }
@@ -319,6 +330,24 @@ public static class ActaTestHost
 
             // The deadline lives on the slot, but claimability lives on the runtime row: both must move
             // or the job stays parked past its own expiration.
+            await ForceJobDueAsync(jobId, ct);
+        }
+
+        public async Task ForceGroupWaitTimeoutDueAsync(long jobId, CancellationToken ct = default)
+        {
+            if (jobId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
+            }
+
+            var moved = await WaitTimeoutStaging.ForceGroupWaitDueAsync(Db, jobId, DateTime.UtcNow.AddMinutes(-1), ct);
+            if (moved == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Job {jobId} stores no group wait deadline to force due; an unbounded group wait never times out."
+                );
+            }
+
             await ForceJobDueAsync(jobId, ct);
         }
 

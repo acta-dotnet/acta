@@ -193,6 +193,7 @@ interface Acta.Testing.Hosting.IActaTestHost
     System.IServiceProvider Services { get; }
     System.String Schema { get; }
     System.Threading.Tasks.Task ExpireExecutionLeaseAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceGroupWaitTimeoutDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceJobDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceStepRetryDueAsync(System.Int64 jobId, System.String name = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceTimerDueAsync(System.Int64 jobId, System.String name = default, System.Threading.CancellationToken ct = default)
@@ -224,6 +225,7 @@ class Acta.Testing.Scenarios.ScenarioSession<TInput>
     System.String JobName { get; }
     System.String Namespace { get; }
     System.Threading.Tasks.Task ExpireLeaseAsync(System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task FastForwardToGroupWaitTimeoutAsync(System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task FastForwardToNextTimerAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task FastForwardToNextTimerAsync(System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task FastForwardToStepRetryAsync(System.String name, System.Threading.CancellationToken ct = default)

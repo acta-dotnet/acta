@@ -137,6 +137,33 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
         );
     }
 
+    [Fact(DisplayName = "The group wait-timeout helper expires a whole group and rejects a job without one")]
+    public async Task Wait_timeout_helper_expires_a_bounded_group()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartScenarioHostAsync(ct);
+
+        var session = await Scenario
+            .For(TestJobsManifest.JobParentTryWaitChildren, host)
+            .EnqueueAsync(new ChildGroupStart(["job-wait-signal", "job-wait-signal"]), ct: ct);
+        Assert.Equal(ActaRunOutcome.Rearmed, await session.RunOnceAsync(ct));
+
+        // A group spends one stored deadline, so the helper takes no wait name; rewinding one latch by
+        // hand would leave the deadline in the future and let the second member start over.
+        await session.FastForwardToGroupWaitTimeoutAsync(ct);
+        await session.RunUntilDoneAsync(ct: ct);
+
+        var report = await session.ResultAsync(ct);
+        Assert.True(report.TimedOut);
+        Assert.All(report.Children, c => Assert.True(c.TimedOut));
+
+        // A job that never armed a group wait stores no deadline, so the helper must say so rather than
+        // no-op into a test that reads as passing.
+        var single = await Scenario.For(TestJobsManifest.JobWaitSignal, host).EnqueueAsync(ct: ct);
+        await single.RunUntilSignalAsync("go", ct: ct);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => single.FastForwardToGroupWaitTimeoutAsync(ct));
+    }
+
     [Fact(DisplayName = "RunUntilFailed stops on Failed and assertion failures include a scenario dump")]
     public async Task Run_until_failed_and_assertion_dump_work()
     {

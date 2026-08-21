@@ -845,11 +845,18 @@ public abstract class JobContext
         return outcomes;
     }
 
-    // A wait must carry a positive bound, so an already-passed deadline arms one second rather than
-    // zero. Accepted consequence: a child whose latch does not exist yet at that point suspends once
-    // before it can expire, because wait_signal resolves only a wait an earlier call armed. That costs
-    // one extra second-long tick per unfinished child, and the alternative is a special case inside the
-    // arbiter that every other wait would have to reason about.
+    // The whole seconds left until the group deadline, floored, with a floor of one.
+    //
+    // A group deadline is a NOT-BEFORE, not a not-after: a member does not give up before the instant,
+    // and the store may stamp its due a round trip past it because the arm reads the clock again. That
+    // trailing round trip is deliberate and absorbed by those semantics; flooring is what keeps it to a
+    // round trip instead of a whole extra second.
+    //
+    // A wait must also carry a positive bound, so an already-passed deadline arms one second rather
+    // than zero. Accepted consequence: a child whose latch does not exist yet at that point suspends
+    // once before it can expire, because wait_signal resolves only a wait an earlier call armed. That
+    // costs one extra second-long tick per unfinished child, and the alternative is a special case
+    // inside the arbiter that every other wait would have to reason about.
     private static TimeSpan RemainingWait(WaitDeadline deadline)
     {
         var remaining = deadline.DeadlineAtUtc - deadline.NowUtc;
@@ -872,7 +879,9 @@ public abstract class JobContext
         return GroupDeadlinePrefix + ShortHash(canonical.ToString());
     }
 
-    private const string GroupDeadlinePrefix = "sys.wait-group.";
+    // Internal rather than private so the test host can find the slot it has to rewind to stage a group
+    // expiry, off the one name that writes it.
+    internal const string GroupDeadlinePrefix = "sys.wait-group.";
 
     // A wrapper starts every child before it waits on any of them, so a rejected timeout has to throw
     // ahead of the first enqueue rather than when the wait finally reaches it. A null timeout is the

@@ -33,6 +33,10 @@
     <InternalsVisibleTo Include="Acta.Tests" />
     <!-- The outbox staging core reuses the shared enqueue normalization/validation. -->
     <InternalsVisibleTo Include="Acta.Relational" />
+    <!-- The test host stages a bounded group wait's expiry, which means finding the framework-owned
+         deadline slot by the one reserved name JobContext writes it under. A copy of that name in the
+         testing package could drift silently and make a staged expiry a no-op. -->
+    <InternalsVisibleTo Include="Acta.Testing" />
     <!-- Conformance drives engine tuning that is deliberately not on the public surface: a bounce delay
          of 0, a batch size of 2, an alert delivery retry cap of 2. A spec proving the behaviour has to
          reach the knob a deployment must not. -->

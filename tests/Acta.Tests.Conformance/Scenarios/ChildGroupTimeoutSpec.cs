@@ -399,28 +399,19 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
     private static DateTime DeadlineOf(JobCheckpoint slot) =>
         new(long.Parse(Encoding.UTF8.GetString(slot.Value!), CultureInfo.InvariantCulture), DateTimeKind.Utc);
 
-    // Moves the whole group past its deadline the way real time would: the stored group deadline, every
-    // armed member latch, and the parent's cached claim instant all go into the past together. Rewinding
-    // the latches alone would leave the group deadline in the future and let an unarmed member start a
-    // fresh countdown, which is exactly the bug this spec exists to catch.
+    // The same staging the public ForceGroupWaitTimeoutDueAsync helper performs, called through the one
+    // implementation both share: this spec drives a WorkerRuntime rather than an IActaTestHost, so it
+    // reaches the code rather than the facade. ScenarioSessionSpec covers the public helper itself.
     private async Task ExpireGroupWaitAsync(long parentId, CancellationToken ct)
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
-        await SetGroupDeadlineAsync(parentId, past, ct);
-
-        await Db.ExecuteRawAsync(
-            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due "
-                + "WHERE job_id = @p_id AND kind_code = 50 AND status_code = 10 AND due_at_utc IS NOT NULL",
-            ct,
-            ("@p_due", past),
-            ("@p_id", parentId)
-        );
+        Assert.NotEqual(0, await WaitTimeoutStaging.ForceGroupWaitDueAsync(Db, parentId, past, ct));
         await RewindRuntimeAsync(parentId, past, ct);
     }
 
-    // Rewrites the stored group deadline in place, which is how a spec spends part of the budget without
-    // waiting for real time. The slot holds UTC ticks as JSON, so this writes exactly what the runtime
-    // writes.
+    // Spends part of the group's budget without waiting for real time, by moving the stored deadline
+    // alone. Deliberately not the shared expiry staging: an armed latch keeps its own due while the
+    // remaining time shrinks under it, and that is the property two of these facts assert.
     private async Task SetGroupDeadlineAsync(long parentId, DateTime deadlineAtUtc, CancellationToken ct)
     {
         foreach (var slot in await ReadDeadlineSlotsAsync(parentId, ct))

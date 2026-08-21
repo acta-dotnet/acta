@@ -2357,6 +2357,7 @@
   - Timer and step retry helpers fast-forward only the pinned session job
   - The wait-timeout helper expires the pinned bounded wait and rejects an unbounded one
   - The wait-timeout helper expires a pinned bounded child wait by its latch name
+  - The group wait-timeout helper expires a whole group and rejects a job without one
   - RunUntilFailed stops on Failed and assertion failures include a scenario dump
 
 ## Variables
