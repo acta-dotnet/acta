@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Get started · run your first durable job in five minutes · Acta</title>
+  <meta name="description" content="Run your first durable Acta job in five minutes: ASP.NET Core, embedded SQLite, one job, and the Acta dashboard. Copy a prompt for your AI agent, or follow the quickstart by hand. No Docker, no database server." />
+  <link rel="canonical" href="https://useacta.net/start" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="Get started with Acta · your first durable job in five minutes" />
+  <meta property="og:description" content="Copy a prompt for your AI agent, or follow the quickstart by hand: ASP.NET Core, embedded SQLite, one job, and the Acta dashboard." />
+  <meta property="og:url" content="https://useacta.net/start" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0B0E15;
+      --panel: #10151F;
+      --panel-2: #151B28;
+      --text: #E8EDF5;
+      --muted: #9BA7BA;
+      --faint: #7A899F;
+      --verdi: #2FD6A8;
+      --oxide: #D08A45;
+      --bad: #E8837B;
+      --hair: rgba(232, 237, 245, 0.10);
+      --hair-soft: rgba(232, 237, 245, 0.06);
+      --serif: "Fraunces", Georgia, serif;
+      --sans: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); font-size: 16px; line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: rgba(47, 214, 168, 0.3); color: #fff; }
+    :focus-visible { outline: 2px solid var(--verdi); outline-offset: 3px; border-radius: 2px; }
+    a { color: inherit; }
+    code { font-family: var(--mono); font-size: 0.92em; color: #CBD6E5; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .skip-link {
+      position: fixed; top: 0.7rem; left: 0.7rem; z-index: 100;
+      padding: 0.55rem 0.9rem; border-radius: 6px; background: var(--verdi); color: #06231A;
+      font-family: var(--mono); font-size: 0.78rem; font-weight: 600; text-decoration: none;
+      transform: translateY(-180%); transition: transform 0.15s ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .wrap { max-width: 1560px; margin: 0 auto; padding-inline: clamp(20px, 4vw, 64px); }
+
+    /* ---- chrome ---- */
+    .chrome {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: baseline; gap: 1.4rem;
+      padding: 0.6rem clamp(20px, 2.5vw, 40px);
+      background: rgba(11, 14, 21, 0.9); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+    }
+    .chrome .brand { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; color: var(--text); text-decoration: none; letter-spacing: 0; text-transform: none; }
+    .chrome .brand .dot { color: var(--verdi); }
+    .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
+    .chrome nav a { text-decoration: none; }
+    .chrome nav a:hover { color: var(--verdi); }
+    @media (max-width: 700px) { .chrome .meta { display: none; } }
+
+    /* ---- record line: the section device ---- */
+    .record {
+      display: flex; align-items: center; gap: 1.1rem;
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+      margin: 0 0 1.6rem;
+    }
+    .record::after { content: ""; flex: 1; border-top: 1px solid var(--hair); }
+    .record b { color: var(--verdi); font-weight: 400; }
+
+    /* ---- sections ---- */
+    section { padding: clamp(3.4rem, 8vh, 5.6rem) 0; scroll-margin-top: 4rem; }
+    .page-head { padding-top: clamp(2.4rem, 6vh, 4rem); }
+    h1 {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2.4rem, 4.2vw, 3.6rem); line-height: 1.06;
+      margin: 0 0 1rem; text-wrap: balance; max-width: 26ch;
+    }
+    h2 {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2.1rem, 3.6vw, 3.2rem); line-height: 1.06;
+      margin: 0 0 1rem; text-wrap: balance; max-width: 24ch;
+    }
+    .lede { color: var(--muted); max-width: 66ch; font-size: 1.04rem; margin: 0; }
+
+    /* code pair */
+    .pair { display: grid; grid-template-columns: 1fr 1.15fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
+    @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
+    .panel.solo { margin-top: 2.4rem; }
+    .panel-tab {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 1.2rem; border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint);
+    }
+    .panel-tab::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--verdi); opacity: 0.8; }
+    pre { margin: 0; padding: 1.3rem 1.4rem; overflow-x: auto; font-family: var(--mono); font-size: 0.88rem; line-height: 1.7; color: #D3DCEA; }
+    .k { color: #7CB8F2; } .s { color: #93D9AE; } .a { color: var(--verdi); } .c { color: var(--faint); }
+    .pair-note { color: var(--muted); font-size: 0.95rem; margin: 1.1rem 0.2rem 0; }
+
+    /* buttons */
+    .actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.6rem; }
+    .button {
+      display: inline-flex; align-items: center; min-height: 2.7rem; padding: 0.6rem 1.3rem;
+      border: 1px solid var(--hair); border-radius: 999px; background: transparent; color: var(--text);
+      text-decoration: none; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+    .button.primary { background: var(--verdi); border-color: var(--verdi); color: #06231A; font-weight: 500; }
+    .button.primary:hover { background: #43E4BA; }
+    .button:not(.primary):hover { border-color: var(--verdi); color: var(--verdi); }
+
+    /* comparison: ruled rows, serif names */
+    .vs { margin-top: 2.4rem; border-top: 1px solid var(--hair); }
+    .vs-row { display: grid; grid-template-columns: minmax(15rem, 24rem) 1fr; gap: 1rem 3rem; padding: 1.6rem 0; border-bottom: 1px solid var(--hair); }
+    .vs-row .who b { font-family: var(--serif); font-weight: 500; font-size: clamp(1.35rem, 2vw, 1.7rem); display: block; line-height: 1.15; }
+    .vs-row .who span { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+    .vs-row .why { color: var(--muted); font-size: 1.02rem; align-self: center; max-width: 78ch; }
+    .vs-row .why b { color: var(--text); font-weight: 600; }
+    @media (max-width: 860px) { .vs-row { grid-template-columns: 1fr; gap: 0.4rem; } }
+
+    /* concept map rows */
+    .ref { margin-top: 2.4rem; }
+    .ref-row {
+      display: grid; grid-template-columns: minmax(14rem, 20rem) 1fr; gap: 0.6rem 3rem;
+      padding: 1rem 0; border-bottom: 1px solid var(--hair-soft);
+    }
+    .ref-row dt { margin: 0; font-weight: 600; color: var(--text); font-size: 1rem; }
+    .ref-row dt code { color: var(--verdi); font-size: 0.9em; }
+    .ref-row dd { margin: 0; color: var(--muted); font-size: 0.97rem; max-width: 88ch; }
+    .ref-row dd code { color: #CBD6E5; }
+    @media (max-width: 860px) { .ref-row { grid-template-columns: 1fr; gap: 0.25rem; } }
+
+    /* what changes */
+    .changes { margin: 2.2rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.9rem; }
+    .changes li { color: var(--muted); font-size: 0.98rem; line-height: 1.55; max-width: 88ch; padding-left: 1.1em; position: relative; }
+    .changes li::before { content: "·"; position: absolute; left: 0; color: var(--verdi); }
+    .changes li b { color: var(--text); font-weight: 600; }
+
+    /* cross-links */
+    .also { margin: 2.4rem 0 0; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+    .also a { text-decoration: none; }
+    .also a:hover { color: var(--verdi); }
+    .also .sep { margin: 0 0.9em; opacity: 0.5; }
+
+    footer {
+      padding: 2.4rem 0 3rem; color: var(--faint); text-align: center;
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--verdi); }
+    footer .sep { margin: 0 0.9em; opacity: 0.5; }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skip-link { transition: none; } }
+  </style>
+  <style>
+    .prompt { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 1.1rem 0; }
+    .prompt pre { white-space: pre-wrap; }
+    .prompt .button { position: absolute; top: 0.8rem; right: 0.9rem; cursor: pointer; }
+    .checks { list-style: none; padding: 0; font-family: var(--mono); font-size: 0.95rem; }
+    .checks li { margin: 0.35rem 0; color: #CBD6E5; }
+    .checks .ok { color: var(--verdi); margin-right: 0.5rem; }
+    .code-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 1.1rem 0; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="/#compare">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">get started · five minutes</p>
+      <h1>Run your first durable job in five minutes.</h1>
+      <p class="lede">ASP.NET Core, embedded SQLite, one job, and the Acta dashboard. No Docker, no database server, nothing to provision — the only prerequisite is the .NET 10 SDK. Two equally good doors: hand a prompt to your AI agent, or type it yourself.</p>
+    </header>
+
+    <section class="wrap">
+      <p class="record">Door one</p>
+      <h2>Create it with AI.</h2>
+      <p class="lede">Copy a prompt, paste it into your coding agent, done. The agent finds everything it needs from <code>useacta.net</code> — you never need to know how.</p>
+      <div class="prompt">
+        <button class="button" data-copy-target="#prompt-short">Copy prompt</button>
+        <pre id="prompt-short">Use useacta.net to add Acta here.
+
+Create a worker, one job, and the dashboard. Job description: [what the job should do]
+
+Build and run it when finished.</pre>
+      </div>
+      <p class="lede">Working in an existing codebase, or want the guardrails spelled out? The long form:</p>
+      <div class="prompt">
+        <button class="button" data-copy-target="#prompt-long">Copy prompt</button>
+        <pre id="prompt-long">Add Acta to this project by following useacta.net.
+
+If this is an empty directory, create a minimal ASP.NET Core Acta app using SQLite, with one worker, one job, and the dashboard at /acta.
+
+If this is an existing application, inspect its hosting and database setup first, preserve its architecture, and add Acta appropriately.
+
+Detect whether the producer and worker are in the same assembly or separate assemblies and use the correct Acta registration model.
+
+Create one job for this description: [describe the job here]
+
+Restore, build, start the app, run the job once, and tell me how to open the dashboard. Only enable automatic migrations for local development.</pre>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <p class="record">Door two</p>
+      <h2>By hand: three commands, one file.</h2>
+      <div class="code-card">
+        <pre><code>dotnet new web -n Shipping &amp;&amp; cd Shipping
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Acta.AspNetCore --prerelease</code></pre>
+      </div>
+      <p class="lede">Replace <code>Program.cs</code> with this, all of it:</p>
+      <div class="code-card">
+        <pre><code>using Shipping;                 // the generated manifest lands in your project's root namespace
+using Acta;
+using Acta.Sqlite;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseSqlite(sqlite =&gt;
+    {
+        sqlite.ConnectionString = "Data Source=acta-local.db";
+        sqlite.ApplyMigrationsOnStartup = true;   // local development only; apply from a deploy step in production
+    });
+    j.Run&lt;ShippingJobs&gt;("shipping");
+});
+
+var app = builder.Build();
+app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
+
+await app.StartAsync();
+await app.Services.GetRequiredService&lt;IJobs&gt;().EnqueueAsync(new ShipOrder(1042));
+Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
+await app.WaitForShutdownAsync();
+
+public sealed record ShipOrder(int OrderId);
+
+public static class ShippingHandlers
+{
+    [Job("ship-order")]
+    public static void Handle(ShipOrder input) =&gt; Console.WriteLine($"Shipping order {input.OrderId}");
+}</code></pre>
+      </div>
+      <p class="lede"><code>dotnet run</code>, and success looks like this:</p>
+      <ul class="checks">
+        <li><span class="ok">✓</span>Application running</li>
+        <li><span class="ok">✓</span>Job completed — <code>Shipping order 1042</code> in the console</li>
+        <li><span class="ok">✓</span>Dashboard open at <code>/acta</code>, the completed job the first row</li>
+      </ul>
+      <p class="also">The job was a row in <code>acta-local.db</code> before it was a method call. Swap <code>UseSqlite</code> for <code>UsePostgres</code> or <code>UseSqlServer</code> and nothing else changes.</p>
+    </section>
+
+    <section class="wrap">
+      <p class="record">Existing app?</p>
+      <h2>Add Acta to what you already run.</h2>
+      <p class="lede">Keep your host and your database. Add the provider package that matches your server (<code>Acta.Postgres</code>, <code>Acta.SqlServer</code>, or <code>Acta.Sqlite</code>), register with your existing connection string, and put one real job behind <code>[Job("...")]</code>. Handlers resolve through DI, so your services inject as they always did. Production schema comes from a deploy step, never from startup migration.</p>
+      <p class="also">Separate API and worker processes? See <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">the quickstart's split-deployment notes</a>.</p>
+    </section>
+
+    <section class="wrap">
+      <p class="record">Next</p>
+      <h2>What to learn after the first job.</h2>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">The full quickstart</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md">Retries, steps, and waits</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Running it in production</a>
+      </div>
+      <p class="also">Also: <a href="/#reference">every capability, in plain terms</a><span class="sep">·</span><a href="/#compare">how Acta compares</a><span class="sep">·</span><a href="/llms.txt">llms.txt, for your agent</a></p>
+    </section>
+
+    <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
+    </footer>
+  </main>
+  <script>
+    for (const button of document.querySelectorAll("[data-copy-target]")) {
+      button.addEventListener("click", async () => {
+        const source = document.querySelector(button.getAttribute("data-copy-target"));
+        await navigator.clipboard.writeText(source.textContent);
+        const label = button.textContent;
+        button.textContent = "Copied";
+        setTimeout(() => { button.textContent = label; }, 1600);
+      });
+    }
+  </script>
+</body>
+</html>

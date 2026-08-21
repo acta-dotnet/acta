@@ -6,6 +6,7 @@
   <title>Acta for .NET · The durable work ledger</title>
   <meta name="description" content="Acta is a SQL-native durable background jobs library and work ledger for .NET: retries, schedules, signals, fan-out, recovery, and audit in the database you already run." />
   <link rel="canonical" href="https://useacta.net/" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
@@ -401,6 +402,7 @@
     <a class="brand" href="#">Acta<span class="dot">.</span></a>
     <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
     <nav aria-label="Primary links">
+      <a href="/start">Get started</a>
       <a href="#compare">Compare</a>
       <a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
@@ -431,8 +433,8 @@
             </div>
           </div>
           <div class="actions">
-            <a class="button primary" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
-            <a class="button" href="#run">5-minute quickstart</a>
+            <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+            <a class="button" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
             <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering Labs</a>
           </div>
         </div>
@@ -519,7 +521,7 @@
           <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
         </div>
       </div>
-      <p class="hiw-note">Requires .NET 10. <code>--prerelease</code> until 1.0: the current release is <code>0.5.0-beta.1</code>. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work.</p>
+      <p class="hiw-note">Requires .NET 10. <code>--prerelease</code> until 1.0, and the release candidate line is <code>1.0.0-rc.1</code>. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work. Use Acta when the work must outlive the process that started it.</p>
     </section>
 
     <section class="wrap" id="model">

@@ -1,0 +1,182 @@
+# Acta for coding agents
+
+Acta is a durable job execution engine for .NET backed by the application's own SQL database
+(PostgreSQL, SQL Server, or embedded SQLite). Jobs, schedules, steps, waits, and alerts are
+ordinary rows. This file is the contract an agent needs to add Acta to a project correctly; the
+runnable proof lives in the repository's `concepts/` directory (88 compiled examples) and the
+complete demo apps under `demos/`. Start at useacta.net or github.com/acta-dotnet/acta.
+
+## The one rule everything follows from
+
+Execution is at-least-once, and a handler re-enters from the top. After a crash, a lease expiry, a
+retry, or a resumed wait, Acta runs the handler method again from its first line. Completed durable
+slots — steps, variables, timers, signal waits — return their recorded results instead of repeating
+their work; every bare line between them runs again on every entry. The model is checkpoints, not
+replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
+
+Other schedulers also run work more than once; redelivery is not what makes Acta different. What is
+different: the durable slots and the ledger make re-entry something you can reason about and test,
+because everything a handler decided is a row you can read. Write handlers as if the method will be
+called twice with the same input, and put every external side effect behind a step.
+
+## First run: one file, one job, the dashboard
+
+```bash
+dotnet new web -n Shipping && cd Shipping
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Acta.AspNetCore --prerelease
+```
+
+Replace `Program.cs` with this, all of it:
+
+```csharp
+using Shipping;                 // the generated manifest lands in your project's root namespace
+using Acta;
+using Acta.Sqlite;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseSqlite(sqlite =>
+    {
+        sqlite.ConnectionString = "Data Source=acta-local.db";
+        sqlite.ApplyMigrationsOnStartup = true;   // local development only; apply from a deploy step in production
+    });
+    j.Run<ShippingJobs>("shipping");
+});
+
+var app = builder.Build();
+app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
+
+await app.StartAsync();
+await app.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));
+Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
+await app.WaitForShutdownAsync();
+
+public sealed record ShipOrder(int OrderId);
+
+public static class ShippingHandlers
+{
+    [Job("ship-order")]
+    public static void Handle(ShipOrder input) => Console.WriteLine($"Shipping order {input.OrderId}");
+}
+```
+
+`dotnet run`, watch the job complete, open the dashboard. Rules this sample carries:
+
+- `[Job("ship-order")]` is required and kebab-case: `[a-z][a-z0-9-]*` segments only, no dots, no
+  underscores, at most 128 chars. The `sys.` prefix is reserved for Acta's own jobs. The name is
+  the durable operator-facing contract in SQL, the dashboard, the CLI, and alerts.
+- `ShippingJobs` is the source-generated manifest, named from the LAST segment of the project's
+  `RootNamespace` plus `Jobs` (`Users` → `UsersJobs`; a segment already ending in `Jobs` gets
+  `Manifest` instead: `TestJobs` → `TestJobsManifest`). It is generated into that root namespace,
+  so a `Program.cs` with a top-level namespace needs `using Shipping;` to see it.
+- Enqueue is type-driven: the input record's type routes the call, one `EnqueueAsync` for every
+  job. The host that enqueues can also execute; there is no separate worker process unless you
+  want one.
+- Handlers resolve through DI: an instance class's constructor dependencies must be registered.
+
+## Wiring rules by situation
+
+- New app: ASP.NET Core empty host + `Acta.Sqlite` + `Acta.AspNetCore` with `MapActa("/acta")` and
+  one real job, exactly as above.
+- Existing app: inspect its hosting and database first and preserve both. Add the matching
+  provider package (`Acta.Postgres` / `Acta.SqlServer` / `Acta.Sqlite`) and register with the
+  existing connection string; do not change the host type to add Acta.
+- Producer and worker in the same assembly: typed `EnqueueAsync` plus `j.Run<TManifest>(...)`, as
+  above. This is the default.
+- Split deployment (API enqueues, separate worker executes): the worker registers
+  `Run<TManifest>`; the producer enqueues by the raw route contract instead of the typed call so
+  it does not need the handler assembly.
+- Never enable `ApplyMigrationsOnStartup` outside an explicitly local or development
+  configuration. Production schema comes from a deploy step.
+
+## Steps
+
+`await ctx.RunStepAsync("name", ct => ...)` is a named run-once slot. On re-entry a completed step
+returns its recorded result instead of running the body. Two honest halves of that promise:
+
+- The outcome is durable only after it is recorded. A crash after the side effect ran but before
+  the outcome landed re-runs the body on replay — the body must be idempotent, usually via a
+  stable key derived from the job, never from the attempt.
+- Only step-wrapped work is skipped. Bare handler code between steps re-runs on every entry.
+
+A failing step retries on its own backoff without charging the job's retry budget, and a step that
+exhausts its budget fails the job. For side effects where a duplicate is worse than an ambiguous
+interruption (a payment capture), `AtMostOnce()` runs the body zero-or-one times and hands the
+handler an explicit interrupted state to reconcile.
+
+## An external side effect, done right
+
+```csharp
+using Acta;
+
+namespace Shipping;
+
+public sealed record DeliverWebhook(Guid DeliveryId, string Url, string Payload);
+
+public sealed class WebhookJobs(HttpClient http)
+{
+    [Job("deliver-webhook", MaxAttempts = 5)]
+    public async Task Handle(DeliverWebhook input, JobContext ctx, CancellationToken ct)
+    {
+        // The idempotency key comes from the JOB (stable across attempts), never the attempt.
+        var signature = await ctx.RunStepAsync("sign-payload",
+            _ => Task.FromResult($"{input.DeliveryId}:{input.Payload.Length}"), ct);
+
+        var status = await ctx.RunStepAsync("post", async token =>
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, input.Url);
+            request.Headers.Add("Idempotency-Key", input.DeliveryId.ToString());
+            request.Headers.Add("X-Signature", signature);
+            request.Content = new StringContent(input.Payload);
+            using var response = await http.SendAsync(request, token);
+            return (int)response.StatusCode;
+        }, ct);
+
+        await ctx.RunStepAsync("record-response",
+            _ => Task.FromResult(status), ct);
+    }
+}
+```
+
+Register `HttpClient` in DI (`builder.Services.AddHttpClient<WebhookJobs>();`). The receiver can
+deduplicate on `Idempotency-Key` because it never changes across retries; a crash between `post`
+and `record-response` re-sends with the same key, which is the at-least-once contract working.
+
+## Do this, not that
+
+| Instead of | Do | Because |
+| --- | --- | --- |
+| static/instance fields for progress | `SetVariableAsync` / `GetVariableAsync` | fields die with the process; variables are rows |
+| `Task.Delay` or `Thread.Sleep` | `await ctx.SleepAsync("cool-down", delay, ct: ct)` | delays hold a worker; durable sleep frees it and survives deploys |
+| calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
+| `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
+| polling a flag in a loop | `await ctx.WaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
+| starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` (or with a timeout) | the parent parks instead of occupying a worker |
+| `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
+
+## Payloads
+
+Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlinePayloadBytes`).
+Caller-supplied oversized writes throw `PayloadTooLargeException`; an oversized handler RESULT is
+dropped with a `job.result-oversized` event while the job still succeeds. Big artifacts belong in
+blob storage with the job carrying a reference: URI, checksum, size.
+
+## Things that are not what they sound like
+
+- A `Suspended` job is healthy, not stuck: it is waiting on a signal, a child, or a timer. A wait
+  armed with a timeout resolves itself when the deadline passes; an unbounded wait parks until
+  raised.
+- The enqueue `deduplicationKey` prevents a second job ROW, not a second side effect; execution
+  stays at-least-once either way.
+- Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are
+  searchable labels.
+
+## When you are unsure
+
+Every pattern above exists as a compiled, runnable example under `concepts/` in the repository —
+numbered rungs from fundamentals to chaos recovery, each with a README. The demo apps under
+`demos/` are complete deployable applications built only from the published packages. Deeper docs:
+the `docs/` tree in the repository; start at useacta.net.

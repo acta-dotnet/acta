@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
 Sitemap: https://useacta.net/sitemap.xml
+# Coding agents: the machine-readable overview is at https://useacta.net/llms.txt

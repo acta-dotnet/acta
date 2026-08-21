@@ -4,6 +4,12 @@
     <loc>https://useacta.net/</loc>
   </url>
   <url>
+    <loc>https://useacta.net/start</loc>
+  </url>
+  <url>
+    <loc>https://useacta.net/llms.txt</loc>
+  </url>
+  <url>
     <loc>https://useacta.net/from-hangfire</loc>
   </url>
   <url>
