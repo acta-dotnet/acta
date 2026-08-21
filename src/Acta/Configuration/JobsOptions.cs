@@ -21,10 +21,11 @@ public sealed class JobsOptions
     public TimeSpan JobEventsRetention { get; set; } = TimeSpan.FromDays(365);
 
     /// <summary>
-    /// Retention window in days for settled <c>JobAlert</c> rows (Suppressed, Delivered, or Failed);
-    /// in-flight deliveries are never purged regardless of age. Default 90 days, shorter than
-    /// <see cref="JobEventsRetention"/> because an alert is a projection of the <c>events</c>
-    /// ledger, which keeps the incident timeline for the full event window.
+    /// Hard retention cap in whole days for <c>JobAlert</c> rows: past it, an alert is purged
+    /// whatever its state - settled, in-flight, even an open unresolved incident. A still-failing
+    /// job whose incident ages out simply opens a fresh one on its next failure. Default 90 days,
+    /// shorter than <see cref="JobEventsRetention"/> because an alert is a projection of the
+    /// <c>events</c> ledger, which keeps the incident timeline for the full event window.
     /// </summary>
     public TimeSpan AlertRetention { get; set; } = TimeSpan.FromDays(90);
 

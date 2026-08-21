@@ -172,6 +172,15 @@ review.
   0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
   anyway.
 
+## 1.0.0-rc.1 (unreleased)
+
+The release candidate's own changes, recorded here as they land. The headline pair: durable waits
+can now give up, and an alert outage has an identity instead of a time bucket.
+
+> **Schema note:** preview policy applies — drop and reprovision. `M001` carries the incident
+> identity (one open alert row per key, no window column), checkpoint deadlines on waits, and a
+> claim index that covers its own predicate.
+
 ### Durable waits get deadlines
 
 A signal or child wait can now be bounded. `WaitSignalAsync(name, timeout)` and its typed twin
