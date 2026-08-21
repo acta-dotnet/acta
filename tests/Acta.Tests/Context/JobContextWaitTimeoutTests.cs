@@ -54,12 +54,14 @@ public sealed class JobContextWaitTimeoutTests
         var ctx = new RecordingJobContext();
         var child = await ctx.StartChildAsync("only", new { }, ct: ct);
 
-        var thrown = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+        var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromSeconds(seconds), ct)
         );
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitChildAsync(0, TimeSpan.FromMinutes(5), ct));
+        var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitChildAsync(0, TimeSpan.FromMinutes(5), ct));
 
-        Assert.Equal("timeout", thrown.ParamName);
+        // Each throw names the argument the caller actually got wrong, not whichever guard ran first.
+        Assert.Equal("timeout", badTimeout.ParamName);
+        Assert.Equal("childJobId", badId.ParamName);
         Assert.Equal(["start:only"], ctx.Events);
     }
 

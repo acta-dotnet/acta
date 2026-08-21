@@ -247,6 +247,76 @@ public abstract class ChildTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal("Parent's child wait timed out.", cancel.ReasonMessage);
     }
 
+    [Fact(DisplayName = "An unbounded wait replayed over an expired child latch cancels the parent instead")]
+    public async Task Unbounded_replay_over_an_expired_latch_cancels_the_parent()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-then-unbounded", JobPayload.None),
+            ct
+        );
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var child = await OnlyChildAsync(parent.JobId, ct);
+
+        // The Try overload resolves TimedOut and the handler parks, so the job is alive and Suspended
+        // while its child latch is already Expired.
+        await ExpireChildWaitAsync(Db, parent.JobId, child, ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
+
+        // Releasing the park replays the handler over the same latch with the unbounded overload. The
+        // slot cannot say which overload armed it, so the code that re-enters decides what an expiry
+        // means, and the unbounded one ends the job rather than returning.
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(parent, "hold", JobPayload.None, ct: ct)).Action);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+
+        var job = await ReadJobAsync(parent.JobId, ct);
+        Assert.Equal(JobStatusCode.Cancelled, job.Status);
+        Assert.Equal(0, job.FailureCount);
+        Assert.NotNull(job.RetentionUntilUtc);
+        Assert.Equal(JobEventReasonCode.JobWaitTimedOut, (await ReadLatestEventAsync(parent.JobId, EventCode.JobCancelled, ct)).ReasonCode);
+        Assert.Equal(
+            JobCheckpointStatusCode.Expired,
+            (await ReadSignalsAsync(parent.JobId, ct)).Single(s => s.Name == $"sys.child.{child}").Status
+        );
+        Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobNoteRecorded, ct));
+    }
+
+    [Fact(DisplayName = "A bounded wait on a job that is not this job's child times out without cancelling it")]
+    public async Task Wait_on_a_foreign_job_times_out_and_cancels_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var foreign = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(foreign, ct));
+
+        var parent = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(
+                TestNamespace,
+                "job-parent-try-wait-foreign-job",
+                JobPayload.Json(new TryWaitForeignStart(foreign.JobId))
+            ),
+            ct
+        );
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+
+        // Nothing raises a latch for a job that was never started here, so this wait can do nothing but
+        // expire. That makes a caller bug reach the cancel path by construction, which is why the
+        // parentage guard exists rather than trusting the id.
+        await ExpireChildWaitAsync(Db, parent.JobId, foreign.JobId, ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+
+        var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
+        Assert.True(report!.TimedOut);
+        Assert.Equal(foreign.JobId, report.ChildJobId);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
+
+        var untouched = await ReadJobAsync(foreign.JobId, ct);
+        Assert.Equal(JobStatusCode.Suspended, untouched.Status);
+        Assert.Null(untouched.RetentionUntilUtc);
+        Assert.Equal(0, await CountEventsAsync(foreign.JobId, EventCode.JobCancelled, ct));
+        Assert.Equal(0, await CountReasonAsync(foreign.JobId, JobEventReasonCode.JobWaitTimedOut, ct));
+    }
+
     [Fact(DisplayName = "An unbounded child wait still suspends with no due instant and stays unclaimable")]
     public async Task Unbounded_child_wait_keeps_its_old_shape()
     {

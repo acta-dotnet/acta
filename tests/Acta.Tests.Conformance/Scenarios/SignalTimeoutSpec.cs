@@ -285,6 +285,43 @@ public abstract class SignalTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(JobCheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
     }
 
+    [Fact(DisplayName = "An unbounded wait replayed over an expired slot cancels the job instead of parking")]
+    public async Task Unbounded_replay_over_an_expired_slot_cancels_the_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-then-unbounded", JobPayload.None),
+            ct
+        );
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
+
+        // The Try overload resolves TimedOut and parks the handler on a second, unbounded signal, so
+        // the job is alive while "go" is already Expired.
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+
+        // Releasing the park replays the handler over the same slot with the unbounded overload. State
+        // records only the expiration; the code that re-enters decides what reaching it means, and the
+        // unbounded overload ends the job rather than returning a result.
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var job = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Cancelled, job.Status);
+        Assert.Equal(0, job.FailureCount);
+        Assert.NotNull(job.RetentionUntilUtc);
+        Assert.Equal(
+            JobEventReasonCode.JobWaitTimedOut,
+            (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct)).ReasonCode
+        );
+
+        var go = (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go");
+        Assert.Equal(JobCheckpointStatusCode.Expired, go.Status);
+        Assert.Equal(0, go.ValueFormatId);
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobNoteRecorded, ct));
+    }
+
     [Fact(DisplayName = "A replay carrying a bound arms the deadline an unbounded wait never had")]
     public async Task Replay_upgrades_an_unbounded_wait_to_a_bounded_one()
     {

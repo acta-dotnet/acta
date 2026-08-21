@@ -5,6 +5,9 @@ namespace TestJobs;
 /// <summary>Which job a parameterized try-wait parent probe should start as its one child.</summary>
 public sealed record TryWaitChildStart(string ChildJobName);
 
+/// <summary>The id of an unrelated job for the probe that awaits something it never started.</summary>
+public sealed record TryWaitForeignStart(long ForeignJobId);
+
 /// <summary>What a parent handler observed after its bounded child wait resolved.</summary>
 public sealed record ChildWaitReport(bool TimedOut, bool Completed, long ChildJobId, ChildJobOutcome? Outcome);
 
@@ -54,6 +57,40 @@ public static class ChildTimeoutProbes
         var result = await ctx.TryWaitChildAsync(slow.JobId, LongWait, ct);
         await ctx.NoteAsync("child wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
+        return new ChildWaitReport(result.TimedOut, result.Completed, result.ChildJobId, result.Outcome);
+    }
+
+    /// <summary>
+    /// Times out on a bounded child wait, parks, and on the replay after that waits on the SAME child
+    /// with the unbounded overload. Stands in for code redeployed without the bound over a job whose
+    /// latch is already Expired: policy is code, so the unbounded overload resolves TimedOut too and
+    /// takes the cancelling path, which is the one way a child timeout does end the parent.
+    /// </summary>
+    [Job("job-parent-try-wait-child-then-unbounded")]
+    public static async Task ParentTryWaitChildThenUnbounded(JobContext ctx, CancellationToken ct)
+    {
+        var child = await ctx.StartChildAsync("only", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        if (await ctx.ExistsVariableAsync("child.timed-out", ct))
+        {
+            await ctx.WaitChildAsync(child.JobId, ct);
+            await ctx.NoteAsync("unbounded child wait resumed", ct);
+            return;
+        }
+
+        var result = await ctx.TryWaitChildAsync(child.JobId, LongWait, ct);
+        await ctx.SetVariableAsync("child.timed-out", result.TimedOut, ct);
+        await ctx.WaitSignalAsync("hold", ct);
+    }
+
+    /// <summary>
+    /// Waits on a job that is not its child at all, which is the only shape a caller bug takes: no
+    /// latch is ever raised for it, so the wait can do nothing but expire.
+    /// </summary>
+    [Job("job-parent-try-wait-foreign-job")]
+    public static async Task<ChildWaitReport> ParentTryWaitForeignJob(TryWaitForeignStart input, JobContext ctx, CancellationToken ct)
+    {
+        var result = await ctx.TryWaitChildAsync(input.ForeignJobId, LongWait, ct);
+        await ctx.NoteAsync("foreign wait resumed", ct);
         return new ChildWaitReport(result.TimedOut, result.Completed, result.ChildJobId, result.Outcome);
     }
 

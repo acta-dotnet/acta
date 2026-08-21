@@ -483,6 +483,8 @@
   - A replay over an expired child latch re-runs the cancel as a no-op and still resolves TimedOut
   - A child landing terminal on an expired latch writes no slot, releases no parent, and says so
   - A timed-out child lands Cancelled budget-neutrally with its retention stamped
+  - An unbounded wait replayed over an expired child latch cancels the parent instead
+  - A bounded wait on a job that is not this job's child times out without cancelling it
   - An unbounded child wait still suspends with no due instant and stays unclaimable
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
@@ -2159,6 +2161,7 @@
   - A replay asking for a longer wait does not move the stored expiration
   - A raise after the deadline but before the wait re-enters still wins
   - A raise on an expired slot revives nothing and the replayed wait stays TimedOut
+  - An unbounded wait replayed over an expired slot cancels the job instead of parking
   - A replay carrying a bound arms the deadline an unbounded wait never had
   - A replay dropping the bound does not clear the deadline the slot carries
   - An unbounded wait still suspends with no due instant and stays unclaimable

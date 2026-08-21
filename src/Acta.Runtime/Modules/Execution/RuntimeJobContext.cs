@@ -198,6 +198,27 @@ internal sealed class RuntimeJobContext(
     // other cascade: a crash mid-walk leaves stragglers the maintenance sweep repairs.
     protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
     {
+        // Parentage is a safety rail, not an optimization. A wait on an id that is not this job's child
+        // can only ever expire, because nothing will raise a latch nobody writes, so a handler bug or a
+        // stale id reaches this method by construction, not by chance. Without the check it would cancel
+        // an unrelated job, in another namespace or tenant, irreversibly and silently.
+        var children = await _executionStore.GetChildJobIdsAsync(JobId, ct);
+        if (!children.Contains(childJobId))
+        {
+            // The awaiting job is already on the log scope, so the subject here is the target. One
+            // warning, not a throw: the wait did time out, and a handler bug should be loud in
+            // telemetry rather than destructive in the ledger.
+            _log.LogWarning(
+                "({Operation}) for job {SubjectRef} in ({Namespace}) ended ({Outcome}): ({Reason}).",
+                "cancel timed-out child subtree",
+                childJobId.ToString(CultureInfo.InvariantCulture),
+                JobNamespace,
+                "skipped",
+                "the awaited job is not a child of the waiting job, so its wait could only ever expire"
+            );
+            return;
+        }
+
         var input = new JobControlInput(
             new JobControlActor(ActorCode.Sys),
             JobEventReasonCode.JobWaitTimedOut,

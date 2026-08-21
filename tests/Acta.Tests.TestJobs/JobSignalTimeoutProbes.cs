@@ -63,6 +63,26 @@ public static class JobSignalTimeoutProbes
     }
 
     /// <summary>
+    /// Times out on a bounded wait, parks, and on the replay after that waits on the SAME name with
+    /// the unbounded overload. Policy is code, so the unbounded overload resolves TimedOut over the
+    /// Expired slot too and takes the cancelling path rather than parking forever.
+    /// </summary>
+    [Job("job-try-wait-signal-timeout-then-unbounded")]
+    public static async Task TryWaitWithTimeoutThenUnbounded(JobContext ctx, CancellationToken ct)
+    {
+        if (await ctx.ExistsVariableAsync("go.timed-out", ct))
+        {
+            await ctx.WaitSignalAsync("go", ct);
+            await ctx.NoteAsync("unbounded wait resumed", ct);
+            return;
+        }
+
+        var result = await ctx.TryWaitSignalAsync("go", LongWait, ct);
+        await ctx.SetVariableAsync("go.timed-out", result.TimedOut, ct);
+        await ctx.WaitSignalAsync("hold", ct);
+    }
+
+    /// <summary>
     /// Asks for a longer wait on every replay. The slot already exists by then, so the stored
     /// expiration must stay where the first attempt put it: state wins over code.
     /// </summary>
