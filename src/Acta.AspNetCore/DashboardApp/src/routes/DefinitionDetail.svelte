@@ -45,7 +45,13 @@
       const def = await api(definitionPath, {}, { signal });
       let history = [];
       try {
-        history = (await api(definitionPath + '/events', { pageSize: 20 }, { signal })).items;
+        // definition_id on events is job lineage: it is stamped on every execution event for jobs
+        // under this definition, not just definition-change events. An unfiltered read is the
+        // definition's jobs' timelines, not its history. The definition-change family has exactly
+        // one member (definition.overrides-updated), so filter to it.
+        history = (
+          await api(definitionPath + '/events', { eventCode: 'definition.overrides-updated', pageSize: 20 }, { signal })
+        ).items;
       } catch (e) {
         if (e?.name === 'AbortError') throw e;
         // history is best-effort; the editor still works without it

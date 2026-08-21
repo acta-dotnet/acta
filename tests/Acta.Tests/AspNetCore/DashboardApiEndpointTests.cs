@@ -254,10 +254,17 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync("/acta/api/v1/definitions/billing/send-invoice/events", ct);
+        var known = await client.GetAsync(
+            "/acta/api/v1/definitions/billing/send-invoice/events?eventCode=definition.overrides-updated",
+            ct
+        );
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
         // The read ran scoped to the resolved catalog id, which never reaches the wire.
         Assert.Equal(5, jobs.LastEventsQuery!.DefinitionId);
+        // definition_id alone would also match every execution event for the definition's jobs
+        // (deliberate, per ListJobEventsFilterMatrixSpec); the dashboard's Change history panel
+        // narrows to the one definition-change event code so it doesn't flood with job noise.
+        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, jobs.LastEventsQuery.EventCode);
 
         var unknown = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job/events", ct);
         var detail = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job", ct);

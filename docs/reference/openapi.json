@@ -6975,7 +6975,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "List one definition's audit events.",
+        "summary": "List a definition's ledger events (its jobs' lineage, not just changes).",
         "parameters": [
           {
             "name": "jobNamespace",

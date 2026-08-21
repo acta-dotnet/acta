@@ -905,7 +905,7 @@ internal static class ActaApiEndpoints
                     });
                 }
             )
-            .WithSummary("List one definition's audit events.")
+            .WithSummary("List a definition's ledger events (its jobs' lineage, not just changes).")
             .Produces<PagedResult<EventListItem>>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("eventCode", QueryParameterKind.String, "Exact event code as its kebab string.", CodeKind: "event"),
