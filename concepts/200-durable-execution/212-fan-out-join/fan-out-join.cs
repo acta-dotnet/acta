@@ -45,7 +45,7 @@ namespace Acta.Concepts.FanOutJoin
             var children = new long[request.Chunks.Length];
             for (var i = 0; i < children.Length; i++)
             {
-                var child = await context.StartChildAsync($"chunk-{i}", request.Chunks[i], ct: ct);
+                var child = await context.StartChildAsync($"chunk-{i}", request.Chunks[i], ct);
                 children[i] = child.JobId;
             }
 

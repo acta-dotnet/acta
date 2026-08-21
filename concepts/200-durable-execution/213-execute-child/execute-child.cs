@@ -40,7 +40,7 @@ namespace Acta.Concepts.ExecuteChild
         public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
         {
             var transcoded = (
-                await context.ExecuteChildAsync<TranscodeVideo, TranscodeResult>("transcode", new TranscodeVideo(episode.SourceUrl), ct: ct)
+                await context.ExecuteChildAsync<TranscodeVideo, TranscodeResult>("transcode", new TranscodeVideo(episode.SourceUrl), ct)
             ).ValueOrThrow();
 
             return new EpisodePublished(episode.EpisodeId, transcoded.StreamUrl);

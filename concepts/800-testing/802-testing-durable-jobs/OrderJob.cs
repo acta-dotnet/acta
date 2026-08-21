@@ -23,7 +23,7 @@ public static class OrderJob
                 Interlocked.Increment(ref ReserveCount);
                 return Task.CompletedTask;
             },
-            ct: ct
+            ct
         );
 
         // Suspend until the signal arrives; on resume the job replays from the top but the recorded
@@ -34,7 +34,7 @@ public static class OrderJob
             return new OrderResult(order.OrderId, Charged: false);
         }
 
-        await context.RunStepAsync("charge", _ => Task.CompletedTask, ct: ct);
+        await context.RunStepAsync("charge", _ => Task.CompletedTask, ct);
         return new OrderResult(order.OrderId, Charged: true);
     }
 }

@@ -92,7 +92,7 @@ namespace Acta.Concepts.DurableStep
                     Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}");
                     return Task.CompletedTask;
                 },
-                ct: ct
+                ct
             );
 
             // Fail the first attempt; the retry skips the already-started freeze cycle.

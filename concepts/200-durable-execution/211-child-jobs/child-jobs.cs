@@ -153,9 +153,9 @@ namespace Acta.Concepts.ChildJobs
         [Job("build-snowman")]
         public async Task<FinishedSnowman> Handle(BuildSnowman input, JobContext context, CancellationToken ct)
         {
-            var bottom = await context.StartChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct: ct);
-            var middle = await context.StartChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct: ct);
-            var head = await context.StartChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct: ct);
+            var bottom = await context.StartChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct);
+            var middle = await context.StartChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
+            var head = await context.StartChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
 
             var outcomes = await context.WaitChildrenAsync([bottom.JobId, middle.JobId, head.JobId], ct);
             foreach (var outcome in outcomes)

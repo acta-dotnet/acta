@@ -138,7 +138,7 @@ namespace Acta.Concepts.OperatorRestart
                     Console.WriteLine($"[{input.Id}] preparation step body invoked; its recorded success can be reused");
                     return Task.CompletedTask;
                 },
-                ct: ct
+                ct
             );
 
             if (!DataSourceFixed)

@@ -69,13 +69,13 @@ Large or sensitive bodies belong in blob storage with a reference in the job inp
 [Job("orders.fulfil", MaxAttempts = 5)]
 public static async Task Handle(FulfilOrder input, JobContext ctx, CancellationToken ct)
 {
-    var reserved = await ctx.RunStepAsync("reserve-stock", c => Inventory.ReserveAsync(input.OrderId, c), ct: ct);
+    var reserved = await ctx.RunStepAsync("reserve-stock", c => Inventory.ReserveAsync(input.OrderId, c), ct);
 
-    await ctx.RunStepAsync("charge", c => Payments.ChargeAsync(input.OrderId, reserved.Total, c), ct: ct);
+    await ctx.RunStepAsync("charge", c => Payments.ChargeAsync(input.OrderId, reserved.Total, c), ct);
 
     await ctx.SleepAsync("settle-window", TimeSpan.FromHours(1), ct: ct);
 
-    await ctx.RunStepAsync("ship", c => Shipping.DispatchAsync(input.OrderId, c), ct: ct);
+    await ctx.RunStepAsync("ship", c => Shipping.DispatchAsync(input.OrderId, c), ct);
 }
 ```
 

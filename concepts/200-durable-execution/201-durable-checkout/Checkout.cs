@@ -23,7 +23,7 @@ public sealed class CheckoutJob
                 await Task.Delay(150, innerCt);
                 Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
             },
-            ct: ct
+            ct
         );
 
         var charge = await context.RunStepAsync(
@@ -34,7 +34,7 @@ public sealed class CheckoutJob
                 Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
                 return new ChargeResult($"ch_{order.OrderId}");
             },
-            ct: ct
+            ct
         );
 
         // Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.
@@ -66,7 +66,7 @@ public sealed class CheckoutJob
                 await Task.Delay(100, innerCt);
                 Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: deduplication-key=receipt:{order.OrderId}");
             },
-            ct: ct
+            ct
         );
 
         return new CheckoutResult(order.OrderId, chargeId);

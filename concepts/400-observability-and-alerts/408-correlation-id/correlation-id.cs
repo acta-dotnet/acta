@@ -75,7 +75,7 @@ namespace Acta.Concepts.CorrelationKey
         {
             _log.LogInformation("parent handler: RunId={RunId}; look for CorrelationKey in Scopes", input.RunId);
 
-            var child = await context.StartChildAsync("step-1", new ProcessStep(input.RunId, 1), ct: ct);
+            var child = await context.StartChildAsync("step-1", new ProcessStep(input.RunId, 1), ct);
             await context.WaitChildAsync(child.JobId, ct);
 
             _log.LogInformation("parent handler complete");

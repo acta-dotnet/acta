@@ -622,7 +622,21 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Raw-route variant of <see cref="StartChildAsync{TInput}"/> for explicit
+    /// Convenience overload of
+    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// </summary>
+    /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
+    /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public Task<JobEnqueueOutcome> StartChildAsync<TInput>(string name, TInput input, CancellationToken ct)
+        where TInput : notnull => StartChildAsync(name, input, configure: null, ct: ct);
+
+    /// <summary>
+    /// Raw-route variant of
+    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    /// for explicit
     /// (<paramref name="jobNamespace"/>, <paramref name="jobName"/>) targeting, including a namespace
     /// other than this Job's.
     /// </summary>
@@ -658,7 +672,8 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Durable, replay-safe wait for a child started by <see cref="StartChildAsync{TInput}"/> to reach
+    /// Durable, replay-safe wait for a child started by
+    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> to reach
     /// a terminal status. Returns the child's terminal outcome immediately when it already finished;
     /// otherwise suspends this Job (budget-neutral) until the child's terminal landing releases it.
     /// Never throws on a failed or cancelled child; branch on <see cref="ChildJobOutcome.Succeeded"/>.
@@ -685,7 +700,10 @@ public abstract class JobContext
     /// There is deliberately no non-Try twin: a child timeout resolves in the parent's favour, so
     /// there is nothing for a non-returning overload to mean.
     /// </remarks>
-    /// <param name="childJobId">The child started by <see cref="StartChildAsync{TInput}"/>.</param>
+    /// <param name="childJobId">
+    /// The child started by
+    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>.
+    /// </param>
     /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task<ChildWaitResult> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
@@ -779,7 +797,18 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Result-returning variant of <see cref="ExecuteChildAsync{TInput}"/>: on a successful child the
+    /// Convenience overload of
+    /// <see cref="ExecuteChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// </summary>
+    public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, TInput input, CancellationToken ct)
+        where TInput : notnull => ExecuteChildAsync(name, input, configure: null, ct: ct);
+
+    /// <summary>
+    /// Result-returning variant of
+    /// <see cref="ExecuteChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// on a successful child the
     /// outcome carries the deserialized result (<see cref="JobOutcome{T}.ValueOrThrow"/> for the terse
     /// path). A child that succeeded without storing a result throws: the caller asked for a typed
     /// result the child's contract does not produce.
@@ -810,6 +839,16 @@ public abstract class JobContext
             );
         return JobOutcome<TResult>.Succeeded(child.JobId, value);
     }
+
+    /// <summary>
+    /// Convenience overload of
+    /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// </summary>
+    public Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(string name, TInput input, CancellationToken ct)
+        where TInput : notnull
+        where TResult : notnull => ExecuteChildAsync<TInput, TResult>(name, input, configure: null, ct: ct);
 
     private JobEnqueueOptions BuildChildOptions(string name, Action<JobEnqueueOptionsBuilder>? configure)
     {
@@ -1063,6 +1102,18 @@ public abstract class JobContext
     }
 
     /// <summary>
+    /// Convenience overload of
+    /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// </summary>
+    /// <param name="name">Stable kebab-case slot name, unique per Job; durable identity across replays.</param>
+    /// <param name="body">The side-effecting work; receives a cancellation token linked to the attempt.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public Task RunStepAsync(string name, Func<CancellationToken, Task> body, CancellationToken ct) =>
+        RunStepAsync(name, body, configure: null, ct: ct);
+
+    /// <summary>
     /// Result-returning variant of
     /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>.
     /// On replay of a succeeded step the stored result is deserialized into
@@ -1088,6 +1139,15 @@ public abstract class JobContext
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         return await RunStepCoreAsync(name, body, options, linked.Token);
     }
+
+    /// <summary>
+    /// Convenience overload of
+    /// <see cref="RunStepAsync{TResult}(string, Func{CancellationToken, Task{TResult}}, Action{StepOptionsBuilder}, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// </summary>
+    public Task<TResult> RunStepAsync<TResult>(string name, Func<CancellationToken, Task<TResult>> body, CancellationToken ct) =>
+        RunStepAsync(name, body, configure: null, ct: ct);
 
     private static StepOptions BuildStepOptions(Action<StepOptionsBuilder>? configure)
     {

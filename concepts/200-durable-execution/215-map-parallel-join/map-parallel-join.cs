@@ -79,8 +79,8 @@ namespace Acta.Concepts.MapParallelJoin
             var renditionsReady = resized.Items.Count(i => i.Outcome.Succeeded);
 
             // Join: start two independent side effects by hand and wait on the handles.
-            var cdn = await context.StartChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct: ct);
-            var index = await context.StartChildAsync("update-index", new UpdateIndex(photo.AssetId), ct: ct);
+            var cdn = await context.StartChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct);
+            var index = await context.StartChildAsync("update-index", new UpdateIndex(photo.AssetId), ct);
             var published = await context.JoinAsync([cdn, index], ct);
 
             return new PhotoResult(photo.AssetId, renditionsReady, published.Succeeded);

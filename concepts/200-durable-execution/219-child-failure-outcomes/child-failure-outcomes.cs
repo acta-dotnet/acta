@@ -141,8 +141,8 @@ namespace Acta.Concepts.ChildFailureOutcomes
         [Job("run-join-escalated", MaxAttempts = 1)]
         public async Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
         {
-            var alpha = await context.StartChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct: ct);
-            var beta = await context.StartChildAsync("beta", new RunChild("beta", ShouldFail: true), ct: ct);
+            var alpha = await context.StartChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct);
+            var beta = await context.StartChildAsync("beta", new RunChild("beta", ShouldFail: true), ct);
 
             var result = await context.JoinAsync([alpha, beta], ct);
 

@@ -130,7 +130,7 @@ namespace Acta.Concepts.DashboardSample
         [Job("build-preview")]
         public static async Task Handle(BuildPreview input, JobContext context, CancellationToken ct)
         {
-            var child = await context.StartChildAsync("thumbnail", new RenderThumbnail(input.CatalogId), ct: ct);
+            var child = await context.StartChildAsync("thumbnail", new RenderThumbnail(input.CatalogId), ct);
             await context.WaitChildrenAsync([child.JobId], ct);
         }
 

@@ -46,7 +46,7 @@ namespace Acta.Concepts.StepChain
                     Console.WriteLine($"[{doc.DocId}] fetched");
                     return new FetchedDocument(doc.DocId, 4096);
                 },
-                ct: ct
+                ct
             );
 
             var extracted = await context.RunStepAsync(
@@ -57,7 +57,7 @@ namespace Acta.Concepts.StepChain
                     Console.WriteLine($"[{doc.DocId}] extracted text from {fetched.Bytes} bytes");
                     return new ExtractedText(doc.DocId, 600);
                 },
-                ct: ct
+                ct
             );
 
             var summary = await context.RunStepAsync(
@@ -68,7 +68,7 @@ namespace Acta.Concepts.StepChain
                     Console.WriteLine($"[{doc.DocId}] summarized {extracted.Words} words");
                     return new Summary(doc.DocId, $"{extracted.Words}-word digest");
                 },
-                ct: ct
+                ct
             );
 
             Console.WriteLine($"[{doc.DocId}] done -> {fetched.Bytes} bytes, {extracted.Words} words, summary \"{summary.Text}\"");

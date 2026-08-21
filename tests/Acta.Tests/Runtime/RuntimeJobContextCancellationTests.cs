@@ -55,6 +55,57 @@ public sealed class RuntimeJobContextCancellationTests
         Assert.False(db.CompleteStepCalled);
     }
 
+    // Same as above, but through the positional-ct convenience overload: proves the forwarder
+    // preserves the linked-token cancellation semantics of the canonical configure-taking overload
+    // rather than only the compile-time shape.
+    [Fact]
+    public async Task RunStepAsync_positional_ct_overload_propagates_linked_token_cancellation_without_completing_step_failure()
+    {
+        var db = new StepCancellationExecutionStore();
+        var ctx = new RuntimeJobContext(
+            new ClaimedJob(
+                JobId: 42,
+                JobRef: Guid.CreateVersion7(),
+                NamespaceId: 1,
+                DefinitionId: 1,
+                TenantId: null,
+                ExecutionNumber: 1,
+                DeduplicationKey: null,
+                CorrelationKey: null,
+                ExclusiveKey: null,
+                InputFormatId: 0,
+                Input: ReadOnlyMemory<byte>.Empty,
+                NextRunAtUtc: null,
+                LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
+                CreatedAtUtc: DateTime.UtcNow,
+                FailureCount: 0,
+                Version: 1
+            ),
+            jobName: "step-host",
+            namespaceName: "test",
+            namespaceId: 1,
+            leaseTtlSeconds: 180,
+            jobStore: null!,
+            signalStore: null!,
+            alerts: null!,
+            executionStore: db,
+            new ThrowingSerializerRegistry(),
+            new ThrowingLockStore(),
+            cancellationToken: CancellationToken.None,
+            triggeringScheduleNames: [],
+            deadlineAtUtc: null
+        );
+
+        using var callerCts = new CancellationTokenSource();
+        await callerCts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            ctx.RunStepAsync("cancelled-step", token => Task.FromCanceled(token), callerCts.Token)
+        );
+
+        Assert.False(db.CompleteStepCalled);
+    }
+
     // Only StartStep and CompleteStep are exercised: StartStep yields an Invoke decision so the body
     // runs, and CompleteStep must never be reached once the caller token is already cancelled.
     private sealed class StepCancellationExecutionStore : IExecutionStore

@@ -4,10 +4,11 @@ using System.Text;
 namespace Acta.Tests.Context;
 
 /// <summary>
-/// In-memory JobContext double for the Map/Parallel/Join sugar: records the order of child starts
-/// and child waits, hands every start a fresh sequential id, and resolves each wait from a seeded
-/// per-child-name outcome (defaulting to Succeeded). No database, no substrate; only the child-job sinks
-/// the sugar touches are implemented, the rest throw.
+/// In-memory JobContext double for the Map/Parallel/Join sugar and for step overload tests: records
+/// the order of child starts and child waits, hands every start a fresh sequential id, and resolves
+/// each wait from a seeded per-child-name outcome (defaulting to Succeeded); also records every step
+/// invocation's resolved <see cref="StepOptions"/> and runs its body inline. No database, no
+/// substrate; only the child-job and step sinks are implemented, the rest throw.
 /// </summary>
 internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>? seeded = null) : JobContext
 {
@@ -26,6 +27,12 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
 
     /// <summary>Raw child enqueue requests in start order.</summary>
     public List<JobEnqueueRequest> RawStarted { get; } = [];
+
+    /// <summary>Steps invoked, in order: name and the resolved <see cref="StepOptions"/> each call forwarded.</summary>
+    public List<(string Name, StepOptions Options)> Steps { get; } = [];
+
+    /// <summary>Seeded value <see cref="GetChildResultCoreAsync{TResult}"/> returns, when it matches <c>TResult</c>.</summary>
+    public object? SeededChildResult { get; set; }
 
     public Exception? LockReleaseException { get; init; }
     public int LockReleaseCalls { get; private set; }
@@ -82,7 +89,8 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    private static T Unsupported<T>() => throw new NotSupportedException("RecordingJobContext only implements the child-job sinks.");
+    private static T Unsupported<T>() =>
+        throw new NotSupportedException("RecordingJobContext only implements the child-job and step sinks.");
 
     protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct) => Unsupported<Task>();
 
@@ -131,17 +139,29 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     }
 
     protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
-        where TResult : default => Unsupported<Task<TResult?>>();
+        where TResult : default => Task.FromResult(SeededChildResult is TResult typed ? typed : default);
 
-    protected override Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct) =>
-        Unsupported<Task>();
+    protected override async Task RunStepCoreAsync(
+        string name,
+        Func<CancellationToken, Task> body,
+        StepOptions options,
+        CancellationToken ct
+    )
+    {
+        Steps.Add((name, options));
+        await body(ct);
+    }
 
-    protected override Task<TResult> RunStepCoreAsync<TResult>(
+    protected override async Task<TResult> RunStepCoreAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
         CancellationToken ct
-    ) => Unsupported<Task<TResult>>();
+    )
+    {
+        Steps.Add((name, options));
+        return await body(ct);
+    }
 
     protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
         Task.FromResult<Guid?>(Guid.NewGuid());
