@@ -109,6 +109,46 @@ public class JobExplainerTests
     }
 
     [Fact]
+    public void Suspended_on_an_unbounded_child_wait_names_the_child_and_says_it_has_no_deadline()
+    {
+        var data = Data(
+            Header(JobStatusCode.Suspended),
+            checkpoints: [Checkpoint(JobCheckpointKindCode.ChildLatch, "sys.child.4242", JobCheckpointStatusCode.Pending)]
+        );
+
+        var x = JobExplainer.Explain(data, Now);
+
+        Assert.Equal(JobCheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
+        Assert.Equal("sys.child.4242", x.ActiveWait.Name);
+        // The id is what an operator can look up; the slot's spelling is framework bookkeeping.
+        Assert.Contains("waiting for child job 4242", x.Headline, StringComparison.Ordinal);
+        Assert.Contains("waits until the child completes", x.Headline, StringComparison.Ordinal);
+        Assert.DoesNotContain("times out", x.Headline, StringComparison.Ordinal);
+        // The sys.child latch is framework-owned and RaiseSignalAsync rejects the name, so proposing a
+        // raise would send an operator at a verb that cannot work.
+        Assert.DoesNotContain(x.NextActions, a => a.Kind == "raise-signal");
+        Assert.Contains(x.NextActions, a => a.Kind == "inspect-timeline" && a.Description.Contains("child job 4242"));
+        Assert.Contains(x.NextActions, a => a.Kind == "cancel");
+    }
+
+    [Fact]
+    public void Suspended_on_a_bounded_child_wait_names_the_instant_it_times_out()
+    {
+        var data = Data(
+            Header(JobStatusCode.Suspended),
+            checkpoints: [Checkpoint(JobCheckpointKindCode.ChildLatch, "sys.child.7", JobCheckpointStatusCode.Pending, Now.AddMinutes(30))]
+        );
+
+        var x = JobExplainer.Explain(data, Now);
+
+        Assert.Equal(Now.AddMinutes(30), x.ActiveWait!.DueAtUtc);
+        Assert.Contains("waiting for child job 7", x.Headline, StringComparison.Ordinal);
+        // Same absolute-instant shape the bounded signal wait prints, for the same reason.
+        Assert.Contains($"times out at {Now.AddMinutes(30):yyyy-MM-dd HH:mm:ss}Z", x.Headline, StringComparison.Ordinal);
+        Assert.DoesNotContain("until the child completes", x.Headline, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Suspended_on_timer_reports_due_and_does_not_prescribe_a_signal()
     {
         var data = Data(
@@ -131,7 +171,7 @@ public class JobExplainerTests
         var x = JobExplainer.Explain(Data(Header(JobStatusCode.Suspended)), Now);
 
         Assert.Null(x.ActiveWait);
-        Assert.Contains("no pending signal or timer checkpoint", x.Headline);
+        Assert.Contains("no pending signal, child, or timer checkpoint", x.Headline);
         Assert.Contains(x.NextActions, a => a.Kind == "inspect-timeline");
         Assert.Contains(x.NextActions, a => a.Kind == "cancel");
     }

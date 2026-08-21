@@ -1433,13 +1433,14 @@
 ## Reads
 
 ### Explain reports live Suspended and Succeeded states through the facade
-- **Contract:** ExplainAsync reports a signal-suspended job as Suspended awaiting its signal and a finished job as Succeeded.
-- **Arrange:** A job-wait-signal handler is enqueued and driven through the real runtime loop.
-- **Act:** ExplainAsync is called after the wait suspends the job and again after a raise drives it to completion.
-- **Assert:** The suspended read names the pending signal wait and the completed read reports Succeeded.
+- **Contract:** ExplainAsync reports a suspended job as awaiting its signal or its child, and a finished job as Succeeded.
+- **Arrange:** Signal-waiting, child-waiting and step handlers are enqueued and driven through the real runtime loop.
+- **Act:** ExplainAsync is called while a job is suspended on a wait and again after it runs to completion.
+- **Assert:** The suspended reads name the pending signal or child wait and its deadline, and the completed read reports Succeeded.
 - **Guarantees:**
   - Explain reports a signal-suspended job as Suspended awaiting its signal
   - Explain reports a released-and-finished job as Succeeded
+  - Explain reports a child-suspended parent as awaiting that child, with its deadline
   - Explain reports a completed durable step as non-rerunning
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobExplanationAsync`

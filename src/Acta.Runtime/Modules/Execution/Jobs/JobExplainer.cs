@@ -1,4 +1,5 @@
 using System.Globalization;
+using Acta.Runtime.Modules.Execution.ChildLatches;
 
 namespace Acta.Runtime.Modules.Execution.Jobs;
 
@@ -38,6 +39,19 @@ internal static class JobExplainer
                         actions.Add(new JobExplainAction("raise-signal", $"raise signal \"{wait.Name}\""));
                         actions.Add(new JobExplainAction("cancel", "cancel the job"));
                         break;
+                    case JobCheckpointKindCode.ChildLatch:
+                    {
+                        // No raise-signal action: the sys.child latch is framework-owned and the raise
+                        // verb rejects that name, so offering it would suggest a move that cannot work.
+                        var child = ChildLabel(wait.Name);
+                        headline = wait.DueAtUtc is { } childDue
+                            ? $"Suspended, waiting for {child}; times out at {Instant(childDue)}."
+                            : $"Suspended, waiting for {child}; no timeout, so it waits until the child completes.";
+                        actions.Add(new JobExplainAction("none", $"no action needed - it resumes when {child} reaches a terminal status"));
+                        actions.Add(new JobExplainAction("inspect-timeline", $"inspect {child} with 'jobs explain'"));
+                        actions.Add(new JobExplainAction("cancel", "cancel the job if the wait is no longer needed"));
+                        break;
+                    }
                     case JobCheckpointKindCode.Timer:
                         headline = wait.DueAtUtc is { } due
                             ? $"Suspended on durable sleep \"{wait.Name}\", {DuePhrase(due, nowUtc)}."
@@ -46,7 +60,7 @@ internal static class JobExplainer
                         actions.Add(new JobExplainAction("cancel", "cancel the job if the wait is no longer needed"));
                         break;
                     default:
-                        headline = "Suspended, but no pending signal or timer checkpoint was found.";
+                        headline = "Suspended, but no pending signal, child, or timer checkpoint was found.";
                         actions.Add(new JobExplainAction("inspect-timeline", "inspect the timeline with 'jobs events'"));
                         actions.Add(new JobExplainAction("cancel", "cancel the job"));
                         break;
@@ -144,9 +158,10 @@ internal static class JobExplainer
     // last touched it; null once that worker's row is gone.
     private static string? LastExecutedByLabel(ExplainHeaderRow h) => WorkerIdentity(h.LastExecutedByWorkerName, h.LastExecutedByWorkerRef);
 
-    // A Suspended job is blocked on a pending signal or a pending timer checkpoint; a signal wins when
-    // both are present (a job awaits one primitive at a time, and the signal is the operator-actionable one).
-    // A signal's due is its timeout instant, carried through so the headline can name it.
+    // A Suspended job is blocked on a pending signal, a pending child latch, or a pending timer
+    // checkpoint; a signal wins when several are present (a job awaits one primitive at a time, and the
+    // signal is the operator-actionable one). A signal's and a child latch's due is the wait's timeout
+    // instant, carried through so the headline can name it; a timer's is when it resumes.
     private static JobExplainWait? FindWait(IReadOnlyList<ExplainCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
@@ -158,6 +173,13 @@ internal static class JobExplainer
         }
         foreach (var c in checkpoints)
         {
+            if (c.Kind == JobCheckpointKindCode.ChildLatch && c.Status == JobCheckpointStatusCode.Pending)
+            {
+                return new JobExplainWait(JobCheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+            }
+        }
+        foreach (var c in checkpoints)
+        {
             if (c.Kind == JobCheckpointKindCode.Timer && c.Status == JobCheckpointStatusCode.Pending)
             {
                 return new JobExplainWait(JobCheckpointKindCode.Timer, c.Name, c.DueAtUtc);
@@ -165,6 +187,14 @@ internal static class JobExplainer
         }
         return null;
     }
+
+    // The latch name is the framework-owned sys.child.{id} key, so the readable half is the id: an
+    // operator wants the child's number, not the slot's spelling. A name that does not parse is shown
+    // verbatim rather than guessed at.
+    private static string ChildLabel(string slotName) =>
+        slotName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
+            ? $"child job {slotName[RaiseChildLatch.NamePrefix.Length..]}"
+            : $"child latch \"{slotName}\"";
 
     private static JobExplainLease? BuildLease(ExplainHeaderRow h, DateTime nowUtc)
     {

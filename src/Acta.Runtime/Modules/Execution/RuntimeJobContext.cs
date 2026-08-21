@@ -194,8 +194,13 @@ internal sealed class RuntimeJobContext(
 
     // The wait timed out, so this parent stopped waiting; the child and everything under it is work
     // nobody is going to read. Reason JobWaitTimedOut rather than JobParentCancelled, because the
-    // parent was NOT cancelled and the timeline must not say it was. Follow-up transactions, like every
-    // other cascade: a crash mid-walk leaves stragglers the maintenance sweep repairs.
+    // parent was NOT cancelled and the timeline must not say it was.
+    //
+    // Follow-up transactions, like every other cascade, and NOT atomic with the Expired flip that
+    // preceded them. A crash mid-walk leaves live stragglers, and no maintenance pass sweeps them: the
+    // only repair is the parent replaying this wait, re-deriving TimedOut off the Expired slot, and
+    // re-running the cancel. A parent that lands terminal without replaying strands them, which
+    // docs/technical/known-limitations.md states as a known limitation.
     protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
     {
         // Parentage is a safety rail, not an optimization. A wait on an id that is not this job's child
