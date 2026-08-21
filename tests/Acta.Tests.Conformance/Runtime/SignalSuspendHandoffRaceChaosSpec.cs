@@ -55,7 +55,9 @@ public abstract class SignalSuspendHandoffRaceChaosSpec<TFixture> : ActaRuntimeT
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
         var decision = new ReviewDecision(true, "beat the handoff");
-        var wakesBefore = _wakeup.WakeCount;
+        // The completion's Ready publish is the only one that goes to the job's own worker namespace:
+        // the enqueue above woke every namespace, so a total count would be satisfied by that alone.
+        var namespaceWakesBefore = _wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace);
 
         // By the time this runs the handler has thrown its suspend and wait_signal has committed the
         // Pending slot, but the completion carrying that suspend is built and unsent. That is the
@@ -88,7 +90,7 @@ public abstract class SignalSuspendHandoffRaceChaosSpec<TFixture> : ActaRuntimeT
 
         // The other half of not losing the wake: complete_execution is the only site that can see this
         // transition, so a Ready row it reports without a publish is a job nobody is told about.
-        Assert.True(_wakeup.WakeCount > wakesBefore);
+        Assert.True(_wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace) > namespaceWakesBefore);
 
         // And the wake is not the claim: the next tick replays the handler over the Set slot and
         // finishes with the payload the raise carried, so nothing was consumed by the race.

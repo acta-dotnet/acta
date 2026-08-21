@@ -252,7 +252,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Pending` | 10 | `pending` | Awaited or armed; the slot has not been satisfied yet. | Active |
 | `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
-| `Expired` | 30 | `expired` | Bounded wait deadline passed before a raise arrived; the wait resolved TimedOut and raises skip the slot. | Active |
+| `Expired` | 30 | `expired` | The re-entering wait found the slot overdue and settled it TimedOut; a raise then skips the slot. | Active |
 | `Consumed` | 100 | `consumed` | Due instant reached; the replayed handler consumed the timer and proceeded. | Active |
 
 #### `JobStepStatusCode` · `job-step-status` <a id="code-family-jobstepstatuscode"></a>

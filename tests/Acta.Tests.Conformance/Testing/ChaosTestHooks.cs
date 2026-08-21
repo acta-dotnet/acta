@@ -227,6 +227,19 @@ internal sealed class ControlledWakeup : IWorkerWakeup
     }
 
     /// <summary>
+    /// Wakes published so far on channels of <paramref name="kind"/>. The instrument for an assertion
+    /// that must pin a wake to the one transition publishing on that channel, rather than to any
+    /// publish the surrounding arrangement also makes.
+    /// </summary>
+    public int WakeCountFor(WorkerWakeupChannelKind kind)
+    {
+        lock (_gate)
+        {
+            return _wakesByKind.GetValueOrDefault(kind);
+        }
+    }
+
+    /// <summary>
     /// Completes when at least <paramref name="threshold"/> wakes have been published on channels of
     /// <paramref name="kind"/>. This is the outcome-not-clock instrument: a JobCompletion wake is
     /// published only after the terminal completion write returns, so awaiting it proves the job ran

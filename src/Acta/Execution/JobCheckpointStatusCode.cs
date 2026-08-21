@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary>
 /// State machine for stateful <c>JobCheckpoint</c> kinds. Signals and child latches move
 /// <c>Pending</c> (awaited, no raise yet) to <c>Set</c> (raised, payload stored) or to
-/// <c>Expired</c> (a bounded wait's deadline passed first); timers move <c>Pending</c> (armed) to
+/// <c>Expired</c> (a re-entering bounded wait found the slot overdue); timers move <c>Pending</c> (armed) to
 /// <c>Consumed</c> (the replayed handler passed the due instant). Stateless kinds (variable,
 /// progress) carry a NULL state.
 /// </summary>
@@ -22,12 +22,12 @@ public enum JobCheckpointStatusCode : byte
     Set = 20,
 
     /// <summary>
-    /// Terminal for the slot: a bounded wait's stored <c>due_at_utc</c> passed before a raise arrived,
-    /// so the re-entering wait resolved TimedOut. Both a raise and a child landing terminal skip an
-    /// Expired slot, writing no payload and releasing no job, which is what stops a late arrival
+    /// Terminal for the slot: the re-entering wait found the slot still Pending past its stored
+    /// <c>due_at_utc</c> and settled it TimedOut there. Both a raise and a child landing terminal skip
+    /// an Expired slot, writing no payload and releasing no job, which is what stops a late arrival
     /// reviving a wait that already resolved.
     /// </summary>
-    [Code("expired", "Bounded wait deadline passed before a raise arrived; the wait resolved TimedOut and raises skip the slot.")]
+    [Code("expired", "The re-entering wait found the slot overdue and settled it TimedOut; a raise then skips the slot.")]
     Expired = 30,
 
     /// <summary>Due instant reached and the replayed handler consumed the timer.</summary>
