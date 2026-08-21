@@ -102,8 +102,10 @@ try {
         $version = Get-FeedVersion $sample.Requires[0]
         Write-Host "DocSamples: compiling $($sample.Name) against $($sample.Requires -join ' + ') $version"
         # Compile only: the first-run program blocks on WaitForShutdown, and what a sample must prove
-        # is that its published text is a complete program.
-        dotnet build "$PSScriptRoot/$($sample.Name)/$($sample.Name).csproj" -c Release --nologo -p:ActaPackageVersion=$version
+        # is that its published text is a complete program. Warnings fail the build: a newcomer's own
+        # project would not stop on one, but a sample that compiles with a warning is a sample that
+        # teaches it, and the ACTA analyzers ship in these packages to be listened to.
+        dotnet build "$PSScriptRoot/$($sample.Name)/$($sample.Name).csproj" -c Release --nologo -warnaserror -p:ActaPackageVersion=$version
         # Every sample is built before the run fails, so one broken document does not hide the rest.
         if ($LASTEXITCODE -ne 0) { $failed += $sample.Name } else { $compiled += $sample.Name }
     }

@@ -14,16 +14,24 @@ public sealed class DocSampleDriftTests
     private const string Quickstart = "docs/quickstart.md";
     private const string StartPage = "site/start.html";
 
+    private const string Registration =
+        "tests/DocSamples/run.ps1 compiles the samples this count covers. Adding one means giving it a "
+        + "project group in that runner (and, in docs/quickstart.md, a '// File: <path>' first line) "
+        + "before the count moves.";
+
     [Fact]
     public void Every_front_door_document_yields_the_samples_the_harness_expects()
     {
-        Assert.Equal(2, DocSampleExtraction.CodeBlocks(Llms).Count);
-        Assert.Single(DocSampleExtraction.CodeBlocks(Readme));
-        Assert.Equal(5, DocSampleExtraction.CodeBlocks(Quickstart).Count);
+        // docs/quickstart.md is deliberately absent: Every_quickstart_sample_is_compiled_or_explicitly_elided
+        // covers it by meaning rather than by count, which survives editing that a number does not.
+        Assert.True(DocSampleExtraction.CodeBlocks(Llms).Count == 2, $"llms.txt must carry 2 C# samples. {Registration}");
+        Assert.True(DocSampleExtraction.CodeBlocks(Readme).Count == 1, $"README.md must carry 1 C# sample. {Registration}");
+
+        // The HTML door has no language marker on its blocks, so this count covers the bash block too.
+        var startBlocks = DocSampleExtraction.CodeBlocks(StartPage);
+        Assert.True(startBlocks.Count == 2, $"site/start.html must carry 2 code blocks. {Registration}");
 
         // The HTML door is extracted through entity decoding; a raw read would leave &lt; in the source.
-        var startBlocks = DocSampleExtraction.CodeBlocks(StartPage);
-        Assert.Equal(2, startBlocks.Count);
         Assert.DoesNotContain(startBlocks, block => block.Contains("&lt;", StringComparison.Ordinal));
 
         Assert.Contains("class WebhookJobs", DocSampleExtraction.BlockContaining(Llms, "class WebhookJobs"), StringComparison.Ordinal);
@@ -32,24 +40,36 @@ public sealed class DocSampleDriftTests
     [Fact]
     public void The_first_run_program_is_byte_identical_in_every_door()
     {
-        var canonical = DocSampleExtraction.FirstRunProgram(Llms);
-        var drifting = DocSampleExtraction.FirstRunDocuments.Where(doc => DocSampleExtraction.FirstRunProgram(doc) != canonical).ToList();
+        // No document is the designated truth: the doors are grouped by the program they publish, so a
+        // drifting llms.txt reads as one group against three rather than as three drifting documents.
+        var variants = DocSampleExtraction
+            .FirstRunDocuments.GroupBy(DocSampleExtraction.FirstRunProgram, StringComparer.Ordinal)
+            .Select(group => group.OrderBy(doc => doc, StringComparer.Ordinal).ToList())
+            .OrderByDescending(group => group.Count)
+            .ToList();
 
         Assert.True(
-            drifting.Count == 0,
-            "The first-run program must be the same program in every door (line endings normalized). "
-                + $"These documents differ from {Llms}:\n  "
-                + string.Join("\n  ", drifting)
+            variants.Count == 1,
+            "The first-run program must be the same program in every door (line endings normalized), but the "
+                + $"documents publish {variants.Count} different programs. Each line is one program's documents, "
+                + "largest group first:\n  "
+                + string.Join("\n  ", variants.Select(group => string.Join(", ", group)))
         );
     }
 
     [Fact]
     public void The_site_copy_of_llms_txt_matches_the_repository_root_copy()
     {
-        var root = DocSampleExtraction.Normalize(File.ReadAllText(Path.Combine(DocSampleExtraction.RepoRoot, "llms.txt")));
-        var site = DocSampleExtraction.Normalize(File.ReadAllText(Path.Combine(DocSampleExtraction.RepoRoot, "site", "llms.txt")));
+        // Raw bytes, not normalized text: the site copy is a copy, so a byte-order mark or a line-ending
+        // change is drift too. This is the one comparison in the file that is literal.
+        var root = File.ReadAllBytes(Path.Combine(DocSampleExtraction.RepoRoot, "llms.txt"));
+        var site = File.ReadAllBytes(Path.Combine(DocSampleExtraction.RepoRoot, "site", "llms.txt"));
 
-        Assert.True(root == site, "site/llms.txt has drifted from the repository root llms.txt; the published copy must be a copy.");
+        Assert.True(
+            root.AsSpan().SequenceEqual(site),
+            $"site/llms.txt has drifted from the repository root llms.txt ({root.Length} bytes vs {site.Length}); "
+                + "the published copy must be a byte-for-byte copy."
+        );
     }
 
     [Fact]

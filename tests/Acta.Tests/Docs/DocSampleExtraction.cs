@@ -24,7 +24,12 @@ public static partial class DocSampleExtraction
     /// <summary>Repository root, located by walking up from the running assembly to Acta.slnx.</summary>
     public static string RepoRoot { get; } = ResolveRepoRoot();
 
-    /// <summary>Reads a document by repo-relative path and returns its code blocks in document order.</summary>
+    /// <summary>
+    /// Reads a document by repo-relative path and returns its code blocks in document order.
+    /// Markdown yields only <c>csharp</c>-fenced blocks; the site's HTML has no language marker on a
+    /// <c>&lt;pre&gt;&lt;code&gt;</c> block, so it yields every one of them, shell commands included.
+    /// Callers select the sample they mean by content, which is language-agnostic either way.
+    /// </summary>
     public static IReadOnlyList<string> CodeBlocks(string relativeDocument)
     {
         var text = Normalize(File.ReadAllText(Path.Combine(RepoRoot, relativeDocument.Replace('/', Path.DirectorySeparatorChar))));
