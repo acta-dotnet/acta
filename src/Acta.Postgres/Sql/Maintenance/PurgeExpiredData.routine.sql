@@ -1,3 +1,7 @@
+-- A column added to RETURNS TABLE cannot be replaced in place (42P13 changes the return type), so an
+-- install carrying the previous body drops it first. No argument list: the name has one signature.
+DROP FUNCTION IF EXISTS {{schema}}.purge_expired_data;
+
 CREATE OR REPLACE FUNCTION {{schema}}.purge_expired_data(
     p_namespace_id SMALLINT,
     p_events_retention_days INT,
@@ -6,7 +10,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.purge_expired_data(
     p_batch_size INT,
     p_max_iterations INT
 )
-RETURNS TABLE (jobs_deleted INT, events_deleted INT, alerts_deleted INT, workers_deleted INT, locks_deleted INT)
+RETURNS TABLE (jobs_deleted INT, events_deleted INT, alerts_deleted INT, undelivered_alerts_purged INT, workers_deleted INT, locks_deleted INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -14,6 +18,7 @@ DECLARE
     v_jobs INT := 0;
     v_events INT := 0;
     v_alerts INT := 0;
+    v_undelivered INT := 0;
     v_workers INT := 0;
     v_locks INT := 0;
     v_rows INT;
@@ -23,6 +28,7 @@ DECLARE
     v_worker_cutoff TIMESTAMPTZ := now() - make_interval(secs => p_worker_retention_seconds);
     v_ids BIGINT[];
     v_lock_keys TEXT[];
+    v_alerts_slot_id BIGINT;
 BEGIN
     v_rows := 1;
     v_iter := 0;
@@ -103,6 +109,58 @@ BEGIN
         v_iter := v_iter + 1;
     END LOOP;
 
+    -- The hard cap: past the window an alert goes whether delivery settled or not, so a stuck row is
+    -- not immortal. Being an open incident is no shield - ux_alerts_dedupe covers unresolved rows
+    -- only, so the delete frees the identity and the next failure opens a fresh incident.
+    v_rows := 1;
+    v_iter := 0;
+    WHILE v_rows > 0 AND v_iter < p_max_iterations LOOP
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM {{schema}}.alerts
+            WHERE
+                namespace_id = p_namespace_id
+                AND created_at_utc <= v_alerts_cutoff
+                AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+            ORDER BY created_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM {{schema}}.tags
+            WHERE
+                scope_code = 80 /* TagScopeCode.Alert */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM {{schema}}.alerts WHERE id = ANY(v_ids);
+        END IF;
+        v_undelivered := v_undelivered + v_rows;
+        v_iter := v_iter + 1;
+    END LOOP;
+
+    -- sys.alerts records one poison-skip variable per unprojectable event on its own recurring slot
+    -- (whose deduplication_key is the job name) and never reads it back; nothing else prunes them, so
+    -- they age out on the alert window like the alerts they stand in for.
+    SELECT j.id INTO v_alerts_slot_id
+    FROM {{schema}}.jobs j
+    WHERE
+        j.namespace_id = p_namespace_id
+        AND j.deduplication_key = 'sys.alerts'
+        AND j.parent_id IS NULL;
+    v_rows := 1;
+    v_iter := 0;
+    WHILE v_rows > 0 AND v_iter < p_max_iterations LOOP
+        DELETE FROM {{schema}}.checkpoints c
+        WHERE (c.job_id, c.kind_code, c.name) IN (
+            SELECT k.job_id, k.kind_code, k.name FROM {{schema}}.checkpoints k
+            WHERE
+                k.job_id = v_alerts_slot_id
+                AND k.kind_code = 10 /* JobCheckpointKindCode.Variable */
+                AND k.name LIKE 'alerts-skip-%'
+                AND k.modified_at_utc <= v_alerts_cutoff
+            LIMIT p_batch_size);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        v_iter := v_iter + 1;
+    END LOOP;
+
     v_rows := 1;
     v_iter := 0;
     WHILE v_rows > 0 AND v_iter < p_max_iterations LOOP
@@ -146,6 +204,6 @@ BEGIN
         v_iter := v_iter + 1;
     END LOOP;
 
-    RETURN QUERY SELECT v_jobs, v_events, v_alerts, v_workers, v_locks;
+    RETURN QUERY SELECT v_jobs, v_events, v_alerts, v_undelivered, v_workers, v_locks;
 END;
 $$;

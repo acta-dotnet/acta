@@ -249,6 +249,22 @@ Delivery is deliberately unchanged at 256 transport attempts per pass. Draining 
 as fast as the database allows would trade a database problem for an outage on the operator's own
 notification channel.
 
+### `AlertRetention` is a hard cap: nothing in `alerts` is immortal
+
+`sys.retention` used to delete only alerts whose delivery had settled, so a row stuck `Pending` or
+`RetryAfter` — a channel that was down when it was raised, a transport that never answered — stayed
+in the table at any age. Past `AlertRetention` (default 90 days) an alert row is now deleted whether
+or not delivery settled, and being an open incident is not a shield either: the deduplication index
+covers unresolved rows only, so the delete frees the identity and a still-failing job opens a fresh
+incident on its next failure.
+
+The two sweeps are counted apart, and a pass that aged out an undelivered row logs one warning
+naming how many (`reason=alert-retention-cap`) — one line per pass, never one per row, and never an
+Acta alert of its own, which would recurse. An alert deleted before it ever reached a channel is a
+signal nobody received: the line points at why delivery was not settling, not at the purge. The same
+window now also prunes the `alerts-skip-*` poison variables the projector leaves on its own slot;
+they are forensics it never reads back, and nothing pruned them before.
+
 ### Execution correctness: a lost step CAS no longer terminalizes a healthy job
 
 A `complete_step` version CAS that matches no row usually means another execution re-claimed the

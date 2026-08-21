@@ -25,6 +25,8 @@ public sealed class SqliteHandlerControlSpec : HandlerControlSpec<SqliteConforma
 
 public sealed class SqlitePurgeExpiredDataSpec : PurgeExpiredDataSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteAlertSkipVariableRetentionSpec : AlertSkipVariableRetentionSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteJobRefSurvivesPurgeSpec : JobRefSurvivesPurgeSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteWorkerRefSurvivesPurgeSpec : WorkerRefSurvivesPurgeSpec<SqliteConformanceFixture>;

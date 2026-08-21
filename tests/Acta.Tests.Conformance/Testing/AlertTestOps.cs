@@ -125,6 +125,26 @@ internal static class AlertTestOps
             .SetVariableAsync(AlertsJob.CursorVariableName, cursorEventId, ct);
 
     /// <summary>
+    /// Records one poison-skip variable for <paramref name="eventId"/> through the same checkpoint
+    /// write the projector uses, so a spec can stage the rows retention prunes without having to
+    /// manufacture an event that is genuinely unprojectable.
+    /// </summary>
+    public static Task RecordProjectionSkipAsync(
+        IServiceProvider services,
+        string jobNamespace,
+        short namespaceId,
+        long slotJobId,
+        long eventId,
+        CancellationToken ct
+    ) =>
+        BuildAlertsContext(services, jobNamespace, namespaceId, slotJobId)
+            .SetVariableAsync(SkipVariableName(eventId), $"namespace={jobNamespace};eventId={eventId};reason=unknown-job", ct);
+
+    /// <summary>The projector's variable name for one skipped event, from the projector's own prefix.</summary>
+    public static string SkipVariableName(long eventId) =>
+        AlertsJob.SkipVariablePrefix + eventId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
     /// The internal job id of a seeded recurring slot, looked up by its deduplication key, which for
     /// a recurring slot is the definition's job name.
     /// </summary>

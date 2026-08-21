@@ -2,8 +2,9 @@ namespace Acta.Runtime.Maintenance;
 
 /// <summary>
 /// Persistence port for cross-feature expiration purging: one namespace-scoped
-/// <c>purge_expired_data</c> sweep running five ordered bounded delete sections (terminal jobs past
-/// retention, old events, settled alerts, terminal workers, and a global expired-lock reap).
+/// <c>purge_expired_data</c> sweep running seven ordered bounded delete sections (terminal jobs past
+/// retention, old events, settled alerts, undelivered alerts past the same window, the projector's
+/// aged poison-skip variables, terminal workers, and a global expired-lock reap).
 /// </summary>
 internal interface IRetentionStore
 {
@@ -26,5 +27,14 @@ internal sealed record PurgeExpiredDataCommand(
 
 /// <summary>
 /// Per-section deleted counts from one <c>purge_expired_data</c> sweep.
+/// <see cref="UndeliveredAlertsPurged"/> is counted apart from <see cref="Alerts"/> because an alert
+/// aged out before delivery settled is a lost operator signal, not routine housekeeping.
 /// </summary>
-internal readonly record struct PurgeExpiredDataResult(int Jobs, int Events, int Alerts, int Workers, int Locks);
+internal readonly record struct PurgeExpiredDataResult(
+    int Jobs,
+    int Events,
+    int Alerts,
+    int UndeliveredAlertsPurged,
+    int Workers,
+    int Locks
+);

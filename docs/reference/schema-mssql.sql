@@ -7158,6 +7158,7 @@ BEGIN
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @jobs_deleted INT = 0, @events_deleted INT = 0, @alerts_deleted INT = 0, @workers_deleted INT = 0, @locks_deleted INT = 0;
+    DECLARE @undelivered_alerts_purged INT = 0;
     DECLARE @rows INT, @iter INT;
     DECLARE @del TABLE (id BIGINT NOT NULL);
     DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
@@ -7264,6 +7265,59 @@ BEGIN
             SET @iter = @iter + 1;
         END;
 
+    -- The hard cap: past the window an alert goes whether delivery settled or not, so a stuck row is
+    -- not immortal. Being an open incident is no shield - ux_alerts_dedupe covers unresolved rows
+    -- only, so the delete frees the identity and the next failure opens a fresh incident.
+    SET @rows = 1;
+    SET @iter = 0;
+    WHILE @rows > 0 AND @iter < @p_max_iterations
+        BEGIN
+            DELETE @del;
+            BEGIN TRANSACTION;
+            INSERT INTO @del (id)
+            SELECT TOP (@p_batch_size) id
+            FROM acta.alerts WITH (UPDLOCK, READPAST)
+            WHERE
+                namespace_id = @p_namespace_id
+                AND created_at_utc <= @alerts_cutoff
+                AND delivery_status_code IN (
+                    10 /* AlertDeliveryStatusCode.Pending */,
+                    20 /* AlertDeliveryStatusCode.RetryAfter */
+                )
+            ORDER BY created_at_utc, id;
+            DELETE FROM acta.tags
+            WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
+            DELETE a FROM acta.alerts a INNER JOIN @del d ON d.id = a.id;
+            SET @rows = (SELECT COUNT(*) FROM @del);
+            COMMIT TRANSACTION;
+            SET @undelivered_alerts_purged = @undelivered_alerts_purged + @rows;
+            SET @iter = @iter + 1;
+        END;
+
+    -- sys.alerts records one poison-skip variable per unprojectable event on its own recurring slot
+    -- (whose deduplication_key is the job name) and never reads it back; nothing else prunes them, so
+    -- they age out on the alert window like the alerts they stand in for.
+    DECLARE @alerts_slot_id BIGINT = (
+        SELECT j.id
+        FROM acta.jobs j
+        WHERE
+            j.namespace_id = @p_namespace_id
+            AND j.deduplication_key = 'sys.alerts'
+            AND j.parent_id IS NULL);
+    SET @rows = 1;
+    SET @iter = 0;
+    WHILE @rows > 0 AND @iter < @p_max_iterations
+        BEGIN
+            DELETE TOP (@p_batch_size) FROM acta.checkpoints
+            WHERE
+                job_id = @alerts_slot_id
+                AND kind_code = 10 /* JobCheckpointKindCode.Variable */
+                AND name LIKE 'alerts-skip-%'
+                AND modified_at_utc <= @alerts_cutoff;
+            SET @rows = @@ROWCOUNT;
+            SET @iter = @iter + 1;
+        END;
+
     DECLARE @worker_cutoff DATETIME2(7) = DATEADD(SECOND, -@p_worker_retention_seconds, @now);
     SET @rows = 1;
     SET @iter = 0;
@@ -7311,6 +7365,7 @@ BEGIN
         @jobs_deleted AS jobs_deleted,
         @events_deleted AS events_deleted,
         @alerts_deleted AS alerts_deleted,
+        @undelivered_alerts_purged AS undelivered_alerts_purged,
         @workers_deleted AS workers_deleted,
         @locks_deleted AS locks_deleted;
 END;

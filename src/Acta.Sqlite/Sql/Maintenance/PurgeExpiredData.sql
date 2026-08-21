@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS temp._purge_jobs;
 DROP TABLE IF EXISTS temp._purge_events;
 DROP TABLE IF EXISTS temp._purge_alerts;
+DROP TABLE IF EXISTS temp._purge_undelivered_alerts;
 DROP TABLE IF EXISTS temp._purge_workers;
 DROP TABLE IF EXISTS temp._purge_locks;
 
@@ -52,6 +53,40 @@ LIMIT (@p_batch_size * @p_max_iterations);
 DELETE FROM {{schema}}.tags WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_alerts);
 DELETE FROM {{schema}}.alerts WHERE id IN (SELECT id FROM temp._purge_alerts);
 
+-- The hard cap: past the window an alert goes whether delivery settled or not, so a stuck row is not
+-- immortal. Being an open incident is no shield - ux_alerts_dedupe covers unresolved rows only, so
+-- the delete frees the identity and the next failure opens a fresh incident.
+CREATE TEMP TABLE _purge_undelivered_alerts AS
+SELECT id
+FROM {{schema}}.alerts
+WHERE
+    namespace_id = @p_namespace_id
+    AND created_at_utc <= {{now}} - (@p_alert_retention_days) * 86400000
+    AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+ORDER BY created_at_utc, id
+LIMIT (@p_batch_size * @p_max_iterations);
+
+DELETE FROM {{schema}}.tags
+WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_undelivered_alerts);
+DELETE FROM {{schema}}.alerts WHERE id IN (SELECT id FROM temp._purge_undelivered_alerts);
+
+-- sys.alerts records one poison-skip variable per unprojectable event on its own recurring slot
+-- (whose deduplication_key is the job name) and never reads it back; nothing else prunes them, so
+-- they age out on the alert window like the alerts they stand in for.
+DELETE FROM {{schema}}.checkpoints
+WHERE rowid IN (
+    SELECT c.rowid
+    FROM {{schema}}.checkpoints c
+    INNER JOIN {{schema}}.jobs j ON j.id = c.job_id
+    WHERE
+        j.namespace_id = @p_namespace_id
+        AND j.deduplication_key = 'sys.alerts'
+        AND j.parent_id IS NULL
+        AND c.kind_code = 10 /* JobCheckpointKindCode.Variable */
+        AND c.name LIKE 'alerts-skip-%'
+        AND c.modified_at_utc <= {{now}} - (@p_alert_retention_days) * 86400000
+    LIMIT (@p_batch_size * @p_max_iterations));
+
 CREATE TEMP TABLE _purge_workers AS
 SELECT id
 FROM {{schema}}.workers
@@ -79,5 +114,6 @@ SELECT
     (SELECT COUNT(*) FROM temp._purge_jobs) AS jobs_deleted,
     (SELECT COUNT(*) FROM temp._purge_events) AS events_deleted,
     (SELECT COUNT(*) FROM temp._purge_alerts) AS alerts_deleted,
+    (SELECT COUNT(*) FROM temp._purge_undelivered_alerts) AS undelivered_alerts_purged,
     (SELECT COUNT(*) FROM temp._purge_workers) AS workers_deleted,
     (SELECT COUNT(*) FROM temp._purge_locks) AS locks_deleted;

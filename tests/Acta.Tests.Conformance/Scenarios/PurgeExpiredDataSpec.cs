@@ -14,10 +14,10 @@ using Lock = Acta.Relational.Entities.Lock;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for <c>sys.retention</c>'s five sweep sections (<c>purge_expired_data</c>):
+/// Conformance for <c>sys.retention</c>'s sweep sections (<c>purge_expired_data</c>):
 /// terminal jobs past <c>retention_until_utc</c> (with CASCADE), <c>events</c> rows past the events
-/// window, settled <c>alerts</c> rows past the alert window, terminal (Stopped or Dead)
-/// <c>workers</c> rows past the worker window, and expired <c>leases</c> lock rows. Event/alert/worker windows are driven to deterministic boundaries by passing a window
+/// window, <c>alerts</c> rows past the alert window whether or not delivery settled, terminal (Stopped
+/// or Dead) <c>workers</c> rows past the worker window, and expired <c>leases</c> lock rows. Event/alert/worker windows are driven to deterministic boundaries by passing a window
 /// wide enough to exclude everything (large positive) or a cutoff in the future (negative), so no
 /// real-time wait is needed; deletable terminal jobs are produced through the real
 /// enqueue/execute/complete path via the zero-retention <c>purge-now</c> probe.
@@ -26,10 +26,10 @@ namespace Acta.Tests.Conformance.Scenarios;
     "purge-expired-data.sweeps",
     "Purge reaps expired jobs events alerts and terminal workers within batches",
     Area = "Retention",
-    Contract = "Purge deletes terminal jobs with cascade, expired events, settled alerts, Stopped and Dead workers and expired locks, capping each section at max iterations.",
-    Arrange = "Terminal purge-now jobs, events, settled and in-flight alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.",
+    Contract = "Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.",
+    Arrange = "Terminal purge-now jobs, events, settled and undelivered alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.",
     Act = "PurgeExpiredData.Run executes with wide and future-cutoff windows driving each sweep section to a deterministic boundary.",
-    Assert = "Expired jobs delete with cascade alongside expired events, settled alerts, both terminal worker statuses and expired locks, while everything else survives."
+    Assert = "Expired jobs delete with cascade alongside expired events, aged alerts of every delivery status, both terminal worker statuses and expired locks."
 )]
 [CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeExpiredDataAsync))]
 public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -217,39 +217,101 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Empty(await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Worker && t.ScopeId == worker.Id).ToListAsync(ct));
     }
 
-    [Fact(DisplayName = "A settled alert past the window is deleted and an in-flight alert is kept")]
-    public async Task Settled_alert_past_window_is_deleted_and_inflight_alert_survives()
+    [Fact(DisplayName = "Alerts past the window are purged settled or not, counted apart, and none inside the window is")]
+    public async Task Aged_alerts_are_purged_whatever_their_delivery_status_under_two_separate_counts()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        // Null deduplication keys always insert, so these land as two distinct rows: one settled (Delivered),
-        // one still in flight (Pending).
+        // Null deduplication keys always insert, so these land as three distinct rows: one settled
+        // (Delivered) and two whose delivery never settled (Pending, RetryAfter).
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Delivered, ct);
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Pending, ct);
+        await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.RetryAfter, ct);
         var seeded = await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct);
         var settled = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Delivered);
-        var inFlight = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Pending);
+        var pending = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Pending);
         await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(settled.AlertRef)), new TagInput("retention", "delete"), ct: ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(inFlight.AlertRef)), new TagInput("retention", "keep"), ct: ct);
+        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(pending.AlertRef)), new TagInput("retention", "delete"), ct: ct);
 
-        // A wide window leaves both rows untouched.
+        // Inside the window nothing goes, and neither count moves - which is also the negative behind
+        // the maintenance pass's one warning: no undelivered row purged, nothing to warn about.
         var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
         Assert.Equal(0, keep.Alerts);
-        Assert.Equal(2, (await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct)).Count);
+        Assert.Equal(0, keep.UndeliveredAlertsPurged);
+        Assert.Equal(3, (await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct)).Count);
 
-        // A future cutoff makes every row past the window, but only the settled one is eligible - the
-        // in-flight (Pending) delivery is never purged regardless of age.
+        // A future cutoff puts every row past the window: the settled row counts under the settled
+        // sweep, the two unsettled ones under the hard cap, and no row is counted by both.
         var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
         Assert.Equal(1, purged.Alerts);
-        var survivors = await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct);
-        Assert.Equal(AlertDeliveryStatusCode.Pending, Assert.Single(survivors).DeliveryStatusCode);
+        Assert.Equal(2, purged.UndeliveredAlertsPurged);
+        Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
         Assert.Empty(await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Alert && t.ScopeId == settled.Id).ToListAsync(ct));
-        Assert.Equal(
-            [new TagItem("retention", "keep")],
-            Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForAlert(new AlertRef(inFlight.AlertRef)), ct)).Items
-        );
+        Assert.Empty(await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Alert && t.ScopeId == pending.Id).ToListAsync(ct));
     }
+
+    [Fact(DisplayName = "A resolve-suppressed alert past the window is counted once, by the settled sweep")]
+    public async Task Resolved_but_suppressed_alert_is_counted_by_the_settled_sweep_only()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+
+        // Suppressed is what resolution leaves behind on a row that was never sent. It is a settled
+        // delivery, so the hard-cap sweep must not see it a second time.
+        await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Suppressed, ct);
+
+        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+
+        Assert.Equal(1, purged.Alerts);
+        Assert.Equal(0, purged.UndeliveredAlertsPurged);
+        Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+    }
+
+    [Fact(DisplayName = "An open incident past the window is purged and the next failure opens a fresh one")]
+    public async Task Aged_open_incident_is_purged_and_its_identity_is_free_again()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var key = TestKey("retention-incident");
+
+        // One deduplication key raised twice: the second raise collapses onto the open row rather than
+        // opening a second, because the partial unique index holds the identity while it is unresolved.
+        await RaiseIncidentAsync(key, ct);
+        await RaiseIncidentAsync(key, ct);
+        var open = Assert.Single(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+        Assert.Null(open.ResolvedAtUtc);
+        Assert.Equal(2, open.OccurrenceCount);
+
+        // Unresolved is no shield: the row is settled (Delivered) and past the window, so it goes.
+        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        Assert.Equal(1, purged.Alerts);
+        Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+
+        // The delete freed the identity with the row, so the next failure on the same key opens a fresh
+        // incident - a new ref, counting from one - rather than finding the key taken.
+        await RaiseIncidentAsync(key, ct);
+        var reopened = Assert.Single(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+        Assert.NotEqual(open.AlertRef, reopened.AlertRef);
+        Assert.Equal(1, reopened.OccurrenceCount);
+        Assert.Null(reopened.ResolvedAtUtc);
+    }
+
+    private Task RaiseIncidentAsync(string deduplicationKey, CancellationToken ct) =>
+        AlertTestOps.RaiseAsync(
+            Services,
+            TestNamespace,
+            jobId: null,
+            AlertOriginCode.Manual,
+            AlertSeverityCode.Error,
+            AlertKindCode.FinalFailure,
+            title: "t",
+            message: "m",
+            channelName: "default",
+            AlertDeliveryStatusCode.Delivered,
+            deduplicationKey,
+            ct
+        );
 
     private Task RaiseAlertAsync(IDbSession db, string jobNamespace, AlertDeliveryStatusCode delivery, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(

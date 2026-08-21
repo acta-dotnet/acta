@@ -32,7 +32,7 @@ internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect d
         return rows.Count > 0
             ? rows[^1]
             : throw new InvalidOperationException(
-                "purge_expired_data returned no row; it must return exactly one (jobs, events, alerts, workers) count row."
+                "purge_expired_data returned no row; it must return exactly one (jobs, events, alerts, undelivered alerts, workers, locks) count row."
             );
     }
 }

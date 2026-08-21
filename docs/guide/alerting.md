@@ -41,7 +41,8 @@ A deterministic poison event — a channel name or deduplication key that fails 
 job row purged between the event write and its projection — is recorded as a durable variable on the
 projector job and skipped, so one malformed event cannot wedge the cursor
 (`AlertsJob.GenerateAsync`, `AlertsJob.RecordProjectionSkipAsync`, `AlertsJob.EmitAsync`). A transient
-failure retains the cursor and retries the pass.
+failure retains the cursor and retries the pass. Those variables are forensics, never read back, so
+`sys.retention` prunes them off the projector's slot once they are older than `AlertRetention`.
 
 ## What projects an alert
 
@@ -111,7 +112,10 @@ An automatic alert's deduplication key is
 auto:{DefinitionId}:{JobId}:{kind}:{reasonCode ?? "none"}
 ```
 
-(`AlertsJob.EmitAsync`). This key names an **incident**, not a time bucket: `alerts` carries a unique
+(`AlertsJob.EmitAsync`). Retention applies to incidents like everything else: a row older than
+`AlertRetention` is purged even while unresolved, so a condition that has been failing for the
+whole window reopens as a fresh incident counting from one — the ledger's events, not the alert
+row, are the long-horizon record. This key names an **incident**, not a time bucket: `alerts` carries a unique
 index on `(namespace_id, dedupe_key)` filtered to unresolved rows, so at most one OPEN row exists per
 key at any moment (`JobAlert.cs`). A repeat of the same condition while that row is open folds onto it
 — `occurrence_count + 1`, title/message/severity refreshed — with no time component at all
@@ -359,10 +363,15 @@ the row's scheduled instant along with everything else it settles
 (`ResolveJobAlertManual.routine.sql`).
 
 Retention is separate from the job's. `sys.retention` deletes alerts older than `AlertRetention`
-(default 90 days, `JobsOptions.AlertRetention`) **only when delivery has settled** — `Suppressed`,
-`Delivered`, or `Failed` (`PurgeExpiredData.routine.sql`). A row stuck `Pending` or `RetryAfter` is
-never aged out. Because an alert keeps its own copy of the job ref, it can outlive the job it was
-raised for; a manual `PurgeAsync` on the job deletes its alerts immediately. See
+(default 90 days, `JobsOptions.AlertRetention`) **whether or not delivery settled**
+(`PurgeExpiredData.routine.sql`). Settled rows — `Suppressed`, `Delivered`, `Failed` — and rows still
+stuck `Pending` or `RetryAfter` are counted separately, and a pass that aged out an undelivered row
+logs one warning naming how many: an alert deleted before it ever reached a channel is a signal
+nobody got. Nothing is immortal under this rule, an open incident included — the deduplication index
+covers unresolved rows only, so deleting the row frees the identity and the next failure opens a
+fresh incident. The projector's `alerts-skip-*` poison variables age out on the same window. Because
+an alert keeps its own copy of the job ref, it can outlive the job it was raised for; a manual
+`PurgeAsync` on the job deletes its alerts immediately. See
 [Operator guide § retention and purge](./operator-guide.md).
 
 ## Where the principle breaks

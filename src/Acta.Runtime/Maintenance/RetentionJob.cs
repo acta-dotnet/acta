@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Acta.Runtime.Maintenance;
@@ -11,13 +13,14 @@ namespace Acta.Runtime.Maintenance;
 /// <remarks>
 /// One pass deletes, in bounded batches: terminal <c>job</c> rows past their <c>retention_until_utc</c>
 /// (cascading the per-job child tables), <c>events</c> rows older than
-/// <c>JobsOptions.JobEventsRetention</c>, settled <c>alerts</c> rows older than
-/// <c>JobsOptions.AlertRetention</c>, and terminal (Stopped or Dead) <c>workers</c> rows older than
+/// <c>JobsOptions.JobEventsRetention</c>, <c>alerts</c> rows older than
+/// <c>JobsOptions.AlertRetention</c> - settled or not, the hard cap - with the projector's aged
+/// poison-skip variables, and terminal (Stopped or Dead) <c>workers</c> rows older than
 /// <c>JobsOptions.WorkerRetention</c>, then reaps expired <c>leases</c> lock rows globally. The batch
 /// and iteration caps bound each tick; the next hourly fire continues any backlog. <c>AuditLevel.Failures</c>
 /// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
 /// </remarks>
-internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> options)
+internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> options, ILogger<RetentionJob>? log = null)
 {
     // Per-tick bound: at most BatchSize * MaxIterations rows deleted per section; the next hourly fire
     // continues any backlog rather than letting one tick run unbounded.
@@ -27,10 +30,11 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
     private readonly int _eventsRetentionDays = (int)options.Value.JobEventsRetention.TotalDays;
     private readonly int _alertRetentionDays = (int)options.Value.AlertRetention.TotalDays;
     private readonly int _workerRetentionSeconds = (int)options.Value.WorkerRetention.TotalSeconds;
+    private readonly ILogger _log = log ?? NullLogger<RetentionJob>.Instance;
 
     /// <summary>
-    /// Runs one retention sweep for the firing namespace: terminal jobs, expired events, settled alerts,
-    /// dead workers.
+    /// Runs one retention sweep for the firing namespace: terminal jobs, expired events, alerts past
+    /// their window whether delivery settled or not, dead workers.
     /// </summary>
     [Job(
         "sys.retention",
@@ -39,9 +43,9 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
         AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.Hourly)]
-    public Task Handle(JobContext ctx, CancellationToken ct)
+    public async Task Handle(JobContext ctx, CancellationToken ct)
     {
-        return store.PurgeExpiredDataAsync(
+        var result = await store.PurgeExpiredDataAsync(
             new PurgeExpiredDataCommand(
                 ctx.NamespaceId,
                 _eventsRetentionDays,
@@ -52,5 +56,21 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
             ),
             ct
         );
+
+        if (result.UndeliveredAlertsPurged > 0)
+        {
+            LogUndeliveredPurge(ctx, result.UndeliveredAlertsPurged);
+        }
     }
+
+    // One line per pass, never one per row: a namespace whose channel has been down for a quarter would
+    // otherwise log a page of them. Warning, because an alert deleted before it ever reached a channel
+    // is a signal an operator never got - and never an Acta alert of its own, which would recurse.
+    private void LogUndeliveredPurge(JobContext ctx, int count) =>
+        _log.LogWarning(
+            "ACTA sys.retention: purged {Count} alerts in namespace ({Namespace}) that aged out before delivery settled; reason ({Reason}).",
+            count,
+            ctx.JobNamespace,
+            "alert-retention-cap"
+        );
 }

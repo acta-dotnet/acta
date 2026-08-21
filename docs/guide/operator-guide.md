@@ -490,9 +490,19 @@ parent would orphan the children's lineage: purge the children first), and alway
 `job.purged` audit event carrying the purged job's ref and name, since the row itself is gone.
 Manual purge also explicitly deletes the job's `events` and `alerts` rows (both are FK-less, so
 nothing cascades), scrubbing the job completely. Retention purge is more conservative: it deletes
-only the terminal `jobs` row (S1) on its own deadline; settled alerts age out separately on
+only the terminal `jobs` row (S1) on its own deadline; alerts age out separately on
 `AlertRetention` (S3), so an alert row (which keeps its own copy of the job ref) can outlive
 the job it was raised for.
+
+`AlertRetention` is a hard cap, not a settled-only window: past it an alert row is deleted whether
+delivery settled or not, so a row stuck `Pending` or `RetryAfter` — or an incident still open — is
+never immortal. Deleting an open incident frees its deduplication identity, so a still-failing job
+opens a fresh incident on its next failure. The undelivered rows are counted apart from the settled
+ones and a pass that purged any logs a single warning (`reason=alert-retention-cap`), because an
+alert aged out before it ever reached a channel is a signal nobody received: if that line appears,
+look at why delivery was not settling rather than at the purge. The same window prunes the
+`alerts-skip-*` poison variables `sys.alerts` leaves on its own slot; nothing else pruned them, and
+they are forensics the projector never reads back.
 
 At a glance:
 

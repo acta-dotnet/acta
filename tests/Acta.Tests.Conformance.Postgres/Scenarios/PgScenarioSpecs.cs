@@ -27,6 +27,8 @@ public sealed class PgHandlerControlSpec : HandlerControlSpec<PgConformanceFixtu
 
 public sealed class PgPurgeExpiredDataSpec : PurgeExpiredDataSpec<PgConformanceFixture>;
 
+public sealed class PgAlertSkipVariableRetentionSpec : AlertSkipVariableRetentionSpec<PgConformanceFixture>;
+
 public sealed class PgJobRefSurvivesPurgeSpec : JobRefSurvivesPurgeSpec<PgConformanceFixture>;
 
 public sealed class PgWorkerRefSurvivesPurgeSpec : WorkerRefSurvivesPurgeSpec<PgConformanceFixture>;

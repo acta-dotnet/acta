@@ -1849,6 +1849,17 @@
 
 ## Retention
 
+### Aged projector skip variables are pruned on the alert window
+- **Contract:** Purge deletes sys.alerts poison-skip variables past the alert window, leaving the projector cursor and every other slot's variables alone.
+- **Arrange:** Two skip variables and the cursor are written on the sys.alerts slot, and one skip-named variable on another system slot.
+- **Act:** PurgeExpiredData.Run executes with a wide alert window and then with a cutoff in the future.
+- **Assert:** The wide window keeps every variable and the future cutoff deletes only the projector slot's skip variables.
+- **Guarantees:**
+  - Skip variables past the alert window are deleted while the projector cursor survives
+  - A skip-named variable on another job is left alone whatever its age
+- **Store methods:**
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
+
 ### A purged job's public ref still resolves to its surviving event timeline
 - **Contract:** After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline.
 - **Arrange:** A zero-retention job definition exists and purge retention windows keep events while deleting the job row.
@@ -1862,16 +1873,18 @@
   - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
 
 ### Purge reaps expired jobs events alerts and terminal workers within batches
-- **Contract:** Purge deletes terminal jobs with cascade, expired events, settled alerts, Stopped and Dead workers and expired locks, capping each section at max iterations.
-- **Arrange:** Terminal purge-now jobs, events, settled and in-flight alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.
+- **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
+- **Arrange:** Terminal purge-now jobs, events, settled and undelivered alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.
 - **Act:** PurgeExpiredData.Run executes with wide and future-cutoff windows driving each sweep section to a deterministic boundary.
-- **Assert:** Expired jobs delete with cascade alongside expired events, settled alerts, both terminal worker statuses and expired locks, while everything else survives.
+- **Assert:** Expired jobs delete with cascade alongside expired events, aged alerts of every delivery status, both terminal worker statuses and expired locks.
 - **Guarantees:**
   - Job retention deletes job tags but preserves surviving alert and event tags
   - A future-retention job stamped with the default window survives the purge
   - Expired events are deleted and recent events are kept
   - Stopped and Dead workers are both reaped while an Active worker is kept
-  - A settled alert past the window is deleted and an in-flight alert is kept
+  - Alerts past the window are purged settled or not, counted apart, and none inside the window is
+  - A resolve-suppressed alert past the window is counted once, by the settled sweep
+  - An open incident past the window is purged and the next failure opens a fresh one
   - An expired lock row is reaped and a live lock is kept
   - An expired terminal parent survives the sweep while a live child still references it
   - A fully expired subtree drains child-first and then releases the parent
@@ -2397,7 +2410,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 
 | Store method | Covering conformance specs |
 | --- | --- |
-| `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
+| `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |

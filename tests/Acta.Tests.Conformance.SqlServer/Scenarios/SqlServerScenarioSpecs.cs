@@ -27,6 +27,8 @@ public sealed class SqlServerHandlerControlSpec : HandlerControlSpec<SqlServerCo
 
 public sealed class SqlServerPurgeExpiredDataSpec : PurgeExpiredDataSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerAlertSkipVariableRetentionSpec : AlertSkipVariableRetentionSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerJobRefSurvivesPurgeSpec : JobRefSurvivesPurgeSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerWorkerRefSurvivesPurgeSpec : WorkerRefSurvivesPurgeSpec<SqlServerConformanceFixture>;

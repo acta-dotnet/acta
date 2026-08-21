@@ -38,7 +38,11 @@ internal sealed class AlertsJob(
     // failures against this exact checkpoint name; referencing the constant makes a rename a compile
     // error instead of a spec that quietly stops staging its crash.
     internal const string CursorVariableName = "alerts-cursor";
-    private const string SkipVariablePrefix = "alerts-skip-";
+
+    // Internal for the same reason as the cursor name: the retention sweep prunes these by prefix and
+    // its spec stages them against this exact one, so a rename is a compile error rather than a spec
+    // that quietly stops staging what it prunes.
+    internal const string SkipVariablePrefix = "alerts-skip-";
     private const string DefaultChannelName = "default";
     private const int GenerateBatchSize = 256;
     private const int DeliverBatchSize = 256;
