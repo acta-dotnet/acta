@@ -674,20 +674,31 @@ internal static class TestDashboardHost
             List<(string ScheduleName, string? Note, string? ActorKey)> triggerCalls
         ) : ISchedules
         {
+            /// <summary>The two staged outcomes every schedule verb shares: a name of "missing" reads
+            /// as absent, "rejected" as a transition the schedule's state forbids. Null means the verb
+            /// applies, so each verb keeps its own applied shape.</summary>
+            private static ScheduleControlResult? Staged(ScheduleLookup schedule) =>
+                schedule.ScheduleName switch
+                {
+                    "missing" => new ScheduleControlResult(ControlAction.NotFound, null, null, null, null),
+                    "rejected" => new ScheduleControlResult(ControlAction.Rejected, ScheduleStatusCode.Paused, null, null, null),
+                    _ => null,
+                };
+
             public ValueTask<ScheduleControlResult> PauseAsync(
                 ScheduleLookup schedule,
                 DateTime? untilUtc = null,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => ValueTask.FromResult(new ScheduleControlResult(ControlAction.Applied, null, untilUtc, null, null));
+            ) => ValueTask.FromResult(Staged(schedule) ?? new ScheduleControlResult(ControlAction.Applied, null, untilUtc, null, null));
 
             public ValueTask<ScheduleControlResult> ResumeAsync(
                 ScheduleLookup schedule,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => ValueTask.FromResult(new ScheduleControlResult(ControlAction.Applied, null, null, null, null));
+            ) => ValueTask.FromResult(Staged(schedule) ?? new ScheduleControlResult(ControlAction.Applied, null, null, null, null));
 
             public ValueTask<ScheduleControlResult> UpdateOverridesAsync(
                 ScheduleLookup schedule,
@@ -736,16 +747,9 @@ internal static class TestDashboardHost
                 CancellationToken ct = default
             )
             {
-                if (schedule.ScheduleName == "missing")
+                if (Staged(schedule) is { } staged)
                 {
-                    return ValueTask.FromResult(new ScheduleControlResult(ControlAction.NotFound, null, null, null, null));
-                }
-
-                if (schedule.ScheduleName == "rejected")
-                {
-                    return ValueTask.FromResult(
-                        new ScheduleControlResult(ControlAction.Rejected, ScheduleStatusCode.Paused, null, null, null)
-                    );
+                    return ValueTask.FromResult(staged);
                 }
 
                 triggerCalls.Add((schedule.ScheduleName, reasonMessage, actorKey));
@@ -945,9 +949,20 @@ internal static class TestDashboardHost
             )
             {
                 // Mirror the production guard: an out-of-range override surfaces as ArgumentOutOfRangeException.
-                return overrides.MaxAttempts is <= 0
-                    ? throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.")
-                    : ValueTask.FromResult(new DefinitionControlResult(ControlAction.Applied));
+                if (overrides.MaxAttempts is <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.");
+                }
+
+                // A job name of "missing" has no definition row, and an expectedVersion of 999 is the
+                // stale CAS token - the same two stagings the tenant and namespace fakes answer to.
+                return ValueTask.FromResult(
+                    new DefinitionControlResult(
+                        jobName == "missing" ? ControlAction.NotFound
+                        : expectedVersion == 999 ? ControlAction.Rejected
+                        : ControlAction.Applied
+                    )
+                );
             }
 
             /// <summary>
