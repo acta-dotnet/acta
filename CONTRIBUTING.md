@@ -91,7 +91,9 @@ delete `acta-local*.db` including the `-wal` and `-shm` sidecar files from your 
 **Reset the test schema (Postgres / SQL Server).** The guarded helper is the explicit
 `ResetActaTestSchema` fact in `tests/Acta.Tests.Conformance.Postgres/DatabaseSetup.cs` and
 `tests/Acta.Tests.Conformance.SqlServer/DatabaseSetup.cs` (marked `[Fact(Explicit = true)]`; run it
-from your IDE's test runner or with an explicit filter). It refuses any database name not on its
+from your IDE's test runner, or with the xunit v3 in-process runner:
+`dotnet run --project tests/Acta.Tests.Conformance.Postgres -c Release -- -explicit only -method "*DatabaseSetup.ResetActaTestSchema*"` —
+`dotnet test --filter` cannot flip the explicit option and discovers nothing to run). It refuses any database name not on its
 whitelist (`acta-test`), so `acta-dev` can never be reset by it. Run it when accumulated
 append-only rows get unwieldy or after a destructive schema change.
 
