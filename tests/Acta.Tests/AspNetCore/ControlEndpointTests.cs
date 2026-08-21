@@ -235,6 +235,28 @@ public sealed class ControlEndpointTests
         Assert.Null(call.Reason);
     }
 
+    [Fact]
+    public async Task Undeclared_body_is_415_and_never_reaches_jobs()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        // Neither Content-Length nor Content-Type, but a real reasonMessage in the stream. Read as "no
+        // body" the verb still applied and the operator's audit text vanished; the answer is the 415
+        // this route already declares for a body it cannot parse.
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause")
+        {
+            Content = TestDashboardHost.UndeclaredContent("{\"reasonMessage\":\"draining the queue\"}"),
+        };
+        request.Headers.Add(Confirm, "true");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Empty(jobs.ControlCalls);
+    }
+
     private static HttpRequestMessage PostReschedule(
         DateTime? nextRunAtUtc,
         string? reason = "because",

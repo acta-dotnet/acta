@@ -40,7 +40,7 @@ internal static class ControlEndpointValidation
         }
 
         T? request = null;
-        if (http.Request.ContentLength is > 0 || !string.IsNullOrEmpty(http.Request.ContentType))
+        if (await HasBodyAsync(http.Request, ct))
         {
             if (!http.Request.HasJsonContentType())
             {
@@ -119,7 +119,7 @@ internal static class ControlEndpointValidation
             return (null, confirmationError);
         }
 
-        if (http.Request.ContentLength is not > 0 && string.IsNullOrEmpty(http.Request.ContentType))
+        if (!await HasBodyAsync(http.Request, ct))
         {
             return (null, null);
         }
@@ -197,8 +197,7 @@ internal static class ControlEndpointValidation
         CancellationToken ct
     )
     {
-        var hasBody = http.Request.ContentLength is > 0 || !string.IsNullOrEmpty(http.Request.ContentType);
-        if (!hasBody)
+        if (!await HasBodyAsync(http.Request, ct))
         {
             return (null, null);
         }
@@ -243,6 +242,36 @@ internal static class ControlEndpointValidation
 
         var bytes = buffer.ToArray();
         return (bytes.Length == 0 ? null : bytes, null);
+    }
+
+    /// <summary>
+    /// Whether the request carries a body, for the optional-body readers. Headers answer it whenever
+    /// the caller declared either one; otherwise the stream itself is asked.
+    /// </summary>
+    /// <remarks>
+    /// Presence has to be proved rather than assumed. Content-Length is absent from a chunked HTTP/1.1
+    /// request and from any HTTP/2 or HTTP/3 request whose sender declares no length, and the clients
+    /// that send those (a .NET StreamContent over a non-seekable stream, Go's http.NewRequest, Python's
+    /// requests with a generator) set no Content-Type either. Reading that as "no body" is what makes a
+    /// scoped outbox discard silently target every quarantined row and a bounded schedule pause become
+    /// an indefinite one, on a request that still answers 202.
+    ///
+    /// <para>Buffering first keeps the peeked byte available to a later reader. Nothing reads it today -
+    /// an undeclared body has no content type, so every caller of this answers the 415 those routes
+    /// already declare - but the helper must not be the reason a future reader finds a byte missing.</para>
+    /// </remarks>
+    private static async ValueTask<bool> HasBodyAsync(HttpRequest request, CancellationToken ct)
+    {
+        if (request.ContentLength is > 0 || !string.IsNullOrEmpty(request.ContentType))
+        {
+            return true;
+        }
+
+        request.EnableBuffering();
+        var probe = new byte[1];
+        var read = await request.Body.ReadAsync(probe, ct);
+        request.Body.Position = 0;
+        return read > 0;
     }
 
     /// <summary>

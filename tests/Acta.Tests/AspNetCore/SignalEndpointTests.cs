@@ -140,6 +140,27 @@ public sealed class SignalEndpointTests
     }
 
     [Fact]
+    public async Task Undeclared_body_is_415_and_never_reaches_jobs()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartAsync(jobs);
+        await using var _ = app;
+
+        // A signal value in a stream that declares neither length nor type. Read as "no body" the
+        // signal still raised, but presence-only: a handler awaiting a typed value got JobPayload.None.
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/signals/approval")
+        {
+            Content = TestDashboardHost.UndeclaredContent("{\"approved\":true}"),
+        };
+        request.Headers.Add("X-Acta-Control", "true");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Empty(jobs.SignalCalls);
+    }
+
+    [Fact]
     public async Task Malformed_job_ref_is_400()
     {
         var jobs = new TestDashboardHost.FakeJobs();

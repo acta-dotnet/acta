@@ -67,6 +67,44 @@ internal static class TestDashboardHost
                 )
         );
 
+    /// <summary>
+    /// Request content declaring neither a length nor a content type: the shape a <c>StreamContent</c>
+    /// over a non-seekable stream takes on the wire (chunked, no <c>Content-Type</c>), which is the one
+    /// case the optional-body readers cannot answer from headers alone.
+    /// </summary>
+    public static HttpContent UndeclaredContent(string body) =>
+        new StreamContent(new UnseekableStream(System.Text.Encoding.UTF8.GetBytes(body)));
+
+    // Refuses CanSeek so StreamContent.TryComputeLength fails and no Content-Length is sent.
+    private sealed class UnseekableStream(byte[] bytes) : Stream
+    {
+        private readonly MemoryStream _inner = new(bytes);
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     public sealed class FakeJobs : IJobs, IActaOperations, ILedger
     {
         public static readonly JobListItem Job = new(

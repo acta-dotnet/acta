@@ -136,6 +136,51 @@ public sealed class OutboxControlEndpointTests
     }
 
     [Fact]
+    public async Task Undeclared_body_is_415_and_never_widens_the_discard_to_every_row()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        // No Content-Length, no Content-Type, a real scoped body: read as "no body" this used to mean
+        // null outboxIds, which the facade defines as "every quarantined row". The 415 is the route's
+        // already-declared answer to a body it cannot parse, and nothing dispatches.
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/outbox/billing/discard")
+        {
+            Content = TestDashboardHost.UndeclaredContent("{\"outboxIds\":[\"00000000-0000-0000-0000-00000000000a\"]}"),
+        };
+        request.Headers.Add(Confirm, "true");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Empty(jobs.OutboxFake.ControlCalls);
+    }
+
+    [Fact]
+    public async Task An_undeclared_empty_body_is_still_an_absent_body()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await StartWithControlsAsync(jobs);
+        await using var _ = app;
+
+        // The other side of the peek: a caller that declares nothing and sends nothing is the bare
+        // post, and still means "act with defaults" rather than 415.
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/outbox/billing/requeue")
+        {
+            Content = TestDashboardHost.UndeclaredContent(""),
+        };
+        request.Headers.Add(Confirm, "true");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var call = Assert.Single(jobs.OutboxFake.ControlCalls);
+        Assert.Null(call.OutboxIds);
+        Assert.Null(call.Reason);
+    }
+
+    [Fact]
     public async Task Non_json_body_is_415()
     {
         var (app, client) = await StartWithControlsAsync();
