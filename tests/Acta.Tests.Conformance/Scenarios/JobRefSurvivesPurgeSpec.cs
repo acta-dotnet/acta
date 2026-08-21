@@ -74,9 +74,9 @@ public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TF
             ct
         );
 
-        // Deliberately NOT "this call purged exactly one job": the count says which pass did it, and any
-        // pass doing it satisfies the contract. The events count is not racy in the same way - the wide
-        // event window makes the events section a no-op on every pass, which is the property asserted here.
+        // Deliberately NOT "this call purged exactly one job": which pass did it satisfies the contract
+        // either way. The events count is not racy in the same way - the wide event window makes the
+        // events section a no-op on every pass of the drain, which is the property asserted here.
         Assert.Equal(0, purge.Events);
 
         // Force a fresh insert after purge. SQLite used to reuse the deleted highest row id here,

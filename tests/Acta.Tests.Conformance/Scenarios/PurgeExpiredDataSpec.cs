@@ -73,26 +73,23 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         await Operations.Tags.UpsertAsync(TagTarget.ForEvent(eventRow.Id), new TagInput("retention", "event"), ct: ct);
         await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(alertRow.AlertRef)), new TagInput("retention", "alert"), ct: ct);
 
-        // Drain rather than assert a single call deletes it: the sweep selects WITH (UPDLOCK, READPAST),
-        // so a row contended by the live claim loop is skipped rather than waited for. The count still
-        // has to come to exactly one across the whole drain, because only this job is expired.
-        var purgedJobs = 0;
-        for (var pass = 1; pass <= 20 && purgedJobs == 0; pass++)
-        {
-            var result = await RetentionTestOps.PurgeAsync(
-                Services,
-                ns,
-                NoEventPurgeDays,
-                NoAlertPurgeDays,
-                NoWorkerPurgeSeconds,
-                1000,
-                50,
-                ct
-            );
-            purgedJobs += result.Jobs;
-        }
+        // Drain rather than assert a single call deletes it: one sweep can pass an eligible row over
+        // (contended under READPAST, or stamped a rounded fraction of a millisecond into the future).
+        // The count still has to come to exactly one across the whole drain, because only this job is
+        // expired.
+        var purged = await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            NoEventPurgeDays,
+            NoAlertPurgeDays,
+            NoWorkerPurgeSeconds,
+            1000,
+            50,
+            async () => await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct) is null,
+            ct
+        );
 
-        Assert.Equal(1, purgedJobs);
+        Assert.Equal(1, purged.Jobs);
         Assert.Null(await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Empty(await Db.From<JobResult>().Where(r => r.JobId == jobId).ToListAsync(ct));
         Assert.Null(await Operations.Tags.GetAsync(TagTarget.ForJob(JobLookup.ById(jobId)), ct));
@@ -158,8 +155,19 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.NotEmpty(await Db.From<JobEvent>().Where(e => e.NamespaceId == ns).ToListAsync(ct));
         Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForEvent(taggedEvent.Id), ct));
 
-        // A negative window puts the cutoff in the future, so every event is past it.
-        var purged = await RetentionTestOps.PurgeAsync(Services, ns, -1, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        // A negative window puts the cutoff in the future, so every event is past it. Drained, because a
+        // single sweep passes over a row another transaction holds under READPAST.
+        var purged = await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            -1,
+            NoAlertPurgeDays,
+            NoWorkerPurgeSeconds,
+            1000,
+            50,
+            async () => (await Db.From<JobEvent>().Where(e => e.NamespaceId == ns).ToListAsync(ct)).Count == 0,
+            ct
+        );
         Assert.Equal(before.Count, purged.Events);
         Assert.Empty(await Db.From<JobEvent>().Where(e => e.NamespaceId == ns).ToListAsync(ct));
         Assert.Empty(await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Event && t.ScopeId == taggedEvent.Id).ToListAsync(ct));
@@ -209,8 +217,19 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         await workers.MarkDeadWorkersAsync(30, ct);
         Assert.Equal(WorkerStatusCode.Stopped, (await Db.From<JobWorker>().Where(w => w.Id == stoppedId).SingleOrDefaultAsync(ct))!.Status);
 
-        // One sweep takes both terminal rows: the worker window applies to Stopped and Dead alike.
-        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, -1, 1000, 50, ct);
+        // The sweep takes both terminal rows: the worker window applies to Stopped and Dead alike. Drained,
+        // because a single sweep passes over a row another transaction holds under READPAST.
+        var purged = await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            NoEventPurgeDays,
+            NoAlertPurgeDays,
+            -1,
+            1000,
+            50,
+            async () => (await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).ToListAsync(ct)).Count == 0,
+            ct
+        );
         Assert.Equal(2, purged.Workers);
         Assert.Null(await Db.From<JobWorker>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct));
         Assert.Null(await Db.From<JobWorker>().Where(w => w.Id == stoppedId).SingleOrDefaultAsync(ct));
@@ -242,8 +261,9 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(3, (await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct)).Count);
 
         // A future cutoff puts every row past the window: the settled row counts under the settled
-        // sweep, the two unsettled ones under the hard cap, and no row is counted by both.
-        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        // sweep, the two unsettled ones under the hard cap, and no row is counted by both. Drained,
+        // because a single sweep passes over a row another transaction holds under READPAST.
+        var purged = await PurgeAlertsUntilGoneAsync(ns, ct);
         Assert.Equal(1, purged.Alerts);
         Assert.Equal(2, purged.UndeliveredAlertsPurged);
         Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
@@ -261,7 +281,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         // delivery, so the hard-cap sweep must not see it a second time.
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Suppressed, ct);
 
-        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        var purged = await PurgeAlertsUntilGoneAsync(ns, ct);
 
         Assert.Equal(1, purged.Alerts);
         Assert.Equal(0, purged.UndeliveredAlertsPurged);
@@ -285,7 +305,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         // The incident is open AND its delivery never settled, so it leaves through the hard cap and
         // through nothing else: unresolved is no shield, and neither is an unfinished delivery.
-        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        var purged = await PurgeAlertsUntilGoneAsync(ns, ct);
         Assert.Equal(1, purged.UndeliveredAlertsPurged);
         Assert.Equal(0, purged.Alerts);
         Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
@@ -317,7 +337,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         // Counted by the settled sweep and not by the undelivered one, so an operator reading the two
         // counters is not told a settled delivery went out unsent.
-        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        var purged = await PurgeAlertsUntilGoneAsync(ns, ct);
         Assert.Equal(1, purged.Alerts);
         Assert.Equal(0, purged.UndeliveredAlertsPurged);
         Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
@@ -330,6 +350,26 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(1, reopened.OccurrenceCount);
         Assert.Null(reopened.ResolvedAtUtc);
     }
+
+    /// <summary>
+    /// Sweeps the alert window with the cutoff in the future until the namespace holds no alert row, and
+    /// returns the counts across the whole drain. Every alert fact here purges rows it has just written,
+    /// and a single sweep is allowed to pass one of them over - it stages its batch under READPAST /
+    /// SKIP LOCKED, and a spec's own row can sit under a parallel spec's lock. Which sweep arm counted
+    /// the row, which is what these facts are about, is settled either way.
+    /// </summary>
+    private Task<PurgeExpiredDataResult> PurgeAlertsUntilGoneAsync(short ns, CancellationToken ct) =>
+        RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            NoEventPurgeDays,
+            -1,
+            NoWorkerPurgeSeconds,
+            1000,
+            50,
+            async () => (await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct)).Count == 0,
+            ct
+        );
 
     private Task RaiseIncidentAsync(
         string deduplicationKey,
@@ -557,11 +597,15 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        await EnqueueAndRunAsync("purge-now", new PurgeProbe("a"), ct);
-        await EnqueueAndRunAsync("purge-now", new PurgeProbe("b"), ct);
+        var a = await EnqueueAndRunAsync("purge-now", new PurgeProbe("a"), ct);
+        var b = await EnqueueAndRunAsync("purge-now", new PurgeProbe("b"), ct);
 
-        // batch 1 x 1 iteration deletes exactly one of the two due jobs.
-        var first = await RetentionTestOps.PurgeAsync(
+        // batch 1 x 1 iteration never takes more than one of the two due jobs. Repeated until one goes,
+        // because a pass is allowed to take none: a row an unrelated transaction holds is skipped under
+        // READPAST, and a job completed microseconds ago is stamped with a retention_until_utc rounded
+        // into the next millisecond, which the sweep's own clock has not reached yet. Neither weakens the
+        // cap: if a 1x1 budget could ever take both, the drained total would be two.
+        var first = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
             NoEventPurgeDays,
@@ -569,12 +613,13 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             NoWorkerPurgeSeconds,
             batchSize: 1,
             maxIterations: 1,
+            async () => (await Db.From<Job>().Where(j => j.Id == a.JobId || j.Id == b.JobId).ToListAsync(ct)).Count == 1,
             ct
         );
         Assert.Equal(1, first.Jobs);
 
-        // A full run clears the remainder.
-        var rest = await RetentionTestOps.PurgeAsync(
+        // A full-budget run clears the remainder.
+        var rest = await RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
             NoEventPurgeDays,
@@ -582,6 +627,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             NoWorkerPurgeSeconds,
             batchSize: 1000,
             maxIterations: 50,
+            async () => (await Db.From<Job>().Where(j => j.Id == a.JobId || j.Id == b.JobId).ToListAsync(ct)).Count == 0,
             ct
         );
         Assert.Equal(1, rest.Jobs);
