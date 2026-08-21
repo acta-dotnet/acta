@@ -821,8 +821,10 @@ public abstract class JobContext
     //
     // A slot's due therefore lands within one second before the group deadline, plus however long the
     // store takes between the clock reading and the arm, which stamps the due against a clock that has
-    // moved on. That residual is one round trip, it is the same on every arm, and it never accumulates,
-    // because every arm measures from the deadline rather than from the previous arm. Removing it
+    // moved on. That residual is the store work between the pass's clock reading and the arm - several
+    // round trips when earlier members resolve off their latches first - bounded per pass and never
+    // accumulating, because every arm measures from the deadline rather than from the previous arm.
+    // Removing it
     // outright would need the arm to take an absolute instant instead of a duration.
     private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
         IReadOnlyList<long> childJobIds,

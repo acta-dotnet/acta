@@ -415,6 +415,11 @@ Map, Parallel, and Join are durable child-job conveniences. They do not introduc
 | `ctx.ParallelAsync(group, b)` | Named heterogeneous branches; outcomes keyed by branch name.         |
 | `ctx.MapAsync(group, items)`  | Homogeneous fan-out keyed by a stable item key; outcomes per item.   |
 
+Each of the three (and `WaitChildrenAsync`/`ExecuteChildAsync` beneath them) also takes a
+`TimeSpan timeout`: the bounded forms share one persisted deadline for the whole group, cancel
+only the members that miss it, and surface the miss through the outcome's `TimedOut` rather than
+an exception — see [failure modes](./failure-modes.md).
+
 Contract: they always wait for all children and return all outcomes. They never throw because a child failed unless the caller explicitly asks the outcome to throw (`ThrowIfAnyFailed`). They never cancel siblings and do not fail-fast. Parent cancellation cancels live descendants through existing descendant-cancellation behavior; completed children stay terminal. A failed child stays failed on replay until explicitly restarted; stable child names dedupe already-created children rather than spawning replacements.
 
 Child names are deterministic. Parallel uses `{group}-{branch}`. Map uses `{group}-{key}` when the key is name-safe, otherwise `{group}-{hash}`; the same parent, group, and key always produce the same child name. None of the three limit runtime worker concurrency; use child concurrency keys, namespaces, or worker capacity for that. See concept `215-map-parallel-join`.

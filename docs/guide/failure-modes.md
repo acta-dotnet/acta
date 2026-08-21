@@ -55,7 +55,10 @@ worker downtime, restarts, and replays all count against it.
 
 `TryWaitChildAsync(childJobId, timeout)` resumes the parent with `TimedOut` and cancels the
 unfinished child and its descendant subtree; the parent stays active and decides what happens
-next. Two honest edges. The subtree cancellation is initiated by the parent's resumed attempt, so
+next. A group is the same story under one clock: `TryWaitChildrenAsync` (and the bounded
+`Join`/`Parallel`/`Map` overloads) spends a single persisted deadline across all members —
+completed children keep their outcomes, only the unfinished ones are cancelled, and the
+at-least-once shape below covers each of those cancellations the same way. Two honest edges. The subtree cancellation is initiated by the parent's resumed attempt, so
 it is at-least-once like everything else: a crash between the durable expiry and the cancellation
 re-runs it on replay, and a parent that goes terminal without ever replaying leaves its children
 running — which is what parent death has always meant in Acta. And an expired wait slot is

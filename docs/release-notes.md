@@ -196,6 +196,16 @@ that can no longer complete. Two persisted codes are new (`job.wait-timed-out`; 
 `expired`), the claim index gained `status_code` as a trailing column, and `Explain` prints a
 bounded wait's "times out at".
 
+Groups are bounded too. `TryWaitChildrenAsync(ids, timeout)` — and bounded overloads of
+`WaitChildrenAsync`, `ExecuteChildAsync`, `JoinAsync`, `ParallelAsync`, and `MapAsync` — wait the
+whole group under **one persisted absolute deadline**: stored once when the group first arms
+(a `sys.wait-group.*` durable variable named by the sorted child ids), reused by every replay, so
+the budget never restarts per child or per crash. On expiry, only the unfinished members are
+cancelled — each with its subtree, through the same parentage-guarded path as a single child —
+completed members keep their outcomes, and the parent always resumes to decide what happens next.
+`ChildrenWaitResult` carries the per-child picture; the group outcome types gained a computed
+`TimedOut` without changing shape.
+
 Two small surface notes for implementers of Acta's extension points: the protected
 `SignalWaitOutcome` record gained a third positional member, so a subclass deconstructing it
 positionally updates its pattern; and `IActaTestHost` gained a member, so an external test-host

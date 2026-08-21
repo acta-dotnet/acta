@@ -46,7 +46,8 @@ internal sealed class JobCheckpoint : IEntity
 
     /// <summary>
     /// Slot name. Dotted-kebab ASCII for user variables and signals; <c>sys.progress</c> for the
-    /// progress slot; <c>sys.child.{childId}</c> for child latches. The <c>sys.</c> prefix stays
+    /// progress slot; <c>sys.child.{childId}</c> for child latches; <c>sys.wait-group.{hash}</c>
+    /// for a bounded group wait's shared deadline. The <c>sys.</c> prefix stays
     /// system-reserved for user-writable kinds. Part of the composite PK.
     /// </summary>
     [DbColumn("name", DbKind.AsciiString, Size = 128)]

@@ -183,8 +183,12 @@ expiry the slot becomes `expired`, which is terminal for that name: the `Try` ov
 handler with a `TimedOut` result, the plain overloads cancel the job budget-neutrally with reason
 `job.wait-timed-out`, and a signal or child outcome that arrives after expiry never revives the
 wait — while the waiter is still live and its audit level records signals, the late arrival is
-written to the timeline; against a terminal waiter it is dropped. An unbounded wait keeps today's
-shape — suspended until raised, with no deadline anywhere.
+written to the timeline; against a terminal waiter it is dropped. A child *group* waited with a
+timeout (`TryWaitChildrenAsync`, or the bounded `Join`/`Parallel`/`Map` overloads) shares one
+persisted deadline — a `sys.wait-group.*` durable variable written once at first arming — so the
+budget covers the whole operation and never restarts per child or per replay; expiry cancels only
+the members that had not finished. An unbounded wait keeps today's shape — suspended until raised,
+with no deadline anywhere.
 
 Steps are richer (attempt counters, per-call retry budget, stored results) and stay in the
 separate `steps` table.
