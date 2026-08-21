@@ -52,9 +52,8 @@
   // until capabilities has loaded.
   let canControlNow = $derived(canControl(capabilities.data));
   // "Unknown while loading" is still read-only for controls, but it is not evidence that the host
-  // has disabled them. Wait for the successful response before showing the operator banner.
-  let showReadonlyBanner = $derived(capabilities.isSuccess && !canControlNow);
-  let bannerDismissed = $state(false);
+  // has disabled them. Wait for the successful response before showing the mode chip.
+  let readOnlyHost = $derived(capabilities.isSuccess && !canControlNow);
   let mobileNavOpen = $state(false);
   let quickSearch = $state();
 
@@ -93,13 +92,6 @@
   </div>
 {/if}
 
-{#if showReadonlyBanner && !bannerDismissed && $online}
-  <div class="readonly-banner" role="status">
-    Read-only - controls disabled on this host.
-    <button class="dismiss" onclick={() => (bannerDismissed = true)} aria-label="Dismiss">×</button>
-  </div>
-{/if}
-
 <div class="app">
   <button
     class="mobile-nav-toggle iconly"
@@ -118,6 +110,17 @@
           <span class="brand-mark"><LogoMark size={30} /></span><span class="nav-label">Acta<span class="brand-dot">.</span></span>
         </a>
         <div class="brand-sub">operator dashboard</div>
+        {#if readOnlyHost}
+          <!-- A host mode, not a message: never dismissible, and quiet by design - read-only is
+               the safe default, so it states itself in the dashboard's own label voice. -->
+          <div
+            class="mode-chip"
+            title="Controls are disabled on this host. Reads work everywhere; enable controls with EnableControls."
+          >
+            <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5" width="8" height="5.5" rx="1" /><path d="M4 5V3.6a2 2 0 0 1 4 0V5" fill="none" /></svg>
+            read-only
+          </div>
+        {/if}
       </div>
       <div class="side-scope"><ScopeSelector /></div>
       <button

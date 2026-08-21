@@ -256,27 +256,29 @@ nav.side a:focus-visible,
   font-weight: 600;
 }
 
-.readonly-banner {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  background: var(--warn);
-  color: var(--on-warn);
-  padding: 12px 28px;
-  font-weight: 600;
-  display: flex;
+.mode-chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-subtle);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: help;
 }
-.readonly-banner .dismiss {
-  background: transparent;
-  border: 1px solid color-mix(in srgb, currentColor 60%, transparent);
-  color: inherit;
-  line-height: 1;
-  padding: 2px 8px;
+.mode-chip svg {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  fill: none;
 }
-.readonly-banner .dismiss:hover:not(:disabled) { border-color: currentColor; color: inherit; }
 
 body {
   margin: 0;
@@ -516,6 +518,8 @@ button.side-collapse:hover:not(:disabled) { color: var(--ink); background: var(-
   nav.side.rail .brand-sub,
   nav.side.rail .nav-group-label,
   nav.side.rail .side-scope { display: none; }
+  /* The mode survives the rail as its glyph alone: the lock still marks the host read-only. */
+  nav.side.rail .mode-chip { padding: 3px; border-radius: 6px; font-size: 0; gap: 0; }
   nav.side.rail .brand-q { padding: 10px 0 14px; }
   nav.side.rail .brand { justify-content: center; }
   nav.side.rail a,
