@@ -186,7 +186,7 @@ public abstract class ChildTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal(1, await CountEventsAsync(first, EventCode.JobCancelled, ct));
     }
 
-    [Fact(DisplayName = "A child landing terminal on an expired latch writes no slot and releases no parent")]
+    [Fact(DisplayName = "A child landing terminal on an expired latch writes no slot, releases no parent, and says so")]
     public async Task Late_child_completion_cannot_revive_an_expired_latch()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -209,7 +209,11 @@ public abstract class ChildTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal(before.NextRunAtUtc, after.NextRunAtUtc);
         Assert.Equal(before.Version, after.Version);
         Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobResumed, ct));
-        Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobSignalRaised, ct));
+
+        // The completion changed nothing, but it happened: the timeline says so and says why, or an
+        // operator sees a succeeded child beside a parent its outcome never reached.
+        var raised = await ReadSingleEventAsync(parent.JobId, EventCode.JobSignalRaised, ct);
+        Assert.Contains("already expired", raised.ReasonMessage ?? "", StringComparison.Ordinal);
 
         // The parent still resolves TimedOut, and its cancel of an already-succeeded child is rejected.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));

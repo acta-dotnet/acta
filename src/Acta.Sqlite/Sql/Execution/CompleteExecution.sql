@@ -378,7 +378,11 @@ SELECT
     pj.tenant_id AS parent_tenant,
     pr.execution_number AS parent_exec,
     pj.audit_level_code AS parent_audit,
-    pj.job_ref AS parent_ref
+    pj.job_ref AS parent_ref,
+    /* No revival: an Expired latch already resolved the parent's wait TimedOut, so a child landing
+       terminal afterwards writes no slot and releases no parent. Carried as a flag, not a filter: the
+       raise still happened and the audit event below still records it, saying why it changed nothing. */
+    CASE WHEN pl.status_code = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END AS latch_expired
 FROM _ce_done d
 JOIN {{schema}}.jobs pj ON pj.id = d.parent_id
 JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
@@ -390,11 +394,7 @@ WHERE
     d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND d.parent_id IS NOT NULL
     AND pr.status_code IS NOT NULL
-    AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    /* No revival: an Expired latch already resolved the parent's wait TimedOut, so a child landing
-       terminal afterwards writes no slot and releases no parent. Dropping the parent row here is what
-       skips both, since every statement below reads from this table. */
-    AND COALESCE(pl.status_code, 0) <> 30 /* JobCheckpointStatusCode.Expired */;
+    AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
 SELECT
@@ -407,7 +407,7 @@ SELECT
     {{now}},
     0
 FROM _ce_parent p
-WHERE true
+WHERE p.latch_expired = 0
 ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
     status_code = 20 /* JobCheckpointStatusCode.Set */,
     value_format_id = excluded.value_format_id,
@@ -452,7 +452,13 @@ SELECT
     NULL,
     NULL,
     @p_reason_code,
-    @p_reason_message
+    /* Capped because the caller's message can already sit at the column width, and an overflow here
+       would fail a completion over an audit line. */
+    CASE
+        WHEN p.latch_expired = 1
+            THEN substr(COALESCE(@p_reason_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 1, 512)
+        ELSE @p_reason_message
+    END
 FROM _ce_parent p
 WHERE p.parent_audit = 20 /* JobAuditLevelCode.Audit */;
 
@@ -462,7 +468,12 @@ SET
     next_run_at_utc = {{now}},
     modified_at_utc = {{now}},
     version = version + 1
-WHERE job_id IN (SELECT parent_id FROM _ce_parent WHERE parent_status = 20 /* JobStatusCode.Suspended */);
+WHERE
+    job_id IN (
+        SELECT parent_id
+        FROM _ce_parent
+        WHERE parent_status = 20 /* JobStatusCode.Suspended */ AND latch_expired = 0
+    );
 
 INSERT INTO {{schema}}.events (
     event_code,
@@ -505,6 +516,7 @@ SELECT
 FROM _ce_parent p
 WHERE
     p.parent_status = 20 /* JobStatusCode.Suspended */
+    AND p.latch_expired = 0
     AND p.parent_audit = 20 /* JobAuditLevelCode.Audit */;
 
 SELECT
@@ -524,4 +536,11 @@ SELECT
         ELSE (SELECT cur_next_run FROM _ce_pre)
     END AS final_next_run_at_utc,
     {{now}} AS db_now,
-    CASE WHEN EXISTS (SELECT 1 FROM _ce_parent WHERE parent_status = 20 /* JobStatusCode.Suspended */) THEN 1 ELSE 0 END AS parent_released;
+    CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM _ce_parent
+            WHERE parent_status = 20 /* JobStatusCode.Suspended */ AND latch_expired = 0
+        ) THEN 1
+        ELSE 0
+    END AS parent_released;

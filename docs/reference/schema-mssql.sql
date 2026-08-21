@@ -2305,13 +2305,24 @@ BEGIN
 
                         /* No revival: an Expired latch already resolved the parent's wait TimedOut under
                            this same slot lock, so a child landing terminal afterwards writes no slot and
-                           releases no parent. The parent has woken, or will wake, on its own deadline. */
+                           releases no parent. The audit event below still records that it happened. */
+                        DECLARE @latch_expired BIT = CASE WHEN @psig = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+                        -- Capped because the caller's message can already sit at the column width, and an
+                        -- overflow here would fail a completion over an audit line.
+                        DECLARE @pmessage NVARCHAR(512) = CASE
+                            WHEN @latch_expired = 1
+                                THEN LEFT(
+                                    COALESCE(@p_reason_message + N' ', N'')
+                                        + N'Child outcome not applied: the wait had already expired.',
+                                    512
+                                )
+                            ELSE @p_reason_message END;
+
                         IF
                             @pstatus IS NOT NULL
                             AND @pstatus NOT IN (
                                 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
                             )
-                            AND (@psig IS NULL OR @psig <> 30 /* JobCheckpointStatusCode.Expired */)
                             BEGIN
                                 DECLARE
                                     @envelope NVARCHAR(MAX)
@@ -2322,7 +2333,7 @@ BEGIN
                                     @envelope_bytes VARBINARY(MAX)
                                     = CAST(CAST(@envelope AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX));
 
-                                IF @psig IS NULL
+                                IF @latch_expired = 0 AND @psig IS NULL
                                     BEGIN
                                         INSERT INTO acta.checkpoints (
                                             job_id, kind_code, name, status_code, value_format_id, value,
@@ -2340,7 +2351,7 @@ BEGIN
                                             0
                                         );
                                     END
-                                ELSE
+                                ELSE IF @latch_expired = 0
                                     BEGIN
                                         UPDATE acta.checkpoints
                                         SET
@@ -2372,11 +2383,11 @@ BEGIN
                                             NULL,
                                             @pstatus, @pstatus,
                                             NULL, NULL,
-                                            @p_reason_code, @p_reason_message
+                                            @p_reason_code, @pmessage
                                         );
                                     END
 
-                                IF @pstatus = 20 /* JobStatusCode.Suspended */
+                                IF @pstatus = 20 /* JobStatusCode.Suspended */ AND @latch_expired = 0
                                     BEGIN
                                         UPDATE acta.runtimes
                                         SET

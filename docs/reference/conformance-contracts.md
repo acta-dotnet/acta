@@ -481,7 +481,7 @@
   - An expired child wait cancels the awaited subtree, spares the sibling, and leaves the parent running
   - A parent that timed out on one child stays active and joins a replacement child
   - A replay over an expired child latch re-runs the cancel as a no-op and still resolves TimedOut
-  - A child landing terminal on an expired latch writes no slot and releases no parent
+  - A child landing terminal on an expired latch writes no slot, releases no parent, and says so
   - A timed-out child lands Cancelled budget-neutrally with its retention stamped
   - An unbounded child wait still suspends with no due instant and stays unclaimable
 - **Store methods:**

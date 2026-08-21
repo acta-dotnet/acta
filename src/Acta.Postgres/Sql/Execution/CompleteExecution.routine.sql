@@ -54,6 +54,8 @@ DECLARE
     v_cur_next_run TIMESTAMPTZ;
     v_sig VARCHAR;
     v_psig SMALLINT;
+    v_latch_expired BOOLEAN;
+    v_pmessage VARCHAR;
     v_pstatus SMALLINT;
     v_pns SMALLINT;
     v_plineage BIGINT;
@@ -410,31 +412,42 @@ BEGIN
         FOR UPDATE OF pr;
 
         /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same slot
-           lock, so a child landing terminal afterwards writes no slot and releases no parent. The
-           parent has woken, or will wake, on its own deadline. */
+           lock, so a child landing terminal afterwards writes no slot and releases no parent. The raise
+           still happened, so the audit event below still records it and says why it changed nothing. */
+        -- COALESCE, not a bare comparison: a first completion has no latch row at all, and NULL = 30 is
+        -- unknown, which would skip the upsert below rather than take it.
+        v_latch_expired := COALESCE(v_psig = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
+        -- Capped because the caller's message can already sit at the column width, and an overflow here
+        -- would fail a completion over an audit line.
+        v_pmessage := CASE
+            WHEN v_latch_expired
+                THEN LEFT(COALESCE(p_reason_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 512)
+            ELSE p_reason_message END;
+
         IF
             v_pstatus IS NOT NULL
-            AND v_pstatus NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND COALESCE(v_psig <> 30 /* JobCheckpointStatusCode.Expired */, TRUE) THEN
-            INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, created_at_utc, modified_at_utc, version)
-            VALUES (
-                v_parent_id,
-                50 /* JobCheckpointKindCode.ChildLatch */,
-                v_sig,
-                20 /* JobCheckpointStatusCode.Set */,
-                1 /* JobPayloadFormat.Json */,
-                convert_to(json_build_object(
-                    'childJobId', p_id,
-                    'status', v_to_status)::text, 'UTF8'),
-                now(),
-                now(),
-                0)
-            ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-                status_code = 20 /* JobCheckpointStatusCode.Set */,
-                value_format_id = EXCLUDED.value_format_id,
-                value = EXCLUDED.value,
-                modified_at_utc = now(),
-                version = {{schema}}.checkpoints.version + 1;
+            AND v_pstatus NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+            IF NOT v_latch_expired THEN
+                INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, created_at_utc, modified_at_utc, version)
+                VALUES (
+                    v_parent_id,
+                    50 /* JobCheckpointKindCode.ChildLatch */,
+                    v_sig,
+                    20 /* JobCheckpointStatusCode.Set */,
+                    1 /* JobPayloadFormat.Json */,
+                    convert_to(json_build_object(
+                        'childJobId', p_id,
+                        'status', v_to_status)::text, 'UTF8'),
+                    now(),
+                    now(),
+                    0)
+                ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
+                    status_code = 20 /* JobCheckpointStatusCode.Set */,
+                    value_format_id = EXCLUDED.value_format_id,
+                    value = EXCLUDED.value,
+                    modified_at_utc = now(),
+                    version = {{schema}}.checkpoints.version + 1;
+            END IF;
 
             IF v_paudit = 20 /* JobAuditLevelCode.Audit */ THEN
                 INSERT INTO {{schema}}.events (
@@ -474,10 +487,10 @@ BEGIN
                     NULL,
                     NULL,
                     p_reason_code,
-                    p_reason_message);
+                    v_pmessage);
             END IF;
 
-            IF v_pstatus = 20 /* JobStatusCode.Suspended */ THEN
+            IF v_pstatus = 20 /* JobStatusCode.Suspended */ AND NOT v_latch_expired THEN
                 UPDATE {{schema}}.runtimes
                 SET
                     status_code = 10 /* JobStatusCode.Ready */,
