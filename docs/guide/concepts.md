@@ -181,9 +181,10 @@ extended by replays or restarts. The suspended job carries that instant in `next
 the ordinary claim path wakes it when the deadline passes, exactly as it wakes a sleeper. On
 expiry the slot becomes `expired`, which is terminal for that name: the `Try` overloads resume the
 handler with a `TimedOut` result, the plain overloads cancel the job budget-neutrally with reason
-`job.wait-timed-out`, and a signal or child outcome that arrives after expiry is recorded on the
-timeline but no longer applied. An unbounded wait keeps today's shape — suspended until raised,
-with no deadline anywhere.
+`job.wait-timed-out`, and a signal or child outcome that arrives after expiry never revives the
+wait — while the waiter is still live and its audit level records signals, the late arrival is
+written to the timeline; against a terminal waiter it is dropped. An unbounded wait keeps today's
+shape — suspended until raised, with no deadline anywhere.
 
 Steps are richer (attempt counters, per-call retry budget, stored results) and stay in the
 separate `steps` table.

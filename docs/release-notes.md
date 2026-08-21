@@ -186,8 +186,10 @@ The deadline is an absolute instant stamped on the awaited checkpoint slot when 
 arms: database time, replay-stable, never extended by restarts or worker downtime. A suspended job
 carries it in `next_run_at_utc`, so the ordinary claim path wakes the job at expiry — no sweeper,
 no new system job. Completion and timeout race under the slot's own lock, completion-first wins,
-and an expired slot is terminal: late signals and late child outcomes are recorded on the timeline
-but no longer applied — and a wait re-entered over an already-expired slot resolves timed-out,
+and an expired slot is terminal: a late signal or child outcome never revives it. While the waiter
+is still live — and its audit level records signals — the late arrival is still written to the
+timeline; once the waiter is terminal it is dropped without a trace. A wait re-entered over an
+already-expired slot resolves timed-out,
 which for the unbounded overloads means the job is cancelled rather than parked forever on a wait
 that can no longer complete. Two persisted codes are new (`job.wait-timed-out`; checkpoint status
 `expired`), the claim index gained `status_code` as a trailing column, and `Explain` prints a
