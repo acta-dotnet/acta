@@ -43,7 +43,8 @@ internal sealed class RuntimeJobContext(
     IJobs? jobs = null,
     string? tenantKey = null,
     int workerId = 0,
-    WorkerWakeupPublisher? wakeupPublisher = null
+    WorkerWakeupPublisher? wakeupPublisher = null,
+    Acta.Runtime.Services.Time.IActaClock? clock = null
 ) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
@@ -63,6 +64,7 @@ internal sealed class RuntimeJobContext(
     private readonly JobMetrics? _metrics = metrics;
     private readonly IJobs? _jobs = jobs;
     private readonly WorkerWakeupPublisher? _wakeupPublisher = wakeupPublisher;
+    private readonly Acta.Runtime.Services.Time.IActaClock? _clock = clock;
 
     /// <summary>
     /// Whether this attempt's cancellation was the execution-timeout firing rather than an external
@@ -135,6 +137,30 @@ internal sealed class RuntimeJobContext(
         var stored = await CheckpointSlot.GetOrSetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, payload, ct);
         return Deserialize<T>(stored);
     }
+
+    // One deadline for a whole group wait, stored under a reserved sys. slot name so it can never
+    // collide with a user variable. Written once and read forever after: the get-or-set upsert returns
+    // whatever landed first, so a replay, a crash, or a second call with a different timeout all resolve
+    // to the same instant and the group's budget can never restart. Ticks rather than a serialized
+    // DateTime, so the stored bytes are exact and carry no format or kind ambiguity across a round trip.
+    protected override async Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+    {
+        // The DB clock, not the host's: the slot dues this deadline is spent against are stamped by the
+        // database, so measuring the group against anything else would import the worker's skew.
+        var nowUtc = await Clock().GetUtcNowAsync(ct);
+        var stored = await CheckpointSlot.GetOrSetAsync(
+            _executionStore,
+            JobId,
+            JobCheckpointKindCode.Variable,
+            name,
+            JsonSerializer().Serialize((nowUtc + timeout).Ticks),
+            ct
+        );
+        return new WaitDeadline(new DateTime(Deserialize<long>(stored), DateTimeKind.Utc), nowUtc);
+    }
+
+    private Acta.Runtime.Services.Time.IActaClock Clock() =>
+        _clock ?? throw new InvalidOperationException("Bounded group waits need the Acta clock; this context was built without one.");
 
     protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
         CheckpointSlot.ExistsAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);

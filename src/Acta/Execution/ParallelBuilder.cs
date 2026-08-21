@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Collects the named heterogeneous branches of a <see cref="JobContext.ParallelAsync"/> group. Each
+/// Collects the named heterogeneous branches of a <c>JobContext.ParallelAsync</c> group. Each
 /// <see cref="Child{TInput}"/> captures a typed input and defers the start; the branch name is
 /// combined with the group name into the child's stable, parent-scoped deduplication key.
 /// </summary>

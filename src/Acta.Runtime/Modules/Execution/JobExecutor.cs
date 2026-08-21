@@ -187,7 +187,8 @@ internal sealed class JobExecutor(
                 attemptServices.GetService<IJobs>(),
                 tenantKey,
                 workerId,
-                _rootServices.GetRequiredService<WorkerWakeupPublisher>()
+                _rootServices.GetRequiredService<WorkerWakeupPublisher>(),
+                _clock
             );
 
             // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.

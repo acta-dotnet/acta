@@ -98,6 +98,82 @@ public sealed class JobContextWaitTimeoutTests
         Assert.Equal(["wait:sys.child.7", "cancel:7"], ctx.Events);
     }
 
+    [Fact]
+    public async Task A_bounded_group_wait_validates_everything_before_any_store_call()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new RecordingJobContext();
+        var child = await ctx.StartChildAsync("only", new { }, ct: ct);
+
+        var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            ctx.TryWaitChildrenAsync([child.JobId], TimeSpan.Zero, ct)
+        );
+        var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            ctx.TryWaitChildrenAsync([child.JobId, 0], TimeSpan.FromMinutes(5), ct)
+        );
+        await Assert.ThrowsAsync<ArgumentNullException>(() => ctx.TryWaitChildrenAsync(null!, TimeSpan.FromMinutes(5), ct));
+
+        // A bad id anywhere in the list stops the call before the deadline slot is written, so a
+        // rejected group never leaves a half-armed one behind.
+        Assert.Equal("timeout", badTimeout.ParamName);
+        Assert.Equal("childJobIds", badId.ParamName);
+        Assert.Equal(["start:only"], ctx.Events);
+    }
+
+    [Fact]
+    public async Task A_bounded_wrapper_rejects_its_timeout_before_it_starts_a_child()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new RecordingJobContext();
+        var zero = TimeSpan.Zero;
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.ExecuteChildAsync("only", new { }, zero, ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.ExecuteChildAsync<object, string>("only", new { }, zero, ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.ParallelAsync("grp", b => b.Child("a", new { }), zero, ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.MapAsync("grp", (int[])[1], i => i, i => new { }, zero, ct));
+
+        // Every wrapper starts its children before it waits on any of them, so a rejected timeout must
+        // not leave enqueued work that nothing is going to join on.
+        Assert.Empty(ctx.Events);
+    }
+
+    [Fact]
+    public async Task An_empty_bounded_group_wait_resolves_without_touching_the_store()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new RecordingJobContext();
+
+        var result = await ctx.TryWaitChildrenAsync([], TimeSpan.FromMinutes(5), ct);
+
+        Assert.Empty(result.Children);
+        Assert.False(result.TimedOut);
+        Assert.True(result.Succeeded);
+        Assert.Empty(ctx.Events);
+    }
+
+    [Fact]
+    public async Task A_timed_out_group_member_reports_the_timeout_and_is_cancelled()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new TimingOutChildContext();
+
+        var result = await ctx.TryWaitChildrenAsync([7, 9], TimeSpan.FromMinutes(5), ct);
+
+        Assert.True(result.TimedOut);
+        Assert.False(result.Succeeded);
+        Assert.Equal([7, 9], result.Children.Select(c => c.ChildJobId));
+        Assert.All(result.Children, c => Assert.True(c.TimedOut));
+        // Each member is cancelled through the same single-child path, in group order, and the group
+        // deadline is read once for the whole call rather than once per member.
+        Assert.Equal(
+            ["deadline:sys.wait-group.09f9b3b89bd0ea13", "wait:sys.child.7", "cancel:7", "wait:sys.child.9", "cancel:9"],
+            ctx.Events
+        );
+
+        var thrown = Assert.Throws<ChildGroupException>(result.ThrowIfAnyFailed);
+        Assert.Contains("7:TimedOut", thrown.Message, StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// A context whose bounded wait always expires, so the resolution order the runtime relies on can
     /// be pinned without a database.
@@ -119,6 +195,12 @@ public sealed class JobContextWaitTimeoutTests
         {
             Events.Add($"cancel:{childJobId}");
             return Task.CompletedTask;
+        }
+
+        protected override Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+        {
+            Events.Add($"deadline:{name}");
+            return base.GetOrSetWaitDeadlineCoreAsync(name, timeout, ct);
         }
     }
 }

@@ -458,6 +458,29 @@
 - **Guarantees:**
   - A child completing in another namespace carries the parent link and releases the waiting parent
 
+### A bounded group wait spends one stored deadline across every child and replay
+- **Contract:** A bounded group wait stores one absolute deadline, spends it across all children and replays, and cancels only unfinished members on expiry.
+- **Arrange:** Parents wait on child groups with a 30-minute bound so only a deliberate rewind of the stored group deadline can expire one.
+- **Act:** The runtime ticks parents and children around the persisted group deadline, with members landing before it, after it, and never.
+- **Assert:** The stored deadline never moves, unfinished members and their subtrees are cancelled with job.wait-timed-out, and the parent keeps running.
+- **Guarantees:**
+  - A group that finishes before its deadline returns what the unbounded form returns
+  - An expired group cancels its unfinished member's subtree and spares the child it never awaited
+  - A crash replay reuses the stored group deadline byte for byte and extends no slot
+  - A member armed on a subsequent pass counts down to the group deadline, not from its own arm
+  - A member first armed after the deadline passed resolves TimedOut on its next tick
+  - A replay over an expired group re-runs every member cancel as a no-op
+  - A bounded ExecuteChild reports the timeout on its job outcome
+  - A bounded Join reports the timeout on the member that did not land
+  - A bounded Parallel reports the timeout while keeping its branch keying
+  - A bounded Map reports the timeout while keeping its item keying
+  - A lineage map shows the child wait a parent is parked on, with its deadline when bounded
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CheckpointSlotAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobLineageMapAsync`
+  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
+
 ### Child jobs start deduped, join on completion latches, and cancel cascades
 - **Contract:** StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree.
 - **Arrange:** A parent job and named child definitions are registered, with the parent set to wait on its children.
@@ -2426,7 +2449,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IDefinitionStore.RegisterDefinitionsAsync` | Init auto-registers system definitions, slots and schedules<br>Init writes namespace worker and full definition policy idempotently<br>Newer-or-equal generation promotes policy; older cannot downgrade or retire |
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
-| `IExecutionStore.CheckpointSlotAsync` | Job variables round-trip through the context API with versioning and validation |
+| `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
 | `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, drains the backlog, and reports the empty horizon<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
 | `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
 | `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
@@ -2438,7 +2461,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.RecordJobNoteAsync` | A handler writes application-authored notes onto the job's own timeline |
 | `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
-| `IJobStore.CancelJobAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
+| `IJobStore.CancelJobAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
 | `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.EnqueueBatchInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
 | `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
@@ -2447,7 +2470,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.GetJobCheckpointsAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
 | `IJobStore.GetJobExplanationAsync` | Explain reports live Suspended and Succeeded states through the facade<br>GetJobExplanation returns explain sets for a known id and null otherwise |
 | `IJobStore.GetJobInputAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
-| `IJobStore.GetJobLineageMapAsync` | GetJobLineageMap returns the focus job with ancestors and children or null |
+| `IJobStore.GetJobLineageMapAsync` | A bounded group wait spends one stored deadline across every child and replay<br>GetJobLineageMap returns the focus job with ancestors and children or null |
 | `IJobStore.GetJobResultAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Contract enqueue names the job explicitly and resolves its route<br>GetJobResult returns null before completion and the typed result after<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.GetJobStatusAsync` | GetJobStatus returns the status for a known id and null for an unknown id |
 | `IJobStore.ListJobsAsync` | ListJobs filter-matrix selects exactly matching rows per dimension<br>ListJobs pages newest first by keyset cursor without duplicates |
@@ -2477,7 +2500,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ISettingStore.GetSettingAsync` | A setting is set and read back by name at its inferred scope |
 | `ISettingStore.SetSettingAsync` | A setting is set and read back by name at its inferred scope |
 | `ISignalStore.RaiseSignalAsync` | A bounded wait expires on its slot's stored instant, once and for good<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
-| `ISignalStore.WaitSignalAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded wait expires on its slot's stored instant, once and for good<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
+| `ISignalStore.WaitSignalAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>A bounded wait expires on its slot's stored instant, once and for good<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
 | `ITenantStore.GetTenantAsync` | GetTenant returns the tenant for a known key or id and null for an unknown one |
 | `ITenantStore.ListTenantsAsync` | ListTenants pages tenants key-ascending with an opt-in total |
 | `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration inserts a new Active tenant or returns the existing row |

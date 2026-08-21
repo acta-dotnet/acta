@@ -695,15 +695,10 @@ public abstract class JobContext
     /// replacement child, or cancel itself. Acta cancels the unfinished child and its descendant
     /// subtree (reason <c>job.wait-timed-out</c>) before this call returns. Waiting stays
     /// budget-neutral, and cancelling <paramref name="ct"/> remains a separate, non-durable concern.
-    /// </summary>
-    /// <remarks>
     /// There is deliberately no non-Try twin: a child timeout resolves in the parent's favour, so
     /// there is nothing for a non-returning overload to mean.
-    /// </remarks>
-    /// <param name="childJobId">
-    /// The child started by
-    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>.
-    /// </param>
+    /// </summary>
+    /// <param name="childJobId">The child started by <c>StartChildAsync</c>.</param>
     /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task<ChildWaitResult> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
@@ -761,6 +756,156 @@ public abstract class JobContext
     }
 
     /// <summary>
+    /// Bounded twin of <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>, and the
+    /// same call as <see cref="TryWaitChildrenAsync"/>. It returns a
+    /// <see cref="ChildrenWaitResult"/> rather than the unbounded form's plain list, because a group
+    /// that ran out of time has more to report than an outcome per child.
+    /// </summary>
+    /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
+    /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public Task<ChildrenWaitResult> WaitChildrenAsync(IReadOnlyList<long> childJobIds, TimeSpan timeout, CancellationToken ct = default) =>
+        TryWaitChildrenAsync(childJobIds, timeout, ct);
+
+    /// <summary>
+    /// Durable, replay-safe bounded wait for a whole group of children. The first pass stores
+    /// <c>db_now + timeout</c> once as the group's absolute deadline; every child in the group, on this
+    /// pass and on every replay, waits toward that one instant, so the budget cannot restart per child
+    /// or per replay. Children that landed before it keep their terminal outcome. On expiry Acta
+    /// cancels only the unfinished children and their descendant subtrees (reason
+    /// <c>job.wait-timed-out</c>); the awaiting Job is never cancelled and resumes with the result.
+    /// There is deliberately no non-Try twin, for the reason <see cref="TryWaitChildAsync"/> has none.
+    /// Waiting stays budget-neutral, and cancelling <paramref name="ct"/> stays a non-durable concern.
+    /// </summary>
+    /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
+    /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public async Task<ChildrenWaitResult> TryWaitChildrenAsync(
+        IReadOnlyList<long> childJobIds,
+        TimeSpan timeout,
+        CancellationToken ct = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(childJobIds);
+        // Every argument is checked before the first store call, and a bad id anywhere in the list stops
+        // the whole call, so a rejected group never leaves a deadline slot or a half-armed latch behind.
+        ToWaitTimeoutSeconds(timeout);
+        for (var i = 0; i < childJobIds.Count; i++)
+        {
+            if (childJobIds[i] <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(childJobIds), childJobIds[i], "Child job ids must be positive.");
+            }
+        }
+
+        if (childJobIds.Count == 0)
+        {
+            // No group, so no deadline to persist: an empty wait is over before it starts.
+            return ChildrenWaitResult.From([]);
+        }
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        return ChildrenWaitResult.From(await WaitChildGroupAsync(childJobIds, timeout, linked.Token));
+    }
+
+    // The one place the group deadline rule lives; every bounded group API funnels through it, and a
+    // null timeout is the unbounded loop these wrappers have always run.
+    //
+    // At most one child arms per pass, because the first wait that cannot resolve suspends the attempt,
+    // so one clock reading per pass is exactly "remaining recomputed before each arm" and not an
+    // approximation of it. Each arm rounds the remaining time DOWN to whole seconds; a slot armed on an
+    // earlier pass keeps its own due even once the remaining time has shrunk, and that is harmless
+    // because both were derived from the same fixed instant.
+    //
+    // A slot's due therefore lands within one second before the group deadline, plus however long the
+    // store takes between the clock reading and the arm, which stamps the due against a clock that has
+    // moved on. That residual is one round trip, it is the same on every arm, and it never accumulates,
+    // because every arm measures from the deadline rather than from the previous arm. Removing it
+    // outright would need the arm to take an absolute instant instead of a duration.
+    private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
+        IReadOnlyList<long> childJobIds,
+        TimeSpan? timeout,
+        CancellationToken ct
+    )
+    {
+        if (timeout is not { } bound)
+        {
+            return await WaitChildrenAsync(childJobIds, ct);
+        }
+
+        var deadline = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
+        var remaining = RemainingWait(deadline);
+
+        var outcomes = new ChildJobOutcome[childJobIds.Count];
+        for (var i = 0; i < childJobIds.Count; i++)
+        {
+            var result = await TryWaitChildAsync(childJobIds[i], remaining, ct);
+            outcomes[i] = result.Outcome ?? ChildJobOutcome.Expired(childJobIds[i]);
+        }
+        return outcomes;
+    }
+
+    // A wait must carry a positive bound, so an already-passed deadline arms one second rather than
+    // zero. Accepted consequence: a child whose latch does not exist yet at that point suspends once
+    // before it can expire, because wait_signal resolves only a wait an earlier call armed. That costs
+    // one extra second-long tick per unfinished child, and the alternative is a special case inside the
+    // arbiter that every other wait would have to reason about.
+    private static TimeSpan RemainingWait(WaitDeadline deadline)
+    {
+        var remaining = deadline.DeadlineAtUtc - deadline.NowUtc;
+        var seconds = remaining.Ticks <= TimeSpan.TicksPerSecond ? 1L : remaining.Ticks / TimeSpan.TicksPerSecond;
+        return TimeSpan.FromSeconds(seconds);
+    }
+
+    // Reserved deadline-slot name, derived from the group's identity the way MapAsync derives a child
+    // name from an item key: the ordered child ids hashed to a stable tail. The ids come back identical
+    // on every replay (a child start dedupes onto the same row), so the name is stable, and the sys.
+    // prefix is rejected for user variable names, so it cannot collide with one. Two waits on the same
+    // ids in the same Job are the same group and deliberately share the deadline.
+    private static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
+    {
+        var canonical = new StringBuilder();
+        for (var i = 0; i < childJobIds.Count; i++)
+        {
+            canonical.Append(childJobIds[i].ToString(CultureInfo.InvariantCulture)).Append('.');
+        }
+        return GroupDeadlinePrefix + ShortHash(canonical.ToString());
+    }
+
+    private const string GroupDeadlinePrefix = "sys.wait-group.";
+
+    // A wrapper starts every child before it waits on any of them, so a rejected timeout has to throw
+    // ahead of the first enqueue rather than when the wait finally reaches it. A null timeout is the
+    // unbounded overload and has nothing to check.
+    private static void ValidateGroupTimeout(TimeSpan? timeout)
+    {
+        if (timeout is { } bound)
+        {
+            ToWaitTimeoutSeconds(bound);
+        }
+    }
+
+    /// <summary>
+    /// A bounded group wait's fixed end instant plus the clock reading it was measured against, so the
+    /// caller can derive the remaining time without a second round trip.
+    /// </summary>
+    protected readonly record struct WaitDeadline(DateTime DeadlineAtUtc, DateTime NowUtc);
+
+    /// <summary>
+    /// Subclass sink: read the group's stored absolute deadline, writing <c>db_now + timeout</c> on the
+    /// first call and returning the stored instant unchanged on every call after it (first-write-wins,
+    /// the <see cref="GetOrSetVariableAsync{T}(string, Func{T}, CancellationToken)"/> shape). The
+    /// returned <c>NowUtc</c> is the same clock reading the write used. The default computes an instant
+    /// from the host clock and stores nothing, so a <see cref="JobContext"/> subclass without durable
+    /// storage keeps working; only a durable implementation makes the deadline survive a replay.
+    /// </summary>
+    protected virtual Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+    {
+        var nowUtc = DateTime.UtcNow;
+        return Task.FromResult(new WaitDeadline(nowUtc + timeout, nowUtc));
+    }
+
+    /// <summary>
     /// Reads a child's stored result, deserialized to <typeparamref name="TResult"/>; <c>default</c>
     /// when the child stored none or its result row was already purged by retention. Point-in-time and
     /// non-blocking; wait for the child first when ordering matters.
@@ -776,7 +921,8 @@ public abstract class JobContext
     /// Starts the named child and durably waits for its terminal outcome in one call, the child-level
     /// mirror of <c>IJobs.RunAndWaitAsync</c>. Returned, never thrown; branch on the outcome or call
     /// <see cref="JobOutcome.ThrowIfFailed"/>. Waits this one child before returning: to fan out, start
-    /// every child first and join with <see cref="WaitChildrenAsync"/>.
+    /// every child first and join with
+    /// <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>.
     /// </summary>
     public async Task<JobOutcome> ExecuteChildAsync<TInput>(
         string name,
@@ -788,12 +934,7 @@ public abstract class JobContext
     {
         var child = await StartChildAsync(name, input, configure, ct);
         var outcome = await WaitChildAsync(child.JobId, ct);
-        return outcome.Status switch
-        {
-            JobStatusCode.Succeeded => JobOutcome.Succeeded(child.JobId),
-            JobStatusCode.Cancelled => JobOutcome.Cancelled(child.JobId),
-            _ => JobOutcome.Failed(child.JobId),
-        };
+        return ToJobOutcome(child.JobId, outcome.Status);
     }
 
     /// <summary>
@@ -804,6 +945,60 @@ public abstract class JobContext
     /// </summary>
     public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, TInput input, CancellationToken ct)
         where TInput : notnull => ExecuteChildAsync(name, input, configure: null, ct: ct);
+
+    /// <summary>
+    /// Bounded twin of
+    /// <see cref="ExecuteChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// the child is started, then awaited under one stored absolute expiration that a replay reuses and
+    /// never extends. On expiry the outcome reports <see cref="JobOutcome.IsTimedOut"/>, Acta cancels
+    /// the child and its descendant subtree, and this Job resumes.
+    /// </summary>
+    /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
+    /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
+    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
+    /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win over configured values.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public async Task<JobOutcome> ExecuteChildAsync<TInput>(
+        string name,
+        TInput input,
+        TimeSpan timeout,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull
+    {
+        // Checked before the child is started, not when the wait reaches it: a rejected timeout must not
+        // leave an enqueued child behind that nothing is going to wait for.
+        ToWaitTimeoutSeconds(timeout);
+        var child = await StartChildAsync(name, input, configure, ct);
+        // One child needs no group deadline slot: the latch's own stored expiration already is the one
+        // persisted absolute instant, and a second copy of it could only drift.
+        var result = await TryWaitChildAsync(child.JobId, timeout, ct);
+        return result.Outcome is { } outcome
+            ? ToJobOutcome(child.JobId, outcome.Status)
+            : JobOutcome.TimedOut(child.JobId, TimedOutChildStatus);
+    }
+
+    /// <summary>
+    /// Convenience overload of
+    /// <see cref="ExecuteChildAsync{TInput}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the fourth positional slot when no <c>configure</c> override is
+    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// </summary>
+    public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, TInput input, TimeSpan timeout, CancellationToken ct)
+        where TInput : notnull => ExecuteChildAsync(name, input, timeout, configure: null, ct: ct);
+
+    private static JobOutcome ToJobOutcome(long childJobId, JobStatusCode status) =>
+        status switch
+        {
+            JobStatusCode.Succeeded => JobOutcome.Succeeded(childJobId),
+            JobStatusCode.Cancelled => JobOutcome.Cancelled(childJobId),
+            _ => JobOutcome.Failed(childJobId),
+        };
+
+    // What a timed-out wait leaves the child in: Acta cancels it before the handler resumes, so the
+    // outcome reports Cancelled beside the timeout flag rather than inventing a status of its own.
+    private const JobStatusCode TimedOutChildStatus = JobStatusCode.Cancelled;
 
     /// <summary>
     /// Result-returning variant of
@@ -831,13 +1026,7 @@ public abstract class JobContext
                 : JobOutcome<TResult>.Failed(child.JobId);
         }
 
-        var value =
-            await GetChildResultAsync<TResult>(child.JobId, ct)
-            ?? throw new InvalidOperationException(
-                $"Child job {child.JobId} ('{name}') succeeded but stored no result; "
-                    + "use the non-result ExecuteChildAsync overload for result-less children."
-            );
-        return JobOutcome<TResult>.Succeeded(child.JobId, value);
+        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(child.JobId, name, ct));
     }
 
     /// <summary>
@@ -849,6 +1038,63 @@ public abstract class JobContext
     public Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(string name, TInput input, CancellationToken ct)
         where TInput : notnull
         where TResult : notnull => ExecuteChildAsync<TInput, TResult>(name, input, configure: null, ct: ct);
+
+    /// <summary>
+    /// Bounded twin of
+    /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// the child is started, then awaited under one stored absolute expiration that a replay reuses and
+    /// never extends. On expiry the outcome reports <see cref="JobOutcome.IsTimedOut"/> with no value,
+    /// Acta cancels the child and its descendant subtree, and this Job resumes.
+    /// </summary>
+    /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
+    /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
+    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
+    /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win over configured values.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public async Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(
+        string name,
+        TInput input,
+        TimeSpan timeout,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull
+        where TResult : notnull
+    {
+        ToWaitTimeoutSeconds(timeout);
+        var child = await StartChildAsync(name, input, configure, ct);
+        var result = await TryWaitChildAsync(child.JobId, timeout, ct);
+        if (result.Outcome is not { } outcome)
+        {
+            return JobOutcome<TResult>.TimedOut(child.JobId, TimedOutChildStatus);
+        }
+        if (outcome.Status != JobStatusCode.Succeeded)
+        {
+            return outcome.Status == JobStatusCode.Cancelled
+                ? JobOutcome<TResult>.Cancelled(child.JobId)
+                : JobOutcome<TResult>.Failed(child.JobId);
+        }
+
+        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(child.JobId, name, ct));
+    }
+
+    /// <summary>
+    /// Convenience overload of
+    /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the fourth positional slot when no <c>configure</c> override is
+    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// </summary>
+    public Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(string name, TInput input, TimeSpan timeout, CancellationToken ct)
+        where TInput : notnull
+        where TResult : notnull => ExecuteChildAsync<TInput, TResult>(name, input, timeout, configure: null, ct: ct);
+
+    private async Task<TResult> RequireChildResultAsync<TResult>(long childJobId, string name, CancellationToken ct)
+        where TResult : notnull =>
+        await GetChildResultAsync<TResult>(childJobId, ct)
+        ?? throw new InvalidOperationException(
+            $"Child job {childJobId} ('{name}') succeeded but stored no result; "
+                + "use the non-result ExecuteChildAsync overload for result-less children."
+        );
 
     private JobEnqueueOptions BuildChildOptions(string name, Action<JobEnqueueOptionsBuilder>? configure)
     {
@@ -897,22 +1143,40 @@ public abstract class JobContext
 
     /// <summary>
     /// Waits for every child handle to reach a terminal status and returns the outcomes in caller
-    /// order. A nicer wrapper over <see cref="WaitChildrenAsync"/>: it does not throw because a child
+    /// order. A nicer wrapper over
+    /// <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>: it does not throw because a child
     /// failed and does not cancel siblings; branch on the returned outcome or call
     /// <see cref="JoinOutcome.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<JobEnqueueOutcome> children, CancellationToken ct = default)
+    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<JobEnqueueOutcome> children, CancellationToken ct = default) =>
+        new(await WaitChildrenAsync(ChildIds(children), ct));
+
+    /// <summary>
+    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{JobEnqueueOutcome}, CancellationToken)"/>: the
+    /// whole join shares one stored absolute deadline that a replay reuses and never extends. It returns
+    /// a <see cref="ChildrenWaitResult"/> rather than a <see cref="JoinOutcome"/>, because the two carry
+    /// the same ordered child outcomes and only one of them can also say the group ran out of time;
+    /// minting a second near-identical record would have been the larger surface. On expiry Acta cancels
+    /// only the unfinished children and their subtrees, and this Job resumes.
+    /// </summary>
+    /// <param name="children">The child handles to join on, in the order the outcomes come back.</param>
+    /// <param name="timeout">Budget for the whole join from DB now, not per child. Must be positive.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public Task<ChildrenWaitResult> JoinAsync(
+        IReadOnlyList<JobEnqueueOutcome> children,
+        TimeSpan timeout,
+        CancellationToken ct = default
+    ) => TryWaitChildrenAsync(ChildIds(children), timeout, ct);
+
+    private static long[] ChildIds(IReadOnlyList<JobEnqueueOutcome> children)
     {
         ArgumentNullException.ThrowIfNull(children);
-
         var ids = new long[children.Count];
         for (var i = 0; i < children.Count; i++)
         {
             ids[i] = children[i].JobId;
         }
-
-        var outcomes = await WaitChildrenAsync(ids, ct);
-        return new JoinOutcome(outcomes);
+        return ids;
     }
 
     /// <summary>
@@ -921,10 +1185,37 @@ public abstract class JobContext
     /// branch is started before any is awaited. Does not throw on a failed branch and does not
     /// fail-fast; branch on the outcome or call <see cref="ParallelOutcome.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<ParallelOutcome> ParallelAsync(string groupName, Action<ParallelBuilder> configure, CancellationToken ct = default)
+    public Task<ParallelOutcome> ParallelAsync(string groupName, Action<ParallelBuilder> configure, CancellationToken ct = default) =>
+        ParallelCoreAsync(groupName, configure, timeout: null, ct);
+
+    /// <summary>
+    /// Bounded twin of
+    /// <see cref="ParallelAsync(string, Action{ParallelBuilder}, CancellationToken)"/>: every branch
+    /// waits toward one stored absolute deadline that a replay reuses and never extends. A branch that
+    /// did not land by then reports <see cref="ChildJobOutcome.TimedOut"/> and is cancelled along with
+    /// its subtree; the branch keying is unchanged, and this Job resumes either way.
+    /// </summary>
+    /// <param name="groupName">Kebab-case group name; each branch child is named <c>groupName-branchName</c>.</param>
+    /// <param name="configure">Branch builder; every branch is started before any is awaited.</param>
+    /// <param name="timeout">Budget for the whole group from DB now, not per branch. Must be positive.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public Task<ParallelOutcome> ParallelAsync(
+        string groupName,
+        Action<ParallelBuilder> configure,
+        TimeSpan timeout,
+        CancellationToken ct = default
+    ) => ParallelCoreAsync(groupName, configure, timeout, ct);
+
+    private async Task<ParallelOutcome> ParallelCoreAsync(
+        string groupName,
+        Action<ParallelBuilder> configure,
+        TimeSpan? timeout,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(configure);
         IdentifierSyntax.ValidateUserKebab(groupName, nameof(groupName), IdentifierSyntax.ExtendedMaxLength);
+        ValidateGroupTimeout(timeout);
 
         var builder = new ParallelBuilder();
         configure(builder);
@@ -950,7 +1241,7 @@ public abstract class JobContext
             ids[i] = (await branches[i].Start(this, childName, ct)).JobId;
         }
 
-        var outcomes = await WaitChildrenAsync(ids, ct);
+        var outcomes = await WaitChildGroupAsync(ids, timeout, ct);
 
         var byBranch = new Dictionary<string, ChildJobOutcome>(StringComparer.Ordinal);
         for (var i = 0; i < branches.Count; i++)
@@ -970,12 +1261,48 @@ public abstract class JobContext
     /// does not limit runtime worker concurrency; branch on the outcome or call
     /// <see cref="MapOutcome{TKey}.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
+    public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
         string groupName,
         IEnumerable<TItem> items,
         Func<TItem, TKey> itemKey,
         Func<TItem, TInput> child,
         CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull => MapCoreAsync<TItem, TKey, TInput>(groupName, items, itemKey, child, timeout: null, ct);
+
+    /// <summary>
+    /// Bounded twin of
+    /// <see cref="MapAsync{TItem, TKey, TInput}(string, IEnumerable{TItem}, Func{TItem, TKey}, Func{TItem, TInput}, CancellationToken)"/>:
+    /// every fanned-out child waits toward one stored absolute deadline that a replay reuses and never
+    /// extends. An item whose child did not land by then reports
+    /// <see cref="ChildJobOutcome.TimedOut"/> and that child is cancelled along with its subtree; the
+    /// item keying is unchanged, and this Job resumes either way.
+    /// </summary>
+    /// <param name="groupName">Kebab-case group name; the group plus item key derives each child name.</param>
+    /// <param name="items">The items to fan out over, one child each.</param>
+    /// <param name="itemKey">Stable per-item key; duplicates are rejected before any child is started.</param>
+    /// <param name="child">Maps an item to the typed child input.</param>
+    /// <param name="timeout">Budget for the whole group from DB now, not per item. Must be positive.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, TInput> child,
+        TimeSpan timeout,
+        CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull => MapCoreAsync<TItem, TKey, TInput>(groupName, items, itemKey, child, timeout, ct);
+
+    private async Task<MapOutcome<TKey>> MapCoreAsync<TItem, TKey, TInput>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, TInput> child,
+        TimeSpan? timeout,
+        CancellationToken ct
     )
         where TKey : notnull
         where TInput : notnull
@@ -984,6 +1311,7 @@ public abstract class JobContext
         ArgumentNullException.ThrowIfNull(itemKey);
         ArgumentNullException.ThrowIfNull(child);
         IdentifierSyntax.ValidateUserKebab(groupName, nameof(groupName), IdentifierSyntax.ExtendedMaxLength);
+        ValidateGroupTimeout(timeout);
 
         var materialized = items as IReadOnlyList<TItem> ?? items.ToList();
         var keys = new TKey[materialized.Count];
@@ -1020,7 +1348,7 @@ public abstract class JobContext
             ids[i] = (await StartChildAsync(names[i], child(materialized[i]), ct: ct)).JobId;
         }
 
-        var outcomes = await WaitChildrenAsync(ids, ct);
+        var outcomes = await WaitChildGroupAsync(ids, timeout, ct);
 
         var resultItems = new MapItemOutcome<TKey>[materialized.Count];
         for (var i = 0; i < materialized.Count; i++)

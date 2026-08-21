@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Result of <see cref="JobContext.ParallelAsync"/>: the branch outcomes keyed by branch name. The
+/// Result of <c>JobContext.ParallelAsync</c>: the branch outcomes keyed by branch name. The
 /// group waits for every branch and returns; it never throws because a branch failed. Call
 /// <see cref="ThrowIfAnyFailed"/> to opt into escalation.
 /// </summary>
@@ -12,10 +12,16 @@ public sealed record ParallelOutcome(string GroupName, IReadOnlyDictionary<strin
     /// </summary>
     public ChildJobOutcome this[string branchName] => Branches[branchName];
 
-    /// <summary>True when every branch landed Succeeded.</summary>
+    /// <summary>
+    /// True when the group deadline passed before at least one branch landed terminal. Always false
+    /// for the unbounded overload, which waits until every branch lands.
+    /// </summary>
+    public bool TimedOut => Branches.Values.Any(o => o.TimedOut);
+
+    /// <summary>True when every branch landed Succeeded (in time, for the bounded overload).</summary>
     public bool Succeeded => Branches.Values.All(o => o.Succeeded);
 
-    /// <summary>The non-succeeded branches (failed or cancelled), keyed by branch name.</summary>
+    /// <summary>The non-succeeded branches (failed, cancelled, or timed out), keyed by branch name.</summary>
     public IReadOnlyDictionary<string, ChildJobOutcome> Failed =>
         Branches.Where(kv => !kv.Value.Succeeded).ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
