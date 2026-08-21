@@ -148,12 +148,14 @@ that writes a file for only that provider (a leading hole for the others is fine
 `schema reset --force` deletes every migration and the snapshot. The next `schema add` recreates the
 baseline. The one destructive command, hence `--force`-gated and pre-1.0 only.
 
-The history is not frozen until 1.0.0, so this is a supported move, not a last resort: an `Mnnn`
-landed to exercise an upgrade path can be folded back into a fresh baseline afterwards. A re-cut
-baseline carries no translation migration, so any database built from the previous one must be
-dropped and recreated.
+`baseline-1.0` is the last generation: the migration history froze with it, the stamp does not
+move again, and `schema reset` remains only as a rebuild-and-compare tool for verifying that the
+emitters still reproduce the committed baseline. Before the freeze, a re-cut was a supported move
+rather than a last resort; that era ended at rc.1. A re-cut baseline carries no translation
+migration, which is why every pre-freeze re-cut required dropping and recreating any database
+built from the previous one.
 
-**Every reset bumps the baseline stamp.** It lives in two places and both must move together:
+**The stamp lives in two places and both always moved together:**
 
 - `SqlDdlDialect.BaselineStamp` (`tools/Acta.Emit`), written into the generated `M001` bodies.
 - `SchemaMigrationRunner.RequiredBaselineStamp` (`src/Acta.Relational`), required at bootstrap.
