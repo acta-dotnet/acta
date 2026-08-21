@@ -487,7 +487,7 @@
 <span class="k">from</span> acta.jobs_view
 <span class="k">where</span> status <span class="k">in</span> (<span class="s">'dispatched'</span>, <span class="s">'executing'</span>);</code></pre>
           </div>
-          <p class="pair-note">Jobs, attempts, leases, events, schedules, checkpoints, workers, alerts: all rows, with curated operator views. A job that failed a month ago is still there to inspect, and to restart with its original input.</p>
+          <p class="pair-note">Jobs, attempts, leases, events, schedules, checkpoints, workers, alerts: all rows, with curated operator views. A job that failed a month ago is still there to inspect, and to restart with its stored input.</p>
         </div>
       </div>
 
@@ -679,7 +679,7 @@
             <li><b>Leases with automatic lapse</b>: leaderless reclaim &amp; retry</li>
             <li><b>Survives crashes,</b> deployments, restarts</li>
             <li><b>Explain</b>: a job tells you why, and what next</li>
-            <li><b>Restart month-old failures</b> with original input</li>
+            <li><b>Restart month-old failures</b> with stored input</li>
             <li><b>Failure alerts</b>: queryable rows</li>
           </ul>
         </div>
@@ -773,7 +773,7 @@
           <div class="ref-row"><dt>Payload codecs</dt><dd>JSON, text, and bytes ship built in; the serializer registry is pluggable per job, with worked MessagePack and gzip examples in the concepts.</dd></div>
           <div class="ref-row"><dt>Redis as a bell, only</dt><dd>Optional <code>Acta.Redis</code> wakes idle workers faster. It is never a source of truth: lose Redis and you degrade to polling, not to data loss.</dd></div>
           <div class="ref-row"><dt>Anvil · the failure lab</dt><dd>The bundled load-and-failure laboratory: enqueue a million jobs, kill real worker processes mid-flight, and watch leases lapse and recovery reclaim the work, on your machine.</dd></div>
-          <div class="ref-row"><dt>Published baselines</dt><dd>The benchmark matrix and its methodology ship in the repo, with dated results on documented hardware: one worker on the conservative Buffered profile measured 3,855 end-to-end jobs/s on PostgreSQL and 3,087 on SQL Server (2026-07-31 baseline, 32-core NVMe rig). Regression evidence and rough sizing, not capacity promises: re-run it on yours.</dd></div>
+          <div class="ref-row"><dt>Published baselines</dt><dd>The benchmark matrix and its methodology ship in the repo, with dated results on documented hardware: one worker at 32 concurrent executors on the conservative Buffered profile measured 3,855 end-to-end jobs/s on PostgreSQL and 3,087 on SQL Server (2026-07-31 baseline, 32 logical cores, NVMe). Regression evidence and rough sizing, not capacity promises: re-run it on yours.</dd></div>
         </dl>
 
         <h3 class="ref-group">Policy &amp; operations</h3>
