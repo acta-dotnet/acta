@@ -88,6 +88,12 @@ jobs:
       - name: npm run build
         working-directory: src/Acta.AspNetCore/DashboardApp
         run: npm run build
+      # The dist is embedded in the NuGet package, so bundle size is package size. This fails the
+      # build when the bundle grows past the budget in scripts/size-budget.mjs, which also records
+      # why the dashboard ships as one file rather than split chunks.
+      - name: Dashboard size budget
+        working-directory: src/Acta.AspNetCore/DashboardApp
+        run: npm run size
       - name: Verify dashboard assets
         run: test -f src/Acta.AspNetCore/DashboardApp/dist/index.html
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

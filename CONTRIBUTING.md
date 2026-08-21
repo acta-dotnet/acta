@@ -157,11 +157,16 @@ cd src/Acta.AspNetCore/DashboardApp
 npm ci
 npm test                 # helpers + component tests
 npm run build            # emits the hashed assets the .NET build embeds
+npm run size             # holds the bundle to its budget; CI runs this after the build
 ```
 
 `npm run test:smoke` runs the Playwright smoke against a live host. The .NET build runs the npm
 build automatically; pass `-p:ActaDashboardSkipNpm=true` to skip it when you have not touched the
 dashboard. Restart any running host after `npm run build` to pick up new assets.
+
+The dist is embedded in the NuGet package, so bundle size is package size, and the dashboard ships
+as one JS file on purpose. `npm run size` fails when the bundle grows past its budget;
+`scripts/size-budget.mjs` carries both the budget and the reasoning behind the single-file build.
 
 ## Schema and generated-file workflow
 
@@ -185,7 +190,7 @@ The canonical sequence (CI runs the same steps):
 ```bash
 dotnet tool restore
 dotnet restore Acta.slnx
-cd src/Acta.AspNetCore/DashboardApp && npm ci && npm test && npm run build && cd -
+cd src/Acta.AspNetCore/DashboardApp && npm ci && npm test && npm run build && npm run size && cd -
 dotnet build Acta.slnx -c Release -p:ActaDashboardSkipNpm=true
 docker compose up -d --wait --wait-timeout 300
 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
