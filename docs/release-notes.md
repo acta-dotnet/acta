@@ -187,9 +187,16 @@ arms: database time, replay-stable, never extended by restarts or worker downtim
 carries it in `next_run_at_utc`, so the ordinary claim path wakes the job at expiry — no sweeper,
 no new system job. Completion and timeout race under the slot's own lock, completion-first wins,
 and an expired slot is terminal: late signals and late child outcomes are recorded on the timeline
-but no longer applied. Two persisted codes are new (`job.wait-timed-out`; checkpoint status
+but no longer applied — and a wait re-entered over an already-expired slot resolves timed-out,
+which for the unbounded overloads means the job is cancelled rather than parked forever on a wait
+that can no longer complete. Two persisted codes are new (`job.wait-timed-out`; checkpoint status
 `expired`), the claim index gained `status_code` as a trailing column, and `Explain` prints a
 bounded wait's "times out at".
+
+Two small surface notes for implementers of Acta's extension points: the protected
+`SignalWaitOutcome` record gained a third positional member, so a subclass deconstructing it
+positionally updates its pattern; and `IActaTestHost` gained a member, so an external test-host
+implementation adds it. Both are recorded in the API baseline.
 
 ### Breaking: automatic alert dedup is incident identity, not a time window
 
