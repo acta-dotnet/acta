@@ -140,7 +140,7 @@ public sealed class JobDetailEndpointTests
     }
 
     [Fact]
-    public async Task Detail_for_a_missing_or_malformed_job_is_404()
+    public async Task Detail_for_a_missing_job_is_404_and_for_a_malformed_ref_is_400()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var host = app;
@@ -150,7 +150,7 @@ public sealed class JobDetailEndpointTests
         var malformed = await client.GetAsync("/acta/api/v1/jobs/42/detail", ct);
 
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
     }
 
     [Fact]

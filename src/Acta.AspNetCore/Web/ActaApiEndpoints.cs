@@ -270,7 +270,7 @@ internal static class ActaApiEndpoints
                 {
                     if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                     {
-                        return NotFound();
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     var snapshot = await jobs.GetAsync(lookup, ct);
@@ -290,7 +290,7 @@ internal static class ActaApiEndpoints
                 {
                     if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                     {
-                        return NotFound();
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     var snapshot = await jobs.GetAsync(lookup, ct);
@@ -327,7 +327,7 @@ internal static class ActaApiEndpoints
                 {
                     if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                     {
-                        return NotFound();
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     var snapshot = await jobs.GetAsync(lookup, ct);
@@ -758,7 +758,7 @@ internal static class ActaApiEndpoints
                 {
                     if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
                     {
-                        return Task.FromResult(NotFound());
+                        return Task.FromResult(RefSegment.Malformed("jobRef", "job"));
                     }
 
                     string? error = null;
@@ -1085,7 +1085,7 @@ internal static class ActaApiEndpoints
                     {
                         if (!WorkerRef.TryParse(workerRef, out var parsed))
                         {
-                            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.");
+                            return RefSegment.Malformed("workerRef", "worker");
                         }
 
                         var worker = await operations.Workers.GetAsync(parsed, ct);
@@ -1195,7 +1195,7 @@ internal static class ActaApiEndpoints
                     {
                         if (!AlertRef.TryParse(alertRef, out var parsed))
                         {
-                            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert not found.");
+                            return RefSegment.Malformed("alertRef", "alert");
                         }
 
                         var alert = await operations.Alerts.GetAsync(parsed, ct);

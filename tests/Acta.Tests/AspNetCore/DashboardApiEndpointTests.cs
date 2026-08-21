@@ -216,9 +216,10 @@ public sealed class DashboardApiEndpointTests
         // The numeric alert id and its subject job id are engine internals, not wire identity.
         Assert.DoesNotContain("\"alertId\"", body);
         Assert.DoesNotContain("\"jobId\"", body);
-        // A malformed ref cannot name a row, so it reads the same way an unknown one does.
+        // An unknown ref is addressable and simply absent; a malformed one is caller input. They
+        // answer differently so a client tells the two apart by the status code alone.
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
     }
 
     [Fact]
@@ -277,7 +278,7 @@ public sealed class DashboardApiEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
     }
 
     // Explain, lineage, and the per-panel result/checkpoint reads folded into GET /jobs/{ref}/detail
@@ -302,14 +303,17 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Numeric_id_lookup_is_404_when_disabled_by_default()
+    // Off by default, an id: target is not a form this API addresses, so it is rejected as malformed
+    // rather than answered as a miss - the numeric id still never becomes a second identity, and now
+    // the refusal says so instead of impersonating an absent row.
+    public async Task Numeric_id_lookup_is_rejected_when_disabled_by_default()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
         var byId = await client.GetAsync("/acta/api/v1/jobs/id:42", TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, byId.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, byId.StatusCode);
     }
 
     [Fact]
@@ -328,8 +332,10 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
         Assert.Contains($"\"jobRef\":\"{Found}\"", body);
         Assert.DoesNotContain("\"jobId\"", body);
+        // id:99 is a form this host addresses and names no row, so it is the miss; a bare integer is
+        // not a form it addresses at all, whatever the option says, so it stays malformed input.
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, bare.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, bare.StatusCode);
         Assert.Equal(HttpStatusCode.OK, events.StatusCode);
     }
 
@@ -357,7 +363,7 @@ public sealed class DashboardApiEndpointTests
         var knownRef = TestDashboardHost.FakeJobs.KnownWorkerRef;
         var known = await client.GetAsync($"/acta/api/v1/workers/{knownRef}", ct);
         var missing = await client.GetAsync($"/acta/api/v1/workers/{WorkerRef.New()}", ct);
-        var malformed = await client.GetAsync("/acta/api/v1/workers/nope", ct);
+        var malformed = await client.GetAsync("/acta/api/v1/workers/not-a-ref", ct);
         var body = await known.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
@@ -366,7 +372,7 @@ public sealed class DashboardApiEndpointTests
         Assert.Contains("\"jobNamespace\":\"billing\"", body);
         Assert.Contains("\"lastHeartbeatAtUtc\":", body);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, malformed.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
     }
 
     [Fact]

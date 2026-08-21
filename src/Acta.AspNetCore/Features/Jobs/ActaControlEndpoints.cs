@@ -72,7 +72,7 @@ internal static class ActaControlEndpoints
                 {
                     if (!JobRef.TryParse(jobRef, out var parsed))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
@@ -211,7 +211,7 @@ internal static class ActaControlEndpoints
                 {
                     if (!JobRef.TryParse(jobRef, out var parsed))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
@@ -270,7 +270,7 @@ internal static class ActaControlEndpoints
                 {
                     if (!JobRef.TryParse(jobRef, out var parsed))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
@@ -331,7 +331,7 @@ internal static class ActaControlEndpoints
                 {
                     if (!JobRef.TryParse(jobRef, out var parsed))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
@@ -404,7 +404,7 @@ internal static class ActaControlEndpoints
                 {
                     if (!JobRef.TryParse(jobRef, out var parsed))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                        return RefSegment.Malformed("jobRef", "job");
                     }
 
                     var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);

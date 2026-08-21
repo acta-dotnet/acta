@@ -164,14 +164,18 @@ public sealed class ControlEndpointTests
     [InlineData("12345")]
     [InlineData("job_nope")]
     [InlineData("job_zn1t201rmv87aae5j4csam8000")]
-    public async Task Malformed_job_ref_is_404(string jobRef)
+    public async Task Malformed_job_ref_is_400(string jobRef)
     {
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{jobRef}/pause"), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        // A ref the API cannot parse is caller input, not a miss: 404 means an addressable ref that
+        // names no row, which is what lets the 404 carry the family envelope.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("jobRef is not a valid job ref.", body);
     }
 
     [Fact]

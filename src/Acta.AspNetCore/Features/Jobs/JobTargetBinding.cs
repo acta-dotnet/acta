@@ -4,7 +4,9 @@ namespace Acta.AspNetCore.Features.Jobs;
 /// Parses a ref-addressed route target into a <see cref="JobLookup"/>. A <c>job_...</c> value is
 /// always accepted as a <see cref="JobRef"/>; an <c>id:&lt;n&gt;</c> value resolves to the internal
 /// numeric id only when the host set <see cref="ActaEndpointOptions.EnableNumericIdLookup"/>.
-/// Anything else (including a bare integer) returns false, which callers map to 404.
+/// Anything else (including a bare integer, and an <c>id:</c> value where the option is off) returns
+/// false, which callers map to the 400 <see cref="Web.RefSegment"/> defines: the target as written
+/// is not addressable, which is a caller error, not a miss.
 /// </summary>
 internal static class JobTargetBinding
 {

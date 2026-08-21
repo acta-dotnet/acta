@@ -45,7 +45,7 @@ internal static class AlertControlEndpoints
                 {
                     if (!AlertRef.TryParse(alertRef, out var parsed))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert not found.");
+                        return RefSegment.Malformed("alertRef", "alert");
                     }
 
                     var (note, error) = await ControlEndpointValidation.ReadOptionalTextAsync(

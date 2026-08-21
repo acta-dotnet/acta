@@ -42,6 +42,9 @@ public sealed class ControlContractTests
     private static readonly string UnknownAlert = default(AlertRef).ToString();
     private static readonly string KnownWorker = TestDashboardHost.FakeJobs.KnownWorkerRef.ToString();
 
+    /// <summary>The shared error model every route under the API group declares.</summary>
+    private static readonly Type Problem = typeof(Microsoft.AspNetCore.Mvc.ProblemDetails);
+
     /// <summary>The control statuses this contract covers: the ones that carry a family envelope.</summary>
     private static readonly int[] OutcomeStatuses =
     [
@@ -110,7 +113,35 @@ public sealed class ControlContractTests
         .. Tags("/alerts/{alertRef}", $"/alerts/{KnownAlert}"),
         .. Tags("/namespaces/{jobNamespace}", "/namespaces/billing"),
         .. Tags("/tenants/{tenantKey}", "/tenants/cust-001"),
+        .. MalformedRefs(),
     ];
+
+    /// <summary>
+    /// The other half of the split, one row per branch that parses a ref-typed route segment. A ref
+    /// this API cannot parse names nothing, and it is caller input, so it is a 400 problem document -
+    /// which is what leaves 404 free to mean an addressable ref that is simply not there, and lets
+    /// the families above declare one envelope for their whole 404.
+    /// </summary>
+    private static IEnumerable<Case> MalformedRefs()
+    {
+        static Case Row(string family, string route, string method, string path, object? body) =>
+            new(family, route, method, "malformedRef", path, StatusCodes.Status400BadRequest, Problem, null, body);
+
+        object upsert = new { name = "env", value = "prod" };
+        return
+        [
+            Row("jobs", "/jobs/{jobRef}/pause", "POST", "/jobs/not-a-ref/pause", Reason),
+            Row("jobs", "/jobs/{jobRef}/reschedule", "POST", "/jobs/not-a-ref/reschedule", Reason),
+            Row("jobs", "/jobs/{jobRef}/reprioritize", "POST", "/jobs/not-a-ref/reprioritize", Reason),
+            Row("jobs", "/jobs/{jobRef}/input", "POST", "/jobs/not-a-ref/input", Reason),
+            Row("jobs", "/jobs/{jobRef}/signals/{signalName}", "POST", "/jobs/not-a-ref/signals/approval", null),
+            Row("alerts", "/alerts/{alertRef}/acknowledge", "POST", "/alerts/not-a-ref/acknowledge", Reason),
+            Row("alerts", "/alerts/{alertRef}/resolve", "POST", "/alerts/not-a-ref/resolve", Reason),
+            Row("tags", "/jobs/{jobRef}/tags", "POST", "/jobs/not-a-ref/tags", upsert),
+            Row("tags", "/workers/{workerRef}/tags", "POST", "/workers/not-a-ref/tags", upsert),
+            Row("tags", "/alerts/{alertRef}/tags", "POST", "/alerts/not-a-ref/tags", upsert),
+        ];
+    }
 
     // Applied, rejected, and not-found at one job route: the fake answers by ref, so the three
     // outcomes are three refs against the same verb.
@@ -464,7 +495,11 @@ public sealed class ControlContractTests
         var exercised = new HashSet<Declaration>(Table.Select(row => new Declaration(row.Route, row.Method, row.Status, row.Declared)));
         var control = Declarations(controls)
             .Where(d => !readSurface.Contains($"{d.Method} {d.Route}") && !NotAnOutcome.Contains($"{d.Method} {d.Route}"))
-            .Where(d => OutcomeStatuses.Contains(d.Status))
+            // ProblemDetails is the shared error model, declared once at the API group for every
+            // route at once (400, 403, 413, 500, 503) rather than as a family's own outcome, so
+            // requiring a request per route for each would be requiring a fault per route. The
+            // malformed-ref rows exercise the one problem status this table does own.
+            .Where(d => OutcomeStatuses.Contains(d.Status) && d.Type != Problem)
             .ToList();
         var unexercised = control
             .Where(d => !exercised.Contains(d))
@@ -513,9 +548,7 @@ public sealed class ControlContractTests
             .. Mapped(app)
                 .SelectMany(e =>
                     e.Endpoint.Metadata.OfType<IProducesResponseTypeMetadata>()
-                        // The problem declarations are the other half of the contract and carry
-                        // application/problem+json; this reads the JSON bodies the families own.
-                        .Where(m => m.Type is not null && m.ContentTypes.Contains("application/json"))
+                        .Where(m => m.Type is not null)
                         .SelectMany(m => e.Methods.Select(method => new Declaration(e.Route, method, m.StatusCode, m.Type!)))
                 ),
         ];
@@ -549,8 +582,11 @@ public sealed class ControlContractTests
     /// <summary>
     /// What the wire and the declared type disagree about, or null when they agree. Deserializing is
     /// not enough on its own - a problem document deserializes into a control response as a record of
-    /// defaults - so this round-trips through the server's own contract and compares the member names:
-    /// the declared type has to account for every member on the wire and add none.
+    /// defaults - so this round-trips through the server's own contract and compares member names:
+    /// every member on the wire has to be one the declared type declares. Not the reverse, because
+    /// ProblemDetails writes only the members it was given while the source-generated envelopes write
+    /// all of theirs; one direction is the property that matters anyway, since it is what makes a body
+    /// describable by what the document promised.
     /// </summary>
     private static string? Mismatch(string body, Case row)
     {
@@ -582,9 +618,14 @@ public sealed class ControlContractTests
 
         var declared = Names((JsonObject)JsonNode.Parse(JsonSerializer.Serialize(value, typeInfo))!);
         var onTheWire = Names(sent);
-        if (!onTheWire.SetEquals(declared))
+        if (!onTheWire.IsSubsetOf(declared))
         {
             return $"the body carries [{Listed(onTheWire)}] where {row.Declared.Name} carries [{Listed(declared)}]. Body: {body}";
+        }
+
+        if (row.Declared == Problem && sent["status"]?.GetValue<int>() != row.Status)
+        {
+            return $"the problem document reports status '{sent["status"]}', expected {row.Status}.";
         }
 
         if (row.Action is { } action && sent["action"]?.GetValue<string>() != action)

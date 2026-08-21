@@ -46,8 +46,14 @@ public sealed class TagEndpointTests
         }
     }
 
+    /// <summary>
+    /// The read side of the one rule: only a target this API can address reaches the store, so only
+    /// it can be a miss. A malformed ref and a malformed catalog identifier are both caller input and
+    /// answer 400 - the same answer the mutations already gave the identifier, now given on reads and
+    /// to refs too.
+    /// </summary>
     [Fact]
-    public async Task Get_tags_maps_unknown_target_to_404()
+    public async Task Get_tags_maps_an_addressable_unknown_target_to_404_and_a_malformed_one_to_400()
     {
         var jobs = new TestDashboardHost.FakeJobs();
         jobs.TagsFake.Current = null;
@@ -59,8 +65,8 @@ public sealed class TagEndpointTests
         var invalidName = await client.GetAsync("/acta/api/v1/namespaces/Bad_NS!/tags", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, malformedRef.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, invalidName.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, malformedRef.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidName.StatusCode);
     }
 
     /// <summary>

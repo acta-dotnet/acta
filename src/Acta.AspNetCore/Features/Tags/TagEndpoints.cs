@@ -11,16 +11,26 @@ internal sealed record TagUpsertRequest(string? Name, string? Value);
 /// Per-entity tag subresources over <see cref="ITags"/>: GET reads on every taggable dashboard
 /// entity, and control-gated POST (upsert) / DELETE (remove) verbs. Patterns and route parameters are
 /// spelled out per endpoint so the Request Delegate Generator can bind them; shared logic lives in the
-/// read/mutate helpers. A syntactically invalid target reads as 404 (it cannot exist). On mutation an
-/// invalid catalog identifier (namespace/tenant/schedule/definition) is a 400, while a malformed entity
-/// ref (job, worker, alert) is a 404, matching how every other ref-addressed endpoint treats one.
+/// read/mutate helpers.
 /// </summary>
+/// <remarks>
+/// One rule decides the target's answer, and it is the API-wide one: a target this API cannot
+/// address is malformed input and answers 400, whether it is a catalog identifier
+/// (namespace/tenant/schedule/definition) or an entity ref (job, worker, alert), and whether the
+/// route reads or mutates. That leaves 404 saying the one thing worth saying - the target was
+/// addressable and carries no tag set, or the mutation matched no row - so a caller can tell "you
+/// wrote it wrong" from "it is not there" by the status code alone. Every resolver therefore reports
+/// a target it cannot build as <see cref="ArgumentException"/>, and the two helpers below turn that
+/// into the 400 in one place.
+/// </remarks>
 internal static class TagEndpoints
 {
     public static void MapReads(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
         // A nested empty-prefix group so the seven reads declare their one shared contract once. They
-        // all funnel through ReadTags, so they all answer the same two ways.
+        // all funnel through ReadTags, so they all answer the same ways: the tag list, the 404 for an
+        // addressable target that carries none, and the group-wide 400 for a target that is not
+        // addressable at all.
         var group = outer.MapGroup("");
         group.ProducesJson<IReadOnlyList<TagItem>>();
         group.ProducesProblem(StatusCodes.Status404NotFound);
@@ -28,7 +38,8 @@ internal static class TagEndpoints
         group
             .MapGet(
                 "/jobs/{jobRef}/tags",
-                (string jobRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, JobTarget(jobRef, options), ct)
+                (string jobRef, IActaOperations operations, CancellationToken ct) =>
+                    ReadTags(operations, () => JobTarget(jobRef, options), ct)
             )
             .WithSummary("Read the job's tags.");
         group
@@ -37,40 +48,41 @@ internal static class TagEndpoints
                 (string jobNamespace, string jobName, IActaOperations operations, CancellationToken ct) =>
                     DefinitionKeyError(jobNamespace, jobName) is { } invalid
                         ? Task.FromResult(invalid)
-                        : ReadTags(operations, TagTarget.ForDefinition(jobNamespace, jobName), ct)
+                        : ReadTags(operations, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
             )
             .WithSummary("Read the definition's tags.");
         group
             .MapGet(
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
                 (string jobNamespace, string jobName, string scheduleName, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, ResolveOrNull(() => ScheduleTarget(jobNamespace, jobName, scheduleName)), ct)
+                    ReadTags(operations, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
             )
             .WithSummary("Read the schedule's tags.");
         group
             .MapGet(
                 "/workers/{workerRef}/tags",
-                (string workerRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, WorkerTarget(workerRef), ct)
+                (string workerRef, IActaOperations operations, CancellationToken ct) =>
+                    ReadTags(operations, () => WorkerTarget(workerRef), ct)
             )
             .WithSummary("Read the worker's tags.");
         group
             .MapGet(
                 "/alerts/{alertRef}/tags",
-                (string alertRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, AlertTarget(alertRef), ct)
+                (string alertRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, () => AlertTarget(alertRef), ct)
             )
             .WithSummary("Read the alert's tags.");
         group
             .MapGet(
                 "/namespaces/{jobNamespace}/tags",
                 (string jobNamespace, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, ResolveOrNull(() => TagTarget.ForNamespace(jobNamespace)), ct)
+                    ReadTags(operations, () => TagTarget.ForNamespace(jobNamespace), ct)
             )
             .WithSummary("Read the namespace's tags.");
         group
             .MapGet(
                 "/tenants/{tenantKey}/tags",
                 (string tenantKey, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, ResolveOrNull(() => TagTarget.ForTenant(tenantKey)), ct)
+                    ReadTags(operations, () => TagTarget.ForTenant(tenantKey), ct)
             )
             .WithSummary("Read the tenant's tags.");
     }
@@ -78,8 +90,9 @@ internal static class TagEndpoints
     public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
         // Same shape for all fourteen mutations: every one resolves a target then applies, so an
-        // applied change and an unresolvable or unmatched target both answer with the same
-        // AdminControlResponse and a client reads `action` without special-casing the status code.
+        // applied change and a target the write matched no row for both answer with the same
+        // AdminControlResponse and a client reads `action` without special-casing the status code. A
+        // target that is not addressable never gets that far; it is the group-wide 400.
         var group = outer.MapGroup("");
         group.ProducesJson<AdminControlResponse>();
         group.ProducesJson<AdminControlResponse>(StatusCodes.Status404NotFound);
@@ -216,22 +229,18 @@ internal static class TagEndpoints
             .WithSummary("Remove one tag from the tenant.");
     }
 
-    private static async Task<IResult> ReadTags(IActaOperations operations, TagTarget? target, CancellationToken ct)
+    private static async Task<IResult> ReadTags(IActaOperations operations, Func<TagTarget> resolve, CancellationToken ct)
     {
-        if (target is null)
-        {
-            return NotFound();
-        }
-
         TagSet? set;
         try
         {
-            set = await operations.Tags.GetAsync(target, ct);
+            // Both the resolver and the service canonicalize identifiers, and either can report one
+            // this API cannot address; that is caller input, so it is the 400 and never a miss.
+            set = await operations.Tags.GetAsync(resolve(), ct);
         }
-        catch (ArgumentException)
+        catch (ArgumentException ex)
         {
-            // The service canonicalizes lookup identifiers; a syntactically invalid one cannot exist.
-            return NotFound();
+            return InvalidTarget(ex);
         }
 
         return set is null ? NotFound() : Results.Json(set.Items, DashboardJsonContext.Default.IReadOnlyListTagItem);
@@ -241,7 +250,7 @@ internal static class TagEndpoints
         HttpContext http,
         IActaOperations operations,
         ActaEndpointOptions options,
-        Func<TagTarget?> resolve,
+        Func<TagTarget> resolve,
         CancellationToken ct
     )
     {
@@ -265,7 +274,7 @@ internal static class TagEndpoints
         HttpContext http,
         IActaOperations operations,
         ActaEndpointOptions options,
-        Func<TagTarget?> resolve,
+        Func<TagTarget> resolve,
         string tagName,
         CancellationToken ct
     )
@@ -275,17 +284,11 @@ internal static class TagEndpoints
             : await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct));
     }
 
-    private static async Task<IResult> Mutate(Func<TagTarget?> resolve, Func<TagTarget, ValueTask<TagMutationResult>> apply)
+    private static async Task<IResult> Mutate(Func<TagTarget> resolve, Func<TagTarget, ValueTask<TagMutationResult>> apply)
     {
         try
         {
-            var target = resolve();
-            if (target is null)
-            {
-                return MutationNotFound();
-            }
-
-            var result = await apply(target);
+            var result = await apply(resolve());
             return result.IsApplied
                 ? Results.Json(
                     new AdminControlResponse(AdminControlAction.Applied, null),
@@ -295,12 +298,20 @@ internal static class TagEndpoints
         }
         catch (ArgumentException ex)
         {
-            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", ex.Message);
+            return InvalidTarget(ex);
         }
     }
 
-    private static TagTarget? JobTarget(string jobRef, ActaEndpointOptions options) =>
-        JobTargetBinding.TryParseTarget(jobRef, options, out var lookup) ? TagTarget.ForJob(lookup) : null;
+    private static IResult InvalidTarget(ArgumentException ex) =>
+        ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", ex.Message);
+
+    // The three ref-addressed targets. A ref that does not parse names nothing, and it is caller
+    // input, so it reports the same way a malformed catalog identifier already did and the helpers
+    // above answer both with the 400.
+    private static TagTarget JobTarget(string jobRef, ActaEndpointOptions options) =>
+        JobTargetBinding.TryParseTarget(jobRef, options, out var lookup)
+            ? TagTarget.ForJob(lookup)
+            : throw new ArgumentException("jobRef is not a valid job ref.", nameof(jobRef));
 
     /// <summary>
     /// The 400 for a definition key this API cannot address, or null when the key is usable.
@@ -322,28 +333,18 @@ internal static class TagEndpoints
         }
     }
 
-    // A malformed entity ref cannot name a row, so it reads as 404 exactly like an unknown job ref.
-    private static TagTarget? WorkerTarget(string workerRef) =>
-        WorkerRef.TryParse(workerRef, out var parsed) ? TagTarget.ForWorker(parsed) : null;
+    private static TagTarget WorkerTarget(string workerRef) =>
+        WorkerRef.TryParse(workerRef, out var parsed)
+            ? TagTarget.ForWorker(parsed)
+            : throw new ArgumentException("workerRef is not a valid worker ref.", nameof(workerRef));
 
-    private static TagTarget? AlertTarget(string alertRef) =>
-        AlertRef.TryParse(alertRef, out var parsed) ? TagTarget.ForAlert(parsed) : null;
+    private static TagTarget AlertTarget(string alertRef) =>
+        AlertRef.TryParse(alertRef, out var parsed)
+            ? TagTarget.ForAlert(parsed)
+            : throw new ArgumentException("alertRef is not a valid alert ref.", nameof(alertRef));
 
     private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
         TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));
-
-    /// <summary>Resolve a target for a read, mapping a malformed identifier to null (a 404) rather than a fault.</summary>
-    private static TagTarget? ResolveOrNull(Func<TagTarget> factory)
-    {
-        try
-        {
-            return factory();
-        }
-        catch (ArgumentException)
-        {
-            return null;
-        }
-    }
 
     // A read has no envelope to answer with - its 200 is the tag list itself - so an unknown target
     // there is the plain problem document every other read returns.

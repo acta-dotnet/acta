@@ -140,7 +140,7 @@ public sealed class SignalEndpointTests
     }
 
     [Fact]
-    public async Task Malformed_job_ref_is_404()
+    public async Task Malformed_job_ref_is_400()
     {
         var jobs = new TestDashboardHost.FakeJobs();
         var (app, client) = await StartAsync(jobs);
@@ -148,7 +148,7 @@ public sealed class SignalEndpointTests
 
         var response = await client.SendAsync(Post("not-a-ref", "go"), TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(jobs.SignalCalls);
     }
 
