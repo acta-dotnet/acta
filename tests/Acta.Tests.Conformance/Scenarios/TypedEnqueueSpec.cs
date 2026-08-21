@@ -36,9 +36,11 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
 
     // The WaitTimeout fact's two knobs, named so the assertions can quote them. The interval sits far
     // above the wait budget, which is what makes "clamped or not" a visible difference. The budget is
-    // pure dead time - no worker runs in that fact, so the call always sleeps it in full before
-    // timing out - and every assertion holds at any budget value, so a bigger number would buy
-    // nothing but a slower suite.
+    // dead time - no worker runs in that fact, so nothing ends the wait early and the call can only
+    // return timed out - but it does not guarantee a wait was issued: the status round-trips are
+    // charged against the same budget, so a loaded runner can exhaust it before the loop sleeps once,
+    // which is why the fact retries. Every assertion holds at any budget value, so a bigger number
+    // would buy nothing but a slower suite.
     private static readonly TimeSpan WaitTimeout = TimeSpan.FromMilliseconds(500);
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
@@ -257,23 +259,36 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         // WaitTimeout. What the clamp does is decide how long each completion wait ASKS to sleep, and
         // the probe reports exactly that: the fact is that no wait was issued for the poll interval,
         // read off the call the loop made rather than inferred from how long this test took, which a
-        // loaded runner can stretch without the clamp being wrong.
-        var start = Stopwatch.GetTimestamp();
-        var outcome = await Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
-            new AddNumbers(1, 2),
-            new JobExecutionOptions { WaitTimeout = WaitTimeout, PollInterval = PollInterval },
-            ct
-        );
+        // loaded runner can stretch without the clamp being wrong. That same load can leave nothing to
+        // read: the budget also pays for the status round-trips, so a slow one exhausts it and the call
+        // times out honestly before issuing a single wait. So the call is repeated until an attempt
+        // does issue one, and every assertion below reads that attempt's own values.
+        IReadOnlyList<TimeSpan> requestedWaits = [];
+        var elapsed = TimeSpan.Zero;
+        for (var attempt = 0; attempt < 10 && requestedWaits.Count == 0; attempt++)
+        {
+            var issuedBefore = _wakeup.RequestedTimeoutsOn(WorkerWakeupChannelKind.JobCompletion).Count;
+            var start = Stopwatch.GetTimestamp();
+            var outcome = await Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
+                new AddNumbers(1, 2),
+                new JobExecutionOptions { WaitTimeout = WaitTimeout, PollInterval = PollInterval },
+                ct
+            );
+            elapsed = Stopwatch.GetElapsedTime(start);
 
-        Assert.True(outcome.IsTimedOut);
+            // Not timing-sensitive at any load: nothing can complete this job, so timed out is the
+            // only outcome the call has.
+            Assert.True(outcome.IsTimedOut);
+
+            requestedWaits = [.. _wakeup.RequestedTimeoutsOn(WorkerWakeupChannelKind.JobCompletion).Skip(issuedBefore)];
+        }
 
         // Assert.All passes on an empty collection, so the clamp has to be shown to have been reached
         // before it can be read: no completion wait issued at all means the wait took some other
         // delay path and the clamp was never exercised, which is a regression rather than a pass.
-        var requestedWaits = _wakeup.RequestedTimeoutsOn(WorkerWakeupChannelKind.JobCompletion);
         Assert.True(
             requestedWaits.Count > 0,
-            "RunAndWaitAsync issued no completion wait at all, so the poll-interval clamp was never exercised."
+            "RunAndWaitAsync issued no completion wait on any of 10 attempts, so the poll-interval clamp was never exercised."
         );
         Assert.All(
             requestedWaits,
@@ -284,10 +299,9 @@ public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture,
                 )
         );
 
-        // And the call itself did not sleep one either, which is the same statement about the call
-        // rather than about the waits inside it. The bound is the poll interval, so only the
-        // regression can trip it - no elapsed time a slow machine can produce is close.
-        var elapsed = Stopwatch.GetElapsedTime(start);
+        // And that call did not sleep one either, which is the same statement about the call rather
+        // than about the waits inside it. The bound is the poll interval, so only the regression can
+        // trip it - no elapsed time a slow machine can produce is close.
         Assert.True(elapsed < PollInterval, $"RunAndWaitAsync took {elapsed} against a {WaitTimeout} WaitTimeout.");
     }
 
