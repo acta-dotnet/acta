@@ -15,12 +15,15 @@ public enum AlertProfileCode : byte
     )]
     OnFailure = 10,
 
-    [Code("info", "Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal.")]
+    [Code(
+        "info",
+        "Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal. Resolves on recovery, which the projector reads from the Job's success event, so an audit level below audit leaves the incident open."
+    )]
     Info = 20,
 
     [Code(
         "on-terminal",
-        "Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step. Resolves on recovery. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those."
+        "Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step. Resolves on recovery, which the projector reads from the Job's success event, so an audit level below audit leaves the incident open. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those."
     )]
     OnTerminal = 30,
 
