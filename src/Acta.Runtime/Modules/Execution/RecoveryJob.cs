@@ -35,8 +35,9 @@ internal sealed class RecoveryJob(
     /// jobs and raises stale child latches for the firing namespace. <c>AuditLevel.Failures</c> keeps
     /// idle ticks out of <c>events</c>: reclaim emits per-job orphaned <c>job.execution-finished</c>
     /// events on affected jobs, so a quiet pass writes nothing. A pass that reclaimed jobs publishes a
-    /// wakeup: the reclaimed rows are Ready and their original worker is gone, so a live worker should
-    /// pick them up without waiting out the safety poll.
+    /// wakeup: the reclaimed rows are claimable - Ready, or Suspended on a deadline already past for
+    /// the one arm that re-arms a resolved wait uncharged - and their original worker is gone, so a
+    /// live worker should pick them up without waiting out the safety poll.
     /// </summary>
     [Job(
         "sys.recovery",

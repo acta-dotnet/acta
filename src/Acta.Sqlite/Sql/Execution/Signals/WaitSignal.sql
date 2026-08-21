@@ -6,6 +6,8 @@
 /* Nothing here reads a captured pre-state, so a first arrival that loses the insert needs no re-read
    the way pg's routine does: the arming update below applies to whatever row now stands, and the
    final SELECT reports it settled. */
+/* A wait this call armed suspends once, even with an already-elapsed deadline: the flip runs before
+   the arm, so only a wait armed by an earlier call can expire. Pg and mssql state the same rule. */
 UPDATE {{schema}}.checkpoints
 SET
     status_code = 30 /* JobCheckpointStatusCode.Expired */,

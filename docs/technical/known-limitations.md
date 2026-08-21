@@ -38,13 +38,18 @@ wait that can no longer complete. A deadline introduced by a code upgrade arms o
 is next claimed, so a job already suspended under the old unbounded code needs one operator
 reschedule before the new bound takes effect.
 
-Reclaiming a worker that crashed after a timeout durably resolved re-arms the job on its unchanged
-deadline without charging retry budget, so the replay lands the honest timed-out outcome with the
-budget the feature promised untouched. The cost of that promise: a worker that crashes
-deterministically on every such replay loops without consuming budget — visible as the job
-ping-ponging between suspended and claimed, and ended by an operator cancel. Bounding that loop
-would require persisting which overload armed the wait; rc.1 chooses the unbounded-but-visible
-loop over a budget charge that would break the promise for every ordinary crash.
+Reclaiming a worker that died while a resolved timeout was being acted on re-arms the job on its
+unchanged deadline without charging retry budget, so the replay lands the honest timed-out outcome
+with the budget the feature promised untouched. The match is deliberately wide: any lease death
+while the job's cached wake instant still points at the expired slot — which is the whole
+resolving attempt, including work a `Try` handler does after the wait returned — re-arms uncharged
+rather than burning budget on the feature's own promise. The cost: a worker that crashes
+deterministically on every such replay loops without consuming budget. The loop is loud, twice
+over — each uncharged reclaim projects a non-terminal failure into the job's own alert incident,
+which re-notifies on the reminder interval for as long as the loop runs, and the job visibly
+ping-pongs between suspended and claimed — and an operator cancel ends it at any phase. Bounding
+it automatically would require persisting which overload armed the wait; rc.1 chooses the loud
+unbounded loop over a budget charge that would break the promise for every ordinary crash.
 
 No durable executor can guarantee exactly-once effects against arbitrary external systems. Acta gives
 you at-least-once jobs, checkpointed durable steps, deduplication keys, and `AtMostOnce()` step

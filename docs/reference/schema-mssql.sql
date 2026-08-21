@@ -6168,6 +6168,8 @@ GO
 /* The read below needs no re-read after a lost insert the way pg's does: (UPDLOCK, HOLDLOCK) takes a
    key-range lock over the absent slot, so a concurrent first arrival waits here and then reads the
    winner's row, arriving at the same resolution instead of racing the insert. */
+/* A wait this call armed suspends once, even with an already-elapsed deadline: the arm is the last
+   act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,

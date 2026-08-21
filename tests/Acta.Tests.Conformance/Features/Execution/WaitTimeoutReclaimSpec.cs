@@ -1,4 +1,5 @@
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Alerting;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Tests.Conformance.Contracts;
@@ -17,17 +18,24 @@ namespace Acta.Tests.Conformance.Features.Execution;
 /// case from state alone - a slot of the job's own wait kinds, Expired, whose stored expiration is the
 /// instant the suspend cached on the runtime row - and hands the job back Suspended on that same past
 /// deadline, uncharged, for the replay to resolve as the waiting overload defines it.
+///
+/// <para>Uncharged is not unwatched. Spending no budget means a worker dying on the same wait every
+/// time would loop without ever reaching MaxAttempts, so the reclaim's own event is alertable and each
+/// pass raises the job's incident - the operator channel is what bounds the loop instead.</para>
 /// </summary>
 [ConformanceSpec(
     "reclaim-wait-timeout.recovery",
     "Reclaiming a crashed timeout resolution costs the job no retry budget",
     Area = "Recovery",
-    Contract = "An expired-lease attempt whose awaited wait had already expired returns to Suspended on the same deadline with failure_count untouched.",
+    Contract = "An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident.",
     Arrange = "A bounded wait is armed, moved past its deadline, and claimed with an already-expired lease so the attempt reads as a dead worker.",
-    Act = "The awaited slot is resolved through the wait routine or left Pending, and the recovery sweep reclaims the dead attempt.",
-    Assert = "A resolved wait re-arms the job Suspended and uncharged and cancels on replay, while a Pending or already-passed wait is charged as usual."
+    Act = "The awaited slot is resolved through the wait routine or left Pending, the sweep reclaims the dead attempt, and the alerts projector passes over it.",
+    Assert = "The uncharged re-arm opens an incident a later success resolves, while a Pending or already-passed wait is charged as an ordinary lost lease."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ReclaimStuckJobsAsync))]
+[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
+[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
+[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class WaitTimeoutReclaimSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
@@ -138,6 +146,85 @@ public abstract class WaitTimeoutReclaimSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Equal(1, reclaimed.FailureCount);
     }
+
+    [Fact(DisplayName = "The uncharged reclaim still opens an incident under the job's own alert profile")]
+    public async Task The_uncharged_reclaim_is_still_visible_as_an_alert()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        await ReclaimAfterResolvedWaitAsync(enqueued, ns, ct);
+
+        // Spending no budget is what makes this the only place the loop can surface: the reclaim's
+        // event lands Suspended rather than Ready, so the projector has to admit that shape or a
+        // worker crashing on the same wait forever is a silent one.
+        await RunAlertsAsync(enqueued.JobId, ns, ct);
+        var raised = Assert.Single(await ReadAlertsAsync(ns, ct));
+        Assert.Equal(enqueued.JobId, raised.JobId);
+        Assert.Equal(AlertOriginCode.Automatic, raised.OriginCode);
+        Assert.Equal(AlertKindCode.FirstFailure, raised.Kind);
+        Assert.Null(raised.ResolvedAtUtc);
+
+        // The replay gives up on the wait, which is a Cancelled landing: it alerts under no profile and
+        // resolves nothing, so the incident the crash opened stays open for someone to look at.
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        await RunAlertsAsync(enqueued.JobId, ns, ct);
+
+        var afterCancel = Assert.Single(await ReadAlertsAsync(ns, ct));
+        Assert.Equal(AlertKindCode.FirstFailure, afterCancel.Kind);
+        Assert.Null(afterCancel.ResolvedAtUtc);
+    }
+
+    [Fact(DisplayName = "A success after an uncharged reclaim resolves the incident it opened")]
+    public async Task A_success_after_the_uncharged_reclaim_resolves_the_incident()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+
+        // The Try overload resumes past its expired wait, so this job is the one-off: one worker died
+        // on the timeout resolution, the replay finished the work, and nothing is wrong any more.
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout", JobPayload.None), ct);
+        await ReclaimAfterResolvedWaitAsync(enqueued, ns, ct);
+
+        await RunAlertsAsync(enqueued.JobId, ns, ct);
+        Assert.Null(Assert.Single(await ReadAlertsAsync(ns, ct)).ResolvedAtUtc);
+
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        var settled = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Succeeded, settled.Status);
+        Assert.Equal(0, settled.FailureCount);
+
+        // The ordinary lifecycle closes it: the success is the recovery, so the incident the crash
+        // opened is resolved rather than left for an operator to clear by hand.
+        await RunAlertsAsync(enqueued.JobId, ns, ct);
+        var resolved = Assert.Single(await ReadAlertsAsync(ns, ct));
+        Assert.Equal(AlertKindCode.FirstFailure, resolved.Kind);
+        Assert.NotNull(resolved.ResolvedAtUtc);
+    }
+
+    // The whole crash-after-the-flip staging, shared by the facts that go on to ask what it looked
+    // like from outside: arm the wait, move it past its deadline, claim it with a lease that is
+    // already dead, make the flip the lost worker made, and sweep.
+    private async Task ReclaimAfterResolvedWaitAsync(JobEnqueueOutcome enqueued, short ns, CancellationToken ct)
+    {
+        var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
+
+        Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, worker, DeadLeaseTtlSeconds, enqueued, ct));
+        var resolved = await Services
+            .GetRequiredService<ISignalStore>()
+            .WaitSignalAsync(enqueued.JobId, JobCheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
+        Assert.Equal(SignalWaitOutcomeCode.TimedOut, resolved.Outcome);
+
+        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
+        Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+    }
+
+    private Task RunAlertsAsync(long jobId, short ns, CancellationToken ct) =>
+        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, ns, jobId, options: null, drain: null, ct);
 
     // Moves the wait past its deadline the way real time would: the slot's stored expiration and the
     // job's cached claim instant both go into the past, and nothing else is touched.

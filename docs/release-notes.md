@@ -188,7 +188,8 @@ carries it in `next_run_at_utc`, so the ordinary claim path wakes the job at exp
 no new system job. Completion and timeout race under the slot's own lock, completion-first wins,
 and an expired slot is terminal: a late signal or child outcome never revives it. While the waiter
 is still live — and its audit level records signals — the late arrival is still written to the
-timeline; once the waiter is terminal it is dropped without a trace. A wait re-entered over an
+timeline; once the waiter is terminal it leaves no timeline entry, only the caller's rejected
+control result. A wait re-entered over an
 already-expired slot resolves timed-out,
 which for the unbounded overloads means the job is cancelled rather than parked forever on a wait
 that can no longer complete. Two persisted codes are new (`job.wait-timed-out`; checkpoint status

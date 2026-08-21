@@ -3,9 +3,9 @@
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* One resolution block, always reached holding the row lock: an absent slot is armed first and then
-   re-read, because FOR UPDATE locks no key that does not exist yet and the arming insert can lose to
-   a concurrent first arrival. */
+/* One resolution block, reached holding the row lock. An absent slot is armed first, because FOR
+   UPDATE locks no key that does not exist yet and the arming insert can lose to a concurrent first
+   arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -25,6 +25,7 @@ DECLARE
     v_fmt SMALLINT;
     v_val BYTEA;
     v_due TIMESTAMPTZ;
+    v_armed INT;
 BEGIN
     SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
     INTO v_state, v_fmt, v_val, v_due
@@ -56,10 +57,22 @@ BEGIN
             v_now,
             0)
         ON CONFLICT (job_id, kind_code, name) DO NOTHING;
+        GET DIAGNOSTICS v_armed = ROW_COUNT;
 
-        /* DO NOTHING waits out the racing inserter, so by now the row is this call's own or the
-           winner's, committed and lockable. Re-reading it is what stops a bounded call that lost the
-           race from returning SuspendPending against an unbounded winner it never armed. */
+        /* A wait this call armed suspends once, even with an already-elapsed deadline: only a wait
+           armed by an earlier call can expire. Mssql and sqlite reach that rule by construction, and
+           returning here rather than resolving is what keeps a zero-second bound identical on all three. */
+        IF v_armed = 1 THEN
+            RETURN QUERY SELECT
+                1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
+                0 /* JobPayloadFormat.None */::SMALLINT,
+                NULL::BYTEA;
+            RETURN;
+        END IF;
+
+        /* Lost the race, so DO NOTHING waited the winner out and its row is committed. The re-read
+           sees it because this runs at READ COMMITTED - the repo sets no isolation level - where each
+           statement takes a fresh snapshot; under Serializable it would abort, which is also correct. */
         SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
         INTO v_state, v_fmt, v_val, v_due
         FROM {{schema}}.checkpoints js

@@ -246,7 +246,8 @@ internal sealed class AlertsJob(
             return;
         }
 
-        // Non-terminal failure (re-armed for retry / next occurrence). Only OnFailure and the system
+        // Non-terminal failure (re-armed for retry, for the next occurrence, or back onto a wait whose
+        // timeout it had already resolved when its worker died). Only OnFailure and the system
         // profile alert on these; OnTerminal / Info stay quiet until the terminal transition.
         if (profile is not (AlertProfileCode.OnFailure or AlertProfileCode.SysCritical))
         {
