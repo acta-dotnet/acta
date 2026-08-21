@@ -30,7 +30,11 @@ internal static class DriverVersionPreflight
         }
 
         var driverName = name.Name ?? driverAssembly.ToString();
-        if (policy == DriverVersionPolicy.Fail)
+        // Everything that is not Warn fails, rather than only the Fail member. Fail-closed is the point:
+        // configuration binding can land an undefined value here (options validation rejects one, and
+        // this is the belt to that pair of braces), and the enum deliberately offers no "skip", so an
+        // uncertified driver must never continue on a value nobody chose.
+        if (policy != DriverVersionPolicy.Warn)
         {
             throw new InvalidOperationException(Message(driverName, loadedMajor, certifiedMajor));
         }

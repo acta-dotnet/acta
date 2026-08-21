@@ -40,6 +40,13 @@ internal sealed class SqlProviderOptionsValidator<TOptions> : IValidateOptions<T
             );
         }
 
+        if (!Enum.IsDefined(options.DriverVersionPolicy))
+        {
+            failures.Add(
+                $"{prefix}.DriverVersionPolicy must be a defined DriverVersionPolicy member (Fail or Warn): an undefined value has no behavior to fall back on."
+            );
+        }
+
         if (options.CommandTimeout <= TimeSpan.Zero)
         {
             failures.Add(

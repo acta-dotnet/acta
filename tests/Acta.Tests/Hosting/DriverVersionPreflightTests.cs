@@ -86,6 +86,19 @@ public sealed class DriverVersionPreflightTests
     [Fact]
     public void Fail_is_the_default_policy() => Assert.Equal(DriverVersionPolicy.Fail, default(DriverVersionPolicy));
 
+    [Fact]
+    public void An_undefined_policy_fails_closed()
+    {
+        // Configuration binding can produce a value the enum never declared. Options validation rejects
+        // one, and this is the second lock: an undefined policy must never behave as the skip the enum
+        // deliberately does not offer.
+        var undefined = (DriverVersionPolicy)2;
+        var log = new CapturingLogger();
+
+        Assert.Throws<InvalidOperationException>(() => DriverVersionPreflight.Run(Sqlite, LoadedMajor(Sqlite) + 3, undefined, log));
+        Assert.Empty(log.Entries);
+    }
+
     private sealed class CapturingLogger : ILogger
     {
         public List<(LogLevel Level, IReadOnlyDictionary<string, object?> Values)> Entries { get; } = [];

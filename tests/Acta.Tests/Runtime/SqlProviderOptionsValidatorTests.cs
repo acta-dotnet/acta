@@ -108,6 +108,24 @@ public sealed class SqlProviderOptionsValidatorTests
         Assert.Contains("CommandTimeout", result.FailureMessage);
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(255)]
+    public void Undefined_driver_version_policy_fails(byte policy)
+    {
+        // A config binding of an out-of-range number lands here as a value with no branch behind it.
+        // The preflight fails closed on one anyway; the host should still be told which option is wrong.
+        var result = Validate(o => o.DriverVersionPolicy = (DriverVersionPolicy)policy);
+        Assert.True(result.Failed);
+        Assert.Contains("DriverVersionPolicy", result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData(DriverVersionPolicy.Fail)]
+    [InlineData(DriverVersionPolicy.Warn)]
+    public void Defined_driver_version_policies_pass(DriverVersionPolicy policy) =>
+        Assert.True(Validate(o => o.DriverVersionPolicy = policy).Succeeded);
+
     [Fact]
     public void Sqlite_schema_must_be_main()
     {
