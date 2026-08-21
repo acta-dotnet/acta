@@ -5629,6 +5629,8 @@ AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
     v_existing SMALLINT;
+    v_expired BOOLEAN := FALSE;
+    v_message VARCHAR;
     v_from_status SMALLINT;
     v_namespace_id SMALLINT;
     v_lineage_root_id BIGINT;
@@ -5672,40 +5674,45 @@ BEGIN
         RETURN;
     END IF;
 
-    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot,
-       records no raise, and releases no job. The verb stays idempotent-shaped and reports the job's
-       unchanged status; the signal is simply too late. */
-    IF v_existing = 30 /* JobCheckpointStatusCode.Expired */ THEN
-        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
-        RETURN;
-    END IF;
+    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot
+       and releases no job. The raise still happened, so it is still recorded: the event below carries
+       a message saying why it changed nothing, and the verb reports the job's unchanged status. */
+    -- COALESCE, not a bare comparison: a first raise has no slot at all, and NULL = 30 is unknown, which
+    -- would skip the upsert below rather than take it.
+    v_expired := COALESCE(v_existing = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
+    v_message := CASE
+        WHEN v_expired
+            THEN LEFT(COALESCE(p_reason_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
+        ELSE p_reason_message END;
 
-    INSERT INTO acta.checkpoints (
-        job_id,
-        kind_code,
-        name,
-        status_code,
-        value_format_id,
-        value,
-        created_at_utc,
-        modified_at_utc,
-        version)
-    VALUES (
-        p_job_id,
-        p_kind_code,
-        p_name,
-        20 /* JobCheckpointStatusCode.Set */,
-        p_value_format_id,
-        p_value,
-        v_now,
-        v_now,
-        0)
-    ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-        status_code = 20 /* JobCheckpointStatusCode.Set */,
-        value_format_id = EXCLUDED.value_format_id,
-        value = EXCLUDED.value,
-        modified_at_utc = v_now,
-        version = acta.checkpoints.version + 1;
+    IF NOT v_expired THEN
+        INSERT INTO acta.checkpoints (
+            job_id,
+            kind_code,
+            name,
+            status_code,
+            value_format_id,
+            value,
+            created_at_utc,
+            modified_at_utc,
+            version)
+        VALUES (
+            p_job_id,
+            p_kind_code,
+            p_name,
+            20 /* JobCheckpointStatusCode.Set */,
+            p_value_format_id,
+            p_value,
+            v_now,
+            v_now,
+            0)
+        ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
+            status_code = 20 /* JobCheckpointStatusCode.Set */,
+            value_format_id = EXCLUDED.value_format_id,
+            value = EXCLUDED.value,
+            modified_at_utc = v_now,
+            version = acta.checkpoints.version + 1;
+    END IF;
 
     IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
@@ -5745,10 +5752,10 @@ BEGIN
             NULL,
             NULL,
             p_reason_code,
-            p_reason_message);
+            v_message);
     END IF;
 
-    IF v_from_status = 20 /* JobStatusCode.Suspended */ THEN
+    IF v_from_status = 20 /* JobStatusCode.Suspended */ AND NOT v_expired THEN
         UPDATE acta.runtimes
         SET
             status_code = 10 /* JobStatusCode.Ready */,
@@ -5852,8 +5859,10 @@ END;
 $$;
 
 /* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. The insert never updates, so a re-entry carrying a
-   different timeout keeps the original due_at_utc: replay cannot extend the expiration. */
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
+   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
+   overwritten, never extended, and never cleared by a later unbounded call. */
 CREATE OR REPLACE FUNCTION acta.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -5927,6 +5936,21 @@ BEGIN
             v_now,
             0)
         ON CONFLICT (job_id, kind_code, name) DO NOTHING;
+
+        IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
+
+            UPDATE acta.checkpoints js
+            SET
+                due_at_utc = v_now + make_interval(secs => p_timeout_seconds),
+                modified_at_utc = v_now,
+                version = js.version + 1
+            WHERE
+                js.job_id = p_job_id
+                AND js.kind_code = p_kind_code
+                AND js.name = p_name
+                AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
+                AND js.due_at_utc IS NULL;
+        END IF;
 
         RETURN QUERY SELECT
             1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,

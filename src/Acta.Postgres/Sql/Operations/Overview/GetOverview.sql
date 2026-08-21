@@ -1,10 +1,16 @@
+/* The two backlog counters below admit the same statuses claim_batch claims: Ready, plus Suspended
+   rows carrying a durable wait's expiration. Not shared text - claim_batch is an installed routine and
+   this is an inline command - so the two are must-stay-in-sync twins; change one, change the other. */
 SELECT
     (
         SELECT COUNT(*)
         FROM {{schema}}.runtimes r
         JOIN {{schema}}.namespaces ns ON ns.id = r.namespace_id
         WHERE
-            r.status_code = 10 /* JobStatusCode.Ready */
+            (
+                r.status_code = 10 /* JobStatusCode.Ready */
+                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+            )
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     ) AS ready_count,
     (
@@ -13,7 +19,10 @@ SELECT
         JOIN {{schema}}.jobs j ON j.id = r.job_id
         JOIN {{schema}}.namespaces ns ON ns.id = r.namespace_id
         WHERE
-            r.status_code = 10 /* JobStatusCode.Ready */
+            (
+                r.status_code = 10 /* JobStatusCode.Ready */
+                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+            )
             AND COALESCE(r.next_run_at_utc, j.created_at_utc) <= now()
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     ) AS oldest_ready_age_seconds,

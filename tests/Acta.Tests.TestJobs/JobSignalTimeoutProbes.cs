@@ -72,4 +72,40 @@ public static class JobSignalTimeoutProbes
         await ctx.WaitSignalAsync("go", ctx.ExecutionNumber == 1 ? LongWait : LongWait + LongWait, ct);
         await ctx.NoteAsync("wait resumed", ct);
     }
+
+    /// <summary>
+    /// Waits unbounded first and bounded on every replay, standing in for code redeployed with a bound
+    /// over a job already suspended without one. The replay must arm the deadline the slot lacks.
+    /// </summary>
+    [Job("job-wait-signal-timeout-upgrade")]
+    public static async Task WaitUnboundedThenBounded(JobContext ctx, CancellationToken ct)
+    {
+        if (ctx.ExecutionNumber == 1)
+        {
+            await ctx.WaitSignalAsync("go", ct);
+        }
+        else
+        {
+            await ctx.WaitSignalAsync("go", LongWait, ct);
+        }
+        await ctx.NoteAsync("wait resumed", ct);
+    }
+
+    /// <summary>
+    /// The mirror of the upgrade probe: bounded first, unbounded on every replay. An unbounded re-entry
+    /// must not clear a deadline the slot already carries.
+    /// </summary>
+    [Job("job-wait-signal-timeout-downgrade")]
+    public static async Task WaitBoundedThenUnbounded(JobContext ctx, CancellationToken ct)
+    {
+        if (ctx.ExecutionNumber == 1)
+        {
+            await ctx.WaitSignalAsync("go", LongWait, ct);
+        }
+        else
+        {
+            await ctx.WaitSignalAsync("go", ct);
+        }
+        await ctx.NoteAsync("wait resumed", ct);
+    }
 }

@@ -3,8 +3,8 @@ namespace Acta;
 /// <summary>
 /// One-shot health counters for the dashboard overview, computed on the database clock.
 /// </summary>
-/// <param name="ReadyCount">Jobs currently Ready.</param>
-/// <param name="OldestReadyAgeSeconds">Seconds the oldest due Ready job has been claimable; null when none are due.</param>
+/// <param name="ReadyCount">Jobs the claim can take: Ready, plus Suspended jobs whose durable wait carries an expiration.</param>
+/// <param name="OldestReadyAgeSeconds">Seconds the oldest such job has been claimable; null when none are due.</param>
 /// <param name="ExecutingCount">Jobs currently Executing.</param>
 /// <param name="FailedCount">Jobs currently Failed.</param>
 /// <param name="UnresolvedAlertCount">Alerts without a resolution timestamp.</param>

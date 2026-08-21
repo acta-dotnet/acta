@@ -1,6 +1,6 @@
-/* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot,
-   records no raise, and releases no job. The pre-state is captured first because the upsert below
-   would otherwise overwrite the very status the later guards read. */
+/* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot and
+   releases no job, but the raise still happened and the audit event still records it with a message
+   saying why it changed nothing. The pre-state is captured first because the upsert overwrites it. */
 DROP TABLE IF EXISTS temp._raise_expired;
 
 CREATE TEMP TABLE _raise_expired AS
@@ -62,14 +62,17 @@ SELECT
     NULL,
     NULL,
     @p_reason_code,
-    @p_reason_message
+    CASE
+        WHEN EXISTS (SELECT 1 FROM temp._raise_expired)
+            THEN substr(COALESCE(@p_reason_message || ' ', '') || 'Signal not applied: the wait had already expired.', 1, 512)
+        ELSE @p_reason_message
+    END
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_job_id
     AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-    AND NOT EXISTS (SELECT 1 FROM temp._raise_expired);
+    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,

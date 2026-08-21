@@ -1,6 +1,8 @@
 /* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. The insert never updates, so a re-entry carrying a
-   different timeout keeps the original due_at_utc: replay cannot extend the expiration. */
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
+   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
+   overwritten, never extended, and never cleared by a later unbounded call. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -74,6 +76,21 @@ BEGIN
             v_now,
             0)
         ON CONFLICT (job_id, kind_code, name) DO NOTHING;
+
+        IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
+
+            UPDATE {{schema}}.checkpoints js
+            SET
+                due_at_utc = v_now + make_interval(secs => p_timeout_seconds),
+                modified_at_utc = v_now,
+                version = js.version + 1
+            WHERE
+                js.job_id = p_job_id
+                AND js.kind_code = p_kind_code
+                AND js.name = p_name
+                AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
+                AND js.due_at_utc IS NULL;
+        END IF;
 
         RETURN QUERY SELECT
             1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,

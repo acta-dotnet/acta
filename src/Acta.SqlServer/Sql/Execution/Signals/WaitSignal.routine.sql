@@ -1,6 +1,8 @@
 /* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. The insert runs only when no row exists, so a re-entry
-   carrying a different timeout keeps the original due_at_utc: replay cannot extend the expiration. */
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
+   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
+   overwritten, never extended, and never cleared by a later unbounded call. */
 CREATE OR ALTER PROCEDURE {{schema}}.wait_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,
@@ -64,6 +66,18 @@ BEGIN
                             CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
+                    END
+                ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NULL AND @p_timeout_seconds IS NOT NULL
+                    BEGIN
+                        UPDATE {{schema}}.checkpoints
+                        SET
+                            due_at_utc = DATEADD(SECOND, @p_timeout_seconds, @now),
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE
+                            job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
+                            AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+                            AND due_at_utc IS NULL;
                     END
                 SET @outcome = 1 /* SignalWaitOutcomeCode.SuspendPending */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;

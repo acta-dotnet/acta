@@ -242,12 +242,70 @@ public abstract class SignalTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(JobCheckpointStatusCode.Expired, go.Status);
         Assert.Equal(0, go.ValueFormatId);
 
+        // The raise changed nothing, but it happened: the timeline says so and says why, or an operator
+        // is left with a verb that reported Applied and a job that never moved.
+        var raised = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
+        Assert.Contains("already expired", raised.ReasonMessage ?? "", StringComparison.Ordinal);
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobResumed, ct));
+
         // Releasing the second signal replays the handler over the expired slot: it still resolves
         // TimedOut, deterministically, and the job runs to completion.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(JobCheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
+    }
+
+    [Fact(DisplayName = "A replay carrying a bound arms the deadline an unbounded wait never had")]
+    public async Task Replay_upgrades_an_unbounded_wait_to_a_bounded_one()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-upgrade", JobPayload.None),
+            ct
+        );
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Null((await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc);
+        Assert.Null((await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc);
+
+        // The stranded job is unclaimable by construction, so an operator reschedule is what gets the
+        // replay running; the arming then happens on that claimed attempt.
+        await ForceClaimableAsync(Db, enqueued.JobId, ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
+        Assert.NotNull(armed);
+        // The same attempt that armed the slot completes through the suspend branch, so the wake time
+        // is cached on the runtime row without needing a second tick.
+        var suspended = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Suspended, suspended.Status);
+        Assert.Equal(armed, suspended.NextRunAtUtc);
+
+        await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(JobCheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+    }
+
+    [Fact(DisplayName = "A replay dropping the bound does not clear the deadline the slot carries")]
+    public async Task Replay_without_a_bound_does_not_clear_the_deadline()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-downgrade", JobPayload.None),
+            ct
+        );
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
+        Assert.NotNull(armed);
+
+        await ForceClaimableAsync(Db, enqueued.JobId, ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal(JobCheckpointStatusCode.Pending, slot.Status);
+        Assert.Equal(armed, slot.DueAtUtc);
+        Assert.Equal(armed, (await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc);
     }
 
     [Fact(DisplayName = "An unbounded wait still suspends with no due instant and stays unclaimable")]

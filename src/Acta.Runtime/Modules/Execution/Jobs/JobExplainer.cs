@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Acta.Runtime.Modules.Execution.Jobs;
 
 /// <summary>
@@ -30,7 +32,9 @@ internal static class JobExplainer
                 switch (wait?.Kind)
                 {
                     case JobCheckpointKindCode.Signal:
-                        headline = $"Suspended, waiting for signal \"{wait.Name}\".";
+                        headline = wait.DueAtUtc is { } expires
+                            ? $"Suspended, waiting for signal \"{wait.Name}\"; times out at {Instant(expires)}."
+                            : $"Suspended, waiting for signal \"{wait.Name}\".";
                         actions.Add(new JobExplainAction("raise-signal", $"raise signal \"{wait.Name}\""));
                         actions.Add(new JobExplainAction("cancel", "cancel the job"));
                         break;
@@ -142,13 +146,14 @@ internal static class JobExplainer
 
     // A Suspended job is blocked on a pending signal or a pending timer checkpoint; a signal wins when
     // both are present (a job awaits one primitive at a time, and the signal is the operator-actionable one).
+    // A signal's due is its timeout instant, carried through so the headline can name it.
     private static JobExplainWait? FindWait(IReadOnlyList<ExplainCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
         {
             if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, null);
+                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
@@ -252,6 +257,10 @@ internal static class JobExplainer
         WorkerIdentity(h.WorkerDeploymentVersion, h.LeasedByWorkerRef) is { } identity ? $"worker {identity}" : "an unknown worker";
 
     private static string DuePhrase(DateTime due, DateTime now) => due > now ? $"due in {Humanize(due - now)}" : $"due {Ago(due, now)}";
+
+    // An absolute instant, not a relative phrase: a wait's deadline is the thing an operator diaries
+    // against, and it stays true however long the explanation sits in a terminal buffer.
+    private static string Instant(DateTime utc) => utc.ToString("yyyy-MM-dd HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
     private static string Ago(DateTime instant, DateTime now) => $"{Humanize(now - instant)} ago";
 

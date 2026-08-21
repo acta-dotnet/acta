@@ -1489,6 +1489,7 @@
 - **Guarantees:**
   - Namespace-scoped counters are non-negative and reflect the enqueued job, and the global result is a superset of the namespace count
   - An unknown namespace returns all-zero counters and a null OldestReadyAgeSeconds
+  - Backlog counts a Suspended bounded wait and ignores an unbounded one
   - Driven state pins all overview counters to exact values in an isolated namespace
 - **Store methods:**
   - `Acta.Runtime.Modules.Operations.Overview.IOverviewStore.GetOverviewAsync`
@@ -2137,6 +2138,8 @@
   - A replay asking for a longer wait does not move the stored expiration
   - A raise after the deadline but before the wait re-enters still wins
   - A raise on an expired slot revives nothing and the replayed wait stays TimedOut
+  - A replay carrying a bound arms the deadline an unbounded wait never had
+  - A replay dropping the bound does not clear the deadline the slot carries
   - An unbounded wait still suspends with no due instant and stays unclaimable
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`

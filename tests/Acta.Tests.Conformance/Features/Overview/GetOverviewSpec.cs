@@ -120,6 +120,26 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     /// </list>
     /// </para>
     /// </summary>
+    [Fact(DisplayName = "Backlog counts a Suspended bounded wait and ignores an unbounded one")]
+    public async Task Backlog_counts_a_suspended_bounded_wait_only()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var before = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
+
+        // An unbounded wait is not backlog: no worker will ever claim it, and only a raise can move it.
+        var unbounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(unbounded, ct));
+        var afterUnbounded = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
+        Assert.Equal(before.ReadyCount, afterUnbounded.ReadyCount);
+
+        // A bounded one is: the claim will take it at its deadline, so a namespace full of them must
+        // not read as an empty backlog.
+        var bounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
+        var afterBounded = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
+        Assert.Equal(before.ReadyCount + 1, afterBounded.ReadyCount);
+    }
+
     [Fact(DisplayName = "Driven state pins all overview counters to exact values in an isolated namespace")]
     public async Task Driven_state_pins_exact_overview_counters()
     {

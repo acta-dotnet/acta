@@ -1,6 +1,8 @@
 /* Slot arbiter for one durable wait, ordered so the final SELECT reads a settled row: flip an overdue
-   Pending to Expired first, then arm. The insert never updates, so a re-entry carrying a different
-   timeout keeps the original due_at_utc: replay cannot extend the expiration. */
+   Pending to Expired first, then arm. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
+   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
+   overwritten, never extended, and never cleared by a later unbounded call. */
 UPDATE {{schema}}.checkpoints
 SET
     status_code = 30 /* JobCheckpointStatusCode.Expired */,
@@ -24,6 +26,17 @@ VALUES (
     NULL, {{now}}, 0
 )
 ON CONFLICT (job_id, kind_code, name) DO NOTHING;
+
+UPDATE {{schema}}.checkpoints
+SET
+    due_at_utc = {{now}} + (@p_timeout_seconds) * 1000,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
+    AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+    AND due_at_utc IS NULL
+    AND @p_timeout_seconds IS NOT NULL;
 
 SELECT
     CASE

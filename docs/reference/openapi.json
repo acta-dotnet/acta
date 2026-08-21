@@ -9938,7 +9938,7 @@
               "integer",
               "string"
             ],
-            "description": "Jobs currently Ready.",
+            "description": "Jobs the claim can take: Ready, plus Suspended jobs whose durable wait carries an expiration.",
             "format": "int64"
           },
           "oldestReadyAgeSeconds": {
@@ -9948,7 +9948,7 @@
               "integer",
               "string"
             ],
-            "description": "Seconds the oldest due Ready job has been claimable; null when none are due.",
+            "description": "Seconds the oldest such job has been claimable; null when none are due.",
             "format": "int64"
           },
           "executingCount": {

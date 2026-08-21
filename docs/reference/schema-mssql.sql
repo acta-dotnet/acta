@@ -5917,6 +5917,8 @@ BEGIN
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @existing TINYINT;
+    DECLARE @expired BIT = 0;
+    DECLARE @message NVARCHAR(512);
     DECLARE
         @from_status TINYINT, @namespace_id SMALLINT, @lineage_root_id BIGINT,
         @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
@@ -5961,32 +5963,33 @@ BEGIN
             END;
 
         /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no
-           slot, records no raise, and releases no job. The verb stays idempotent-shaped and reports
-           the job's unchanged status; the signal is simply too late. */
-        IF @existing = 30 /* JobCheckpointStatusCode.Expired */
-            BEGIN
-                COMMIT TRANSACTION;
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    @from_status AS status_code;
-                RETURN;
-            END;
+           slot and releases no job. The raise still happened, so it is still recorded: the event below
+           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
+        SET @expired = CASE WHEN @existing = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        SET @message = CASE
+            WHEN @expired = 1
+                THEN LEFT(COALESCE(@p_reason_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
+            ELSE @p_reason_message
+        END;
 
-        IF @existing IS NULL
-            INSERT INTO acta.checkpoints (
-                job_id, kind_code, name, status_code, value_format_id, value,
-                created_at_utc, modified_at_utc, version
-            )
-            VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
-        ELSE
-            UPDATE acta.checkpoints
-            SET
-                status_code = 20 /* JobCheckpointStatusCode.Set */,
-                value_format_id = @p_value_format_id,
-                value = @p_value,
-                modified_at_utc = @now,
-                version = version + 1
-            WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+        IF @expired = 0
+            BEGIN
+                IF @existing IS NULL
+                    INSERT INTO acta.checkpoints (
+                        job_id, kind_code, name, status_code, value_format_id, value,
+                        created_at_utc, modified_at_utc, version
+                    )
+                    VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
+                ELSE
+                    UPDATE acta.checkpoints
+                    SET
+                        status_code = 20 /* JobCheckpointStatusCode.Set */,
+                        value_format_id = @p_value_format_id,
+                        value = @p_value,
+                        modified_at_utc = @now,
+                        version = version + 1
+                    WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+            END
 
         IF @audit_level = 20 /* JobAuditLevelCode.Audit */
             INSERT INTO acta.events (
@@ -6007,10 +6010,10 @@ BEGIN
                 NULL,
                 @from_status, @from_status,
                 NULL, NULL,
-                @p_reason_code, @p_reason_message
+                @p_reason_code, @message
             );
 
-        IF @from_status = 20 /* JobStatusCode.Suspended */
+        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
             BEGIN
                 UPDATE acta.runtimes
                 SET
@@ -6109,8 +6112,10 @@ BEGIN
 END
 GO
 /* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. The insert runs only when no row exists, so a re-entry
-   carrying a different timeout keeps the original due_at_utc: replay cannot extend the expiration. */
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
+   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
+   overwritten, never extended, and never cleared by a later unbounded call. */
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,
@@ -6174,6 +6179,18 @@ BEGIN
                             CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
+                    END
+                ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NULL AND @p_timeout_seconds IS NOT NULL
+                    BEGIN
+                        UPDATE acta.checkpoints
+                        SET
+                            due_at_utc = DATEADD(SECOND, @p_timeout_seconds, @now),
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE
+                            job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
+                            AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+                            AND due_at_utc IS NULL;
                     END
                 SET @outcome = 1 /* SignalWaitOutcomeCode.SuspendPending */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;

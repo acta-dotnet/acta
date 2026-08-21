@@ -84,9 +84,28 @@ public class JobExplainerTests
         Assert.Equal(JobCheckpointKindCode.Signal, x.ActiveWait!.Kind);
         Assert.Equal("fraud-review", x.ActiveWait.Name);
         Assert.Contains("waiting for signal \"fraud-review\"", x.Headline);
+        Assert.DoesNotContain("times out", x.Headline, StringComparison.Ordinal);
         Assert.Contains(x.NextActions, a => a.Kind == "raise-signal" && a.Description.Contains("fraud-review"));
         Assert.Contains(x.NextActions, a => a.Kind == "cancel");
         Assert.Null(x.Lease);
+    }
+
+    [Fact]
+    public void Suspended_on_a_bounded_signal_names_the_instant_it_times_out()
+    {
+        var data = Data(
+            Header(JobStatusCode.Suspended),
+            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStatusCode.Pending, Now.AddMinutes(30))]
+        );
+
+        var x = JobExplainer.Explain(data, Now);
+
+        // An absolute instant, not "in 30m": an operator diaries against the deadline, and the phrase
+        // has to stay true after the explanation is pasted somewhere.
+        Assert.Equal(Now.AddMinutes(30), x.ActiveWait!.DueAtUtc);
+        Assert.Contains("waiting for signal \"fraud-review\"", x.Headline);
+        Assert.Contains($"times out at {Now.AddMinutes(30):yyyy-MM-dd HH:mm:ss}Z", x.Headline, StringComparison.Ordinal);
+        Assert.Contains(x.NextActions, a => a.Kind == "raise-signal");
     }
 
     [Fact]
