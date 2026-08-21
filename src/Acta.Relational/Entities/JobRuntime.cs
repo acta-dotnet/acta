@@ -27,9 +27,12 @@ namespace Acta.Relational.Entities;
 // Covers both claimable statuses: Ready rows, and Suspended rows carrying a durable wait's expiration
 // in next_run_at_utc. A Suspended row with a NULL next_run_at_utc is an unbounded wait and stays
 // unclaimable, which the claim predicate enforces; the index only has to admit the candidates.
+// status_code trails the seek and sort keys purely to keep the claim covering: admitting two statuses
+// means the predicate has to tell them apart, and without the column in the index every candidate row
+// costs a heap lookup on the hottest query in the system.
 [DbIndex(
     Name = "ix_runtimes_claim_ready",
-    Columns = ["namespace_id", "priority_code", "next_run_at_utc", "job_id"],
+    Columns = ["namespace_id", "priority_code", "next_run_at_utc", "job_id", "status_code"],
     Descending = ["priority_code"],
     Filter = "status_code IN (10, 20)",
     Usage = "claim_hot_path"
