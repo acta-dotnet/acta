@@ -15,18 +15,20 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// therefore offers an event only once its <c>created_at_utc</c>, stamped inside the writing
 /// transaction, is older than the horizon.
 ///
-/// <para>The horizon is staged from the database's own clock at both ends: the event is inserted with
-/// the column default, so its stamp is the database's, and aging it is the only thing these facts change
-/// about it. Both halves are asserted, because "not yet" is only a guarantee if "then" follows.</para>
+/// <para>The horizon is staged from the database's own clock at both ends: an event is inserted with the
+/// column default, so its stamp is the database's, and aging it is the only thing these facts change
+/// about it. Withholding is asserted alone and layered under a projected event, because a cursor that
+/// stops short only matters when the pass had somewhere to move it to - and "not yet" is only a
+/// guarantee if "then" follows.</para>
 /// </summary>
 [ConformanceSpec(
     "alerts-projection.safe-horizon",
     "The alerts projector reads behind a safe horizon rather than up to the present",
     Area = "Alerts",
     Contract = "The sys.alerts projection read offers an event only once its created_at_utc is older than the safe horizon, so the cursor never steps over an uncommitted id.",
-    Arrange = "One alertable failure event is written for a seeded job with the database's own created_at_utc stamp.",
-    Act = "The projector passes over it while it is still inside the horizon, and again after its stamp is aged past the horizon.",
-    Assert = "The first pass projects nothing and leaves the cursor unwritten, and the second projects the event and checkpoints its id."
+    Arrange = "Alertable failure events are written for a seeded job with the database's own created_at_utc stamps, aged past the horizon or left inside it.",
+    Act = "The projector passes over them while a stamp is still inside the horizon, and again once that stamp has been aged past it.",
+    Assert = "A pass projects only what is behind the horizon and stops its cursor below the withheld event, which the next pass takes once it ages out."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
@@ -40,7 +42,7 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
     {
         var ct = TestContext.Current.CancellationToken;
         var subject = await SeedAlertingJobAsync(ct);
-        await StageFailureEventAsync(subject, ct);
+        await StageFailureEventAsync(subject, executionNumber: 1, ct);
 
         await RunAlertsWithoutAgingAsync(subject.JobId, ct);
 
@@ -55,7 +57,7 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
     {
         var ct = TestContext.Current.CancellationToken;
         var subject = await SeedAlertingJobAsync(ct);
-        var eventId = await StageFailureEventAsync(subject, ct);
+        var eventId = await StageFailureEventAsync(subject, executionNumber: 1, ct);
 
         await RunAlertsWithoutAgingAsync(subject.JobId, ct);
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
@@ -69,6 +71,33 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(AlertKindCode.FinalFailure, incident.Kind);
         Assert.Equal(1, incident.OccurrenceCount);
         Assert.Equal(eventId, await ReadCursorAsync(subject.JobId, ct));
+    }
+
+    [Fact(DisplayName = "A pass projects the aged event and stops its cursor below the one still inside the horizon")]
+    public async Task Cursor_stops_below_the_withheld_event_rather_than_at_the_highest_id()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var subject = await SeedAlertingJobAsync(ct);
+        var aged = await StageFailureEventAsync(subject, executionNumber: 1, ct);
+        await AlertTestOps.AgeEventsPastHorizonAsync(Services, NamespaceId, ct);
+        var withheld = await StageFailureEventAsync(subject, executionNumber: 2, ct);
+        Assert.True(withheld > aged, "the staged events must be layered: the withheld one takes the higher id.");
+
+        await RunAlertsWithoutAgingAsync(subject.JobId, ct);
+
+        // The production shape, where the pass has both something to project and something to withhold,
+        // so the checkpoint is a decision rather than the absence of one. Stopping at the aged id is
+        // exactly what keeps the newer event readable: a cursor at the highest id that exists would have
+        // stepped over it for good.
+        Assert.Equal(1, Assert.Single(await ReadAlertsAsync(NamespaceId, ct)).OccurrenceCount);
+        Assert.Equal(aged, await ReadCursorAsync(subject.JobId, ct));
+
+        // And the withheld event is deferred, not dropped: it projects on the pass after it ages out.
+        await AlertTestOps.AgeEventsPastHorizonAsync(Services, NamespaceId, ct);
+        await RunAlertsWithoutAgingAsync(subject.JobId, ct);
+
+        Assert.Equal(2, Assert.Single(await ReadAlertsAsync(NamespaceId, ct)).OccurrenceCount);
+        Assert.Equal(withheld, await ReadCursorAsync(subject.JobId, ct));
     }
 
     /// <summary>
@@ -88,7 +117,7 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
     /// One terminal-failure <c>job.execution-finished</c> row, with <c>created_at_utc</c> left to the
     /// column default so the stamp is the database's own clock rather than this process's.
     /// </summary>
-    private Task<long> StageFailureEventAsync(AlertingSubject subject, CancellationToken ct) =>
+    private Task<long> StageFailureEventAsync(AlertingSubject subject, int executionNumber, CancellationToken ct) =>
         Db.From<JobEvent>()
             .InsertAsync<long>(
                 new JobEvent
@@ -98,11 +127,11 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
                     ActorCode = ActorCode.Worker,
                     JobId = subject.JobId,
                     DefinitionId = subject.DefinitionId,
-                    ExecutionNumber = 1,
+                    ExecutionNumber = executionNumber,
                     ToStatus = JobStatusCode.Failed,
                     ExecutionStatus = ExecutionStatusCode.Failed,
                     ReasonCode = JobEventReasonCode.JobUnhandledException,
-                    ReasonMessage = "staged inside the horizon",
+                    ReasonMessage = "staged for the horizon",
                 },
                 ct
             );

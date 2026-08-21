@@ -249,12 +249,13 @@
 
 ### The alerts projector reads behind a safe horizon rather than up to the present
 - **Contract:** The sys.alerts projection read offers an event only once its created_at_utc is older than the safe horizon, so the cursor never steps over an uncommitted id.
-- **Arrange:** One alertable failure event is written for a seeded job with the database's own created_at_utc stamp.
-- **Act:** The projector passes over it while it is still inside the horizon, and again after its stamp is aged past the horizon.
-- **Assert:** The first pass projects nothing and leaves the cursor unwritten, and the second projects the event and checkpoints its id.
+- **Arrange:** Alertable failure events are written for a seeded job with the database's own created_at_utc stamps, aged past the horizon or left inside it.
+- **Act:** The projector passes over them while a stamp is still inside the horizon, and again once that stamp has been aged past it.
+- **Assert:** A pass projects only what is behind the horizon and stops its cursor below the withheld event, which the next pass takes once it ages out.
 - **Guarantees:**
   - An event still inside the horizon is not projected and the cursor does not advance
   - An event aged past the horizon projects on the next pass
+  - A pass projects the aged event and stops its cursor below the one still inside the horizon
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`

@@ -106,18 +106,25 @@ internal static class AlertTestOps
     }
 
     /// <summary>
-    /// Backdates every event in <paramref name="namespaceId"/> to well behind the projection read's
-    /// safe horizon, so the next pass sees them all. The margin on top of the horizon absorbs any
-    /// difference between this process's clock and the database's, which is the one thing a client-side
-    /// instant cannot read; every alert spec's namespace is its own, so nothing else is touched.
+    /// Backdates every event in <paramref name="namespaceId"/> to behind the projection read's safe
+    /// horizon, so the next pass sees them all. Every alert spec's namespace is its own, so nothing
+    /// outside the calling fact is touched.
     /// </summary>
-    public static Task AgeEventsPastHorizonAsync(IServiceProvider services, short namespaceId, CancellationToken ct)
+    /// <remarks>
+    /// The instant comes from <see cref="IServerClock"/> - the database's own clock, which is what the
+    /// horizon predicate compares against - so the whole alert family rides on no assumption about this
+    /// host's clock agreeing with the database's. One second of slack puts the stamp strictly inside the
+    /// horizon rather than exactly on its boundary; nothing larger is needed, because the read that
+    /// follows reads its own <c>now()</c>, which cannot precede the one taken here.
+    /// </remarks>
+    public static async Task AgeEventsPastHorizonAsync(IServiceProvider services, short namespaceId, CancellationToken ct)
     {
         var lag = TimeSpan.FromSeconds(
             RelationalAlertStore.SafeHorizonLagSeconds(services.GetRequiredService<SqlProviderOptions>().CommandTimeout)
         );
-        var aged = DateTime.UtcNow - lag - TimeSpan.FromMinutes(5);
-        return services
+        var serverNowUtc = await services.GetRequiredService<IServerClock>().GetUtcNowAsync(ct);
+        var aged = serverNowUtc - lag - TimeSpan.FromSeconds(1);
+        await services
             .GetRequiredService<IDbSession>()
             .From<JobEvent>()
             .Where(e => e.NamespaceId == namespaceId)

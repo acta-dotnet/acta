@@ -113,6 +113,12 @@ internal sealed class AlertsJob(
     // execution timeout - keeps every batch already projected and the next invocation resumes behind
     // it. Re-offering the one batch that was in flight is safe by construction: the raise and resolve
     // paths refuse to move an incident an equal-or-newer event already marked.
+    //
+    // The cursor below is the highest id the READ returned, which is only a safe checkpoint because the
+    // store's read is horizon-bounded: it withholds events too recent for every transaction that could
+    // still commit a lower id to have finished. Without that bound this fold would step over an id whose
+    // transaction had not committed yet, and nothing would ever read that event again. Any change here
+    // that reads events from a source other than IAlertStore.GetAlertableEventsAsync reopens that.
     private async Task GenerateAsync(JobContext ctx, CancellationToken ct)
     {
         var cursor = await ctx.GetVariableOrDefaultAsync<long>(CursorVariableName, 0L, ct);
@@ -150,8 +156,10 @@ internal sealed class AlertsJob(
                 cursor = maxId;
             }
 
-            // A short read is the backlog's own end: the query takes everything above the cursor up to
-            // the limit, so asking again would come back empty.
+            // A short read is the end of what this pass can have: the query takes everything above the
+            // cursor and behind the horizon, up to the limit, so asking again would come back empty.
+            // Events newer than the horizon are not a backlog this pass is behind on - they are not
+            // eligible yet, and the next pass picks them up once they age past it.
             if (events.Count < Drain.BatchSize)
             {
                 return;

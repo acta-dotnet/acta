@@ -42,8 +42,10 @@ internal sealed class SqlProviderOptionsValidator<TOptions> : IValidateOptions<T
 
         if (!Enum.IsDefined(options.DriverVersionPolicy))
         {
+            // The member list comes from the enum so adding a policy cannot leave this message stale.
             failures.Add(
-                $"{prefix}.DriverVersionPolicy must be a defined DriverVersionPolicy member (Fail or Warn): an undefined value has no behavior to fall back on."
+                $"{prefix}.{nameof(SqlProviderOptions.DriverVersionPolicy)} must be one of "
+                    + $"{string.Join(", ", Enum.GetNames<DriverVersionPolicy>())}: an undefined value has no behavior to fall back on."
             );
         }
 

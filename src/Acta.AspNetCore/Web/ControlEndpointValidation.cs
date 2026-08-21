@@ -267,6 +267,10 @@ internal static class ControlEndpointValidation
             return true;
         }
 
+        // This awaits a network read, so a caller that opens a chunked body and then sends nothing holds
+        // the endpoint until Kestrel's minimum-data-rate limit aborts it or the client disconnects. That
+        // is the same exposure every body-reading endpoint on this API already carries, bounded by the
+        // same server limit, and it is accepted rather than overlooked.
         request.EnableBuffering();
         var probe = new byte[1];
         var read = await request.Body.ReadAsync(probe, ct);
