@@ -315,6 +315,20 @@ the window. `Active` and `Draining` workers are still never purged. Nothing else
 changed — same window arithmetic, same batching, same ordering — and the first sweep after upgrading
 will clear the stopped-worker backlog a long-running cluster has accumulated.
 
+### Telemetry names freeze, and one of them had to change to do it
+
+The `Acta.duration` metric instrument is now **`acta.duration`**, joining the lowercase `acta.*`
+convention the other nine instruments already followed. Metric names freeze at 1.0, which is
+exactly why the outlier had to move first: update any dashboard or alert rule that charts the old
+name, because it stops emitting.
+
+Structured log fields consolidated onto a canonical eleven-field vocabulary (`Namespace`, `JobId`,
+`JobName`, `Ref`, `SubjectRef`, `Operation`, `Outcome`, `Reason`, `Count`, `DurationMs`, `Detail`)
+— 44 distinct template fields became these 11, so saved queries against retired names
+(`DedupKey`, `Ids`, `Cap`, `Batch`, and the rest of the singleton tail) need re-pointing once.
+Unlike metric names, log field names are not frozen, but they are now build-enforced: a log line
+inventing a twelfth field fails the build.
+
 ### Startup verifies the database it was handed, every time
 
 Two preflights now run at `StartAsync` on every host, including — especially — hosts with
