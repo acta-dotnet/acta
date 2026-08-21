@@ -15,8 +15,8 @@ namespace Acta;
 public sealed class JobsOptions
 {
     /// <summary>
-    /// Retention window in days for every <c>JobEvent</c> row, audit timeline and execution ledger
-    /// alike.
+    /// Retention window in whole days for every <c>JobEvent</c> row, audit timeline and execution
+    /// ledger alike; a fractional day is rejected at startup because the purge works in days.
     /// </summary>
     public TimeSpan JobEventsRetention { get; set; } = TimeSpan.FromDays(365);
 

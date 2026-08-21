@@ -1910,6 +1910,7 @@
   - Alerts past the window are purged settled or not, counted apart, and none inside the window is
   - A resolve-suppressed alert past the window is counted once, by the settled sweep
   - An open incident past the window is purged and the next failure opens a fresh one
+  - An open incident whose delivery settled is purged by the settled sweep and frees its key
   - An expired lock row is reaped and a live lock is kept
   - An expired terminal parent survives the sweep while a live child still references it
   - A fully expired subtree drains child-first and then releases the parent

@@ -35,6 +35,20 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.WorkerRetention must be >= 1 day: retention is destructive.");
         }
 
+        // The events and alerts windows reach the purge as whole int days, so a fractional value would
+        // be truncated on the way there and delete earlier than configured: 47 hours would purge at 24.
+        // Rejected rather than rounded, because either direction silently moves a destructive boundary
+        // the operator wrote down in their own units. WorkerRetention is exempt: it converts to seconds.
+        if (options.JobEventsRetention.Ticks % TimeSpan.TicksPerDay != 0)
+        {
+            failures.Add("JobsOptions.JobEventsRetention must be a whole number of days: retention is applied in day granularity.");
+        }
+
+        if (options.AlertRetention.Ticks % TimeSpan.TicksPerDay != 0)
+        {
+            failures.Add("JobsOptions.AlertRetention must be a whole number of days: retention is applied in day granularity.");
+        }
+
         // Idle claim-loop pacing.
         if (options.SafetyPollInterval < TimeSpan.FromSeconds(1))
         {

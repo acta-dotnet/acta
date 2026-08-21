@@ -299,7 +299,43 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Null(reopened.ResolvedAtUtc);
     }
 
-    private Task RaiseIncidentAsync(string deduplicationKey, CancellationToken ct) =>
+    [Fact(DisplayName = "An open incident whose delivery settled is purged by the settled sweep and frees its key")]
+    public async Task Aged_open_but_delivered_incident_leaves_through_the_settled_sweep()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var key = TestKey("retention-delivered-incident");
+
+        // The sibling of the Pending-arm fact, and the combination neither covered: unresolved, so the
+        // partial unique index still holds the key, but delivered, so the hard cap is not what sweeps it.
+        await RaiseIncidentAsync(key, ct, AlertDeliveryStatusCode.Delivered);
+        await RaiseIncidentAsync(key, ct, AlertDeliveryStatusCode.Delivered);
+        var open = Assert.Single(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+        Assert.Null(open.ResolvedAtUtc);
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, open.DeliveryStatusCode);
+        Assert.Equal(2, open.OccurrenceCount);
+
+        // Counted by the settled sweep and not by the undelivered one, so an operator reading the two
+        // counters is not told a settled delivery went out unsent.
+        var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
+        Assert.Equal(1, purged.Alerts);
+        Assert.Equal(0, purged.UndeliveredAlertsPurged);
+        Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+
+        // Aging out an unresolved row has to release the filtered unique identity whichever arm deleted
+        // it, or the next failure on that key would find the identity taken by a row that no longer exists.
+        await RaiseIncidentAsync(key, ct, AlertDeliveryStatusCode.Delivered);
+        var reopened = Assert.Single(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
+        Assert.NotEqual(open.AlertRef, reopened.AlertRef);
+        Assert.Equal(1, reopened.OccurrenceCount);
+        Assert.Null(reopened.ResolvedAtUtc);
+    }
+
+    private Task RaiseIncidentAsync(
+        string deduplicationKey,
+        CancellationToken ct,
+        AlertDeliveryStatusCode delivery = AlertDeliveryStatusCode.Pending
+    ) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
@@ -310,7 +346,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             title: "t",
             message: "m",
             channelName: "default",
-            AlertDeliveryStatusCode.Pending,
+            delivery,
             deduplicationKey,
             ct
         );

@@ -210,6 +210,37 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
+    public void Day_granular_retention_windows_reject_a_fractional_day()
+    {
+        // Both windows reach the purge as whole int days, so 47 hours would have been truncated to one
+        // day and deleted a day early. These values passed validation before and now do not, on purpose.
+        var result = Validate(o =>
+        {
+            o.JobEventsRetention = TimeSpan.FromHours(47);
+            o.AlertRetention = TimeSpan.FromDays(90.5);
+        });
+
+        Assert.True(result.Failed);
+        Assert.Contains("JobEventsRetention must be a whole number of days", result.FailureMessage);
+        Assert.Contains("AlertRetention must be a whole number of days", result.FailureMessage);
+    }
+
+    [Fact]
+    public void Whole_day_retention_windows_pass_and_the_second_granular_one_is_exempt()
+    {
+        // WorkerRetention converts to seconds rather than days, so a fractional value there truncates
+        // nothing and stays legal; pinning it here keeps the new rule from quietly widening.
+        var result = Validate(o =>
+        {
+            o.JobEventsRetention = TimeSpan.FromDays(30);
+            o.AlertRetention = TimeSpan.FromDays(7);
+            o.WorkerRetention = TimeSpan.FromHours(36);
+        });
+
+        Assert.True(result.Succeeded, result.FailureMessage);
+    }
+
+    [Fact]
     public void Undefined_enum_values_fail()
     {
         // Config binding accepts any numeric literal; an undefined value would otherwise flow into

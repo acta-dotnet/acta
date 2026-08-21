@@ -27,6 +27,9 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
     private const int BatchSize = 1000;
     private const int MaxIterations = 50;
 
+    // Exact by construction, not by luck: JobsOptionsValidator rejects an events or alerts window that
+    // is not a whole number of days, so these casts truncate nothing. Without that rule a 47-hour alert
+    // window would have purged at 24 hours, deleting a day earlier than the deployment asked for.
     private readonly int _eventsRetentionDays = (int)options.Value.JobEventsRetention.TotalDays;
     private readonly int _alertRetentionDays = (int)options.Value.AlertRetention.TotalDays;
     private readonly int _workerRetentionSeconds = (int)options.Value.WorkerRetention.TotalSeconds;
