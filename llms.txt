@@ -51,7 +51,7 @@ app.MapActa("/acta");           // dashboard + JSON API; local-only by default, 
 
 await app.StartAsync();
 await app.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));
-Console.WriteLine("Enqueued. Dashboard: http://localhost:5000/acta");
+Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
 await app.WaitForShutdownAsync();
 
 public sealed record ShipOrder(int OrderId);

@@ -27,12 +27,12 @@ state, retries, audit, recovery, and operator control in your own SQL database. 
 
 ## Quickstart
 
-In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0): no Docker, no database server, nothing to provision. Everything below runs on embedded SQLite.
+In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0): no Docker, no database server, nothing to provision. Everything below runs on embedded SQLite, with the Acta dashboard at `/acta`.
 
 ```bash
-dotnet new console -n Shipping && cd Shipping
+dotnet new web -n Shipping && cd Shipping
 dotnet add package Acta.Sqlite --prerelease
-dotnet add package Microsoft.Extensions.Hosting
+dotnet add package Acta.AspNetCore --prerelease
 ```
 
 Replace `Program.cs` with this, all of it:
@@ -41,29 +41,26 @@ Replace `Program.cs` with this, all of it:
 using Shipping;                 // the generated manifest lands in your project's root namespace
 using Acta;
 using Acta.Sqlite;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.UseActa(j =>
 {
     j.UseSqlite(sqlite =>
     {
         sqlite.ConnectionString = "Data Source=acta-local.db";
-        sqlite.ApplyMigrationsOnStartup = true;   // dev convenience; run from a deploy step in production
+        sqlite.ApplyMigrationsOnStartup = true;   // local development only; apply from a deploy step in production
     });
     j.Run<ShippingJobs>("shipping");
 });
 
-using var host = builder.Build();
-await host.StartAsync();
+var app = builder.Build();
+app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
 
-var jobs = host.Services.GetRequiredService<IJobs>();
-await jobs.EnqueueAsync(new ShipOrder(1042));
-
-Console.WriteLine("Enqueued. Ctrl+C to stop.");
-await host.WaitForShutdownAsync();
+await app.StartAsync();
+await app.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));
+Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
+await app.WaitForShutdownAsync();
 
 public sealed record ShipOrder(int OrderId);
 
@@ -76,11 +73,18 @@ public static class ShippingHandlers
 
 ```bash
 dotnet run
-# Enqueued. Ctrl+C to stop.
+# Enqueued. Dashboard: http://localhost:5090/acta
 # Shipping order 1042
 ```
 
-The job is a row in `acta-local.db` before it is a method call. `ShippingJobs` is source-generated from your `[Job]` handlers: one manifest per project, named after your root namespace, registered once. One worker runtime owns one namespace, and the host that enqueues can also execute, so there is no separate worker process to deploy unless you want one. Swap `UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes.
+Open the dashboard and the completed job is the first row. The job was a row in `acta-local.db`
+before it was a method call. `ShippingJobs` is the source-generated manifest: the last segment of
+your project's `RootNamespace` plus `Jobs` (`Shipping` → `ShippingJobs`), generated into that
+namespace and registered once. One worker runtime owns one namespace, and the host that enqueues
+also executes, so there is no separate worker process to deploy unless you want one. Swap
+`UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes. No web host? The same
+program runs on `Host.CreateApplicationBuilder` without the dashboard —
+[`docs/quickstart.md`](./docs/quickstart.md) shows both.
 
 Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md). Deeper docs start at [`docs/README.md`](./docs/README.md).
 

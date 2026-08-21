@@ -8,14 +8,14 @@ SQLite: no Docker, no database server.
 Three commands from an empty folder. The only prerequisite is the .NET 10 SDK.
 
 ```bash
-dotnet new console -n Shipping && cd Shipping
+dotnet new web -n Shipping && cd Shipping
 dotnet add package Acta.Sqlite --prerelease
-dotnet add package Microsoft.Extensions.Hosting
+dotnet add package Acta.AspNetCore --prerelease
 ```
 
 A single provider package reference delivers everything: the runtime, the `[Job]` source generator,
-and the analyzers. `Microsoft.Extensions.Hosting` is the second reference because Acta itself depends
-only on `Hosting.Abstractions`; a Worker Service or ASP.NET Core project already has it.
+and the analyzers. `Acta.AspNetCore` adds the embedded dashboard and JSON API — the built UI ships
+inside the package, so there is no Node, no separate frontend, nothing to build.
 
 Replace `Program.cs` with this, all of it:
 
@@ -23,29 +23,26 @@ Replace `Program.cs` with this, all of it:
 using Shipping;                 // the generated manifest lands in your project's root namespace
 using Acta;
 using Acta.Sqlite;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.UseActa(j =>
 {
     j.UseSqlite(sqlite =>
     {
         sqlite.ConnectionString = "Data Source=acta-local.db";
-        sqlite.ApplyMigrationsOnStartup = true;   // dev convenience; run from a deploy step in production
+        sqlite.ApplyMigrationsOnStartup = true;   // local development only; apply from a deploy step in production
     });
     j.Run<ShippingJobs>("shipping");
 });
 
-using var host = builder.Build();
-await host.StartAsync();
+var app = builder.Build();
+app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
 
-var jobs = host.Services.GetRequiredService<IJobs>();
-await jobs.EnqueueAsync(new ShipOrder(1042));
-
-Console.WriteLine("Enqueued. Ctrl+C to stop.");
-await host.WaitForShutdownAsync();
+await app.StartAsync();
+await app.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));
+Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
+await app.WaitForShutdownAsync();
 
 public sealed record ShipOrder(int OrderId);
 
@@ -58,16 +55,25 @@ public static class ShippingHandlers
 
 ```bash
 dotnet run
-# Enqueued. Ctrl+C to stop.
+# Enqueued. Dashboard: http://localhost:5090/acta
 # Shipping order 1042
 ```
 
 The program enqueues a job, a worker in the same process claims and runs it, and `acta-local.db`
-now holds the row. `Ctrl+C` stops it.
+holds the row. Open the dashboard URL and the completed job is the first thing you see.
 
 > **The `using Shipping;` line is not decoration.** The manifest is generated into your project's
 > root namespace, while top-level statements live in the global namespace, so without it
 > `ShippingJobs` will not resolve.
+
+## No web host?
+
+The same program runs on the generic host without the dashboard: `dotnet new console`, swap
+`Acta.AspNetCore` for `Microsoft.Extensions.Hosting` (Acta itself depends only on
+`Hosting.Abstractions`), replace the builder lines with
+`var builder = Host.CreateApplicationBuilder(args);` and `using var host = builder.Build();`, drop
+the `MapActa` line, and start `host` instead of `app`. Everything durable — the rows, the retries,
+the CLI — is identical; only the dashboard needs a web host.
 
 ## Or explore the repository
 
@@ -85,7 +91,9 @@ without Node the lab and every API still run, and the dashboard route explains w
 
 ## The whole program
 
-Three files make a complete host: the contract and handler, a supporting service, and the wiring.
+The same default grown into a real shape: three files — the contract and handler, a supporting
+service resolved through DI, and the wiring — with the job enqueued from an endpoint instead of at
+startup.
 
 ```csharp
 // File: Users/Jobs/SendWelcomeEmail.cs
