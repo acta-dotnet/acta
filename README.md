@@ -40,6 +40,7 @@ Replace `Program.cs` with this, all of it:
 ```csharp
 using Shipping;                 // the generated manifest lands in your project's root namespace
 using Acta;
+using Acta.AspNetCore;
 using Acta.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
