@@ -421,7 +421,7 @@ in the URL by their public ref (`GET /acta/api/v1/jobs/{jobRef}`, `/jobs/{jobRef
 also be looked up by deduplication key (`GET /jobs/by-key?jobNamespace=&deduplicationKey=`).
 For the rare debug case where you have only an internal id (from a log line), set
 `EnableNumericIdLookup = true` and address the read endpoints as `/jobs/id:{n}` (for example
-`/jobs/id:12345`); off by default, an `id:` target answers 404 like any unparseable ref, so numeric
+`/jobs/id:12345`); off by default, an `id:` target answers 400 like any malformed ref, so numeric
 ids never become a second default identity. The dashboard's jump box accepts the same three forms:
 a `job_...` ref, an deduplication key, or `id:123` / `#123`; the control POSTs stay ref-only.
 
@@ -429,7 +429,12 @@ The API can also map the job-control verbs as POST endpoints (`/jobs/{jobRef}/pa
 `restart`, `cancel`, `reschedule`, `reprioritize`, `purge`), thin wrappers over the `IJobs` verbs above: the framework still stamps actor
 and reason code. The non-purge verbs accept an optional `reasonMessage`; purge retains no caller reason because it removes the job's
 event history. The outcome maps to 200
-(applied), 409 (rejected), or 404 (not found). Controls are opt-in (`EnableControls = true`)
+(applied), 409 (rejected), or 404 (not found) — and that shape is the whole API's rule, not this
+family's: every control family answers 200, 404 and 409 (202 for the accepted-then-applied outbox
+verbs) with its own envelope, and `ProblemDetails` is reserved for malformed input, authorization,
+and server faults. The one deliberate exception is the enqueue guard's 409: `JobEnqueueResponse`
+carries no action, so that rejection stays a problem document with its `reasonCode`. Controls are
+opt-in (`EnableControls = true`)
 because they mutate jobs; enable them alongside your authorization, never on an open surface.
 Unmapped controls answer 404. Control requests must send the `X-Acta-Control: true` header,
 an anti-accident guard (not authentication) the dashboard sends automatically. The job detail

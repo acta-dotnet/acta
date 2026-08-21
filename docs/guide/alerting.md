@@ -349,7 +349,8 @@ not configure settles `Failed` with no retry on its first delivery pass.
 Alert rows are queryable like everything else. `IActaOperations.Alerts` offers `ListAsync` (filtered
 by namespace, job, resolution, acknowledgement, severity, delivery status, and tags), `GetAsync`,
 `AcknowledgeAsync`, and `ResolveAsync` (`IAlerts`, `ListAlertsQuery`). The dashboard and HTTP API
-expose the two verbs at `POST /alerts/{alertRef}/acknowledge|resolve`, 200 or 404 and never 409, behind
+expose the two verbs at `POST /alerts/{alertRef}/acknowledge|resolve`, 200 or 404 and never 409 —
+both carrying `AlertControlResponse` — behind
 `EnableControls` and the `X-Acta-Control` header (the gate lives in `ActaApiEndpoints`, the header
 name in `ActaEndpointOptions.ControlConfirmationHeaderName`; the verbs themselves in
 `AlertControlEndpoints`). In SQL, `acta.alerts_view` renders the coded columns and aliases
