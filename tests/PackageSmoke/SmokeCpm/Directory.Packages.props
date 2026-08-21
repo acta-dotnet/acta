@@ -1,0 +1,31 @@
+<!-- The CPM host app's own version manifest. Nearer the project than the isolation stub one level up,
+     so this is the file NuGet finds: the consumer really does manage its versions centrally, exactly
+     as a host application that has already adopted CPM would.
+
+     Transitive pinning is on, which is the coexistence case that matters: the driver version below is
+     the host's decision and it wins over Acta's transitive floor. Acta's package dependencies carry no
+     upper bound (run.ps1 fails the pack if one appears), so this is a decision the host is allowed to
+     make - and the runtime driver-major preflight at provider bootstrap is what tells the operator
+     whether Acta was certified against what they picked. -->
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <!-- run.ps1 passes both as global properties, which are set before this file is imported. The
+         defaults keep a manual IDE restore resolving the single Sqlite package in the local feed. -->
+    <ActaPackageVersion Condition="'$(ActaPackageVersion)' == ''">*-*</ActaPackageVersion>
+    <ActaProvider Condition="'$(ActaProvider)' == ''">Acta.Sqlite</ActaProvider>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="$(ActaProvider)" Version="$(ActaPackageVersion)" />
+  </ItemGroup>
+  <!-- The host's driver pins, one per provider so no PackageVersion goes unused. They mirror the
+       versions Acta itself builds against (see the repo's Directory.Packages.props); if an Acta floor
+       ever rises above one of them, restore reports NU1608 and SmokeCpm.csproj promotes it to an
+       error, so this file cannot drift below what the provider package needs in silence. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" Condition="'$(ActaProvider)' == 'Acta.Sqlite'" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" Condition="'$(ActaProvider)' == 'Acta.Postgres'" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" Condition="'$(ActaProvider)' == 'Acta.SqlServer'" />
+  </ItemGroup>
+</Project>

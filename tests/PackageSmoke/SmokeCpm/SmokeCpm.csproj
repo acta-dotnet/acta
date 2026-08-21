@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The same consumer sources as Smoke, built by a host that manages package versions centrally and
+       pins the ADO driver itself. One extra consumer variant, not a second harness: run.ps1 drives it
+       from the same feed, in the same loop shape, right after the plain consumer. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The generated manifest type is named from the root namespace's last segment, and the shared
+         Program.cs refers to it as SmokeJobs. Same sources, same generated name, different project. -->
+    <RootNamespace>Smoke</RootNamespace>
+    <!-- run.ps1 consumes each provider in turn via -p:ActaProvider; the version comes from CPM. -->
+    <ActaProvider Condition="'$(ActaProvider)' == ''">Acta.Sqlite</ActaProvider>
+    <!-- The outbox on-ramp receiver and DDL class are provider-specific; select them by build constant so
+         the one consumer file compiles unchanged against whichever provider package run.ps1 packs. -->
+    <DefineConstants Condition="'$(ActaProvider)' == 'Acta.Postgres'">$(DefineConstants);SMOKE_POSTGRES</DefineConstants>
+    <DefineConstants Condition="'$(ActaProvider)' == 'Acta.Sqlite'">$(DefineConstants);SMOKE_SQLITE</DefineConstants>
+    <DefineConstants Condition="'$(ActaProvider)' == 'Acta.SqlServer'">$(DefineConstants);SMOKE_SQLSERVER</DefineConstants>
+    <!-- NU1608: a central pin below a package's declared dependency range. It is a warning by design,
+         which is the whole reason nuspec upper bounds are not the lock; here it is the signal the leg
+         exists to catch, so it fails the build instead of scrolling past. -->
+    <WarningsAsErrors>$(WarningsAsErrors);NU1608</WarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Compiled from the plain consumer's sources so the two variants can never prove different things. -->
+    <Compile Include="../Smoke/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- No Version attributes anywhere: under CPM the host's Directory.Packages.props decides, for the
+         Acta provider package and for the driver the host references directly alongside it. -->
+    <PackageReference Include="$(ActaProvider)" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Condition="'$(ActaProvider)' == 'Acta.Sqlite'" />
+    <PackageReference Include="Npgsql" Condition="'$(ActaProvider)' == 'Acta.Postgres'" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Condition="'$(ActaProvider)' == 'Acta.SqlServer'" />
+  </ItemGroup>
+</Project>

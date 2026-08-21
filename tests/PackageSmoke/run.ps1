@@ -15,7 +15,13 @@ $feed = Join-Path $PSScriptRoot 'feed'
 # native data-access dependency, and the consumer never opens a connection.
 $providers = @('Acta.Postgres', 'Acta.Sqlite', 'Acta.SqlServer')
 
-foreach ($stale in @($feed, "$PSScriptRoot/.packages", "$PSScriptRoot/Smoke/bin", "$PSScriptRoot/Smoke/obj")) {
+foreach ($stale in @(
+        $feed,
+        "$PSScriptRoot/.packages",
+        "$PSScriptRoot/Smoke/bin",
+        "$PSScriptRoot/Smoke/obj",
+        "$PSScriptRoot/SmokeCpm/bin",
+        "$PSScriptRoot/SmokeCpm/obj")) {
     if (Test-Path $stale) { Remove-Item -Recurse -Force $stale }
 }
 
@@ -99,6 +105,25 @@ try {
         dotnet run --project "$PSScriptRoot/Smoke/Smoke.csproj" -c Release --nologo `
             -p:ActaPackageVersion=$version -p:ActaProvider=$provider
         if ($LASTEXITCODE -ne 0) { throw "package smoke failed: $provider" }
+    }
+
+    # Central Package Management leg: the same consumer sources, built by a host that manages its own
+    # package versions centrally - including the ADO driver Acta depends on transitively, pinned by the
+    # host and referenced directly alongside the provider package. That is the coexistence claim the
+    # open dependency floors make, so it is proven rather than asserted.
+    foreach ($provider in $providers) {
+        $packages = @(Get-ChildItem $feed -Filter "$provider.*.nupkg")
+        if ($packages.Count -ne 1) { throw "expected exactly one $provider package, found $($packages.Count)" }
+        $version = $packages[0].BaseName -replace ('^' + [regex]::Escape($provider) + '\.'), ''
+
+        foreach ($stale in @("$PSScriptRoot/SmokeCpm/bin", "$PSScriptRoot/SmokeCpm/obj")) {
+            if (Test-Path $stale) { Remove-Item -Recurse -Force $stale }
+        }
+
+        Write-Host "PackageSmoke: consuming $provider $version under central package management"
+        dotnet run --project "$PSScriptRoot/SmokeCpm/SmokeCpm.csproj" -c Release --nologo `
+            -p:ActaPackageVersion=$version -p:ActaProvider=$provider
+        if ($LASTEXITCODE -ne 0) { throw "package smoke (central package management) failed: $provider" }
     }
 
     # Non-provider packages, each layered once on the cheapest provider (Sqlite) so their dependency
