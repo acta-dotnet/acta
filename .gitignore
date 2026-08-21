@@ -488,6 +488,11 @@ scripts/set-dev-env.ps1
 tests/PackageSmoke/feed/
 tests/PackageSmoke/.packages/
 
+# DocSamples fixture artifacts (the samples themselves are extracted from the docs on every run)
+tests/DocSamples/feed/
+tests/DocSamples/.packages/
+tests/DocSamples/*/Generated/
+
 # Dashboard Vite build output (rebuilt by Acta.AspNetCore.csproj when Node is present)
 src/Acta.AspNetCore/DashboardApp/dist/
 

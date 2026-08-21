@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- What `dotnet new web -n Shipping` gives a newcomer: the manifest the sample registers is
+         named ShippingJobs only because the root namespace is Shipping. Naming the project folder
+         FirstRun and pinning RootNamespace keeps that dependency visible. -->
+    <RootNamespace>Shipping</RootNamespace>
+    <!-- run.ps1 passes the freshly packed version via -p:ActaPackageVersion. The floating default
+         lets a manual IDE restore still resolve the single package in the local feed. -->
+    <ActaPackageVersion Condition="'$(ActaPackageVersion)' == ''">*-*</ActaPackageVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The two packages the sample's own `dotnet add package` lines install, nothing else. -->
+    <PackageReference Include="Acta.Sqlite" Version="$(ActaPackageVersion)" />
+    <PackageReference Include="Acta.AspNetCore" Version="$(ActaPackageVersion)" />
+  </ItemGroup>
+</Project>

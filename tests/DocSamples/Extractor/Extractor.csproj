@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- One parser for both halves of the harness: the drift gates and this materializer read the
+         shipped prose through the same file, so a sample cannot pass one gate under other rules. -->
+    <Compile Include="..\..\Acta.Tests\Docs\DocSampleExtraction.cs" Link="DocSampleExtraction.cs" />
+  </ItemGroup>
+</Project>

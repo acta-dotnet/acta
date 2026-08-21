@@ -228,6 +228,10 @@ jobs:
       - name: Package smoke
         shell: pwsh
         run: tests/PackageSmoke/run.ps1 -ExistingFeed artifacts
+      # Every code sample a newcomer meets, compiled as a complete program from these same packages.
+      - name: Doc sample compile
+        shell: pwsh
+        run: tests/DocSamples/run.ps1 -ExistingFeed artifacts
       # Retained hash manifest ties the published bytes back to this run and commit (the recorded
       # provenance policy for the release; see the publish job).
       - name: Hash packages

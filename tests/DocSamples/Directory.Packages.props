@@ -1,0 +1,3 @@
+<!-- Isolation stub: shadows the repo's central package management so each sample pins its own
+     PackageReference versions like a real external app. -->
+<Project />

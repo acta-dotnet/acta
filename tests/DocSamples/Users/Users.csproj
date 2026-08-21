@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The quickstart's three files are one project whose root namespace is Users; that is what
+         makes `Run<UsersJobs>` resolve. -->
+    <RootNamespace>Users</RootNamespace>
+    <ActaPackageVersion Condition="'$(ActaPackageVersion)' == ''">*-*</ActaPackageVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The sample maps no dashboard, so the provider package alone carries it. -->
+    <PackageReference Include="Acta.Sqlite" Version="$(ActaPackageVersion)" />
+  </ItemGroup>
+</Project>
