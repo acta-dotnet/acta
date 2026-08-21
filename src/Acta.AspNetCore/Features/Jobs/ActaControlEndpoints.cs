@@ -112,16 +112,17 @@ internal static class ActaControlEndpoints
                     var jobId = await jobs.GetJobIdAsync(JobLookup.ByRef(parsed), ct);
                     if (jobId is null)
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                        return Envelope(parsed, ControlAction.NotFound, StatusCodes.Status404NotFound, "Job not found.");
                     }
 
                     var current = await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct);
                     if (current is not { } stored)
                     {
-                        return ControlEndpointValidation.Problem(
+                        return Envelope(
+                            parsed,
+                            ControlAction.Rejected,
                             StatusCodes.Status409Conflict,
-                            "No input to amend.",
-                            "The job has no input to amend."
+                            "Input rejected: the job has no input to amend."
                         );
                     }
 
@@ -195,7 +196,7 @@ internal static class ActaControlEndpoints
             .AcceptsJson<JobInputRequest>()
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
     // POST /jobs/{jobRef}/reschedule: unlike the other verbs, the target instant travels in the body
@@ -431,6 +432,17 @@ internal static class ActaControlEndpoints
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
+
+    // The two outcomes /input settles before the verb runs, in the family envelope rather than as a
+    // ProblemDetails: an unresolvable ref is the same not-found the other verbs report, and a job with
+    // no stored input is a rejected transition, not a malformed request. Status is null because neither
+    // outcome read one.
+    private static IResult Envelope(JobRef jobRef, ControlAction action, int statusCode, string message) =>
+        Results.Json(
+            new JobControlResponse(jobRef, action, null, message),
+            DashboardJsonContext.Default.JobControlResponse,
+            statusCode: statusCode
+        );
 
     private static IResult ToResult(string verb, JobRef jobRef, JobControlResult result)
     {

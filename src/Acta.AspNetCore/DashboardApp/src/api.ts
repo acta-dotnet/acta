@@ -251,9 +251,10 @@ export interface TenantListItem {
 // Admin controls use a distinct action set from job controls and can return optimistic conflicts.
 // #6: materially different from ControlAction. No message field (the frontend synthesizes its
 // own operator-facing text from `action`); `alreadyInState` is a successful idempotent no-op, not
-// a rejection. NotFound/VersionConflict come back from the server as a bare Problem body with no
-// `action` field at all - useControlMutation's notFound/versionConflict fallbacks supply those two
-// cases (see controlRequest above), never a parsed server value.
+// a rejection. All four come back from the server as this body: applied and alreadyInState at 200,
+// notFound at 404, versionConflict at 409 carrying the row's current `version`, so a retry needs no
+// re-read. useControlMutation's notFound/versionConflict fallbacks only cover a body that arrives
+// without an `action` at all.
 export type AdminControlAction = 'applied' | 'notFound' | 'alreadyInState' | 'versionConflict';
 
 export interface AdminControlResult {

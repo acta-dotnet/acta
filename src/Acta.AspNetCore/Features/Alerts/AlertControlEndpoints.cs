@@ -72,8 +72,10 @@ internal static class AlertControlEndpoints
             // The body is read manually rather than bound, so the document only learns its shape from
             // this declaration; optional because a bare POST acknowledges with no note.
             .AcceptsJson<AlertControlRequest>(optional: true)
+            // Applied and not-found carry the same body, so a client reads `action` without
+            // special-casing the status code.
             .Produces<AlertControlResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .Produces<AlertControlResponse>(StatusCodes.Status404NotFound);
     }
 
     private static IResult ToResult(AlertControlResult result)

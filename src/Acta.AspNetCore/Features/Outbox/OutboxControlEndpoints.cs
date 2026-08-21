@@ -20,7 +20,7 @@ internal static class OutboxControlEndpoints
         var group = outer.MapGroup("");
         group.ProducesJson<OutboxControlResponse>(StatusCodes.Status202Accepted);
         group.ProducesJson<OutboxControlResponse>(StatusCodes.Status409Conflict);
-        group.ProducesProblem(StatusCodes.Status404NotFound);
+        group.ProducesJson<OutboxControlResponse>(StatusCodes.Status404NotFound);
 
         group
             .MapPost(

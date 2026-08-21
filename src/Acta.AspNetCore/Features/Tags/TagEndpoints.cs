@@ -78,10 +78,11 @@ internal static class TagEndpoints
     public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
         // Same shape for all fourteen mutations: every one resolves a target then applies, so an
-        // unresolvable or unmatched target is the 404 and an applied change is the AdminControlResponse.
+        // applied change and an unresolvable or unmatched target both answer with the same
+        // AdminControlResponse and a client reads `action` without special-casing the status code.
         var group = outer.MapGroup("");
         group.ProducesJson<AdminControlResponse>();
-        group.ProducesProblem(StatusCodes.Status404NotFound);
+        group.ProducesJson<AdminControlResponse>(StatusCodes.Status404NotFound);
 
         group
             .MapPost(
@@ -281,7 +282,7 @@ internal static class TagEndpoints
             var target = resolve();
             if (target is null)
             {
-                return NotFound();
+                return MutationNotFound();
             }
 
             var result = await apply(target);
@@ -290,7 +291,7 @@ internal static class TagEndpoints
                     new AdminControlResponse(AdminControlAction.Applied, null),
                     DashboardJsonContext.Default.AdminControlResponse
                 )
-                : NotFound();
+                : MutationNotFound();
         }
         catch (ArgumentException ex)
         {
@@ -344,5 +345,19 @@ internal static class TagEndpoints
         }
     }
 
+    // A read has no envelope to answer with - its 200 is the tag list itself - so an unknown target
+    // there is the plain problem document every other read returns.
     private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found.");
+
+    /// <summary>
+    /// The mutation not-found: a tag mutation is a control verb, so it answers with the family
+    /// envelope on 404 exactly as it does on 200. Version is null because a tag write carries no CAS
+    /// token - the tag set is the row's own, not a versioned catalog record.
+    /// </summary>
+    private static IResult MutationNotFound() =>
+        Results.Json(
+            new AdminControlResponse(AdminControlAction.NotFound, null),
+            DashboardJsonContext.Default.AdminControlResponse,
+            statusCode: StatusCodes.Status404NotFound
+        );
 }

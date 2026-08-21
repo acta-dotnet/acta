@@ -23,22 +23,28 @@ internal sealed record NamespacePatchRequest(
 /// <summary>HTTP projection of an admin control transition.</summary>
 internal sealed record AdminControlResponse(AdminControlAction Action, int? Version);
 
-/// <summary>Maps an <see cref="AdminControlResult"/> to an HTTP result: Applied/AlreadyInState 200, NotFound 404, VersionConflict 409.</summary>
+/// <summary>
+/// Maps an <see cref="AdminControlResult"/> to an HTTP result: Applied/AlreadyInState 200, NotFound
+/// 404, VersionConflict 409. All three carry the same <see cref="AdminControlResponse"/> body, so a
+/// client reads <c>action</c> without special-casing the status code, and a version conflict carries
+/// the row's current <c>version</c> so the caller retries without a re-read. Only an outcome outside
+/// the enum is a fault, and a fault is the one thing this answers as a problem document.
+/// </summary>
 internal static class AdminControlHttp
 {
     public static IResult ToResult(AdminControlResult result) =>
         result.Action switch
         {
-            AdminControlAction.Applied or AdminControlAction.AlreadyInState => Results.Json(
-                new AdminControlResponse(result.Action, result.Version),
-                DashboardJsonContext.Default.AdminControlResponse
-            ),
-            AdminControlAction.NotFound => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found."),
-            AdminControlAction.VersionConflict => Results.Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Version conflict.",
-                detail: "The expected version did not match the current row; re-read and retry."
-            ),
+            AdminControlAction.Applied or AdminControlAction.AlreadyInState => Json(result, StatusCodes.Status200OK),
+            AdminControlAction.NotFound => Json(result, StatusCodes.Status404NotFound),
+            AdminControlAction.VersionConflict => Json(result, StatusCodes.Status409Conflict),
             _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Unknown admin outcome."),
         };
+
+    private static IResult Json(AdminControlResult result, int statusCode) =>
+        Results.Json(
+            new AdminControlResponse(result.Action, result.Version),
+            DashboardJsonContext.Default.AdminControlResponse,
+            statusCode: statusCode
+        );
 }

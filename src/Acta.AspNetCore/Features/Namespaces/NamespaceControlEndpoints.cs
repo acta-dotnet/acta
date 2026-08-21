@@ -12,13 +12,12 @@ internal static class NamespaceControlEndpoints
 {
     public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // All three go through AdminControlHttp.ToResult, so all three answer the same three ways:
-        // applied or already-in-state is the response body, an unknown target is 404, and a stale
-        // ExpectedVersion is 409.
+        // All three go through AdminControlHttp.ToResult, so all three answer the same two ways with
+        // the same body: applied or already-in-state is 200, an unknown target is 404. Only the patch
+        // takes an ExpectedVersion, so only the patch declares the 409 below.
         var group = outer.MapGroup("");
         group.ProducesJson<AdminControlResponse>();
-        group.ProducesProblem(StatusCodes.Status404NotFound);
-        group.ProducesProblem(StatusCodes.Status409Conflict);
+        group.ProducesJson<AdminControlResponse>(StatusCodes.Status404NotFound);
 
         group
             .MapPost(
@@ -149,6 +148,9 @@ internal static class NamespaceControlEndpoints
                 }
             )
             .AcceptsJson<NamespacePatchRequest>()
+            // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries
+            // without a re-read.
+            .Produces<AdminControlResponse>(StatusCodes.Status409Conflict)
             .WithSummary("Update the namespace's owner team and description.");
     }
 }

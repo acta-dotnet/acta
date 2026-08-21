@@ -72,8 +72,11 @@ internal static class DefinitionControlEndpoints
             .WithSummary("Set or clear the definition's operator policy overrides.")
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<SetDefinitionOverridesRequest>()
+            // Applied, version-conflict, and not-found carry the same body, so a client reads `action`
+            // without special-casing the status code.
             .Produces<DefinitionControlResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .Produces<DefinitionControlResponse>(StatusCodes.Status409Conflict)
+            .Produces<DefinitionControlResponse>(StatusCodes.Status404NotFound);
     }
 
     private static IResult ToResult(string jobNamespace, string jobName, DefinitionControlResult result)

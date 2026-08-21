@@ -16,11 +16,13 @@ internal static class ScheduleControlEndpoints
 {
     public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // The four schedule verbs share one response shape and one not-found case, so they declare it
-        // once here rather than four times below.
+        // The four schedule verbs share one response shape across all three outcomes, so they declare
+        // it once here rather than four times below. Applied, rejected, and not-found carry the same
+        // body, so a client reads `action` without special-casing the status code.
         var group = outer.MapGroup("");
         group.ProducesJson<ScheduleControlResponse>();
-        group.ProducesProblem(StatusCodes.Status404NotFound);
+        group.ProducesJson<ScheduleControlResponse>(StatusCodes.Status409Conflict);
+        group.ProducesJson<ScheduleControlResponse>(StatusCodes.Status404NotFound);
 
         group
             .MapPost(

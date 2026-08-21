@@ -875,9 +875,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/JobControlResponse"
                 }
               }
             }
@@ -1455,12 +1455,22 @@
               }
             }
           },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/DefinitionControlResponse"
                 }
               }
             }
@@ -1839,9 +1849,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -1938,9 +1948,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -2038,9 +2048,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -2048,9 +2058,9 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -2225,9 +2235,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AlertControlResponse"
                 }
               }
             }
@@ -2324,9 +2334,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AlertControlResponse"
                 }
               }
             }
@@ -2436,12 +2446,22 @@
               }
             }
           },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
                 }
               }
             }
@@ -2551,12 +2571,22 @@
               }
             }
           },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
                 }
               }
             }
@@ -2666,12 +2696,22 @@
               }
             }
           },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
                 }
               }
             }
@@ -2782,12 +2822,22 @@
               }
             }
           },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ScheduleControlResponse"
                 }
               }
             }
@@ -2884,19 +2934,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -2993,19 +3033,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -3103,9 +3133,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -3113,9 +3143,9 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -3222,9 +3252,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/OutboxControlResponse"
                 }
               }
             }
@@ -3331,9 +3361,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/OutboxControlResponse"
                 }
               }
             }
@@ -3431,9 +3461,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -3610,9 +3640,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -3718,9 +3748,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -3913,9 +3943,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -4029,9 +4059,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -4240,9 +4270,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -4340,9 +4370,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -4519,9 +4549,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -4619,9 +4649,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -4798,9 +4828,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -4898,9 +4928,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -5077,9 +5107,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -5177,9 +5207,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }
@@ -5356,9 +5386,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/AdminControlResponse"
                 }
               }
             }

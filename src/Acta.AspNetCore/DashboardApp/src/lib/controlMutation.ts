@@ -15,11 +15,11 @@ export interface ControlMutationOptions<TVars extends object, TResult extends { 
    *  meaning: a presence-only signal). When set, this replaces `body`/the reason merge entirely;
    *  return undefined to send no request body at all. */
   rawBody?: (vars: TVars) => unknown;
-  /** Result to return when the server responds 404 with no typed body. */
+  /** Result to return when the server responds 404 with no typed body. Every control family types
+   *  its 404, so this is the guard for a proxy or a gateway answering in the server's place. */
   notFound: (vars: TVars) => TResult;
-  /** Result to return when the server responds 409 with no typed body - admin control's
-   *  VersionConflict, which the backend returns as a bare Problem (see controlRequest in api.ts).
-   *  Omit for verbs that never hit this shape (job/schedule/alert control always type their 409). */
+  /** Result to return when the server responds 409 with no typed body. Same guard as `notFound`,
+   *  for the one outcome only the version-guarded admin patches can reach. */
   versionConflict?: (vars: TVars) => TResult;
   /** Query keys to invalidate once the request resolves without throwing (applied, rejected, and
    *  not-found all count - only a genuine fetch/parse failure skips invalidation). */
