@@ -171,5 +171,5 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
     }
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
-        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, ct);
+        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain: null, ct);
 }

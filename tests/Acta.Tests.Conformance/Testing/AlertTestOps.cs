@@ -65,7 +65,8 @@ internal static class AlertTestOps
     /// change to the projector's constructor is one edit here instead of a synchronized edit in each
     /// spec's private copy. <paramref name="options"/> replaces the container's
     /// <see cref="JobsOptions"/> when a fact needs its own thresholds; <c>null</c> runs with whatever
-    /// the spec's container configured.
+    /// the spec's container configured. <paramref name="drain"/> replaces the generate drain's shipped
+    /// bounds; <c>null</c> runs the production 256 / 40 / 30s budget.
     /// </summary>
     public static async Task RunAlertsJobAsync(
         IServiceProvider services,
@@ -73,6 +74,7 @@ internal static class AlertTestOps
         short namespaceId,
         long cursorOwnerJobId,
         JobsOptions? options,
+        AlertDrainBudget? drain,
         CancellationToken ct
     )
     {
@@ -82,10 +84,45 @@ internal static class AlertTestOps
             services.GetRequiredService<IAlertChannelRegistry>(),
             services.GetRequiredService<IAlertTransportRegistry>(),
             options is null ? services.GetRequiredService<IOptions<JobsOptions>>() : Options.Create(options)
-        );
+        )
+        {
+            Drain = drain ?? AlertsJob.DefaultDrain,
+        };
 
         await alertsJob.Handle(BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId), ct);
     }
+
+    /// <summary>
+    /// The projector's cursor as the projector itself reads it, through a stand-in context on the
+    /// same slot: a spec asserting how far a pass drained compares against this rather than decoding
+    /// the checkpoint row's payload by hand. Zero when no pass has checkpointed yet.
+    /// </summary>
+    public static Task<long> ReadAlertsCursorAsync(
+        IServiceProvider services,
+        string jobNamespace,
+        short namespaceId,
+        long cursorOwnerJobId,
+        CancellationToken ct
+    ) =>
+        BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
+            .GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, 0L, ct);
+
+    /// <summary>
+    /// Rewinds the projector's cursor to <paramref name="cursorEventId"/> through the same variable
+    /// write the projector uses, which is how a spec stages a crash that lost one batch's checkpoint
+    /// while every alert write that batch made stands. Deleting the row (the whole-pass crash) is the
+    /// coarser sibling of this and lives in the specs that need it.
+    /// </summary>
+    public static Task RewindAlertsCursorAsync(
+        IServiceProvider services,
+        string jobNamespace,
+        short namespaceId,
+        long cursorOwnerJobId,
+        long cursorEventId,
+        CancellationToken ct
+    ) =>
+        BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
+            .SetVariableAsync(AlertsJob.CursorVariableName, cursorEventId, ct);
 
     /// <summary>
     /// The internal job id of a seeded recurring slot, looked up by its deduplication key, which for

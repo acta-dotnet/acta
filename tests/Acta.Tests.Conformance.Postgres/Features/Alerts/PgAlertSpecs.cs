@@ -31,4 +31,6 @@ public sealed class PgAlertRefDedupeStabilitySpec : AlertRefDedupeStabilitySpec<
 
 public sealed class PgAlertProjectionReplaySpec : AlertProjectionReplaySpec<PgConformanceFixture>;
 
+public sealed class PgAlertProjectionDrainSpec : AlertProjectionDrainSpec<PgConformanceFixture>;
+
 public sealed class PgRecurringFailureAlertSpec : RecurringFailureAlertSpec<PgConformanceFixture>;

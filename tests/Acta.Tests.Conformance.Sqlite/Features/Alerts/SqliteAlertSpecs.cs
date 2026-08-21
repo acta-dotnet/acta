@@ -29,4 +29,6 @@ public sealed class SqliteAlertRefDedupeStabilitySpec : AlertRefDedupeStabilityS
 
 public sealed class SqliteAlertProjectionReplaySpec : AlertProjectionReplaySpec<SqliteConformanceFixture>;
 
+public sealed class SqliteAlertProjectionDrainSpec : AlertProjectionDrainSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteRecurringFailureAlertSpec : RecurringFailureAlertSpec<SqliteConformanceFixture>;

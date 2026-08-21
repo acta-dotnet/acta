@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Services.Time;
@@ -10,7 +11,9 @@ namespace Acta.Runtime.Modules.Alerting;
 /// <summary>
 /// Recurring <c>sys.alerts</c> projector and delivery job, competitively claimed once per namespace.
 /// Generate classifies alertable events from their immutable transition triple, applies the definition
-/// profile, and collapses automatic alerts onto one open incident row per job and condition.
+/// profile, and collapses automatic alerts onto one open incident row per job and condition. It drains
+/// in bounded batches within one invocation, checkpointing its cursor after each, so a backlog clears
+/// in a tick rather than one batch per minute.
 /// Deterministic poison events are durably recorded on the projector job before its cursor advances;
 /// transient failures retain the cursor for retry. Deliver resolves logical channels and transports,
 /// then records delivered, suppressed, retryable, or terminal outcomes against the version the row
@@ -40,6 +43,18 @@ internal sealed class AlertsJob(
     private const int GenerateBatchSize = 256;
     private const int DeliverBatchSize = 256;
 
+    // The generate drain's two bounds, and the reason each one is where it is. 40 batches of 256 is
+    // 10,240 events in one invocation: a burst clears in a tick instead of the ~40 minutes that one
+    // batch per minute took, while the pass still has a ceiling rather than scanning an uncapped
+    // backlog. The 30s budget is soft and checked BETWEEN batches, so the batch in flight always
+    // finishes and always checkpoints; it makes a long pass yield on its own terms well inside the
+    // framework's 300s execution timeout, which sys.alerts inherits and which stays the backstop.
+    // Delivery is deliberately NOT drained this way and stays at DeliverBatchSize per invocation:
+    // pushing 10,000 webhooks through one tick would turn protecting the database into an outage on
+    // the operator's own channel.
+    private const int GenerateMaxBatches = 40;
+    private static readonly TimeSpan GenerateTimeBudget = TimeSpan.FromSeconds(30);
+
     // Delivery retry curve, independent of any job's backoff policy. 30s to 1h, doubling, 10% jitter
     // (the ranged-expression defaults) - parsed once from the same DSL every definition uses.
     private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
@@ -53,6 +68,18 @@ internal sealed class AlertsJob(
     private readonly TimeSpan _reminderInterval = options.Value.AlertReminderInterval;
     private readonly ILogger _log = log ?? NullLogger<AlertsJob>.Instance;
     private readonly JobMetrics? _metrics = metrics;
+
+    // The shipped drain bounds as one value. Internal because the drain specs stage backlogs relative
+    // to the real batch size rather than to a literal 256, so raising the constant keeps those specs
+    // spanning batches instead of quietly collapsing into single-batch passes.
+    internal static readonly AlertDrainBudget DefaultDrain = new(GenerateBatchSize, GenerateMaxBatches, GenerateTimeBudget);
+
+    /// <summary>
+    /// The bounds the generate drain runs under, defaulting to <see cref="DefaultDrain"/>. Init-only
+    /// and internal so the drain specs can reach the batch cap and spend the time budget without
+    /// staging ten thousand events or timing a wall clock; production never assigns it.
+    /// </summary>
+    internal AlertDrainBudget Drain { get; init; } = DefaultDrain;
 
     /// <summary>
     /// Runs one alerting pass for the firing namespace: projects new alert-relevant events into
@@ -73,35 +100,77 @@ internal sealed class AlertsJob(
         await DeliverAsync(ctx, nowUtc, ct);
     }
 
+    // One bounded drain per invocation: batches until the backlog runs out, the batch cap is reached,
+    // or the elapsed budget is spent - whichever comes first. The cursor is written after every
+    // completed batch rather than once at the end, so whatever ends the pass - a bound, a crash, the
+    // execution timeout - keeps every batch already projected and the next invocation resumes behind
+    // it. Re-offering the one batch that was in flight is safe by construction: the raise and resolve
+    // paths refuse to move an incident an equal-or-newer event already marked.
     private async Task GenerateAsync(JobContext ctx, CancellationToken ct)
     {
         var cursor = await ctx.GetVariableOrDefaultAsync<long>(CursorVariableName, 0L, ct);
+        // Monotonic, because this is a local cooperative budget rather than a correctness instant: it
+        // decides only whether THIS pass keeps going, so it must not move with the database's clock.
+        var elapsed = Stopwatch.StartNew();
+        var projected = 0;
 
-        var events = await _store.GetAlertableEventsAsync(ctx.NamespaceId, cursor, GenerateBatchSize, ct);
-        if (events.Count == 0)
+        for (var batch = 0; batch < Drain.MaxBatches; batch++)
         {
-            return;
-        }
-
-        var maxId = cursor;
-        foreach (var e in events)
-        {
-            maxId = Math.Max(maxId, e.EventId);
-            try
+            var events = await _store.GetAlertableEventsAsync(ctx.NamespaceId, cursor, Drain.BatchSize, ct);
+            if (events.Count == 0)
             {
-                await ProjectAsync(ctx, e, ct);
+                return;
             }
-            catch (AlertProjectionDataException ex)
+
+            var maxId = cursor;
+            foreach (var e in events)
             {
-                await RecordProjectionSkipAsync(ctx, e, ex, ct);
+                maxId = Math.Max(maxId, e.EventId);
+                try
+                {
+                    await ProjectAsync(ctx, e, ct);
+                }
+                catch (AlertProjectionDataException ex)
+                {
+                    await RecordProjectionSkipAsync(ctx, e, ex, ct);
+                }
+            }
+
+            projected += events.Count;
+            if (maxId > cursor)
+            {
+                await ctx.SetVariableAsync(CursorVariableName, maxId, ct);
+                cursor = maxId;
+            }
+
+            // A short read is the backlog's own end: the query takes everything above the cursor up to
+            // the limit, so asking again would come back empty.
+            if (events.Count < Drain.BatchSize)
+            {
+                return;
+            }
+
+            if (elapsed.Elapsed >= Drain.TimeBudget)
+            {
+                LogDrainBound(ctx, "time-budget", projected, elapsed);
+                return;
             }
         }
 
-        if (maxId > cursor)
-        {
-            await ctx.SetVariableAsync(CursorVariableName, maxId, ct);
-        }
+        LogDrainBound(ctx, "batch-cap", projected, elapsed);
     }
+
+    // Information, not Warning: reaching a bound is the design working. The line an operator wants is
+    // the one that explains why a backlog is clearing a tick at a time, so it names which bound ended
+    // the pass and how much the pass got through.
+    private void LogDrainBound(JobContext ctx, string reason, int projected, Stopwatch elapsed) =>
+        _log.LogInformation(
+            "ACTA sys.alerts: the generate drain stopped at its ({Reason}) bound in namespace ({Namespace}) having projected {Count} events in {DurationMs} ms; the next pass resumes from the cursor.",
+            reason,
+            ctx.JobNamespace,
+            projected,
+            elapsed.ElapsedMilliseconds
+        );
 
     private async Task RecordProjectionSkipAsync(
         JobContext ctx,
@@ -483,3 +552,12 @@ internal sealed class AlertsJob(
         }
     }
 }
+
+/// <summary>
+/// The bounds one <c>sys.alerts</c> generate pass drains within: how many events one batch reads
+/// (<c>BatchSize</c>), how many batches the pass may complete (<c>MaxBatches</c>), and the elapsed
+/// budget it spends (<c>TimeBudget</c>). The time budget is cooperative - read between batches, never
+/// inside one - so the batch in flight always finishes and always checkpoints its cursor. The first
+/// bound reached ends the pass.
+/// </summary>
+internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan TimeBudget);

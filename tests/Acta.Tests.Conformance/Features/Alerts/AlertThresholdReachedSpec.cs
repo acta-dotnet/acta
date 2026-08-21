@@ -244,6 +244,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
             NamespaceId,
             cursorOwnerJobId,
             new JobsOptions { AlertFailureThreshold = alertFailureThreshold },
+            drain: null,
             ct
         );
 }

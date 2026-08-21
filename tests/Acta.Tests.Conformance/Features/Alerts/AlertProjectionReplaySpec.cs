@@ -273,7 +273,7 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
             .DeleteAsync(ct);
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
-        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, ct);
+        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain: null, ct);
 
     // The crash-staging facts pin the threshold instead of inheriting the container's, because their
     // expected escalations are chosen against exactly that value - and both passes of a staged crash
@@ -285,6 +285,7 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
             NamespaceId,
             cursorOwnerJobId,
             new JobsOptions { AlertFailureThreshold = alertFailureThreshold },
+            drain: null,
             ct
         );
 }

@@ -44,7 +44,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var ct = TestContext.Current.CancellationToken;
         var seeder = new ActaTestSeeder(Db);
         var nsId = await seeder.SeedJobNamespaceAsync(TestKey("defs-ck"), ct: ct);
-        var defId = await seeder.SeedJobDefinitionAsync(nsId, TestKey("defs-ck-def"), ct);
+        var defId = await seeder.SeedJobDefinitionAsync(nsId, TestKey("defs-ck-def"), ct: ct);
 
         Assert.Equal(
             1,

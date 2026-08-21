@@ -44,7 +44,7 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
     {
         await base.AfterInitializeAsync();
         var ct = TestContext.Current.CancellationToken;
-        DefId = await Seeder.SeedJobDefinitionAsync(TestNamespaceId, "alert-delivery-def", ct);
+        DefId = await Seeder.SeedJobDefinitionAsync(TestNamespaceId, "alert-delivery-def", ct: ct);
         (JobIdValue, _) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
     }
 

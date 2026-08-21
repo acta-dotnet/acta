@@ -231,6 +231,21 @@ transport attempt already in progress may still complete.
 A 10,000-job outage now produces one open incident row per failing job (per kind and reason), not
 2–3 accumulated rows per job per rolling window.
 
+### The alert projector drains a backlog instead of trickling through it
+
+`sys.alerts` generate used to project exactly one 256-event batch per minute, so the same 10,000-event
+outage took about forty minutes to appear as alert rows. Generate now drains in an inner loop bounded
+by 40 batches (10,240 events) or 30 seconds of elapsed time per invocation, whichever it reaches
+first, with the framework's 300 s execution timeout still behind both. The time budget is cooperative
+— it is read between batches, never inside one — so the batch in flight always finishes, and the
+cursor is written after **every** completed batch rather than once at the end. A pass ended by a
+bound, a crash, or the timeout therefore keeps everything it already projected, and the next tick
+resumes behind it; the replay guards make re-offering the one in-flight batch a no-op.
+
+Delivery is deliberately unchanged at 256 transport attempts per pass. Draining ten thousand webhooks
+as fast as the database allows would trade a database problem for an outage on the operator's own
+notification channel.
+
 ### Execution correctness: a lost step CAS no longer terminalizes a healthy job
 
 A `complete_step` version CAS that matches no row usually means another execution re-claimed the

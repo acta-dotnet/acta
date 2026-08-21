@@ -117,5 +117,5 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
     // ---------- driving the projector ----------
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
-        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, ct);
+        AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain: null, ct);
 }

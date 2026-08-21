@@ -23,9 +23,17 @@ Four consequences an operator sees:
 - **Alerts are not written at failure time.** The row appears on the next tick, so up to about a
   minute after the event that caused it.
 - **Generate and deliver share a pass**, so a row raised in a pass is normally sent in the same pass.
-- **Each phase is capped at 256 rows per pass per namespace** (`AlertsJob.GenerateBatchSize`,
-  `AlertsJob.DeliverBatchSize`). A namespace producing more alertable events than that per minute
-  falls behind. Nothing is lost — the cursor is durable — but the lag grows until the burst clears.
+- **Generate drains up to 10,240 events per pass; deliver stays at 256.** Generate reads batches of
+  256 in an inner loop bounded by 40 batches or 30 seconds of elapsed time, whichever comes first
+  (`AlertsJob.GenerateMaxBatches`, `AlertsJob.GenerateTimeBudget`, `AlertsJob.GenerateAsync`), so a
+  burst of a few thousand failures clears in one tick. The time budget is checked *between* batches,
+  so the batch in flight always finishes. Deliver is deliberately not drained the same way and stays
+  at 256 transport attempts per pass (`AlertsJob.DeliverBatchSize`): pushing ten thousand webhooks
+  through one tick would trade a database problem for an outage on the operator's own channel. A
+  namespace that outruns either bound falls behind. Nothing is lost — the cursor is durable, and it is
+  written after **every** completed batch, so a pass cut short by a bound, a crash, or the framework's
+  300 s execution timeout keeps everything it already projected — but the lag grows until the burst
+  clears.
 - **Generate walks `events` forward from a durable cursor** kept on the slot's own variable bag
   (`AlertsJob.CursorVariableName`, `AlertsJob.GenerateAsync`).
 

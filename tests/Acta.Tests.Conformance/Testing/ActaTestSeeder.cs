@@ -34,8 +34,16 @@ internal sealed class ActaTestSeeder(IDbSession db)
     /// <summary>
     /// Insert a minimal <c>definitions</c> row and return the DB-assigned id. Every code-owned policy
     /// column is set to a schema-valid value so the definition integrity checks pass.
+    /// <paramref name="alertProfile"/> defaults to <c>None</c>, the quiet choice for seeded rows a
+    /// spec is not alerting on; the alerts specs raise it because the projector reads the profile off
+    /// this join.
     /// </summary>
-    public async Task<int> SeedJobDefinitionAsync(short namespaceId, string name = "test-def", CancellationToken ct = default)
+    public async Task<int> SeedJobDefinitionAsync(
+        short namespaceId,
+        string name = "test-def",
+        AlertProfileCode alertProfile = AlertProfileCode.None,
+        CancellationToken ct = default
+    )
     {
         var now = DateTime.UtcNow;
         return await db.From<JobDefinition>()
@@ -60,7 +68,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     DeadlineBehavior = DeadlineBehaviorCode.Advisory,
                     JobRetentionSeconds = 3600,
                     AuditLevel = JobAuditLevelCode.Off,
-                    AlertProfile = AlertProfileCode.None,
+                    AlertProfile = alertProfile,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
                 },

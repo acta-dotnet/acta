@@ -46,7 +46,7 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
     {
         await base.AfterInitializeAsync();
         var ct = TestContext.Current.CancellationToken;
-        DefId = await Seeder.SeedJobDefinitionAsync(TestNamespaceId, "alerting-def", ct);
+        DefId = await Seeder.SeedJobDefinitionAsync(TestNamespaceId, "alerting-def", ct: ct);
         (JobIdValue, JobRefValue) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
     }
 

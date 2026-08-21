@@ -31,4 +31,6 @@ public sealed class SqlServerAlertRefDedupeStabilitySpec : AlertRefDedupeStabili
 
 public sealed class SqlServerAlertProjectionReplaySpec : AlertProjectionReplaySpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerAlertProjectionDrainSpec : AlertProjectionDrainSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerRecurringFailureAlertSpec : RecurringFailureAlertSpec<SqlServerConformanceFixture>;

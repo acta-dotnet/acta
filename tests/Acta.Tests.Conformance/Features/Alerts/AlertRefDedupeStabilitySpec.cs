@@ -30,7 +30,7 @@ public abstract class AlertRefDedupeStabilitySpec<TFixture> : ActaStorageTestBas
     {
         await base.AfterInitializeAsync();
         var ct = TestContext.Current.CancellationToken;
-        var definitionId = await Seeder.SeedJobDefinitionAsync(TestNamespaceId, "alert-ref-def", ct);
+        var definitionId = await Seeder.SeedJobDefinitionAsync(TestNamespaceId, "alert-ref-def", ct: ct);
         (JobIdValue, _) = await Seeder.SeedJobAsync(TestNamespaceId, definitionId, ct: ct);
     }
 
