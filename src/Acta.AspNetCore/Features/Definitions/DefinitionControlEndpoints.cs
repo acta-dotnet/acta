@@ -76,7 +76,9 @@ internal static class DefinitionControlEndpoints
             // without special-casing the status code.
             .Produces<DefinitionControlResponse>(StatusCodes.Status200OK)
             .Produces<DefinitionControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<DefinitionControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<DefinitionControlResponse>(StatusCodes.Status404NotFound)
+            // The body is mandatory here, so a non-JSON content type is refused before it is read.
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
     }
 
     private static IResult ToResult(string jobNamespace, string jobName, DefinitionControlResult result)

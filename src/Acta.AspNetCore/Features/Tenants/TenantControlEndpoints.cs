@@ -11,8 +11,14 @@ namespace Acta.AspNetCore.Features.Tenants;
 /// </summary>
 internal static class TenantControlEndpoints
 {
-    public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
+        // Registration, suspend, resume and the patch all read a body, so all four can refuse a
+        // content type that is not JSON. Their success shapes differ, so the nested group carries
+        // only the one declaration they share.
+        var group = outer.MapGroup("");
+        group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+
         group
             .MapPost(
                 "/tenants",

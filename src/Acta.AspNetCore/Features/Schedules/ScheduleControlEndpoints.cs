@@ -23,6 +23,8 @@ internal static class ScheduleControlEndpoints
         group.ProducesJson<ScheduleControlResponse>();
         group.ProducesJson<ScheduleControlResponse>(StatusCodes.Status409Conflict);
         group.ProducesJson<ScheduleControlResponse>(StatusCodes.Status404NotFound);
+        // All four read a body, so all four can refuse a content type that is not JSON.
+        group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
         group
             .MapPost(

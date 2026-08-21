@@ -97,7 +97,13 @@ internal static class TagEndpoints
         group.ProducesJson<AdminControlResponse>();
         group.ProducesJson<AdminControlResponse>(StatusCodes.Status404NotFound);
 
-        group
+        // The seven upserts read a JSON body and can refuse a content type that is not JSON; the
+        // seven removes name their tag in the route and read nothing, so they cannot. That is the one
+        // line the two halves do not share, which is the whole reason for the nested group.
+        var withBody = group.MapGroup("");
+        withBody.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+
+        withBody
             .MapPost(
                 "/jobs/{jobRef}/tags",
                 (string jobRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
@@ -115,7 +121,7 @@ internal static class TagEndpoints
             )
             .WithSummary("Remove one tag from the job.");
 
-        group
+        withBody
             .MapPost(
                 "/definitions/{jobNamespace}/{jobName}/tags",
                 (string jobNamespace, string jobName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
@@ -135,7 +141,7 @@ internal static class TagEndpoints
             )
             .WithSummary("Remove one tag from the definition.");
 
-        group
+        withBody
             .MapPost(
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
                 (
@@ -164,7 +170,7 @@ internal static class TagEndpoints
             )
             .WithSummary("Remove one tag from the schedule.");
 
-        group
+        withBody
             .MapPost(
                 "/workers/{workerRef}/tags",
                 (string workerRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
@@ -180,7 +186,7 @@ internal static class TagEndpoints
             )
             .WithSummary("Remove one tag from the worker.");
 
-        group
+        withBody
             .MapPost(
                 "/alerts/{alertRef}/tags",
                 (string alertRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
@@ -196,7 +202,7 @@ internal static class TagEndpoints
             )
             .WithSummary("Remove one tag from the alert.");
 
-        group
+        withBody
             .MapPost(
                 "/namespaces/{jobNamespace}/tags",
                 (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
@@ -212,7 +218,7 @@ internal static class TagEndpoints
             )
             .WithSummary("Remove one tag from the namespace.");
 
-        group
+        withBody
             .MapPost(
                 "/tenants/{tenantKey}/tags",
                 (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>

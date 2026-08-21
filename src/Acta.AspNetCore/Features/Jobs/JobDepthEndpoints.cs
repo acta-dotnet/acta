@@ -213,6 +213,9 @@ internal static class JobDepthEndpoints
             .AcceptsJson<JobEnqueueApiRequest>()
             .Produces<JobEnqueueResponse>(StatusCodes.Status201Created)
             .Produces<JobEnqueueResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            // The one control-gated route here that reads a body, so the one that can refuse a
+            // content type; its sibling input-template read cannot.
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
     }
 }

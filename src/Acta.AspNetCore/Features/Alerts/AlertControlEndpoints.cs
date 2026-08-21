@@ -75,7 +75,9 @@ internal static class AlertControlEndpoints
             // Applied and not-found carry the same body, so a client reads `action` without
             // special-casing the status code.
             .Produces<AlertControlResponse>(StatusCodes.Status200OK)
-            .Produces<AlertControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<AlertControlResponse>(StatusCodes.Status404NotFound)
+            // Both verbs read the optional note body, so both can refuse a non-JSON content type.
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
     }
 
     private static IResult ToResult(AlertControlResult result)

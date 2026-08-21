@@ -18,6 +18,8 @@ internal static class NamespaceControlEndpoints
         var group = outer.MapGroup("");
         group.ProducesJson<AdminControlResponse>();
         group.ProducesJson<AdminControlResponse>(StatusCodes.Status404NotFound);
+        // All three read a body, so all three can refuse a content type that is not JSON.
+        group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
         group
             .MapPost(

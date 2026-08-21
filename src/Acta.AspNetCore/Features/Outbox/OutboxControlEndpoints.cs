@@ -21,6 +21,8 @@ internal static class OutboxControlEndpoints
         group.ProducesJson<OutboxControlResponse>(StatusCodes.Status202Accepted);
         group.ProducesJson<OutboxControlResponse>(StatusCodes.Status409Conflict);
         group.ProducesJson<OutboxControlResponse>(StatusCodes.Status404NotFound);
+        // Both verbs read the optional body, so both can refuse a content type that is not JSON.
+        group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
         group
             .MapPost(

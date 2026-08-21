@@ -23,12 +23,15 @@ internal static class ActaApiEndpoints
         ActaEndpointIdentity.Apply(group);
 
         // The error model, declared once. Every endpoint under this group can answer these, because
-        // the filters below produce them: 400 from the per-endpoint input guards, 415 from the
-        // body-reading endpoints' JSON-only check, 413 from the body ceiling, 500 and 503 from the
-        // exception backstop. Declaring them at the group is what puts them in the committed contract
-        // without restating five lines on 63 endpoints.
+        // the filters below produce them: 400 from the per-endpoint input guards, 413 from the body
+        // ceiling, 500 and 503 from the exception backstop. Declaring them at the group is what puts
+        // them in the committed contract without restating four lines on 63 endpoints.
+        //
+        // 415 is deliberately not here. Unlike these four it has no group-level filter: it is
+        // produced inside ControlEndpointValidation's four body readers, which only a handler that
+        // reads a body calls. Declaring it here would promise it on some forty GET reads that cannot
+        // execute that code, so each body-reading route declares it where its body is read.
         group.ProducesProblem(StatusCodes.Status400BadRequest);
-        group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
         group.ProducesProblem(StatusCodes.Status413PayloadTooLarge);
         group.ProducesProblem(StatusCodes.Status500InternalServerError);
         group.ProducesProblem(StatusCodes.Status503ServiceUnavailable);

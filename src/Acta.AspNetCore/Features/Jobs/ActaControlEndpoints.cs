@@ -12,8 +12,14 @@ namespace Acta.AspNetCore.Features.Jobs;
 /// </summary>
 internal static class ActaControlEndpoints
 {
-    public static void Map(RouteGroupBuilder group, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
+        // Every job control verb reads a request body, even the ones whose body is optional, so every
+        // one of them can refuse a content type that is not JSON. That is the one error code the API
+        // group cannot declare for everybody, because a read never reaches the code that raises it.
+        var group = outer.MapGroup("");
+        group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+
         MapVerb(
             group,
             options,
