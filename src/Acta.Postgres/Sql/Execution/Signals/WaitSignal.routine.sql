@@ -3,6 +3,9 @@
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* One resolution block, always reached holding the row lock: an absent slot is armed first and then
+   re-read, because FOR UPDATE locks no key that does not exist yet and the arming insert can lose to
+   a concurrent first arrival. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -29,30 +32,7 @@ BEGIN
     WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
     FOR UPDATE;
 
-    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
-        RETURN QUERY SELECT
-            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
-            v_fmt,
-            v_val;
-    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
-        RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
-
-        UPDATE {{schema}}.checkpoints js
-        SET
-            status_code = 30 /* JobCheckpointStatusCode.Expired */,
-            modified_at_utc = v_now,
-            version = js.version + 1
-        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
-
-        RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSE
+    IF v_state IS NULL THEN
         INSERT INTO {{schema}}.checkpoints (
             job_id,
             kind_code,
@@ -77,6 +57,40 @@ BEGIN
             0)
         ON CONFLICT (job_id, kind_code, name) DO NOTHING;
 
+        /* DO NOTHING waits out the racing inserter, so by now the row is this call's own or the
+           winner's, committed and lockable. Re-reading it is what stops a bounded call that lost the
+           race from returning SuspendPending against an unbounded winner it never armed. */
+        SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
+        INTO v_state, v_fmt, v_val, v_due
+        FROM {{schema}}.checkpoints js
+        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
+        FOR UPDATE;
+    END IF;
+
+    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
+        RETURN QUERY SELECT
+            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
+            v_fmt,
+            v_val;
+    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
+    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
+
+        UPDATE {{schema}}.checkpoints js
+        SET
+            status_code = 30 /* JobCheckpointStatusCode.Expired */,
+            modified_at_utc = v_now,
+            version = js.version + 1
+        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
+
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
+    ELSE
         IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
 
             UPDATE {{schema}}.checkpoints js

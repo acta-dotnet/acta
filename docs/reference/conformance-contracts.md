@@ -148,6 +148,7 @@
   - Below min severity suppresses the alert and is not reread
   - Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully
   - Delivering an automatic alert schedules the next reminder, which re-sends and reschedules
+  - A reminder is stamped from the settlement, not from the instant the pass began
   - A delivered manual alert is never reminded: its caller owns the incident
   - A manual alert whose send failed is re-attempted on the reminder cadence until it lands
   - A delivered send hands the next reminder a whole retry budget, not the one it spent
@@ -1765,6 +1766,18 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
 
+### Reclaiming a crashed timeout resolution costs the job no retry budget
+- **Contract:** An expired-lease attempt whose awaited wait had already expired returns to Suspended on the same deadline with failure_count untouched.
+- **Arrange:** A bounded wait is armed, moved past its deadline, and claimed with an already-expired lease so the attempt reads as a dead worker.
+- **Act:** The awaited slot is resolved through the wait routine or left Pending, and the recovery sweep reclaims the dead attempt.
+- **Assert:** A resolved wait re-arms the job Suspended and uncharged and cancels on replay, while a Pending or already-passed wait is charged as usual.
+- **Guarantees:**
+  - A crash after the wait expired re-arms the job Suspended on the same deadline with no attempt charged
+  - A crash before the wait expired is charged and re-armed the ordinary way
+  - An expired slot the handler already passed does not make a later crash free
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+
 ### Bulk drain finishes the in-flight job, then Active to Draining to Stopped
 - **Contract:** Under the Bulk profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion and group-commits it, then stamps Stopped.
 - **Arrange:** A worker runs the Bulk profile with a one-row completion batch and a gate handler that holds its job in-flight until released.
@@ -2180,6 +2193,7 @@
   - An unbounded wait replayed over an expired slot cancels the job instead of parking
   - A replay carrying a bound arms the deadline an unbounded wait never had
   - A replay dropping the bound does not clear the deadline the slot carries
+  - A bounded wait arriving at a slot an unbounded one already armed still arms the deadline
   - An unbounded wait still suspends with no due instant and stays unclaimable
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
@@ -2402,7 +2416,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.CompleteStepAsync` | Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades |
-| `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts |
+| `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget |
 | `IExecutionStore.RecordJobNoteAsync` | A handler writes application-authored notes onto the job's own timeline |
 | `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |

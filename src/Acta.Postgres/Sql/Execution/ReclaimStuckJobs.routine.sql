@@ -17,7 +17,19 @@ BEGIN
             j.audit_level_code,
             (r.failure_count + 1) AS new_failure_count,
             jd.max_attempts_effective AS max_attempts,
-            jd.retention_seconds_effective AS retention_seconds
+            jd.retention_seconds_effective AS retention_seconds,
+            /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc,
+               so the equality names the wait this attempt woke for, and an unbounded wait (NULL due)
+               matches nothing. Expired means the timeout had already resolved durably. */
+            EXISTS (
+                SELECT 1
+                FROM {{schema}}.checkpoints c
+                WHERE
+                    c.job_id = r.job_id
+                    AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                    AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                    AND c.due_at_utc = r.next_run_at_utc
+            ) AS wait_resolved
         FROM {{schema}}.runtimes r
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
         INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
@@ -28,18 +40,25 @@ BEGIN
         FOR UPDATE OF r SKIP LOCKED
     ),
     reclaimed AS (
+        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
+           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
+           and the replay lands whatever outcome the waiting overload chooses. */
         UPDATE {{schema}}.runtimes r
         SET
-            status_code = CASE WHEN s.new_failure_count >= s.max_attempts
-                THEN 200 /* JobStatusCode.Failed */
+            status_code = CASE
+                WHEN s.wait_resolved THEN 20 /* JobStatusCode.Suspended */
+                WHEN s.new_failure_count >= s.max_attempts THEN 200 /* JobStatusCode.Failed */
                 ELSE 10 /* JobStatusCode.Ready */ END,
-            failure_count = s.new_failure_count,
-            next_run_at_utc = CASE WHEN s.new_failure_count >= s.max_attempts
-                THEN r.next_run_at_utc
+            failure_count = CASE WHEN s.wait_resolved
+                THEN r.failure_count
+                ELSE s.new_failure_count END,
+            next_run_at_utc = CASE
+                WHEN s.wait_resolved THEN r.next_run_at_utc
+                WHEN s.new_failure_count >= s.max_attempts THEN r.next_run_at_utc
                 ELSE now() END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
-            retention_until_utc = CASE WHEN s.new_failure_count >= s.max_attempts
+            retention_until_utc = CASE WHEN NOT s.wait_resolved AND s.new_failure_count >= s.max_attempts
                 THEN now() + make_interval(secs => s.retention_seconds)
                 ELSE r.retention_until_utc END,
             modified_at_utc = now(),
@@ -90,7 +109,11 @@ BEGIN
             230 /* ExecutionStatusCode.Orphaned */,
             NULL,
             21 /* JobEventReasonCode.JobLeaseExpired */,
-            'Worker lease expired; reclaimed by the sys.recovery system job.'
+            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
+               what tells the two messages apart. */
+            CASE WHEN r.new_status = 20 /* JobStatusCode.Suspended */
+                THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+                ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
         FROM reclaimed r
         WHERE r.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */)
     )

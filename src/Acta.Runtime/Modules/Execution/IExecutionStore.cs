@@ -62,6 +62,10 @@ internal interface IExecutionStore
     /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go
     /// terminal Failed once they reach MaxAttempts. Returns the reclaim count and the Failed children
     /// with their parent ids so the caller can raise each child-done latch.
+    /// <para>One attempt is reclaimed without a charge: the one that woke on a wait deadline and died
+    /// after the slot had already flipped to Expired. Charging it would spend a retry the surviving
+    /// path never spends, so the job returns to Suspended on the same past deadline and the replay
+    /// resolves the timeout as the waiting overload defines it.</para>
     /// </summary>
     Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(short namespaceId, CancellationToken ct);
 

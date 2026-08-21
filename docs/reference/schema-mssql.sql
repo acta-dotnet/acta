@@ -4833,7 +4833,19 @@ BEGIN
                 r.status_code AS from_status,
                 (r.failure_count + 1) AS new_failure_count,
                 jd.max_attempts_effective AS max_attempts,
-                jd.retention_seconds_effective AS retention_seconds
+                jd.retention_seconds_effective AS retention_seconds,
+                /* The job was parked on THIS slot: the suspend copied the slot's due into
+                   next_run_at_utc, so the equality names the wait this attempt woke for, and an
+                   unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM acta.checkpoints c
+                    WHERE
+                        c.job_id = r.job_id
+                        AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                        AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                        AND c.due_at_utc = r.next_run_at_utc
+                ) THEN 1 ELSE 0 END AS wait_resolved
             FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK)
             INNER JOIN acta.jobs j ON j.id = r.job_id
             INNER JOIN acta.definitions jd ON jd.id = j.definition_id
@@ -4843,15 +4855,26 @@ BEGIN
                 AND r.namespace_id = @p_namespace_id
         )
 
+        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
+           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
+           and the replay lands whatever outcome the waiting overload chooses. */
         UPDATE r
         SET
             status_code = CASE
+                WHEN s.wait_resolved = 1
+                    THEN 20 /* JobStatusCode.Suspended */
                 WHEN s.new_failure_count >= s.max_attempts
                     THEN 200 /* JobStatusCode.Failed */
                 ELSE 10  /* JobStatusCode.Ready */
             END,
-            failure_count = s.new_failure_count,
+            failure_count = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.failure_count
+                ELSE s.new_failure_count
+            END,
             next_run_at_utc = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.next_run_at_utc
                 WHEN s.new_failure_count >= s.max_attempts
                     THEN r.next_run_at_utc
                 ELSE @now
@@ -4859,7 +4882,7 @@ BEGIN
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             retention_until_utc = CASE
-                WHEN s.new_failure_count >= s.max_attempts
+                WHEN s.wait_resolved = 0 AND s.new_failure_count >= s.max_attempts
                     THEN DATEADD(SECOND, s.retention_seconds, @now)
                 ELSE r.retention_until_utc
             END,
@@ -4907,7 +4930,12 @@ BEGIN
             230 /* ExecutionStatusCode.Orphaned */,
             NULL,
             21 /* JobEventReasonCode.JobLeaseExpired */,
-            N'Worker lease expired; reclaimed by the sys.recovery system job.'
+            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
+               what tells the two messages apart. */
+            CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
+                THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+                ELSE N'Worker lease expired; reclaimed by the sys.recovery system job.'
+            END
         FROM @reclaimed
         WHERE audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
 
@@ -6137,6 +6165,9 @@ GO
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* The read below needs no re-read after a lost insert the way pg's does: (UPDLOCK, HOLDLOCK) takes a
+   key-range lock over the absent slot, so a concurrent first arrival waits here and then reads the
+   winner's row, arriving at the same resolution instead of racing the insert. */
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,

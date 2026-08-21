@@ -12,3 +12,5 @@ public sealed class PgExecutionOutcomeMatrixSpec : ExecutionOutcomeMatrixSpec<Pg
 public sealed class PgReclaimStuckJobsSpec : ReclaimStuckJobsSpec<PgConformanceFixture>;
 
 public sealed class PgStartExecutionStaleVersionSpec : StartExecutionStaleVersionSpec<PgConformanceFixture>;
+
+public sealed class PgWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<PgConformanceFixture>;

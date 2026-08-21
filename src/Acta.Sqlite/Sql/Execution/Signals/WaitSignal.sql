@@ -3,6 +3,9 @@
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* Nothing here reads a captured pre-state, so a first arrival that loses the insert needs no re-read
+   the way pg's routine does: the arming update below applies to whatever row now stands, and the
+   final SELECT reports it settled. */
 UPDATE {{schema}}.checkpoints
 SET
     status_code = 30 /* JobCheckpointStatusCode.Expired */,

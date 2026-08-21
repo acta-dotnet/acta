@@ -3,6 +3,9 @@
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* The read below needs no re-read after a lost insert the way pg's does: (UPDLOCK, HOLDLOCK) takes a
+   key-range lock over the absent slot, so a concurrent first arrival waits here and then reads the
+   winner's row, arriving at the same resolution instead of racing the insert. */
 CREATE OR ALTER PROCEDURE {{schema}}.wait_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,

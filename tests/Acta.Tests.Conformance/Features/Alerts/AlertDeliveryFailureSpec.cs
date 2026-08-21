@@ -42,6 +42,11 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
     private const string ThrowingKind = "spy-throw";
     private const string MissingKind = "spy-missing";
     private const string ResolvingKind = "spy-resolve-mid-send";
+    private const string PausingKind = "spy-pause-mid-send";
+
+    // Long enough that the pause survives the coarsest instant the three providers store (whole
+    // milliseconds), short enough to be beneath notice in a suite. Only its lower bound is relied on.
+    private static readonly TimeSpan SendPause = TimeSpan.FromMilliseconds(25);
 
     // The reminder spacing these passes settle with; a fact that wants the reminder to come round moves
     // the row's instant itself rather than waiting.
@@ -63,6 +68,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         services.AddSingleton<IActaClock>(Clock);
         // Add spy transports; LogAlertTransport (kind="log") is still registered by UseActa.
         services.AddSingleton<IAlertTransport>(new ThrowingTransport());
+        services.AddSingleton<IAlertTransport>(new PausingTransport());
         services.AddSingleton<IAlertTransport>(Resolver);
         base.ConfigureServices(services, testNamespace);
         services.AddSingleton<IAlertChannelRegistry>(Channels);
@@ -278,6 +284,32 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         AssertScheduledOneIntervalOut(reminded.RetryAfterUtc);
     }
 
+    [Fact(DisplayName = "A reminder is stamped from the settlement, not from the instant the pass began")]
+    public async Task Reminder_is_stamped_from_the_settlement_not_from_the_pass_start()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        await SeedChannelAsync(Db, "ch-pause", PausingKind, ct);
+        await RaiseAlertAsync(Db, "ch-pause", jobId: null, ct);
+
+        // A pass reads the clock once and then spends time: the generate drain carries a 30-second
+        // budget of its own, and delivery adds a transport round trip per row - here, a transport that
+        // takes a moment, which is the only thing this staging needs to be true.
+        var passStart = Clock.Now;
+        await RunDeliveryAsync(maxRetries: 5, ct);
+
+        // So the reminder sits strictly past one interval from the instant the pass began, by whatever
+        // the send cost. Measured from that instant instead it would land exactly on it, having eaten
+        // the send's own time - and a short backoff so measured can be stamped already elapsed.
+        var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
+        Assert.NotNull(delivered.RetryAfterUtc);
+        Assert.True(
+            delivered.RetryAfterUtc > passStart + ReminderInterval,
+            $"expected a reminder past {passStart + ReminderInterval:O}, found {delivered.RetryAfterUtc:O}"
+        );
+    }
+
     [Fact(DisplayName = "A delivered manual alert is never reminded: its caller owns the incident")]
     public async Task Delivered_manual_alert_is_never_reminded()
     {
@@ -458,8 +490,9 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             await Db.From<JobAlert>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new JobAlert { RetryAfterUtc = whenUtc }, ct)
         );
 
-    // The settlement scheduled the next notification exactly one interval past the job's clock. Compared
-    // with a tolerance because the three providers store the instant at different precisions.
+    // The settlement scheduled the next notification one interval past the job's clock. Compared with a
+    // tolerance because the three providers store the instant at different precisions, and because the
+    // settlement measures from itself rather than from the instant the pass read the clock.
     private void AssertScheduledOneIntervalOut(DateTime? scheduledUtc)
     {
         Assert.NotNull(scheduledUtc);
@@ -526,6 +559,22 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         public Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct) =>
             throw new InvalidOperationException("Test: simulated transport failure.");
+    }
+
+    /// <summary>
+    /// A transport that takes a moment to send, the way every real one does. Nothing here waits on a
+    /// clock to reach a value: the pause is the staging, and the fact it feeds asserts only that the
+    /// settlement lands after it, which holds for any pause the platform actually takes.
+    /// </summary>
+    private sealed class PausingTransport : IAlertTransport
+    {
+        public string TransportKind => PausingKind;
+
+        public async Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct)
+        {
+            await Task.Delay(SendPause, ct);
+            return AlertDeliveryOutcome.Delivered;
+        }
     }
 
     /// <summary>

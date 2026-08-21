@@ -12,3 +12,5 @@ public sealed class SqliteExecutionOutcomeMatrixSpec : ExecutionOutcomeMatrixSpe
 public sealed class SqliteReclaimStuckJobsSpec : ReclaimStuckJobsSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteStartExecutionStaleVersionSpec : StartExecutionStaleVersionSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<SqliteConformanceFixture>;

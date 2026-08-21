@@ -374,6 +374,30 @@ public abstract class SignalTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(armed, (await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc);
     }
 
+    [Fact(DisplayName = "A bounded wait arriving at a slot an unbounded one already armed still arms the deadline")]
+    public async Task Bounded_wait_arms_a_slot_an_unbounded_arrival_already_created()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+
+        // The unbounded arrival's slot, armed by the handler itself. Two first arrivals racing the same
+        // absent slot leave exactly this state for the loser, which is the interleaving this pins: the
+        // caller that carries a bound must arm the deadline whether it created the row or found it.
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Null((await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc);
+
+        var decision = await Services
+            .GetRequiredService<ISignalStore>()
+            .WaitSignalAsync(enqueued.JobId, JobCheckpointKindCode.Signal, "go", timeoutSeconds: 900, ct);
+
+        // Still pending - the bound arms a deadline, it does not resolve the wait - and now bounded, so
+        // the job the next suspend caches it on can be claimed back at that instant.
+        Assert.Equal(SignalWaitOutcomeCode.SuspendPending, decision.Outcome);
+        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal(JobCheckpointStatusCode.Pending, slot.Status);
+        Assert.NotNull(slot.DueAtUtc);
+    }
+
     [Fact(DisplayName = "An unbounded wait still suspends with no due instant and stays unclaimable")]
     public async Task Unbounded_wait_keeps_its_old_shape()
     {

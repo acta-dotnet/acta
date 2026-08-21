@@ -95,9 +95,12 @@ internal sealed class AlertsJob(
     [JobSchedule("default", Cron.EveryMinute)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
-        var nowUtc = await _clock.GetUtcNowAsync(ct);
+        // The database clock is read once, here, and every settlement below stamps itself from that
+        // instant plus the time the pass has spent since - see AlertSettlementClock for why a pass-start
+        // instant alone is the wrong base once a pass can legally run for tens of seconds.
+        var settlement = AlertSettlementClock.Start(await _clock.GetUtcNowAsync(ct));
         await GenerateAsync(ctx, ct);
-        await DeliverAsync(ctx, nowUtc, ct);
+        await DeliverAsync(ctx, settlement, ct);
     }
 
     // One bounded drain per invocation: batches until the backlog runs out, the batch cap is reached,
@@ -348,7 +351,7 @@ internal sealed class AlertsJob(
         };
     }
 
-    private async Task DeliverAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
+    private async Task DeliverAsync(JobContext ctx, AlertSettlementClock settlement, CancellationToken ct)
     {
         var due = await _store.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct);
         foreach (var a in due)
@@ -361,7 +364,7 @@ internal sealed class AlertsJob(
             {
                 case AlertChannelDecisionKind.Failed:
                     LogFailedDecision(ctx, a, channel, decision.Reason);
-                    await SettleAsync(a, AlertDeliveryOutcome.Permanent, nowUtc, ct);
+                    await SettleAsync(a, AlertDeliveryOutcome.Permanent, settlement, ct);
                     continue;
 
                 case AlertChannelDecisionKind.Suppressed:
@@ -371,7 +374,7 @@ internal sealed class AlertsJob(
             }
 
             var outcome = await SendAsync(ctx, a, channel!, transport!, ct);
-            await SettleAsync(a, outcome, nowUtc, ct);
+            await SettleAsync(a, outcome, settlement, ct);
         }
     }
 
@@ -479,8 +482,11 @@ internal sealed class AlertsJob(
     private Task SuppressAsync(DeliverableAlert a, CancellationToken ct) =>
         WriteSettlementAsync(a, AlertDeliveryStatusCode.Suppressed, a.RetryCount, retryAfterUtc: null, ct);
 
-    private Task SettleAsync(DeliverableAlert a, AlertDeliveryOutcome outcome, DateTime nowUtc, CancellationToken ct)
+    private Task SettleAsync(DeliverableAlert a, AlertDeliveryOutcome outcome, AlertSettlementClock settlement, CancellationToken ct)
     {
+        // Read once per settlement, so the status, the count and the instant this row lands with all
+        // describe the same moment - the moment the attempt settled, not the moment the pass began.
+        var nowUtc = settlement.UtcNow;
         switch (outcome)
         {
             // retry_count back to zero, because it is the budget for one send series and this series just
@@ -561,3 +567,28 @@ internal sealed class AlertsJob(
 /// bound reached ends the pass.
 /// </summary>
 internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan TimeBudget);
+
+/// <summary>
+/// The instant one <c>sys.alerts</c> pass stamps a settlement with: the database clock read once at the
+/// start of the pass, advanced by the monotonic time spent since that read.
+///
+/// <para>A pass is long enough for the difference to matter. The generate drain may spend a 30-second
+/// budget before delivery starts, and delivery then adds one transport round trip per row. Computing
+/// <c>retry_after_utc</c> from the pass-start instant alone therefore stamps a backoff or a reminder
+/// that part of the pass has already consumed, and a short backoff can land in the past outright -
+/// which makes the next pass re-select the row immediately and collapses the spacing the curve
+/// promises.</para>
+///
+/// <para>Monotonic rather than a second clock read per settlement: it costs no database round trip on
+/// the delivery path, and it cannot move backwards if the server's wall clock is adjusted mid-pass.
+/// The base instant stays the database's, so settlements remain comparable with every other stored
+/// instant; only the offset is local.</para>
+/// </summary>
+internal readonly struct AlertSettlementClock(DateTime baseUtc, long startedTimestamp)
+{
+    /// <summary>Starts a pass clock from <paramref name="baseUtc"/>, read from the database just now.</summary>
+    public static AlertSettlementClock Start(DateTime baseUtc) => new(baseUtc, Stopwatch.GetTimestamp());
+
+    /// <summary>The base instant plus the elapsed time since it was read.</summary>
+    public DateTime UtcNow => baseUtc + Stopwatch.GetElapsedTime(startedTimestamp);
+}

@@ -4611,7 +4611,19 @@ BEGIN
             j.audit_level_code,
             (r.failure_count + 1) AS new_failure_count,
             jd.max_attempts_effective AS max_attempts,
-            jd.retention_seconds_effective AS retention_seconds
+            jd.retention_seconds_effective AS retention_seconds,
+            /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc,
+               so the equality names the wait this attempt woke for, and an unbounded wait (NULL due)
+               matches nothing. Expired means the timeout had already resolved durably. */
+            EXISTS (
+                SELECT 1
+                FROM acta.checkpoints c
+                WHERE
+                    c.job_id = r.job_id
+                    AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                    AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                    AND c.due_at_utc = r.next_run_at_utc
+            ) AS wait_resolved
         FROM acta.runtimes r
         INNER JOIN acta.jobs j ON j.id = r.job_id
         INNER JOIN acta.definitions jd ON jd.id = j.definition_id
@@ -4622,18 +4634,25 @@ BEGIN
         FOR UPDATE OF r SKIP LOCKED
     ),
     reclaimed AS (
+        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
+           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
+           and the replay lands whatever outcome the waiting overload chooses. */
         UPDATE acta.runtimes r
         SET
-            status_code = CASE WHEN s.new_failure_count >= s.max_attempts
-                THEN 200 /* JobStatusCode.Failed */
+            status_code = CASE
+                WHEN s.wait_resolved THEN 20 /* JobStatusCode.Suspended */
+                WHEN s.new_failure_count >= s.max_attempts THEN 200 /* JobStatusCode.Failed */
                 ELSE 10 /* JobStatusCode.Ready */ END,
-            failure_count = s.new_failure_count,
-            next_run_at_utc = CASE WHEN s.new_failure_count >= s.max_attempts
-                THEN r.next_run_at_utc
+            failure_count = CASE WHEN s.wait_resolved
+                THEN r.failure_count
+                ELSE s.new_failure_count END,
+            next_run_at_utc = CASE
+                WHEN s.wait_resolved THEN r.next_run_at_utc
+                WHEN s.new_failure_count >= s.max_attempts THEN r.next_run_at_utc
                 ELSE now() END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
-            retention_until_utc = CASE WHEN s.new_failure_count >= s.max_attempts
+            retention_until_utc = CASE WHEN NOT s.wait_resolved AND s.new_failure_count >= s.max_attempts
                 THEN now() + make_interval(secs => s.retention_seconds)
                 ELSE r.retention_until_utc END,
             modified_at_utc = now(),
@@ -4684,7 +4703,11 @@ BEGIN
             230 /* ExecutionStatusCode.Orphaned */,
             NULL,
             21 /* JobEventReasonCode.JobLeaseExpired */,
-            'Worker lease expired; reclaimed by the sys.recovery system job.'
+            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
+               what tells the two messages apart. */
+            CASE WHEN r.new_status = 20 /* JobStatusCode.Suspended */
+                THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+                ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
         FROM reclaimed r
         WHERE r.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */)
     )
@@ -5888,6 +5911,9 @@ $$;
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* One resolution block, always reached holding the row lock: an absent slot is armed first and then
+   re-read, because FOR UPDATE locks no key that does not exist yet and the arming insert can lose to
+   a concurrent first arrival. */
 CREATE OR REPLACE FUNCTION acta.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -5914,30 +5940,7 @@ BEGIN
     WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
     FOR UPDATE;
 
-    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
-        RETURN QUERY SELECT
-            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
-            v_fmt,
-            v_val;
-    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
-        RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
-
-        UPDATE acta.checkpoints js
-        SET
-            status_code = 30 /* JobCheckpointStatusCode.Expired */,
-            modified_at_utc = v_now,
-            version = js.version + 1
-        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
-
-        RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSE
+    IF v_state IS NULL THEN
         INSERT INTO acta.checkpoints (
             job_id,
             kind_code,
@@ -5962,6 +5965,40 @@ BEGIN
             0)
         ON CONFLICT (job_id, kind_code, name) DO NOTHING;
 
+        /* DO NOTHING waits out the racing inserter, so by now the row is this call's own or the
+           winner's, committed and lockable. Re-reading it is what stops a bounded call that lost the
+           race from returning SuspendPending against an unbounded winner it never armed. */
+        SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
+        INTO v_state, v_fmt, v_val, v_due
+        FROM acta.checkpoints js
+        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
+        FOR UPDATE;
+    END IF;
+
+    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
+        RETURN QUERY SELECT
+            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
+            v_fmt,
+            v_val;
+    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
+    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
+
+        UPDATE acta.checkpoints js
+        SET
+            status_code = 30 /* JobCheckpointStatusCode.Expired */,
+            modified_at_utc = v_now,
+            version = js.version + 1
+        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
+
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
+    ELSE
         IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
 
             UPDATE acta.checkpoints js

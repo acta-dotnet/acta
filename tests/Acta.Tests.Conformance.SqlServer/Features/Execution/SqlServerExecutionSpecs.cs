@@ -12,3 +12,5 @@ public sealed class SqlServerExecutionOutcomeMatrixSpec : ExecutionOutcomeMatrix
 public sealed class SqlServerReclaimStuckJobsSpec : ReclaimStuckJobsSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerStartExecutionStaleVersionSpec : StartExecutionStaleVersionSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<SqlServerConformanceFixture>;
