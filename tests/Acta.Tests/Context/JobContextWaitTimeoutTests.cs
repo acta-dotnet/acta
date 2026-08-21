@@ -174,6 +174,25 @@ public sealed class JobContextWaitTimeoutTests
         Assert.Contains("7:TimedOut", thrown.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task The_group_deadline_slot_is_named_by_the_children_not_by_their_order()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ascending = new TimingOutChildContext();
+        var descending = new TimingOutChildContext();
+
+        await ascending.TryWaitChildrenAsync([7, 9], TimeSpan.FromMinutes(5), ct);
+        var result = await descending.TryWaitChildrenAsync([9, 7], TimeSpan.FromMinutes(5), ct);
+
+        // The slot names the SET of children, so a handler that lists the same ids in a different order
+        // between replays cannot mint a second deadline and restart the group's budget.
+        Assert.Equal("deadline:sys.wait-group.09f9b3b89bd0ea13", ascending.Events[0]);
+        Assert.Equal(ascending.Events[0], descending.Events[0]);
+
+        // Caller order still decides the outcome order; only the slot name is canonical.
+        Assert.Equal([9, 7], result.Children.Select(c => c.ChildJobId));
+    }
+
     /// <summary>
     /// A context whose bounded wait always expires, so the resolution order the runtime relies on can
     /// be pinned without a database.

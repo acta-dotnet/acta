@@ -24,6 +24,9 @@ public sealed record ChildGroupEntry(long ChildJobId, JobStatusCode Status, bool
 /// <summary>What a parent handler observed after a bounded group wait resolved.</summary>
 public sealed record ChildGroupReport(bool TimedOut, bool Succeeded, IReadOnlyList<ChildGroupEntry> Children);
 
+/// <summary>What a parent handler observed after two bounded group waits resolved in sequence.</summary>
+public sealed record TwoGroupReport(ChildGroupReport First, ChildGroupReport Second);
+
 /// <summary>What a parent handler observed after a bounded single-child ExecuteChild resolved.</summary>
 public sealed record ChildExecuteReport(bool IsTimedOut, bool IsSuccess, bool IsCancelled, JobStatusCode TerminalStatus);
 
@@ -90,6 +93,40 @@ public static class ChildGroupTimeoutProbes
         return new ChildGroupReport(result.TimedOut, result.Succeeded, [.. result.Children.Select(Entry)]);
     }
 
+    /// <summary>
+    /// Waits two bounded groups over disjoint children, one after the other. Each group derives its own
+    /// deadline slot, so the two budgets are independent and the second is computed only once the first
+    /// group has resolved.
+    /// </summary>
+    [Job("job-parent-two-groups")]
+    public static async Task<TwoGroupReport> ParentTwoGroups(JobContext ctx, CancellationToken ct)
+    {
+        var a0 = await ctx.StartChildAsync("a0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var a1 = await ctx.StartChildAsync("a1", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var b0 = await ctx.StartChildAsync("b0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+
+        var first = await ctx.TryWaitChildrenAsync([a0.JobId, a1.JobId], LongWait, ct);
+        var second = await ctx.TryWaitChildrenAsync([b0.JobId], LongWait, ct);
+        await ctx.NoteAsync("both groups resolved", ct);
+        return new TwoGroupReport(Report(first), Report(second));
+    }
+
+    /// <summary>
+    /// Waits the same children twice. The second wait derives the same slot name and so reuses the
+    /// deadline the first one stored, however stale it is by then; every member resolves off its own
+    /// latch, which is what makes that harmless.
+    /// </summary>
+    [Job("job-parent-re-wait-same-group")]
+    public static async Task<TwoGroupReport> ParentReWaitSameGroup(JobContext ctx, CancellationToken ct)
+    {
+        var c0 = await ctx.StartChildAsync("c0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+
+        var first = await ctx.TryWaitChildrenAsync([c0.JobId], LongWait, ct);
+        var second = await ctx.TryWaitChildrenAsync([c0.JobId], LongWait, ct);
+        await ctx.NoteAsync("re-wait resolved", ct);
+        return new TwoGroupReport(Report(first), Report(second));
+    }
+
     [Job("job-parent-execute-child-bounded")]
     public static async Task<ChildExecuteReport> ParentExecuteChildBounded(JobContext ctx, CancellationToken ct)
     {
@@ -140,6 +177,9 @@ public static class ChildGroupTimeoutProbes
         }
         return ids;
     }
+
+    private static ChildGroupReport Report(ChildrenWaitResult result) =>
+        new(result.TimedOut, result.Succeeded, [.. result.Children.Select(Entry)]);
 
     private static ChildGroupEntry Entry(ChildJobOutcome outcome) =>
         new(outcome.ChildJobId, outcome.Status, outcome.TimedOut, outcome.Succeeded);

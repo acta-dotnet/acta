@@ -33,8 +33,6 @@ namespace Acta.Tests.Conformance.Scenarios;
 public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private const string DeadlinePrefix = "sys.wait-group.";
-
     [Fact(DisplayName = "A group that finishes before its deadline returns what the unbounded form returns")]
     public async Task Group_before_the_deadline_matches_the_unbounded_form()
     {
@@ -259,6 +257,90 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.True((await Jobs.GetResultAsync<ChildGroupReport>(parent, ct))!.TimedOut);
     }
 
+    [Fact(DisplayName = "Two groups in one job keep separate deadlines and expire independently")]
+    public async Task Two_groups_in_one_job_keep_separate_deadlines()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-two-groups", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+
+        // Let the first group land, member by member, so the second group's deadline is derived only
+        // once the first has resolved and both slots are on the job at the same time.
+        var members = await ChildIdsAsync(parent.JobId, ct);
+        await CompleteHeldChildAsync($"sys.child.{members["a0"]}", ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        await CompleteHeldChildAsync($"sys.child.{members["a1"]}", ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+
+        var slots = await ReadDeadlineSlotsAsync(parent.JobId, ct);
+        Assert.Equal(2, slots.Count);
+        Assert.Equal(2, slots.Select(s => s.Name).Distinct(StringComparer.Ordinal).Count());
+
+        // The second group did not inherit the first group's instant: it computed its own, later one.
+        var byName = slots.ToDictionary(s => s.Name, DeadlineOf, StringComparer.Ordinal);
+        var secondSlot = slots.Single(s => DeadlineOf(s) == byName.Values.Max());
+        Assert.True(byName.Values.Max() > byName.Values.Min(), "the second group reused the first group's deadline.");
+
+        // Expiring the second group's slot alone leaves the first group's stored instant untouched, and
+        // the members that already landed keep their outcomes.
+        var firstSlot = slots.Single(s => s.Name != secondSlot.Name);
+        await ExpireGroupWaitAsync(parent.JobId, secondSlot.Name, ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+
+        var untouched = (await ReadDeadlineSlotsAsync(parent.JobId, ct)).Single(s => s.Name == firstSlot.Name);
+        Assert.Equal(firstSlot.Value, untouched.Value);
+
+        var report = await Jobs.GetResultAsync<TwoGroupReport>(parent, ct);
+        Assert.False(report!.First.TimedOut);
+        Assert.True(report.First.Succeeded);
+        Assert.True(report.Second.TimedOut);
+        foreach (var landed in (long[])[members["a0"], members["a1"]])
+        {
+            Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(landed, ct)).Status);
+            Assert.Equal(0, await CountEventsAsync(landed, EventCode.JobCancelled, ct));
+        }
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(members["b0"], ct)).Status);
+    }
+
+    [Fact(DisplayName = "Re-waiting the same children reuses the stored deadline and resolves off the latches")]
+    public async Task Re_waiting_the_same_group_resolves_off_the_latches()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var landed = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-re-wait-same-group", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(landed, ct));
+        await CompleteHeldChildAsync(Assert.Single(await ReadLatchesAsync(landed.JobId, ct)).Name, ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(landed, ct));
+
+        // The same ids derive the same slot, so the second wait spends a deadline stored for the first.
+        // That is inert: a member resolves off its own latch, and a Set latch wins however stale the
+        // group's instant has become.
+        var reused = Assert.Single(await ReadDeadlineSlotsAsync(landed.JobId, ct));
+        Assert.Equal(0, await CountReasonAsync(landed.JobId, JobEventReasonCode.JobWaitTimedOut, ct));
+        var landedReport = await Jobs.GetResultAsync<TwoGroupReport>(landed, ct);
+        Assert.True(landedReport!.First.Succeeded);
+        Assert.True(landedReport.Second.Succeeded);
+        Assert.Equal(landedReport.First.Children[0].ChildJobId, landedReport.Second.Children[0].ChildJobId);
+        Assert.NotNull(reused.Value);
+
+        var expired = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-re-wait-same-group", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(expired, ct));
+        var member = await OnlyChildAsync(expired.JobId, ct);
+        await ExpireGroupWaitAsync(expired.JobId, ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(expired, ct));
+
+        // The residual, asserted as the behaviour rather than worked around: a member the first wait
+        // gave up on is still Expired when the second wait re-enters, so the re-wait reports TimedOut
+        // again instead of buying the member a fresh budget. Deliberate. A handler wanting another
+        // chance starts a replacement child, which is a different id and therefore a different group.
+        var expiredReport = await Jobs.GetResultAsync<TwoGroupReport>(expired, ct);
+        Assert.True(expiredReport!.First.TimedOut);
+        Assert.True(expiredReport.Second.TimedOut);
+        Assert.Single(await ReadDeadlineSlotsAsync(expired.JobId, ct));
+        Assert.Equal(1, await CountEventsAsync(member, EventCode.JobCancelled, ct));
+        Assert.Equal(JobCheckpointStatusCode.Expired, Assert.Single(await ReadLatchesAsync(expired.JobId, ct)).Status);
+    }
+
     [Fact(DisplayName = "A bounded ExecuteChild reports the timeout on its job outcome")]
     public async Task Bounded_execute_child_surfaces_the_timeout()
     {
@@ -376,22 +458,26 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
         var variables = await Db.From<JobCheckpoint>()
             .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable)
             .ToListAsync(ct);
-        return [.. variables.Where(c => c.Name.StartsWith(DeadlinePrefix, StringComparison.Ordinal))];
+        // The framework's own constant, not a copy: a spec that recognised the slot by a stale literal
+        // would stop finding it and quietly assert nothing.
+        return [.. variables.Where(c => c.Name.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))];
     }
 
     private async Task<IReadOnlyList<JobCheckpoint>> ReadLatchesAsync(long jobId, CancellationToken ct) =>
         [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == JobCheckpointKindCode.ChildLatch)];
 
-    // An arm floors the remaining time to whole seconds, then the store stamps the due against a clock
-    // read a round trip after the one the remaining was measured from. So a member's due sits at most a
-    // second before the group deadline and at most one round trip past it, on every arm, without ever
-    // accumulating. The tolerance is that round trip and nothing else.
+    // One second is the coarsest overshoot an arm can legitimately produce: RemainingWait floors to
+    // whole seconds but never below one, so a member armed with under a second left is deliberately
+    // given a due past the deadline. Where plenty of time is left, as in the facts that call this, the
+    // floor cannot bite and the only overshoot is the store round trip between reading the clock and
+    // stamping the due, which is sub-second. Both are bounded, neither accumulates, and a group
+    // deadline is a not-before rather than a not-after.
     private static void AssertWithinGroupDeadline(JobCheckpoint latch, DateTime deadlineAtUtc)
     {
         Assert.NotNull(latch.DueAtUtc);
         Assert.True(
             latch.DueAtUtc!.Value <= deadlineAtUtc.AddSeconds(1),
-            $"{latch.Name} due {latch.DueAtUtc} outlived the group deadline {deadlineAtUtc} by more than one round trip."
+            $"{latch.Name} due {latch.DueAtUtc} outlived the group deadline {deadlineAtUtc} by more than the arm's rounding."
         );
     }
 
@@ -402,10 +488,15 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
     // The same staging the public ForceGroupWaitTimeoutDueAsync helper performs, called through the one
     // implementation both share: this spec drives a WorkerRuntime rather than an IActaTestHost, so it
     // reaches the code rather than the facade. ScenarioSessionSpec covers the public helper itself.
-    private async Task ExpireGroupWaitAsync(long parentId, CancellationToken ct)
+    private Task ExpireGroupWaitAsync(long parentId, CancellationToken ct) => ExpireGroupWaitAsync(parentId, slotName: null, ct);
+
+    // A named slot expires one group on a job holding several. The public helper takes no name on
+    // purpose (an author cannot know a derived slot name), so this is the seam a spec uses to prove the
+    // groups are independent rather than the helper's whole-job reach.
+    private async Task ExpireGroupWaitAsync(long parentId, string? slotName, CancellationToken ct)
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
-        Assert.NotEqual(0, await WaitTimeoutStaging.ForceGroupWaitDueAsync(Db, parentId, past, ct));
+        Assert.NotEqual(0, await WaitTimeoutStaging.ForceGroupWaitDueAsync(Db, parentId, past, ct, slotName));
         await RewindRuntimeAsync(parentId, past, ct);
     }
 

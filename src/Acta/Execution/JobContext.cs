@@ -776,6 +776,8 @@ public abstract class JobContext
     /// <c>job.wait-timed-out</c>); the awaiting Job is never cancelled and resumes with the result.
     /// There is deliberately no non-Try twin, for the reason <see cref="TryWaitChildAsync"/> has none.
     /// Waiting stays budget-neutral, and cancelling <paramref name="ct"/> stays a non-durable concern.
+    /// <see cref="ResetStateAsync"/> is the one exit from the never-restart rule: it clears the stored
+    /// deadline with every other checkpoint, so a group re-entered after a reset starts a fresh one.
     /// </summary>
     /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
@@ -865,16 +867,29 @@ public abstract class JobContext
     }
 
     // Reserved deadline-slot name, derived from the group's identity the way MapAsync derives a child
-    // name from an item key: the ordered child ids hashed to a stable tail. The ids come back identical
-    // on every replay (a child start dedupes onto the same row), so the name is stable, and the sys.
+    // name from an item key: the child ids hashed to a stable tail. The ids come back identical on
+    // every replay (a child start dedupes onto the same row), so the name is stable, and the sys.
     // prefix is rejected for user variable names, so it cannot collide with one. Two waits on the same
-    // ids in the same Job are the same group and deliberately share the deadline.
+    // children in the same Job are the same group and deliberately share the deadline.
+    //
+    // Sorted first, so the name is a property of the SET of children rather than of the order the
+    // caller happened to list them in. A handler that reorders the same ids between replays would
+    // otherwise mint a second slot and hand the group a fresh budget, which would make never-restart a
+    // promise about caller discipline instead of a structural one. Caller order is not lost: the
+    // outcome array is built in the order the ids were given.
     private static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
     {
-        var canonical = new StringBuilder();
+        var ordered = new long[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)
         {
-            canonical.Append(childJobIds[i].ToString(CultureInfo.InvariantCulture)).Append('.');
+            ordered[i] = childJobIds[i];
+        }
+        Array.Sort(ordered);
+
+        var canonical = new StringBuilder();
+        foreach (var id in ordered)
+        {
+            canonical.Append(id.ToString(CultureInfo.InvariantCulture)).Append('.');
         }
         return GroupDeadlinePrefix + ShortHash(canonical.ToString());
     }

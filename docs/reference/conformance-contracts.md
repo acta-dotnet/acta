@@ -470,6 +470,8 @@
   - A member armed on a subsequent pass counts down to the group deadline, not from its own arm
   - A member first armed after the deadline passed resolves TimedOut on its next tick
   - A replay over an expired group re-runs every member cancel as a no-op
+  - Two groups in one job keep separate deadlines and expire independently
+  - Re-waiting the same children reuses the stored deadline and resolves off the latches
   - A bounded ExecuteChild reports the timeout on its job outcome
   - A bounded Join reports the timeout on the member that did not land
   - A bounded Parallel reports the timeout while keeping its branch keying
