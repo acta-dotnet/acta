@@ -11,7 +11,7 @@ public enum AlertProfileCode : byte
 
     [Code(
         "on-failure",
-        "Default. Alerts on every failure transition; repeats collapse onto the job's one open incident. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery."
+        "Default. Alerts on every failure transition; repeats collapse onto the job's one open incident. Final exhaustion writes a separate alert (a different JobEventReasonCode yields a different DeduplicationKey). Resolves on recovery, which the projector reads from the Job's success event, so an audit level below audit leaves the incident open."
     )]
     OnFailure = 10,
 
