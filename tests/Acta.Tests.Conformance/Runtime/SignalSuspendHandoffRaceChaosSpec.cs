@@ -55,8 +55,9 @@ public abstract class SignalSuspendHandoffRaceChaosSpec<TFixture> : ActaRuntimeT
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
         var decision = new ReviewDecision(true, "beat the handoff");
-        // The completion's Ready publish is the only one that goes to the job's own worker namespace:
-        // the enqueue above woke every namespace, so a total count would be satisfied by that alone.
+        // Baselined after the enqueue's own wake, which lands on this same channel. Inside the window
+        // the raise publishes nothing (the job is still Executing), so complete_execution's Ready
+        // transition is the only publisher left and any increase here is that transition.
         var namespaceWakesBefore = _wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace);
 
         // By the time this runs the handler has thrown its suspend and wait_signal has committed the

@@ -12,10 +12,12 @@ internal abstract class SqlDdlDialect
 {
     public const string SchemaPlaceholder = "{{schema}}";
 
-    // Identity of the current baseline generation, written into the generated M001 bodies and required
-    // at bootstrap by SchemaMigrationRunner.RequiredBaselineStamp. The history is not frozen until 1.0,
-    // so a re-cut baseline is expected; bump this and that constant together on every `schema reset` so
-    // a database built from the previous baseline fails loudly rather than taking a mismatched schema.
+    // Identity of the baseline generation, written into the generated M001 bodies and required at
+    // bootstrap by SchemaMigrationRunner.RequiredBaselineStamp, so a database built from a different
+    // one fails loudly rather than taking a mismatched schema. `baseline-1.0` is the last generation:
+    // the history freezes at 1.0, so this constant does not move again, and `schema reset` stays a
+    // rebuild-and-compare tool (regenerate M001, diff it against the committed one) rather than a
+    // stamp-bump path.
     protected const string BaselineStamp = "baseline-1.0";
 
     // Every migration records its plain snake name; the baseline generation identity lives in a

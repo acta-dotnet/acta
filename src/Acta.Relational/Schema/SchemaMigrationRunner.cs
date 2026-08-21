@@ -11,12 +11,12 @@ namespace Acta.Relational.Schema;
 /// </summary>
 internal static class SchemaMigrationRunner
 {
-    // The migration history is not frozen until 1.0: the baseline stays re-cuttable, and a re-cut
-    // baseline cannot be translated onto a database built from an older one. This stamp is how that
-    // fails loudly instead of silently applying a mismatched schema. Every `schema reset` bumps it,
-    // in both places that own it: SqlDdlDialect.BaselineStamp (which writes it into the generated
-    // M001 bodies) and the constant here (which requires it at bootstrap). BaselineStampParityTests
-    // fails the build if the two drift apart.
+    // A re-cut baseline cannot be translated onto a database built from an older one, and this stamp
+    // is how that fails loudly instead of silently applying a mismatched schema. Two places own it:
+    // SqlDdlDialect.BaselineStamp (which writes it into the generated M001 bodies) and the constant
+    // here (which requires it at bootstrap); BaselineStampParityTests fails the build if they drift.
+    // `baseline-1.0` is the last generation: the history freezes at 1.0, so this stamp does not move
+    // again, and `schema reset` stays a rebuild-and-compare tool rather than a stamp-bump path.
     internal const string RequiredBaselineStamp = "baseline-1.0";
 
     /// <summary>
