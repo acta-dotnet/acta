@@ -3,7 +3,7 @@
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StatusBadge from '../../components/StatusBadge.svelte';
   import Icon from '../../components/Icon.svelte';
-  import { childRollup } from './jobDetailState.ts';
+  import { activeWaitLabel, childRollup } from './jobDetailState.ts';
   import { statusTonePresentation } from '../../components/jobTimelineState.ts';
   import type { JobLineage, JobDetail } from './types.ts';
   import { routes } from '../../routes.ts';
@@ -20,7 +20,6 @@
       (lineage.ancestors.length > 0 || lineage.children.length > 0 || lineage.steps.length > 0 || !!lineage.activeWait)
   );
   let rollup = $derived(lineage ? childRollup(lineage.children) : []);
-  const isSignal = (kind: string) => kind.toLowerCase() === 'signal';
   // The timeline's node vocabulary in miniature: a toned ring dot per job in the tree.
   const toneOf = (status: string) => 't-' + statusTonePresentation(statusClass(status)).tone;
   const glyphOf = (status: string) => statusTonePresentation(statusClass(status)).icon;
@@ -43,8 +42,9 @@
         <li class="node step" style={'--depth:' + (lineage.ancestors.length + 1)}><span class="mono">{step.name}</span><span class="dim">: {step.explanation}</span></li>
       {/each}
       {#if lineage.activeWait}
+        {@const wait = activeWaitLabel(lineage.activeWait.kind, lineage.activeWait.name)}
         <li class="node wait" style={'--depth:' + (lineage.ancestors.length + 1)}>
-          Waiting on {isSignal(lineage.activeWait.kind) ? 'signal' : 'timer'} <span class="mono">{lineage.activeWait.name}</span>
+          Waiting on {wait.kind} <span class="mono">{wait.name}</span>
           {#if lineage.activeWait.dueAtUtc}<span class="dim"> · due <RelativeTime value={lineage.activeWait.dueAtUtc} /></span>{/if}
         </li>
       {/if}

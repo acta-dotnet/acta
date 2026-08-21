@@ -26,6 +26,31 @@ export function childRollup(children: readonly JobLineageNode[]): [string, numbe
   return [...counts.entries()].sort(([aStatus, aCount], [bStatus, bCount]) => bCount - aCount || aStatus.localeCompare(bStatus));
 }
 
+/** The child-latch slot key the framework writes on the parent: `sys.child.{childJobId}`. */
+const childLatchPrefix = 'sys.child.';
+
+/**
+ * How an active durable wait reads on a job panel: the word for its kind, plus the part worth setting
+ * in monospace. Mirrors the server explainer's phrasing so `jobs explain` and the dashboard describe
+ * the same wait the same way. A child latch's slot name is a framework key rather than anything a
+ * handler chose, so `sys.child.42` reads as `child job 42`.
+ */
+export function activeWaitLabel(kind: string, name: string): { kind: string; name: string } {
+  switch (kind.toLowerCase()) {
+    case 'signal':
+      return { kind: 'signal', name };
+    case 'timer':
+      return { kind: 'timer', name };
+    case 'child-latch':
+      return name.startsWith(childLatchPrefix) ? { kind: 'child job', name: name.slice(childLatchPrefix.length) } : { kind: 'child latch', name };
+    default:
+      // An unrecognized kind says its own name rather than borrowing another's. The panels previously
+      // asked only "is it a signal?" and called everything else a timer, which is how a parent parked
+      // on a child came to read as waiting on one.
+      return { kind: kind.toLowerCase(), name };
+  }
+}
+
 export function payloadFormatLabel(id: number): string {
   return ({ 0: 'none', 1: 'json', 2: 'bytes', 3: 'text' } as Record<number, string>)[id] ?? `format #${id}`;
 }

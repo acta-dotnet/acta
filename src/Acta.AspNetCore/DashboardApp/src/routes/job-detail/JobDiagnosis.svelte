@@ -2,6 +2,7 @@
   import RelativeTime from '../../components/RelativeTime.svelte';
   import type { JobExplanation } from './types.ts';
   import { routes } from '../../routes.ts';
+  import { activeWaitLabel } from './jobDetailState.ts';
 
   let {
     jobNamespace = null,
@@ -10,8 +11,6 @@
     jobNamespace?: string | null;
     explanation?: JobExplanation | null;
   } = $props();
-
-  const isSignal = (kind: string) => kind.toLowerCase() === 'signal';
 </script>
 
 {#if explanation}
@@ -20,8 +19,9 @@
 
     <dl class="kv">
       {#if explanation.activeWait}
+        {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name)}
         <dt>Waiting on</dt>
-        <dd id="job-wait-evidence">{isSignal(explanation.activeWait.kind) ? 'signal' : 'timer'} <span class="mono">{explanation.activeWait.name}</span>{#if explanation.activeWait.dueAtUtc}<span class="dim"> · due <RelativeTime value={explanation.activeWait.dueAtUtc} /></span>{/if}</dd>
+        <dd id="job-wait-evidence">{wait.kind} <span class="mono">{wait.name}</span>{#if explanation.activeWait.dueAtUtc}<span class="dim"> · due <RelativeTime value={explanation.activeWait.dueAtUtc} /></span>{/if}</dd>
       {/if}
       {#if explanation.lease}
         <dt>Worker</dt>

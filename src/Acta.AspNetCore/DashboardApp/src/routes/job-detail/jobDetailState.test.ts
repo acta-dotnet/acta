@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildIncidentSummary, childRollup, latestMeaningfulEvent, mergeJobEvents, payloadFormatLabel } from './jobDetailState.ts';
+import {
+  activeWaitLabel,
+  buildIncidentSummary,
+  childRollup,
+  latestMeaningfulEvent,
+  mergeJobEvents,
+  payloadFormatLabel
+} from './jobDetailState.ts';
 import type { JobEvent, JobDetail } from './types.ts';
 
 const event = (jobEventId: number, createdAtUtc: string, reasonMessage: string | null = null): JobEvent => ({
@@ -47,6 +54,22 @@ test('child rollup is deterministic by count then status', () => {
     ['cancelled', 1],
     ['failed', 1]
   ]);
+});
+
+test('a child latch wait reads as a child job, not as a timer', () => {
+  // The wire value is the kebab code the JobCheckpointKindCode converter writes, and the slot name is
+  // the framework key the parent's latch is stored under.
+  assert.deepEqual(activeWaitLabel('child-latch', 'sys.child.42'), { kind: 'child job', name: '42' });
+  assert.deepEqual(activeWaitLabel('signal', 'approval'), { kind: 'signal', name: 'approval' });
+  assert.deepEqual(activeWaitLabel('timer', 'nightly'), { kind: 'timer', name: 'nightly' });
+});
+
+test('an unfamiliar wait kind names itself instead of borrowing another kind name', () => {
+  // A child latch used to land here and be announced as a timer, because the panels asked only
+  // whether the kind was a signal.
+  assert.deepEqual(activeWaitLabel('Progress', 'sys.progress'), { kind: 'progress', name: 'sys.progress' });
+  // A child latch whose name is not the framework key keeps the name verbatim, as the explainer does.
+  assert.deepEqual(activeWaitLabel('child-latch', 'legacy-latch'), { kind: 'child latch', name: 'legacy-latch' });
 });
 
 test('payload format labels known and unknown ids', () => {
