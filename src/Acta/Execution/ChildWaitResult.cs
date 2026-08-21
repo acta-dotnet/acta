@@ -2,8 +2,9 @@ namespace Acta;
 
 /// <summary>
 /// Outcome of a bounded <c>ctx.TryWaitChildAsync(childJobId, timeout)</c>: either the child reached a
-/// terminal status in time (<see cref="Completed"/>, carrying its <see cref="Outcome"/>) or the wait's
-/// stored expiration passed first (<see cref="TimedOut"/>). Returned, never thrown.
+/// terminal status first (<see cref="Completed"/>, carrying its <see cref="Outcome"/>) or the wait
+/// re-entered its latch past the stored expiration with nothing landed and settled it <c>Expired</c>
+/// (<see cref="TimedOut"/>). Returned, never thrown.
 /// </summary>
 /// <remarks>
 /// A child timeout never cancels the parent: the parent resumes and may compensate, retry with a new
@@ -22,10 +23,10 @@ public sealed record ChildWaitResult
     /// <summary>The awaited child's job id, carried on a timed-out result too.</summary>
     public long ChildJobId { get; }
 
-    /// <summary>True when the wait's expiration passed before the child landed terminal.</summary>
+    /// <summary>True when the wait settled the latch <c>Expired</c> with no outcome on it.</summary>
     public bool TimedOut => Outcome is null;
 
-    /// <summary>True when the child landed terminal in time; the complement of <see cref="TimedOut"/>.</summary>
+    /// <summary>True when the child's outcome reached the latch first; the complement of <see cref="TimedOut"/>.</summary>
     public bool Completed => Outcome is not null;
 
     /// <summary>The child's terminal outcome, or <c>null</c> on a timeout.</summary>

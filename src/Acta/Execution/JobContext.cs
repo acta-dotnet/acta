@@ -486,11 +486,14 @@ public abstract class JobContext
     /// <summary>
     /// Bounded twin of <see cref="WaitSignalAsync(string, CancellationToken)"/>. The first pass stores
     /// <c>db_now + timeout</c> as the slot's absolute expiration; a replay reuses that instant and never
-    /// extends it, so restarts and worker downtime cannot lengthen the wait. If the expiration passes
-    /// before a raise, Acta terminates the Job <c>Cancelled</c> with reason <c>job.wait-timed-out</c>
-    /// and this call does not return; use <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/>
-    /// to resume the handler instead. The timeout is budget-neutral, and cancelling
-    /// <paramref name="ct"/> stays a separate, non-durable concern.
+    /// extends it, so restarts and worker downtime cannot lengthen the wait. Passing that instant makes
+    /// the wait resolvable as timed out rather than closing the slot to a raise: it wakes the Suspended
+    /// Job, and the replayed wait settles the slot under its lock, so a raise landing before that
+    /// re-entry is still taken. Once the re-entry settles the slot <c>Expired</c>, Acta terminates the
+    /// Job <c>Cancelled</c> with reason <c>job.wait-timed-out</c> and this call does not return; use
+    /// <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/> to resume the handler
+    /// instead. The timeout is budget-neutral, and cancelling <paramref name="ct"/> stays a separate,
+    /// non-durable concern.
     /// </summary>
     /// <param name="name">Kebab-case signal name, unique per Job; identifies the slot across replays.</param>
     /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
@@ -517,10 +520,11 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Resuming twin of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>: an expired
-    /// wait returns a result carrying <see cref="SignalWaitResult.TimedOut"/> and the handler continues
-    /// rather than the Job being cancelled. The expiration and its never-extend replay rule are
-    /// identical; only what happens on expiry differs.
+    /// Resuming twin of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>: a wait whose
+    /// re-entry settles the slot <c>Expired</c> returns a result carrying
+    /// <see cref="SignalWaitResult.TimedOut"/>, and the handler continues rather than the Job being
+    /// cancelled. The expiration, its never-extend replay rule, and a raise winning right up to that
+    /// settlement are identical; only what an expired slot does to the handler differs.
     /// </summary>
     public async Task<SignalWaitResult> TryWaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
@@ -691,7 +695,9 @@ public abstract class JobContext
     /// <summary>
     /// Bounded twin of <see cref="WaitChildAsync"/>. The first pass stores <c>db_now + timeout</c> as
     /// the latch's absolute expiration; a replay reuses that instant and never extends it, so restarts
-    /// and worker downtime cannot lengthen the wait. A child timeout never cancels this Job: the
+    /// and worker downtime cannot lengthen the wait. Passing that instant makes the wait resolvable as
+    /// timed out rather than closing the latch: the replayed wait settles it under its lock, so a child
+    /// landing before that re-entry is still taken. A child timeout never cancels this Job: the
     /// handler resumes with <see cref="ChildWaitResult.TimedOut"/> and is free to compensate, start a
     /// replacement child, or cancel itself. Acta cancels the unfinished child and its descendant
     /// subtree (reason <c>job.wait-timed-out</c>) before this call returns. Waiting stays

@@ -2,8 +2,9 @@ namespace Acta;
 
 /// <summary>
 /// Outcome of a bounded <c>ctx.TryWaitSignalAsync(name, timeout)</c>: either the signal arrived
-/// (<see cref="Received"/>) or the wait's stored expiration passed first (<see cref="TimedOut"/>).
-/// Returned, never thrown; the non-Try overloads cancel the Job instead of returning this.
+/// (<see cref="Received"/>) or the wait re-entered its slot past the stored expiration with nothing
+/// raised and settled it <c>Expired</c> (<see cref="TimedOut"/>). Returned, never thrown; the non-Try
+/// overloads cancel the Job instead of returning this.
 /// </summary>
 /// <remarks>
 /// Construction is gated to the framework (private constructor, internal factories) so a caller
@@ -13,10 +14,10 @@ public sealed record SignalWaitResult
 {
     private SignalWaitResult(bool timedOut) => TimedOut = timedOut;
 
-    /// <summary>True when the wait's expiration passed before the signal was raised.</summary>
+    /// <summary>True when the wait settled the slot <c>Expired</c> with nothing raised on it.</summary>
     public bool TimedOut { get; }
 
-    /// <summary>True when the signal was raised in time; the complement of <see cref="TimedOut"/>.</summary>
+    /// <summary>True when the raise reached the slot first; the complement of <see cref="TimedOut"/>.</summary>
     public bool Received => !TimedOut;
 
     internal static SignalWaitResult Signalled { get; } = new(timedOut: false);
@@ -37,10 +38,10 @@ public sealed record SignalWaitResult<T>
         Value = value;
     }
 
-    /// <summary>True when the wait's expiration passed before the signal was raised.</summary>
+    /// <summary>True when the wait settled the slot <c>Expired</c> with nothing raised on it.</summary>
     public bool TimedOut { get; }
 
-    /// <summary>True when the signal was raised in time; the complement of <see cref="TimedOut"/>.</summary>
+    /// <summary>True when the raise reached the slot first; the complement of <see cref="TimedOut"/>.</summary>
     public bool Received => !TimedOut;
 
     /// <summary>The raised payload, or <c>default</c> on a timeout or a presence-only raise.</summary>
