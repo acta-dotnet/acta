@@ -175,6 +175,44 @@ public sealed class JobContextWaitTimeoutTests
     }
 
     [Fact]
+    public void A_member_reached_later_in_the_walk_counts_down_from_where_the_walk_got_to()
+    {
+        var passNowUtc = new DateTime(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc);
+        var deadlineAtUtc = passNowUtc.AddSeconds(100);
+
+        // The first member is measured at the pass's own clock reading; a member reached after the walk
+        // has spent 30 seconds on earlier members is measured from where the walk got to, so the walk
+        // comes out of the group's budget instead of being added to its deadline as overshoot.
+        Assert.Equal(TimeSpan.FromSeconds(100), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.Zero));
+        Assert.Equal(TimeSpan.FromSeconds(70), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromSeconds(30)));
+
+        // However late in the walk a member arms, its due lands at or before the deadline: the remaining
+        // is what is left at that moment, floored to whole seconds, so elapsed + remaining never exceeds
+        // the budget. The one exception is the positive-bound floor, which the next fact owns.
+        foreach (var elapsed in (TimeSpan[])[TimeSpan.Zero, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(60.7), TimeSpan.FromSeconds(98)])
+        {
+            var armedAtUtc = passNowUtc + elapsed;
+            Assert.True(
+                armedAtUtc + JobContext.RemainingWait(deadlineAtUtc, passNowUtc, elapsed) <= deadlineAtUtc,
+                $"a member armed {elapsed} into the walk outlived the deadline."
+            );
+        }
+    }
+
+    [Fact]
+    public void A_walk_that_outlasts_the_deadline_still_arms_a_positive_bound()
+    {
+        var passNowUtc = new DateTime(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc);
+        var deadlineAtUtc = passNowUtc.AddSeconds(10);
+
+        // Sub-second and already-passed both floor to one second: a wait must carry a positive bound,
+        // and the arbiter resolves the overshoot on the next re-entry rather than at the arm.
+        Assert.Equal(TimeSpan.FromSeconds(1), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromSeconds(9.5)));
+        Assert.Equal(TimeSpan.FromSeconds(1), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromSeconds(10)));
+        Assert.Equal(TimeSpan.FromSeconds(1), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromMinutes(5)));
+    }
+
+    [Fact]
     public async Task The_group_deadline_slot_is_named_by_the_children_not_by_their_order()
     {
         var ct = TestContext.Current.CancellationToken;

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -813,18 +814,22 @@ public abstract class JobContext
     // The one place the group deadline rule lives; every bounded group API funnels through it, and a
     // null timeout is the unbounded loop these wrappers have always run.
     //
-    // At most one child arms per pass, because the first wait that cannot resolve suspends the attempt,
-    // so one clock reading per pass is exactly "remaining recomputed before each arm" and not an
-    // approximation of it. Each arm rounds the remaining time DOWN to whole seconds; a slot armed on an
-    // earlier pass keeps its own due even once the remaining time has shrunk, and that is harmless
-    // because both were derived from the same fixed instant.
+    // At most one child arms per pass, because the first wait that cannot resolve suspends the attempt.
+    // Reaching it still costs real time: every member ahead of it that resolves from its own latch is a
+    // store round trip. So the pass reads the DB clock once, anchors a monotonic stopwatch to that
+    // reading, and carries it forward, giving each iteration a remaining measured at the moment it runs
+    // rather than one measured before the walk began. Without that, the arming member would have
+    // inherited the whole walk as deadline overshoot. Mirrors the alerting pass's settlement clock, and
+    // costs no extra clock round trip.
     //
-    // A slot's due therefore lands within one second before the group deadline, plus however long the
-    // store takes between the clock reading and the arm, which stamps the due against a clock that has
-    // moved on. That residual is the store work between the pass's clock reading and the arm - several
-    // round trips when earlier members resolve off their latches first - bounded per pass and never
-    // accumulating, because every arm measures from the deadline rather than from the previous arm.
-    // Removing it
+    // Each arm rounds the remaining time DOWN to whole seconds; a slot armed on an earlier pass keeps
+    // its own due even once the remaining time has shrunk, and that is harmless because both were
+    // derived from the same fixed instant.
+    //
+    // A slot's due therefore lands within one second before the group deadline, plus the arm's own
+    // store round trip, which stamps the due against a clock that has moved on since the remaining was
+    // measured. That residual is one round trip, the same on every arm, and it never accumulates,
+    // because every arm measures from the deadline rather than from the previous arm. Removing it
     // outright would need the arm to take an absolute instant instead of a duration.
     private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
         IReadOnlyList<long> childJobIds,
@@ -838,18 +843,21 @@ public abstract class JobContext
         }
 
         var deadline = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
-        var remaining = RemainingWait(deadline);
+        var passStarted = Stopwatch.GetTimestamp();
 
         var outcomes = new ChildJobOutcome[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)
         {
+            var remaining = RemainingWait(deadline.DeadlineAtUtc, deadline.NowUtc, Stopwatch.GetElapsedTime(passStarted));
             var result = await TryWaitChildAsync(childJobIds[i], remaining, ct);
             outcomes[i] = result.Outcome ?? ChildJobOutcome.Expired(childJobIds[i]);
         }
         return outcomes;
     }
 
-    // The whole seconds left until the group deadline, floored, with a floor of one.
+    // The whole seconds left until the group deadline, floored, with a floor of one. The anchor is the
+    // pass's one DB clock reading advanced by the monotonic time the pass has spent since, so the
+    // walk over already-resolved members is spent out of the group's budget rather than added to it.
     //
     // A group deadline is a NOT-BEFORE, not a not-after: a member does not give up before the instant,
     // and the store may stamp its due a round trip past it because the arm reads the clock again. That
@@ -861,9 +869,13 @@ public abstract class JobContext
     // once before it can expire, because wait_signal resolves only a wait an earlier call armed. That
     // costs one extra second-long tick per unfinished child, and the alternative is a special case
     // inside the arbiter that every other wait would have to reason about.
-    private static TimeSpan RemainingWait(WaitDeadline deadline)
+    //
+    // Internal, and over bare instants rather than the protected WaitDeadline, so the arithmetic can be
+    // pinned directly: Stopwatch is a static monotonic source with no seam, so a unit fact cannot make
+    // a pass take measurable time.
+    internal static TimeSpan RemainingWait(DateTime deadlineAtUtc, DateTime passNowUtc, TimeSpan elapsed)
     {
-        var remaining = deadline.DeadlineAtUtc - deadline.NowUtc;
+        var remaining = deadlineAtUtc - (passNowUtc + elapsed);
         var seconds = remaining.Ticks <= TimeSpan.TicksPerSecond ? 1L : remaining.Ticks / TimeSpan.TicksPerSecond;
         return TimeSpan.FromSeconds(seconds);
     }

@@ -476,9 +476,10 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
     // One second is the coarsest overshoot an arm can legitimately produce: RemainingWait floors to
     // whole seconds but never below one, so a member armed with under a second left is deliberately
     // given a due past the deadline. Where plenty of time is left, as in the facts that call this, the
-    // floor cannot bite and the only overshoot is the store round trip between reading the clock and
-    // stamping the due, which is sub-second. Both are bounded, neither accumulates, and a group
-    // deadline is a not-before rather than a not-after.
+    // floor cannot bite and the only overshoot is the arm's own store round trip, which is sub-second.
+    // The walk to reach the arming member is not in that residual: the remaining is recomputed against
+    // a monotonic reading at each iteration, so time spent on earlier members comes out of the budget.
+    // Both are bounded, neither accumulates, and a group deadline is a not-before, not a not-after.
     private static void AssertWithinGroupDeadline(JobCheckpoint latch, DateTime deadlineAtUtc)
     {
         Assert.NotNull(latch.DueAtUtc);
