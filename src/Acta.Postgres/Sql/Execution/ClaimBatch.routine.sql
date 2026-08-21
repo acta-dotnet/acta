@@ -35,6 +35,10 @@ AS $$
         FROM {{schema}}.runtimes r
         WHERE
             r.namespace_id = p_namespace_id
+            /* Redundant by the OR below, but load-bearing: a partial index is matched only against
+               top-level AND-terms, so without this exact restatement of the index filter the claim
+               falls back to a full runtimes scan and sort. */
+            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND (
                 (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())

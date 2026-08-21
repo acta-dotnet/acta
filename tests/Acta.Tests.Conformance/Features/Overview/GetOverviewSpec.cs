@@ -120,24 +120,33 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     /// </list>
     /// </para>
     /// </summary>
-    [Fact(DisplayName = "Backlog counts a Suspended bounded wait and ignores an unbounded one")]
-    public async Task Backlog_counts_a_suspended_bounded_wait_only()
+    [Fact(DisplayName = "Backlog counts a Suspended wait only once it has actually expired")]
+    public async Task Backlog_counts_a_suspended_wait_only_once_expired()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
 
-        // An unbounded wait is not backlog: no worker will ever claim it, and only a raise can move it.
+        // An unbounded wait is never backlog: no worker will ever claim it, and only a raise can move it.
         var unbounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(unbounded, ct));
-        var afterUnbounded = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
-        Assert.Equal(before.ReadyCount, afterUnbounded.ReadyCount);
 
-        // A bounded one is: the claim will take it at its deadline, so a namespace full of them must
-        // not read as an empty backlog.
+        // Nor is a bounded one while its deadline is still ahead: a queue of long approval waits is
+        // work nobody is behind on, and counting it would make the gauge cry wolf.
         var bounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
-        var afterBounded = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
-        Assert.Equal(before.ReadyCount + 1, afterBounded.ReadyCount);
+
+        var waiting = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
+        Assert.Equal(before.ReadyCount, waiting.ReadyCount);
+
+        // Past the deadline it is backlog, because the claim will now take it and a worker is what it
+        // is waiting for.
+        await Db.From<JobRuntime>()
+            .Where(r => r.Id == bounded.JobId)
+            .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
+
+        var expired = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
+        Assert.Equal(before.ReadyCount + 1, expired.ReadyCount);
+        Assert.NotNull(expired.OldestReadyAgeSeconds);
     }
 
     [Fact(DisplayName = "Driven state pins all overview counters to exact values in an isolated namespace")]

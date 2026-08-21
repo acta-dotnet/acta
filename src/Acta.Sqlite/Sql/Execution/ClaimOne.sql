@@ -1,13 +1,15 @@
 DROP TABLE IF EXISTS temp._claimed_by_id;
 
-/* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded wait and
-   only a raise may release it. */
+/* The status IN is redundant by the OR below but load-bearing: SQLite matches a partial index only
+   when a top-level AND-term implies the index filter. Ready admits a NULL next run; Suspended does
+   not, because a NULL there is an unbounded wait and only a raise may release it. */
 CREATE TEMP TABLE _claimed_by_id AS
 SELECT r.job_id AS id, r.status_code AS from_status
 FROM {{schema}}.runtimes r
 WHERE
     r.job_id = @p_id
     AND r.namespace_id = @p_namespace_id
+    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
     AND (
         (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= {{now}}))
         OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= {{now}})

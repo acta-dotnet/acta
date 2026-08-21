@@ -46,10 +46,14 @@ BEGIN
             /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace;
                exclusive-key admission is executor-owned (lock store) after the start CAS, so no jobs
                join here. Ready admits a NULL next run, Suspended does not: a NULL is an unbounded wait. */
+            /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
+               matches top-level AND-terms only, so without this exact restatement of the index filter
+               the claim scans every runtimes row and widens its UPDLOCK footprint to match. */
             SELECT TOP (@p_claim_limit) r.job_id AS id
             FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.namespace_id = @p_namespace_id
+                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                 AND (
                     (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
                     OR (

@@ -1,6 +1,7 @@
-/* The two backlog counters below admit the same statuses claim_batch claims: Ready, plus Suspended
-   rows carrying a durable wait's expiration. Not shared text with the claim, so the two are
-   must-stay-in-sync twins; change one, change the other. */
+/* The two backlog counters below admit what claim_batch claims. Ready keeps its gauge meaning and
+   counts whether or not it is due; a Suspended row counts only once its wait has actually expired, or
+   a queue of long approval waits would read as backlog that no worker is behind on. */
+/* Not shared text with the claim, so the two are must-stay-in-sync twins; change one, change the other. */
 SELECT
     (
         SELECT COUNT(*)
@@ -9,7 +10,11 @@ SELECT
         WHERE
             (
                 r.status_code = 10 /* JobStatusCode.Ready */
-                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+                OR (
+                    r.status_code = 20 /* JobStatusCode.Suspended */
+                    AND r.next_run_at_utc IS NOT NULL
+                    AND r.next_run_at_utc <= {{now}}
+                )
             )
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     ) AS ready_count,
@@ -23,6 +28,7 @@ SELECT
                 r.status_code = 10 /* JobStatusCode.Ready */
                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
             )
+            -- Dueness is already this counter's own filter, so the Suspended half needs nothing extra.
             AND COALESCE(r.next_run_at_utc, j.created_at_utc) <= {{now}}
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     ) AS oldest_ready_age_seconds,

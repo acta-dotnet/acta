@@ -1366,6 +1366,10 @@ AS $$
         FROM acta.runtimes r
         WHERE
             r.namespace_id = p_namespace_id
+            /* Redundant by the OR below, but load-bearing: a partial index is matched only against
+               top-level AND-terms, so without this exact restatement of the index filter the claim
+               falls back to a full runtimes scan and sort. */
+            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND (
                 (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
@@ -1540,13 +1544,15 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        /* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded wait
-           and only a raise may release it. */
+        /* The status IN is redundant by the OR below but load-bearing: a partial index is matched only
+           against top-level AND-terms. Ready admits a NULL next run; Suspended does not, because a
+           NULL there is an unbounded wait and only a raise may release it. */
         SELECT r.job_id AS id, r.status_code AS from_status
         FROM acta.runtimes r
         WHERE
             r.job_id = p_id
             AND r.namespace_id = p_namespace_id
+            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND (
                 (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
@@ -5862,7 +5868,7 @@ $$;
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a later unbounded call. */
+   overwritten, never extended, and never cleared by a subsequent unbounded call. */
 CREATE OR REPLACE FUNCTION acta.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -5959,6 +5965,10 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
+-- three-parameter signature so an upgraded install cannot resolve the unbounded-only form.
+DROP FUNCTION IF EXISTS acta.wait_signal(BIGINT, SMALLINT, VARCHAR);
 
 CREATE OR REPLACE FUNCTION acta.start_execution(
     p_id BIGINT,

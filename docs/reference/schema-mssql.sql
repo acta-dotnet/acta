@@ -1610,10 +1610,14 @@ BEGIN
             /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace;
                exclusive-key admission is executor-owned (lock store) after the start CAS, so no jobs
                join here. Ready admits a NULL next run, Suspended does not: a NULL is an unbounded wait. */
+            /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
+               matches top-level AND-terms only, so without this exact restatement of the index filter
+               the claim scans every runtimes row and widens its UPDLOCK footprint to match. */
             SELECT TOP (@p_claim_limit) r.job_id AS id
             FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.namespace_id = @p_namespace_id
+                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                 AND (
                     (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
                     OR (
@@ -1814,13 +1818,15 @@ BEGIN
         BEGIN TRANSACTION;
 
         WITH candidates AS (
-            /* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded
-               wait and only a raise may release it. */
+            /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
+               matches top-level AND-terms only. Ready admits a NULL next run; Suspended does not,
+               because a NULL there is an unbounded wait and only a raise may release it. */
             SELECT r.job_id AS id
             FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.job_id = @p_id
                 AND r.namespace_id = @p_namespace_id
+                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                 AND (
                     (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
                     OR (
@@ -6115,7 +6121,7 @@ GO
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a later unbounded call. */
+   overwritten, never extended, and never cleared by a subsequent unbounded call. */
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,

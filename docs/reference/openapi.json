@@ -9938,7 +9938,7 @@
               "integer",
               "string"
             ],
-            "description": "Jobs the claim can take: Ready, plus Suspended jobs whose durable wait carries an expiration.",
+            "description": "Jobs awaiting a worker: all Ready, plus Suspended jobs whose durable wait has expired.",
             "format": "int64"
           },
           "oldestReadyAgeSeconds": {

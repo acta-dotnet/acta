@@ -1489,7 +1489,7 @@
 - **Guarantees:**
   - Namespace-scoped counters are non-negative and reflect the enqueued job, and the global result is a superset of the namespace count
   - An unknown namespace returns all-zero counters and a null OldestReadyAgeSeconds
-  - Backlog counts a Suspended bounded wait and ignores an unbounded one
+  - Backlog counts a Suspended wait only once it has actually expired
   - Driven state pins all overview counters to exact values in an isolated namespace
 - **Store methods:**
   - `Acta.Runtime.Modules.Operations.Overview.IOverviewStore.GetOverviewAsync`
@@ -2133,6 +2133,7 @@
   - A signal before the deadline delivers its typed payload and leaves no timeout artifacts
   - A presence-only signal before the deadline resumes the non-Try overload
   - An expired non-Try wait cancels the job with job.wait-timed-out and no budget charge
+  - Claiming a due Suspended row records Suspended as the started event's from-status
   - An expired Try wait resumes the handler exactly once with a TimedOut result
   - The typed Try overload carries the payload before the deadline and a null value after it
   - A replay asking for a longer wait does not move the stored expiration

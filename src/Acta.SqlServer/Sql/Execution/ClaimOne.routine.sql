@@ -43,13 +43,15 @@ BEGIN
         BEGIN TRANSACTION;
 
         WITH candidates AS (
-            /* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded
-               wait and only a raise may release it. */
+            /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
+               matches top-level AND-terms only. Ready admits a NULL next run; Suspended does not,
+               because a NULL there is an unbounded wait and only a raise may release it. */
             SELECT r.job_id AS id
             FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.job_id = @p_id
                 AND r.namespace_id = @p_namespace_id
+                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                 AND (
                     (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
                     OR (

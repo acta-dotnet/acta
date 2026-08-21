@@ -3,6 +3,8 @@ using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 
@@ -110,6 +112,33 @@ public abstract class SignalTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Cancelled, ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
         Assert.Equal(2, await CountReasonAsync(enqueued.JobId, JobEventReasonCode.JobWaitTimedOut, ct));
+    }
+
+    [Fact(DisplayName = "Claiming a due Suspended row records Suspended as the started event's from-status")]
+    public async Task Claim_records_the_real_prior_status_on_the_started_event()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
+
+        // The combined claim is the poll loop's shape and the only one that writes the started event
+        // itself; RunOnceAsync claims to Dispatched, so start_execution owns the event there instead.
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        Assert.NotNull(worker);
+        var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
+
+        var claimed = await Services
+            .GetRequiredService<IExecutionStore>()
+            .ClaimBatchAsync(new ClaimRequest(ns, worker!.Id, MaxBatch: 8, StartExecuting: true), leaseTtl, ct);
+        Assert.Contains(claimed.Jobs, j => j.JobId == enqueued.JobId);
+
+        // The row came from Suspended, so the timeline says Suspended. A hard-coded Ready would assert
+        // a transition that never happened, which is the whole reason the claim carries the old status.
+        var started = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionStarted, ct);
+        Assert.Equal(JobStatusCode.Suspended, started.FromStatus);
+        Assert.Equal(JobStatusCode.Executing, started.ToStatus);
     }
 
     [Fact(DisplayName = "An expired Try wait resumes the handler exactly once with a TimedOut result")]

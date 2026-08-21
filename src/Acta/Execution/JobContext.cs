@@ -550,13 +550,14 @@ public abstract class JobContext
         return SignalWaitResult<T>.Signalled(value);
     }
 
-    // Rounds like SleepAsync (sub-second rounds up) and rejects a non-positive timeout before any store
-    // call: a zero or negative expiration would arm a slot that is due the instant it is written.
-    private static int ToWaitTimeoutSeconds(TimeSpan timeout)
-    {
-        var seconds = DurationSyntax.ToWholeSeconds(timeout, nameof(timeout));
-        return seconds == 0 ? throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Wait timeout must be positive.") : seconds;
-    }
+    // Rejects a non-positive timeout before any store call: a zero or negative expiration would arm a
+    // slot that is due the instant it is written. Both non-positive cases are rejected here rather than
+    // delegating the negative one, because DurationSyntax phrases it as a delay ("Delay must not be
+    // negative"), which is the wrong noun for a wait. What survives the check rounds like SleepAsync.
+    private static int ToWaitTimeoutSeconds(TimeSpan timeout) =>
+        timeout <= TimeSpan.Zero
+            ? throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Wait timeout must be positive.")
+            : DurationSyntax.ToWholeSeconds(timeout, nameof(timeout));
 
     /// <summary>
     /// The raised slot's stored payload: format id + bytes. <c>ValueFormatId == 0</c> means a

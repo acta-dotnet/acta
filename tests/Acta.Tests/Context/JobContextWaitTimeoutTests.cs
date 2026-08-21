@@ -20,11 +20,16 @@ public sealed class JobContextWaitTimeoutTests
         var ctx = new RecordingJobContext();
         var timeout = TimeSpan.FromSeconds(seconds);
 
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitSignalAsync("go", timeout, ct));
+        var thrown = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitSignalAsync("go", timeout, ct));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitSignalAsync<string>("go", timeout, ct));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitSignalAsync("go", timeout, ct));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitSignalAsync<string>("go", timeout, ct));
         Assert.Empty(ctx.Events);
+
+        // Both non-positive cases say the same thing about the same parameter. Delegating the negative
+        // one to DurationSyntax would have named it a "Delay", which is not what the caller passed.
+        Assert.Equal("timeout", thrown.ParamName);
+        Assert.Contains("Wait timeout must be positive.", thrown.Message, StringComparison.Ordinal);
     }
 
     [Fact]

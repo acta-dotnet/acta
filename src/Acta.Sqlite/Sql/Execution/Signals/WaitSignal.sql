@@ -2,7 +2,7 @@
    Pending to Expired first, then arm. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a later unbounded call. */
+   overwritten, never extended, and never cleared by a subsequent unbounded call. */
 UPDATE {{schema}}.checkpoints
 SET
     status_code = 30 /* JobCheckpointStatusCode.Expired */,

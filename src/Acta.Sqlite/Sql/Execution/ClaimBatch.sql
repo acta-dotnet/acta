@@ -4,10 +4,14 @@ CREATE TEMP TABLE _claimed AS
 /* Pure claim-index scan; exclusive-key admission is executor-owned (lock store) after the start CAS,
    so no jobs join here. Ready admits a NULL next run, Suspended does not: a NULL there is an unbounded
    wait and only a raise may release it. */
+/* The status IN is redundant by the OR below but load-bearing: SQLite matches a partial index only
+   when a top-level AND-term implies the index filter, so without this exact restatement of
+   ix_runtimes_claim_ready's filter every claim degrades to a full runtimes scan and sort. */
 SELECT r.job_id AS id, r.status_code AS from_status
 FROM {{schema}}.runtimes r
 WHERE
     r.namespace_id = @p_namespace_id
+    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
     AND (
         (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= {{now}}))
         OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= {{now}})

@@ -2,7 +2,7 @@
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a later unbounded call. */
+   overwritten, never extended, and never cleared by a subsequent unbounded call. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -99,3 +99,7 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
+-- three-parameter signature so an upgraded install cannot resolve the unbounded-only form.
+DROP FUNCTION IF EXISTS {{schema}}.wait_signal(BIGINT, SMALLINT, VARCHAR);
