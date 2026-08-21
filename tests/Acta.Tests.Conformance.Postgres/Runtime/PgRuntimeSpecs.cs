@@ -51,6 +51,8 @@ public sealed class PgPayloadSizeLimitSpec : PayloadSizeLimitSpec<PgConformanceF
 
 public sealed class PgSignalStepWakeChaosSpec : SignalStepWakeChaosSpec<PgConformanceFixture>;
 
+public sealed class PgSignalSuspendHandoffRaceChaosSpec : SignalSuspendHandoffRaceChaosSpec<PgConformanceFixture>;
+
 public sealed class PgWorkerCrashRecoveryChaosSpec : WorkerCrashRecoveryChaosSpec<PgConformanceFixture>;
 
 public sealed class PgWorkerLoopDispatchSpec : WorkerLoopDispatchSpec<PgConformanceFixture>;

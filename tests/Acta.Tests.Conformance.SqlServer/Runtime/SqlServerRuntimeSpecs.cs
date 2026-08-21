@@ -51,6 +51,8 @@ public sealed class SqlServerPayloadSizeLimitSpec : PayloadSizeLimitSpec<SqlServ
 
 public sealed class SqlServerSignalStepWakeChaosSpec : SignalStepWakeChaosSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerSignalSuspendHandoffRaceChaosSpec : SignalSuspendHandoffRaceChaosSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerWorkerCrashRecoveryChaosSpec : WorkerCrashRecoveryChaosSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerWorkerLoopDispatchSpec : WorkerLoopDispatchSpec<SqlServerConformanceFixture>;

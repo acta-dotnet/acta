@@ -2197,6 +2197,18 @@
 
 ## Signals
 
+### A raise inside the suspend handoff lands the job Ready, not Suspended
+- **Contract:** complete_execution re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact.
+- **Arrange:** A job waiting on a typed signal runs with the raise issued from inside the completion window, before the suspend reaches the ledger.
+- **Act:** The handler suspends on its wait, the signal is raised while the completion is held, and the completion is then allowed to run.
+- **Assert:** The job lands Ready and claimable with no suspend on its timeline, a wake is published, and the next tick consumes the Set slot with its payload.
+- **Guarantees:**
+  - A raise landing between the wait and its completion lands the job Ready with the payload intact
+  - The same completion with nothing raised in the window still parks the job Suspended
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
+
 ### Wait suspends a job and a raise releases it last-writer-wins
 - **Contract:** WaitSignalAsync suspends a job on a Pending slot and RaiseSignalAsync sets the slot last-writer-wins releasing only a Suspended job to Ready.
 - **Arrange:** Waiting handlers are registered with system jobs disabled and a long safety poll so wake-on-raise is attributable.
@@ -2456,7 +2468,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
 | `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, drains the backlog, and reports the empty horizon<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
 | `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
-| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
+| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |
@@ -2503,7 +2515,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IScheduleStore.TriggerScheduleNowAsync` | Operator manually fires a schedule now without disturbing its cadence |
 | `ISettingStore.GetSettingAsync` | A setting is set and read back by name at its inferred scope |
 | `ISettingStore.SetSettingAsync` | A setting is set and read back by name at its inferred scope |
-| `ISignalStore.RaiseSignalAsync` | A bounded wait expires on its slot's stored instant, once and for good<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
+| `ISignalStore.RaiseSignalAsync` | A bounded wait expires on its slot's stored instant, once and for good<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
 | `ISignalStore.WaitSignalAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>A bounded wait expires on its slot's stored instant, once and for good<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
 | `ITenantStore.GetTenantAsync` | GetTenant returns the tenant for a known key or id and null for an unknown one |
 | `ITenantStore.ListTenantsAsync` | ListTenants pages tenants key-ascending with an opt-in total |

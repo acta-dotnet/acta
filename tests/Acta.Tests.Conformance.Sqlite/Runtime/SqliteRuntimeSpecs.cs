@@ -29,6 +29,8 @@ public sealed class SqliteMultiWorkerRegistrationSpec : MultiWorkerRegistrationS
 
 public sealed class SqliteSignalStepWakeChaosSpec : SignalStepWakeChaosSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteSignalSuspendHandoffRaceChaosSpec : SignalSuspendHandoffRaceChaosSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteWorkerCrashRecoveryChaosSpec : WorkerCrashRecoveryChaosSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteClaimBatchSpec : ClaimBatchSpec<SqliteConformanceFixture>;
