@@ -283,9 +283,11 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Null(open.ResolvedAtUtc);
         Assert.Equal(2, open.OccurrenceCount);
 
-        // Unresolved is no shield: the row is settled (Delivered) and past the window, so it goes.
+        // The incident is open AND its delivery never settled, so it leaves through the hard cap and
+        // through nothing else: unresolved is no shield, and neither is an unfinished delivery.
         var purged = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, -1, NoWorkerPurgeSeconds, 1000, 50, ct);
-        Assert.Equal(1, purged.Alerts);
+        Assert.Equal(1, purged.UndeliveredAlertsPurged);
+        Assert.Equal(0, purged.Alerts);
         Assert.Empty(await Db.From<JobAlert>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
 
         // The delete freed the identity with the row, so the next failure on the same key opens a fresh
@@ -308,7 +310,7 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
             title: "t",
             message: "m",
             channelName: "default",
-            AlertDeliveryStatusCode.Delivered,
+            AlertDeliveryStatusCode.Pending,
             deduplicationKey,
             ct
         );

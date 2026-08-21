@@ -1,5 +1,6 @@
--- A column added to RETURNS TABLE cannot be replaced in place (42P13 changes the return type), so an
--- install carrying the previous body drops it first. No argument list: the name has one signature.
+-- A column added to RETURNS TABLE cannot be replaced in place (42P13). Unlike the trailing arity
+-- drops elsewhere, which retire a stale overload after the create, a return-type change fails the
+-- create itself, so this drop must precede it; no argument list, the name has one signature.
 DROP FUNCTION IF EXISTS {{schema}}.purge_expired_data;
 
 CREATE OR REPLACE FUNCTION {{schema}}.purge_expired_data(
