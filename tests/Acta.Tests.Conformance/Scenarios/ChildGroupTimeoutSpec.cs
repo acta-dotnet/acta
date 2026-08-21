@@ -276,10 +276,17 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Equal(2, slots.Count);
         Assert.Equal(2, slots.Select(s => s.Name).Distinct(StringComparer.Ordinal).Count());
 
-        // The second group did not inherit the first group's instant: it computed its own, later one.
-        var byName = slots.ToDictionary(s => s.Name, DeadlineOf, StringComparer.Ordinal);
-        var secondSlot = slots.Single(s => DeadlineOf(s) == byName.Values.Max());
-        Assert.True(byName.Values.Max() > byName.Values.Min(), "the second group reused the first group's deadline.");
+        // The second group did not inherit the first group's instant: it computed its own from its own
+        // bound. The probe gives the two groups deliberately different durations (30 and 45 minutes), so
+        // the instants are 15 minutes apart by construction and the assertion never depends on two DB
+        // clock readings happening to differ. The gap can only exceed 15 minutes, never fall short: the
+        // second deadline is derived from a clock reading no earlier than the first's.
+        var deadlines = slots.Select(DeadlineOf).ToArray();
+        var secondSlot = slots.Single(s => DeadlineOf(s) == deadlines.Max());
+        Assert.True(
+            deadlines.Max() - deadlines.Min() >= TimeSpan.FromMinutes(15),
+            $"the two groups are {deadlines.Max() - deadlines.Min()} apart, so the second reused the first group's deadline."
+        );
 
         // Expiring the second group's slot alone leaves the first group's stored instant untouched, and
         // the members that already landed keep their outcomes.

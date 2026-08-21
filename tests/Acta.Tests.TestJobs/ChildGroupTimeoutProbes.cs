@@ -39,6 +39,13 @@ public static class ChildGroupTimeoutProbes
 {
     private static readonly TimeSpan LongWait = TimeSpan.FromMinutes(30);
 
+    /// <summary>
+    /// A second, deliberately different bound for the two-group probe. Distinct durations make the two
+    /// stored instants differ by construction, so a spec proving each group derived its own deadline
+    /// does not have to rely on two clock readings happening to differ.
+    /// </summary>
+    private static readonly TimeSpan LongerWait = TimeSpan.FromMinutes(45);
+
     /// <summary>A child that parks on a signal the specs raise only when they want it to finish.</summary>
     [Job("job-child-group-hold")]
     public static async Task ChildGroupHold(GroupHold input, JobContext ctx, CancellationToken ct)
@@ -94,9 +101,9 @@ public static class ChildGroupTimeoutProbes
     }
 
     /// <summary>
-    /// Waits two bounded groups over disjoint children, one after the other. Each group derives its own
-    /// deadline slot, so the two budgets are independent and the second is computed only once the first
-    /// group has resolved.
+    /// Waits two bounded groups over disjoint children, one after the other, under deliberately
+    /// different bounds. Each group derives its own deadline slot, so the two budgets are independent
+    /// and the second is computed only once the first group has resolved.
     /// </summary>
     [Job("job-parent-two-groups")]
     public static async Task<TwoGroupReport> ParentTwoGroups(JobContext ctx, CancellationToken ct)
@@ -106,7 +113,7 @@ public static class ChildGroupTimeoutProbes
         var b0 = await ctx.StartChildAsync("b0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
 
         var first = await ctx.TryWaitChildrenAsync([a0.JobId, a1.JobId], LongWait, ct);
-        var second = await ctx.TryWaitChildrenAsync([b0.JobId], LongWait, ct);
+        var second = await ctx.TryWaitChildrenAsync([b0.JobId], LongerWait, ct);
         await ctx.NoteAsync("both groups resolved", ct);
         return new TwoGroupReport(Report(first), Report(second));
     }
