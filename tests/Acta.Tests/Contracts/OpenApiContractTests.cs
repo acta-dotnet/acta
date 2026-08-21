@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
@@ -231,6 +232,64 @@ public sealed class OpenApiContractTests
         );
     }
 
+    /// <summary>
+    /// How <c>DashboardJsonContext</c> writes one enum member - the only authority on it, since that
+    /// is the serializer every response body goes through. A member name the context cannot write is
+    /// a fault in the caller, not a value to paper over, so it throws rather than passing the name
+    /// along.
+    /// </summary>
+    private static string WireName(Type enumType, string memberName) =>
+        JsonSerializer.Serialize(Enum.Parse(enumType, memberName), enumType, DashboardJsonContext.Default.Options).Trim('"');
+
+    /// <summary>
+    /// Every enum value the document declares is a value the server can actually write. The casing
+    /// split this caught was invisible from either side alone: the response tests pin the wire and the
+    /// drift gate pins the file, and both passed while a generated client would have rejected every
+    /// enveloped response. This is the one fact that reads them against each other.
+    /// </summary>
+    [Fact]
+    public async Task Declared_enum_values_are_the_ones_the_server_writes()
+    {
+        var document = JsonNode.Parse(await GenerateAsync())!;
+        var declared = new List<(string Schema, string Value)>();
+        foreach (var (name, schema) in Members(document["components"]?["schemas"]))
+        {
+            foreach (var value in Elements(schema?["enum"]))
+            {
+                declared.Add((name, value!.GetValue<string>()));
+            }
+        }
+
+        // Enum lists are emitted only for the enums whose converter the generator cannot read, so a
+        // walk that found none would pass by finding nothing to compare.
+        Assert.True(declared.Count > 0, "the document declares no enum values; the walk is broken.");
+
+        var wrong = declared
+            .Where(d => !WritableValues(d.Schema).Contains(d.Value, StringComparer.Ordinal))
+            .Select(d => $"{d.Schema}: declares '{d.Value}', which the server never writes")
+            .OrderBy(text => text, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            wrong.Count == 0,
+            "A declared enum value the server does not write. The document is generated from the "
+                + "endpoint graph but serialized through DashboardJsonContext, so a converter "
+                + "registered on the context alone can spell a member one way on the wire and another "
+                + "in the contract.\n\n"
+                + string.Join("\n", wrong)
+        );
+    }
+
+    /// <summary>The wire spellings of one named schema's enum, or an empty set when it is not an enum type.</summary>
+    private static IReadOnlyList<string> WritableValues(string schemaName) =>
+        typeof(IJobs)
+            .Assembly.GetTypes()
+            .Concat(typeof(DashboardJsonContext).Assembly.GetTypes())
+            .FirstOrDefault(t => t.IsEnum && string.Equals(t.Name, schemaName, StringComparison.Ordinal))
+            is { } type
+            ? [.. Enum.GetNames(type).Select(name => WireName(type, name))]
+            : [];
+
     /// <summary>One schema property, path placeholder, or operation parameter found in the document.</summary>
     private sealed record WireMember(string Name, string Where, bool IsInteger);
 
@@ -327,6 +386,25 @@ public sealed class OpenApiContractTests
                 (schema, _, _) =>
                 {
                     schema.Default = null;
+                    return Task.CompletedTask;
+                }
+            );
+            // An enum's declared value list came from the generator's own view of the type, and that
+            // is not the view the server serializes with: responses are written through
+            // DashboardJsonContext, whose converters spell the action enums camelCase while the
+            // generator spelled them PascalCase. A value list in the wrong case is a contract a
+            // generated client cannot match - it would reject every enveloped response this API
+            // sends - so each value is re-read from the serializer that actually writes it. Applied
+            // to every enum rather than the three that were wrong, so a new one cannot reintroduce
+            // the split; the members are recased in place, so their declared order is untouched.
+            o.AddSchemaTransformer(
+                (schema, context, _) =>
+                {
+                    var type = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
+                    if (schema.Enum is { Count: > 0 } && type.IsEnum)
+                    {
+                        schema.Enum = [.. schema.Enum.Select(value => (JsonNode)WireName(type, value!.GetValue<string>()))];
+                    }
                     return Task.CompletedTask;
                 }
             );

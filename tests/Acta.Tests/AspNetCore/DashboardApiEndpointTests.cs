@@ -302,10 +302,10 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.OK, input.StatusCode);
     }
 
-    [Fact]
     // Off by default, an id: target is not a form this API addresses, so it is rejected as malformed
     // rather than answered as a miss - the numeric id still never becomes a second identity, and now
     // the refusal says so instead of impersonating an absent row.
+    [Fact]
     public async Task Numeric_id_lookup_is_rejected_when_disabled_by_default()
     {
         var (app, client) = await TestDashboardHost.StartAsync();

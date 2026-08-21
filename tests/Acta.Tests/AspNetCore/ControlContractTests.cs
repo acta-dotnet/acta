@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Acta.AspNetCore.Features.Alerts;
@@ -71,13 +72,18 @@ public sealed class ControlContractTests
         string? Action,
         object? Body = null,
         int? Version = null,
-        Action<TestDashboardHost.FakeJobs>? Stage = null
+        Action<TestDashboardHost.FakeJobs>? Stage = null,
+        string? MediaType = null
     );
 
     private static readonly object Reason = new { reasonMessage = "because" };
 
     // ---- the table ----
 
+    // Rows run in order against one shared fake, and a row's Stage mutates it, so the table is
+    // order-dependent by construction. Every row that depends on staged state sets it, and the two
+    // enqueue rows read the dedup match the row before them created, so the order is load-bearing
+    // there on purpose. Give a new row its own Stage rather than relying on what ran before it.
     private static IReadOnlyList<Case> Table { get; } =
     [
         .. JobVerb("pause"),
@@ -114,7 +120,44 @@ public sealed class ControlContractTests
         .. Tags("/namespaces/{jobNamespace}", "/namespaces/billing"),
         .. Tags("/tenants/{tenantKey}", "/tenants/cust-001"),
         .. MalformedRefs(),
+        .. InputTemplate(),
+        // The body-reading routes all share one JSON-only check, so one row covers the code it
+        // answers with; the declaration it is read against is the group-wide one.
+        new(
+            "jobs",
+            "/jobs/{jobRef}/pause",
+            "POST",
+            "unsupportedMediaType",
+            $"/jobs/{Found}/pause",
+            StatusCodes.Status415UnsupportedMediaType,
+            Problem,
+            null,
+            "{}",
+            MediaType: "text/plain"
+        ),
     ];
+
+    // The input-template read is control-gated (it exposes the compile-time input contract) but names
+    // no job: a namespace and name this host has no assembly for is a 200 with a null template, so its
+    // only other answer is the 400 for a required parameter that did not arrive.
+    private static IEnumerable<Case> InputTemplate()
+    {
+        const string route = "/jobs/input-template";
+        return
+        [
+            new(
+                "jobs",
+                route,
+                "GET",
+                "template",
+                $"{route}?jobNamespace=billing&jobName=send-invoice",
+                StatusCodes.Status200OK,
+                typeof(JobInputTemplateResponse),
+                null
+            ),
+            new("jobs", route, "GET", "missingParameter", route, StatusCodes.Status400BadRequest, Problem, null),
+        ];
+    }
 
     /// <summary>
     /// The other half of the split, one row per branch that parses a ref-typed route segment. A ref
@@ -432,7 +475,7 @@ public sealed class ControlContractTests
 
         // A table that lost its rows, or a graph read that found no declarations, would pass every
         // check below by having nothing to check. Both counts only grow, so they pin the traversal.
-        Assert.True(Table.Count > 80, $"the contract table holds only {Table.Count} rows; it lost its families.");
+        Assert.True(Table.Count > 100, $"the contract table holds only {Table.Count} rows; it lost its families.");
         Assert.True(declared.Count > 50, $"the endpoint graph declared only {declared.Count} JSON responses; the read is broken.");
 
         foreach (var row in Table)
@@ -469,17 +512,15 @@ public sealed class ControlContractTests
 
         var readSurface = Signatures(reads);
         var covered = new HashSet<string>(Table.Select(row => $"{row.Method} {row.Route}"), StringComparer.Ordinal);
-        var control = Signatures(controls)
-            .Where(signature => !readSurface.Contains(signature) && !NotAnOutcome.Contains(signature))
-            .ToList();
+        var control = Signatures(controls).Where(signature => !readSurface.Contains(signature)).ToList();
         var uncovered = control.Where(signature => !covered.Contains(signature)).OrderBy(s => s, StringComparer.Ordinal).ToList();
 
         // Two hosts that mapped the same surface would leave nothing to cover and pass vacuously.
         Assert.True(control.Count > 30, $"only {control.Count} routes appear under EnableControls; the host difference is broken.");
         Assert.True(
             uncovered.Count == 0,
-            "A control route with no row in the contract table. Add its outcomes to the table, or, if it "
-                + "answers no control outcome at all, name it in NotAnOutcome with the reason.\n\n"
+            "A control route with no row in the contract table. Every control route answers something; "
+                + "add its outcomes as rows so the contract it declares is the contract it serves.\n\n"
                 + string.Join("\n", uncovered)
         );
     }
@@ -494,7 +535,7 @@ public sealed class ControlContractTests
         var readSurface = Signatures(reads);
         var exercised = new HashSet<Declaration>(Table.Select(row => new Declaration(row.Route, row.Method, row.Status, row.Declared)));
         var control = Declarations(controls)
-            .Where(d => !readSurface.Contains($"{d.Method} {d.Route}") && !NotAnOutcome.Contains($"{d.Method} {d.Route}"))
+            .Where(d => !readSurface.Contains($"{d.Method} {d.Route}"))
             // ProblemDetails is the shared error model, declared once at the API group for every
             // route at once (400, 403, 413, 500, 503) rather than as a family's own outcome, so
             // requiring a request per route for each would be requiring a fault per route. The
@@ -515,12 +556,6 @@ public sealed class ControlContractTests
                 + string.Join("\n", unexercised)
         );
     }
-
-    /// <summary>
-    /// The one control-gated route that answers no control outcome: the input-template read is a read,
-    /// behind the gate only because it exposes the compile-time input contract.
-    /// </summary>
-    private static readonly HashSet<string> NotAnOutcome = new(StringComparer.Ordinal) { "GET /jobs/input-template" };
 
     // ---- reading the endpoint graph ----
 
@@ -571,7 +606,13 @@ public sealed class ControlContractTests
     {
         var request = new HttpRequestMessage(new HttpMethod(row.Method), Prefix + row.Path);
         request.Headers.Add(Confirm, "true");
-        if (row.Body is not null)
+        if (row.MediaType is { } mediaType)
+        {
+            // The body's own shape is beside the point here: the endpoint refuses on the content type
+            // before it reads a byte, which is the branch the row is for.
+            request.Content = new StringContent((string)row.Body!, Encoding.UTF8, mediaType);
+        }
+        else if (row.Body is not null)
         {
             request.Content = JsonContent.Create(row.Body, row.Body.GetType());
         }

@@ -35,9 +35,15 @@ internal static class JobDepthEndpoints
                 "/jobs/input-template",
                 IResult (string? jobNamespace, string? jobName, IJobs jobs) =>
                 {
+                    // A required query parameter that did not arrive is caller input, not a miss - the
+                    // same answer /jobs/by-key gives its own two required parameters.
                     if (string.IsNullOrWhiteSpace(jobNamespace) || string.IsNullOrWhiteSpace(jobName))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+                        return ControlEndpointValidation.Problem(
+                            StatusCodes.Status400BadRequest,
+                            "Invalid request.",
+                            "jobNamespace and jobName are required."
+                        );
                     }
 
                     var template = jobs.GetInputTemplate(jobNamespace, jobName);
@@ -62,8 +68,9 @@ internal static class JobDepthEndpoints
                 }
             )
             .WithSummary("Read a job's compile-time input template.")
-            .Produces<JobInputTemplateResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            // No 404: a name this host has no assembly for is a 200 with a null template, and the only
+            // other answer is the group-wide 400 for a missing required parameter.
+            .Produces<JobInputTemplateResponse>(StatusCodes.Status200OK);
     }
 
     // POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as

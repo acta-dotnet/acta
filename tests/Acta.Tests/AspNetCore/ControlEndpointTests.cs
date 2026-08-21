@@ -1147,7 +1147,10 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Input_template_without_a_job_name_is_404()
+    // A required query parameter that did not arrive is caller input, the same answer /jobs/by-key
+    // gives its own two. This read never reports a miss: a name it has no assembly for is a 200 with
+    // a null template.
+    public async Task Input_template_without_a_job_name_is_400()
     {
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
@@ -1156,8 +1159,10 @@ public sealed class ControlEndpointTests
             "/acta/api/v1/jobs/input-template?jobNamespace=billing",
             TestContext.Current.CancellationToken
         );
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("jobNamespace and jobName are required.", body);
     }
 
     [Theory]
