@@ -44,19 +44,7 @@ internal static class SchemaMigrationRunner
             await SchemaCommands.EnsureMigrations(conn, tx, hooks, sql, ct);
             var applied = await SchemaCommands.LoadAppliedVersions(conn, tx, hooks, sql, ct);
 
-            // The version-0 sentinel row carries the baseline stamp; a non-empty history without it
-            // (or with a different stamp) was built by another baseline generation, including the
-            // pre-sentinel bookkeeping shape, and cannot be translated onto this build's schema.
-            if (applied.Count > 0 && !string.Equals(applied.GetValueOrDefault(0), RequiredBaselineStamp, StringComparison.Ordinal))
-            {
-                var recorded = applied.GetValueOrDefault(0) ?? applied.GetValueOrDefault(1) ?? "unknown";
-                throw new InvalidOperationException(
-                    $"This database was built from Acta baseline '{recorded}', but this build ships baseline "
-                        + $"'{RequiredBaselineStamp}'. The schema baseline is re-cuttable before 1.0 and carries no "
-                        + "translation path, so drop and reprovision the database to move to this build."
-                );
-            }
-
+            VerifyBaselineStamp(applied);
             VerifyAppliedNames(migrations, applied);
 
             foreach (var migration in migrations.Where(m => !applied.ContainsKey(m.Version)))
@@ -85,6 +73,28 @@ internal static class SchemaMigrationRunner
             await tx.RollbackAsync(ct);
             throw;
         }
+    }
+
+    /// <summary>
+    /// The version-0 sentinel row carries the baseline stamp; a non-empty history without it (or with
+    /// a different stamp) was built by another baseline generation, including the pre-sentinel
+    /// bookkeeping shape, and cannot be translated onto this build's schema. Shared with
+    /// <see cref="MigrationHistoryPreflight"/> so the apply path and the always-runs read-only
+    /// preflight cannot drift into two different verdicts on the same history.
+    /// </summary>
+    internal static void VerifyBaselineStamp(IReadOnlyDictionary<int, string> applied)
+    {
+        if (applied.Count == 0 || string.Equals(applied.GetValueOrDefault(0), RequiredBaselineStamp, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var recorded = applied.GetValueOrDefault(0) ?? applied.GetValueOrDefault(1) ?? "unknown";
+        throw new InvalidOperationException(
+            $"This database was built from Acta baseline '{recorded}', but this build ships baseline "
+                + $"'{RequiredBaselineStamp}'. The schema baseline is re-cuttable before 1.0 and carries no "
+                + "translation path, so drop and reprovision the database to move to this build."
+        );
     }
 
     /// <summary>

@@ -143,6 +143,21 @@ internal static partial class SqlServerSchemaMigrator
         }
     }
 
+    /// <summary>
+    /// Read-only migration-history preflight against the configured database. Connects to the target
+    /// catalog directly - no master connection, no CREATE DATABASE, no RCSI flip - because a host
+    /// that does not apply migrations has no business doing any of those.
+    /// </summary>
+    public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+
+        await using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await MigrationHistoryPreflight.RunAsync(conn, schemaName, Hooks, ct);
+    }
+
     public static async Task ResetSchemaAsync(SqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);

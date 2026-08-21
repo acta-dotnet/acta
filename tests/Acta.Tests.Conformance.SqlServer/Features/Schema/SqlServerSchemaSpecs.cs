@@ -10,3 +10,5 @@ public sealed class SqlServerM001InstallSpec : M001InstallSpec<SqlServerConforma
 public sealed class SqlServerOperatorViewSpec : OperatorViewSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerSchemaHardeningSpec : SchemaHardeningSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerMigrationHistoryPreflightSpec : MigrationHistoryPreflightSpec<SqlServerConformanceFixture>;

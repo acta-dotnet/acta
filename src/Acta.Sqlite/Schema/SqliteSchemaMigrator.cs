@@ -54,6 +54,21 @@ internal static class SqliteSchemaMigrator
     }
 
     /// <summary>
+    /// Read-only migration-history preflight against an existing database. Opening the connection
+    /// creates the file when it is missing, exactly as every other SQLite path does; the empty
+    /// database that results then reports itself as unprovisioned, which is the honest answer.
+    /// </summary>
+    public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+
+        await using var conn = new SqliteConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await MigrationHistoryPreflight.RunAsync(conn, schemaName, Hooks, ct);
+    }
+
+    /// <summary>
     /// Test-reset path: drops every view and table in the database, then re-applies. SQLite has no
     /// <c>DROP SCHEMA ... CASCADE</c>, so the objects are enumerated from <c>sqlite_master</c> and
     /// dropped with foreign keys disabled (order-independent).

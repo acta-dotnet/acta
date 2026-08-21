@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using Acta.Relational.Resources;
 
 namespace Acta.Relational.Schema;
@@ -41,9 +42,30 @@ internal static class SchemaCommands
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    /// <summary>
+    /// Whether the migration-history ledger exists at all. The read-only preflight asks this first so
+    /// an unprovisioned database is reported as unprovisioned rather than as whatever the provider's
+    /// "no such table" error happens to be.
+    /// </summary>
+    public static async Task<bool> MigrationsTableExists(
+        DbConnection conn,
+        SchemaMigrationProviderHooks hooks,
+        SqlResourceCatalog sql,
+        CancellationToken ct
+    )
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
+        cmd.CommandText = sql.Load("Sql/Schema/MigrationsTableExists.sql");
+        var found = await cmd.ExecuteScalarAsync(ct);
+        return found is not null and not DBNull && Convert.ToInt64(found, CultureInfo.InvariantCulture) > 0;
+    }
+
+    // tx is nullable because the read-only preflight runs outside a transaction: it takes no schema
+    // lock and writes nothing, so there is no boundary for it to join.
     public static async Task<IReadOnlyDictionary<int, string>> LoadAppliedVersions(
         DbConnection conn,
-        DbTransaction tx,
+        DbTransaction? tx,
         SchemaMigrationProviderHooks hooks,
         SqlResourceCatalog sql,
         CancellationToken ct

@@ -21,6 +21,26 @@ public readonly record struct DbCheckInfo(string Name);
 public interface IConformanceFixture
 {
     /// <summary>
+    /// This provider's dialect token (<c>pg</c>, <c>mssql</c>, <c>sqlite</c>), which selects the
+    /// provider assembly whose embedded migrations and SQL resources a provider-neutral spec reads.
+    /// </summary>
+    string DialectToken { get; }
+
+    /// <summary>
+    /// Allocate a throwaway location carrying only a migration-history ledger seeded with
+    /// <paramref name="history"/> as (version, bare name) rows, or - when <paramref name="history"/>
+    /// is <c>null</c> - no ledger at all, standing in for a database that was never provisioned.
+    /// </summary>
+    ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<(int Version, string Name)>? history);
+
+    /// <summary>
+    /// Run this provider's <c>IProviderBootstrap</c> against <paramref name="connectionString"/> and
+    /// <paramref name="schemaName"/> with <c>ApplyMigrationsOnStartup</c> left <c>false</c>: the
+    /// read-only path a production host takes on every start.
+    /// </summary>
+    Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct);
+
+    /// <summary>
     /// Return a handle to the shared <c>acta_test</c> schema, bootstrapping it with M001 applied on first
     /// touch and caching that bootstrap process-wide; throws via <c>Assert.Skip</c> when the provider env
     /// var is unset. Every spec in the assembly gets a handle to the same schema, not one of its own.

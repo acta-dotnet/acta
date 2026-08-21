@@ -10,3 +10,5 @@ public sealed class SqliteM001InstallSpec : M001InstallSpec<SqliteConformanceFix
 public sealed class SqliteOperatorViewSpec : OperatorViewSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteSchemaHardeningSpec : SchemaHardeningSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteMigrationHistoryPreflightSpec : MigrationHistoryPreflightSpec<SqliteConformanceFixture>;

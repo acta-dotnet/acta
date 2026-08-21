@@ -2170,6 +2170,18 @@
   - No table carries an index, foreign key or check the model does not declare
   - No installed column carries an explicit non-default collation
 
+### Bootstrap verifies migration history even when it applies nothing
+- **Contract:** Provider bootstrap requires this build's baseline stamp and every migration it ships, and tolerates newer ones.
+- **Arrange:** A probe location carries a hand-built migration history, or the shared provisioned schema is used as is.
+- **Act:** The provider bootstrap runs against that location with ApplyMigrationsOnStartup left false.
+- **Assert:** A complete or newer history passes, while a missing ledger, a foreign baseline, or a missing migration is refused by name.
+- **Guarantees:**
+  - A provisioned schema passes bootstrap with ApplyMigrationsOnStartup false
+  - An unprovisioned schema is refused as unprovisioned, naming the provisioning script
+  - A database from another baseline generation is refused with reprovisioning guidance
+  - A migration this build ships that the database never applied is refused by version
+  - A history carrying migrations this build has never heard of still passes
+
 ### Schema bootstrap installs curated operator views
 - **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope.
 - **Arrange:** A provider schema is bootstrapped, a retry-probe job is driven to terminal Failed, and one job is enqueued for a registered tenant.

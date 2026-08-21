@@ -76,6 +76,21 @@ internal static class PostgresSchemaMigrator
         await ApplyAsync(conn, schemaName, ct);
     }
 
+    /// <summary>
+    /// Read-only migration-history preflight against the configured database. Connects to the target
+    /// directly - it neither creates the database nor touches the maintenance connection, because a
+    /// host that does not apply migrations has no business doing either.
+    /// </summary>
+    public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+
+        await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await MigrationHistoryPreflight.RunAsync(conn, schemaName, Hooks, ct);
+    }
+
     public static async Task ResetSchemaAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);

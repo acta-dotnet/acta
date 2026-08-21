@@ -44,4 +44,14 @@ public abstract class SqlProviderOptions
     /// as a precondition of the runtime, not a side effect of it.
     /// </summary>
     public bool ApplyMigrationsOnStartup { get; set; } = false;
+
+    /// <summary>
+    /// What provider bootstrap does when the loaded ADO driver assembly's major version differs from
+    /// the major this provider package was certified against. Default
+    /// <see cref="DriverVersionPolicy.Fail"/>: the check runs before any SQL, in either direction,
+    /// and is the only real lock on the driver version because the package dependency is an
+    /// unbounded floor. Set to <see cref="DriverVersionPolicy.Warn"/> to run on an uncertified major
+    /// and accept the one structured warning that says so.
+    /// </summary>
+    public DriverVersionPolicy DriverVersionPolicy { get; set; } = DriverVersionPolicy.Fail;
 }

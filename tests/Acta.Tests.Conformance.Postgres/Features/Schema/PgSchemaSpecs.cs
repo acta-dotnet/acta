@@ -10,3 +10,5 @@ public sealed class PgM001InstallSpec : M001InstallSpec<PgConformanceFixture>;
 public sealed class PgOperatorViewSpec : OperatorViewSpec<PgConformanceFixture>;
 
 public sealed class PgSchemaHardeningSpec : SchemaHardeningSpec<PgConformanceFixture>;
+
+public sealed class PgMigrationHistoryPreflightSpec : MigrationHistoryPreflightSpec<PgConformanceFixture>;

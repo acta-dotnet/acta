@@ -665,6 +665,9 @@ static class Acta.DeduplicationKey
 sealed class Acta.DefinitionControlResult
     .ctor(Acta.ControlAction Action)
     Acta.ControlAction Action { get;init; }
+enum Acta.DriverVersionPolicy
+    Fail = 0
+    Warn = 1
 sealed class Acta.DuplicateDeduplicationKeyInBatchException
     Acta.DuplicateDeduplicationKeyInBatchException ForChild(System.Int64 parentJobId, System.String deduplicationKey, System.Int32 firstOrdinal, System.Int32 secondOrdinal)
     Acta.DuplicateDeduplicationKeyInBatchException ForRoot(System.String rootJobNamespace, System.String deduplicationKey, System.Int32 firstOrdinal, System.Int32 secondOrdinal)
@@ -2201,6 +2204,7 @@ sealed class Acta.SignalWaitResult<T>
     T Value { get; }
 abstract class Acta.SqlProviderOptions
     .ctor()
+    Acta.DriverVersionPolicy DriverVersionPolicy { get;set; }
     System.Boolean ApplyMigrationsOnStartup { get;set; }
     System.Int32 DeadlockRetryAttempts { get;set; }
     System.Int32 MaxDeadlockRetryAttempts = 100
