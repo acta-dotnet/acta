@@ -56,6 +56,22 @@ foreach ($package in Get-ChildItem $feed -Filter '*.nupkg') {
         if ($meta.repository.url -ne 'https://github.com/acta-dotnet/acta') { $failures += "repository url '$($meta.repository.url)'" }
         if (-not $meta.readme -or $entries -notcontains $meta.readme) { $failures += 'readme not declared or not packed' }
         if ($meta.version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { $failures += "version '$($meta.version)' is not a MinVer semver" }
+
+        # Floors only, by policy. An upper bound in a nuspec is a fake lock - NuGet reports a violated
+        # range as the NU1608 warning, not an error - so bounds would cost every host app its freedom to
+        # manage its own driver version while locking nothing. The real lock is the runtime driver-major
+        # preflight at provider bootstrap (DriverVersionPolicy). Do not "fix" this openness by adding
+        # bounds; a bracketed range here fails the pack.
+        foreach ($dependency in $nuspec.SelectNodes('//*[local-name()="dependency"]')) {
+            $range = $dependency.version
+            if (-not $range -or $range -notmatch '^[\[\(].*[\]\)]$') { continue }
+            # Bracket notation. "[1.0,)" is still a floor; "[1.0]", "[1.0,2.0)" and "(,2.0]" are not.
+            $bounds = $range.Substring(1, $range.Length - 2) -split ',', 2
+            if ($bounds.Count -eq 1 -or $bounds[1].Trim()) {
+                $failures += "dependency $($dependency.id) declares the upper-bounded range '$range'"
+            }
+        }
+
         if ($failures) { throw "package metadata failed for $($package.Name): $($failures -join '; ')" }
     }
     finally { $zip.Dispose() }
