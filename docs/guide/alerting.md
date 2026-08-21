@@ -160,9 +160,11 @@ A successful execution resolves that job's open automatic alerts and writes noth
   source (see [What projects an alert](#what-projects-an-alert)), so under it nothing ever drives this
   path — recovery does not resolve, whatever the profile's description promises.
 
-Manual alerts are a separate path throughout. `ctx.AlertAsync` writes `origin = Manual`,
-`kind = Manual` (`JobContext.AlertAsync`, `AlertStoreSink.RaiseManualAsync`), which the automatic
-resolve never matches. The operator verbs `IAlerts.AcknowledgeAsync` and `IAlerts.ResolveAsync`
+Manual alerts are a separate path throughout — separate by key, not by wall. `ctx.AlertAsync`
+writes `origin = Manual`, `kind = Manual` (`JobContext.AlertAsync`,
+`AlertStoreSink.RaiseManualAsync`), which the automatic resolve never matches. A caller that
+deliberately reuses an automatic `auto:` key merges its raise onto that incident and takes over
+its lifecycle; Acta does not police key choice, it deduplicates on it. The operator verbs `IAlerts.AcknowledgeAsync` and `IAlerts.ResolveAsync`
 (`IAlerts.AcknowledgeAsync`, `IAlerts.ResolveAsync`) are idempotent, emit `alert.acknowledged` (140) /
 `alert.resolved` (141) regardless of the job's audit level (`EventCode.AlertAcknowledged`,
 `EventCode.AlertResolved`), and leave `last_projected_event_id` untouched
