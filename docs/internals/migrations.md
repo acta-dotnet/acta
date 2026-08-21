@@ -168,6 +168,16 @@ a schema it was not built for. Skipping the bump defeats that check. Bootstrap a
 applied version whose recorded name differs from the shipped one, so a migration amended after a
 database already applied it fails loudly instead of being silently skipped.
 
+These checks run on **every** start, not only when migrations are applied. A host with
+`ApplyMigrationsOnStartup = false` runs a read-only **migration-history preflight**
+(`MigrationHistoryPreflight`, called through each provider's migrator) that enforces the same stamp
+and name rules and additionally requires a history row for every migration the build ships — while
+tolerating rows it has never heard of, so an older worker still starts against a newer database. A
+missing `migrations` table is reported as "not provisioned" with a pointer at the published schema
+script rather than surfacing as a failed query later. The preflight verifies history, not schema:
+routine and view bodies are unversioned and are rewritten only by an applying bootstrap, which is
+why an upgrade must run the current full provisioning script rather than trust a green preflight.
+
 The 2026-07-15 byte-sized persisted-code change used this workflow. Enum member names, textual codes,
 descriptions, and JSON strings did not change; only family-local numeric ids and physical
 byte-compatible column types changed.

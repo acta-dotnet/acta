@@ -315,6 +315,29 @@ the window. `Active` and `Draining` workers are still never purged. Nothing else
 changed — same window arithmetic, same batching, same ordering — and the first sweep after upgrading
 will clear the stopped-worker backlog a long-running cluster has accumulated.
 
+### Startup verifies the database it was handed, every time
+
+Two preflights now run at `StartAsync` on every host, including — especially — hosts with
+`ApplyMigrationsOnStartup = false`, which previously skipped verification entirely and failed at
+their first query.
+
+The **migration-history preflight** requires the `baseline-1.0` stamp and a history row for every
+migration the build ships. An unprovisioned database says so and names the provisioning script; a
+database from another baseline generation gets the drop-and-reprovision instruction; history rows
+the build has never heard of still pass, so an older worker starts cleanly against a newer database.
+One permission implication: the application principal must be able to read the `migrations` table —
+a locked-down principal that cannot see it is indistinguishable from an unprovisioned database and
+is refused the same way.
+If you were relying on lazy failure — pointing a worker at a database you provision later — provision
+first now. The preflight checks history, not routine bodies: keep running the full provisioning
+script on every upgrade, as [`production.md`](guide/production.md#migration-ownership) describes.
+
+The **driver-major preflight** compares the loaded ADO driver's major version against the one Acta
+was certified with and refuses to start on a mismatch. Acta's driver dependencies stay floors with
+no upper bounds — your application (or your `Directory.Packages.props`) decides the driver version —
+and this check is what makes that openness safe. `DriverVersionPolicy = DriverVersionPolicy.Warn`
+turns the refusal into one logged warning for hosts that validated the newer driver themselves.
+
 ### Certification: four gates, four seals
 
 All four ran on the release commit on 2026-08-16 and file under `docs/certification/`:

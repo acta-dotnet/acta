@@ -69,8 +69,36 @@ never issues DDL. The scripts record the migration history themselves, so a boot
 result and applies nothing; advanced deployments can even add site-specific physical tuning
 (partitioning, tablespaces) as long as the logical shape stays intact.
 
+Whether or not a host applies migrations itself, every start runs a read-only migration-history
+preflight: the database must carry the baseline stamp this build requires and a history row for
+every migration this build ships. A database that was never provisioned, or was provisioned from a
+different baseline generation, fails at `StartAsync` with instructions instead of failing later at
+its first query. History rows this build has never heard of are fine — an older worker against a
+newer database is a supported rolling-upgrade shape.
+
+Know what the preflight does not prove: it checks history, not schema. Operator views and routines
+carry no version and are rewritten only by a bootstrap that applies migrations, so a
+`ApplyMigrationsOnStartup = false` host can pass preflight while running stale routine bodies. The
+rule that closes the gap is simple: run the current full provisioning script as part of every
+upgrade. It is idempotent, so re-running it is always safe.
+
 See [`migrations.md`](../internals/migrations.md) for the migration model and `tools/Acta.Emit`
 commands.
+
+## Coexisting with your application's packages
+
+Acta declares only minimum versions for its database drivers (`Npgsql`, `Microsoft.Data.SqlClient`,
+`Microsoft.Data.Sqlite`) — floors, never upper bounds. Your application stays free to pin the driver
+version it needs, including through Central Package Management; NuGet resolves one driver for the
+process and Acta uses whatever it resolves.
+
+An upper bound in package metadata would not actually protect you — NuGet demotes a version-range
+conflict to a warning that most builds never read. So the real guard runs at startup instead: the
+preflight compares the major version of the driver actually loaded against the major Acta was
+certified with, and refuses to start on a mismatch. If you have validated the newer driver yourself
+and want to proceed, set `DriverVersionPolicy = DriverVersionPolicy.Warn` on the provider options;
+you get one logged warning instead of a refusal, and the decision is recorded where an operator can
+see it.
 
 ## Worker count and executor count
 
