@@ -9,7 +9,7 @@ namespace Acta.Tests.Context;
 /// per-child-name outcome (defaulting to Succeeded). No database, no substrate; only the child-job sinks
 /// the sugar touches are implemented, the rest throw.
 /// </summary>
-internal sealed class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>? seeded = null) : JobContext
+internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>? seeded = null) : JobContext
 {
     private readonly Dictionary<long, string> _idToName = [];
     private readonly Dictionary<string, object> _variables = new(StringComparer.Ordinal);

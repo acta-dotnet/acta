@@ -534,6 +534,11 @@ sealed class Acta.ChildJobOutcome
     Acta.JobStatusCode Status { get;init; }
     System.Boolean Succeeded { get; }
     System.Int64 ChildJobId { get;init; }
+sealed class Acta.ChildWaitResult
+    Acta.ChildJobOutcome Outcome { get; }
+    System.Boolean Completed { get; }
+    System.Boolean TimedOut { get; }
+    System.Int64 ChildJobId { get; }
 sealed class Acta.CodeAttribute
     .ctor(System.String code, System.String description)
     Acta.CodeLifecycle Lifecycle { get;init; }
@@ -566,7 +571,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <25344 chars, sha256:0F2AE9D3>
+    System.String MarkdownReport = <25470 chars, sha256:A5195E5B>
 enum Acta.ControlAction
     Accepted = 4
     Applied = 1
@@ -1082,6 +1087,7 @@ abstract class Acta.JobContext
     System.Threading.CancellationToken CancellationToken { get; }
     System.Threading.Tasks.Task AlertAsync(System.String title, System.String message, Acta.AlertSeverityCode severityCode, System.String channelName = default, System.String deduplicationKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task CancelAsync(System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task CancelTimedOutChildCoreAsync(System.Int64 childJobId, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task FailAsync(System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task NoteAsync(System.String message, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task NoteAsync<T>(System.String message, T detail, System.Threading.CancellationToken ct = default)
@@ -1108,6 +1114,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WriteNoteCoreAsync<T>(System.String message, T detail, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task<Acta.ChildJobOutcome> WaitChildAsync(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.ChildWaitResult> TryWaitChildAsync(System.Int64 childJobId, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.JobContext+SignalWaitOutcome> WaitSignalCoreAsync(System.String name, System.Nullable<System.Int32> timeoutSeconds, System.Boolean resumeOnTimeout, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task<Acta.JobContext+SignalWaitOutcome> WaitSignalCoreAsync(System.String name, System.Threading.CancellationToken ct)
     System.Threading.Tasks.Task<Acta.JobEnqueueOutcome> StartChildAsync(System.String name, System.String jobNamespace, System.String jobName, Acta.JobPayload input = default, System.Action<Acta.JobEnqueueOptionsBuilder> configure = default, System.Threading.CancellationToken ct = default)

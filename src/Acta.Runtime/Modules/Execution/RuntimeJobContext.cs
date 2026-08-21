@@ -42,7 +42,8 @@ internal sealed class RuntimeJobContext(
     JobMetrics? metrics = null,
     IJobs? jobs = null,
     string? tenantKey = null,
-    int workerId = 0
+    int workerId = 0,
+    WorkerWakeupPublisher? wakeupPublisher = null
 ) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
@@ -61,6 +62,7 @@ internal sealed class RuntimeJobContext(
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
     private readonly IJobs? _jobs = jobs;
+    private readonly WorkerWakeupPublisher? _wakeupPublisher = wakeupPublisher;
 
     /// <summary>
     /// Whether this attempt's cancellation was the execution-timeout firing rather than an external
@@ -188,6 +190,40 @@ internal sealed class RuntimeJobContext(
             SignalWaitOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
             _ => throw new InvalidOperationException($"wait_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
+    }
+
+    // The wait timed out, so this parent stopped waiting; the child and everything under it is work
+    // nobody is going to read. Reason JobWaitTimedOut rather than JobParentCancelled, because the
+    // parent was NOT cancelled and the timeline must not say it was. Follow-up transactions, like every
+    // other cascade: a crash mid-walk leaves stragglers the maintenance sweep repairs.
+    protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
+    {
+        var input = new JobControlInput(
+            new JobControlActor(ActorCode.Sys),
+            JobEventReasonCode.JobWaitTimedOut,
+            "Parent's child wait timed out."
+        );
+
+        var cancel = await _jobStore.CancelJobAsync(childJobId, input, ct);
+        if (cancel.Outcome.Action == JobControlActionInternal.Applied)
+        {
+            await WakeCompletionAsync(childJobId, ct);
+        }
+
+        // The child's own latch on this job is Expired, so no raise is needed or possible here; the
+        // descendants' latches sit on parents this walk has already made terminal.
+        foreach (var cancelledId in await CancelDescendants.Run(_executionStore, _jobStore, childJobId, input, ct))
+        {
+            await WakeCompletionAsync(cancelledId, ct);
+        }
+    }
+
+    private async Task WakeCompletionAsync(long jobId, CancellationToken ct)
+    {
+        if (_wakeupPublisher is { } publisher)
+        {
+            await publisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
+        }
     }
 
     protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)

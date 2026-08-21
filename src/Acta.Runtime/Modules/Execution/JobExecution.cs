@@ -683,7 +683,9 @@ internal sealed class JobExecution(
         // above already raised this job's own latch in-routine); maintenance is the crash backstop.
         if (handlerStatusCode == (byte)JobStatusCode.Cancelled)
         {
-            foreach (var cancelledId in await CancelDescendants.Run(_execution, _jobStore, job.JobId, ct))
+            foreach (
+                var cancelledId in await CancelDescendants.Run(_execution, _jobStore, job.JobId, CancelDescendants.ParentCancelled, ct)
+            )
             {
                 await _wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(cancelledId), WorkerWakeupReason.JobFinished, ct);
             }

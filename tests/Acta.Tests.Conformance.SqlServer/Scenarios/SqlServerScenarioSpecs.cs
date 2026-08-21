@@ -13,6 +13,8 @@ public sealed class SqlServerChildJobCrossNamespaceSpec : ChildJobCrossNamespace
 
 public sealed class SqlServerChildJobSpec : ChildJobSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerChildTimeoutSpec : ChildTimeoutSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerExclusiveKeyMutexSpec : ExclusiveKeyMutexSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerControlVerbsSpec : ControlVerbsSpec<SqlServerConformanceFixture>;

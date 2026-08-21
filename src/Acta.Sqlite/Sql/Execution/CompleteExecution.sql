@@ -382,11 +382,19 @@ SELECT
 FROM _ce_done d
 JOIN {{schema}}.jobs pj ON pj.id = d.parent_id
 JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
+LEFT JOIN {{schema}}.checkpoints pl
+    ON pl.job_id = d.parent_id
+    AND pl.kind_code = 50 /* JobCheckpointKindCode.ChildLatch */
+    AND pl.name = 'sys.child.' || @p_id
 WHERE
     d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND d.parent_id IS NOT NULL
     AND pr.status_code IS NOT NULL
-    AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+    AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    /* No revival: an Expired latch already resolved the parent's wait TimedOut, so a child landing
+       terminal afterwards writes no slot and releases no parent. Dropping the parent row here is what
+       skips both, since every statement below reads from this table. */
+    AND COALESCE(pl.status_code, 0) <> 30 /* JobCheckpointStatusCode.Expired */;
 
 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
 SELECT

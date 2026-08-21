@@ -13,6 +13,8 @@ public sealed class SqliteChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpe
 
 public sealed class SqliteChildJobSpec : ChildJobSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteChildTimeoutSpec : ChildTimeoutSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteControlVerbsSpec : ControlVerbsSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteGoldenPathSpec : GoldenPathSpec<SqliteConformanceFixture>;

@@ -409,7 +409,13 @@ BEGIN
         WHERE j.id = v_parent_id
         FOR UPDATE OF pr;
 
-        IF v_pstatus IS NOT NULL AND v_pstatus NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same slot
+           lock, so a child landing terminal afterwards writes no slot and releases no parent. The
+           parent has woken, or will wake, on its own deadline. */
+        IF
+            v_pstatus IS NOT NULL
+            AND v_pstatus NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            AND COALESCE(v_psig <> 30 /* JobCheckpointStatusCode.Expired */, TRUE) THEN
             INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, created_at_utc, modified_at_utc, version)
             VALUES (
                 v_parent_id,

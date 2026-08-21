@@ -23,8 +23,9 @@ public enum JobCheckpointStatusCode : byte
 
     /// <summary>
     /// Terminal for the slot: a bounded wait's stored <c>due_at_utc</c> passed before a raise arrived,
-    /// so the re-entering wait resolved TimedOut. A raise skips an Expired slot: it writes no payload
-    /// and releases no job, which is what stops a late signal reviving a wait that already resolved.
+    /// so the re-entering wait resolved TimedOut. Both a raise and a child landing terminal skip an
+    /// Expired slot, writing no payload and releasing no job, which is what stops a late arrival
+    /// reviving a wait that already resolved.
     /// </summary>
     [Code("expired", "Bounded wait deadline passed before a raise arrived; the wait resolved TimedOut and raises skip the slot.")]
     Expired = 30,

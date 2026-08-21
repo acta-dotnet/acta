@@ -458,7 +458,9 @@ internal sealed class JobsService(
 
         if (result.Status == JobStatusCode.Cancelled)
         {
-            foreach (var cancelledId in await CancelDescendants.Run(executionStore, store, jobId.Value, ct))
+            foreach (
+                var cancelledId in await CancelDescendants.Run(executionStore, store, jobId.Value, CancelDescendants.ParentCancelled, ct)
+            )
             {
                 await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(cancelledId), WorkerWakeupReason.JobFinished, ct);
             }

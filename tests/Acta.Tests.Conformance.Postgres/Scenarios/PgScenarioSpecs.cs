@@ -13,6 +13,8 @@ public sealed class PgChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<Pg
 
 public sealed class PgChildJobSpec : ChildJobSpec<PgConformanceFixture>;
 
+public sealed class PgChildTimeoutSpec : ChildTimeoutSpec<PgConformanceFixture>;
+
 public sealed class PgExclusiveKeyMutexSpec : ExclusiveKeyMutexSpec<PgConformanceFixture>;
 
 public sealed class PgControlVerbsSpec : ControlVerbsSpec<PgConformanceFixture>;

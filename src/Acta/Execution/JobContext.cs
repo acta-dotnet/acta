@@ -668,15 +668,63 @@ public abstract class JobContext
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        // Read side of the child-latch checkpoint key. The name is persisted in the ledger and matched
-        // as text against the one RaiseChildLatch writes, in another process and possibly another
-        // culture, so the two renderings must agree byte for byte; the invariant culture is stated on
-        // both sides rather than inherited from whatever the ambient one happens to be.
-        var outcome = await WaitSignalCoreAsync(ChildSignalPrefix + childJobId.ToString(CultureInfo.InvariantCulture), linked.Token);
-        return outcome.Value is null
+        var outcome = await WaitSignalCoreAsync(ChildLatchName(childJobId), linked.Token);
+        return ParseChildOutcome(childJobId, outcome);
+    }
+
+    /// <summary>
+    /// Bounded twin of <see cref="WaitChildAsync"/>. The first pass stores <c>db_now + timeout</c> as
+    /// the latch's absolute expiration; a replay reuses that instant and never extends it, so restarts
+    /// and worker downtime cannot lengthen the wait. A child timeout never cancels this Job: the
+    /// handler resumes with <see cref="ChildWaitResult.TimedOut"/> and is free to compensate, start a
+    /// replacement child, or cancel itself. Acta cancels the unfinished child and its descendant
+    /// subtree (reason <c>job.wait-timed-out</c>) before this call returns. Waiting stays
+    /// budget-neutral, and cancelling <paramref name="ct"/> remains a separate, non-durable concern.
+    /// </summary>
+    /// <remarks>
+    /// There is deliberately no non-Try twin: a child timeout resolves in the parent's favour, so
+    /// there is nothing for a non-returning overload to mean.
+    /// </remarks>
+    /// <param name="childJobId">The child started by <see cref="StartChildAsync{TInput}"/>.</param>
+    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public async Task<ChildWaitResult> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
+        var seconds = ToWaitTimeoutSeconds(timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        var outcome = await WaitSignalCoreAsync(ChildLatchName(childJobId), seconds, resumeOnTimeout: true, linked.Token);
+        if (!outcome.TimedOut)
+        {
+            return ChildWaitResult.Landed(ParseChildOutcome(childJobId, outcome));
+        }
+
+        // The parent has stopped waiting, so the child's work is no longer wanted. Cancelling before
+        // the result is handed back means the handler never sees TimedOut while the subtree is still
+        // burning workers, and a replay re-runs a cancel that is a no-op on terminal rows.
+        await CancelTimedOutChildCoreAsync(childJobId, linked.Token);
+        return ChildWaitResult.Expired(childJobId);
+    }
+
+    // Read side of the child-latch checkpoint key. The name is persisted in the ledger and matched as
+    // text against the one RaiseChildLatch writes, in another process and possibly another culture, so
+    // the two renderings must agree byte for byte; the invariant culture is stated on both sides rather
+    // than inherited from whatever the ambient one happens to be.
+    private static string ChildLatchName(long childJobId) => ChildSignalPrefix + childJobId.ToString(CultureInfo.InvariantCulture);
+
+    private static ChildJobOutcome ParseChildOutcome(long childJobId, SignalWaitOutcome outcome) =>
+        outcome.Value is null
             ? throw new InvalidOperationException($"Child outcome slot for job {childJobId} carries no envelope.")
             : ChildOutcomeEnvelope.Parse(outcome.Value);
-    }
+
+    /// <summary>
+    /// Subclass sink: cancel the timed-out <paramref name="childJobId"/> and its non-terminal
+    /// descendant subtree, so a wait the parent abandoned does not leave orphaned work running. Must be
+    /// idempotent: a replayed handler re-enters the expired wait and calls this again, and a cancel of
+    /// an already-terminal job is a no-op. The default does nothing, so a <see cref="JobContext"/>
+    /// subclass that only records calls keeps working.
+    /// </summary>
+    protected virtual Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct) => Task.CompletedTask;
 
     /// <summary>
     /// Waits for every listed child to reach a terminal status (all-of), suspending as needed. Outcomes

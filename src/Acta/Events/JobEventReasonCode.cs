@@ -124,7 +124,7 @@ public enum JobEventReasonCode : byte
 
     [Code(
         "job.wait-timed-out",
-        "A durable wait (signal or child) passed the absolute expiration stored on its checkpoint slot before it was satisfied; the engine terminated the Job Cancelled without consuming the retry budget."
+        "A durable wait (signal or child) passed the absolute expiration stored on its checkpoint slot before it was satisfied. An expired signal wait terminates the waiting Job Cancelled; an expired child wait leaves the waiting Job running and cancels the abandoned child and its descendants. Neither consumes the retry budget."
     )]
     JobWaitTimedOut = 65,
 

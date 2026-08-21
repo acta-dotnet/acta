@@ -111,6 +111,32 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
         await Assert.ThrowsAsync<InvalidOperationException>(() => unbounded.FastForwardToWaitTimeoutAsync(ct));
     }
 
+    [Fact(DisplayName = "The wait-timeout helper expires a pinned bounded child wait by its latch name")]
+    public async Task Wait_timeout_helper_expires_a_pinned_child_wait()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartScenarioHostAsync(ct);
+
+        var session = await Scenario
+            .For(TestJobsManifest.JobParentTryWaitChild, host)
+            .EnqueueAsync(new TryWaitChildStart("job-wait-signal"), ct: ct);
+        Assert.Equal(ActaRunOutcome.Rearmed, await session.RunOnceAsync(ct));
+
+        // The helper reads the awaited slot by kind, so a child latch stages exactly like a signal does;
+        // its name is the framework-owned sys.child key rather than anything the handler chose.
+        var latch = Assert.Single(await session.CheckpointsAsync(JobCheckpointKindCode.ChildLatch, ct));
+        Assert.NotNull(latch.DueAtUtc);
+
+        await session.FastForwardToWaitTimeoutAsync(latch.Name, ct);
+        await session.RunUntilDoneAsync(ct: ct);
+
+        Assert.True((await session.ResultAsync(ct)).TimedOut);
+        Assert.Equal(
+            JobCheckpointStatusCode.Expired,
+            Assert.Single(await session.CheckpointsAsync(JobCheckpointKindCode.ChildLatch, ct)).Status
+        );
+    }
+
     [Fact(DisplayName = "RunUntilFailed stops on Failed and assertion failures include a scenario dump")]
     public async Task Run_until_failed_and_assertion_dump_work()
     {

@@ -2303,11 +2303,15 @@ BEGIN
                         INNER JOIN acta.jobs j ON j.id = pr.job_id
                         WHERE pr.job_id = @parent_id;
 
+                        /* No revival: an Expired latch already resolved the parent's wait TimedOut under
+                           this same slot lock, so a child landing terminal afterwards writes no slot and
+                           releases no parent. The parent has woken, or will wake, on its own deadline. */
                         IF
                             @pstatus IS NOT NULL
                             AND @pstatus NOT IN (
                                 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
                             )
+                            AND (@psig IS NULL OR @psig <> 30 /* JobCheckpointStatusCode.Expired */)
                             BEGIN
                                 DECLARE
                                     @envelope NVARCHAR(MAX)

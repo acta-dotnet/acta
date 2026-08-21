@@ -44,4 +44,79 @@ public sealed class JobContextWaitTimeoutTests
         Assert.False(result.TimedOut);
         Assert.Equal(["wait:go"], ctx.Events);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task A_bounded_child_wait_validates_its_arguments_before_any_store_call(int seconds)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new RecordingJobContext();
+        var child = await ctx.StartChildAsync("only", new { }, ct: ct);
+
+        var thrown = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromSeconds(seconds), ct)
+        );
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitChildAsync(0, TimeSpan.FromMinutes(5), ct));
+
+        Assert.Equal("timeout", thrown.ParamName);
+        Assert.Equal(["start:only"], ctx.Events);
+    }
+
+    [Fact]
+    public async Task A_child_landing_before_the_deadline_returns_its_outcome_and_cancels_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new RecordingJobContext();
+        var child = await ctx.StartChildAsync("only", new { }, ct: ct);
+
+        var result = await ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromMinutes(5), ct);
+
+        Assert.True(result.Completed);
+        Assert.False(result.TimedOut);
+        Assert.Equal(child.JobId, result.ChildJobId);
+        Assert.Equal(JobStatusCode.Succeeded, result.Outcome!.Status);
+        Assert.Equal(["start:only", "wait:only"], ctx.Events);
+    }
+
+    [Fact]
+    public async Task A_timed_out_child_wait_cancels_the_child_before_it_returns()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new TimingOutChildContext();
+
+        var result = await ctx.TryWaitChildAsync(7, TimeSpan.FromMinutes(5), ct);
+
+        // The ordering is the point: the handler must never regain control while the subtree it gave
+        // up on is still live.
+        Assert.True(result.TimedOut);
+        Assert.False(result.Completed);
+        Assert.Equal(7, result.ChildJobId);
+        Assert.Null(result.Outcome);
+        Assert.Equal(["wait:sys.child.7", "cancel:7"], ctx.Events);
+    }
+
+    /// <summary>
+    /// A context whose bounded wait always expires, so the resolution order the runtime relies on can
+    /// be pinned without a database.
+    /// </summary>
+    private sealed class TimingOutChildContext : RecordingJobContext
+    {
+        protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(
+            string name,
+            int? timeoutSeconds,
+            bool resumeOnTimeout,
+            CancellationToken ct
+        )
+        {
+            Events.Add($"wait:{name}");
+            return Task.FromResult(new SignalWaitOutcome(0, null, TimedOut: true));
+        }
+
+        protected override Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
+        {
+            Events.Add($"cancel:{childJobId}");
+            return Task.CompletedTask;
+        }
+    }
 }
