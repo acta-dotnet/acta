@@ -250,6 +250,13 @@ SQL ownership gates (`SqlOwnershipTests`) enforce, alongside the C# architecture
 - provider SQL resource paths match the owning module/capability folder
 - cross-owner atomic routines are declared per table as process-manager routines
 
+The gate reads every provider SQL resource, routine body and plain query alike, and gates writes
+only: a read may join another owner's tables with no declaration, because the ownership map says who
+may change a row, not who may look at one. A pure `SELECT` therefore has no ownership reason to be a
+stored routine, and the three that were (`get_child_job_ids`, `get_stale_child_latches`,
+`get_outbox_signal`) are ordinary query resources on all three dialects. A routine earns its shape
+from atomicity — statements that must land as one transition — not from the tables it reads.
+
 ## Assembly and package decision
 
 ### The rename (shipped)

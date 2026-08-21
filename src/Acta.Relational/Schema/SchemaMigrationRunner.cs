@@ -17,7 +17,7 @@ internal static class SchemaMigrationRunner
     // in both places that own it: SqlDdlDialect.BaselineStamp (which writes it into the generated
     // M001 bodies) and the constant here (which requires it at bootstrap). BaselineStampParityTests
     // fails the build if the two drift apart.
-    internal const string RequiredBaselineStamp = "init-entity-refs-v1";
+    internal const string RequiredBaselineStamp = "baseline-1.0";
 
     /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the

@@ -49,7 +49,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<long>>(
-            new StoreCommand("Execution", "ChildLatches/GetChildJobIds"),
+            "Sql/Execution/ChildLatches/GetChildJobIds.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.ParentId, parentJobId)),
             async (reader, token) =>
             {
@@ -66,7 +66,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(short namespaceId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<StaleChildLatch>>(
-            new StoreCommand("Execution", "ChildLatches/GetStaleChildLatches"),
+            "Sql/Execution/ChildLatches/GetStaleChildLatches.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId)),
             async (reader, token) =>
             {

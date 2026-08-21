@@ -29,14 +29,14 @@ internal sealed class RelationalOutboxSignalStore(IDbSession session, ISqlDialec
         ) ?? throw new InvalidOperationException("park_outbox_signal returned no admission row; it must return exactly one.");
 
     public Task<OutboxSignalRow?> GetAsync(long jobId, string name, CancellationToken ct) =>
-        session.ExecuteSingleAsync(
-            new StoreCommand("Execution", "Signals/GetOutboxSignal"),
+        session.QueryAsync<OutboxSignalRow?>(
+            "Sql/Execution/Signals/GetOutboxSignal.sql",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, name));
             },
-            DbProjectionResolver.Resolve<OutboxSignalRow>(),
+            async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<OutboxSignalRow>()(reader) : null,
             ct
         );
 

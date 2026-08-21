@@ -177,9 +177,13 @@ review.
 The release candidate's own changes, recorded here as they land. The headline pair: durable waits
 can now give up, and an alert outage has an identity instead of a time bucket.
 
-> **Schema note:** preview policy applies — drop and reprovision. `M001` carries the incident
-> identity (one open alert row per key, no window column), checkpoint deadlines on waits, and a
-> claim index that covers its own predicate.
+> **Schema note:** preview policy applies — drop and reprovision. `M001` was re-cut as the 1.0
+> baseline (stamp `baseline-1.0`, the last re-cut: the migration history is frozen from 1.0), and it
+> carries the incident identity (one open alert row per key, no window column), checkpoint deadlines
+> on waits, and a claim index that covers its own predicate. Three read-only database objects went
+> with it: `get_child_job_ids`, `get_stale_child_latches`, and `get_outbox_signal` are ordinary
+> queries the application sends now, so a fresh provision never creates them and the application
+> principal needs no `EXECUTE` grant for them.
 
 ### Durable waits get deadlines
 
