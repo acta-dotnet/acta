@@ -6,10 +6,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
-/// Process-level <see cref="BackgroundService"/>. Runs provider bootstrap exactly once (migrations /
-/// schema) and every worker's <see cref="WorkerRuntime.InitializeAsync"/> during startup, then runs
-/// every registered worker's <see cref="WorkerRuntime.RunAsync"/> concurrently under the host
-/// stopping token.
+/// Process-level <see cref="BackgroundService"/>. Runs provider bootstrap exactly once (driver and schema
+/// preflight, then migrations) and every worker's <see cref="WorkerRuntime.InitializeAsync"/> during startup,
+/// then runs every registered worker's <see cref="WorkerRuntime.RunAsync"/> concurrently under the host stopping token.
 /// </summary>
 /// <remarks>
 /// Bootstrap and worker initialization (catalog upsert: namespace + definitions + <c>workers</c>)
@@ -17,9 +16,10 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// inside the background loop, so a multi-worker process migrates the schema a single time AND
 /// anything that runs after this service starts (subsequent <c>IHostedService</c>s, a caller that
 /// <c>await host.StartAsync()</c>) is guaranteed the schema and this process's definitions exist
-/// before it enqueues (no startup race). In production (<c>ApplyMigrationsOnStartup</c> off) the
-/// bootstraps no-op cheaply, so startup stays fast. An enqueue-only process (no <c>j.Run(...)</c> call)
-/// registers no workers: bootstrap still runs so the catalog exists, then the host idles until shutdown.
+/// before it enqueues (no startup race). With <c>ApplyMigrationsOnStartup</c> off a bootstrap applies
+/// nothing but still preflights the driver major and the migration history, so a wrong driver or a
+/// foreign baseline stops startup here rather than at the first query. An enqueue-only process registers
+/// no workers: bootstrap still runs so the catalog exists, then the host idles until shutdown.
 /// </remarks>
 internal sealed class WorkerRuntimeHost(
     IEnumerable<WorkerRuntime> runtimes,
@@ -38,7 +38,8 @@ internal sealed class WorkerRuntimeHost(
     /// completion before host startup finishes, so anything that starts after (subsequent
     /// <c>IHostedService</c>s, a caller that <c>await host.StartAsync()</c>) can enqueue against this
     /// process's definitions immediately. Both run once per process, before any worker's claim loop.
-    /// In production (<c>ApplyMigrationsOnStartup</c> off) the bootstraps no-op cheaply.
+    /// With <c>ApplyMigrationsOnStartup</c> off, a bootstrap applies nothing but still runs its
+    /// read-only preflight, and a failed one throws out of here before host startup completes.
     /// </summary>
     public override async Task StartAsync(CancellationToken cancellationToken)
     {

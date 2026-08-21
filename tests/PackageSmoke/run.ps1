@@ -44,6 +44,36 @@ else {
     }
 }
 
+# Floors only, by policy. An upper bound in a nuspec is a fake lock - NuGet reports a violated range as
+# the NU1608 warning, not an error - so bounds would cost every host app its freedom to manage its own
+# driver version while locking nothing. The real lock is the runtime driver-major preflight at provider
+# bootstrap (DriverVersionPolicy). Do not "fix" this openness by adding bounds.
+#
+# Bracket notation is the only form that can carry an upper bound: "[1.0,)" is still a floor, while
+# "[1.0]" (exact pin), "[1.0,2.0)" and "(,2.0]" are not.
+function Test-UpperBoundedRange {
+    param([string]$Range)
+    if (-not $Range -or $Range -notmatch '^[\[\(].*[\]\)]$') { return $false }
+    $bounds = $Range.Substring(1, $Range.Length - 2) -split ',', 2
+    return ($bounds.Count -eq 1 -or [bool]$bounds[1].Trim())
+}
+
+# Proven before it is trusted: the gate below is only as good as this classifier, and a silently
+# broken one would pass every package forever without anyone noticing it had stopped looking.
+foreach ($case in @(
+        @{ Range = '10.0.3'; Bounded = $false },
+        @{ Range = '[1.0,)'; Bounded = $false },
+        @{ Range = '[1.0.0, )'; Bounded = $false },
+        @{ Range = '[1.0]'; Bounded = $true },
+        @{ Range = '[1.0,2.0)'; Bounded = $true },
+        @{ Range = '(,2.0]'; Bounded = $true },
+        @{ Range = '(1.0,2.0)'; Bounded = $true })) {
+    $actual = Test-UpperBoundedRange $case.Range
+    if ($actual -ne $case.Bounded) {
+        throw "upper-bound classifier self-test failed: '$($case.Range)' classified as bounded=$actual, expected $($case.Bounded)"
+    }
+}
+
 # Metadata gate: every packed nupkg must carry the shared NuGet metadata and a MinVer tag-derived
 # version. This is the durable form of the releasing.md "NuGet metadata checked" line.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -63,18 +93,12 @@ foreach ($package in Get-ChildItem $feed -Filter '*.nupkg') {
         if (-not $meta.readme -or $entries -notcontains $meta.readme) { $failures += 'readme not declared or not packed' }
         if ($meta.version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { $failures += "version '$($meta.version)' is not a MinVer semver" }
 
-        # Floors only, by policy. An upper bound in a nuspec is a fake lock - NuGet reports a violated
-        # range as the NU1608 warning, not an error - so bounds would cost every host app its freedom to
-        # manage its own driver version while locking nothing. The real lock is the runtime driver-major
-        # preflight at provider bootstrap (DriverVersionPolicy). Do not "fix" this openness by adding
-        # bounds; a bracketed range here fails the pack.
+        # Dependencies are floors and nothing else (see Test-UpperBoundedRange above for why, and for
+        # the self-test that keeps this honest). Group-agnostic, so every target-framework group of
+        # every shipped package is covered.
         foreach ($dependency in $nuspec.SelectNodes('//*[local-name()="dependency"]')) {
-            $range = $dependency.version
-            if (-not $range -or $range -notmatch '^[\[\(].*[\]\)]$') { continue }
-            # Bracket notation. "[1.0,)" is still a floor; "[1.0]", "[1.0,2.0)" and "(,2.0]" are not.
-            $bounds = $range.Substring(1, $range.Length - 2) -split ',', 2
-            if ($bounds.Count -eq 1 -or $bounds[1].Trim()) {
-                $failures += "dependency $($dependency.id) declares the upper-bounded range '$range'"
+            if (Test-UpperBoundedRange $dependency.version) {
+                $failures += "dependency $($dependency.id) declares the upper-bounded range '$($dependency.version)'"
             }
         }
 

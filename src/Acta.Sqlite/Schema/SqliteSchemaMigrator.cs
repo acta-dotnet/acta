@@ -54,19 +54,38 @@ internal static class SqliteSchemaMigrator
     }
 
     /// <summary>
-    /// Read-only migration-history preflight against an existing database. Opening the connection
-    /// creates the file when it is missing, exactly as every other SQLite path does; the empty
-    /// database that results then reports itself as unprovisioned, which is the honest answer.
+    /// Read-only migration-history preflight against an existing database. A file-backed source that
+    /// does not exist is answered without opening anything, so reporting that no database is there
+    /// never creates one.
     /// </summary>
     public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
+        // The one place in this package that reads the connection string, and the reason is the whole
+        // point of the check: opening a SqliteConnection creates the file, so a typo'd Data Source
+        // would leave a stray empty database at the wrong path on the way to saying the right thing
+        // about it. Only a plain file path is pre-checked; in-memory and shared-cache
+        // sources have no file to miss, and URI (file:...) sources are excluded unparsed - one can
+        // name a real file, but mis-parsing its forms is worse than letting it take the normal open. The apply
+        // path is untouched: creating the file is exactly what ApplyMigrationsOnStartup is for.
+        var builder = new SqliteConnectionStringBuilder(connectionString);
+        if (IsPlainFileSource(builder) && !File.Exists(builder.DataSource))
+        {
+            throw MigrationHistoryPreflight.NotProvisioned(schemaName, Hooks.DialectToken);
+        }
+
         await using var conn = new SqliteConnection(connectionString);
         await conn.OpenAsync(ct);
         await MigrationHistoryPreflight.RunAsync(conn, schemaName, Hooks, ct);
     }
+
+    private static bool IsPlainFileSource(SqliteConnectionStringBuilder builder) =>
+        builder.Mode != SqliteOpenMode.Memory
+        && !string.IsNullOrEmpty(builder.DataSource)
+        && !string.Equals(builder.DataSource, ":memory:", StringComparison.Ordinal)
+        && !builder.DataSource.StartsWith("file:", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Test-reset path: drops every view and table in the database, then re-applies. SQLite has no

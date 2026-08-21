@@ -117,8 +117,9 @@ public interface IActaTestHost : IAsyncDisposable
 /// <summary>
 /// Stands up an Acta runtime against an integrator's provider on a throwaway schema, for testing their
 /// jobs with any test framework. The integrator wires the provider + their manifest in the callback;
-/// the host migrates (when the provider's <c>ApplyMigrationsOnStartup</c> is set), registers the catalog,
-/// and exposes <see cref="IJobs"/> + a deterministic <c>RunOnce</c> drive.
+/// the host migrates (when the provider's <c>ApplyMigrationsOnStartup</c> is set) or preflights the
+/// existing migration history (when it is not), registers the catalog, and exposes <see cref="IJobs"/>
+/// + a deterministic <c>RunOnce</c> drive.
 /// </summary>
 public static class ActaTestHost
 {
@@ -143,8 +144,11 @@ public static class ActaTestHost
         options.ConfigureServices?.Invoke(services);
         var provider = services.BuildServiceProvider(validateScopes: true);
 
-        // Same startup order as WorkerRuntimeHost: provider bootstraps (schema migrate, no-op unless
-        // the provider's ApplyMigrationsOnStartup is set) before any worker's catalog upserts.
+        // Same startup order as WorkerRuntimeHost: provider bootstraps before any worker's catalog
+        // upserts. With the provider's ApplyMigrationsOnStartup set they migrate the throwaway schema;
+        // without it they still check the driver major and the existing migration history, which on a
+        // per-test schema nothing has provisioned means the bootstrap throws here - so a test host that
+        // owns its schema wants that option on.
         foreach (var bootstrap in provider.GetServices<IProviderBootstrap>())
         {
             await bootstrap.RunAsync(ct);

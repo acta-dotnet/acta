@@ -79,15 +79,17 @@ internal static class MigrationHistoryPreflight
     }
 
     /// <summary>
-    /// No migration-history ledger at all: the schema was never provisioned, or the host is pointed at
-    /// the wrong database or the wrong schema name.
+    /// No migration-history ledger the connected principal can see: the schema was never provisioned,
+    /// the host is pointed at the wrong database or schema name, or the principal cannot read the table.
     /// </summary>
     internal static InvalidOperationException NotProvisioned(string schemaName, string dialectToken) =>
         new(
             $"The Acta schema is not provisioned: schema '{schemaName}' has no migrations table. Run the current "
                 + $"provisioning script ({ProvisionScript(dialectToken)}) against this database under a DDL-capable "
                 + "principal, or set ApplyMigrationsOnStartup to let this host provision it (development only). If the "
-                + "schema does exist elsewhere, the host is pointed at the wrong database or the wrong schema name."
+                + "schema does exist, the host is pointed at the wrong database or the wrong schema name, or this "
+                + "principal cannot read it: the catalog this check reads is permission-filtered, so a table the "
+                + "principal has no privilege on is indistinguishable from a table that is not there."
         );
 
     // The published per-dialect script, named by the same token the provider hooks carry.

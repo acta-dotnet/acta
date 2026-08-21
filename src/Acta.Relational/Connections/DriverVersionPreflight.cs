@@ -35,13 +35,18 @@ internal static class DriverVersionPreflight
             throw new InvalidOperationException(Message(driverName, loadedMajor, certifiedMajor));
         }
 
+        // A host that registered no logging gets nothing here, and that is the accepted answer rather
+        // than the Skip the policy refuses to offer: it has chosen silence for every warning in the
+        // process, not for this one. Warn is still a decision to keep running, and the option name is
+        // in the host's own configuration where the operator wrote it.
+        //
         // One line, not one per connection: this runs once per bootstrap. The mismatch itself is the
         // Detail, so the operator can read what differs without an index lookup for a second field.
         log?.LogWarning(
-            "Acta is running on an uncertified database driver major: operation ({Operation}), reason ({Reason}), detail ({Detail}).",
+            "Acta: ({Operation}) continued on an uncertified database driver ({Detail}); reason ({Reason}).",
             "driver-version-preflight",
-            "driver-major-mismatch",
-            Detail(driverName, loadedMajor, certifiedMajor)
+            Detail(driverName, loadedMajor, certifiedMajor),
+            "driver-major-mismatch"
         );
     }
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Acta.Relational.Connections;
@@ -134,10 +135,12 @@ public sealed partial class DriverMajorParityTests
         Assert.True(certified is not null, $"{bootstrapType}.CertifiedDriverMajor was not found; the parity guard is silently passing.");
 
         var props = File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "Directory.Packages.props"));
-        var match = PackageVersionRegex(package).Match(props);
-        Assert.True(match.Success, $"Directory.Packages.props declares no PackageVersion for {package}.");
+        var pinned = PackageVersionRegex()
+            .Matches(props)
+            .FirstOrDefault(m => string.Equals(m.Groups[1].Value, package, StringComparison.Ordinal));
+        Assert.True(pinned is not null, $"Directory.Packages.props declares no PackageVersion for {package}.");
 
-        Assert.Equal(int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), certified);
+        Assert.Equal(int.Parse(pinned!.Groups[2].Value, CultureInfo.InvariantCulture), certified);
     }
 
     [Theory]
@@ -158,10 +161,8 @@ public sealed partial class DriverMajorParityTests
         Assert.Equal(Assembly.Load(package).GetName().Version!.Major, certified);
     }
 
-    private static Regex PackageVersionRegex(string package) =>
-        new(
-            $"""<PackageVersion Include="{Regex.Escape(package)}" Version="(\d+)\.""",
-            RegexOptions.CultureInvariant,
-            TimeSpan.FromSeconds(5)
-        );
+    // Every central pin, captured as (id, major); the caller picks the package it is checking. One
+    // pattern rather than one built per package, so it can be source-generated like the rest.
+    [GeneratedRegex("""<PackageVersion Include="([^"]+)" Version="(\d+)\.""", RegexOptions.CultureInvariant)]
+    private static partial Regex PackageVersionRegex();
 }

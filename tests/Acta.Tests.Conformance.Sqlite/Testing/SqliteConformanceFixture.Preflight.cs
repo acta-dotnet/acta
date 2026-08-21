@@ -27,19 +27,18 @@ public sealed partial class SqliteConformanceFixture
         await conn.OpenAsync();
         if (history is not null)
         {
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText =
-                "CREATE TABLE main.migrations (version INTEGER NOT NULL, name TEXT NOT NULL, "
-                + "applied_at_utc TEXT NOT NULL, installed_schema TEXT NOT NULL, "
-                + "CONSTRAINT pk_migrations PRIMARY KEY (version)) STRICT;";
-            await cmd.ExecuteNonQueryAsync();
+            // The provider's own ledger DDL, not a copy of it, so the probe cannot drift from the
+            // table the real migration runner creates.
+            await using (var ledger = conn.CreateCommand())
+            {
+                ledger.CommandText = MigrationLedgerDdl.For(DialectToken, "main");
+                await ledger.ExecuteNonQueryAsync();
+            }
 
             foreach (var (version, name) in history)
             {
                 await using var insert = conn.CreateCommand();
-                insert.CommandText =
-                    "INSERT INTO main.migrations (version, name, applied_at_utc, installed_schema) "
-                    + "VALUES (@version, @name, '2026-01-01T00:00:00Z', 'main');";
+                insert.CommandText = "INSERT INTO main.migrations (version, name, installed_schema) VALUES (@version, @name, 'main');";
                 insert.Parameters.AddWithValue("@version", version);
                 insert.Parameters.AddWithValue("@name", name);
                 await insert.ExecuteNonQueryAsync();
@@ -57,7 +56,17 @@ public sealed partial class SqliteConformanceFixture
 
         public ValueTask DisposeAsync()
         {
-            File.Delete(path);
+            // Best-effort, like every other fixture teardown here: cleanup failing must not turn a
+            // spec that already proved its point into a red run. Pooling=false closes the handle with
+            // the connection, but a Windows scanner or indexer can still hold the file for a moment,
+            // and the probe lives under the temp directory either way.
+            try
+            {
+                File.Delete(path);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+
             return ValueTask.CompletedTask;
         }
     }

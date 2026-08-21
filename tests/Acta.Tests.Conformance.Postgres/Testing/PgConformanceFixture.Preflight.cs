@@ -35,12 +35,13 @@ public sealed partial class PgConformanceFixture
 
         if (history is not null)
         {
-            await using var ledger = conn.CreateCommand();
-            ledger.CommandText =
-                $"CREATE TABLE {schema}.migrations (version INTEGER NOT NULL, name VARCHAR(256) NOT NULL, "
-                + "applied_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(), installed_schema VARCHAR(64) NOT NULL, "
-                + "CONSTRAINT pk_migrations PRIMARY KEY (version));";
-            await ledger.ExecuteNonQueryAsync();
+            // The provider's own ledger DDL, not a copy of it, so the probe cannot drift from the
+            // table the real migration runner creates.
+            await using (var ledger = conn.CreateCommand())
+            {
+                ledger.CommandText = MigrationLedgerDdl.For(DialectToken, schema);
+                await ledger.ExecuteNonQueryAsync();
+            }
 
             foreach (var (version, name) in history)
             {
