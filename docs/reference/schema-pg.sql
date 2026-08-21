@@ -282,7 +282,7 @@ CREATE TABLE IF NOT EXISTS acta.runtimes (
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS ix_runtimes_claim_ready ON acta.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id) WHERE status_code = 10;
+CREATE INDEX IF NOT EXISTS ix_runtimes_claim_ready ON acta.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id) WHERE status_code IN (10, 20);
 CREATE INDEX IF NOT EXISTS ix_runtimes_retention ON acta.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
 CREATE INDEX IF NOT EXISTS ix_runtimes_worker_inflight ON acta.runtimes (leased_by_worker_id, status_code) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 
@@ -441,7 +441,7 @@ CREATE TABLE IF NOT EXISTS acta.checkpoints (
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
-    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 100))
+    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 30, 100))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
@@ -502,7 +502,7 @@ SELECT
     c.name AS checkpoint_name,
     CASE c.kind_code WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
     c.kind_code,
-    CASE c.status_code WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 100 THEN 'consumed' END AS state,
+    CASE c.status_code WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS state,
     c.status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -693,7 +693,7 @@ SELECT
     s.status_code,
     s.attempt_number,
     s.next_retry_at_utc,
-    CASE s.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    CASE s.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
     s.reason_code,
     s.reason_message,
     CASE s.result_format_id
@@ -757,7 +757,7 @@ SELECT
     e.to_status_code,
     CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
     e.execution_status_code,
-    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
     e.reason_code,
     e.reason_message,
     CASE e.detail_format_id
@@ -1359,15 +1359,17 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        /* Pure ready-index scan: the hot predicate and ORDER run on ix_runtimes_claim_ready alone
-           via the denormalized namespace. Exclusive-key admission is executor-owned (lock store),
-           taken after the start CAS, so no jobs join here. */
-        SELECT r.job_id AS id
+        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace;
+           exclusive-key admission is executor-owned (lock store) after the start CAS, so no jobs join
+           here. Ready admits a NULL next run, Suspended does not: a NULL there is an unbounded wait. */
+        SELECT r.job_id AS id, r.status_code AS from_status
         FROM acta.runtimes r
         WHERE
             r.namespace_id = p_namespace_id
-            AND r.status_code = 10 /* JobStatusCode.Ready */
-            AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now())
+            AND (
+                (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
+                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
+            )
         ORDER BY
             r.priority_code DESC,
             r.next_run_at_utc ASC NULLS FIRST,
@@ -1404,7 +1406,8 @@ AS $$
             j.audit_level_code,
             r.failure_count,
             r.version,
-            j.job_ref
+            j.job_ref,
+            c.from_status
     ),
     started_event AS (
         INSERT INTO acta.events (
@@ -1439,7 +1442,7 @@ AS $$
             u.definition_id,
             u.tenant_id,
             p_leased_by_worker_id,
-            10 /* JobStatusCode.Ready */,
+            u.from_status,
             50 /* JobStatusCode.Executing */,
             50 /* ExecutionStatusCode.Executing */,
             NULL,
@@ -1498,7 +1501,10 @@ AS $$
             FROM acta.runtimes r
             WHERE
                 r.namespace_id = p_namespace_id
-                AND r.status_code = 10 /* JobStatusCode.Ready */)
+                AND (
+                    r.status_code = 10 /* JobStatusCode.Ready */
+                    OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+                ))
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;
@@ -1534,13 +1540,17 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        SELECT r.job_id AS id
+        /* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded wait
+           and only a raise may release it. */
+        SELECT r.job_id AS id, r.status_code AS from_status
         FROM acta.runtimes r
         WHERE
             r.job_id = p_id
             AND r.namespace_id = p_namespace_id
-            AND r.status_code = 10 /* JobStatusCode.Ready */
-            AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now())
+            AND (
+                (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
+                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
+            )
         FOR UPDATE OF r SKIP LOCKED
     ),
     updated AS (
@@ -1559,7 +1569,7 @@ AS $$
             r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             r.execution_number, j.deduplication_key, j.correlation_key, j.exclusive_key,
             j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            r.failure_count, r.version, j.job_ref
+            r.failure_count, r.version, j.job_ref, c.from_status
     ),
     started_event AS (
         INSERT INTO acta.events (
@@ -1594,7 +1604,7 @@ AS $$
             u.definition_id,
             u.tenant_id,
             p_leased_by_worker_id,
-            10 /* JobStatusCode.Ready */,
+            u.from_status,
             50 /* JobStatusCode.Executing */,
             50 /* ExecutionStatusCode.Executing */,
             NULL,
@@ -1667,6 +1677,7 @@ DECLARE
 
     v_handler BOOLEAN := p_handler_status_code IS NOT NULL;
     v_sig_state SMALLINT;
+    v_sig_due TIMESTAMPTZ;
     v_to_status SMALLINT;
     v_ns SMALLINT;
     v_lineage BIGINT;
@@ -1694,7 +1705,10 @@ DECLARE
 BEGIN
 
     IF v_signal_suspend THEN
-        SELECT status_code INTO v_sig_state
+        /* The awaited slot is the only place the deadline lives: this lock re-reads it so the suspend
+           lands Ready when a raise won the race, and otherwise carries the slot's expiration into
+           next_run_at_utc (NULL on an unbounded wait, which stays unclaimable). */
+        SELECT status_code, due_at_utc INTO v_sig_state, v_sig_due
         FROM acta.checkpoints
         WHERE
             job_id = p_id
@@ -1718,7 +1732,7 @@ BEGIN
         status_code = v_to_status,
         next_run_at_utc = CASE
             WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN now()
-            WHEN v_signal_suspend THEN NULL
+            WHEN v_signal_suspend THEN v_sig_due
             WHEN v_rearm THEN COALESCE(p_reschedule_resume_at_utc, now() + make_interval(secs => p_reschedule_delay_seconds))
             WHEN v_handler THEN NULL
             WHEN v_recurring THEN p_job_next_run_at_utc
@@ -5658,6 +5672,14 @@ BEGIN
         RETURN;
     END IF;
 
+    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot,
+       records no raise, and releases no job. The verb stays idempotent-shaped and reports the job's
+       unchanged status; the signal is simply too late. */
+    IF v_existing = 30 /* JobCheckpointStatusCode.Expired */ THEN
+        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
+        RETURN;
+    END IF;
+
     INSERT INTO acta.checkpoints (
         job_id,
         kind_code,
@@ -5829,10 +5851,14 @@ BEGIN
 END;
 $$;
 
+/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+   Expired, Expired replays TimedOut forever. The insert never updates, so a re-entry carrying a
+   different timeout keeps the original due_at_utc: replay cannot extend the expiration. */
 CREATE OR REPLACE FUNCTION acta.wait_signal(
     p_job_id BIGINT,
     p_kind_code SMALLINT,
-    p_name VARCHAR
+    p_name VARCHAR,
+    p_timeout_seconds INT DEFAULT NULL
 )
 RETURNS TABLE (
     outcome_code SMALLINT,
@@ -5846,9 +5872,10 @@ DECLARE
     v_state SMALLINT;
     v_fmt SMALLINT;
     v_val BYTEA;
+    v_due TIMESTAMPTZ;
 BEGIN
-    SELECT js.status_code, js.value_format_id, js.value
-    INTO v_state, v_fmt, v_val
+    SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
+    INTO v_state, v_fmt, v_val, v_due
     FROM acta.checkpoints js
     WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
     FOR UPDATE;
@@ -5858,12 +5885,31 @@ BEGIN
             2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
+    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
+    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
+
+        UPDATE acta.checkpoints js
+        SET
+            status_code = 30 /* JobCheckpointStatusCode.Expired */,
+            modified_at_utc = v_now,
+            version = js.version + 1
+        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
+
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
     ELSE
         INSERT INTO acta.checkpoints (
             job_id,
             kind_code,
             name,
             status_code,
+            due_at_utc,
             value_format_id,
             value,
             created_at_utc,
@@ -5874,6 +5920,7 @@ BEGIN
             p_kind_code,
             p_name,
             10 /* JobCheckpointStatusCode.Pending */,
+            CASE WHEN p_timeout_seconds IS NULL THEN NULL ELSE v_now + make_interval(secs => p_timeout_seconds) END,
             0 /* JobPayloadFormat.None */,
             NULL,
             v_now,

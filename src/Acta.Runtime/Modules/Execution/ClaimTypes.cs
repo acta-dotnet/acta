@@ -36,14 +36,14 @@ internal sealed record ClaimedJob(
 );
 
 /// <summary>
-/// The empty-claim horizon: the routine's clock reading and the earliest Ready row's effective run
-/// time in the namespace, <c>MIN(COALESCE(next_run_at_utc, db_now))</c> over all Ready rows, due-now
-/// rows included (an exclusive-key bounce re-arms Ready with a forward-dated <c>next_run_at_utc</c>,
-/// so it appears here at its due instant). <c>NextReadyAtUtc</c> is null only when no Ready row
-/// exists; a value at or before <c>DbNowUtc</c> means due rows exist but were transiently locked
-/// away (SKIP-LOCKED), so the caller should retry after a short floor rather than sleep out the safety
-/// interval. Both instants are DB-sourced, so their difference is a valid sleep duration with no
-/// host-clock assumption.
+/// The empty-claim horizon: the routine's clock reading and the earliest claimable row's effective run
+/// time in the namespace, <c>MIN(COALESCE(next_run_at_utc, db_now))</c> over every Ready row and every
+/// Suspended row carrying a durable wait's expiration, due-now rows included (an exclusive-key bounce
+/// re-arms Ready with a forward-dated <c>next_run_at_utc</c>, so it appears here at its due instant).
+/// <c>NextReadyAtUtc</c> is null only when no such row exists; a value at or before <c>DbNowUtc</c>
+/// means due rows exist but were transiently locked away (SKIP-LOCKED), so the caller should retry
+/// after a short floor rather than sleep out the safety interval. Both instants are DB-sourced, so
+/// their difference is a valid sleep duration with no host-clock assumption.
 /// </summary>
 internal readonly record struct ClaimHorizon(DateTime DbNowUtc, DateTime? NextReadyAtUtc);
 

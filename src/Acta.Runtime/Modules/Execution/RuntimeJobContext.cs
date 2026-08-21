@@ -163,16 +163,29 @@ internal sealed class RuntimeJobContext(
         }
     }
 
-    protected override async Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct)
+    protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
+        WaitSignalCoreAsync(name, timeoutSeconds: null, resumeOnTimeout: false, ct);
+
+    // Policy is code, not state: the slot records only the absolute expiration, so which overload the
+    // handler called decides what an expired wait does, and a replay of the other overload against the
+    // same slot is free to decide differently.
+    protected override async Task<SignalWaitOutcome> WaitSignalCoreAsync(
+        string name,
+        int? timeoutSeconds,
+        bool resumeOnTimeout,
+        CancellationToken ct
+    )
     {
         var kind = name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
             ? JobCheckpointKindCode.ChildLatch
             : JobCheckpointKindCode.Signal;
-        var decision = await _signalStore.WaitSignalAsync(JobId, kind, name, ct);
+        var decision = await _signalStore.WaitSignalAsync(JobId, kind, name, timeoutSeconds, ct);
         return decision.Outcome switch
         {
             SignalWaitOutcomeCode.ContinueSet => new SignalWaitOutcome(decision.ValueFormatId, decision.Value),
             SignalWaitOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
+            SignalWaitOutcomeCode.TimedOut when resumeOnTimeout => new SignalWaitOutcome(0, null, TimedOut: true),
+            SignalWaitOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
             _ => throw new InvalidOperationException($"wait_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
     }

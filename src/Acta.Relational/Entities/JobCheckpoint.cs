@@ -10,8 +10,8 @@ namespace Acta.Relational.Entities;
 /// </summary>
 /// <remarks>
 /// Variables and progress are stateless UPSERT slots (last-writer-wins, <see cref="Status"/> NULL).
-/// Signals and child latches move <c>Pending</c> to <c>Set</c>; timers move <c>Pending</c> to
-/// <c>Consumed</c> with <see cref="DueAtUtc"/> carrying the named wait's due instant. The composite
+/// Signals and child latches move <c>Pending</c> to <c>Set</c>, or to <c>Expired</c> when a bounded
+/// wait outlives <see cref="DueAtUtc"/>; timers move <c>Pending</c> to <c>Consumed</c>. The composite
 /// primary key is the natural identity; there is no surrogate id. This is Job-internal substrate,
 /// not an audited entity; the lifecycle audit trail lives in <c>JobEvent</c>.
 /// </remarks>
@@ -53,15 +53,17 @@ internal sealed class JobCheckpoint : IEntity
     public string Name { get; init; } = default!;
 
     /// <summary>
-    /// <c>Pending</c> / <c>Set</c> (signals, child latches) or <c>Pending</c> / <c>Consumed</c>
-    /// (timers). NULL for the stateless kinds (variable, progress).
+    /// <c>Pending</c> / <c>Set</c> / <c>Expired</c> (signals, child latches) or <c>Pending</c> /
+    /// <c>Consumed</c> (timers). NULL for the stateless kinds (variable, progress).
     /// </summary>
     [DbColumn("status_code")]
     public JobCheckpointStatusCode? Status { get; set; }
 
     /// <summary>
-    /// The named wait's due instant for timer checkpoints; NULL for every other kind. Distinct from
-    /// the Job's <c>next_run_at_utc</c>, which is the job-level claimability cache derived on suspend.
+    /// The named wait's absolute expiration: a timer's due instant, or a bounded signal / child wait's
+    /// deadline (NULL on an unbounded wait and on every stateless kind). Written once when the slot is
+    /// armed and never extended, so a replay reuses it. Distinct from the Job's <c>next_run_at_utc</c>,
+    /// which is the job-level claimability cache derived from it on suspend.
     /// </summary>
     [DbColumn("due_at_utc", DbKind.UtcInstant)]
     public DateTime? DueAtUtc { get; init; }

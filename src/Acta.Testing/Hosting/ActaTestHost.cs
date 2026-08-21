@@ -91,6 +91,14 @@ public interface IActaTestHost : IAsyncDisposable
     /// <summary>Move the next pending step retry, or the named pending step retry, into the past.</summary>
     Task ForceStepRetryDueAsync(long jobId, string? name = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// Move a bounded signal or child wait's stored expiration, and the job's next-run instant, into
+    /// the past so the next tick claims the Suspended job and resolves the wait as timed out. Throws
+    /// when the named wait (or any pending wait) carries no expiration, because an unbounded wait can
+    /// never time out and a silent no-op would look like a passing test.
+    /// </summary>
+    Task ForceWaitTimeoutDueAsync(long jobId, string? name = null, CancellationToken ct = default);
+
     /// <summary>Expire the current execution lease for a claimed job.</summary>
     Task ExpireExecutionLeaseAsync(long jobId, CancellationToken ct = default);
 }
@@ -295,6 +303,25 @@ public static class ActaTestHost
             await ForceJobDueAsync(jobId, ct);
         }
 
+        public async Task ForceWaitTimeoutDueAsync(long jobId, string? name = null, CancellationToken ct = default)
+        {
+            var wait = await FindPendingWaitAsync(jobId, name, ct);
+            var due = DateTime.UtcNow.AddMinutes(-1);
+            var affected = await Db.From<JobCheckpoint>()
+                .Where(c => c.JobId == jobId && c.Kind == wait.Kind && c.Name == wait.Name)
+                .UpdateOnlyAsync(() => new JobCheckpoint { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
+            if (affected != 1)
+            {
+                throw new InvalidOperationException(
+                    $"ForceWaitTimeoutDueAsync expected one wait row for job {jobId} name '{wait.Name}', found {affected}."
+                );
+            }
+
+            // The deadline lives on the slot, but claimability lives on the runtime row: both must move
+            // or the job stays parked past its own expiration.
+            await ForceJobDueAsync(jobId, ct);
+        }
+
         public async Task ExpireExecutionLeaseAsync(long jobId, CancellationToken ct = default)
         {
             if (jobId <= 0)
@@ -356,6 +383,35 @@ public static class ActaTestHost
             }
 
             return checkpoint;
+        }
+
+        private async Task<JobCheckpoint> FindPendingWaitAsync(long jobId, string? name, CancellationToken ct)
+        {
+            if (jobId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
+            }
+
+            var waits = await Db.From<JobCheckpoint>()
+                .Where(c =>
+                    c.JobId == jobId
+                    && (c.Kind == JobCheckpointKindCode.Signal || c.Kind == JobCheckpointKindCode.ChildLatch)
+                    && c.Status == JobCheckpointStatusCode.Pending
+                )
+                .ToListAsync(ct);
+            var candidates = waits.Where(c => c.DueAtUtc is not null);
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                candidates = candidates.Where(c => c.Name == name);
+            }
+
+            var wait = candidates.OrderBy(c => c.DueAtUtc).FirstOrDefault();
+            return wait
+                ?? throw new InvalidOperationException(
+                    string.IsNullOrWhiteSpace(name)
+                        ? $"Job {jobId} has no pending wait with an expiration to force due; an unbounded wait never times out."
+                        : $"Job {jobId} has no pending wait '{name}' with an expiration to force due; an unbounded wait never times out."
+                );
         }
     }
 }

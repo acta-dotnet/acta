@@ -50,6 +50,14 @@ internal sealed class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOu
 
     protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct)
     {
+        if (!name.StartsWith("sys.child.", StringComparison.Ordinal))
+        {
+            // A plain user signal: resolve it as immediately Set with no payload. Only the child-latch
+            // shape carries an outcome envelope, and only that shape is seeded.
+            Events.Add($"wait:{name}");
+            return Task.FromResult(new SignalWaitOutcome(0, null));
+        }
+
         var id = long.Parse(name["sys.child.".Length..], CultureInfo.InvariantCulture);
         var childName = _idToName[id];
         Events.Add($"wait:{childName}");

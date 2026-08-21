@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **30 families**, **166 values**.
+This release: **30 families**, **168 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -217,6 +217,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobExclusiveKeyHeld` | 62 | `job.exclusive-key-held` | A claimed exclusive-key job found its key lock held at execution admission; re-armed Ready after the fixed bounce delay (budget-neutral). | Active |
 | `JobStepInterrupted` | 63 | `job.step-interrupted` | An at-most-once step was re-entered on replay before its outcome was recorded (worker died mid-flight); the body is not re-run and the parent lands terminal Failed. Non-retryable; the outcome is unknown and must be reconciled externally. | Active |
 | `JobResultOversized` | 64 | `job.result-oversized` | The handler returned successfully but its serialized result exceeded MaxInlinePayloadBytes, so the body was dropped rather than persisted. The job still succeeded; a typed read of the missing result throws. | Active |
+| `JobWaitTimedOut` | 65 | `job.wait-timed-out` | A durable wait (signal or child) passed the absolute expiration stored on its checkpoint slot before it was satisfied; the engine terminated the Job Cancelled without consuming the retry budget. | Active |
 | `WorkerCleanShutdown` | 100 | `worker.clean-shutdown` | Worker process exited cleanly via SIGTERM / IHostedService.StopAsync. | Active |
 | `WorkerHeartbeatStale` | 101 | `worker.heartbeat-stale` | Worker heartbeat exceeded the liveness window; the sys.recovery system job flipped Status to Dead. | Active |
 
@@ -251,6 +252,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Pending` | 10 | `pending` | Awaited or armed; the slot has not been satisfied yet. | Active |
 | `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
+| `Expired` | 30 | `expired` | Bounded wait deadline passed before a raise arrived; the wait resolved TimedOut and raises skip the slot. | Active |
 | `Consumed` | 100 | `consumed` | Due instant reached; the replayed handler consumed the timer and proceeded. | Active |
 
 #### `JobStepStatusCode` · `job-step-status` <a id="code-family-jobstepstatuscode"></a>

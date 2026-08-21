@@ -316,7 +316,7 @@ CREATE TABLE acta.runtimes (
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
-CREATE INDEX ix_runtimes_claim_ready ON acta.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id) WHERE status_code = 10;
+CREATE INDEX ix_runtimes_claim_ready ON acta.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id) WHERE status_code IN (10, 20);
 CREATE INDEX ix_runtimes_retention ON acta.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
 CREATE INDEX ix_runtimes_worker_inflight ON acta.runtimes (leased_by_worker_id, status_code) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 END
@@ -501,7 +501,7 @@ CREATE TABLE acta.checkpoints (
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
-    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 100))
+    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 30, 100))
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
 END
@@ -690,7 +690,7 @@ SELECT
     c.name AS checkpoint_name,
     CASE c.kind_code WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
     c.kind_code,
-    CASE c.status_code WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 100 THEN 'consumed' END AS state,
+    CASE c.status_code WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS state,
     c.status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -885,7 +885,7 @@ SELECT
     s.status_code,
     s.attempt_number,
     s.next_retry_at_utc,
-    CASE s.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    CASE s.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
     s.reason_code,
     s.reason_message,
     CASE s.result_format_id
@@ -950,7 +950,7 @@ SELECT
     e.to_status_code,
     CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
     e.execution_status_code,
-    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
     e.reason_code,
     e.reason_message,
     CASE e.detail_format_id
@@ -1599,22 +1599,29 @@ BEGIN
             created_at_utc DATETIME2(3) NOT NULL,
             audit_level_code TINYINT NOT NULL,
             failure_count SMALLINT NOT NULL,
-            version INT NOT NULL
+            version INT NOT NULL,
+            from_status TINYINT NOT NULL
         );
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         WITH candidates AS (
-            /* Pure ready-index scan: the hot predicate and ORDER run on ix_runtimes_claim_ready
-               alone via the denormalized namespace. Exclusive-key admission is executor-owned
-               (lock store), taken after the start CAS, so no jobs join here. */
+            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace;
+               exclusive-key admission is executor-owned (lock store) after the start CAS, so no jobs
+               join here. Ready admits a NULL next run, Suspended does not: a NULL is an unbounded wait. */
             SELECT TOP (@p_claim_limit) r.job_id AS id
             FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.namespace_id = @p_namespace_id
-                AND r.status_code = 10 /* JobStatusCode.Ready */
-                AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now)
+                AND (
+                    (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
+                    OR (
+                        r.status_code = 20 /* JobStatusCode.Suspended */
+                        AND r.next_run_at_utc IS NOT NULL
+                        AND r.next_run_at_utc <= @due_now
+                    )
+                )
             ORDER BY
                 r.priority_code DESC,
                 r.next_run_at_utc ASC,
@@ -1646,13 +1653,14 @@ BEGIN
             j.created_at_utc,
             j.audit_level_code,
             INSERTED.failure_count,
-            INSERTED.version
+            INSERTED.version,
+            DELETED.status_code
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, exclusive_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version
+                audit_level_code, failure_count, version, from_status
             )
         FROM acta.runtimes r
         INNER JOIN candidates c ON c.id = r.job_id
@@ -1683,7 +1691,7 @@ BEGIN
                     c.definition_id,
                     c.tenant_id,
                     @p_leased_by_worker_id,
-                    10 /* JobStatusCode.Ready */,
+                    c.from_status,
                     50 /* JobStatusCode.Executing */,
                     50 /* ExecutionStatusCode.Executing */,
                     NULL,
@@ -1753,7 +1761,10 @@ BEGIN
                     FROM acta.runtimes r
                     WHERE
                         r.namespace_id = @p_namespace_id
-                        AND r.status_code = 10 /* JobStatusCode.Ready */
+                        AND (
+                            r.status_code = 10 /* JobStatusCode.Ready */
+                            OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+                        )
                 ) AS next_ready_at_utc;
         END
 END;
@@ -1795,20 +1806,29 @@ BEGIN
             created_at_utc DATETIME2(3) NOT NULL,
             audit_level_code TINYINT NOT NULL,
             failure_count SMALLINT NOT NULL,
-            version INT NOT NULL
+            version INT NOT NULL,
+            from_status TINYINT NOT NULL
         );
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         WITH candidates AS (
+            /* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded
+               wait and only a raise may release it. */
             SELECT r.job_id AS id
             FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.job_id = @p_id
                 AND r.namespace_id = @p_namespace_id
-                AND r.status_code = 10 /* JobStatusCode.Ready */
-                AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now)
+                AND (
+                    (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
+                    OR (
+                        r.status_code = 20 /* JobStatusCode.Suspended */
+                        AND r.next_run_at_utc IS NOT NULL
+                        AND r.next_run_at_utc <= @due_now
+                    )
+                )
         )
 
         UPDATE r
@@ -1823,13 +1843,13 @@ BEGIN
             INSERTED.job_id, j.job_ref, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.exclusive_key,
             j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            INSERTED.failure_count, INSERTED.version
+            INSERTED.failure_count, INSERTED.version, DELETED.status_code
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, exclusive_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version
+                audit_level_code, failure_count, version, from_status
             )
         FROM acta.runtimes r
         INNER JOIN candidates c ON c.id = r.job_id
@@ -1857,7 +1877,7 @@ BEGIN
                     c.definition_id,
                     c.tenant_id,
                     @p_leased_by_worker_id,
-                    10 /* JobStatusCode.Ready */,
+                    c.from_status,
                     50 /* JobStatusCode.Executing */,
                     50 /* ExecutionStatusCode.Executing */,
                     NULL,
@@ -1936,6 +1956,7 @@ BEGIN
 
     DECLARE @handler BIT = CASE WHEN @p_handler_status_code IS NOT NULL THEN 1 ELSE 0 END;
     DECLARE @sig_state TINYINT = NULL;
+    DECLARE @sig_due DATETIME2(3) = NULL;
     DECLARE @to_status TINYINT;
     DECLARE @final_status TINYINT;
     DECLARE @final_next_run DATETIME2(3);
@@ -1954,7 +1975,10 @@ BEGIN
 
         IF @signal_suspend = 1
             BEGIN
-                SELECT @sig_state = status_code
+                /* The awaited slot is the only place the deadline lives: this lock re-reads it so the
+                   suspend lands Ready when a raise won the race, and otherwise carries the slot's
+                   expiration into next_run_at_utc (NULL on an unbounded wait, which stays unclaimable). */
+                SELECT @sig_state = status_code, @sig_due = due_at_utc
                 FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
                 WHERE
                     job_id = @p_id
@@ -1999,7 +2023,7 @@ BEGIN
 
                 SET @c_next = CASE
                     WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN @now
-                    WHEN @signal_suspend = 1 THEN NULL
+                    WHEN @signal_suspend = 1 THEN @sig_due
                     WHEN @rearm = 1 THEN COALESCE(@p_reschedule_resume_at_utc, DATEADD(SECOND, @p_reschedule_delay_seconds, @now))
                     WHEN @handler = 1 THEN NULL
                     WHEN @recurring = 1 THEN @p_job_next_run_at_utc
@@ -5936,6 +5960,18 @@ BEGIN
                 RETURN;
             END;
 
+        /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no
+           slot, records no raise, and releases no job. The verb stays idempotent-shaped and reports
+           the job's unchanged status; the signal is simply too late. */
+        IF @existing = 30 /* JobCheckpointStatusCode.Expired */
+            BEGIN
+                COMMIT TRANSACTION;
+                SELECT
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+                    @from_status AS status_code;
+                RETURN;
+            END;
+
         IF @existing IS NULL
             INSERT INTO acta.checkpoints (
                 job_id, kind_code, name, status_code, value_format_id, value,
@@ -6072,10 +6108,14 @@ BEGIN
     WHERE j.id = @p_job_id;
 END
 GO
+/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+   Expired, Expired replays TimedOut forever. The insert runs only when no row exists, so a re-entry
+   carrying a different timeout keeps the original due_at_utc: replay cannot extend the expiration. */
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
     @p_kind_code TINYINT,
-    @p_name VARCHAR(128)
+    @p_name VARCHAR(128),
+    @p_timeout_seconds INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -6084,6 +6124,7 @@ BEGIN
     DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
     DECLARE @state TINYINT, @fmt TINYINT = 0;
     DECLARE @val VARBINARY(MAX) = NULL;
+    DECLARE @due DATETIME2(3) = NULL;
     DECLARE @outcome SMALLINT;
 
     BEGIN TRY
@@ -6092,7 +6133,8 @@ BEGIN
         SELECT
             @state = status_code,
             @fmt = value_format_id,
-            @val = value
+            @val = value,
+            @due = due_at_utc
         FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
         WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
@@ -6100,16 +6142,36 @@ BEGIN
             BEGIN
                 SET @outcome = 2 /* SignalWaitOutcomeCode.ContinueSet */;
             END
+        ELSE IF @state = 30 /* JobCheckpointStatusCode.Expired */
+            BEGIN
+                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+        ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
+            BEGIN
+                UPDATE acta.checkpoints
+                SET
+                    status_code = 30 /* JobCheckpointStatusCode.Expired */,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+
+                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
         ELSE
             BEGIN
                 IF @state IS NULL
                     BEGIN
                         INSERT INTO acta.checkpoints (
-                            job_id, kind_code, name, status_code, value_format_id, value,
+                            job_id, kind_code, name, status_code, due_at_utc, value_format_id, value,
                             created_at_utc, modified_at_utc, version
                         )
                         VALUES (
                             @p_job_id, @p_kind_code, @p_name, 10 /* JobCheckpointStatusCode.Pending */,
+                            CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
                     END

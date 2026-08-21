@@ -28,7 +28,21 @@ SELECT
                     AND s.name = @p_wait_signal_name
             )
         ELSE NULL
-    END AS sig_state
+    END AS sig_state,
+    -- The awaited slot is the only place the deadline lives; a suspend carries it into
+    -- next_run_at_utc so the claim wakes the job at its expiration (NULL on an unbounded wait).
+    CASE
+        WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL THEN
+            (
+                SELECT s.due_at_utc
+                FROM {{schema}}.checkpoints s
+                WHERE
+                    s.job_id = j.id
+                    AND s.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                    AND s.name = @p_wait_signal_name
+            )
+        ELSE NULL
+    END AS sig_due
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_id;
@@ -53,7 +67,8 @@ SELECT
     p.audit_level_code,
     p.parent_id,
     p.job_ref,
-    p.sig_state
+    p.sig_state,
+    p.sig_due
 FROM _ce_pre p
 WHERE
     p.cur_status = 50 /* JobStatusCode.Executing */
@@ -65,7 +80,7 @@ SET
     status_code = (SELECT to_status FROM _ce_done),
     next_run_at_utc = CASE
         WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL AND (SELECT sig_state FROM _ce_done) = 20 THEN {{now}}
-        WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL THEN NULL
+        WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL THEN (SELECT sig_due FROM _ce_done)
         WHEN @p_reschedule_status_code IS NOT NULL THEN COALESCE(@p_reschedule_resume_at_utc, {{now}} + (@p_reschedule_delay_seconds) * 1000)
         WHEN @p_handler_status_code IS NOT NULL THEN NULL
         WHEN @p_final_status IS NOT NULL THEN @p_job_next_run_at_utc

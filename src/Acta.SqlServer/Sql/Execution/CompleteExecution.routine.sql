@@ -34,6 +34,7 @@ BEGIN
 
     DECLARE @handler BIT = CASE WHEN @p_handler_status_code IS NOT NULL THEN 1 ELSE 0 END;
     DECLARE @sig_state TINYINT = NULL;
+    DECLARE @sig_due DATETIME2(3) = NULL;
     DECLARE @to_status TINYINT;
     DECLARE @final_status TINYINT;
     DECLARE @final_next_run DATETIME2(3);
@@ -52,7 +53,10 @@ BEGIN
 
         IF @signal_suspend = 1
             BEGIN
-                SELECT @sig_state = status_code
+                /* The awaited slot is the only place the deadline lives: this lock re-reads it so the
+                   suspend lands Ready when a raise won the race, and otherwise carries the slot's
+                   expiration into next_run_at_utc (NULL on an unbounded wait, which stays unclaimable). */
+                SELECT @sig_state = status_code, @sig_due = due_at_utc
                 FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
                 WHERE
                     job_id = @p_id
@@ -97,7 +101,7 @@ BEGIN
 
                 SET @c_next = CASE
                     WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN @now
-                    WHEN @signal_suspend = 1 THEN NULL
+                    WHEN @signal_suspend = 1 THEN @sig_due
                     WHEN @rearm = 1 THEN COALESCE(@p_reschedule_resume_at_utc, DATEADD(SECOND, @p_reschedule_delay_seconds, @now))
                     WHEN @handler = 1 THEN NULL
                     WHEN @recurring = 1 THEN @p_job_next_run_at_utc

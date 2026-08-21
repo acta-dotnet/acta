@@ -24,11 +24,14 @@ namespace Acta.Relational.Entities;
     Column = "job_id",
     OnDelete = DbForeignKeyAction.Cascade
 )]
+// Covers both claimable statuses: Ready rows, and Suspended rows carrying a durable wait's expiration
+// in next_run_at_utc. A Suspended row with a NULL next_run_at_utc is an unbounded wait and stays
+// unclaimable, which the claim predicate enforces; the index only has to admit the candidates.
 [DbIndex(
     Name = "ix_runtimes_claim_ready",
     Columns = ["namespace_id", "priority_code", "next_run_at_utc", "job_id"],
     Descending = ["priority_code"],
-    Filter = "status_code = 10",
+    Filter = "status_code IN (10, 20)",
     Usage = "claim_hot_path"
 )]
 [DbIndex(
@@ -78,7 +81,9 @@ internal sealed class JobRuntime : IEntity<long>
     public JobPriorityCode Priority { get; set; }
 
     /// <summary>
-    /// Next claim instant; the hot-path claim filter compares against this.
+    /// Next claim instant; the hot-path claim filter compares against this. On a <c>Suspended</c> row it
+    /// carries the awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an
+    /// unbounded wait unclaimable while a bounded one wakes at its deadline.
     /// </summary>
     [DbColumn("next_run_at_utc", DbKind.UtcInstant)]
     public DateTime? NextRunAtUtc { get; set; }

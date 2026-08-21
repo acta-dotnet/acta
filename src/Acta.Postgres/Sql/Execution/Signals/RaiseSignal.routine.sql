@@ -58,6 +58,14 @@ BEGIN
         RETURN;
     END IF;
 
+    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot,
+       records no raise, and releases no job. The verb stays idempotent-shaped and reports the job's
+       unchanged status; the signal is simply too late. */
+    IF v_existing = 30 /* JobCheckpointStatusCode.Expired */ THEN
+        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
+        RETURN;
+    END IF;
+
     INSERT INTO {{schema}}.checkpoints (
         job_id,
         kind_code,

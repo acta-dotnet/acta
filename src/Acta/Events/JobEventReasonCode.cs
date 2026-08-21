@@ -122,6 +122,12 @@ public enum JobEventReasonCode : byte
     )]
     JobResultOversized = 64,
 
+    [Code(
+        "job.wait-timed-out",
+        "A durable wait (signal or child) passed the absolute expiration stored on its checkpoint slot before it was satisfied; the engine terminated the Job Cancelled without consuming the retry budget."
+    )]
+    JobWaitTimedOut = 65,
+
     // ---------- Worker / system ----------
     // worker.* events carry job_id = null; the reason lives on events, never on a job row.
 

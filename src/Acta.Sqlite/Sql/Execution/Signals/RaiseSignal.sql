@@ -1,3 +1,17 @@
+/* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot,
+   records no raise, and releases no job. The pre-state is captured first because the upsert below
+   would otherwise overwrite the very status the later guards read. */
+DROP TABLE IF EXISTS temp._raise_expired;
+
+CREATE TEMP TABLE _raise_expired AS
+SELECT 1 AS expired
+FROM {{schema}}.checkpoints c
+WHERE
+    c.job_id = @p_job_id
+    AND c.kind_code = @p_kind_code
+    AND c.name = @p_name
+    AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */;
+
 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
 SELECT
     @p_job_id,
@@ -16,6 +30,7 @@ WHERE
             j.id = @p_job_id
             AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     )
+    AND NOT EXISTS (SELECT 1 FROM temp._raise_expired)
 ON CONFLICT (job_id, kind_code, name) DO UPDATE
 SET
     status_code = 20 /* JobCheckpointStatusCode.Set */,
@@ -53,7 +68,8 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_job_id
     AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND NOT EXISTS (SELECT 1 FROM temp._raise_expired);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
@@ -84,7 +100,8 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_job_id
     AND r.status_code = 20 /* JobStatusCode.Suspended */
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND NOT EXISTS (SELECT 1 FROM temp._raise_expired);
 
 UPDATE {{schema}}.runtimes
 SET
@@ -92,7 +109,10 @@ SET
     next_run_at_utc = {{now}},
     modified_at_utc = {{now}},
     version = version + 1
-WHERE job_id = @p_job_id AND status_code = 20 /* JobStatusCode.Suspended */;
+WHERE
+    job_id = @p_job_id
+    AND status_code = 20 /* JobStatusCode.Suspended */
+    AND NOT EXISTS (SELECT 1 FROM temp._raise_expired);
 
 SELECT
     CASE

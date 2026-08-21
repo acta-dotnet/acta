@@ -35,20 +35,29 @@ BEGIN
             created_at_utc DATETIME2(3) NOT NULL,
             audit_level_code TINYINT NOT NULL,
             failure_count SMALLINT NOT NULL,
-            version INT NOT NULL
+            version INT NOT NULL,
+            from_status TINYINT NOT NULL
         );
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         WITH candidates AS (
+            /* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded
+               wait and only a raise may release it. */
             SELECT r.job_id AS id
             FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.job_id = @p_id
                 AND r.namespace_id = @p_namespace_id
-                AND r.status_code = 10 /* JobStatusCode.Ready */
-                AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now)
+                AND (
+                    (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
+                    OR (
+                        r.status_code = 20 /* JobStatusCode.Suspended */
+                        AND r.next_run_at_utc IS NOT NULL
+                        AND r.next_run_at_utc <= @due_now
+                    )
+                )
         )
 
         UPDATE r
@@ -63,13 +72,13 @@ BEGIN
             INSERTED.job_id, j.job_ref, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.exclusive_key,
             j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            INSERTED.failure_count, INSERTED.version
+            INSERTED.failure_count, INSERTED.version, DELETED.status_code
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, exclusive_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version
+                audit_level_code, failure_count, version, from_status
             )
         FROM {{schema}}.runtimes r
         INNER JOIN candidates c ON c.id = r.job_id
@@ -97,7 +106,7 @@ BEGIN
                     c.definition_id,
                     c.tenant_id,
                     @p_leased_by_worker_id,
-                    10 /* JobStatusCode.Ready */,
+                    c.from_status,
                     50 /* JobStatusCode.Executing */,
                     50 /* ExecutionStatusCode.Executing */,
                     NULL,

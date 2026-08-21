@@ -90,6 +90,27 @@ public abstract class ScenarioSessionSpec<TFixture> : ActaTestBase<TFixture>
         Assert.Equal(JobStepStatusCode.Succeeded, (await step.StepAsync("flaky", ct))!.Status);
     }
 
+    [Fact(DisplayName = "The wait-timeout helper expires the pinned bounded wait and rejects an unbounded one")]
+    public async Task Wait_timeout_helper_expires_the_pinned_bounded_wait()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartScenarioHostAsync(ct);
+
+        var bounded = await Scenario.For(TestJobsManifest.JobTryWaitSignalTimeout, host).EnqueueAsync(ct: ct);
+        await bounded.RunUntilSignalAsync("go", ct: ct);
+        Assert.NotNull((await bounded.SignalAsync("go", ct))!.DueAtUtc);
+
+        await bounded.FastForwardToWaitTimeoutAsync("go", ct);
+        await bounded.RunUntilDoneAsync(ct: ct);
+        Assert.Equal(JobCheckpointStatusCode.Expired, (await bounded.SignalAsync("go", ct))!.Status);
+
+        // An unbounded wait has no expiration to move, so the helper must say so rather than no-op into
+        // a test that reads as passing.
+        var unbounded = await Scenario.For(TestJobsManifest.JobWaitSignal, host).EnqueueAsync(ct: ct);
+        await unbounded.RunUntilSignalAsync("go", ct: ct);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => unbounded.FastForwardToWaitTimeoutAsync(ct));
+    }
+
     [Fact(DisplayName = "RunUntilFailed stops on Failed and assertion failures include a scenario dump")]
     public async Task Run_until_failed_and_assertion_dump_work()
     {

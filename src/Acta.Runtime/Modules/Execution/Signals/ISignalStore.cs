@@ -17,10 +17,18 @@ internal interface ISignalStore
     Task<JobControlOutcome> RaiseSignalAsync(RaiseSignalCommand command, CancellationToken ct);
 
     /// <summary>
-    /// Reads or arms the slot under a row lock: Set continues with the stored payload, otherwise a
-    /// Pending row exists and the job must suspend. Never mutates job status.
+    /// Reads or arms the slot under a row lock: Set continues with the stored payload, an overdue or
+    /// already-Expired slot resolves TimedOut, otherwise a Pending row exists and the job must suspend.
+    /// <paramref name="timeoutSeconds"/> is the wait's length in DB-clock seconds, stored as an absolute
+    /// expiration only when the slot is first armed; null arms an unbounded wait. Never mutates job status.
     /// </summary>
-    Task<SignalWaitDecision> WaitSignalAsync(long jobId, JobCheckpointKindCode kind, string name, CancellationToken ct);
+    Task<SignalWaitDecision> WaitSignalAsync(
+        long jobId,
+        JobCheckpointKindCode kind,
+        string name,
+        int? timeoutSeconds,
+        CancellationToken ct
+    );
 }
 
 /// <summary>Validated raise: canonicalized name, payload, and the audit input.</summary>
@@ -41,6 +49,12 @@ internal enum SignalWaitOutcomeCode : byte
 
     /// <summary>The slot is Set; the handler proceeds with the stored payload.</summary>
     ContinueSet = 2,
+
+    /// <summary>
+    /// The slot's stored expiration passed before a raise arrived, so this call flipped it to Expired
+    /// (or found it already there). Deterministic on every replay; the wait never resolves any other way.
+    /// </summary>
+    TimedOut = 3,
 }
 
 /// <summary>The wait decision plus the stored payload when the outcome is ContinueSet.</summary>

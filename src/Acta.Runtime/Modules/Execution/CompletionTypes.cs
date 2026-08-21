@@ -54,8 +54,9 @@ internal sealed record CompleteExecutionRequest(
     /// <summary>
     /// Signal-suspend only: the awaited signal name. Non-null alongside <c>RescheduleStatusCode</c> = 9
     /// (Suspended) selects the signal branch: the routine locks the slot and lands the Job in real
-    /// <c>Suspended</c> (no <c>next_run_at_utc</c>), or <c>Ready</c> when the slot already arrived
-    /// <c>Set</c>. Null for sleep-suspend and ordinary completion.
+    /// <c>Suspended</c> carrying the slot's expiration as <c>next_run_at_utc</c> (NULL on an unbounded
+    /// wait), or <c>Ready</c> when the slot already arrived <c>Set</c>. Null for sleep-suspend and
+    /// ordinary completion.
     /// </summary>
     public string? WaitSignalName { get; init; }
 

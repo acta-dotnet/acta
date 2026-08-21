@@ -483,16 +483,108 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// The raised slot's stored payload: format id + bytes. <c>ValueFormatId == 0</c> means a
-    /// presence-only signal with no payload (<see cref="Value"/> is <c>null</c>).
+    /// Bounded twin of <see cref="WaitSignalAsync(string, CancellationToken)"/>. The first pass stores
+    /// <c>db_now + timeout</c> as the slot's absolute expiration; a replay reuses that instant and never
+    /// extends it, so restarts and worker downtime cannot lengthen the wait. If the expiration passes
+    /// before a raise, Acta terminates the Job <c>Cancelled</c> with reason <c>job.wait-timed-out</c>
+    /// and this call does not return; use <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/>
+    /// to resume the handler instead. The timeout is budget-neutral, and cancelling
+    /// <paramref name="ct"/> stays a separate, non-durable concern.
     /// </summary>
-    protected readonly record struct SignalWaitOutcome(byte ValueFormatId, byte[]? Value);
+    /// <param name="name">Kebab-case signal name, unique per Job; identifies the slot across replays.</param>
+    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
+    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    public async Task WaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
+    {
+        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        var seconds = ToWaitTimeoutSeconds(timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: false, linked.Token);
+    }
+
+    /// <summary>
+    /// Typed-payload variant of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>. A
+    /// presence-only signal (raised without a value) returns <c>default</c>; a timeout does not return.
+    /// </summary>
+    public async Task<T?> WaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
+    {
+        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        var seconds = ToWaitTimeoutSeconds(timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: false, linked.Token);
+        return outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
+    }
+
+    /// <summary>
+    /// Resuming twin of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>: an expired
+    /// wait returns a result carrying <see cref="SignalWaitResult.TimedOut"/> and the handler continues
+    /// rather than the Job being cancelled. The expiration and its never-extend replay rule are
+    /// identical; only what happens on expiry differs.
+    /// </summary>
+    public async Task<SignalWaitResult> TryWaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
+    {
+        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        var seconds = ToWaitTimeoutSeconds(timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);
+        return outcome.TimedOut ? SignalWaitResult.Expired : SignalWaitResult.Signalled;
+    }
+
+    /// <summary>
+    /// Typed-payload variant of <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/>.
+    /// <c>Value</c> is <c>default</c> on a timeout and on a presence-only raise; branch on
+    /// <c>TimedOut</c> to tell the two apart.
+    /// </summary>
+    public async Task<SignalWaitResult<T>> TryWaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
+    {
+        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        var seconds = ToWaitTimeoutSeconds(timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);
+        if (outcome.TimedOut)
+        {
+            return SignalWaitResult<T>.Expired;
+        }
+
+        var value = outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
+        return SignalWaitResult<T>.Signalled(value);
+    }
+
+    // Rounds like SleepAsync (sub-second rounds up) and rejects a non-positive timeout before any store
+    // call: a zero or negative expiration would arm a slot that is due the instant it is written.
+    private static int ToWaitTimeoutSeconds(TimeSpan timeout)
+    {
+        var seconds = DurationSyntax.ToWholeSeconds(timeout, nameof(timeout));
+        return seconds == 0 ? throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Wait timeout must be positive.") : seconds;
+    }
+
+    /// <summary>
+    /// The raised slot's stored payload: format id + bytes. <c>ValueFormatId == 0</c> means a
+    /// presence-only signal with no payload (<see cref="Value"/> is <c>null</c>). <c>TimedOut</c> is
+    /// set only on the resuming path of a bounded wait whose expiration passed.
+    /// </summary>
+    protected readonly record struct SignalWaitOutcome(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
 
     /// <summary>
     /// Subclass sink: reads or arms the named signal slot. Returns normally with the slot payload when
     /// it is <c>Set</c>; throws the framework signal-suspend signal to re-arm the Job for a subsequent claim.
     /// </summary>
     protected abstract Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct);
+
+    /// <summary>
+    /// Subclass sink for the bounded overloads: <paramref name="timeoutSeconds"/> is the wait length the
+    /// store resolves against the DB clock into the slot's absolute expiration, written only when the
+    /// slot is first armed (never on re-entry, and null for an unbounded wait). On an expired slot the
+    /// implementation returns a timed-out outcome when <paramref name="resumeOnTimeout"/> is set, and
+    /// otherwise ends the attempt. The default forwards to the unbounded sink, so a subclass that
+    /// overrides only that one keeps working and simply never expires a wait.
+    /// </summary>
+    protected virtual Task<SignalWaitOutcome> WaitSignalCoreAsync(
+        string name,
+        int? timeoutSeconds,
+        bool resumeOnTimeout,
+        CancellationToken ct
+    ) => WaitSignalCoreAsync(name, ct);
 
     /// <summary>
     /// Subclass sink: deserializes a raised signal payload via the runtime serializer registry.

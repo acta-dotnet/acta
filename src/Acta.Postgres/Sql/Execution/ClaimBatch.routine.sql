@@ -28,15 +28,17 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        /* Pure ready-index scan: the hot predicate and ORDER run on ix_runtimes_claim_ready alone
-           via the denormalized namespace. Exclusive-key admission is executor-owned (lock store),
-           taken after the start CAS, so no jobs join here. */
-        SELECT r.job_id AS id
+        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace;
+           exclusive-key admission is executor-owned (lock store) after the start CAS, so no jobs join
+           here. Ready admits a NULL next run, Suspended does not: a NULL there is an unbounded wait. */
+        SELECT r.job_id AS id, r.status_code AS from_status
         FROM {{schema}}.runtimes r
         WHERE
             r.namespace_id = p_namespace_id
-            AND r.status_code = 10 /* JobStatusCode.Ready */
-            AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now())
+            AND (
+                (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
+                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
+            )
         ORDER BY
             r.priority_code DESC,
             r.next_run_at_utc ASC NULLS FIRST,
@@ -73,7 +75,8 @@ AS $$
             j.audit_level_code,
             r.failure_count,
             r.version,
-            j.job_ref
+            j.job_ref,
+            c.from_status
     ),
     started_event AS (
         INSERT INTO {{schema}}.events (
@@ -108,7 +111,7 @@ AS $$
             u.definition_id,
             u.tenant_id,
             p_leased_by_worker_id,
-            10 /* JobStatusCode.Ready */,
+            u.from_status,
             50 /* JobStatusCode.Executing */,
             50 /* ExecutionStatusCode.Executing */,
             NULL,
@@ -167,7 +170,10 @@ AS $$
             FROM {{schema}}.runtimes r
             WHERE
                 r.namespace_id = p_namespace_id
-                AND r.status_code = 10 /* JobStatusCode.Ready */)
+                AND (
+                    r.status_code = 10 /* JobStatusCode.Ready */
+                    OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+                ))
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;

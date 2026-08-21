@@ -41,6 +41,8 @@ public sealed class SqlServerSchedulePauseFiringSpec : SchedulePauseFiringSpec<S
 
 public sealed class SqlServerSignalSpec : SignalSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerSignalTimeoutSpec : SignalTimeoutSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerExplainScenarioSpec : ExplainScenarioSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerTypedEnqueueSpec : TypedEnqueueSpec<SqlServerConformanceFixture>;

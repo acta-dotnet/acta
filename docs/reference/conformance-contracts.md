@@ -2122,6 +2122,26 @@
   - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
   - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
 
+### A bounded wait expires on its slot's stored instant, once and for good
+- **Contract:** A bounded wait stores an absolute expiration on its slot, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise.
+- **Arrange:** Handlers waiting with a 30-minute timeout are registered so only a deliberate rewind of the stored expiration can expire a wait.
+- **Act:** The runtime ticks each job before and after the persisted expiration is moved into the past, with raises landing before, during and after the deadline.
+- **Assert:** An expired wait cancels budget-neutrally or resumes TimedOut, replay never extends the stored instant, and a late raise leaves the slot Expired.
+- **Guarantees:**
+  - Arming stores an expiration on the slot and carries it into the Suspended job's next run
+  - A signal before the deadline delivers its typed payload and leaves no timeout artifacts
+  - A presence-only signal before the deadline resumes the non-Try overload
+  - An expired non-Try wait cancels the job with job.wait-timed-out and no budget charge
+  - An expired Try wait resumes the handler exactly once with a TimedOut result
+  - The typed Try overload carries the payload before the deadline and a null value after it
+  - A replay asking for a longer wait does not move the stored expiration
+  - A raise after the deadline but before the wait re-enters still wins
+  - A raise on an expired slot revives nothing and the replayed wait stays TimedOut
+  - An unbounded wait still suspends with no due instant and stays unclaimable
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
+  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
+
 ## Steps
 
 ### At-most-once step re-entered before completion is interrupted
@@ -2237,6 +2257,7 @@
   - Typed result sessions run to Succeeded and return TResult plus timeline diagnostics
   - No-input contract sessions run until a signal, raise it and complete
   - Timer and step retry helpers fast-forward only the pinned session job
+  - The wait-timeout helper expires the pinned bounded wait and rejects an unbounded one
   - RunUntilFailed stops on Failed and assertion failures include a scenario dump
 
 ## Variables
@@ -2379,8 +2400,8 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IScheduleStore.TriggerScheduleNowAsync` | Operator manually fires a schedule now without disturbing its cadence |
 | `ISettingStore.GetSettingAsync` | A setting is set and read back by name at its inferred scope |
 | `ISettingStore.SetSettingAsync` | A setting is set and read back by name at its inferred scope |
-| `ISignalStore.RaiseSignalAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
-| `ISignalStore.WaitSignalAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
+| `ISignalStore.RaiseSignalAsync` | A bounded wait expires on its slot's stored instant, once and for good<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
+| `ISignalStore.WaitSignalAsync` | A bounded wait expires on its slot's stored instant, once and for good<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
 | `ITenantStore.GetTenantAsync` | GetTenant returns the tenant for a known key or id and null for an unknown one |
 | `ITenantStore.ListTenantsAsync` | ListTenants pages tenants key-ascending with an opt-in total |
 | `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration inserts a new Active tenant or returns the existing row |

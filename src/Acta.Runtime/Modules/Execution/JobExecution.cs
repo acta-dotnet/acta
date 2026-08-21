@@ -247,6 +247,17 @@ internal sealed class JobExecution(
                         );
                         waitSignalName = signalSuspend.SignalName;
                         break;
+                    case WaitTimeoutSignal waitTimeout:
+                        // A bounded wait outlived the expiration stored on its slot and the handler used a
+                        // non-Try overload. Terminate Cancelled like the Strict-deadline path: no
+                        // FailureCount is submitted, so complete_execution's COALESCE leaves the budget
+                        // untouched, and the terminal landing stamps retention so the job stops being
+                        // an immortal Suspended row.
+                        outcome = ExecutionOutcome.Cancelled;
+                        failureReason = JobEventReasonCode.JobWaitTimedOut;
+                        failureMessage = $"Durable wait '{waitTimeout.WaitName}' timed out.".Truncate(ActaTextLimits.ReasonMessage);
+                        handlerStatusCode = (byte)JobStatusCode.Cancelled;
+                        break;
                     case HandlerFailException fail:
                         // Deliberate terminal Failed: no retry, budget untouched. Distinct from an unhandled
                         // exception (UnhandledException reason); both land Failed but the reason tells them apart.

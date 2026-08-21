@@ -39,6 +39,8 @@ public sealed class SqliteSchedulePauseFiringSpec : SchedulePauseFiringSpec<Sqli
 
 public sealed class SqliteSignalSpec : SignalSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteSignalTimeoutSpec : SignalTimeoutSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteExplainScenarioSpec : ExplainScenarioSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteTypedEnqueueSpec : TypedEnqueueSpec<SqliteConformanceFixture>;

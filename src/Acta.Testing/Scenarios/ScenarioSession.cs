@@ -92,6 +92,17 @@ public class ScenarioSession<TInput>
 
     public Task FastForwardToNextTimerAsync(string name, CancellationToken ct = default) => Host.ForceTimerDueAsync(JobId, name, ct);
 
+    /// <summary>
+    /// Stage a bounded wait's expiry: moves the awaited slot's stored expiration and the job's next-run
+    /// instant into the past, so the next <see cref="RunOnceAsync"/> claims the Suspended job and the
+    /// wait resolves timed out. Throws when the wait is unbounded, which can never time out.
+    /// </summary>
+    public Task FastForwardToWaitTimeoutAsync(CancellationToken ct = default) => Host.ForceWaitTimeoutDueAsync(JobId, ct: ct);
+
+    /// <inheritdoc cref="FastForwardToWaitTimeoutAsync(CancellationToken)"/>
+    public Task FastForwardToWaitTimeoutAsync(string name, CancellationToken ct = default) =>
+        Host.ForceWaitTimeoutDueAsync(JobId, name, ct);
+
     public Task FastForwardToStepRetryAsync(CancellationToken ct = default) => Host.ForceStepRetryDueAsync(JobId, ct: ct);
 
     public Task FastForwardToStepRetryAsync(string name, CancellationToken ct = default) => Host.ForceStepRetryDueAsync(JobId, name, ct);

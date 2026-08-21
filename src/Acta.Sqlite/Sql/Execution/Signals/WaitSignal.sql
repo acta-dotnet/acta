@@ -1,10 +1,25 @@
+/* Slot arbiter for one durable wait, ordered so the final SELECT reads a settled row: flip an overdue
+   Pending to Expired first, then arm. The insert never updates, so a re-entry carrying a different
+   timeout keeps the original due_at_utc: replay cannot extend the expiration. */
+UPDATE {{schema}}.checkpoints
+SET
+    status_code = 30 /* JobCheckpointStatusCode.Expired */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
+    AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+    AND due_at_utc IS NOT NULL
+    AND due_at_utc <= {{now}};
+
 INSERT INTO {{schema}}.checkpoints (
-    job_id, kind_code, name, status_code,
+    job_id, kind_code, name, status_code, due_at_utc,
     value_format_id, value, modified_at_utc, version
 )
 VALUES (
     @p_job_id, @p_kind_code, @p_name,
     10 /* JobCheckpointStatusCode.Pending */,
+    CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE {{now}} + (@p_timeout_seconds) * 1000 END,
     0 /* JobPayloadFormat.None */,
     NULL, {{now}}, 0
 )
@@ -14,6 +29,8 @@ SELECT
     CASE
         WHEN js.status_code = 20 /* JobCheckpointStatusCode.Set */
             THEN 2 /* SignalWaitOutcomeCode.ContinueSet */
+        WHEN js.status_code = 30 /* JobCheckpointStatusCode.Expired */
+            THEN 3 /* SignalWaitOutcomeCode.TimedOut */
         ELSE 1 /* SignalWaitOutcomeCode.SuspendPending */
     END AS outcome_code,
     CASE

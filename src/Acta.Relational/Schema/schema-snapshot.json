@@ -150,7 +150,7 @@
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-status|values=10,20,100"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-status|values=10,20,30,100"
           },
           {
             "Name": "due_at_utc",
@@ -839,7 +839,7 @@
         "Indexes": [
           {
             "Name": "ix_runtimes_claim_ready",
-            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id|inc=|desc=priority_code|filter=status_code = 10"
+            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id|inc=|desc=priority_code|filter=status_code IN (10, 20)"
           },
           {
             "Name": "ix_runtimes_retention",
@@ -1429,6 +1429,7 @@
         "ValueIds": [
           10,
           20,
+          30,
           100
         ]
       },

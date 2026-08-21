@@ -230,6 +230,18 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
+        // wait_signal: the bounded wait's length in DB-clock seconds, resolved to the slot's absolute
+        // due_at_utc only when the Pending row is first inserted. Null arms an unbounded wait, and a
+        // re-entry never re-reads it, which is what makes replay unable to extend the expiration.
+        public static readonly DbValueSpec<int?> WaitTimeoutSeconds = new(
+            ParameterName: "p_timeout_seconds",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         // Step completion receives the outcome discriminator and the live-resolved retry policy used
         // to decide retry versus exhaustion. The application precomputes jittered backoff seconds;
         // storage compares the delayed retry time against the retry window.

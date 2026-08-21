@@ -28,13 +28,17 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        SELECT r.job_id AS id
+        /* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded wait
+           and only a raise may release it. */
+        SELECT r.job_id AS id, r.status_code AS from_status
         FROM {{schema}}.runtimes r
         WHERE
             r.job_id = p_id
             AND r.namespace_id = p_namespace_id
-            AND r.status_code = 10 /* JobStatusCode.Ready */
-            AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now())
+            AND (
+                (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
+                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
+            )
         FOR UPDATE OF r SKIP LOCKED
     ),
     updated AS (
@@ -53,7 +57,7 @@ AS $$
             r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             r.execution_number, j.deduplication_key, j.correlation_key, j.exclusive_key,
             j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            r.failure_count, r.version, j.job_ref
+            r.failure_count, r.version, j.job_ref, c.from_status
     ),
     started_event AS (
         INSERT INTO {{schema}}.events (
@@ -88,7 +92,7 @@ AS $$
             u.definition_id,
             u.tenant_id,
             p_leased_by_worker_id,
-            10 /* JobStatusCode.Ready */,
+            u.from_status,
             50 /* JobStatusCode.Executing */,
             50 /* ExecutionStatusCode.Executing */,
             NULL,

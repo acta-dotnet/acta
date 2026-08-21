@@ -41,6 +41,8 @@ public sealed class PgSchedulePauseFiringSpec : SchedulePauseFiringSpec<PgConfor
 
 public sealed class PgSignalSpec : SignalSpec<PgConformanceFixture>;
 
+public sealed class PgSignalTimeoutSpec : SignalTimeoutSpec<PgConformanceFixture>;
+
 public sealed class PgExplainScenarioSpec : ExplainScenarioSpec<PgConformanceFixture>;
 
 public sealed class PgTypedEnqueueSpec : TypedEnqueueSpec<PgConformanceFixture>;

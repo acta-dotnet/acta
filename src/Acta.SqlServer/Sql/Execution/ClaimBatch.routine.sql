@@ -35,22 +35,29 @@ BEGIN
             created_at_utc DATETIME2(3) NOT NULL,
             audit_level_code TINYINT NOT NULL,
             failure_count SMALLINT NOT NULL,
-            version INT NOT NULL
+            version INT NOT NULL,
+            from_status TINYINT NOT NULL
         );
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         WITH candidates AS (
-            /* Pure ready-index scan: the hot predicate and ORDER run on ix_runtimes_claim_ready
-               alone via the denormalized namespace. Exclusive-key admission is executor-owned
-               (lock store), taken after the start CAS, so no jobs join here. */
+            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace;
+               exclusive-key admission is executor-owned (lock store) after the start CAS, so no jobs
+               join here. Ready admits a NULL next run, Suspended does not: a NULL is an unbounded wait. */
             SELECT TOP (@p_claim_limit) r.job_id AS id
             FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.namespace_id = @p_namespace_id
-                AND r.status_code = 10 /* JobStatusCode.Ready */
-                AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now)
+                AND (
+                    (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
+                    OR (
+                        r.status_code = 20 /* JobStatusCode.Suspended */
+                        AND r.next_run_at_utc IS NOT NULL
+                        AND r.next_run_at_utc <= @due_now
+                    )
+                )
             ORDER BY
                 r.priority_code DESC,
                 r.next_run_at_utc ASC,
@@ -82,13 +89,14 @@ BEGIN
             j.created_at_utc,
             j.audit_level_code,
             INSERTED.failure_count,
-            INSERTED.version
+            INSERTED.version,
+            DELETED.status_code
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, exclusive_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version
+                audit_level_code, failure_count, version, from_status
             )
         FROM {{schema}}.runtimes r
         INNER JOIN candidates c ON c.id = r.job_id
@@ -119,7 +127,7 @@ BEGIN
                     c.definition_id,
                     c.tenant_id,
                     @p_leased_by_worker_id,
-                    10 /* JobStatusCode.Ready */,
+                    c.from_status,
                     50 /* JobStatusCode.Executing */,
                     50 /* ExecutionStatusCode.Executing */,
                     NULL,
@@ -189,7 +197,10 @@ BEGIN
                     FROM {{schema}}.runtimes r
                     WHERE
                         r.namespace_id = @p_namespace_id
-                        AND r.status_code = 10 /* JobStatusCode.Ready */
+                        AND (
+                            r.status_code = 10 /* JobStatusCode.Ready */
+                            OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+                        )
                 ) AS next_ready_at_utc;
         END
 END;

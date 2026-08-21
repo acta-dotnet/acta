@@ -36,7 +36,13 @@ internal sealed class RelationalSignalStore(IDbSession session, ISqlDialect dial
             "Control command 'RaiseSignal' returned no rows; it must return exactly one (action, status_code) row."
         );
 
-    public async Task<SignalWaitDecision> WaitSignalAsync(long jobId, JobCheckpointKindCode kind, string name, CancellationToken ct) =>
+    public async Task<SignalWaitDecision> WaitSignalAsync(
+        long jobId,
+        JobCheckpointKindCode kind,
+        string name,
+        int? timeoutSeconds,
+        CancellationToken ct
+    ) =>
         await session.ExecuteSingleAsync(
             new StoreCommand("Execution", "Signals/WaitSignal"),
             cmd =>
@@ -44,6 +50,7 @@ internal sealed class RelationalSignalStore(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.KindCode, kind));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WaitTimeoutSeconds, timeoutSeconds));
             },
             DbProjectionResolver.Resolve<SignalWaitDecision>(),
             ct

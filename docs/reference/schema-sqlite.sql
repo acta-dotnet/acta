@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS main.runtimes (
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
-CREATE INDEX IF NOT EXISTS main.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id) WHERE status_code = 10;
+CREATE INDEX IF NOT EXISTS main.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id) WHERE status_code IN (10, 20);
 CREATE INDEX IF NOT EXISTS main.ix_runtimes_retention ON runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
 CREATE INDEX IF NOT EXISTS main.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, status_code) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 
@@ -425,7 +425,7 @@ CREATE TABLE IF NOT EXISTS main.checkpoints (
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
-    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 100))
+    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 30, 100))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
@@ -486,7 +486,7 @@ SELECT
     c.name AS checkpoint_name,
     CASE c.kind_code WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
     c.kind_code,
-    CASE c.status_code WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 100 THEN 'consumed' END AS state,
+    CASE c.status_code WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS state,
     c.status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -676,7 +676,7 @@ SELECT
     s.status_code,
     s.attempt_number,
     s.next_retry_at_utc,
-    CASE s.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    CASE s.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
     s.reason_code,
     s.reason_message,
     CASE s.result_format_id
@@ -740,7 +740,7 @@ SELECT
     e.to_status_code,
     CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
     e.execution_status_code,
-    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.exclusive-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
     e.reason_code,
     e.reason_message,
     CASE e.detail_format_id

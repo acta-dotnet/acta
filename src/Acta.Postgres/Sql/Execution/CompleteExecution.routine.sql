@@ -39,6 +39,7 @@ DECLARE
 
     v_handler BOOLEAN := p_handler_status_code IS NOT NULL;
     v_sig_state SMALLINT;
+    v_sig_due TIMESTAMPTZ;
     v_to_status SMALLINT;
     v_ns SMALLINT;
     v_lineage BIGINT;
@@ -66,7 +67,10 @@ DECLARE
 BEGIN
 
     IF v_signal_suspend THEN
-        SELECT status_code INTO v_sig_state
+        /* The awaited slot is the only place the deadline lives: this lock re-reads it so the suspend
+           lands Ready when a raise won the race, and otherwise carries the slot's expiration into
+           next_run_at_utc (NULL on an unbounded wait, which stays unclaimable). */
+        SELECT status_code, due_at_utc INTO v_sig_state, v_sig_due
         FROM {{schema}}.checkpoints
         WHERE
             job_id = p_id
@@ -90,7 +94,7 @@ BEGIN
         status_code = v_to_status,
         next_run_at_utc = CASE
             WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN now()
-            WHEN v_signal_suspend THEN NULL
+            WHEN v_signal_suspend THEN v_sig_due
             WHEN v_rearm THEN COALESCE(p_reschedule_resume_at_utc, now() + make_interval(secs => p_reschedule_delay_seconds))
             WHEN v_handler THEN NULL
             WHEN v_recurring THEN p_job_next_run_at_utc

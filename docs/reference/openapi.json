@@ -6201,6 +6201,7 @@
                 "job.exclusive-key-held",
                 "job.step-interrupted",
                 "job.result-oversized",
+                "job.wait-timed-out",
                 "worker.clean-shutdown",
                 "worker.heartbeat-stale"
               ],

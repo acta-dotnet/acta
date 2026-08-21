@@ -1,13 +1,17 @@
 DROP TABLE IF EXISTS temp._claimed_by_id;
 
+/* Ready admits a NULL next run; Suspended does not, because a NULL there is an unbounded wait and
+   only a raise may release it. */
 CREATE TEMP TABLE _claimed_by_id AS
-SELECT r.job_id AS id
+SELECT r.job_id AS id, r.status_code AS from_status
 FROM {{schema}}.runtimes r
 WHERE
     r.job_id = @p_id
     AND r.namespace_id = @p_namespace_id
-    AND r.status_code = 10 /* JobStatusCode.Ready */
-    AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= {{now}});
+    AND (
+        (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= {{now}}))
+        OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= {{now}})
+    );
 
 UPDATE {{schema}}.runtimes
 SET
@@ -19,7 +23,7 @@ SET
     version = version + 1
 WHERE
     job_id IN (SELECT id FROM temp._claimed_by_id)
-    AND status_code = 10 /* JobStatusCode.Ready */;
+    AND status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */);
 
 INSERT INTO {{schema}}.events (
     event_code,
@@ -53,7 +57,7 @@ SELECT
     j.definition_id,
     j.tenant_id,
     @p_leased_by_worker_id,
-    10 /* JobStatusCode.Ready */,
+    c.from_status,
     50 /* JobStatusCode.Executing */,
     50 /* ExecutionStatusCode.Executing */,
     NULL,
@@ -61,9 +65,9 @@ SELECT
     NULL
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
+JOIN temp._claimed_by_id c ON c.id = j.id
 WHERE
-    j.id IN (SELECT id FROM temp._claimed_by_id)
-    AND @p_start_executing = 1
+    @p_start_executing = 1
     AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
 
 SELECT
