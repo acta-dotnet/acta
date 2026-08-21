@@ -6,9 +6,9 @@ namespace Acta.Runtime.Modules.Alerting;
 /// One alert-relevant <c>events</c> row projected for the <c>sys.alerts</c> generate phase, joined to
 /// its definition's alert policy. The projector classifies the reason in C# from the
 /// <c>(ExecutionStatus, ToStatus, ReasonCode)</c> triple, never from the mutable <c>runtimes.failure_count</c>.
-/// <see cref="CreatedAtUtc"/> is the event's own write instant; projection is a pure function of the
-/// event stream - identity comes from the deduplication key and ordering from the event id, so no
-/// clock of the replaying pass enters any decision.
+/// The row carries no timestamp, and that absence is the point: projection is a pure function of the
+/// event stream - identity comes from the deduplication key and ordering from the event id - so no
+/// clock, the event's own or the replaying pass's, can enter a decision.
 /// </summary>
 internal sealed record AlertableEvent(
     long EventId,
@@ -20,8 +20,7 @@ internal sealed record AlertableEvent(
     ExecutionStatusCode? ExecutionStatus,
     JobStatusCode? ToStatus,
     JobEventReasonCode? ReasonCode,
-    string? ReasonMessage,
-    DateTime CreatedAtUtc
+    string? ReasonMessage
 );
 
 /// <summary>

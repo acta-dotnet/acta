@@ -131,8 +131,7 @@ public sealed class AlertsJobPoisonEventTests
                 ExecutionStatus: ExecutionStatusCode.Failed,
                 ToStatus: JobStatusCode.Failed,
                 ReasonCode: JobEventReasonCode.JobUnhandledException,
-                ReasonMessage: "boom",
-                CreatedAtUtc: DateTime.UnixEpoch
+                ReasonMessage: "boom"
             );
     }
 
