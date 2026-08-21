@@ -20,8 +20,13 @@ generate, then deliver, in that order (`AlertsJob.Handle`).
 
 Four consequences an operator sees:
 
-- **Alerts are not written at failure time.** The row appears on the next tick, so up to about a
-  minute after the event that caused it.
+- **Alerts are not written at failure time.** The row appears on the next tick that finds the
+  event past the projection horizon: generate only reads events older than twice the provider
+  `CommandTimeout` (one minute on defaults), which is what makes the walk lossless — an event id
+  can commit out of order, but never later than its writing statement's own timeout, so by the
+  time the horizon passes an event, everything before it is settled. Worst case on defaults is
+  therefore about two minutes from failure to row: up to a minute maturing past the horizon, plus
+  the tick cadence. The horizon scales with `CommandTimeout` if you raise it.
 - **Generate and deliver share a pass**, so a row raised in a pass is normally sent in the same pass.
 - **Generate drains up to 10,240 events per pass; deliver stays at 256.** Generate reads batches of
   256 in an inner loop bounded by 40 batches or 30 seconds of elapsed time, whichever comes first
@@ -30,10 +35,11 @@ Four consequences an operator sees:
   so the batch in flight always finishes. Deliver is deliberately not drained the same way and stays
   at 256 transport attempts per pass (`AlertsJob.DeliverBatchSize`): pushing ten thousand webhooks
   through one tick would trade a database problem for an outage on the operator's own channel. A
-  namespace that outruns either bound falls behind. Nothing is lost — the cursor is durable, and it is
-  written after **every** completed batch, so a pass cut short by a bound, a crash, or the framework's
-  300 s execution timeout keeps everything it already projected — but the lag grows until the burst
-  clears.
+  namespace that outruns either bound falls behind. Nothing is lost, for two reasons that guard two
+  different failure shapes: the projection horizon guarantees generate never walks past an event
+  still waiting on an open transaction, and the durable cursor — written after **every** completed
+  batch — guarantees a pass cut short by a bound, a crash, or the framework's 300 s execution
+  timeout keeps everything it already projected. The lag grows until the burst clears.
 - **Generate walks `events` forward from a durable cursor** kept on the slot's own variable bag
   (`AlertsJob.CursorVariableName`, `AlertsJob.GenerateAsync`).
 

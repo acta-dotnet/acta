@@ -33,4 +33,6 @@ public sealed class SqlServerAlertProjectionReplaySpec : AlertProjectionReplaySp
 
 public sealed class SqlServerAlertProjectionDrainSpec : AlertProjectionDrainSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerAlertProjectionSafeHorizonSpec : AlertProjectionSafeHorizonSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerRecurringFailureAlertSpec : RecurringFailureAlertSpec<SqlServerConformanceFixture>;

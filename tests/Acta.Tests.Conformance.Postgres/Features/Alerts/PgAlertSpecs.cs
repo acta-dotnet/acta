@@ -33,4 +33,6 @@ public sealed class PgAlertProjectionReplaySpec : AlertProjectionReplaySpec<PgCo
 
 public sealed class PgAlertProjectionDrainSpec : AlertProjectionDrainSpec<PgConformanceFixture>;
 
+public sealed class PgAlertProjectionSafeHorizonSpec : AlertProjectionSafeHorizonSpec<PgConformanceFixture>;
+
 public sealed class PgRecurringFailureAlertSpec : RecurringFailureAlertSpec<PgConformanceFixture>;

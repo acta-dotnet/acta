@@ -15,8 +15,30 @@ namespace Acta.Relational.Stores;
 /// dialect (parameter creation). The delivery-outcome and auto-resolve writes are inline SQL in every
 /// provider (no routine), so they load by literal path through the session's read seam.
 /// </summary>
-internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect dialect) : IAlertStore
+internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect dialect, SqlProviderOptions options) : IAlertStore
 {
+    /// <summary>
+    /// How far behind the database's own clock the alertable-event read stops, in seconds.
+    /// </summary>
+    /// <remarks>
+    /// <c>events.id</c> is allocated when the row is inserted, not when its transaction commits, and the
+    /// alertable insert sits mid-routine with blocking parent-row locks after it - so a lower id can
+    /// commit after a higher one was already read and checkpointed, and nothing would read it again.
+    /// <c>created_at_utc</c> is stamped inside the writing transaction and so never post-dates its
+    /// commit: waiting for the stamp to fall behind the horizon waits out every transaction that could
+    /// still commit a lower id.
+    /// </remarks>
+    // Two command timeouts is that bound, and it needs no option of its own. A writing routine is one
+    // client statement, so its transaction lives at most one CommandTimeout from the statement's start -
+    // past that the client cancels and it dies. One timeout covers the gap between the stamp and the
+    // commit; the second covers PostgreSQL's now(), which is the transaction's start instant rather than
+    // the insert's and can precede the insert by the same bound. Rounding up keeps a sub-second timeout
+    // from collapsing the horizon to zero.
+    internal static int SafeHorizonLagSeconds(TimeSpan commandTimeout) =>
+        (int)Math.Min(int.MaxValue, Math.Ceiling(commandTimeout.TotalSeconds) * 2);
+
+    private readonly int _safeHorizonLagSeconds = SafeHorizonLagSeconds(options.CommandTimeout);
+
     public async Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
     {
         try
@@ -56,6 +78,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.NamespaceId, namespaceId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorEventId, cursorEventId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertLagSeconds, _safeHorizonLagSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, batchSize));
             },
             async (reader, token) =>

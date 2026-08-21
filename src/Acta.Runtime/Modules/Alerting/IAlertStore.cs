@@ -31,6 +31,11 @@ internal interface IAlertStore
     /// <summary>
     /// Reads the namespace's alert-relevant <c>events</c> rows above the <c>sys.alerts</c> cursor,
     /// ordered by the monotonic event id so the caller resumes from the last id it consumed.
+    ///
+    /// <para>The read stops short of the present: an event is offered only once its <c>created_at_utc</c>
+    /// is older than a safe horizon behind the database's own clock, so no transaction can still commit a
+    /// lower id than one the caller has already checkpointed. The horizon is the implementation's to size;
+    /// the caller sees it only as latency between an event landing and the pass that projects it.</para>
     /// </summary>
     Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(short namespaceId, long cursorEventId, int batchSize, CancellationToken ct);
 

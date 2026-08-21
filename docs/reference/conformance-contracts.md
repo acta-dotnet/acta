@@ -247,6 +247,18 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
 
+### The alerts projector reads behind a safe horizon rather than up to the present
+- **Contract:** The sys.alerts projection read offers an event only once its created_at_utc is older than the safe horizon, so the cursor never steps over an uncommitted id.
+- **Arrange:** One alertable failure event is written for a seeded job with the database's own created_at_utc stamp.
+- **Act:** The projector passes over it while it is still inside the horizon, and again after its stamp is aged past the horizon.
+- **Assert:** The first pass projects nothing and leaves the cursor unwritten, and the second projects the event and checkpoints its id.
+- **Guarantees:**
+  - An event still inside the horizon is not projected and the cursor does not advance
+  - An event aged past the horizon projects on the next pass
+- **Store methods:**
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+
 ### Manual alert write collapses onto the open incident and truncates bounded prose
 - **Contract:** A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.
 - **Arrange:** A test namespace is seeded and a job context is configured over a seeded definition and job.
@@ -2463,11 +2475,11 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | --- | --- |
 | `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>ThresholdReached fires once per incident at the exact occurrence |
+| `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
 | `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
-| `IAlertStore.RaiseJobAlertAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>An open incident keeps the ref its first firing minted<br>Manual alert write collapses onto the open incident and truncates bounded prose<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>ThresholdReached fires once per incident at the exact occurrence |
+| `IAlertStore.RaiseJobAlertAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>An open incident keeps the ref its first firing minted<br>Manual alert write collapses onto the open incident and truncates bounded prose<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Deliverable alerts read due rows, remind open incidents, and settle by version<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |

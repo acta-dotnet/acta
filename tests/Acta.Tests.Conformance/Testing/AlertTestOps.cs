@@ -1,4 +1,5 @@
 using Acta.Relational.Entities;
+using Acta.Relational.Stores;
 using Acta.Runtime.Modules.Alerting;
 using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Modules.Execution;
@@ -67,6 +68,12 @@ internal static class AlertTestOps
     /// <see cref="JobsOptions"/> when a fact needs its own thresholds; <c>null</c> runs with whatever
     /// the spec's container configured. <paramref name="drain"/> replaces the generate drain's shipped
     /// bounds; <c>null</c> runs the production 256 / 40 / 30s budget.
+    ///
+    /// <para><paramref name="ageEventsPastHorizon"/> ages the namespace's events back behind the
+    /// projection read's safe horizon first, which every spec but the horizon's own wants: the horizon is
+    /// two production command timeouts wide, so a spec that drove a job seconds ago would otherwise
+    /// project nothing at all. Aging the stamps is the same input the projector sees a minute later in
+    /// production, without the minute.</para>
     /// </summary>
     public static async Task RunAlertsJobAsync(
         IServiceProvider services,
@@ -75,9 +82,15 @@ internal static class AlertTestOps
         long cursorOwnerJobId,
         JobsOptions? options,
         AlertDrainBudget? drain,
-        CancellationToken ct
+        CancellationToken ct,
+        bool ageEventsPastHorizon = true
     )
     {
+        if (ageEventsPastHorizon)
+        {
+            await AgeEventsPastHorizonAsync(services, namespaceId, ct);
+        }
+
         var alertsJob = new AlertsJob(
             services.GetRequiredService<IAlertStore>(),
             services.GetRequiredService<IActaClock>(),
@@ -90,6 +103,25 @@ internal static class AlertTestOps
         };
 
         await alertsJob.Handle(BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId), ct);
+    }
+
+    /// <summary>
+    /// Backdates every event in <paramref name="namespaceId"/> to well behind the projection read's
+    /// safe horizon, so the next pass sees them all. The margin on top of the horizon absorbs any
+    /// difference between this process's clock and the database's, which is the one thing a client-side
+    /// instant cannot read; every alert spec's namespace is its own, so nothing else is touched.
+    /// </summary>
+    public static Task AgeEventsPastHorizonAsync(IServiceProvider services, short namespaceId, CancellationToken ct)
+    {
+        var lag = TimeSpan.FromSeconds(
+            RelationalAlertStore.SafeHorizonLagSeconds(services.GetRequiredService<SqlProviderOptions>().CommandTimeout)
+        );
+        var aged = DateTime.UtcNow - lag - TimeSpan.FromMinutes(5);
+        return services
+            .GetRequiredService<IDbSession>()
+            .From<JobEvent>()
+            .Where(e => e.NamespaceId == namespaceId)
+            .UpdateOnlyAsync(() => new JobEvent { CreatedAtUtc = aged }, ct);
     }
 
     /// <summary>

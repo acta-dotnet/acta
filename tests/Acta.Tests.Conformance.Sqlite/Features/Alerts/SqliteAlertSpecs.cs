@@ -31,4 +31,6 @@ public sealed class SqliteAlertProjectionReplaySpec : AlertProjectionReplaySpec<
 
 public sealed class SqliteAlertProjectionDrainSpec : AlertProjectionDrainSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteAlertProjectionSafeHorizonSpec : AlertProjectionSafeHorizonSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteRecurringFailureAlertSpec : RecurringFailureAlertSpec<SqliteConformanceFixture>;

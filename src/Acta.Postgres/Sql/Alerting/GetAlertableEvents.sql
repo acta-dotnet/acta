@@ -14,6 +14,10 @@ INNER JOIN {{schema}}.definitions jd ON jd.id = e.definition_id
 WHERE
     e.namespace_id = @p_namespace_id
     AND e.id > @p_cursor_event_id
+    /* Safe horizon: ids are allocated mid-transaction, so a lower id can commit after a higher one was
+       already read and checkpointed. created_at_utc is stamped inside the writing transaction, so an
+       event this old outlives every transaction that could still commit a lower id. */
+    AND e.created_at_utc <= now() - (@p_alert_lag_seconds * interval '1 second')
     AND e.job_id IS NOT NULL
     AND e.event_code = 41 /* EventCode.JobExecutionFinished */
     AND (

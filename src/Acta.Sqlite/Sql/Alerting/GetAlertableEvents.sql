@@ -14,6 +14,9 @@ INNER JOIN {{schema}}.definitions jd ON jd.id = e.definition_id
 WHERE
     e.namespace_id = @p_namespace_id
     AND e.id > @p_cursor_event_id
+    /* Safe horizon: one writer at a time makes SQLite immune to the commit-order race, but the predicate
+       is here for uniformity with the other two providers. created_at_utc is epoch milliseconds. */
+    AND e.created_at_utc <= {{now}} - (@p_alert_lag_seconds * 1000)
     AND e.job_id IS NOT NULL
     AND e.event_code = 41 /* EventCode.JobExecutionFinished */
     AND (

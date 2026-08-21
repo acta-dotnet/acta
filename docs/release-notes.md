@@ -272,6 +272,15 @@ Delivery is deliberately unchanged at 256 transport attempts per pass. Draining 
 as fast as the database allows would trade a database problem for an outage on the operator's own
 notification channel.
 
+Generate also gained a projection horizon: it reads only events older than twice the provider
+`CommandTimeout` (one minute on defaults). Event ids are allocated inside their writing
+transaction, so a lower id could commit *after* the cursor had already passed a higher one — under
+fan-out load that event was skipped forever, silently. The horizon closes the window with the
+writing statement's own timeout as the bound: nothing can stay uncommitted longer than that, so
+everything behind the horizon is settled before the cursor walks it. The cost is honest and small:
+worst-case failure-to-alert-row latency roughly doubles, to about two minutes on defaults, scaling
+with `CommandTimeout`. Found by this release's adversarial review pass.
+
 ### `AlertRetention` is a hard cap: nothing in `alerts` is immortal
 
 `sys.retention` used to delete only alerts whose delivery had settled, so a row stuck `Pending` or

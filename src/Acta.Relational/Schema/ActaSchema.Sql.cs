@@ -346,6 +346,18 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
+        // sys.alerts safe horizon: how many seconds behind the database's own clock the projection read
+        // stops, so an event whose id was allocated before a still-open transaction's is never stepped
+        // over. Derived from the provider command timeout; see RelationalAlertStore.SafeHorizonLagSeconds.
+        public static readonly DbValueSpec<int> AlertLagSeconds = new(
+            ParameterName: "p_alert_lag_seconds",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
         // sys.alerts batch cap: max rows the projection / delivery read returns per tick.
         public static readonly DbValueSpec<int> AlertBatchSize = new(
             ParameterName: "p_alert_batch_size",
