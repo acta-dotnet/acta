@@ -157,7 +157,7 @@ meaning stable for every retained job that may run, retry, resume, or restart.
 | Handler API | Durable identity | What the name means on re-entry |
 | --- | --- | --- |
 | `RunStepAsync("charge-card", ...)` | Step name within one job | A succeeded step returns its stored outcome and does not run the body again. |
-| `WaitSignalAsync("approval")` | Signal checkpoint name within one job | A previously raised value is consumed; otherwise the job suspends on that name. |
+| `WaitSignalAsync("approval")` | Signal checkpoint name within one job | A previously raised value is consumed; otherwise the job suspends on that name. A bounded wait's original expiration is observed on re-entry, never extended; an expired slot stays expired. |
 | `SleepAsync("cooldown", ...)` | Timer checkpoint name within one job | The same timer is observed instead of extending the wait on every re-entry. |
 | `SetVariableAsync("quote.id", ...)` | Variable checkpoint name within one job | Later executions read the same durable value. |
 | `StartChildAsync("capture-payment", ...)` | Child name under one parent | Re-entry resolves the already-created child instead of creating another child. |

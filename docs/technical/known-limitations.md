@@ -28,6 +28,16 @@ Acta does not provide deterministic workflow replay. The model is checkpoints, n
 slots record completed work and return stored results on re-entry, but the handler can re-enter from
 the top.
 
+Bounded waits carry the same at-least-once shape. A child-wait timeout's subtree cancellation is
+initiated by the parent's resumed attempt: the expiry itself is durable, but a crash between the
+expiry and the cancellation re-runs the cancellation on replay, and a parent that lands terminal
+without ever replaying leaves its live descendants running — as parent death always has. An
+expired wait slot is terminal for its name: any later wait on it resolves timed-out, which for the
+unbounded overloads means the job is cancelled with `job.wait-timed-out` rather than parked on a
+wait that can no longer complete. A deadline introduced by a code upgrade arms only when the job
+is next claimed, so a job already suspended under the old unbounded code needs one operator
+reschedule before the new bound takes effect.
+
 No durable executor can guarantee exactly-once effects against arbitrary external systems. Acta gives
 you at-least-once jobs, checkpointed durable steps, deduplication keys, and `AtMostOnce()` step
 semantics; the application still owns external side-effect safety.

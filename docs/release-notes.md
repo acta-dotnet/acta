@@ -172,6 +172,25 @@ review.
   0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
   anyway.
 
+### Durable waits get deadlines
+
+A signal or child wait can now be bounded. `WaitSignalAsync(name, timeout)` and its typed twin
+cancel the job on expiry — budget-neutral, reason `job.wait-timed-out`, so the row lands terminal
+and retention finally applies to work that was waiting for something that never came.
+`TryWaitSignalAsync` / `TryWaitSignalAsync<T>` resume the handler with a `TimedOut` result
+instead, and `TryWaitChildAsync(childJobId, timeout)` resumes the parent with `TimedOut` while
+Acta cancels the unfinished child and its descendant subtree — the parent is never implicitly
+cancelled, and the unbounded overloads are unchanged.
+
+The deadline is an absolute instant stamped on the awaited checkpoint slot when the wait first
+arms: database time, replay-stable, never extended by restarts or worker downtime. A suspended job
+carries it in `next_run_at_utc`, so the ordinary claim path wakes the job at expiry — no sweeper,
+no new system job. Completion and timeout race under the slot's own lock, completion-first wins,
+and an expired slot is terminal: late signals and late child outcomes are recorded on the timeline
+but no longer applied. Two persisted codes are new (`job.wait-timed-out`; checkpoint status
+`expired`), the claim index gained `status_code` as a trailing column, and `Explain` prints a
+bounded wait's "times out at".
+
 ### Breaking: automatic alert dedup is incident identity, not a time window
 
 Automatic alert dedup no longer buckets by a rolling window. An automatic alert's key —

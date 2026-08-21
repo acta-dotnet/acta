@@ -97,6 +97,12 @@ CLI, or the HTTP signal endpoint if controls are enabled.
 Sleep and reschedule waits are timer-based. Check timer `checkpoints` (kind `timer`) and `next_run_at_utc` for the due
 instant.
 
+A bounded wait tells you when it gives up: `Explain` prints "times out at" with the deadline, the
+slot's `due_at_utc` carries it, and the suspended row's `next_run_at_utc` is non-null — the job
+will wake itself. A suspended row with `next_run_at_utc` NULL is an unbounded wait and wakes only
+on a raise. To put a bound on a job stranded under code that has since gained one, reschedule it
+once: the re-entered wait arms the new deadline on a slot that never had one.
+
 ## A Job Is Paused
 
 Pause is sticky. A paused job does not auto-resume unless the paused object is a schedule pause with

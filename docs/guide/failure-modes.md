@@ -41,6 +41,27 @@ The signal value is stored in the named checkpoint. When the handler later calls
 to a terminal job is rejected; a signal sent to a paused job is stored but does not resume the job
 until the job itself is resumed.
 
+## …a signal never arrives?
+
+An unbounded `WaitSignalAsync` suspends the job indefinitely, and retention never touches a
+suspended job — only terminal ones. When "never" is a real possibility, bound the wait:
+`WaitSignalAsync(name, timeout)` cancels the job on expiry, budget-neutral, with reason
+`job.wait-timed-out`, so the row lands terminal and ages out normally; `TryWaitSignalAsync`
+resumes the handler with a `TimedOut` result instead, for workflows that expire or compensate
+explicitly. The deadline is stamped on the slot when the wait first arms and is never extended —
+worker downtime, restarts, and replays all count against it.
+
+## …a child never finishes and the parent is waiting on it?
+
+`TryWaitChildAsync(childJobId, timeout)` resumes the parent with `TimedOut` and cancels the
+unfinished child and its descendant subtree; the parent stays active and decides what happens
+next. Two honest edges. The subtree cancellation is initiated by the parent's resumed attempt, so
+it is at-least-once like everything else: a crash between the durable expiry and the cancellation
+re-runs it on replay, and a parent that goes terminal without ever replaying leaves its children
+running — which is what parent death has always meant in Acta. And an expired wait slot is
+terminal for its name: a replay that reaches an unbounded `WaitChildAsync` over an already-expired
+latch cancels the job rather than parking it forever on a wait that can no longer complete.
+
 ## …a sleeping or signal-waiting job has no worker?
 
 The wait occupies no executor. A timer remains durable until due; a signal wait remains durable
