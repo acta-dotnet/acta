@@ -248,7 +248,11 @@ public sealed class PersistedCodeContractTests
                 var json = JsonSerializer.Serialize(enumValue, family);
                 Assert.Equal(JsonSerializer.Serialize(entry.Code), json);
                 Assert.Equal(enumValue, JsonSerializer.Deserialize(json, family));
-                Assert.Equal(enumValue, JsonSerializer.Deserialize(entry.Id.ToString(), family));
+
+                // The canonical string is the only accepted wire form: the numeric id is a storage
+                // detail, so neither a JSON number nor the same digits quoted decode.
+                Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize(entry.Id.ToString(), family));
+                Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize($"\"{entry.Id}\"", family));
             }
 
             if (family.GetCustomAttribute<CodeKindAttribute>()!.Extensible)
@@ -258,25 +262,26 @@ public sealed class PersistedCodeContractTests
                 // parses caller input where an unrecognized code is a bad request, not a version gap.
                 var unspecified = Enum.Parse(family, "Unspecified");
                 Assert.Equal(unspecified, fromId.Invoke(null, [byte.MaxValue]));
-                Assert.Equal(unspecified, JsonSerializer.Deserialize("255", family));
             }
             else
             {
                 var unknownId = Assert.Throws<TargetInvocationException>(() => fromId.Invoke(null, [byte.MaxValue]));
                 Assert.IsType<ArgumentOutOfRangeException>(unknownId.InnerException);
-                Assert.ThrowsAny<Exception>(() => JsonSerializer.Deserialize("255", family));
             }
 
+            Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("255", family));
             Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("\"not-a-code\"", family));
         }
     }
 
     [Fact]
-    public void Capacity_and_payload_boundaries_are_enforced()
+    public void Reserve_and_payload_boundaries_are_enforced()
     {
-        Assert.Equal(31, EventCode.Capacity.HeldReserve);
-        Assert.Equal(36, EventCode.Capacity.Assigned);
-        Assert.Equal(25, JobEventReasonCode.Capacity.Assigned);
+        // The two widest families are the ones whose headroom is worth pinning: their assigned ids
+        // (the manifest is the assigned set) plus the architecture reserve held out of EventCode.
+        Assert.Equal(36, EventCode.Manifest.Count);
+        Assert.Equal(25, JobEventReasonCode.Manifest.Count);
+        Assert.Equal(31, typeof(EventCode).GetCustomAttributes<ReservedCodeRangeAttribute>().Sum(range => range.End - range.Start + 1));
         Assert.All(
             CodeFamilies(),
             family => Assert.DoesNotContain(byte.MaxValue, Enum.GetValues(family).Cast<object>().Select(Convert.ToByte))

@@ -267,7 +267,7 @@ public class CodeGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Generated_conversions_reject_unknown_ids_and_report_capacity()
+    public void Generated_conversions_read_canonical_strings_only()
     {
         var result = RunGenerator(
             """
@@ -287,11 +287,15 @@ public class CodeGeneratorDiagnosticTests
 
         Assert.Empty(result.Diagnostics);
         var generated = string.Concat(result.Results.Single().GeneratedSources.Select(s => s.SourceText.ToString()));
-        Assert.Contains("SampleCode.FromId(n)", generated);
-        Assert.Contains("case global::System.Text.Json.JsonTokenType.Number: return SampleCode.FromId(reader.GetByte());", generated);
         Assert.Contains("public byte ToId => value switch", generated);
         Assert.Contains("public static SampleCode FromCode(string code)", generated);
-        Assert.Contains("CodeCapacityReport Capacity => new(1, 0, 1, 0, 31, 221, 2)", generated);
+
+        // The converter reads one token kind. Nothing decodes a JSON number or a numeric string, so
+        // neither the Number case nor a TryParse fallback may reappear in the emitted Read.
+        Assert.Contains("if (reader.TokenType != global::System.Text.Json.JsonTokenType.String)", generated);
+        Assert.Contains("SampleCode expects a JSON string.", generated);
+        Assert.DoesNotContain("JsonTokenType.Number", generated);
+        Assert.DoesNotContain("byte.TryParse", generated);
     }
 
     [Fact]
@@ -313,7 +317,6 @@ public class CodeGeneratorDiagnosticTests
         Assert.Empty(result.Diagnostics);
         var generated = string.Concat(result.Results.Single().GeneratedSources.Select(s => s.SourceText.ToString()));
         Assert.Contains("public static partial class RetiredOnlyCodeExtensions", generated);
-        Assert.Contains("CodeCapacityReport Capacity => new(0, 0, 1, 0, 0, 253, 2)", generated);
         Assert.Contains("public static bool IsKnownId(byte id) => false;", generated);
     }
 

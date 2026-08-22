@@ -267,7 +267,6 @@ enum Acta.ActorCode
 static class Acta.ActorCodeExtensions
     Acta.ActorCode FromCode(System.String code)
     Acta.ActorCode FromId(System.Byte id)
-    Acta.CodeCapacityReport get_Capacity()
     System.Boolean IsKnownId(System.Byte id)
     System.Boolean IsWritableId(System.Byte id)
     System.Byte get_ToId(Acta.ActorCode value)
@@ -308,7 +307,6 @@ enum Acta.AlertChannelStatusCode
 static class Acta.AlertChannelStatusCodeExtensions
     Acta.AlertChannelStatusCode FromCode(System.String code)
     Acta.AlertChannelStatusCode FromId(System.Byte id)
-    Acta.CodeCapacityReport get_Capacity()
     System.Boolean IsKnownId(System.Byte id)
     System.Boolean IsWritableId(System.Byte id)
     System.Byte get_ToId(Acta.AlertChannelStatusCode value)
@@ -343,7 +341,6 @@ enum Acta.AlertDeliveryStatusCode
 static class Acta.AlertDeliveryStatusCodeExtensions
     Acta.AlertDeliveryStatusCode FromCode(System.String code)
     Acta.AlertDeliveryStatusCode FromId(System.Byte id)
-    Acta.CodeCapacityReport get_Capacity()
     System.Boolean IsKnownId(System.Byte id)
     System.Boolean IsWritableId(System.Byte id)
     System.Byte get_ToId(Acta.AlertDeliveryStatusCode value)
@@ -385,7 +382,6 @@ enum Acta.AlertKindCode
 static class Acta.AlertKindCodeExtensions
     Acta.AlertKindCode FromCode(System.String code)
     Acta.AlertKindCode FromId(System.Byte id)
-    Acta.CodeCapacityReport get_Capacity()
     System.Boolean IsKnownId(System.Byte id)
     System.Boolean IsWritableId(System.Byte id)
     System.Byte get_ToId(Acta.AlertKindCode value)
@@ -436,7 +432,6 @@ enum Acta.AlertOriginCode
 static class Acta.AlertOriginCodeExtensions
     Acta.AlertOriginCode FromCode(System.String code)
     Acta.AlertOriginCode FromId(System.Byte id)
-    Acta.CodeCapacityReport get_Capacity()
     System.Boolean IsKnownId(System.Byte id)
     System.Boolean IsWritableId(System.Byte id)
     System.Byte get_ToId(Acta.AlertOriginCode value)
@@ -457,7 +452,6 @@ enum Acta.AlertProfileCode
 static class Acta.AlertProfileCodeExtensions
     Acta.AlertProfileCode FromCode(System.String code)
     Acta.AlertProfileCode FromId(System.Byte id)
-    Acta.CodeCapacityReport get_Capacity()
     System.Boolean IsKnownId(System.Byte id)
     System.Boolean IsWritableId(System.Byte id)
     System.Byte get_ToId(Acta.AlertProfileCode value)
@@ -488,7 +482,6 @@ enum Acta.AlertSeverityCode
 static class Acta.AlertSeverityCodeExtensions
     Acta.AlertSeverityCode FromCode(System.String code)
     Acta.AlertSeverityCode FromId(System.Byte id)
-    Acta.CodeCapacityReport get_Capacity()
     System.Boolean IsKnownId(System.Byte id)
     System.Boolean IsWritableId(System.Byte id)
     System.Byte get_ToId(Acta.AlertSeverityCode value)
@@ -553,16 +546,6 @@ sealed class Acta.CodeAttribute
     Acta.CodeLifecycle Lifecycle { get;init; }
     System.String Code { get; }
     System.String Description { get; }
-sealed class Acta.CodeCapacityReport
-    .ctor(System.Int32 Assigned, System.Int32 Deprecated, System.Int32 Retired, System.Int32 PermanentlyReserved, System.Int32 HeldReserve, System.Int32 Available, System.Int32 InvalidSentinelValues)
-    System.Int32 Assigned { get;init; }
-    System.Int32 Available { get;init; }
-    System.Int32 Consumed { get; }
-    System.Int32 Deprecated { get;init; }
-    System.Int32 HeldReserve { get;init; }
-    System.Int32 InvalidSentinelValues { get;init; }
-    System.Int32 PermanentlyReserved { get;init; }
-    System.Int32 Retired { get;init; }
 sealed class Acta.CodeKindAttribute
     .ctor(System.String codeKind)
     System.Boolean Extensible { get;init; }
@@ -637,7 +620,6 @@ enum Acta.DeadlineBehaviorCode
     Advisory = 20
     Strict = 10
 static class Acta.DeadlineBehaviorCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.DeadlineBehaviorCode FromCode(System.String code)
     Acta.DeadlineBehaviorCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -726,7 +708,6 @@ enum Acta.EventCode
     WorkerStarted = 120
     WorkerStopped = 121
 static class Acta.EventCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.EventCode FromCode(System.String code)
     Acta.EventCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -787,7 +768,6 @@ enum Acta.ExecutionStatusCode
     Succeeded = 100
     Suspended = 151
 static class Acta.ExecutionStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.ExecutionStatusCode FromCode(System.String code)
     Acta.ExecutionStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1012,7 +992,6 @@ enum Acta.JobAuditLevelCode
     Failures = 10
     Off = 0
 static class Acta.JobAuditLevelCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobAuditLevelCode FromCode(System.String code)
     Acta.JobAuditLevelCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1047,7 +1026,6 @@ enum Acta.JobCheckpointKindCode
     Timer = 30
     Variable = 10
 static class Acta.JobCheckpointKindCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobCheckpointKindCode FromCode(System.String code)
     Acta.JobCheckpointKindCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1067,7 +1045,6 @@ enum Acta.JobCheckpointStatusCode
     Pending = 10
     Set = 20
 static class Acta.JobCheckpointStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobCheckpointStatusCode FromCode(System.String code)
     Acta.JobCheckpointStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1281,7 +1258,6 @@ enum Acta.JobDefinitionStatusCode
     Active = 10
     Retired = 240
 static class Acta.JobDefinitionStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobDefinitionStatusCode FromCode(System.String code)
     Acta.JobDefinitionStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1436,7 +1412,6 @@ enum Acta.JobEventReasonCode
     WorkerCleanShutdown = 100
     WorkerHeartbeatStale = 101
 static class Acta.JobEventReasonCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobEventReasonCode FromCode(System.String code)
     Acta.JobEventReasonCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1636,7 +1611,6 @@ enum Acta.JobPriorityCode
     Normal = 50
     Realtime = 100
 static class Acta.JobPriorityCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobPriorityCode FromCode(System.String code)
     Acta.JobPriorityCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1699,7 +1673,6 @@ enum Acta.JobStatusCode
     Succeeded = 100
     Suspended = 20
 static class Acta.JobStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobStatusCode FromCode(System.String code)
     Acta.JobStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1723,7 +1696,6 @@ enum Acta.JobStepStatusCode
     Pending = 10
     Succeeded = 100
 static class Acta.JobStepStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobStepStatusCode FromCode(System.String code)
     Acta.JobStepStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1744,7 +1716,6 @@ enum Acta.JobTenantRequirementCode
     Optional = 0
     Required = 10
 static class Acta.JobTenantRequirementCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.JobTenantRequirementCode FromCode(System.String code)
     Acta.JobTenantRequirementCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1918,7 +1889,6 @@ enum Acta.MisfireStrategyCode
     CatchUpOnce = 10
     Skip = 20
 static class Acta.MisfireStrategyCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.MisfireStrategyCode FromCode(System.String code)
     Acta.MisfireStrategyCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1944,7 +1914,6 @@ enum Acta.NamespaceStatusCode
     Active = 10
     Suspended = 20
 static class Acta.NamespaceStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.NamespaceStatusCode FromCode(System.String code)
     Acta.NamespaceStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -1987,7 +1956,6 @@ enum Acta.OutboxStatusCode
     Pending = 10
     Quarantined = 90
 static class Acta.OutboxStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.OutboxStatusCode FromCode(System.String code)
     Acta.OutboxStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -2087,7 +2055,6 @@ enum Acta.ScheduleExpressionKindCode
     Cron = 10
     Interval = 20
 static class Acta.ScheduleExpressionKindCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.ScheduleExpressionKindCode FromCode(System.String code)
     Acta.ScheduleExpressionKindCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -2130,7 +2097,6 @@ enum Acta.ScheduleOriginCode
     Definition = 40
     Operator = 20
 static class Acta.ScheduleOriginCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.ScheduleOriginCode FromCode(System.String code)
     Acta.ScheduleOriginCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -2154,7 +2120,6 @@ enum Acta.ScheduleStatusCode
     Orphaned = 230
     Paused = 30
 static class Acta.ScheduleStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.ScheduleStatusCode FromCode(System.String code)
     Acta.ScheduleStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -2181,7 +2146,6 @@ enum Acta.SettingScopeCode
     Global = 10
     Namespace = 30
 static class Acta.SettingScopeCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.SettingScopeCode FromCode(System.String code)
     Acta.SettingScopeCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -2277,7 +2241,6 @@ enum Acta.TagScopeCode
     Tenant = 20
     Worker = 70
 static class Acta.TagScopeCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.TagScopeCode FromCode(System.String code)
     Acta.TagScopeCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -2330,7 +2293,6 @@ enum Acta.TenantStatusCode
     Active = 10
     Suspended = 20
 static class Acta.TenantStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.TenantStatusCode FromCode(System.String code)
     Acta.TenantStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
@@ -2397,7 +2359,6 @@ enum Acta.WorkerStatusCode
     Draining = 80
     Stopped = 100
 static class Acta.WorkerStatusCodeExtensions
-    Acta.CodeCapacityReport get_Capacity()
     Acta.WorkerStatusCode FromCode(System.String code)
     Acta.WorkerStatusCode FromId(System.Byte id)
     System.Boolean IsKnownId(System.Byte id)
