@@ -11,7 +11,7 @@ BEGIN
 CREATE TABLE {{schema}}.alerts (
     id bigint IDENTITY(1,1) NOT NULL,
     alert_ref uniqueidentifier NOT NULL,
-    namespace_id smallint NOT NULL,
+    namespace_id int NOT NULL,
     job_id bigint NULL,
     job_ref uniqueidentifier NULL,
     origin_code tinyint NOT NULL,
@@ -52,7 +52,7 @@ IF OBJECT_ID(N'{{schema}}.definitions', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.definitions (
     id int IDENTITY(1,1) NOT NULL,
-    namespace_id smallint NOT NULL,
+    namespace_id int NOT NULL,
     name varchar(128) NOT NULL,
     status_code tinyint NOT NULL,
     definition_hash varchar(128) NOT NULL,
@@ -137,7 +137,7 @@ CREATE TABLE {{schema}}.events (
     id bigint IDENTITY(1,1) NOT NULL,
     event_code tinyint NOT NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    namespace_id smallint NOT NULL,
+    namespace_id int NOT NULL,
     actor_code tinyint NOT NULL,
     actor_key varchar(128) NULL,
     job_id bigint NULL,
@@ -175,7 +175,7 @@ BEGIN
 CREATE TABLE {{schema}}.jobs (
     id bigint IDENTITY(1,1) NOT NULL,
     job_ref uniqueidentifier NOT NULL,
-    namespace_id smallint NOT NULL,
+    namespace_id int NOT NULL,
     definition_id int NOT NULL,
     lineage_root_id bigint NULL,
     parent_id bigint NULL,
@@ -217,7 +217,7 @@ GO
 IF OBJECT_ID(N'{{schema}}.namespaces', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.namespaces (
-    id smallint IDENTITY(1,1) NOT NULL,
+    id int IDENTITY(1,1) NOT NULL,
     name varchar(128) NOT NULL,
     owner_team nvarchar(512) NULL,
     description nvarchar(512) NULL,
@@ -264,7 +264,7 @@ IF OBJECT_ID(N'{{schema}}.runtimes', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.runtimes (
     job_id bigint NOT NULL,
-    namespace_id smallint NOT NULL,
+    namespace_id int NOT NULL,
     status_code tinyint NOT NULL,
     priority_code tinyint NOT NULL,
     next_run_at_utc datetime2(3) NULL,
@@ -293,7 +293,7 @@ IF OBJECT_ID(N'{{schema}}.schedules', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.schedules (
     id bigint IDENTITY(1,1) NOT NULL,
-    namespace_id smallint NOT NULL,
+    namespace_id int NOT NULL,
     job_id bigint NOT NULL,
     definition_id int NOT NULL,
     name varchar(128) NOT NULL,
@@ -386,7 +386,7 @@ BEGIN
 CREATE TABLE {{schema}}.tags (
     scope_code tinyint NOT NULL,
     scope_id bigint NOT NULL,
-    namespace_id smallint NULL,
+    namespace_id int NULL,
     name varchar(128) NOT NULL,
     value nvarchar(128) NULL,
     value_search nvarchar(128) NULL
@@ -426,7 +426,7 @@ BEGIN
 CREATE TABLE {{schema}}.workers (
     id int IDENTITY(1,1) NOT NULL,
     worker_ref uniqueidentifier NOT NULL,
-    namespace_id smallint NOT NULL,
+    namespace_id int NOT NULL,
     status_code tinyint NOT NULL,
     deployment_version varchar(128) NOT NULL,
     host varchar(256) NOT NULL,
@@ -605,7 +605,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-1.0', '{{schema}}');
+VALUES (0, 'baseline-1.0.1', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

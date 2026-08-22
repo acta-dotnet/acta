@@ -15,7 +15,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "job_id",
@@ -201,7 +201,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "name",
@@ -476,7 +476,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "actor_code",
@@ -587,7 +587,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "definition_id",
@@ -700,7 +700,7 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "name",
@@ -793,7 +793,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "status_code",
@@ -877,7 +877,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "job_id",
@@ -1152,7 +1152,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
           },
           {
             "Name": "name",
@@ -1253,7 +1253,7 @@
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "status_code",

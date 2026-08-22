@@ -35,14 +35,16 @@ public static class NamespaceIdBudget
     public const int Ceiling = int.MaxValue;
 
     /// <summary>
-    /// The namespaces-id cost of one full-solution <c>dotnet test Acta.slnx</c> run, measured on
-    /// 2026-08-22 against PostgreSQL. It sizes <see cref="Threshold"/> and the runs-remaining figure
-    /// in the failure message, never whether the guard runs, so drift here is harmless: a stale value
-    /// only shifts where the reserve sits, and against a 32-bit ceiling the reserve is a rounding
+    /// The namespaces-id cost of one full provider conformance leg - the run that actually spends a
+    /// given server's ids - measured on 2026-08-22 against a freshly provisioned <c>acta_test</c>,
+    /// where PostgreSQL and SQL Server agreed at 726 for the first leg and 725 for the second (the
+    /// extra one is the seeded <c>sys</c> row). It sizes <see cref="Threshold"/> and the runs-remaining
+    /// figure in the failure message, never whether the guard runs, so drift here is harmless: a stale
+    /// value only shifts where the reserve sits, and against a 32-bit ceiling the reserve is a rounding
     /// error either way. Kept as a measured number rather than a round one because it is what makes
     /// the failure message say something concrete about the rate.
     /// </summary>
-    public const int IdsPerRun = 658;
+    public const int IdsPerRun = 725;
 
     /// <summary>
     /// Size of the reserve, in runs at the measured <see cref="IdsPerRun"/> rate. The guard stops the
@@ -92,15 +94,14 @@ public static class NamespaceIdBudget
 
             namespaces.id is an int IDENTITY/sequence column (ceiling {Ceiling}, from int.MaxValue).
             Current high-water mark: {consumedIds}. Remaining headroom: {remaining} ids, about
-            {runsRemaining:F1} more full-solution `dotnet test Acta.slnx` runs at the measured cost of
-            {IdsPerRun} ids per run.
+            {runsRemaining:F1} more full conformance legs at the measured cost of {IdsPerRun} ids each.
 
             Read this as a defect report, not as a chore. acta_test is append-only by design and never
-            reclaims ids, but at {IdsPerRun} ids per run the 32-bit space is roughly three million runs
+            reclaims ids, but at {IdsPerRun} ids per leg the 32-bit space is roughly three million legs
             deep: it is not reachable by testing. Something has been allocating namespace ids without
             creating namespaces - the shape StartWorkerIdAllocationSpec exists to catch - or a fixture
             is registering namespaces in a loop. Find that before doing anything else, because a reset
-            hides it and buys only another three million runs of the same silence.
+            hides it and buys only another three million legs of the same silence.
 
             Once the cause is understood, dropping the acta-test DATABASE (not just the acta_test
             schema) on both servers resets this counter to zero; EnsureDatabaseAndApplyAsync recreates

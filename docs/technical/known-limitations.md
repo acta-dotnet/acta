@@ -10,7 +10,8 @@ Acta is at the release-candidate line: the public API, schema, and persisted cod
 release candidates change only for correctness, security, and documentation. The migration history
 freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Before the
 release-candidate line the schema baseline (`M001`) could be re-cut per release, so a database
-provisioned by a pre-rc build may need one reprovision on the way in. Bootstrap compares the
+provisioned by a pre-rc build — or by the first rc.1 cut, which the certification round amended
+once to widen the namespace id — may need one reprovision on the way in. Bootstrap compares the
 baseline stamp recorded in the database against the one this build ships and refuses to start on a
 mismatch, so a stale database fails loudly instead of taking a schema it was not built for; old
 renumbered code values are intentionally incompatible, and there is no translation migration.
@@ -164,14 +165,13 @@ Hold `JobRef` instead. It is a UUIDv7 minted in your process before the row is w
 in advance and nothing else will ever carry it, whereas a `JobId` is only meaningful for an enqueue that
 committed.
 
-A namespace id is 16 bits, so one database can allocate at most 32,767 namespaces over its whole
-lifetime. `namespaces.id` is `smallint` on PostgreSQL and SQL Server, and ids are never reclaimed:
-deleting a namespace does not return its id, so the ceiling counts every namespace ever created rather
-than the number that currently exist. Deployments do not approach this — namespaces are created
-deliberately, one per bounded context or tenant group, not per request — but the width is fixed at 1.0
-and cannot widen without a breaking schema change, so anything that creates namespaces programmatically
-should treat them as a finite budget. SQLite's `namespaces.id` is a 64-bit `AUTOINCREMENT` with no
-practical ceiling; 32,767 is the portable limit.
+A namespace id is 32 bits, so one database can allocate around 2.1 billion namespaces over its
+whole lifetime. Ids are never reclaimed — deleting a namespace does not return its id, so the
+ceiling counts every namespace ever created rather than the number that currently exist — but at
+this width that is an accounting note, not a budget: registration allocates an id only for a
+genuinely new namespace name (a worker restart re-registering an existing namespace allocates
+nothing), and namespaces are created deliberately, one per bounded context, not per request.
+SQLite's `namespaces.id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is the portable limit.
 
 Microsoft.Data.Sqlite (verified in 10.0.11 and on its `main`) carries an unsynchronized enumeration
 in `SqliteConnection.Deactivate`: returning a pooled connection walks the custom-function dictionary

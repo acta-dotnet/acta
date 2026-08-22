@@ -2452,11 +2452,11 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StopWorkerAsync`
 
-### StartWorker hash-gate-upserts namespace and appends a fresh worker row per call
-- **Contract:** StartWorker hash-gate-upserts the namespace, always appends a fresh worker row, and emits exactly one WorkerStarted event per worker.
+### StartWorker hash-gates the namespace write and appends a fresh worker row
+- **Contract:** StartWorker writes the namespace only when its hash changed or the name is new, appends a fresh worker row, and emits one WorkerStarted event per worker.
 - **Arrange:** A fresh unique namespace isolates each StartWorker.Run call.
 - **Act:** StartWorker runs repeatedly with unchanged metadata, changed metadata, and a duplicate worker identity.
-- **Assert:** The namespace upsert is hash-gated with no churn on unchanged metadata, every call appends a fresh worker row, and each worker emits one WorkerStarted event.
+- **Assert:** The namespace write is hash-gated with no churn on unchanged metadata, every call appends a fresh worker row, and each worker emits one WorkerStarted event.
 - **Guarantees:**
   - Namespace version is unchanged on same-metadata call and bumped on metadata change
   - Each StartWorker call returns a distinct worker id and leaves a distinct row in the namespace
@@ -2470,7 +2470,7 @@
 - **Contract:** A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started.
 - **Arrange:** One namespace is created by its first worker start.
 - **Act:** Workers restart repeatedly against that namespace, then one worker starts a brand-new namespace.
-- **Assert:** The id range spanned by the two namespaces is fully occupied by rows, so the restarts allocated nothing.
+- **Assert:** The id range spanned by the two namespaces carries a row for all but at most a stray id, so the restarts allocated nothing.
 - **Guarantees:**
   - Restarting workers against an existing namespace allocates no namespace ids
 - **Store methods:**
@@ -2562,7 +2562,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
 | `IWorkerStore.MarkDeadWorkersAsync` | Stale workers in any namespace are marked Dead by a global sweep |
-| `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker allocates a namespace id only when it creates the namespace<br>StartWorker hash-gate-upserts namespace and appends a fresh worker row per call |
+| `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker allocates a namespace id only when it creates the namespace<br>StartWorker hash-gates the namespace write and appends a fresh worker row |
 | `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
 | `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
 | `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |

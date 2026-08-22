@@ -51,7 +51,7 @@ internal sealed class BurstDb(string provider, string schema)
         var value = await command.ExecuteScalarAsync(ct);
         return value is null or DBNull
             ? throw new InvalidOperationException($"Namespace '{namespaceName}' has no row in {_prefix}namespaces yet.")
-            : Convert.ToInt16(value, CultureInfo.InvariantCulture);
+            : Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>

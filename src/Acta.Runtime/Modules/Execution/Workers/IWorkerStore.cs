@@ -8,9 +8,10 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 internal interface IWorkerStore
 {
     /// <summary>
-    /// Single bootstrap round trip: hash-gate-upserts the runtime's <c>namespaces</c> row, appends a
-    /// fresh <c>workers</c> row for this process, and records a <c>worker.started</c> event, returning
-    /// both DB-assigned ids. The worker id is the owner stamp on every claim / lease / execution write.
+    /// Single bootstrap round trip: updates the runtime's <c>namespaces</c> row only when its catalog
+    /// hash changed and inserts it only when the name is absent, appends a fresh <c>workers</c> row for
+    /// this process, and records a <c>worker.started</c> event, returning both DB-assigned ids. The
+    /// worker id is the owner stamp on every claim / lease / execution write.
     /// </summary>
     Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct);
 

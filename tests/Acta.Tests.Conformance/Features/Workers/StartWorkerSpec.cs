@@ -10,19 +10,19 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Workers;
 
 /// <summary>
-/// Operation-level conformance for <c>StartWorker</c>: namespace upsert idempotency (hash-gated, no
-/// churn when metadata is unchanged), append-only worker rows, and per-worker <c>worker.started</c>
-/// event fields. Calls <c>StartWorker.Run</c> directly with a fresh unique namespace per test so the
-/// upsert is observed in isolation.
+/// Operation-level conformance for <c>StartWorker</c>: namespace registration idempotency
+/// (hash-gated, no churn when metadata is unchanged), append-only worker rows, and per-worker
+/// <c>worker.started</c> event fields. Calls <c>StartWorker.Run</c> directly with a fresh unique
+/// namespace per test so the registration is observed in isolation.
 /// </summary>
 [ConformanceSpec(
     "worker.start",
-    "StartWorker hash-gate-upserts namespace and appends a fresh worker row per call",
+    "StartWorker hash-gates the namespace write and appends a fresh worker row",
     Area = "Workers",
-    Contract = "StartWorker hash-gate-upserts the namespace, always appends a fresh worker row, and emits exactly one WorkerStarted event per worker.",
+    Contract = "StartWorker writes the namespace only when its hash changed or the name is new, appends a fresh worker row, and emits one WorkerStarted event per worker.",
     Arrange = "A fresh unique namespace isolates each StartWorker.Run call.",
     Act = "StartWorker runs repeatedly with unchanged metadata, changed metadata, and a duplicate worker identity.",
-    Assert = "The namespace upsert is hash-gated with no churn on unchanged metadata, every call appends a fresh worker row, and each worker emits one WorkerStarted event."
+    Assert = "The namespace write is hash-gated with no churn on unchanged metadata, every call appends a fresh worker row, and each worker emits one WorkerStarted event."
 )]
 [CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.StartWorkerAsync))]
 public abstract class StartWorkerSpec<TFixture> : ActaStorageTestBase<TFixture>

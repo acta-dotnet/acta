@@ -178,9 +178,11 @@ The release candidate's own changes, recorded here as they land. The headline pa
 can now give up, and an alert outage has an identity instead of a time bucket.
 
 > **Schema note:** preview policy applies — drop and reprovision. `M001` was re-cut as the 1.0
-> baseline (stamp `baseline-1.0`, the last re-cut: the migration history is frozen from 1.0), and it
-> carries the incident identity (one open alert row per key, no window column), checkpoint deadlines
-> on waits, and a claim index that covers its own predicate. Three read-only database objects went
+> baseline (stamp `baseline-1.0.1`, the last re-cut: the migration history is frozen from 1.0), and
+> it carries the incident identity (one open alert row per key, no window column), checkpoint
+> deadlines on waits, a claim index that covers its own predicate, and a 32-bit namespace id (the
+> rc round's own certification surfaced a sequence burn whose fix argued for widening before the
+> freeze; the `.1` marks that final amendment). Three read-only database objects went
 > with it: `get_child_job_ids`, `get_stale_child_latches`, and `get_outbox_signal` are ordinary
 > queries the application sends now, so a fresh provision never creates them and the application
 > principal needs no `EXECUTE` grant for them.
@@ -338,13 +340,26 @@ Structured log fields consolidated onto a canonical eleven-field vocabulary (`Na
 Unlike metric names, log field names are not frozen, but they are now build-enforced: a log line
 inventing a twelfth field fails the build.
 
+### A worker restart no longer burns a namespace id
+
+Registering a namespace used the upsert idiom on PostgreSQL and SQLite, and both engines advance
+the identity sequence before discovering the conflict — so every worker process start consumed a
+namespace id even when the namespace already existed, silently spending a per-database-lifetime
+resource on routine restarts. Registration is now update-first on both providers: a restart against
+an existing namespace allocates nothing, and only a genuinely new name takes an id. Found by this
+release's certification quorum while auditing the id width; the same audit widened `namespaces.id`
+from 16 to 32 bits (see the schema note above), so the ceiling is now ~2.1 billion deliberate
+namespace creations instead of 32,767 shared with restart churn. SQL Server's guarded insert never
+burned. The public `JobContext.NamespaceId` widened from `short` to `int` with it — a source-level
+change for handler code that stored the value in a typed variable.
+
 ### Startup verifies the database it was handed, every time
 
 Two preflights now run at `StartAsync` on every host, including — especially — hosts with
 `ApplyMigrationsOnStartup = false`, which previously skipped verification entirely and failed at
 their first query.
 
-The **migration-history preflight** requires the `baseline-1.0` stamp and a history row for every
+The **migration-history preflight** requires the `baseline-1.0.1` stamp and a history row for every
 migration the build ships. An unprovisioned database says so and names the provisioning script; a
 database from another baseline generation gets the drop-and-reprovision instruction; history rows
 the build has never heard of still pass, so an older worker starts cleanly against a newer database.

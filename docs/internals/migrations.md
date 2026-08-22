@@ -148,12 +148,16 @@ that writes a file for only that provider (a leading hole for the others is fine
 `schema reset --force` deletes every migration and the snapshot. The next `schema add` recreates the
 baseline. The one destructive command, hence `--force`-gated and pre-1.0 only.
 
-`baseline-1.0` is the last generation: the migration history froze with it, the stamp does not
+`baseline-1.0.1` is the last generation: the migration history froze with it, the stamp does not
 move again, and `schema reset` remains only as a rebuild-and-compare tool for verifying that the
 emitters still reproduce the committed baseline. Before the freeze, a re-cut was a supported move
-rather than a last resort; that era ended at rc.1. A re-cut baseline carries no translation
-migration, which is why every pre-freeze re-cut required dropping and recreating any database
-built from the previous one.
+rather than a last resort; that era ended with the rc.1 round. The `.1` is that era's honest
+ending: rc.1 certification surfaced a namespace-id sequence burn whose fix argued for widening the
+id before the freeze rather than after, so the baseline was amended once more — catching exactly
+this kind of thing is what a release candidate is for — and the stamp moved with it so no database
+provisioned from the earlier cut could silently pass as current. A re-cut baseline carries no
+translation migration, which is why every pre-freeze re-cut required dropping and recreating any
+database built from the previous one.
 
 **The stamp lives in two places and both always moved together:**
 

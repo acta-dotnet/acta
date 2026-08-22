@@ -1063,8 +1063,8 @@ abstract class Acta.JobContext
     Acta.JobRef JobRef { get; }
     System.Boolean IsOverdue { get; }
     System.Collections.Generic.IReadOnlyList<System.String> TriggeringScheduleNames { get; }
-    System.Int16 NamespaceId { get; }
     System.Int32 ExecutionNumber { get; }
+    System.Int32 NamespaceId { get; }
     System.Int32 WorkerId { get; }
     System.Int64 JobId { get; }
     System.Nullable<System.DateTime> DeadlineAtUtc { get; }
@@ -1903,9 +1903,9 @@ sealed class Acta.MisfireStrategyCodeJsonConverter
     Acta.MisfireStrategyCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.MisfireStrategyCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.NamespaceListItem
-    .ctor(System.Int16 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
+    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
     Acta.NamespaceStatusCode Status { get;init; }
-    System.Int16 NamespaceId { get;init; }
+    System.Int32 NamespaceId { get;init; }
     System.Int32 Version { get;init; }
     System.String Description { get;init; }
     System.String JobNamespace { get;init; }

@@ -65,8 +65,9 @@ internal sealed class WorkerRuntimeInitializer(
         // the provider (a scalar clock read), not the Acta schema, so it is safe this early.
         await ValidateClockSkewAsync(ns, ct);
 
-        // Namespace + worker register in one round trip (one transaction): the namespace is
-        // hash-gate-upserted (no write on an unchanged restart, no key-range locks) and this process's
+        // Namespace + worker register in one round trip (one transaction): the namespace row is updated
+        // only when its catalog hash changed and inserted only when the name is absent (an unchanged
+        // restart writes nothing, allocates no id, and takes no key-range locks) and this process's
         // worker row is appended. The worker row landing before definitions is harmless: definitions
         // only need the namespace id, which this call also returns. The in-process guard (worker
         // already in context) makes a second InitializeAsync on the SAME instance a no-op: it neither
