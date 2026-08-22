@@ -121,7 +121,22 @@ Each baseline captures comparability metadata:
 
 ## Recorded Baselines
 
-- [2026-08-22 full all-provider report](./baseline-20260822T071101Z.md): 105 cells, one warmup and
+- [2026-08-22 afternoon full all-provider report](./baseline-20260822T134457Z.md) — **the
+  `v1.0.0-rc.1` baseline**: 105 cells, one warmup and three measured repeats per cell, run on the
+  tree the tag points at, hours after the same-day morning baseline with exactly one change
+  between them: the namespace-id widening (`smallint` to `int` across nine columns per server
+  provider) and the update-first worker registration. That makes it the cleanest A/B in this file:
+  the width-immune control (SQLite, whose storage is value-sized) drifted down 6.4% over the
+  session while both widened providers stayed flat, so the widening's measurable cost is zero —
+  the width-sensitive paths (the claim index, `query-list` over 100k rows) moved inside 0.5%.
+  One honesty note: SQL Server cells below about eight executors are bistable at three repeats —
+  the same cell reads latched-slow or latched-fast within a single repeat block, independent of
+  the schema — so a [same-tree confirmation run](./baseline-20260822T143405Z.md) is published
+  beside this baseline; against the morning run it classifies zero regressions, and the one
+  suspicious throughput cell (Bulk e=32) reclassified as noise with overlapping bands. Read the
+  low-executor mssql cells from the pair, not from either file alone. Source JSON:
+  [baseline](./baseline-20260822T134457Z.json), [confirmation](./baseline-20260822T143405Z.json).
+- [2026-08-22 morning full all-provider report](./baseline-20260822T071101Z.md): 105 cells, one warmup and
   three measured repeats per cell; all 420 measurements completed, run on the `v1.0.0-rc.1`
   near-final commit the same morning as the rc.1 certification round. Compared cell-by-cell against
   the 2026-07-31 baseline: 64 cells improved, 20 unchanged, 11 inside noise bands, and one
@@ -133,8 +148,7 @@ Each baseline captures comparability metadata:
   honesty notes: the nine `enqueue-batch` cells are not comparable (the workload grew from 10k to
   500k jobs between baselines), and the environment differs from July beyond the engine version
   (both server databases moved), so treat server-provider absolutes as a new series starting here.
-  The [source JSON](./baseline-20260822T071101Z.json) contains the complete measurements and
-  environment metadata.
+  Its source JSON left the tree when the afternoon baseline superseded it; git history has it.
 - [2026-07-31 full all-provider report](./baseline-20260731T194410Z.md): 105 cells, one warmup and
   three measured repeats per cell; all 420 measurements completed. First baseline after the
   completion-batch TVP was re-keyed by request ordinal and aborted attempts became retryable, on the
