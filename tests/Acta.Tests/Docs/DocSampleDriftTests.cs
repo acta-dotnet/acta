@@ -37,6 +37,20 @@ public sealed class DocSampleDriftTests
         Assert.Contains("class WebhookJobs", DocSampleExtraction.BlockContaining(Llms, "class WebhookJobs"), StringComparison.Ordinal);
     }
 
+    [Theory]
+    // Renderers take attributes after the language, and a fence written that way is still a sample.
+    [InlineData("```csharp", true)]
+    [InlineData("```csharp title=\"Program.cs\"", true)]
+    [InlineData("```csharp {1,3-4}", true)]
+    // Everything else is another language, or another language's prefix.
+    [InlineData("```cs", false)]
+    [InlineData("```csharp-interactive", false)]
+    [InlineData("```bash", false)]
+    [InlineData("```", false)]
+    [InlineData("Program.cs```csharp", false)]
+    public void A_fence_carries_a_sample_when_its_info_string_opens_with_the_language(string line, bool opens) =>
+        Assert.Equal(opens, DocSampleExtraction.OpensCSharpFence(line));
+
     [Fact]
     public void The_first_run_program_is_byte_identical_in_every_door()
     {

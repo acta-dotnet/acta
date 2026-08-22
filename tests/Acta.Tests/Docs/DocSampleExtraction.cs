@@ -21,6 +21,10 @@ public static partial class DocSampleExtraction
     /// <summary>Opening line of the first-run program; the marker that identifies it in any document.</summary>
     public const string FirstRunMarker = "using Shipping;";
 
+    /// <summary>The fence delimiter, and the language whose fences carry the samples the gates read.</summary>
+    private const string Fence = "```";
+    private const string FenceLanguage = "csharp";
+
     /// <summary>Repository root, located by walking up from the running assembly to Acta.slnx.</summary>
     public static string RepoRoot { get; } = ResolveRepoRoot();
 
@@ -86,6 +90,17 @@ public static partial class DocSampleExtraction
     /// <summary>Line-ending normalization plus trailing-blank trim: what "byte-identical" means here.</summary>
     public static string Normalize(string text) => text.Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
 
+    /// <summary>
+    /// Whether a trimmed line opens a C# fence. A fence's info string is the language followed by
+    /// whatever attributes the renderer understands (<c>```csharp title="Program.cs"</c>), so only its
+    /// first whitespace-separated token names the language. Matching the whole line instead made an
+    /// attributed fence invisible to every gate at once: neither the drift tests nor the compile
+    /// extractor could see the sample, so an uncompilable one would ship unnoticed.
+    /// </summary>
+    public static bool OpensCSharpFence(string line) =>
+        line.StartsWith(Fence, StringComparison.Ordinal)
+        && line[Fence.Length..].Split(default(char[]), StringSplitOptions.RemoveEmptyEntries) is [FenceLanguage, ..];
+
     private static IReadOnlyList<string> CSharpFences(string text)
     {
         var blocks = new List<string>();
@@ -96,13 +111,13 @@ public static partial class DocSampleExtraction
             var line = lines[i].Trim();
             if (open < 0)
             {
-                if (line == "```csharp")
+                if (OpensCSharpFence(line))
                 {
                     open = i + 1;
                 }
                 continue;
             }
-            if (line == "```")
+            if (line == Fence)
             {
                 blocks.Add(Normalize(string.Join('\n', lines[open..i])));
                 open = -1;
