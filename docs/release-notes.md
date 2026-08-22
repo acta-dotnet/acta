@@ -378,25 +378,30 @@ turns the refusal into one logged warning for hosts that validated the newer dri
 
 ### Certification: four gates and a burst, all sealed
 
-The four chaos gates ran on the near-final rc.1 commit on 2026-08-22, after the adversarial review
-wave, and file under `docs/certification/`:
+The four chaos gates ran on the near-final rc.1 commit on 2026-08-22 — after the adversarial
+review wave, and again after the namespace-id widening that wave forced — and file under
+`docs/certification/`:
 
-- **`seal-20260822T042959Z.md` — PostgreSQL standard** (10,000 jobs, 64 slots, 7-minute kill
+- **`seal-20260822T090713Z.md` — PostgreSQL standard** (10,000 jobs, 64 slots, 7-minute kill
   window): PASS — 15,000 of 15,000 rows terminal Succeeded, 5,000 outbox rows staged during the
-  chaos and every one drained and delivered.
-- **`seal-20260822T044405Z.md` — SQL Server standard**: PASS at the same shape, with job, step,
-  and receipt totals identical to PostgreSQL's to the row.
-- **`seal-20260822T050227Z.md` — SQLite**: PASS at 48 slots on one WAL file shared by six
-  processes, reduced scope stated on its face.
-- **`seal-20260822T051714Z.md` — the 3-participant / 2-namespace ensemble**: PASS, and the
-  strongest at-most-once evidence Acta has recorded: **47 of 400 charges killed mid-body, none
-  ever run twice**, each terminalized as honestly ambiguous rather than confidently re-charged.
+  chaos and every one drained and delivered. Its close-out carries the burn fix's before/after:
+  80 worker starts left the namespace allocator at 81 on the old tree and at 2 on this one.
+- **`seal-20260822T092143Z.md` — SQL Server standard**: PASS at the same shape, with job, step,
+  and receipt totals identical to PostgreSQL's to the row — and an allocator at 2 in both rounds,
+  the negative control that proves the other engines' movement is the fix.
+- **`seal-20260822T113834Z.md` — SQLite**: PASS at 48 slots on one WAL file shared by six
+  processes, reduced scope stated on its face; allocator 79 before the fix, 2 after, at identical
+  78 worker starts.
+- **`seal-20260822T115015Z.md` — the 3-participant / 2-namespace ensemble**: PASS, with
+  non-vacuous at-most-once evidence: **43 of 400 charges killed mid-body, none ever run twice**,
+  each terminalized as honestly ambiguous rather than confidently re-charged.
   `namespace-isolation` held at zero rows with a second namespace live and being killed beside
-  the first.
+  the first — and the pre-fix control run even showed the burn as seven visible holes in the
+  namespace id space, the only shape where it left gaps rather than a runaway sequence.
 
 The alert pipeline has its own certification this release (`burst-rc1.md`): a 10,000-event backlog
 projects in **one invocation** and drains in about twelve seconds against the two-minute budget on
-every provider; 100,000 events drain in ten invocations at a 110–122 MB peak working set with the
+every provider; 100,000 events drain in ten invocations at a 113–133 MB peak working set with the
 dashboard's alert list still answering in tens of milliseconds. Five runs, five passes — which is
 also the decision the plan tied to this gate: the batched-alert-SQL fallback stays unbuilt.
 

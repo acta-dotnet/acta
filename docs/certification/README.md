@@ -20,10 +20,10 @@ drains in seconds, and a 100,000 backlog drains under bounded memory.
 
 | Seal | Shape | Released in |
 | --- | --- | --- |
-| [seal-20260822T051714Z](./seal-20260822T051714Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v1.0.0-rc.1` (near-final commit) |
-| [seal-20260822T050227Z](./seal-20260822T050227Z.md) | SQLite standard, one WAL file, 48 slots | `v1.0.0-rc.1` (near-final commit) |
-| [seal-20260822T044405Z](./seal-20260822T044405Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v1.0.0-rc.1` (near-final commit) |
-| [seal-20260822T042959Z](./seal-20260822T042959Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots | `v1.0.0-rc.1` (near-final commit) |
+| [seal-20260822T115015Z](./seal-20260822T115015Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v1.0.0-rc.1` (near-final commit) |
+| [seal-20260822T113834Z](./seal-20260822T113834Z.md) | SQLite standard, one WAL file, 48 slots | `v1.0.0-rc.1` (near-final commit) |
+| [seal-20260822T092143Z](./seal-20260822T092143Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v1.0.0-rc.1` (near-final commit) |
+| [seal-20260822T090713Z](./seal-20260822T090713Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots | `v1.0.0-rc.1` (near-final commit) |
 | [seal-20260816T090216Z](./seal-20260816T090216Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v0.9.0-beta.1` (release commit) |
 | [seal-20260816T085003Z](./seal-20260816T085003Z.md) | SQLite standard, one WAL file, 48 slots | `v0.9.0-beta.1` (release commit) |
 | [seal-20260816T083231Z](./seal-20260816T083231Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v0.9.0-beta.1` (release commit) |
@@ -34,9 +34,15 @@ drains in seconds, and a 100,000 backlog drains under bounded memory.
 | [seal-20260812T101351Z](./seal-20260812T101351Z.md) | 1,000,000 jobs, PostgreSQL | `v0.9.0-beta.1` (pre-release commit) |
 
 The 2026-08-22 quartet is the `v1.0.0-rc.1` round: all four gates on the near-final commit
-`e016156`, after the release candidate's adversarial review wave. This round's ensemble carries the
-strongest at-most-once evidence yet — 47 of 400 charges killed mid-body, none ever run twice — and
-its PostgreSQL seal states what changed in the certified tree since 0.9.0.
+`a38af45`, after the release candidate's adversarial review wave and the namespace-id decision that
+wave forced — the rc's own quorum found worker restarts burning namespace-sequence ids on
+PostgreSQL and SQLite, the fix and the smallint-to-int widening re-cut the baseline to stamp
+`baseline-1.0.1`, and this round certifies the widened tree. Its distinctive evidence is the
+three-provider burn table (allocator 81→2 on PostgreSQL, 79→2 on SQLite, 2→2 on the never-burned
+SQL Server as negative control), and its ensemble carries the strongest at-most-once evidence yet:
+43 of 400 charges killed mid-body, none ever run twice. An earlier same-day round on the
+pre-widening tree passed the same four gates; its seals were superseded by this round and left the
+tree, as the policy above describes.
 
 The 2026-08-16 quartet is the `v0.9.0-beta.1` release evidence: all four gates on the release
 commit, the SQLite gate having caught a real one-in-ten-thousand defect on its first run and passed
