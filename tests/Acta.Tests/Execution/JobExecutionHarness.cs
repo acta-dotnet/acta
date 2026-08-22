@@ -32,6 +32,10 @@ internal sealed class JobExecutionHarness(
     private const int WorkerId = 7;
 
     private readonly CancellationTokenSource _attemptCts = new();
+
+    // The execution-timeout source. In production JobExecutor links it into the attempt token, so
+    // firing the timeout cancels the attempt; TimeOutAttempt below reproduces that pairing.
+    private readonly CancellationTokenSource _timeoutCts = new();
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction);
 
     /// <summary>Every completion command the runner handed the store, in submission order.</summary>
@@ -42,6 +46,17 @@ internal sealed class JobExecutionHarness(
 
     /// <summary>The single completion command, for the pins that expect exactly one.</summary>
     public CompleteExecutionRequest Completion => Assert.Single(Submitted);
+
+    /// <summary>
+    /// Fires this attempt's execution timeout the way the production watchdog does: the timeout source
+    /// is cancelled, which cancels the attempt token linked to it. Call from inside a handler; the
+    /// handler must then observe its token, exactly as a cooperative handler does in production.
+    /// </summary>
+    public void TimeOutAttempt()
+    {
+        _timeoutCts.Cancel();
+        _attemptCts.Cancel();
+    }
 
     /// <summary>
     /// Runs one attempt. The default handler invokes <c>ctx.RunStepAsync</c> once with a body that
@@ -64,18 +79,23 @@ internal sealed class JobExecutionHarness(
             signalStore: null!,
             alerts: null!,
             executionStore: _store,
-            new UnusedSerializers(),
+            new HarnessSerializers(),
             new UnusedLockStore(),
             cancellationToken: _attemptCts.Token,
             triggeringScheduleNames: [],
             deadlineAtUtc: null,
+            // The two the production JobExecutor supplies and this harness used to default away:
+            // without the cap a handler write is unbounded here but bounded in production, and
+            // without the attempt every timeout reads as a plain external cancel.
+            maxInlinePayloadBytes: options.Value.MaxInlinePayloadBytes,
+            runningAttempt: new RunningAttempt(_attemptCts, _timeoutCts),
             workerId: WorkerId
         );
 
         var execution = new JobExecution(
             jobStore: null!,
             _store,
-            new UnusedSerializers(),
+            new HarnessSerializers(),
             options,
             new JobBehaviorPipeline([]),
             new WorkerWakeupPublisher(new InProcessWakeup())
@@ -262,13 +282,15 @@ internal sealed class JobExecutionHarness(
         public object? GetService(Type serviceType) => null;
     }
 
-    // The attempt carries no payload and takes no lock, so these two ports are constructor ceremony
-    // only; throwing keeps an accidental dependency from passing silently.
-    private sealed class UnusedSerializers : IJobPayloadSerializerRegistry
+    // The attempt itself carries no payload, but a handler can write a variable or progress value, and
+    // those go through the real JSON serializer so the inline-size cap is reached the way production
+    // reaches it. Every other format still throws, keeping an accidental dependency visible.
+    private sealed class HarnessSerializers : IJobPayloadSerializerRegistry
     {
-        public IJobPayloadSerializer Resolve(byte formatId) => throw new NotSupportedException();
+        public IJobPayloadSerializer Resolve(byte formatId) =>
+            formatId == JobPayloadFormat.Json.Id ? JsonJobPayloadSerializer.Default : throw new NotSupportedException();
 
-        public bool IsRegistered(byte formatId) => false;
+        public bool IsRegistered(byte formatId) => formatId == JobPayloadFormat.Json.Id;
     }
 
     private sealed class UnusedLockStore : ILockStore
