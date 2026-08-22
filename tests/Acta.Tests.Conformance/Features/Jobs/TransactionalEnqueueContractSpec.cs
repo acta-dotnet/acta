@@ -180,7 +180,7 @@ public abstract class TransactionalEnqueueContractSpec<TFixture> : ActaRuntimeTe
 
         // A real provider connection (so the provider match passes) that has been closed, wrapped so the
         // transaction still reports it - the connection-not-open branch fires before any command.
-        var conn = await Db.OpenConnectionAsync(ct);
+        await using var conn = await Db.OpenConnectionAsync(ct);
         await conn.CloseAsync();
         await using var tx = new WrappingCallerTransaction(conn);
 
