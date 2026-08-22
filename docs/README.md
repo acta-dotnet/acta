@@ -57,6 +57,7 @@ Contributor-facing; not needed to use Acta: [design principles and settled decis
 [architecture diagrams](./technical/architecture-diagrams.md), [migration tooling](./internals/migrations.md),
 [releasing](./internals/releasing.md), [naming conventions](./internals/naming-conventions.md),
 [benchmarks](./benchmarks/stress-tests.md),
+[certification seals](./certification/README.md),
 [modular architecture](./internals/modular-architecture.md),
 [operator surface](./internals/operator-surface.md), and
 design decisions: [incident response](./designs/incident-response.md).
