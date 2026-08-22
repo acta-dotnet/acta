@@ -173,6 +173,16 @@ and cannot widen without a breaking schema change, so anything that creates name
 should treat them as a finite budget. SQLite's `namespaces.id` is a 64-bit `AUTOINCREMENT` with no
 practical ceiling; 32,767 is the portable limit.
 
+Microsoft.Data.Sqlite (verified in 10.0.11 and on its `main`) carries an unsynchronized enumeration
+in `SqliteConnection.Deactivate`: returning a pooled connection walks the custom-function dictionary
+with no lock, so a concurrent reclaim can fault inside the driver. A plain user never sees it — the
+dictionary is empty unless `CreateFunction` was called — but Acta registers its `acta_blob` and
+`acta_error` functions on every open, which makes the upstream race reachable. Acta makes it
+reachable; it does not cause it. Observed only as a rare test-suite fault under heavy cross-process
+parallelism, never reproduced in isolation, and rc.1 deliberately changes nothing for it: the
+fault sits in the driver's pool, and `Pooling=false` would trade it for a fresh native open per
+connection, a real cost that would need benchmarking first.
+
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.
 
