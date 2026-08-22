@@ -36,6 +36,34 @@ public sealed class JobExecutionOwnershipTests
     }
 
     [Fact]
+    public async Task Stale_step_version_recording_a_failed_body_aborts_rather_than_reporting_the_body()
+    {
+        // The other half of the ownership pair, and the one no test reached: the step body threw, and the
+        // CAS that would have RECORDED that failure found a stale version. Nothing durable was written,
+        // so the business failure is not this attempt's to report - reporting JobUnhandledException here
+        // would attribute a failure the ledger never accepted, and burn a retry against a budget the
+        // routine never decremented. The abort must win over both the retry signal and exhaustion.
+        var harness = new JobExecutionHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion);
+
+        var outcome = await harness.RunAsync(
+            static (ctx, token) =>
+                ctx.RunStepAsync(
+                    JobExecutionHarness.StepName,
+                    static _ => Task.FromException(new InvalidOperationException("boom")),
+                    ct: token
+                )
+        );
+
+        var completion = harness.Completion;
+        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
+        Assert.Equal(JobEventReasonCode.JobAttemptAborted, completion.JobEventReasonCode);
+        Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
+        Assert.DoesNotContain("boom", completion.ReasonMessage, StringComparison.Ordinal);
+        Assert.Equal((byte)ExecutionStatusCode.Rescheduled, completion.RescheduleStatusCode);
+    }
+
+    [Fact]
     public async Task Stale_step_version_past_the_budget_lands_terminal_with_the_reason_kept()
     {
         // Budget of one: the same abort that re-armed above is out of retries, so it lands terminal.
