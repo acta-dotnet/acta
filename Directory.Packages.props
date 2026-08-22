@@ -63,5 +63,9 @@
     <PackageVersion Include="xunit.v3.core" Version="3.2.2" />
     <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <!-- Coverage instrumentation for the two suites the coverage leg measures (unit + SQLite
+         conformance). Referenced only by those two projects, PrivateAssets=all: it is a VSTest
+         data collector, never a dependency of anything that ships. -->
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
   </ItemGroup>
 </Project>

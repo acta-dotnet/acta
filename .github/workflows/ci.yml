@@ -138,6 +138,42 @@ jobs:
         run: dotnet build Acta.slnx -c Release --no-restore /p:ActaDashboardSkipNpm=true
       - name: Test
         run: dotnet test Acta.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx
+      # Coverage is published, never gated. There is no threshold here and no percentage to go red,
+      # deliberately: a target invites gaming - tests written to colour lines rather than to falsify
+      # behaviour - and the number would then certify the gaming. The deliverable of this leg is the
+      # blind-spot list in docs/certification/coverage-baseline-rc1.md, which names the concurrency
+      # and failure paths nothing exercises. Read the list, not the percentage.
+      #
+      # Two suites only (unit + SQLite conformance), re-run instrumented inside this job so the
+      # already-built solution and the already-warm NuGet cache are reused. The PG/MSSQL/Redis legs
+      # are NOT instrumented: they are the slow part of this job, and doubling them would double the
+      # pipeline for numbers the merged report gains little from. tests/Acta.coverage.runsettings
+      # carries no connection strings, so this step measures the same surface on a laptop.
+      - name: Coverage (unit + SQLite)
+        shell: pwsh
+        run: tools/coverage.ps1 -NoBuild
+      - name: Coverage summary
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path artifacts/coverage/SummaryGithub.md) {
+            Get-Content artifacts/coverage/SummaryGithub.md | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
+      # The merged Cobertura plus the two summaries, not the HTML render. tools/coverage.ps1 also
+      # writes ~450 HTML pages (~90 MB, mostly embedded source) which are worth having on a laptop
+      # and not worth uploading on every run; anyone who wants them regenerates from this Cobertura,
+      # or just runs the script.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: coverage
+          path: |
+            artifacts/coverage/Cobertura.xml
+            artifacts/coverage/Summary.txt
+            artifacts/coverage/SummaryGithub.md
+          # warn (not error): a failure before the coverage step leaves no report, and an always()
+          # upload must not turn that into a second, misleading failure.
+          if-no-files-found: warn
       - name: Capture database logs
         if: failure()
         run: docker compose logs --no-color > db-logs.txt

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Settings for the coverage leg only (tools/coverage.ps1 and the CI "Coverage" step).
+
+  Deliberately carries NO database connection strings, unlike Acta.runsettings. The coverage leg
+  measures the unit suite plus the SQLite conformance suite, and both run with no container: SQLite
+  is a file, and the unit suite skips its Redis / PostgreSQL / SQL Server / NativeAOT cases when the
+  env vars are absent. That makes the measured surface the same on a laptop and on the runner, and
+  keeps the leg off the PG/MSSQL critical path.
+
+  The consequence is written into the baseline document: provider code that only a PostgreSQL or
+  SQL Server session reaches is uncovered here by construction, not by neglect.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <!-- Measure the shipped libraries only. Acta.Tests also references Anvil.Bench and
+               Acta.Emit as projects, so an assembly allow-list is what keeps the harness and the
+               bench out of the numbers. Acta.Generators is included: it ships in the SDK package
+               and the unit suite drives it through Roslyn. -->
+          <Include>
+            [Acta]*,[Acta.Runtime]*,[Acta.Relational]*,[Acta.AspNetCore]*,[Acta.Postgres]*,[Acta.Sqlite]*,[Acta.SqlServer]*,[Acta.Redis]*,[Acta.Testing]*,[Acta.Generators]*
+          </Include>
+          <ExcludeByAttribute>
+            Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute
+          </ExcludeByAttribute>
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>false</UseSourceLink>
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <SkipAutoProps>true</SkipAutoProps>
+          <DeterministicReport>false</DeterministicReport>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
