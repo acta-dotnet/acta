@@ -121,13 +121,26 @@ Each baseline captures comparability metadata:
 
 ## Recorded Baselines
 
+- [2026-08-22 full all-provider report](./baseline-20260822T071101Z.md): 105 cells, one warmup and
+  three measured repeats per cell; all 420 measurements completed, run on the `v1.0.0-rc.1`
+  near-final commit the same morning as the rc.1 certification round. Compared cell-by-cell against
+  the 2026-07-31 baseline: 64 cells improved, 20 unchanged, 11 inside noise bands, and one
+  regression — `query-list` on SQL Server at 100k rows, attributable to the host's SQL Server
+  2019 → 2022 engine upgrade rather than to Acta (it appears in an intermediate run six days before
+  any rc.1 commit; PostgreSQL and SQLite `query-list` are flat). The headline is SQLite's `Bulk`
+  profile: +228% to +282% throughput now that Bulk selects the same relaxed fsync as Direct, with
+  the claim-index `status_code` change showing up as 40-56% lower latency across most cells. Two
+  honesty notes: the nine `enqueue-batch` cells are not comparable (the workload grew from 10k to
+  500k jobs between baselines), and the environment differs from July beyond the engine version
+  (both server databases moved), so treat server-provider absolutes as a new series starting here.
+  The [source JSON](./baseline-20260822T071101Z.json) contains the complete measurements and
+  environment metadata.
 - [2026-07-31 full all-provider report](./baseline-20260731T194410Z.md): 105 cells, one warmup and
   three measured repeats per cell; all 420 measurements completed. First baseline after the
   completion-batch TVP was re-keyed by request ordinal and aborted attempts became retryable, on the
   `init-ordinal-tvp-v1` schema baseline. A targeted interleaved A/B on the SQL Server Bulk drain
-  cells around that change measured it as neutral. The
-  [source JSON](./baseline-20260731T194410Z.json) contains the complete measurements and
-  environment metadata.
+  cells around that change measured it as neutral. Its source JSON left the tree when the
+  2026-08-22 baseline became the newest; git history has it.
 - [2026-07-19 full all-provider report](./baseline-20260719T135917Z.md): 105 cells, one warmup and
   three measured repeats per cell; all 420 measurements completed. First baseline with the SQL Server
   container started with `-T3979` (see docker-compose.yml), which removes the Linux-only forced
