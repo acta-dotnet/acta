@@ -344,8 +344,8 @@ public enum AlertChannelValidationMode : byte
 /// JobsOptions.ExecutionProfile. On networked providers (Postgres, SQL Server), Buffered and Direct
 /// keep per-job completion durable. Bulk relaxes completion durability by batching successful terminal
 /// writes, so a crash can re-run handler work whose completion was not flushed. On SQLite, Direct
-/// additionally sets PRAGMA synchronous = NORMAL (vs FULL on Buffered), trading a power-loss window
-/// for far fewer commit fsyncs.
+/// and Bulk (which degrades to Direct there) additionally set PRAGMA synchronous = NORMAL (vs FULL
+/// on Buffered), trading a power-loss window for far fewer commit fsyncs.
 /// </summary>
 public enum ExecutionProfile : byte
 {

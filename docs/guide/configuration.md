@@ -152,7 +152,9 @@ visible state.
 `Direct` claims straight into execution. It removes the `Dispatched` visibility window and reduces
 round trips while keeping per-job completion durable on SQL Server and PostgreSQL. On SQLite, Direct
 also uses SQLite's faster synchronous mode, appropriate for local and embedded scenarios where that
-tradeoff is accepted.
+tradeoff is accepted. `Bulk` on SQLite degrades to `Direct` in full — no completion batching exists
+there, and it selects the same relaxed synchronous mode — see
+[known limitations](../technical/known-limitations.md#storage-and-providers).
 
 `Bulk` is Direct plus group-committed completions. The handler may finish successfully before Acta
 flushes the completion batch; if the process crashes in that window, recovery sees the job as still

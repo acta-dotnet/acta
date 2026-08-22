@@ -147,11 +147,11 @@ distributed multi-worker deployments.
 On SQLite the `Bulk` execution profile degrades to `Direct`, silently. Group-committed completions
 need a batched-completion routine, and the SQLite provider has none, so the completion buffer is
 never created: the worker runs `Direct`'s combined claim-execute loop and commits every completion per
-job. Nothing logs the downgrade and no setting rejects it. The result is correct and fully durable,
-but it performs like `Direct`, not like `Bulk`, and one detail differs even from asking for `Direct`
-outright: the relaxed commit fsync `Direct` selects on SQLite (`PRAGMA synchronous = NORMAL`) is
-keyed on the configured profile, so a worker configured for `Bulk` keeps `FULL`. Configure `Direct`
-explicitly when the target is SQLite.
+job. Nothing logs the downgrade and no setting rejects it. The degradation is complete: a `Bulk`
+worker on SQLite gets `Direct`'s behavior on both axes, including the relaxed commit fsync
+(`PRAGMA synchronous = NORMAL`) that `Direct` selects there — you asked for relaxed durability in
+exchange for throughput, and relaxed durability is the half SQLite can honor. The result is correct
+and durable to `Direct`'s standard; it simply performs like `Direct`, not like `Bulk`.
 
 On SQLite, a `JobId` returned by a transactional enqueue that then rolls back is handed out again.
 `sqlite_sequence`, which backs `AUTOINCREMENT`, is an ordinary table, so the counter is rolled back with
