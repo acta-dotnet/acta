@@ -634,13 +634,13 @@
       <p class="record">Numbers &amp; boundaries</p>
       <h2>Measured, not promised.</h2>
       <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">38,079</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">145,806</a></b><span>jobs/s batch enqueue · Postgres</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260731T194410Z.md" style="text-decoration:none">6.1 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260822T134457Z.md" style="text-decoration:none">39,931</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260822T134457Z.md" style="text-decoration:none">212,930</a></b><span>jobs/s batch enqueue · Postgres · 500k-job fleet insert</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260822T134457Z.md" style="text-decoration:none">3.4 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">1,000,000 / 1,000,000</a></b><span>jobs succeeded while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
         <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>
-      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 0.2.0-alpha.1, for regression tracking and rough sizing, not capacity claims.</p>
+      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 1.0.0-rc.1 on the tagged tree, for regression tracking and rough sizing, not capacity claims.</p>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
         <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
