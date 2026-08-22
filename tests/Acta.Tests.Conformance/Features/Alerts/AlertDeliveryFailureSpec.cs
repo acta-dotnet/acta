@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Alerting;
 using Acta.Runtime.Modules.Alerting.Api;
@@ -51,6 +52,11 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
     // The reminder spacing these passes settle with; a fact that wants the reminder to come round moves
     // the row's instant itself rather than waiting.
     private static readonly TimeSpan ReminderInterval = TimeSpan.FromHours(24);
+
+    // Half a unit of rounding either way at the coarsest instant the three providers store (whole
+    // milliseconds on SQL Server's datetime2(3) and on SQLite's epoch-ms), rounded up to one whole unit.
+    // This is the only slack in the reminder assertion; everything else about it is measured.
+    private static readonly TimeSpan ProviderInstantPrecision = TimeSpan.FromMilliseconds(1);
 
     // Staging instants for "already come round" and "not for a long while", picked far enough from any
     // real or fake clock in play that neither can drift into the other.
@@ -259,11 +265,11 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         await SeedChannelAsync(Db, "ch-log", "log", ct);
         await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
 
-        await RunDeliveryAsync(maxRetries: 5, ct);
+        var firstPass = await RunDeliveryAsync(maxRetries: 5, ct);
         var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
         // The settlement wrote the next notification's instant, one interval out on the job's own clock.
-        AssertScheduledOneIntervalOut(delivered.RetryAfterUtc);
+        AssertScheduledOneIntervalOut(delivered.RetryAfterUtc, firstPass);
 
         // Before it comes round, a pass re-sends nothing. (Staging the instant writes only that column,
         // so an unchanged version is proof the pass itself did nothing.)
@@ -275,13 +281,14 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         // own settlement schedules the one after it, so the cadence continues without any other input.
         await ScheduleAsync(delivered.Id, LongPast, ct);
         var due = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        await RunDeliveryAsync(maxRetries: 5, ct);
+        var reminderPass = await RunDeliveryAsync(maxRetries: 5, ct);
 
         var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, reminded.DeliveryStatusCode);
         Assert.Equal((byte)0, reminded.RetryCount);
         Assert.Equal(due.Version + 1, reminded.Version);
-        AssertScheduledOneIntervalOut(reminded.RetryAfterUtc);
+        // Bounded by the pass that wrote it, not the one before: each settlement measures from its own.
+        AssertScheduledOneIntervalOut(reminded.RetryAfterUtc, reminderPass);
     }
 
     [Fact(DisplayName = "A reminder is stamped from the settlement, not from the instant the pass began")]
@@ -296,7 +303,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         // budget of its own, and delivery adds a transport round trip per row - here, a transport that
         // takes a moment, which is the only thing this staging needs to be true.
         var passStart = Clock.Now;
-        await RunDeliveryAsync(maxRetries: 5, ct);
+        var pass = await RunDeliveryAsync(maxRetries: 5, ct);
 
         // So the reminder sits strictly past one interval from the instant the pass began, by whatever
         // the send cost. Measured from that instant instead it would land exactly on it, having eaten
@@ -307,6 +314,16 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         Assert.True(
             delivered.RetryAfterUtc > passStart + ReminderInterval,
             $"expected a reminder past {passStart + ReminderInterval:O}, found {delivered.RetryAfterUtc:O}"
+        );
+
+        // And past it by the send, not by an unbounded amount: the settlement's offset is time this pass
+        // actually spent, so the measured duration caps it however slow the machine underneath is. Same
+        // reasoning as AssertScheduledOneIntervalOut - the elapsed time is measured, never tolerated.
+        var settledAtLatest = passStart + ReminderInterval + pass + ProviderInstantPrecision;
+        Assert.True(
+            delivered.RetryAfterUtc <= settledAtLatest,
+            $"expected a reminder no later than {settledAtLatest:O} (a settlement inside a {pass.TotalMilliseconds:F1} ms pass), "
+                + $"found {delivered.RetryAfterUtc:O}"
         );
     }
 
@@ -341,11 +358,11 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         await SeedChannelAsync(Db, "ch-manual", MissingKind, ct);
         await RaiseAlertAsync(Db, "ch-manual", jobId: null, ct, AlertOriginCode.Manual);
 
-        await RunDeliveryAsync(maxRetries: 5, ct);
+        var failingPass = await RunDeliveryAsync(maxRetries: 5, ct);
         var failed = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, failed.DeliveryStatusCode);
         // Origin does not exempt a failed send: nobody has been told yet, so it is scheduled to try again.
-        AssertScheduledOneIntervalOut(failed.RetryAfterUtc);
+        AssertScheduledOneIntervalOut(failed.RetryAfterUtc, failingPass);
 
         // The instant comes round with the transport now available, and the alert finally lands.
         await ScheduleAsync(failed.Id, LongPast, ct);
@@ -468,7 +485,14 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             ct
         );
 
-    private Task RunDeliveryAsync(int maxRetries, CancellationToken ct)
+    /// <summary>
+    /// Runs one pass and returns the wall time it took. The pass stamps its settlements from a monotonic
+    /// offset off the clock it read on entry, so that elapsed time is not noise a fact has to tolerate -
+    /// it is the exact quantity a reminder instant carries, and measuring it here is what lets
+    /// <see cref="AssertScheduledOneIntervalOut"/> bound the answer instead of guessing at it. Measured
+    /// around the whole call, so it can only over-cover the settlement's own offset, never under-cover it.
+    /// </summary>
+    private async Task<TimeSpan> RunDeliveryAsync(int maxRetries, CancellationToken ct)
     {
         var alerts = new AlertsJob(
             Services.GetRequiredService<IAlertStore>(),
@@ -477,7 +501,10 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             Services.GetRequiredService<IAlertTransportRegistry>(),
             Options.Create(new JobsOptions { AlertDeliveryMaxRetries = maxRetries, AlertReminderInterval = ReminderInterval })
         );
-        return alerts.Handle(BuildAlertsCtx(), ct);
+
+        var started = Stopwatch.GetTimestamp();
+        await alerts.Handle(BuildAlertsCtx(), ct);
+        return Stopwatch.GetElapsedTime(started);
     }
 
     // Moves the row's scheduled instant, which is how these facts travel in time. The delivery read
@@ -490,15 +517,24 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             await Db.From<JobAlert>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new JobAlert { RetryAfterUtc = whenUtc }, ct)
         );
 
-    // The settlement scheduled the next notification one interval past the job's clock. Compared with a
-    // tolerance because the three providers store the instant at different precisions, and because the
-    // settlement measures from itself rather than from the instant the pass read the clock.
-    private void AssertScheduledOneIntervalOut(DateTime? scheduledUtc)
+    /// <summary>
+    /// The settlement scheduled the next notification one interval past the instant it settled - which is
+    /// the instant the pass read the clock plus however long the pass then took, never the clock read
+    /// alone (<c>AlertSettlementClock</c>). The window is therefore bounded by
+    /// <paramref name="passDuration"/>, the wall time this spec measured around that very pass, rather
+    /// than by a tolerance: an upper edge that is the real elapsed time is exact, while a fixed one is
+    /// only a bet on how fast the machine is. A bet is what this used to be, and a loaded runner that
+    /// spent 1.1 s inside one pass called a correct reminder wrong.
+    /// </summary>
+    private void AssertScheduledOneIntervalOut(DateTime? scheduledUtc, TimeSpan passDuration)
     {
         Assert.NotNull(scheduledUtc);
+        var settledAtEarliest = Clock.Now + ReminderInterval - ProviderInstantPrecision;
+        var settledAtLatest = Clock.Now + ReminderInterval + passDuration + ProviderInstantPrecision;
         Assert.True(
-            (scheduledUtc!.Value - (Clock.Now + ReminderInterval)).Duration() < TimeSpan.FromSeconds(1),
-            $"expected a reminder about {Clock.Now + ReminderInterval:O}, found {scheduledUtc:O}"
+            scheduledUtc!.Value >= settledAtEarliest && scheduledUtc.Value <= settledAtLatest,
+            $"expected a reminder in [{settledAtEarliest:O}, {settledAtLatest:O}] - one interval past a settlement inside a "
+                + $"{passDuration.TotalMilliseconds:F1} ms pass - found {scheduledUtc:O}"
         );
     }
 
