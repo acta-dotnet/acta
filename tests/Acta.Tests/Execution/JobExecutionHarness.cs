@@ -4,6 +4,7 @@ using Acta.Runtime.Modules.Execution.ChildLatches;
 using Acta.Runtime.Modules.Execution.Timers;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -23,7 +24,8 @@ internal sealed class JobExecutionHarness(
     bool cancelAttemptOnStepCompletion = false,
     short maxAttempts = 3,
     short failureCount = 0,
-    int? maxInlinePayloadBytes = null
+    int? maxInlinePayloadBytes = null,
+    StartExecutionAction startAction = StartExecutionAction.Started
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -37,10 +39,17 @@ internal sealed class JobExecutionHarness(
     // The execution-timeout source, handed to the RunningAttempt so a cancellation can be told from an
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
-    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction);
+    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction);
+    private readonly RecordingLogger _log = new();
 
     /// <summary>Every completion command the runner handed the store, in submission order.</summary>
     public IReadOnlyList<CompleteExecutionRequest> Submitted => _store.Submitted;
+
+    /// <summary>Every log line the runner wrote, for the arms whose whole contract is what they say.</summary>
+    public IReadOnlyList<LogEntry> Log => _log.Entries;
+
+    /// <summary>Whether the attempt ever reached <c>start_step</c>, i.e. whether the handler ran at all.</summary>
+    public bool HandlerRan => _store.StartedSteps.Count > 0;
 
     /// <summary>The subset whose completion CAS matched a row; a NotOwner answer writes nothing.</summary>
     public IReadOnlyList<CompleteExecutionRequest> Applied => _store.Applied;
@@ -109,7 +118,8 @@ internal sealed class JobExecutionHarness(
             new HarnessSerializers(),
             options,
             new JobBehaviorPipeline([]),
-            new WorkerWakeupPublisher(new InProcessWakeup())
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            _log
         );
 
         return await execution.RunAsync(
@@ -172,14 +182,19 @@ internal sealed class JobExecutionHarness(
 
     // The scripted store. Only the five calls one attempt makes are implemented; everything else
     // throws so a future change that starts leaning on another port is visible rather than silent.
-    private sealed class ScriptedExecutionStore(CompleteStepOutcomeCode stepOutcome, CompleteExecutionAction completionAction)
-        : IExecutionStore
+    private sealed class ScriptedExecutionStore(
+        CompleteStepOutcomeCode stepOutcome,
+        CompleteExecutionAction completionAction,
+        StartExecutionAction startAction
+    ) : IExecutionStore
     {
         private readonly List<CompleteExecutionRequest> _submitted = [];
         private readonly List<CompleteExecutionRequest> _applied = [];
+        private readonly List<string> _startedSteps = [];
 
         public IReadOnlyList<CompleteExecutionRequest> Submitted => _submitted;
         public IReadOnlyList<CompleteExecutionRequest> Applied => _applied;
+        public IReadOnlyList<string> StartedSteps => _startedSteps;
 
         // Fires as complete_step answers, so a test can model the heartbeat cancelling the attempt
         // token the instant the slot is proven stolen.
@@ -192,10 +207,12 @@ internal sealed class JobExecutionHarness(
             int expectedVersion,
             int leaseTtlSeconds,
             CancellationToken ct
-        ) => Task.FromResult(StartExecutionAction.Started);
+        ) => Task.FromResult(startAction);
 
-        public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
-            Task.FromResult(
+        public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct)
+        {
+            _startedSteps.Add(name);
+            return Task.FromResult(
                 new StartStepDecision(
                     StartStepOutcomeCode.Invoke,
                     AttemptNumber: 1,
@@ -207,6 +224,7 @@ internal sealed class JobExecutionHarness(
                     ReasonMessage: null
                 )
             );
+        }
 
         public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct)
         {
@@ -284,6 +302,27 @@ internal sealed class JobExecutionHarness(
 
         public Task<SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
             throw new NotSupportedException();
+    }
+
+    /// <summary>One line the runner wrote: enough to pin an arm whose whole contract is the log.</summary>
+    internal sealed record LogEntry(LogLevel Level, string Message);
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<LogEntry> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => Entries.Add(new LogEntry(logLevel, formatter(state, exception)));
     }
 
     private sealed class EmptyServices : IServiceProvider
