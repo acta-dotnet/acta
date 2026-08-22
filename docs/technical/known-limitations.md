@@ -90,6 +90,12 @@ next-run instant, then by `JobId`, and that is a claim-time sort, not a queue di
 a stable tie-breaker inside one claim, not a multi-producer FIFO guarantee: database identities are
 allocation order, not commit order.
 
+Priority is strict, with no aging and no anti-starvation budget: while higher-priority ready rows
+exist, lower-priority rows are not claimed, and a sustained high-priority flood can defer the
+low-priority tail indefinitely. The intended remedy is a mechanism, not a knob: give bulk or
+low-urgency workloads their own namespace, because each declared worker runs its own claim loop and
+executor pool per namespace, so one namespace's flood cannot consume another's slots.
+
 `ExclusiveKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
 no other job with that `(namespace, ExclusiveKey)` is admitted. The exclusion is as strong as the
 lease and no stronger: a heartbeat renews it while the handler runs, so if that heartbeat stops — a
@@ -182,6 +188,16 @@ reachable; it does not cause it. Observed only as a rare test-suite fault under 
 parallelism, never reproduced in isolation, and rc.1 deliberately changes nothing for it: the
 fault sits in the driver's pool, and `Pooling=false` would trade it for a fresh native open per
 connection, a real cost that would need benchmarking first.
+
+Acta requires no ambient isolation level — every mutation is guarded by explicit lock hints or a
+compare-and-swap predicate, so job correctness does not depend on snapshot isolation — but it
+provisions and is tested under one configuration per engine: READ_COMMITTED_SNAPSHOT on SQL Server,
+plain Read Committed on PostgreSQL, WAL journal mode on SQLite. Change those and correctness holds
+while operability degrades: without RCSI, dashboard and list reads take shared locks and trade
+blocking with the claim path; reverting SQLite to a rollback journal reintroduces a global write
+lock. An application-imposed Serializable level makes the signal-wait arming race surface as a
+serialization retry rather than resolving in place — safe, but untested. Only the preferred
+configuration is exercised by the conformance suites.
 
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.

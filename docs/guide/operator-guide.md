@@ -58,6 +58,14 @@ The same rows are readable through `IActaOperations.Workers.ListAsync`, filtered
 
 ## Common queries
 
+Read freely — the views exist for it. Repair through the control verbs, not through UPDATE. The
+schema's own checks guard row *shape* (lease all-or-nothing, valid status codes, paired payload
+formats, non-negative counters), but they cannot guard *history*: the runtime fences every mutation
+on version counters and lease ownership, so a hand-edited `version`, `execution_number`, or lease
+column produces a row the engine either refuses to touch or mistakes for another worker's — with no
+constraint to stop you. Every control verb (restart, cancel, reschedule, purge) makes its change
+under those fences and leaves an audited event; a manual UPDATE does neither.
+
 ```sql
 -- One job, by public ref (the job_ref backs the "job_..." value dashboards and clients use).
 SELECT * FROM acta.jobs_view WHERE job_ref = :job_ref;

@@ -69,6 +69,18 @@ never issues DDL. The scripts record the migration history themselves, so a boot
 result and applies nothing; advanced deployments can even add site-specific physical tuning
 (partitioning, tablespaces) as long as the logical shape stays intact.
 
+One SQL Server pre-step the script cannot carry (it runs inside a transaction): enable
+READ_COMMITTED_SNAPSHOT on the database before or after running it —
+`ALTER DATABASE [yours] SET READ_COMMITTED_SNAPSHOT ON`. A self-applying bootstrap does this
+itself; the DBA path must do it by hand. Job correctness does not depend on it — Acta's mutations
+are fenced by lock hints and compare-and-swap, not snapshots — but without it the dashboard's and
+operators' read queries take shared locks and trade blocking with the claim path, which is not the
+configuration Acta certifies.
+
+Migrations and routine installs run under an exclusive schema lock in one transaction, so applying
+a future `Mnnn` on a live system briefly blocks statements that collide with the objects it touches
+and resumes them when it commits; in-flight jobs are not failed by a migration, they wait it out.
+
 Whether or not a host applies migrations itself, every start runs a read-only migration-history
 preflight: the database must carry the baseline stamp this build requires and a history row for
 every migration this build ships. A database that was never provisioned, or was provisioned from a

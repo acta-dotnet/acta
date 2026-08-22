@@ -115,7 +115,9 @@ does not make arbitrary external side effects exactly-once. Handlers own side-ef
 
 Acta claims work in priority order, not arrival order. The claim scan reads ready rows in one
 namespace ordered by priority (highest first), then by next-run instant (rows with none first), then
-by `JobId`. `JobId` is a stable tie-breaker inside a single claim, **not** a multi-producer FIFO
+by `JobId`. Priority is strict — no aging, no fairness budget — so a sustained high-priority flood
+defers the low-priority tail; workloads that must not wait behind each other belong in separate
+namespaces, which claim and execute independently. `JobId` is a stable tie-breaker inside a single claim, **not** a multi-producer FIFO
 guarantee: database identities are allocation order, not commit order, so two producers can commit
 their rows in the opposite order to the ids they were given.
 
