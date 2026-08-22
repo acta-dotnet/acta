@@ -1,5 +1,6 @@
 param(
-    [string]$ExistingFeed = ''
+    [string]$ExistingFeed = '',
+    [switch]$AllowSkips
 )
 
 # Doc-sample compile gate: extracts every code sample a newcomer meets (llms.txt, README.md,
@@ -8,6 +9,8 @@ param(
 # local feed; CI passes -ExistingFeed to consume the packages the preceding pack step produced.
 # A sample that only looks right (an undefined service, a manifest name that needs the right
 # RootNamespace, a missing package line) fails here instead of in a newcomer's first five minutes.
+# A run that could not compile every sample is not a pass: it ends nonzero naming what it skipped,
+# unless -AllowSkips says an incomplete run was the point. CI never passes that flag.
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path "$PSScriptRoot/../.."
 $feed = Join-Path $PSScriptRoot 'feed'
@@ -72,7 +75,7 @@ else {
         if ($LASTEXITCODE -ne 0) { throw 'pack failed: Acta.AspNetCore' }
     }
     else {
-        Write-Warning 'DocSamples: no dashboard assets and no Node on PATH, so Acta.AspNetCore is not packed. Run npm ci and npm run build in src/Acta.AspNetCore/DashboardApp to cover the first-run sample.'
+        Write-Warning 'DocSamples: no dashboard assets and no Node on PATH, so Acta.AspNetCore is not packed and the first-run sample cannot be compiled. Run npm ci and npm run build in src/Acta.AspNetCore/DashboardApp, or pass -AllowSkips to accept a partial run.'
     }
 }
 
@@ -115,10 +118,18 @@ finally {
 }
 
 Write-Host "DocSamples: compiled $($compiled -join ', ')"
-if ($skipped.Count -gt 0) {
-    Write-Warning "DocSamples: $($skipped -join ', ') was not compiled in this run"
-}
 if ($failed.Count -gt 0) {
     throw "doc samples failed to compile: $($failed -join ', '). The published sample is the contract: fix the document, not the harness."
+}
+if ($skipped.Count -gt 0) {
+    # Silence here is how an unproven sample ships: the gate would have printed success while the
+    # document it covers was never compiled by anything.
+    $unproven = "DocSamples: NOT COMPILED in this run: $($skipped -join ', '). The samples those projects cover are unproven."
+    if (-not $AllowSkips) {
+        throw "$unproven Install what the warnings above name (Node 20.19+ or 22.12+ on PATH, or prebuilt dashboard assets), or pass -AllowSkips to accept a partial run."
+    }
+    Write-Warning "$unproven Accepted because -AllowSkips was passed."
+    Write-Host "DocSamples: green except $($skipped -join ', ')"
+    exit 0
 }
 Write-Host 'DocSamples: all green'
