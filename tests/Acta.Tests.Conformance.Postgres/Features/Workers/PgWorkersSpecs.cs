@@ -15,6 +15,8 @@ public sealed class PgListWorkersSpec : ListWorkersSpec<PgConformanceFixture>;
 
 public sealed class PgMarkDeadWorkersSpec : MarkDeadWorkersSpec<PgConformanceFixture>;
 
+public sealed class PgStartWorkerIdAllocationSpec : StartWorkerIdAllocationSpec<PgConformanceFixture>;
+
 public sealed class PgStartWorkerSpec : StartWorkerSpec<PgConformanceFixture>;
 
 public sealed class PgStopWorkerSpec : StopWorkerSpec<PgConformanceFixture>;

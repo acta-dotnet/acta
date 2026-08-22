@@ -15,6 +15,8 @@ public sealed class SqliteListWorkersSpec : ListWorkersSpec<SqliteConformanceFix
 
 public sealed class SqliteMarkDeadWorkersSpec : MarkDeadWorkersSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteStartWorkerIdAllocationSpec : StartWorkerIdAllocationSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteStartWorkerSpec : StartWorkerSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteStopWorkerSpec : StopWorkerSpec<SqliteConformanceFixture>;

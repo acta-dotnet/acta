@@ -2466,6 +2466,16 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StartWorkerAsync`
 
+### StartWorker allocates a namespace id only when it creates the namespace
+- **Contract:** A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started.
+- **Arrange:** One namespace is created by its first worker start.
+- **Act:** Workers restart repeatedly against that namespace, then one worker starts a brand-new namespace.
+- **Assert:** The id range spanned by the two namespaces is fully occupied by rows, so the restarts allocated nothing.
+- **Guarantees:**
+  - Restarting workers against an existing namespace allocates no namespace ids
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StartWorkerAsync`
+
 ## Persistence inventory
 
 The durable inventory is keyed by semantic store-contract methods and provider-owned logical SQL resources. Operation classes and core SQL resources are not inventory sources.
@@ -2552,7 +2562,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
 | `IWorkerStore.MarkDeadWorkersAsync` | Stale workers in any namespace are marked Dead by a global sweep |
-| `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker hash-gate-upserts namespace and appends a fresh worker row per call |
+| `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker allocates a namespace id only when it creates the namespace<br>StartWorker hash-gate-upserts namespace and appends a fresh worker row per call |
 | `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
 | `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
 | `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |

@@ -15,6 +15,8 @@ public sealed class SqlServerListWorkersSpec : ListWorkersSpec<SqlServerConforma
 
 public sealed class SqlServerMarkDeadWorkersSpec : MarkDeadWorkersSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerStartWorkerIdAllocationSpec : StartWorkerIdAllocationSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerStartWorkerSpec : StartWorkerSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerStopWorkerSpec : StopWorkerSpec<SqlServerConformanceFixture>;

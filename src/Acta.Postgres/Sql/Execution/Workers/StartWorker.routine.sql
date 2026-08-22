@@ -15,7 +15,22 @@ CREATE OR REPLACE FUNCTION {{schema}}.start_worker(
 RETURNS TABLE (namespace_id SMALLINT, worker_id INT)
 LANGUAGE sql
 AS $$
-    WITH ns_upsert AS (
+    /* Update first, insert only when the name is absent. An upsert cannot be used here: PostgreSQL
+       evaluates the identity default before it detects the conflict, so every worker start burned a
+       namespaces.id even when the namespace already existed. A zero-row insert calls nextval never. */
+    WITH ns_update AS (
+        UPDATE {{schema}}.namespaces SET
+            owner_team = p_owner_team,
+            description = p_description,
+            catalog_hash = p_catalog_hash,
+            modified_at_utc = now(),
+            version = version + 1
+        WHERE
+            name = p_name
+            AND catalog_hash IS DISTINCT FROM p_catalog_hash
+        RETURNING id
+    ),
+    ns_insert AS (
         INSERT INTO {{schema}}.namespaces (
             name,
             owner_team,
@@ -25,7 +40,7 @@ AS $$
             created_at_utc,
             modified_at_utc,
             version)
-        VALUES (
+        SELECT
             p_name,
             p_owner_team,
             p_description,
@@ -33,23 +48,21 @@ AS $$
             p_status_code,
             now(),
             now(),
-            0)
-        ON CONFLICT (name) DO UPDATE SET
-            owner_team = EXCLUDED.owner_team,
-            description = EXCLUDED.description,
-            catalog_hash = EXCLUDED.catalog_hash,
-            modified_at_utc = now(),
-            version = {{schema}}.namespaces.version + 1
-        WHERE {{schema}}.namespaces.catalog_hash IS DISTINCT FROM EXCLUDED.catalog_hash
+            0
+        WHERE NOT EXISTS (
+            SELECT 1 FROM {{schema}}.namespaces
+            WHERE name = p_name
+        )
+        ON CONFLICT (name) DO NOTHING
         RETURNING id
     ),
     ns AS (
-        SELECT id FROM ns_upsert
+        SELECT id FROM ns_insert
         UNION ALL
         SELECT id FROM {{schema}}.namespaces
         WHERE
             name = p_name
-            AND NOT EXISTS (SELECT 1 FROM ns_upsert)
+            AND NOT EXISTS (SELECT 1 FROM ns_insert)
     ),
     w AS (
         INSERT INTO {{schema}}.workers (

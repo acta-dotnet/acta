@@ -1,12 +1,22 @@
-INSERT INTO {{schema}}.namespaces (name, owner_team, description, catalog_hash, status_code)
-VALUES (@p_name, @p_owner_team, @p_description, @p_catalog_hash, @p_status_code)
-ON CONFLICT (name) DO UPDATE SET
-    owner_team = excluded.owner_team,
-    description = excluded.description,
-    catalog_hash = excluded.catalog_hash,
+/* Update first, insert only when the name is absent. An upsert cannot be used here: SQLite assigns
+   the AUTOINCREMENT rowid and advances sqlite_sequence before it detects the conflict, so every
+   worker start burned a namespaces.id. A zero-row insert allocates nothing. */
+UPDATE {{schema}}.namespaces SET
+    owner_team = @p_owner_team,
+    description = @p_description,
+    catalog_hash = @p_catalog_hash,
     modified_at_utc = {{now}},
-    version = {{schema}}.namespaces.version + 1
-WHERE {{schema}}.namespaces.catalog_hash IS NOT excluded.catalog_hash;
+    version = version + 1
+WHERE
+    name = @p_name
+    AND catalog_hash IS NOT @p_catalog_hash;
+
+INSERT INTO {{schema}}.namespaces (name, owner_team, description, catalog_hash, status_code)
+SELECT @p_name, @p_owner_team, @p_description, @p_catalog_hash, @p_status_code
+WHERE NOT EXISTS (
+    SELECT 1 FROM {{schema}}.namespaces
+    WHERE name = @p_name
+);
 
 INSERT INTO {{schema}}.workers
 (namespace_id, worker_ref, status_code, deployment_version, host, engine_version, dotnet_version, process_id, max_concurrency, last_seen_at_utc)
