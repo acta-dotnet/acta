@@ -97,7 +97,7 @@ public sealed class DocSampleDriftTests
 
         var uncovered = DocSampleExtraction
             .CodeBlocks(Quickstart)
-            .Where(block => block != firstRun && !headered.Contains(block) && !block.Contains("...", StringComparison.Ordinal))
+            .Where(block => block != firstRun && !headered.Contains(block) && !IsElided(block))
             .ToList();
 
         Assert.True(
@@ -106,6 +106,120 @@ public sealed class DocSampleDriftTests
                 + "'// File: <path>' first line so it joins the group, or elide it with '...':\n\n"
                 + string.Join("\n\n", uncovered)
         );
+    }
+
+    [Theory]
+    // The corpus's own elisions: an ellipsis standing in for arguments, and a marker line.
+    [InlineData("var job = await jobs.GetAsync(...);", true)]
+    [InlineData("void Handle()\n{\n    ...\n}", true)]
+    [InlineData("void Handle()\n{\n    // ...\n}", true)]
+    // An ellipsis the compiler never sees is prose, not an elision: these are whole samples, and
+    // reading any of them as elided is what let an uncompiled sample opt out of the harness.
+    [InlineData("Console.WriteLine(\"Shipping...\");", false)]
+    [InlineData("// enqueue, wait, and the row is there ...", false)]
+    [InlineData("var path = @\"C:\\\"\"...\";", false)]
+    [InlineData("var text = \"\"\"\nliteral ...\n\"\"\";", false)]
+    [InlineData("var quote = '\\''; // ...", false)]
+    public void The_elision_rule_reads_only_an_ellipsis_the_compiler_would_see(string block, bool elided) =>
+        Assert.Equal(elided, IsElided(block));
+
+    /// <summary>
+    /// Whether a fence is an elided fragment rather than a whole program. The corpus writes its one
+    /// elision in code position - <c>new SendWelcomeEmail(...)</c> - and a marker line is the other
+    /// form the prose uses, so those two are what count. An ellipsis inside a string literal, a
+    /// comment, or pasted output does not: reading one as an elision let a complete sample the
+    /// compile harness never builds pass this gate by mentioning "..." anywhere at all.
+    /// </summary>
+    private static bool IsElided(string block) => block.Split('\n').Any(line => line.Trim() is "..." or "// ...") || HasCodeEllipsis(block);
+
+    /// <summary>
+    /// True when an ellipsis appears where the compiler would read code. Comments and literals -
+    /// verbatim and raw strings included, since both spell a quote in their own way - are skipped
+    /// whole, so nothing written inside one can pass for an elision.
+    /// </summary>
+    private static bool HasCodeEllipsis(string code)
+    {
+        var i = 0;
+        while (i < code.Length)
+        {
+            var rest = code.AsSpan(i);
+            if (rest.StartsWith("..."))
+            {
+                return true;
+            }
+
+            if (rest.StartsWith("//"))
+            {
+                i = EndOf(code, i + 2, "\n");
+            }
+            else if (rest.StartsWith("/*"))
+            {
+                i = EndOf(code, i + 2, "*/");
+            }
+            else if (rest.StartsWith("\"\"\""))
+            {
+                // A raw string closes on a quote run at least as long as the one that opened it.
+                var quotes = rest.Length - rest.TrimStart('"').Length;
+                i = EndOf(code, i + quotes, new string('"', quotes));
+            }
+            else if (rest.StartsWith("@\""))
+            {
+                i = EndOfVerbatim(code, i + 2);
+            }
+            else if (rest[0] is '"' or '\'')
+            {
+                i = EndOfQuoted(code, i + 1, rest[0]);
+            }
+            else
+            {
+                i++;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Index just past the next <paramref name="terminator"/>, or the end of the text.</summary>
+    private static int EndOf(string code, int from, string terminator)
+    {
+        var at = code.IndexOf(terminator, from, StringComparison.Ordinal);
+        return at < 0 ? code.Length : at + terminator.Length;
+    }
+
+    /// <summary>Index just past a string or character literal, where a backslash escapes what follows.</summary>
+    private static int EndOfQuoted(string code, int from, char quote)
+    {
+        for (var i = from; i < code.Length; i++)
+        {
+            if (code[i] == '\\')
+            {
+                i++;
+            }
+            else if (code[i] == quote)
+            {
+                return i + 1;
+            }
+        }
+        return code.Length;
+    }
+
+    /// <summary>Index just past a verbatim string, where a doubled quote is an escaped quote.</summary>
+    private static int EndOfVerbatim(string code, int from)
+    {
+        for (var i = from; i < code.Length; i++)
+        {
+            if (code[i] != '"')
+            {
+                continue;
+            }
+            if (i + 1 < code.Length && code[i + 1] == '"')
+            {
+                i++;
+                continue;
+            }
+            return i + 1;
+        }
+        return code.Length;
     }
 
     [Fact]
