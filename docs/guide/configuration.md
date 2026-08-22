@@ -108,6 +108,35 @@ that.
 ...)]` default (90 days) that purges terminal job rows: events are the audit ledger, so the incident
 timeline survives well past the job row itself.
 
+## Durable settings
+
+Everything above is process configuration: read at startup, changed by redeploy. For slow-changing
+configuration that belongs with the data rather than the deployment — feature flags, per-tenant
+knobs, operational thresholds your handlers read — Acta keeps a durable `settings` table in the same
+database as the jobs, reached through `IActaOperations.Settings`. A setting is a named text value at
+one of three scopes, inferred from the arguments you pass: global (no target), one namespace, or one
+job definition. Writes are audited (`setting.updated`), versioned, and optionally guarded —
+`expectedVersion` turns a write into a compare-and-swap that reports the current version on a
+mismatch. New setting names need no migration: rows, not columns.
+
+```csharp
+var ops = provider.GetRequiredService<IActaOperations>();
+
+// Write a definition-scoped setting; CAS against the version you last read.
+await ops.Settings.SetAsync("batch-size", "500",
+    expectedVersion: 3, namespaceName: "shipping", jobName: "ship-order");
+
+// Read it back. Reads are exact-scope: this returns null unless the
+// definition-scoped row itself exists.
+var setting = await ops.Settings.GetAsync("batch-size", "shipping", "ship-order");
+```
+
+`GetAsync` deliberately does not fall back across scopes. If you want definition → namespace →
+global resolution, compose it in the caller — three reads, most-specific first — so the precedence
+rule lives where you can see and test it, instead of inside an engine that would then own your
+configuration semantics. The engine itself reads none of these values; they are for your handlers
+and your operators, kept where the rest of the system of record already lives.
+
 ## Execution profiles
 
 | Profile | Use when | Tradeoff |
