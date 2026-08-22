@@ -1,6 +1,6 @@
 # Coverage baseline and blind-spot list — v1.0.0-rc.1
 
-**Captured** 2026-08-22 · **Commit** `7518d49` · **Command** `tools/coverage.ps1`
+**Captured** 2026-08-22 · **Commit** `8b9a636` · **Command** `tools/coverage.ps1`
 
 Line and branch coverage for the two suites that need no container: `tests/Acta.Tests` (unit) and
 `tests/Acta.Tests.Conformance.Sqlite` (conformance against a real ledger). CI runs the same script
@@ -16,10 +16,10 @@ it is wrong.
 
 | | Covered | Total | |
 |---|---|---|---|
-| **Line** | 31,734 | 36,261 | **87.5%** |
-| **Branch** | 9,914 | 14,216 | **69.7%** |
+| **Line** | 32,003 | 36,261 | **88.2%** |
+| **Branch** | 10,002 | 14,216 | **70.3%** |
 
-Method coverage 81.8% (2,484 of 3,035); fully-covered methods 66.4%. 10 assemblies, 448 classes.
+Method coverage 82.0% (2,491 of 3,035); fully-covered methods 66.9%. 10 assemblies, 448 classes.
 
 | Assembly | Line | | Branch | |
 |---|---|---|---|---|
@@ -29,7 +29,7 @@ Method coverage 81.8% (2,484 of 3,035); fully-covered methods 66.4%. 10 assembli
 | Acta.Postgres | 5.7% | 32/560 | 0.0% | 0/133 |
 | Acta.Redis | 60.2% | 71/118 | 32.1% | 9/28 |
 | Acta.Relational | 97.8% | 9,851/10,071 | 84.4% | 1,059/1,254 |
-| Acta.Runtime | 89.2% | 11,665/13,074 | 80.7% | 4,503/5,578 |
+| Acta.Runtime | 91.2% | 11,933/13,074 | 82.3% | 4,591/5,578 |
 | Acta.Sqlite | 93.3% | 458/491 | 80.8% | 97/120 |
 | Acta.SqlServer | 21.6% | 113/524 | 19.5% | 31/159 |
 | Acta.Testing | 78.7% | 770/979 | 57.1% | 249/436 |
@@ -44,9 +44,10 @@ Five things have to be read alongside the table, or it says something it does no
   part of the pipeline). Acta.Redis at 60.2% is the same story.
 - **Ten SQLite conformance tests skip**, all of them for `CompleteExecutionsBatch`, which SQLite has
   no routine for (Bulk degrades to Direct there). `CompleteExecutionsBatchSpec` and
-  `CompletionSinkBulkFallbackSpec` exist and run against PostgreSQL and SQL Server. Every Bulk
-  finding below is therefore "unmeasured on this leg", not "untested" — it is listed anyway, because
-  the leg most people run locally cannot see it.
+  `CompletionSinkBulkFallbackSpec` exist and run against PostgreSQL and SQL Server. A Bulk finding
+  reached only by those specs is therefore "unmeasured on this leg", not "untested". The sink's own
+  degraded behaviour no longer depends on them: `CompletionSinkDegradedFlushTests` drives it over a
+  scripted store, so it runs on the leg most people run locally too (area 9).
 - **Generated code is measured**, at 89.3% of 9,501 lines against 86.9% of 26,760 handwritten ones.
   It is why the `Acta` assembly reads 71.2%: its generated code-enum extensions sit at 62.5% while
   its handwritten code is at 85.8%. Generated code is left in because it ships; it is called out
@@ -70,26 +71,37 @@ in this file means no *deterministic in-process* test walks the path: harder to 
 not unproven under chaos. The entries that are blind in both layers are the ones to worry about
 first.
 
-### 1. Lease loss — blind spot: the renewal loops' failure arms
+### 1. Lease loss — closed, bar a failed lock release
 
-- `Acta.Runtime/Modules/Execution/Workers/LockLeaseHeartbeat.cs:55,58-62,71-80` — **every** failure
-  arm of the lock-lease loop is dead: the initial tick's cancel and error handlers, and the periodic
-  loop's. The loop's happy path runs; nothing has ever made a tick throw.
-- `.../WorkerHeartbeat.cs:81-90` — the periodic loop's two arms (cancel → break, error → log and
-  carry on). The *initial* tick's error arm (`:71`) is exercised; the periodic one is not.
-- `.../AttemptWatchdog.cs:74-79` — the watchdog's tick-failure arm.
-- `.../RuntimeJobContext.cs:404` — `StepOwnershipLostException` is never thrown in either suite. No
-  test drives `complete_step` to `StaleVersion`, which is what a step sees after its lease was
-  stolen mid-body. (Confirmed independently: the type is named in no test but a comment-style check.)
-- `.../RuntimeJobContext.cs:524,571` — a failed lock release is never recorded, so neither the
-  warning nor the `lock_release_failure` metric has ever been produced.
+The renewal loops' failure arms are driven by `RenewalLoopFailureArmTests`, and the step-ownership
+abort by `JobExecutionOwnershipTests`. All three loops are awaited by the runtime host, so what these
+facts pin is not the log line but the loop: a tick failure that escapes `RunAsync` faults the host's
+`WhenAll` and takes the worker down at exactly the moment the renewers exist to survive.
+
+- `Acta.Runtime/Modules/Execution/Workers/LockLeaseHeartbeat.cs` — **98% line, 94% branch.** Every
+  failure arm of the lock-lease loop now runs: the initial tick's cancel and error handlers, and the
+  periodic loop's. Both renewers absorb a store fault *inside* their own tick while the token is live,
+  so the state in which a fault reaches these arms is the shutdown window — a connection torn down
+  under a running query — and that is the shape the tests inject, the same one
+  `LoopTickCancellationFilterTests` already uses. The only dead line left is the enqueue-only return.
+- `.../WorkerHeartbeat.cs` — **97% line, 88% branch.** The periodic loop's two arms and the initial
+  tick's cancel arm. Dead: the enqueue-only return and `StampDrainingAsync`'s registration guard.
+- `.../AttemptWatchdog.cs` — **94% line.** The tick-failure arm, injected at the watchdog's clock seam
+  because it does no I/O at all. It is the one loop whose carry-on is directly observable, and the
+  fact asserts that rather than the log: the tick after the failure still cancels an attempt whose
+  lease has lapsed.
+- `.../RuntimeJobContext.cs:404` — covered. A step body that failed and a `complete_step` that
+  answered `StaleVersion` raises `StepOwnershipLostException`, and the attempt aborts retryably rather
+  than reporting a business failure the ledger never accepted.
+- `.../RuntimeJobContext.cs:524,571` — **still dead.** A failed lock release is never recorded, so
+  neither the warning nor the `lock_release_failure` metric has ever been produced.
 
 **Not a blind spot:** `WorkerHeartbeat.TickAsync`'s store-fault path (`:158-167`, leaving the live
 set non-authoritative and deferring to the watchdog) is exercised, as is `AttemptWatchdog.TickAsync`
 in full, and lease-loss-mid-handler end to end (`WorkerCrashRecoveryChaosSpec`).
 
-*Risk: a transient database fault during lease renewal takes an untested path in all three loops, and
-a step that loses ownership mid-body raises an exception no test has ever seen thrown.*
+*Risk: what is left is a lock release that fails silently. The lease paths themselves are now walked
+deterministically in process, on top of the chaos gates.*
 
 ### 2. Worker death — blind spot: the recovery job and the host that runs it
 
@@ -110,26 +122,33 @@ a step that loses ownership mid-body raises an exception no test has ever seen t
 *Risk: the two production entry points for worker lifecycle and crash recovery are modelled by the
 harness instead of executed by it, so a change to either is caught by no test on this leg.*
 
-### 3. Claim/control races — blind spot: losing the claim before execution starts
+### 3. Claim/control races — closed, bar the per-job executor-fault swallow
 
-- `Acta.Runtime/Modules/Execution/JobExecution.cs:78-84` — the branch taken when
+- `Acta.Runtime/Modules/Execution/JobExecution.cs:78-84` — covered. The branch taken when
   `StartExecutionAsync` does not return `Started`: the row was reclaimed, reassigned, or moved by an
-  operator between claim and start. Dead. `WorkerCrashRecoveryChaosSpec` covers the *other* lost-claim
-  window (during the handler, at completion CAS), and its assertion accepts either outcome
-  (`NothingClaimed` or `Rearmed`), so it does not pin this one.
-- `.../Workers/WorkerLoop.cs:181,186-190,193-195,198` and `:312-326` — the claim-iteration failure
-  backoff, in both the dispatch loop and the combined loop. A database outage during claim is
-  untested in either.
-- `.../Workers/WorkerLoop.cs:252-259` and `:384-388` — the per-job executor-fault swallow that keeps
-  one bad job from tearing down the coordinator.
+  operator between claim and start. `JobExecutionLostClaimTests` walks all four non-`Started` answers
+  and pins the skip as clean — no handler invocation, no completion command submitted against a row
+  this worker no longer owns, `NothingClaimed` reported, and a log line naming which of the four ways
+  the claim was lost. (The lines had picked up a single incidental hit since this page was first
+  captured; nothing asserted the contract.) `WorkerCrashRecoveryChaosSpec` still covers only the
+  *other* lost-claim window, during the handler, and accepts either outcome there.
+- `.../Workers/WorkerLoop.cs:181,186-190,193-195,198` and `:312-326` — covered by
+  `WorkerLoopClaimFailureTests`, in both loop shapes: a failed claim backs off a full safety interval
+  and says how long it is waiting, the loop keeps claiming afterwards rather than tearing down, a stop
+  landing inside that backoff breaks out instead of waiting it out, and a stop landing on the claim
+  call itself ends the loop without calling a clean shutdown a failure — with the combined loop's
+  executor permits released either way, or its drain would hang. `WorkerLoop.cs` overall: **90% line,
+  86% branch.**
+- `.../Workers/WorkerLoop.cs:252-259` and `:384-388` — **still dead.** The per-job executor-fault
+  swallow that keeps one bad job from tearing down the coordinator.
 
 **Not a blind spot:** the store-side races are well covered — `ClaimAndControlRaceChaosSpec`,
 `AttemptOverlapChaosSpec`, `ClaimTypes.cs` at 97% line / 83% branch, `RelationalJobStore.cs` at 100%
 line. And `JobExecution.cs:642-650` (an external control or a stolen lease landing while the handler
 ran) has both arms covered.
 
-*Risk: the runtime's reaction to losing a claim it already holds, and to a claim query that fails
-outright, are the two paths a worker takes on a bad day, and neither is exercised.*
+*Risk: what remains is one bad job faulting its executor, which the coordinator swallows on a path no
+test walks. Losing the claim itself, and a claim query that fails outright, are now both driven.*
 
 ### 4. Retry exhaustion — no blind spot found, bar the backoff clamps
 
@@ -156,7 +175,7 @@ would turn a backoff into a hot loop.*
 - `DbSession.cs:101-122` and `:354-356` — the routine-provider command and result-set paths. Dead by
   construction on SQLite; PostgreSQL and SQL Server exercise them off this leg.
 - `Modules/Execution/CompletionSink.cs:159,164-165` — the only place in the runtime that may claim a
-  whole batch rolled back. Dead (see area 9).
+  whole batch rolled back. Now covered (see area 9).
 
 *Risk: pool exhaustion after a database blip is the one failure here that hides, because the symptom
 appears far from the cause and the code that would log it has never run.*
@@ -199,7 +218,8 @@ The one dead line is `SignalService.cs:40`, the not-found return — reached thr
   nothing exercises a raise against a parent that is terminal, missing, or not Suspended, so the
   "returns false" half of the contract is unpinned.
 - `.../CompletionSink.cs:185-195,266-279` — the parent child-done latch on the Bulk fallback path,
-  and the parent-release wakeup that follows it. Unmeasured on this leg (SQLite-skipped).
+  and the parent-release wakeup that follows it. Now measured on this leg too, over a scripted store
+  (area 9); the ledger-level version stays SQLite-skipped.
 
 **Not a blind spot:** `Acta.Runtime/Modules/Execution/Jobs/CancelDescendants.cs` is at 100% line and
 branch, and `ChildJobSpec`,
@@ -209,37 +229,44 @@ branch, and `ChildJobSpec`,
 *Risk: a parent that never wakes. The hot path is covered; the backstop that catches the raise lost
 to a crash is not executed at all, and a parent stuck Suspended forever is the failure it prevents.*
 
-### 9. Failure between paired transitions — blind spot: the whole degraded half of the Bulk flush
+### 9. Failure between paired transitions — closed, bar two arms that cannot fire
 
-`Acta.Runtime/Modules/Execution/CompletionSink.cs` is the worst-covered non-provider file in the
-runtime: **56% line, 42% branch**. The happy path — set-based batch, everything finalized — is the
-only path measured. Dead:
+`Acta.Runtime/Modules/Execution/CompletionSink.cs` was the worst-covered non-provider file in the
+runtime at 56% line / 42% branch; it is now at **94% line, 88% branch**.
+`CompletionSinkDegradedFlushTests` drives the degraded paths over a scripted execution store rather
+than a ledger, so they run on every leg, and each fact is one clause of Bulk's stated contract rather
+than a line to colour. Now covered:
 
-- `:84-88,91` — `RunFlushersAsync`. The parallel multi-reader flush is never started; corroborated by
-  `WorkerLoop.cs:79-90`, the Bulk branch of the loop, also dead.
-- `:122-127` — the flusher's async read and its interval-window timeout, so a partial batch is never
-  flushed on time, only on size.
-- `:159,164-165` — the whole-batch failure (nothing landed; every job stays Executing for recovery).
-- `:185-195` — the per-job fallback for rows the set call self-filtered (a parent, or a lost lease),
-  and the `unresolved` bookkeeping that names which jobs are actually unfinalized.
-- `:215-224,229-234,237-243` — the wakeup loop's fallback arm, the wake-failure catch, and both
-  failure log sites.
-- `:253-263` — the fallback CAS matching nothing, i.e. a control or a reclaim moving the row while
-  the completion sat buffered.
+- `:84-88,91` — `RunFlushersAsync`: several flushers drain the shared multi-reader buffer and each
+  buffered completion reaches the store exactly once. (`WorkerLoop.cs:79-90`, the Bulk branch of the
+  loop that starts them in production, is still dead.)
+- `:122-127` — the flusher's async read and its interval-window timeout: a lone completion is flushed
+  on time rather than waiting for a batch that never fills.
+- `:159,164-165` — the whole-batch failure: nothing landed, so no per-job fallback is attempted and no
+  wakeup is published, and this is the only path that may claim a rollback.
+- `:185-195,229-234` — the per-job fallback for rows the set call self-filtered (a parent, or a lost
+  lease), and the `unresolved` bookkeeping: one failing fallback strands its own job only, the rows
+  after it still complete, the row the set call committed still gets its wake, and the log names that
+  one job out of the batch rather than the batch.
+- `:253-263` — the fallback CAS matching nothing, i.e. a control or a reclaim moving the row while the
+  completion sat buffered: warned by job id and outcome, and nobody is woken.
+- `:266-279` — both wakeups a released parent depends on, and the non-terminal landing that publishes
+  neither.
 
-Same area, elsewhere: `JobExecution.cs:78-84` (area 3) is the other half of a pair left open —
-execution started that never finishes because the claim was lost first — and `RecoveryJob.cs` (area
-2), which is what closes it.
+Still dead, and unreachable as written: `:221-224,239-243`, the wake-failure catch and its warning.
+They cannot fire — the sink publishes through `WorkerWakeupPublisher.WakeAsync`, which already
+catches every exception and logs its own warning, so no wake failure can propagate back into the
+flush. Defensive depth, not a measurable path.
 
 **Not a blind spot:** `JobExecution.cs:642-650` covers both arms of a completion CAS that matched
-nothing after the handler ran, and `RelationalExecutionStore.cs` is at 94% line.
+nothing after the handler ran, `JobExecution.cs:78-84` (area 3) is now driven, and
+`RelationalExecutionStore.cs` is at 94% line. `RecoveryJob.cs` (area 2), which is what closes a
+started execution that never finishes, remains untested on this leg.
 
-*Risk: the highest on this page. Bulk's stated contract is that a mid-flush failure leaves committed
-rows terminal and only the rest for recovery — and every line that implements "only the rest" is
-unexecuted here. The specs for it exist and run on PostgreSQL and SQL Server; on the leg a
-contributor runs locally, this file's degraded behaviour is invisible.*
+*Risk: no longer the highest on this page. Bulk's "only the rest for recovery" is now asserted rather
+than inferred, and asserted on the leg a contributor runs locally.*
 
-### 10. Alert storms — no blind spot in the storm controls; the Slack transport is uncovered
+### 10. Alert storms — no blind spot in the storm controls; the Slack transport is now covered
 
 The three mechanisms that bound a storm are all exercised:
 
@@ -255,20 +282,28 @@ The three mechanisms that bound a storm are all exercised:
 `AlertChannelRegistry`, `AlertStoreSink`, `SlackAlertFormatter` and `RelationalAlertStore` are at
 100% line.
 
+Closed:
+
+- `Acta.Runtime/Modules/Alerting/SlackAlertTransport.cs` — **100% line, 86% branch** (was 3 of 29
+  lines, 2 of 14 branches). `SlackAlertTransportTests` drives the only transport that talks to a real
+  endpoint over a stub `HttpMessageHandler`: what goes on the wire (one POST of the
+  `SlackAlertFormatter` payload as UTF-8 JSON to the channel's endpoint), how a status maps to the
+  retry semantics the projector then acts on (2xx delivered, 429 and 5xx retryable — the ones a storm
+  hits first — other 4xx permanent), a channel with no endpoint, an unreachable Slack, and a send
+  cancelled by shutdown propagating instead of being recorded as a delivery failure. The two
+  uncovered branches are the constructor's null-coalescing defaults, taken only by a caller that
+  supplies neither an `HttpClient` nor a logger.
+
 Gaps:
 
-- `Acta.Runtime/Modules/Alerting/SlackAlertTransport.cs:27-34,39-46,49-66` — **3 of 29 lines, 2 of 14
-  branches.** The only transport that talks to a real endpoint, and the only one a storm would get
-  rate-limited by, is essentially unmeasured: its send, its response classification, and its retry
-  categorisation.
 - `AlertsJob.cs:330,334` — the `invalid-event` poison tag, thrown when a stored channel name or
   dedup key fails canonicalization. The sibling `unknown-job` tag (`:341-345`) *is* covered.
-- `AlertsJob.cs:426-428` — cancellation during a transport send.
-- `AlertsJob.cs:354,363` — the render fallbacks: only one arm of
-  `ReasonMessage ?? ReasonCode ?? "no reason recorded"` and none of the default title case.
+- `AlertsJob.cs:426,428` — cancellation during a transport send.
+- `AlertsJob.cs:363` — the default title case of the render fallback.
 
-*Risk: the projector holds under a storm and is measured doing so. What is not measured is what
-happens when the storm reaches Slack and Slack pushes back.*
+*Risk: the projector holds under a storm and is measured doing so, and what happens when the storm
+reaches Slack and Slack pushes back is now measured too. What is left is the projector's own poison
+tag for a stored row that fails canonicalization.*
 
 ## Reproducing
 
