@@ -478,6 +478,22 @@ public sealed class ControlContractTests
         Assert.True(Table.Count > 100, $"the contract table holds only {Table.Count} rows; it lost its families.");
         Assert.True(declared.Count > 50, $"the endpoint graph declared only {declared.Count} JSON responses; the read is broken.");
 
+        // The required-member check below reads the committed document by type name, so a renamed
+        // envelope would quietly leave it with nothing to require. Every envelope has required
+        // members; ProblemDetails is the one declared type that has none, by RFC 9457.
+        var unrequired = Table
+            .Select(row => row.Declared)
+            .Distinct()
+            .Where(type => type != Problem && RequiredMembers(type).Count == 0)
+            .Select(type => type.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+        Assert.True(
+            unrequired.Count == 0,
+            $"{ContractDocument} marks no member of [{Listed(unrequired)}] required, so the wire check has nothing to "
+                + "assert for them. Either the document drifted from the type's name, or the type stopped promising anything."
+        );
+
         foreach (var row in Table)
         {
             row.Stage?.Invoke(jobs);
@@ -664,6 +680,17 @@ public sealed class ControlContractTests
             return $"the body carries [{Listed(onTheWire)}] where {row.Declared.Name} carries [{Listed(declared)}]. Body: {body}";
         }
 
+        // A required member has to be on the wire itself, which is why this reads `sent` rather than
+        // the round trip above: a handler that stopped writing one leaves the name out of the body,
+        // and then deserialization supplies a default for it and reserialization writes the name back,
+        // so the comparison above sees a body that is missing nothing. The committed document says
+        // what is required, and OpenApiContractTests is what keeps that document honest.
+        var absent = RequiredMembers(row.Declared).Where(member => !sent.ContainsKey(member)).ToList();
+        if (absent.Count > 0)
+        {
+            return $"the body omits [{Listed(absent)}], which {ContractDocument} marks required on {row.Declared.Name}. Body: {body}";
+        }
+
         if (row.Declared == Problem && sent["status"]?.GetValue<int>() != row.Status)
         {
             return $"the problem document reports status '{sent["status"]}', expected {row.Status}.";
@@ -682,4 +709,52 @@ public sealed class ControlContractTests
     private static HashSet<string> Names(JsonObject node) => [.. node.Select(member => member.Key)];
 
     private static string Listed(IEnumerable<string> names) => string.Join(", ", names.OrderBy(name => name, StringComparer.Ordinal));
+
+    // ---- what the contract requires ----
+
+    private const string ContractDocument = "docs/reference/openapi.json";
+
+    /// <summary>
+    /// The members the committed contract marks required, by schema name. Read from the file rather
+    /// than generated here because that file is the document a client is entitled to, and it cannot
+    /// drift from the endpoint graph without OpenApiContractTests failing first.
+    /// </summary>
+    private static readonly Dictionary<string, string[]> RequiredBySchema = ReadRequiredMembers();
+
+    /// <summary>What the contract requires of one declared response type, empty when it requires nothing.</summary>
+    private static IReadOnlyList<string> RequiredMembers(Type declared) =>
+        RequiredBySchema.TryGetValue(declared.Name, out var members) ? members : [];
+
+    private static Dictionary<string, string[]> ReadRequiredMembers()
+    {
+        var file = System.IO.Path.Combine(RepoRoot(), ContractDocument.Replace('/', System.IO.Path.DirectorySeparatorChar));
+        var schemas =
+            JsonNode.Parse(File.ReadAllText(file))?["components"]?["schemas"] as JsonObject
+            ?? throw new InvalidOperationException($"{ContractDocument} declares no component schemas.");
+
+        var required = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        foreach (var (name, schema) in schemas)
+        {
+            if (schema?["required"] is JsonArray members)
+            {
+                required[name] = [.. members.Select(member => member!.GetValue<string>())];
+            }
+        }
+
+        return required;
+    }
+
+    private static string RepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(System.IO.Path.Combine(directory.FullName, "Acta.slnx")))
+            {
+                return directory.FullName;
+            }
+            directory = directory.Parent;
+        }
+        throw new InvalidOperationException("ControlContractTests could not locate Acta.slnx from " + AppContext.BaseDirectory);
+    }
 }
