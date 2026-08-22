@@ -49,13 +49,26 @@ else {
 # driver version while locking nothing. The real lock is the runtime driver-major preflight at provider
 # bootstrap (DriverVersionPolicy). Do not "fix" this openness by adding bounds.
 #
-# Bracket notation is the only form that can carry an upper bound: "[1.0,)" is still a floor, while
+# Bracket notation is the form that carries an explicit upper bound: "[1.0,)" is still a floor, while
 # "[1.0]" (exact pin), "[1.0,2.0)" and "(,2.0]" are not.
+#
+# A floating floor bounds without brackets. NuGet.Versioning parses "1.*" as "[1.*, )" and reports no
+# upper bound, but FindBestMatch never leaves the prefix: offered 1.9.9 and 3.1.0 it resolves 1.9.9.
+# That is the ceiling this policy is about - the host app is held on the 1.x line by our nuspec - so a
+# wildcard floor counts as bounded here whether or not it is written in brackets. Bare "*" is the one
+# wildcard that floats to anything and locks nothing.
 function Test-UpperBoundedRange {
     param([string]$Range)
-    if (-not $Range -or $Range -notmatch '^[\[\(].*[\]\)]$') { return $false }
-    $bounds = $Range.Substring(1, $Range.Length - 2) -split ',', 2
-    return ($bounds.Count -eq 1 -or [bool]$bounds[1].Trim())
+    $value = "$Range".Trim()
+    if (-not $value) { return $false }
+    if ($value -match '^[\[\(](.*)[\]\)]$') {
+        $bounds = $Matches[1] -split ',', 2
+        if ($bounds.Count -eq 1 -or [bool]$bounds[1].Trim()) { return $true }
+        $floor = $bounds[0]
+    }
+    else { $floor = $value }
+    $floor = $floor.Trim()
+    return $floor -ne '*' -and $floor.Contains('*')
 }
 
 # Proven before it is trusted: the gate below is only as good as this classifier, and a silently
@@ -67,7 +80,16 @@ foreach ($case in @(
         @{ Range = '[1.0]'; Bounded = $true },
         @{ Range = '[1.0,2.0)'; Bounded = $true },
         @{ Range = '(,2.0]'; Bounded = $true },
-        @{ Range = '(1.0,2.0)'; Bounded = $true })) {
+        @{ Range = '(1.0,2.0)'; Bounded = $true },
+        @{ Range = '1.*'; Bounded = $true },
+        @{ Range = '1.2.*'; Bounded = $true },
+        @{ Range = '1.0.0-*'; Bounded = $true },
+        @{ Range = '[1.0,2.*)'; Bounded = $true },
+        @{ Range = '[1.*,)'; Bounded = $true },
+        @{ Range = '*'; Bounded = $false },
+        @{ Range = ' * '; Bounded = $false },
+        @{ Range = '[*,)'; Bounded = $false },
+        @{ Range = ''; Bounded = $false })) {
     $actual = Test-UpperBoundedRange $case.Range
     if ($actual -ne $case.Bounded) {
         throw "upper-bound classifier self-test failed: '$($case.Range)' classified as bounded=$actual, expected $($case.Bounded)"
