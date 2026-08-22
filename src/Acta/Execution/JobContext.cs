@@ -30,7 +30,7 @@ public abstract class JobContext
     /// Owning <c>JobNamespace</c> id: the DB-assigned numeric id, not the kebab
     /// <see cref="JobNamespace"/> name. Used by system jobs that invoke namespace-scoped routines.
     /// </summary>
-    public abstract short NamespaceId { get; }
+    public abstract int NamespaceId { get; }
 
     /// <summary>
     /// Optional tenant this Job is <em>about</em>: the DB-assigned <c>tenants</c> id resolved from the

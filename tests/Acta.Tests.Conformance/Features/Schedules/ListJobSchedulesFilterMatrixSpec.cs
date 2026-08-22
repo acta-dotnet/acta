@@ -29,13 +29,13 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
     private const string Cron5 = "*/5 * * * *";
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private short NsId => (short)Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NsId => Runtime.RegisteredNamespaceIds[TestNamespace];
     private IDbSession DbSession => Db;
     private ISqlDialect Dialect => Services.GetRequiredService<ISqlDialect>();
     private IActaOperations Queries => Services.GetRequiredService<IActaOperations>();
 
     /// <summary>Creates a minimal synthetic job definition in the given namespace and returns its id.</summary>
-    private async Task<int> CreateDefinitionAsync(short nsId, string jobName, CancellationToken ct)
+    private async Task<int> CreateDefinitionAsync(int nsId, string jobName, CancellationToken ct)
     {
         var map = await DefinitionTestOps.RegisterAsync(Services, nsId, Generation, [Def(jobName)], ct);
         return map[jobName];
@@ -43,7 +43,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
 
     /// <summary>Registers a slot job and its schedules in the given namespace.</summary>
     private Task RegisterSchedulesAsync(
-        short nsId,
+        int nsId,
         int defId,
         string jobName,
         DateTime? slotMin,

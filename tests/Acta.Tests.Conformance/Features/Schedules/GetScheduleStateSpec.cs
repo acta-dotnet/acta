@@ -34,7 +34,7 @@ public abstract class GetScheduleStateSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var ct = TestContext.Current.CancellationToken;
 
         // A namespace id that does not exist in this DB has no schedule rows.
-        var states = await Services.GetRequiredService<IScheduleStore>().GetScheduleStateAsync(short.MaxValue, ct);
+        var states = await Services.GetRequiredService<IScheduleStore>().GetScheduleStateAsync(int.MaxValue, ct);
 
         Assert.Empty(states);
     }

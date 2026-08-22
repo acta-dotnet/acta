@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION {{schema}}.register_job_definitions(
-    p_namespace_id SMALLINT,
+    p_namespace_id INT,
     p_manifest_generation TIMESTAMPTZ,
     p_d_name VARCHAR [],
     p_d_priority_code SMALLINT [],

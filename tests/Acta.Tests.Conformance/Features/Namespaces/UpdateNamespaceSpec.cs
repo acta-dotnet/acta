@@ -29,7 +29,7 @@ public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixtu
     private async Task<JobNamespace?> ReadNsAsync(CancellationToken ct) =>
         await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
 
-    private async Task<int> EventCountAsync(short nsId, CancellationToken ct) =>
+    private async Task<int> EventCountAsync(int nsId, CancellationToken ct) =>
         await Db.From<JobEvent>().Where(e => e.NamespaceId == nsId && e.EventCode == EventCode.NamespaceUpdated).CountAsync(ct);
 
     [Fact(DisplayName = "A matching version writes owner_team + description, bumps version, and emits namespace.updated")]
@@ -82,13 +82,13 @@ public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixtu
     public async Task Sys_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var before = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
+        var before = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
             await Operations.Namespaces.UpdateAsync("sys", 0, "x", null, null, null, ct)
         );
 
-        var after = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
+        var after = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
         Assert.Equal(before!.OwnerTeam, after!.OwnerTeam);
         Assert.Equal(before.Version, after.Version);
 

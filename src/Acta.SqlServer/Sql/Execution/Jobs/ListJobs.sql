@@ -1,4 +1,4 @@
-DECLARE @ns_id SMALLINT = NULL;
+DECLARE @ns_id INT = NULL;
 
 IF @p_namespace_name IS NOT NULL
     BEGIN

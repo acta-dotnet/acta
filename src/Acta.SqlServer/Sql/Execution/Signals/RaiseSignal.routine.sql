@@ -18,7 +18,7 @@ BEGIN
     DECLARE @expired BIT = 0;
     DECLARE @message NVARCHAR(512);
     DECLARE
-        @from_status TINYINT, @namespace_id SMALLINT, @lineage_root_id BIGINT,
+        @from_status TINYINT, @namespace_id INT, @lineage_root_id BIGINT,
         @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
         @job_ref UNIQUEIDENTIFIER;
 

@@ -19,7 +19,7 @@ internal interface IWorkerStore
     /// Active/Draining to Stopped and records a <c>worker.stopped</c> event. A no-op when the worker
     /// is already terminal (a hard kill leaves the row Active for the dead sweep to reap).
     /// </summary>
-    Task StopWorkerAsync(short namespaceId, int workerId, CancellationToken ct);
+    Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct);
 
     /// <summary>
     /// Heartbeat lease refresh for one worker: stamps <c>workers.last_seen_at_utc</c> and pushes every

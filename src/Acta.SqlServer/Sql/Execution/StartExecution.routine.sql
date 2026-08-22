@@ -14,7 +14,7 @@ BEGIN
     DECLARE @started TABLE (
         id BIGINT NOT NULL,
         job_ref UNIQUEIDENTIFIER NOT NULL,
-        namespace_id SMALLINT NOT NULL,
+        namespace_id INT NOT NULL,
         lineage_root_id BIGINT NULL,
         definition_id INT NOT NULL,
         tenant_id INT NULL,

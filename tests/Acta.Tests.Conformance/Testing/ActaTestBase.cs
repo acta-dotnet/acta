@@ -139,7 +139,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
             .ToListAsync(ct);
     }
 
-    private protected async Task<IReadOnlyList<JobAlert>> ReadAlertsAsync(short namespaceId, CancellationToken ct)
+    private protected async Task<IReadOnlyList<JobAlert>> ReadAlertsAsync(int namespaceId, CancellationToken ct)
     {
         return await Db.From<JobAlert>().Where(a => a.NamespaceId == namespaceId).ToListAsync(ct);
     }
@@ -166,7 +166,7 @@ internal sealed record TestJobRow(Job Job, JobRuntime Runtime)
 {
     public long Id => Job.Id;
     public Guid JobRef => Job.JobRef;
-    public short NamespaceId => Job.NamespaceId;
+    public int NamespaceId => Job.NamespaceId;
     public int DefinitionId => Job.DefinitionId;
     public int? TenantId => Job.TenantId;
     public long? ParentId => Job.ParentId;

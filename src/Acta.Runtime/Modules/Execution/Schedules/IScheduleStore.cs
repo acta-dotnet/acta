@@ -20,7 +20,7 @@ internal interface IScheduleStore
     /// Persisted (non-orphaned) per-schedule cursors for the namespace. Drives startup misfire-aware
     /// reconciliation and the slot-cancel decision for definitions that dropped every schedule.
     /// </summary>
-    Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(short namespaceId, CancellationToken ct);
+    Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(int namespaceId, CancellationToken ct);
 
     /// <summary>
     /// One keyset page of schedule rows ordered <c>next_run_at_utc ASC, id ASC</c> plus the opt-in

@@ -44,7 +44,7 @@ public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<T
 
     private const int StagedBacklog = 20;
 
-    private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "A backlog several batches deep clears in one invocation")]
     public async Task Backlog_larger_than_one_batch_drains_within_a_single_pass()

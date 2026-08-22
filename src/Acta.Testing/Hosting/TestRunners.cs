@@ -49,7 +49,7 @@ internal static class TestRunners
     /// </summary>
     internal static Task<IReadOnlyList<ClaimedJob>> ClaimOneAsync(
         this IExecutionStore execution,
-        short namespaceId,
+        int namespaceId,
         int workerId,
         int leaseTtlSeconds,
         JobEnqueueOutcome enqueued,
@@ -62,7 +62,7 @@ internal static class TestRunners
     /// </summary>
     internal static async Task<IReadOnlyList<ClaimedJob>> ClaimOneAsync(
         this IExecutionStore execution,
-        short namespaceId,
+        int namespaceId,
         int workerId,
         int leaseTtlSeconds,
         long jobId,

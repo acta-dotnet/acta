@@ -28,7 +28,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "OnTerminal emits no alert on non-terminal failure then one FinalFailure Error on terminal")]
     public async Task OnTerminal_skips_non_terminal_then_emits_final_failure_on_terminal()

@@ -224,7 +224,7 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 
     // ---------- helpers ----------
 
-    private async Task<(IDbSession Db, ISqlDialect Dialect, short Ns, int WorkerId)> DepsAsync(CancellationToken ct)
+    private async Task<(IDbSession Db, ISqlDialect Dialect, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var dialect = Services.GetRequiredService<ISqlDialect>();

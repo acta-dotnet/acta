@@ -18,7 +18,7 @@ BEGIN
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 
-    DECLARE @v_ns SMALLINT = (
+    DECLARE @v_ns INT = (
         SELECT id FROM {{schema}}.namespaces
         WHERE name = @p_namespace_name
     );

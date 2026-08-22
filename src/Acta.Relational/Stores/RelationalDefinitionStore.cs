@@ -15,7 +15,7 @@ namespace Acta.Relational.Stores;
 /// </summary>
 internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect dialect) : IDefinitionStore
 {
-    public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(short namespaceId, CancellationToken ct) =>
+    public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
         session.QueryAsync(
             "Sql/Execution/Definitions/GetDefinitionContracts.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.NamespaceId, namespaceId)),

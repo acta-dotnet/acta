@@ -373,7 +373,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         return rows;
     }
 
-    private async Task<int> WorkerIdAsync(short ns, CancellationToken ct)
+    private async Task<int> WorkerIdAsync(int ns, CancellationToken ct)
     {
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);

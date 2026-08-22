@@ -75,7 +75,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
 
         public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task StopWorkerAsync(short namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
+        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
 

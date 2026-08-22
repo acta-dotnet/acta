@@ -33,7 +33,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
             ct
         );
 
-    public Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(short namespaceId, CancellationToken ct) =>
+    public Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<StoredScheduleState>>(
             "Sql/Execution/Schedules/GetScheduleState.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.NamespaceId, namespaceId)),

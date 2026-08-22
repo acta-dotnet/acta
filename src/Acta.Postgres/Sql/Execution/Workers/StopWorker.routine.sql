@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION {{schema}}.stop_worker(
-    p_namespace_id SMALLINT,
+    p_namespace_id INT,
     p_worker_id INT
 )
 RETURNS VOID

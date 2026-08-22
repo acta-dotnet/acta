@@ -8,7 +8,7 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @id SMALLINT, @status TINYINT, @version INT;
+    DECLARE @id INT, @status TINYINT, @version INT;
     BEGIN TRY
         BEGIN TRANSACTION;
         SELECT

@@ -10,7 +10,7 @@ BEGIN
 
     DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
     DECLARE
-        @namespace_id SMALLINT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
+        @namespace_id INT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
         @ack DATETIME2(7), @resolved DATETIME2(7),
         @definition_id INT, @lineage_root_id BIGINT, @execution_number INT;
 

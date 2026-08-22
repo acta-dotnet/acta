@@ -350,7 +350,7 @@ public sealed class CompletionSinkDegradedFlushTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(short namespaceId, CancellationToken ct) =>
+        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
@@ -368,7 +368,7 @@ public sealed class CompletionSinkDegradedFlushTests
         public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<IReadOnlyList<Acta.Runtime.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
-            short namespaceId,
+            int namespaceId,
             CancellationToken ct
         ) => throw new NotSupportedException();
 

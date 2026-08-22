@@ -67,7 +67,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
     }
 
     public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
-        short namespaceId,
+        int namespaceId,
         long cursorEventId,
         int batchSize,
         CancellationToken ct
@@ -95,7 +95,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             ct
         );
 
-    public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
+    public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<DeliverableAlert>>(
             "Sql/Alerting/GetDeliverableAlerts.sql",
             cmd =>
@@ -145,7 +145,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     // Inline UPDATE in every provider (no routine); the number of rows closed is the command's
     // rows-affected count, read after draining the reader.
-    public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+    public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
         session.QueryAsync(
             "Sql/Alerting/ResolveJobAlerts.sql",
             cmd =>

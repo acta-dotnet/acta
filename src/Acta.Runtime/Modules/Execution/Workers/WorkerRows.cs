@@ -3,7 +3,7 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// <summary>
 /// The namespace and worker ids the bootstrap routine assigns - the single-row result of the start.
 /// </summary>
-internal readonly record struct StartWorkerRow(short NamespaceId, int WorkerId);
+internal readonly record struct StartWorkerRow(int NamespaceId, int WorkerId);
 
 /// <summary>
 /// One <c>workers</c> row projected for the workers list read.

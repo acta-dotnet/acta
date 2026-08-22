@@ -49,7 +49,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
 
     private readonly BurstVerdict _verdict = new();
     private readonly List<BurstInvocation> _invocations = [];
-    private short _namespaceId;
+    private int _namespaceId;
 
     public async Task<int> ExecuteAsync(CancellationToken ct)
     {
@@ -607,7 +607,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
 
     // ---- setup ---------------------------------------------------------------------------------------
 
-    private async Task<short> ResolveNamespaceAsync(CancellationToken ct)
+    private async Task<int> ResolveNamespaceAsync(CancellationToken ct)
     {
         // The worker upserts its namespaces row during startup; the harness can reach here first.
         var deadline = DateTime.UtcNow.AddMinutes(2);

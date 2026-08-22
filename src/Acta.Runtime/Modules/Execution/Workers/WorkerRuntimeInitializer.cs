@@ -333,7 +333,7 @@ internal sealed class WorkerRuntimeInitializer(
     // against persisted cursors at startup. The upsert set is the union of {descriptors that declare
     // >= 1 [JobSchedule]} and {definitions with persisted schedule state}, so removed schedules can
     // cancel an existing slot, while ordinary non-scheduled jobs are never touched.
-    private async Task ReconcileSchedulesAsync(short namespaceId, CancellationToken ct)
+    private async Task ReconcileSchedulesAsync(int namespaceId, CancellationToken ct)
     {
         var stored = await _schedules.GetScheduleStateAsync(namespaceId, ct);
 

@@ -9,7 +9,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_from_status SMALLINT;
-    v_namespace_id SMALLINT;
+    v_namespace_id INT;
     v_definition INT;
     v_tenant INT;
     v_job_ref UUID;

@@ -24,7 +24,7 @@ internal sealed class RuntimeJobContext(
     ClaimedJob job,
     string jobName,
     string namespaceName,
-    short namespaceId,
+    int namespaceId,
     int leaseTtlSeconds,
     IJobStore jobStore,
     Acta.Runtime.Modules.Execution.Signals.ISignalStore signalStore,
@@ -55,7 +55,7 @@ internal sealed class RuntimeJobContext(
     private readonly Acta.Runtime.Modules.Execution.IExecutionStore _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly ILockStore _lockStore = lockStore;
-    private readonly short _namespaceId = namespaceId;
+    private readonly int _namespaceId = namespaceId;
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;
     private readonly RunningAttempt? _runningAttempt = runningAttempt;
@@ -74,7 +74,7 @@ internal sealed class RuntimeJobContext(
 
     public override long JobId { get; } = job.JobId;
     public override string JobNamespace { get; } = namespaceName;
-    public override short NamespaceId => _namespaceId;
+    public override int NamespaceId => _namespaceId;
     public override int? TenantId { get; } = job.TenantId;
     public override string? TenantKey { get; } = tenantKey;
     public override string JobName { get; } = jobName;

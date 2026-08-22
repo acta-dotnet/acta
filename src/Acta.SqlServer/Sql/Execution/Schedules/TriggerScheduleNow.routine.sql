@@ -12,7 +12,7 @@ BEGIN
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @slot_status TINYINT;
-    DECLARE @ns SMALLINT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
+    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
 
     BEGIN TRY
         BEGIN TRANSACTION;

@@ -23,7 +23,7 @@ RETURNS TABLE (action SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_ns SMALLINT;
+    v_ns INT;
     v_version INT;
 BEGIN
     SELECT jd.namespace_id, jd.version INTO v_ns, v_version

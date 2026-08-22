@@ -240,7 +240,7 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public void BindRegisterJobDefinitions(
         DbCommand command,
-        short namespaceId,
+        int namespaceId,
         DateTime manifestGenerationUtc,
         IReadOnlyList<JobDefinitionRow> rows,
         string schema

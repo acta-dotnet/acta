@@ -224,7 +224,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
 
     // A child of a Suspended parent, claimed and started: the batch routine self-filters it (it has a
     // parent), so it reaches the scalar fallback.
-    private async Task<(long JobId, ClaimedJob Claimed)> StartedChildAsync(int leaseTtl, short ns, int workerId, CancellationToken ct)
+    private async Task<(long JobId, ClaimedJob Claimed)> StartedChildAsync(int leaseTtl, int ns, int workerId, CancellationToken ct)
     {
         var parentEnq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parentEnq, ct));
@@ -233,13 +233,13 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
     }
 
     // A plain row: no parent, no exclusive key, so the set-based routine finalizes it.
-    private async Task<(long JobId, ClaimedJob Claimed)> StartedPlainAsync(int leaseTtl, short ns, int workerId, CancellationToken ct)
+    private async Task<(long JobId, ClaimedJob Claimed)> StartedPlainAsync(int leaseTtl, int ns, int workerId, CancellationToken ct)
     {
         var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
         return (enq.JobId, await ClaimAndStartAsync(enq.JobId, leaseTtl, ns, workerId, ct));
     }
 
-    private async Task<ClaimedJob> ClaimAndStartAsync(long jobId, int leaseTtl, short ns, int workerId, CancellationToken ct)
+    private async Task<ClaimedJob> ClaimAndStartAsync(long jobId, int leaseTtl, int ns, int workerId, CancellationToken ct)
     {
         var claimed = Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, leaseTtl, jobId, ct));
         Assert.Equal(
@@ -251,7 +251,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         return claimed;
     }
 
-    private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, short Ns, int WorkerId)> DepsAsync(CancellationToken ct)
+    private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var dialect = Services.GetRequiredService<ISqlDialect>();

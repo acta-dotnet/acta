@@ -286,7 +286,7 @@ internal sealed class JobExecutionHarness(
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(short namespaceId, CancellationToken ct) =>
+        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
@@ -297,7 +297,7 @@ internal sealed class JobExecutionHarness(
 
         public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(short namespaceId, CancellationToken ct) =>
+        public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>

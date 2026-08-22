@@ -32,7 +32,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "First-failures collapse onto one row and the terminal transition emits FinalFailure")]
     public async Task Failure_lifecycle_projects_first_then_final_failure()

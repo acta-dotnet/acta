@@ -233,7 +233,7 @@ internal sealed class PostgresDialect : ISqlDialect
 
     public void BindRegisterJobDefinitions(
         DbCommand command,
-        short namespaceId,
+        int namespaceId,
         DateTime manifestGenerationUtc,
         IReadOnlyList<JobDefinitionRow> rows,
         string schema
@@ -292,7 +292,7 @@ internal sealed class PostgresDialect : ISqlDialect
         }
 
         // PostgreSQL routine arguments are positional; this order matches register_job_definitions.
-        AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Smallint, namespaceId);
+        AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, namespaceId);
         AddScalar(postgres, "@p_manifest_generation", NpgsqlDbType.TimestampTz, manifestGenerationUtc);
         AddArray(postgres, "@p_d_name", NpgsqlDbType.Varchar, names);
         AddArray(postgres, "@p_d_priority_code", NpgsqlDbType.Smallint, priorityCodes);
@@ -376,7 +376,7 @@ internal sealed class PostgresDialect : ISqlDialect
         }
 
         // PostgreSQL routine arguments are positional; this order matches register_scheduled_jobs.
-        AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Smallint, definitions[0].NamespaceId);
+        AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, definitions[0].NamespaceId);
         AddArray(postgres, "@p_d_job_ref", NpgsqlDbType.Uuid, jobRefs);
         AddArray(postgres, "@p_d_definition_id", NpgsqlDbType.Integer, definitionIds);
         AddArray(postgres, "@p_d_deduplication_key", NpgsqlDbType.Varchar, deduplicationKeys);

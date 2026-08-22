@@ -37,7 +37,7 @@ internal interface IAlertStore
     /// lower id than one the caller has already checkpointed. The horizon is the implementation's to size;
     /// the caller sees it only as latency between an event landing and the pass that projects it.</para>
     /// </summary>
-    Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(short namespaceId, long cursorEventId, int batchSize, CancellationToken ct);
+    Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(int namespaceId, long cursorEventId, int batchSize, CancellationToken ct);
 
     /// <summary>
     /// Reads the namespace's unresolved alerts due for delivery. Both arms key off
@@ -54,7 +54,7 @@ internal interface IAlertStore
     /// not sent. Resolution suppresses further pending and retry attempts. A transport attempt already
     /// in progress may still complete.</para>
     /// </summary>
-    Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct);
+    Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct);
 
     /// <summary>
     /// Records the outcome of one alert delivery attempt: sets <c>delivery_status_code</c>,
@@ -87,7 +87,7 @@ internal interface IAlertStore
     /// cancels the notification instead of leaving it queued. A row already <c>Delivered</c>,
     /// <c>Failed</c>, or <c>Suppressed</c> keeps that status: it records what actually happened.</para>
     /// </summary>
-    Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct);
+    Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct);
 
     /// <summary>
     /// Acknowledge one alert: missing row is NotFound; an already-acknowledged row is Applied without

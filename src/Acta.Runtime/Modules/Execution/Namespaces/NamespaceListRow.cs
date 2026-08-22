@@ -6,7 +6,7 @@ namespace Acta.Runtime.Modules.Execution.Namespaces;
 /// <c>ListNamespaceItems.sql</c> at every position.
 /// </summary>
 internal sealed record NamespaceListRow(
-    short Id,
+    int Id,
     string Name,
     NamespaceStatusCode Status,
     string? OwnerTeam,

@@ -78,7 +78,7 @@ internal static class AlertTestOps
     public static async Task RunAlertsJobAsync(
         IServiceProvider services,
         string jobNamespace,
-        short namespaceId,
+        int namespaceId,
         long cursorOwnerJobId,
         JobsOptions? options,
         AlertDrainBudget? drain,
@@ -117,7 +117,7 @@ internal static class AlertTestOps
     /// horizon rather than exactly on its boundary; nothing larger is needed, because the read that
     /// follows reads its own <c>now()</c>, which cannot precede the one taken here.
     /// </remarks>
-    public static async Task AgeEventsPastHorizonAsync(IServiceProvider services, short namespaceId, CancellationToken ct)
+    public static async Task AgeEventsPastHorizonAsync(IServiceProvider services, int namespaceId, CancellationToken ct)
     {
         var lag = TimeSpan.FromSeconds(
             RelationalAlertStore.SafeHorizonLagSeconds(services.GetRequiredService<SqlProviderOptions>().CommandTimeout)
@@ -139,7 +139,7 @@ internal static class AlertTestOps
     public static Task<long> ReadAlertsCursorAsync(
         IServiceProvider services,
         string jobNamespace,
-        short namespaceId,
+        int namespaceId,
         long cursorOwnerJobId,
         CancellationToken ct
     ) =>
@@ -155,7 +155,7 @@ internal static class AlertTestOps
     public static Task RewindAlertsCursorAsync(
         IServiceProvider services,
         string jobNamespace,
-        short namespaceId,
+        int namespaceId,
         long cursorOwnerJobId,
         long cursorEventId,
         CancellationToken ct
@@ -171,7 +171,7 @@ internal static class AlertTestOps
     public static Task RecordProjectionSkipAsync(
         IServiceProvider services,
         string jobNamespace,
-        short namespaceId,
+        int namespaceId,
         long slotJobId,
         long eventId,
         CancellationToken ct
@@ -211,7 +211,7 @@ internal static class AlertTestOps
     /// shape that produces an alertable failure with no real-time wait and without the handler running.
     /// Shared, because more than one spec needs a failure it can put behind a success.
     /// </summary>
-    public static async Task OrphanOneAttemptAsync(IServiceProvider services, short namespaceId, long slotId, CancellationToken ct)
+    public static async Task OrphanOneAttemptAsync(IServiceProvider services, int namespaceId, long slotId, CancellationToken ct)
     {
         await MakeSlotClaimableAsync(services, slotId, ct);
 
@@ -244,7 +244,7 @@ internal static class AlertTestOps
     private static RuntimeJobContext BuildAlertsContext(
         IServiceProvider services,
         string jobNamespace,
-        short namespaceId,
+        int namespaceId,
         long cursorOwnerJobId
     )
     {

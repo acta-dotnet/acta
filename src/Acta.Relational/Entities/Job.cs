@@ -63,8 +63,8 @@ internal sealed class Job : IEntity<long>
     /// <summary>
     /// Service-owned execution boundary and the hot-path claim filter. FK semantics enforced by SP, not DB.
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
 
     /// <summary>
     /// Surrogate key into <c>definitions</c>; keeps the hot row narrow.

@@ -12,7 +12,7 @@ public abstract class ActaStorageTestBase<TFixture> : ActaTestBase<TFixture>
 {
     private protected ActaTestSeeder Seeder { get; private set; } = null!;
 
-    protected short TestNamespaceId { get; private set; }
+    protected int TestNamespaceId { get; private set; }
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

@@ -9,7 +9,7 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @scope_id BIGINT, @namespace_id SMALLINT;
+    DECLARE @scope_id BIGINT, @namespace_id INT;
     DECLARE @items TABLE (
         name VARCHAR(128) NOT NULL PRIMARY KEY,
         value NVARCHAR(128) NULL,

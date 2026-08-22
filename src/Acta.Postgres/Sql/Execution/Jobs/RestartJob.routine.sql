@@ -11,7 +11,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_from_status SMALLINT;
-    v_namespace_id SMALLINT;
+    v_namespace_id INT;
     v_lineage_root_id BIGINT;
     v_definition_id INT;
     v_tenant_id INT;

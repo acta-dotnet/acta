@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE {{schema}}.purge_expired_data
-    @p_namespace_id SMALLINT,
+    @p_namespace_id INT,
     @p_events_retention_days INT,
     @p_alert_retention_days INT,
     @p_worker_retention_seconds INT,

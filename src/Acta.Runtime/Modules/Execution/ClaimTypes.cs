@@ -5,7 +5,7 @@ namespace Acta.Runtime.Modules.Execution;
 /// separate <c>claim_one</c> path (testing/debug only), so the production claim query carries no
 /// explicit-id branches.
 /// </summary>
-internal sealed record ClaimRequest(short NamespaceId, int WorkerId, int MaxBatch, bool StartExecuting = false);
+internal sealed record ClaimRequest(int NamespaceId, int WorkerId, int MaxBatch, bool StartExecuting = false);
 
 /// <summary>
 /// One claimed row: the full job row needed to dispatch (and for the runner to acquire the
@@ -19,7 +19,7 @@ internal sealed record ClaimRequest(short NamespaceId, int WorkerId, int MaxBatc
 internal sealed record ClaimedJob(
     long JobId,
     Guid JobRef,
-    short NamespaceId,
+    int NamespaceId,
     int DefinitionId,
     int? TenantId,
     int ExecutionNumber,
@@ -62,7 +62,7 @@ internal sealed record ClaimResult(IReadOnlyList<ClaimedJob> Jobs, ClaimHorizon?
 /// </summary>
 internal sealed record ClaimReadyRow(
     long? JobId,
-    short? NamespaceId,
+    int? NamespaceId,
     int? DefinitionId,
     int? ExecutionNumber,
     string? DeduplicationKey,

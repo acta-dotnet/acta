@@ -40,8 +40,8 @@ internal sealed class Tag : IEntity
     /// Owning namespace for reverse search. Tenant tags are null; namespace tags carry their own id;
     /// every other target carries its owning namespace.
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short? NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int? NamespaceId { get; init; }
 
     /// <summary>Normalized dotted-kebab ASCII name.</summary>
     [DbColumn("name", DbKind.AsciiString, Size = 128)]

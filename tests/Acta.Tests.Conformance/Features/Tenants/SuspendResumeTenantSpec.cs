@@ -52,7 +52,7 @@ public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TF
         var ev = await Db.From<JobEvent>()
             .Where(e => e.TenantId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
-        Assert.Equal((short)1, ev!.NamespaceId);
+        Assert.Equal(1, ev!.NamespaceId);
         Assert.Equal("op-1", ev.ActorKey);
         Assert.Equal("hold", ev.ReasonMessage);
     }

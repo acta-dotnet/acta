@@ -14,7 +14,7 @@ internal static class DefinitionTestOps
 {
     public static async Task<IReadOnlyDictionary<string, int>> RegisterAsync(
         IServiceProvider services,
-        short namespaceId,
+        int namespaceId,
         DateTime manifestGenerationUtc,
         ImmutableArray<JobDescriptor> descriptors,
         CancellationToken ct

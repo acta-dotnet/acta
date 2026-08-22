@@ -161,7 +161,7 @@ public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         }
     }
 
-    private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, short Ns, int WorkerId)> ClaimDepsAsync(CancellationToken ct)
+    private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, int Ns, int WorkerId)> ClaimDepsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var dialect = Services.GetRequiredService<ISqlDialect>();
@@ -213,7 +213,7 @@ public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         }
     }
 
-    private static async Task<int> WorkerIdAsync(IDbSession session, short ns, CancellationToken ct)
+    private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)
     {
         var worker = await session.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);

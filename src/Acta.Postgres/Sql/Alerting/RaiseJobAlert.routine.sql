@@ -20,7 +20,7 @@ AS $$
 DECLARE
     v_occurrence_count INT;
     v_last_projected_event_id BIGINT;
-    v_ns SMALLINT;
+    v_ns INT;
     v_job_ref UUID;
 BEGIN
 

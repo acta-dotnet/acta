@@ -243,14 +243,14 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public void BindRegisterJobDefinitions(
         DbCommand command,
-        short namespaceId,
+        int namespaceId,
         DateTime manifestGenerationUtc,
         IReadOnlyList<JobDefinitionRow> rows,
         string schema
     )
     {
         var sql = (SqlCommand)command;
-        sql.Parameters.Add(new SqlParameter("@p_namespace_id", SqlDbType.SmallInt) { Value = namespaceId });
+        sql.Parameters.Add(new SqlParameter("@p_namespace_id", SqlDbType.Int) { Value = namespaceId });
         sql.Parameters.Add(new SqlParameter("@p_manifest_generation", SqlDbType.DateTime2) { Value = manifestGenerationUtc });
         sql.Parameters.Add(
             new SqlParameter
@@ -334,7 +334,7 @@ internal sealed class SqlServerDialect : ISqlDialect
     )
     {
         var sql = (SqlCommand)command;
-        sql.Parameters.Add(new SqlParameter("@p_namespace_id", SqlDbType.SmallInt) { Value = definitions[0].NamespaceId });
+        sql.Parameters.Add(new SqlParameter("@p_namespace_id", SqlDbType.Int) { Value = definitions[0].NamespaceId });
         sql.Parameters.Add(
             new SqlParameter
             {

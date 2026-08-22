@@ -221,7 +221,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
     /// zero writes and takes no locks. Returns a name-to-id map for every descriptor.
     /// </summary>
     public async Task<IReadOnlyDictionary<string, int>> RegisterAsync(
-        short namespaceId,
+        int namespaceId,
         DateTime manifestGenerationUtc,
         ImmutableArray<JobDescriptor> descriptors,
         IReadOnlyList<StoredDefinitionContract> stored,
@@ -310,7 +310,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             OutputFormatName: descriptor.OutputPayloadFormat?.Name ?? JobPayloadFormat.NoneName
         );
 
-    private static JobDefinitionRow BuildRow(JobDescriptor descriptor, short namespaceId)
+    private static JobDefinitionRow BuildRow(JobDescriptor descriptor, int namespaceId)
     {
         var priorityCode = (byte)descriptor.Priority;
         var maxAttempts = descriptor.MaxAttempts;

@@ -41,7 +41,7 @@ DECLARE
     v_sig_state SMALLINT;
     v_sig_due TIMESTAMPTZ;
     v_to_status SMALLINT;
-    v_ns SMALLINT;
+    v_ns INT;
     v_lineage BIGINT;
     v_def INT;
     v_tenant INT;
@@ -57,7 +57,7 @@ DECLARE
     v_latch_expired BOOLEAN;
     v_pmessage VARCHAR;
     v_pstatus SMALLINT;
-    v_pns SMALLINT;
+    v_pns INT;
     v_plineage BIGINT;
     v_pdef INT;
     v_ptenant INT;

@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE {{schema}}.register_job_definitions
-    @p_namespace_id SMALLINT,
+    @p_namespace_id INT,
     @p_manifest_generation DATETIME2(7),
     @p_definitions {{schema}}.job_definition_batch READONLY
 AS

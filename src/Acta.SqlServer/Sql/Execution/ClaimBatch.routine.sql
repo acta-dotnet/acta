@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE {{schema}}.claim_batch
-    @p_namespace_id SMALLINT,
+    @p_namespace_id INT,
     @p_leased_by_worker_id INT,
     @p_claim_limit INT,
     @p_lease_ttl_seconds INT,
@@ -21,7 +21,7 @@ BEGIN
         (
             id BIGINT NOT NULL PRIMARY KEY,
             job_ref UNIQUEIDENTIFIER NOT NULL,
-            namespace_id SMALLINT NOT NULL,
+            namespace_id INT NOT NULL,
             lineage_root_id BIGINT NULL,
             definition_id INT NOT NULL,
             tenant_id INT NULL,
@@ -180,7 +180,7 @@ BEGIN
         BEGIN
             SELECT
                 CAST(NULL AS BIGINT) AS id,
-                CAST(NULL AS SMALLINT) AS namespace_id,
+                CAST(NULL AS INT) AS namespace_id,
                 CAST(NULL AS INT) AS definition_id,
                 CAST(NULL AS INT) AS execution_number,
                 CAST(NULL AS VARCHAR(128)) AS deduplication_key,

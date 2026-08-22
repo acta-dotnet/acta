@@ -32,7 +32,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "Threshold fires exactly once per incident, at the crossing occurrence")]
     public async Task Threshold_emits_exactly_once_above_does_not_duplicate()

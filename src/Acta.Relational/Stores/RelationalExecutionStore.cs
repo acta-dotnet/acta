@@ -64,7 +64,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             ct
         );
 
-    public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(short namespaceId, CancellationToken ct) =>
+    public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<StaleChildLatch>>(
             "Sql/Execution/ChildLatches/GetStaleChildLatches.sql",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId)),
@@ -235,7 +235,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
         return finalized;
     }
 
-    public async Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(short namespaceId, CancellationToken ct)
+    public async Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("Execution", "ReclaimStuckJobs"),

@@ -38,7 +38,7 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
     // which is the whole reason this spec drives a schedule instead of a one-shot probe.
     private const string JobName = "recurring-ping";
 
-    private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "A flap is a new incident: the success closes the row for good and the next failure opens a fresh one")]
     public async Task Failure_success_failure_opens_a_second_incident_rather_than_reopening_the_first()

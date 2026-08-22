@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.start_worker(
     p_max_concurrency INT,
     p_worker_ref UUID
 )
-RETURNS TABLE (namespace_id SMALLINT, worker_id INT)
+RETURNS TABLE (namespace_id INT, worker_id INT)
 LANGUAGE sql
 AS $$
     /* Update first, insert only when the name is absent. An upsert cannot be used here: PostgreSQL

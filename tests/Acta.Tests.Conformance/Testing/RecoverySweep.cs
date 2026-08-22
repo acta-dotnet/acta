@@ -19,7 +19,7 @@ internal static class RecoverySweep
 
     public static async Task<ReclaimStuckJobsResult> ReclaimAtLeastOneAsync(
         IServiceProvider services,
-        short namespaceId,
+        int namespaceId,
         CancellationToken ct
     )
     {

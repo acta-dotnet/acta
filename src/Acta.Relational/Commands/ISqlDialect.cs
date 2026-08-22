@@ -97,7 +97,7 @@ internal interface ISqlDialect
     /// <summary>Binds the whole-namespace definition registration batch in the provider-native shape.</summary>
     void BindRegisterJobDefinitions(
         DbCommand command,
-        short namespaceId,
+        int namespaceId,
         DateTime manifestGenerationUtc,
         IReadOnlyList<JobDefinitionRow> rows,
         string schema

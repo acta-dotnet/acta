@@ -117,7 +117,7 @@ public abstract class StartExecutionStaleVersionSpec<TFixture> : ActaRuntimeTest
         Assert.Empty(startedEvents);
     }
 
-    private static async Task<int> WorkerIdAsync(IDbSession session, short ns, CancellationToken ct)
+    private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)
     {
         var worker = await session.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);

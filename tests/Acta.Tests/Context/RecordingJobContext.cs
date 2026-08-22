@@ -40,7 +40,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
 
     public override long JobId => 1000;
     public override string JobNamespace => "test-ns";
-    public override short NamespaceId => 1;
+    public override int NamespaceId => 1;
     public override string JobName => "parent";
     public override CancellationToken CancellationToken => CancellationToken.None;
 

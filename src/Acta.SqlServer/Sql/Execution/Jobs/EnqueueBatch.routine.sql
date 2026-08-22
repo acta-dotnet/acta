@@ -19,7 +19,7 @@ BEGIN
 
         DECLARE @resolved TABLE (
             ordinal INT PRIMARY KEY,
-            ns_id SMALLINT NOT NULL,
+            ns_id INT NOT NULL,
             ns_status TINYINT NOT NULL,
             def_id INT NOT NULL,
             def_priority SMALLINT NOT NULL,

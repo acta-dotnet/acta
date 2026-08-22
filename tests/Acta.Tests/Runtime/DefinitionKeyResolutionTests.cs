@@ -107,7 +107,7 @@ public sealed class DefinitionKeyResolutionTests
             return Task.FromResult(new DefinitionOverrideOutcome(DefinitionOverrideAction.Applied));
         }
 
-        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(short namespaceId, CancellationToken ct) =>
+        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<IReadOnlyDictionary<string, int>> RegisterDefinitionsAsync(RegisterDefinitionsCommand command, CancellationToken ct) =>

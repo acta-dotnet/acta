@@ -32,7 +32,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var sys = await Db.From<JobNamespace>().Where(n => n.Id == (short)1).SingleOrDefaultAsync(ct);
+        var sys = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(sys);
         Assert.Equal("sys", sys!.Name);

@@ -138,7 +138,7 @@ internal sealed class WorkerLoop(
     // An empty claim sleeps until the horizon's nearest run time (capped by the safety poll), and the
     // wakeup transport interrupts that sleep the moment a publish makes work claimable, so idle
     // pickup is signal-latency, not poll-cadence.
-    private async Task ClaimLoopAsync(ChannelWriter<ClaimedJob> writer, string ns, short namespaceId, int workerId, CancellationToken ct)
+    private async Task ClaimLoopAsync(ChannelWriter<ClaimedJob> writer, string ns, int namespaceId, int workerId, CancellationToken ct)
     {
         var options = _options.Value;
         var batchSize = Math.Max(1, options.ClaimBatchSize);
@@ -235,7 +235,7 @@ internal sealed class WorkerLoop(
     // Consumer: one of N loops draining the shared channel. Each job runs to completion before the
     // loop pulls the next, so live concurrency equals the executor count. A per-job fault is logged
     // and swallowed so one bad job never tears the executor down.
-    private async Task ExecutorLoopAsync(ChannelReader<ClaimedJob> reader, string ns, short namespaceId, int workerId, CancellationToken ct)
+    private async Task ExecutorLoopAsync(ChannelReader<ClaimedJob> reader, string ns, int namespaceId, int workerId, CancellationToken ct)
     {
         try
         {
@@ -272,7 +272,7 @@ internal sealed class WorkerLoop(
     /// </summary>
     private async Task CombinedLoopAsync(
         string ns,
-        short namespaceId,
+        int namespaceId,
         int workerId,
         int executorCount,
         int batchSize,
@@ -371,7 +371,7 @@ internal sealed class WorkerLoop(
     /// Runs one already-started job to completion, then releases its slot. A per-job fault is logged and
     /// swallowed so one bad job never tears the coordinator down.
     /// </summary>
-    private async Task RunOneAsync(ClaimedJob job, string ns, short namespaceId, int workerId, SemaphoreSlim slots, CancellationToken ct)
+    private async Task RunOneAsync(ClaimedJob job, string ns, int namespaceId, int workerId, SemaphoreSlim slots, CancellationToken ct)
     {
         try
         {

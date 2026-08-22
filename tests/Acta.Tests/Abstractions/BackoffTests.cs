@@ -243,7 +243,7 @@ internal sealed class StepOptionsCapturingContext : JobContext
 
     public override long JobId => 1;
     public override string JobNamespace => "test-ns";
-    public override short NamespaceId => 1;
+    public override int NamespaceId => 1;
     public override string JobName => "step-host";
     public override CancellationToken CancellationToken => CancellationToken.None;
 

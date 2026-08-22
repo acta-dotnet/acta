@@ -42,7 +42,7 @@ internal sealed class BurstDb(string provider, string schema)
     private readonly string _prefix = LocalDatabase.IsSqlite(provider) ? "" : schema + ".";
 
     /// <summary>The numeric namespace id the events and alerts tables carry, by namespace name.</summary>
-    public async Task<short> NamespaceIdAsync(string namespaceName, CancellationToken ct)
+    public async Task<int> NamespaceIdAsync(string namespaceName, CancellationToken ct)
     {
         await using var connection = await OpenAsync(ct);
         await using var command = connection.CreateCommand();
@@ -67,7 +67,7 @@ internal sealed class BurstDb(string provider, string schema)
     /// backlog larger than the one that was seeded.
     /// </remarks>
     public async Task<int> CountAlertableEventsAsync(
-        short namespaceId,
+        int namespaceId,
         IReadOnlyList<string> definitionNames,
         long exclusiveLow,
         long inclusiveHigh,
@@ -123,7 +123,7 @@ internal sealed class BurstDb(string provider, string schema)
     /// Backdates every event in the namespace by <paramref name="age"/> so the projection read's safe
     /// horizon admits them all. Returns the rows aged.
     /// </summary>
-    public async Task<int> AgeEventsAsync(short namespaceId, TimeSpan age, CancellationToken ct)
+    public async Task<int> AgeEventsAsync(int namespaceId, TimeSpan age, CancellationToken ct)
     {
         await using var connection = await OpenAsync(ct);
         await using var command = connection.CreateCommand();

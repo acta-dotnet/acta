@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION {{schema}}.register_scheduled_jobs(
-    p_namespace_id SMALLINT,
+    p_namespace_id INT,
     p_d_job_ref UUID [],
     p_d_definition_id INT [],
     p_d_deduplication_key VARCHAR [],

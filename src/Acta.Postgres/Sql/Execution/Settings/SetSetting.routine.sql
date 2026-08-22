@@ -18,7 +18,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_scope_code SMALLINT := 10 /* SettingScopeCode.Global */;
-    v_namespace_id SMALLINT;
+    v_namespace_id INT;
     v_definition_id INT;
     v_scope_id INT;
     v_version INT;

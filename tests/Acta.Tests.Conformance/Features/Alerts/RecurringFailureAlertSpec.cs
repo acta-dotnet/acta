@@ -35,7 +35,7 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
     // whole reason this failure shape exists as something separate from a one-off's retry.
     private const string JobName = "recurring-ping";
 
-    private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "A recurring fire whose handler throws attributes the reason on its Ready rollover and raises one alert")]
     public async Task Recurring_handler_throw_is_attributed_and_alerts()

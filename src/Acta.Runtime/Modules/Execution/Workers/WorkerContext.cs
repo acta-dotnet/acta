@@ -19,7 +19,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public WorkerRegistration? WorkerRegistration { get; } = workerRegistration;
 
     // Worker-only state. All these fields stay empty in enqueue-only mode.
-    public Dictionary<string, short> NamespaceIds { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, int> NamespaceIds { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> WorkerIdByNamespace { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, Dictionary<string, int>> DefinitionIdsByNamespace { get; } = new(StringComparer.Ordinal);
 
@@ -41,7 +41,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     // extends every lock the attempt holds through the lock store while it stays.
     public ConcurrentDictionary<long, RunningAttempt> RunningAttempts { get; } = new();
 
-    public IReadOnlyDictionary<string, short> RegisteredNamespaceIds => NamespaceIds;
+    public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
 
     public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId)
     {
@@ -56,7 +56,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 
     // Resolves and validates the (namespaceId, workerId) pair for the registered worker namespace.
     // Shared by RunOnceAsync and the production claim loop.
-    public (short NamespaceId, int WorkerId) ResolveWorker(string namespaceName)
+    public (int NamespaceId, int WorkerId) ResolveWorker(string namespaceName)
     {
         if (WorkerRegistration is null)
         {
@@ -74,7 +74,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
         }
         return !WorkerIdByNamespace.TryGetValue(namespaceName, out var workerId)
             ? throw new InvalidOperationException($"Worker id for namespace '{namespaceName}' not assigned. Call InitializeAsync first.")
-            : ((short NamespaceId, int WorkerId))(namespaceId, workerId);
+            : ((int NamespaceId, int WorkerId))(namespaceId, workerId);
     }
 }
 

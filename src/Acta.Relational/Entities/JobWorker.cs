@@ -54,8 +54,8 @@ internal sealed class JobWorker : IEntity<int>
     /// <summary>
     /// Namespace this worker claims within. Enforced by <c>fk_workers_namespaces</c>.
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
 
     /// <summary>
     /// Worker lifecycle status, written by the <c>StartWorker</c> handler at startup. <c>sys.recovery</c>

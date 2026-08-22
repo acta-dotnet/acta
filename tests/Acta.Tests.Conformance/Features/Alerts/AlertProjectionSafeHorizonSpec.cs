@@ -35,7 +35,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    private short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     [Fact(DisplayName = "An event still inside the horizon is not projected and the cursor does not advance")]
     public async Task Event_inside_the_horizon_is_left_for_a_later_pass()

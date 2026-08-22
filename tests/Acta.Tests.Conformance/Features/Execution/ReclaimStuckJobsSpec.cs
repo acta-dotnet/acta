@@ -196,7 +196,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Empty(leaseExpiredEvents);
     }
 
-    private static async Task<int> WorkerIdAsync(IDbSession session, short ns, CancellationToken ct)
+    private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)
     {
         var worker = await session.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);

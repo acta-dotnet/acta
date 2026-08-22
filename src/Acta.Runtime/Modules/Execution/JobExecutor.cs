@@ -85,7 +85,7 @@ internal sealed class JobExecutor(
     public async Task<RunOnceOutcome> ExecuteClaimedJobAsync(
         ClaimedJob job,
         string namespaceName,
-        short namespaceId,
+        int namespaceId,
         int workerId,
         bool alreadyStarted,
         CancellationToken ct

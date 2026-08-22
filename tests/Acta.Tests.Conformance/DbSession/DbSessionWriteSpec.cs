@@ -32,7 +32,7 @@ public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixtur
         var now = DateTime.UtcNow;
 
         var id = await Db.From<JobNamespace>()
-            .InsertAsync<short>(
+            .InsertAsync<int>(
                 new JobNamespace
                 {
                     Name = $"{TestNamespace}-insert",
@@ -44,7 +44,7 @@ public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixtur
                 ct
             );
 
-        Assert.NotEqual((short)0, id);
+        Assert.NotEqual(0, id);
         Assert.NotEqual(TestNamespaceId, id);
 
         var row = await Db.From<JobNamespace>().Where(n => n.Id == id).SingleOrDefaultAsync(ct);
@@ -135,7 +135,7 @@ public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixtur
         var now = DateTime.UtcNow;
 
         var id = await Db.From<JobNamespace>()
-            .InsertAsync<short>(
+            .InsertAsync<int>(
                 new JobNamespace
                 {
                     Name = $"{TestNamespace}-delete",

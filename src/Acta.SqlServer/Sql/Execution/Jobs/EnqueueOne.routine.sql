@@ -23,7 +23,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns_id SMALLINT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
+    DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
     DECLARE @def_audit TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
     DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
     DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;

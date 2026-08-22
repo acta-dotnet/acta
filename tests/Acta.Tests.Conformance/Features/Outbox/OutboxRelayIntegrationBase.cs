@@ -22,7 +22,7 @@ public abstract class OutboxRelayIntegrationBase<TFixture> : ActaRuntimeTestBase
 
     private protected IOutboxRelayStore SourceStore { get; private set; } = null!;
 
-    private protected short NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
+    private protected int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     protected override async ValueTask AfterInitializeAsync()
     {
@@ -83,7 +83,7 @@ public abstract class OutboxRelayIntegrationBase<TFixture> : ActaRuntimeTestBase
     private protected async Task<int> CountLedgerJobsAsync(string dedup, CancellationToken ct) =>
         await Db.From<Job>().Where(j => j.NamespaceId == NamespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
 
-    private protected async Task<int> CountLedgerJobsAsync(short namespaceId, string dedup, CancellationToken ct) =>
+    private protected async Task<int> CountLedgerJobsAsync(int namespaceId, string dedup, CancellationToken ct) =>
         await Db.From<Job>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
 
     // A second Acta runtime against the same ledger that registers TestJobsManifest under another

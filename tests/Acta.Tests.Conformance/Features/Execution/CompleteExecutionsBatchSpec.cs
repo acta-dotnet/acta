@@ -317,7 +317,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
     // ---------- helpers ----------
 
-    private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, short Ns, int WorkerId)> DepsAsync(CancellationToken ct)
+    private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var dialect = Services.GetRequiredService<ISqlDialect>();
@@ -330,7 +330,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
     private async Task<ClaimedJob> ClaimAndStartAsync(
         IDbSession db,
         ISqlDialect dialect,
-        short ns,
+        int ns,
         int workerId,
         int leaseTtl,
         long jobId,

@@ -163,7 +163,7 @@ internal sealed class WorkerRuntime
     /// <summary>This worker's declared namespace; null for an enqueue-only runtime.</summary>
     public string? WorkerNamespaceName { get; }
 
-    public IReadOnlyDictionary<string, short> RegisteredNamespaceIds => _context.RegisteredNamespaceIds;
+    public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => _context.RegisteredNamespaceIds;
 
     public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId) =>
         _context.TryGetDefinitionId(namespaceName, jobName, out definitionId);

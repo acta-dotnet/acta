@@ -11,7 +11,7 @@ RETURNS TABLE (action SMALLINT, version INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_id SMALLINT;
+    v_id INT;
     v_version INT;
 BEGIN
     SELECT n.id, n.version INTO v_id, v_version

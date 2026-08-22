@@ -2,49 +2,52 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Fails a server-provider bootstrap fast, with one readable message, when the shared
-/// <c>acta_test</c> database's <c>namespaces.id</c> space is nearly spent. <c>namespaces.id</c> is a
-/// <c>smallint</c> IDENTITY/sequence column on both PostgreSQL and SQL Server (ceiling
-/// <see cref="short.MaxValue"/>); SQLite's <c>namespaces.id</c> is a 64-bit AUTOINCREMENT and is out
-/// of scope. Ids are never reclaimed in the append-only <c>acta_test</c> schema (see
+/// <c>acta_test</c> database's <c>namespaces.id</c> space is nearly spent. <c>namespaces.id</c> is an
+/// <c>int</c> IDENTITY/sequence column on both PostgreSQL and SQL Server (ceiling
+/// <see cref="int.MaxValue"/>); SQLite's <c>namespaces.id</c> is a 64-bit AUTOINCREMENT and is out of
+/// scope. Ids are never reclaimed in the append-only <c>acta_test</c> schema (see
 /// <c>ActaTestBase.cs</c>), so consumption only ever grows across every run against a given database.
-/// Without this check the sequence eventually overflows mid-suite and both providers fail every spec
-/// at once with a raw <c>nextval</c> / <c>IDENTITY</c> overflow exception - a failure that reads as a
-/// total infrastructure collapse rather than what it actually is: a counter running out.
 /// </summary>
 /// <remarks>
+/// <para>
+/// At 32 bits this guard is no longer a countdown the suite walks into on its own: running the
+/// solution often enough to spend two billion ids is not a thing that happens. What can still spend
+/// them is a defect - an allocator advanced by work that creates no namespace (the shape
+/// <c>StartWorkerIdAllocationSpec</c> pins), or a fixture registering namespaces in a loop. So the
+/// guard is kept, and it is kept as a runaway detector: if it ever fires, the honest first reading is
+/// that something is allocating ids far faster than the suite creates namespaces, and the number in
+/// the message is the evidence for that rather than a chore reminder.
+/// </para>
+/// <para>
 /// The two provider fixtures each read their own high-water mark (never <c>MAX(id)</c>, which
 /// understates consumption once any row has been deleted, since ids are never reused) and hand it to
 /// <see cref="ThrowIfExhausted"/>, which owns the threshold arithmetic and the message text so the two
 /// providers cannot drift on either.
+/// </para>
 /// </remarks>
 public static class NamespaceIdBudget
 {
     /// <summary>
-    /// Highest id a smallint IDENTITY/sequence column can hand out. Derived from
-    /// <see cref="short.MaxValue"/> rather than the literal 32767 so this file and both provider
+    /// Highest id an int IDENTITY/sequence column can hand out. Derived from
+    /// <see cref="int.MaxValue"/> rather than the literal 2147483647 so this file and both provider
     /// fixtures can never disagree on it.
     /// </summary>
-    public const int Ceiling = short.MaxValue;
+    public const int Ceiling = int.MaxValue;
 
     /// <summary>
     /// The namespaces-id cost of one full-solution <c>dotnet test Acta.slnx</c> run, measured on
-    /// 2026-08-19. The number drifts whenever a spec is added or removed, and nothing fails when it
-    /// does: it only sizes <see cref="Threshold"/> and the runs-remaining figure in the failure
-    /// message, never whether the guard runs. The drift is bounded-safe: the guard always stops a
-    /// run while at least <see cref="Threshold"/> ids remain, so a stale value here shifts when the
-    /// warning fires - a shrunken suite fires it earlier, a grown suite later - and could let a run
-    /// hit the ceiling mid-suite only if the real per-run cost outgrew this constant by a factor of
-    /// <see cref="WarningRuns"/>. When the guard fires, a human resets the database and can
-    /// re-measure this constant; there is deliberately no automatic reset.
+    /// 2026-08-22 against PostgreSQL. It sizes <see cref="Threshold"/> and the runs-remaining figure
+    /// in the failure message, never whether the guard runs, so drift here is harmless: a stale value
+    /// only shifts where the reserve sits, and against a 32-bit ceiling the reserve is a rounding
+    /// error either way. Kept as a measured number rather than a round one because it is what makes
+    /// the failure message say something concrete about the rate.
     /// </summary>
     public const int IdsPerRun = 658;
 
     /// <summary>
-    /// Warn this many runs before the wall, at the measured <see cref="IdsPerRun"/> rate. A fresh
-    /// database has roughly <c>Ceiling / IdsPerRun</c> runs of total budget; five runs of headroom
-    /// is enough warning to notice the message, let whatever is already in flight finish, and reset
-    /// before the counter actually reaches <see cref="Ceiling"/> - without firing so early that
-    /// most of the budget reads as "nearly exhausted."
+    /// Size of the reserve, in runs at the measured <see cref="IdsPerRun"/> rate. The guard stops the
+    /// run while at least this much budget is left, so the failure is a refusal with headroom rather
+    /// than an overflow mid-suite.
     /// </summary>
     public const int WarningRuns = 5;
 
@@ -87,25 +90,22 @@ public static class NamespaceIdBudget
             $"""
             {providerName}: the shared acta_test database's namespaces.id space is nearly exhausted.
 
-            namespaces.id is a smallint IDENTITY/sequence column (ceiling {Ceiling}, from short.MaxValue).
+            namespaces.id is an int IDENTITY/sequence column (ceiling {Ceiling}, from int.MaxValue).
             Current high-water mark: {consumedIds}. Remaining headroom: {remaining} ids, about
             {runsRemaining:F1} more full-solution `dotnet test Acta.slnx` runs at the measured cost of
             {IdsPerRun} ids per run.
 
-            This is NOT a product defect and NOT a broken container. acta_test is an append-only shared
-            schema by design and ids are never reclaimed between runs, so this is a consumed test-database
-            resource that has simply been run against enough times to approach its 16-bit ceiling.
+            Read this as a defect report, not as a chore. acta_test is append-only by design and never
+            reclaims ids, but at {IdsPerRun} ids per run the 32-bit space is roughly three million runs
+            deep: it is not reachable by testing. Something has been allocating namespace ids without
+            creating namespaces - the shape StartWorkerIdAllocationSpec exists to catch - or a fixture
+            is registering namespaces in a loop. Find that before doing anything else, because a reset
+            hides it and buys only another three million runs of the same silence.
 
-            You are being stopped with headroom still left on purpose. Running out mid-suite does not fail
-            one spec - it fails roughly thirteen hundred at once, on providers that were green minutes
-            earlier, with a raw overflow message that names namespaces and explains nothing. That wreckage
-            is far more expensive than this refusal, so the budget is spent down to a reserve and no
-            further.
-
-            Fix: drop the acta-test DATABASE (not just the acta_test schema) on both servers.
-            EnsureDatabaseAndApplyAsync recreates the database and reapplies the schema automatically on
-            the next run, which resets this counter to zero. Never drop or touch acta-dev - that is the
-            everyday database, not the test one.
+            Once the cause is understood, dropping the acta-test DATABASE (not just the acta_test
+            schema) on both servers resets this counter to zero; EnsureDatabaseAndApplyAsync recreates
+            the database and reapplies the schema on the next run. Never drop or touch acta-dev - that
+            is the everyday database, not the test one.
 
               docker compose exec -T postgres psql -U postgres -d acta-dev -c 'DROP DATABASE IF EXISTS "acta-test";'
               docker compose exec -T sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "<sa-password>" -C -b -Q "ALTER DATABASE [acta-test] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [acta-test];"

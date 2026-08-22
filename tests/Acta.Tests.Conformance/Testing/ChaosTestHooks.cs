@@ -95,7 +95,7 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
         inner.GetChildJobIdsAsync(parentJobId, ct);
 
     public Task<IReadOnlyList<Acta.Runtime.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
-        short namespaceId,
+        int namespaceId,
         CancellationToken ct
     ) => inner.GetStaleChildLatchesAsync(namespaceId, ct);
 
@@ -122,7 +122,7 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
     public Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(IReadOnlyList<CompleteExecutionRequest> requests, CancellationToken ct) =>
         inner.CompleteExecutionsBatchAsync(requests, ct);
 
-    public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(short namespaceId, CancellationToken ct) =>
+    public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
         inner.ReclaimStuckJobsAsync(namespaceId, ct);
 
     public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>

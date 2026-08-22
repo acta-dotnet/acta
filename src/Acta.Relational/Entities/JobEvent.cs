@@ -64,8 +64,8 @@ internal sealed class JobEvent : IEntity<long>
     /// <summary>
     /// Namespace this event belongs to; per-namespace timeline queries seek without joining.
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
 
     /// <summary>
     /// Who caused the transition (<c>Sys</c> / <c>Worker</c> / <c>Operator</c> / <c>Job</c>).

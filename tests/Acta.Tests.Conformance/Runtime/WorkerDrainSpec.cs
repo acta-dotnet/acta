@@ -101,7 +101,7 @@ public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(0, Runtime.InFlightCount);
     }
 
-    private async Task<JobWorker> ReadWorkerAsync(short namespaceId, CancellationToken ct)
+    private async Task<JobWorker> ReadWorkerAsync(int namespaceId, CancellationToken ct)
     {
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == namespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);

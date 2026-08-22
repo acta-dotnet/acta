@@ -68,8 +68,8 @@ internal sealed class JobRuntime : IEntity<long>
     /// retention scans filter and seek without joining <c>jobs</c> (<c>ix_runtimes_claim_ready</c> /
     /// <c>ix_runtimes_retention</c> lead with it). Written once at insert, never updated.
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
 
     /// <summary>
     /// Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled).

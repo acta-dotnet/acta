@@ -150,7 +150,7 @@ public sealed class LoopTickCancellationFilterTests
 
         public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task StopWorkerAsync(short namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
+        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
 
@@ -190,7 +190,7 @@ public sealed class LoopTickCancellationFilterTests
     // exception - the shutdown-window shape RunAsync's catch ordering must swallow.
     private sealed class CancelThenThrowDefinitionStore(CancellationTokenSource cts, Exception toThrow) : IDefinitionStore
     {
-        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(short namespaceId, CancellationToken ct)
+        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct)
         {
             cts.Cancel();
             throw toThrow;
@@ -248,7 +248,7 @@ public sealed class LoopTickCancellationFilterTests
 
     private sealed class ThrowingDefinitionStore(Exception failure) : IDefinitionStore
     {
-        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(short namespaceId, CancellationToken ct) =>
+        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
             throw failure;
 
         public ValueTask<Acta.JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>

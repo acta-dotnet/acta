@@ -80,8 +80,8 @@ internal sealed class JobAlert : IEntity<long>
     /// Scope of the incident identity; at most one unresolved alert exists per
     /// <c>(namespace_id, dedupe_key)</c>.
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
 
     /// <summary>
     /// Job that triggered the alert. No FK; SP-side validation. Operators reach the definition via

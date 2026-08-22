@@ -167,7 +167,7 @@ BEGIN
         lineage_root_id BIGINT,
         deduplication_key VARCHAR,
         correlation_key VARCHAR,
-        namespace_id SMALLINT NOT NULL,
+        namespace_id INT NOT NULL,
         definition_id INT NOT NULL,
         tenant_id INT,
         input_format_id SMALLINT NOT NULL,

@@ -43,7 +43,7 @@ BEGIN
 
     DECLARE @matched BIT = 0;
     DECLARE
-        @c_ref UNIQUEIDENTIFIER, @c_ns SMALLINT, @c_lineage BIGINT, @c_def INT, @c_tenant INT, @c_exec INT,
+        @c_ref UNIQUEIDENTIFIER, @c_ns INT, @c_lineage BIGINT, @c_def INT, @c_tenant INT, @c_exec INT,
         @c_audit TINYINT,
         @c_next_existing DATETIME2(3), @c_retention_existing DATETIME2(3), @c_failcount_existing SMALLINT;
     DECLARE @c_next DATETIME2(3), @c_retention DATETIME2(3), @c_failcount SMALLINT;
@@ -354,7 +354,7 @@ BEGIN
                     AND @parent_id IS NOT NULL
                     BEGIN
                         DECLARE @sig VARCHAR(128) = 'sys.child.' + CAST(@p_id AS VARCHAR(20));
-                        DECLARE @psig TINYINT, @pstatus TINYINT, @pns SMALLINT, @plineage BIGINT;
+                        DECLARE @psig TINYINT, @pstatus TINYINT, @pns INT, @plineage BIGINT;
                         DECLARE @pdef INT, @ptenant INT, @pexec INT, @paudit TINYINT;
                         DECLARE @parent_ref UNIQUEIDENTIFIER;
 

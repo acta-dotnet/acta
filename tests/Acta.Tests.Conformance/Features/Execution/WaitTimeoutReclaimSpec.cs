@@ -207,7 +207,7 @@ public abstract class WaitTimeoutReclaimSpec<TFixture> : ActaRuntimeTestBase<TFi
     // The whole crash-after-the-flip staging, shared by the facts that go on to ask what it looked
     // like from outside: arm the wait, move it past its deadline, claim it with a lease that is
     // already dead, make the flip the lost worker made, and sweep.
-    private async Task ReclaimAfterResolvedWaitAsync(JobEnqueueOutcome enqueued, short ns, CancellationToken ct)
+    private async Task ReclaimAfterResolvedWaitAsync(JobEnqueueOutcome enqueued, int ns, CancellationToken ct)
     {
         var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -223,7 +223,7 @@ public abstract class WaitTimeoutReclaimSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    private Task RunAlertsAsync(long jobId, short ns, CancellationToken ct) =>
+    private Task RunAlertsAsync(long jobId, int ns, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, ns, jobId, options: null, drain: null, ct);
 
     // Moves the wait past its deadline the way real time would: the slot's stored expiration and the

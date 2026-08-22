@@ -15,7 +15,7 @@ internal interface IDefinitionStore
     /// The full catalog of every definition in a namespace: identity, generation, hash, status,
     /// contract, modification time, and effective policy.
     /// </summary>
-    Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(short namespaceId, CancellationToken ct);
+    Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct);
 
     /// <summary>One fully-projected definition row by surrogate id, or null when no row matches.</summary>
     ValueTask<JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct);
@@ -57,7 +57,7 @@ internal sealed record DefinitionPageRequest(
 internal sealed record DefinitionPage(IReadOnlyList<JobDefinitionListItem> Rows, long? Total);
 
 /// <summary>Resolved registration batch: policy defaults already applied and hashes computed.</summary>
-internal sealed record RegisterDefinitionsCommand(short NamespaceId, DateTime ManifestGenerationUtc, IReadOnlyList<JobDefinitionRow> Rows);
+internal sealed record RegisterDefinitionsCommand(int NamespaceId, DateTime ManifestGenerationUtc, IReadOnlyList<JobDefinitionRow> Rows);
 
 /// <summary>Validated override write: canonicalized values plus the audit actor and reason.</summary>
 internal sealed record SetDefinitionOverridesCommand(

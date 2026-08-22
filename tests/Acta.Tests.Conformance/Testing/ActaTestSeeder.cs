@@ -14,11 +14,11 @@ internal sealed class ActaTestSeeder(IDbSession db)
     /// <paramref name="ownerTeam"/> to <c>"test"</c> when omitted; stamps the audit timestamps (these
     /// columns have no server default).
     /// </summary>
-    public async Task<short> SeedJobNamespaceAsync(string name, string? ownerTeam = "test", CancellationToken ct = default)
+    public async Task<int> SeedJobNamespaceAsync(string name, string? ownerTeam = "test", CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
         return await db.From<JobNamespace>()
-            .InsertAsync<short>(
+            .InsertAsync<int>(
                 new JobNamespace
                 {
                     Name = name,
@@ -39,7 +39,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
     /// this join.
     /// </summary>
     public async Task<int> SeedJobDefinitionAsync(
-        short namespaceId,
+        int namespaceId,
         string name = "test-def",
         AlertProfileCode alertProfile = AlertProfileCode.None,
         CancellationToken ct = default
@@ -82,7 +82,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
     /// <c>job_ref</c>. Seeds a definition first when one is not supplied.
     /// </summary>
     public async Task<(long JobId, Guid JobRef)> SeedJobAsync(
-        short namespaceId,
+        int namespaceId,
         int? definitionId = null,
         int? tenantId = null,
         CancellationToken ct = default

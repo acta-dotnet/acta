@@ -83,7 +83,7 @@ public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         var page = await store.ListNamespaceItemsAsync(new NamespacePageRequest("sys", null, null, 50, true), ct);
         var sys = page.Rows.Single(r => r.JobNamespace == "sys");
-        Assert.Equal((short)1, sys.NamespaceId);
+        Assert.Equal(1, sys.NamespaceId);
         Assert.Equal(NamespaceStatusCode.Active, sys.Status);
         Assert.NotNull(page.Total);
         Assert.True(page.Total >= 1);

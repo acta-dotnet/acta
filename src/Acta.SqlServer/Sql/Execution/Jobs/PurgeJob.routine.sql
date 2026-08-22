@@ -10,7 +10,7 @@ BEGIN
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
-        @from_status TINYINT, @namespace_id SMALLINT,
+        @from_status TINYINT, @namespace_id INT,
         @definition_id INT, @tenant_id INT,
         @job_ref UNIQUEIDENTIFIER, @job_name VARCHAR(128);
 

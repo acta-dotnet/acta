@@ -8,7 +8,7 @@ RETURNS TABLE (out_action SMALLINT, out_acknowledged_at_utc TIMESTAMPTZ, out_res
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_namespace_id SMALLINT;
+    v_namespace_id INT;
     v_job_id BIGINT;
     v_job_ref UUID;
     v_ack TIMESTAMPTZ;

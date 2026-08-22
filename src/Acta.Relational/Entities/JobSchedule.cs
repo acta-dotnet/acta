@@ -46,8 +46,8 @@ internal sealed class JobSchedule : IEntity<long>
     /// <summary>
     /// Per-namespace reload tick filters by this.
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
 
     /// <summary>
     /// Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its

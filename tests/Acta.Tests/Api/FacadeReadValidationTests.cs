@@ -123,7 +123,7 @@ public sealed class FacadeReadValidationTests
         public Task<IReadOnlyList<LiveSchedule>> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<LiveSchedule>>([]);
 
-        public Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(short namespaceId, CancellationToken ct) =>
+        public Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<StoredScheduleState>>([]);
 
         public Task<SchedulePage> ListJobSchedulesAsync(SchedulePageRequest request, CancellationToken ct) =>
@@ -153,13 +153,13 @@ public sealed class FacadeReadValidationTests
             throw new NotSupportedException();
 
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
-            short namespaceId,
+            int namespaceId,
             long cursorEventId,
             int batchSize,
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
+        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<bool> UpdateAlertDeliveryAsync(
@@ -171,7 +171,7 @@ public sealed class FacadeReadValidationTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+        public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>

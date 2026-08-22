@@ -89,13 +89,13 @@ public sealed class AlertsJobPoisonEventTests
         }
 
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
-            short namespaceId,
+            int namespaceId,
             long cursorEventId,
             int batchSize,
             CancellationToken ct
         ) => Task.FromResult<IReadOnlyList<AlertableEvent>>(Events.Where(e => e.EventId > cursorEventId).Take(batchSize).ToArray());
 
-        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(short namespaceId, int batchSize, CancellationToken ct) =>
+        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<DeliverableAlert>>([]);
 
         public Task<bool> UpdateAlertDeliveryAsync(
@@ -107,7 +107,7 @@ public sealed class AlertsJobPoisonEventTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<int> ResolveJobAlertsAsync(short namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+        public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>

@@ -6,14 +6,14 @@ namespace Acta.Tests.Conformance.Testing;
 
 internal static class ChaosSpecHelpers
 {
-    public static async Task<short> NamespaceIdAsync(IDbSession db, string name, CancellationToken ct)
+    public static async Task<int> NamespaceIdAsync(IDbSession db, string name, CancellationToken ct)
     {
         var row = await db.From<JobNamespace>().Where(n => n.Name == name).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         return row!.Id;
     }
 
-    public static async Task<int> WorkerIdAsync(IDbSession db, short namespaceId, CancellationToken ct)
+    public static async Task<int> WorkerIdAsync(IDbSession db, int namespaceId, CancellationToken ct)
     {
         var rows = await db.From<JobWorker>().Where(w => w.NamespaceId == namespaceId).ToListAsync(ct);
         return Assert.Single(rows).Id;
@@ -70,7 +70,7 @@ internal static class ChaosSpecHelpers
         );
     }
 
-    public static async Task<int> ReclaimAsync(IServiceProvider services, short namespaceId, CancellationToken ct) =>
+    public static async Task<int> ReclaimAsync(IServiceProvider services, int namespaceId, CancellationToken ct) =>
         (await RecoverySweep.ReclaimAtLeastOneAsync(services, namespaceId, ct)).Reclaimed;
 
     public static JobEventRecord AssertRecoveryEvent(IReadOnlyList<JobEventRecord> events, JobStatusCode? from, JobStatusCode? to)

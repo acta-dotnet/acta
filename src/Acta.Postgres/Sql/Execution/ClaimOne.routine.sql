@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION {{schema}}.claim_one(
-    p_namespace_id SMALLINT,
+    p_namespace_id INT,
     p_leased_by_worker_id INT,
     p_lease_ttl_seconds INT,
     p_id BIGINT,
@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.claim_one(
 )
 RETURNS TABLE (
     id BIGINT,
-    namespace_id SMALLINT,
+    namespace_id INT,
     definition_id INT,
     execution_number INT,
     deduplication_key VARCHAR,

@@ -120,7 +120,7 @@ internal sealed record SlotSchedule(
 /// (<c>SlotMinNextRunAtUtc</c> is MIN over live schedules; null means Paused, exhausted, or removed).
 /// </summary>
 internal sealed record DefinitionSchedules(
-    short NamespaceId,
+    int NamespaceId,
     int DefinitionId,
     string JobName,
     byte InputFormatId,

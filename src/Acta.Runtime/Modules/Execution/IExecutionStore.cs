@@ -67,7 +67,7 @@ internal interface IExecutionStore
     /// path never spends, so the job returns to Suspended on the same past deadline and the replay
     /// resolves the timeout as the waiting overload defines it.</para>
     /// </summary>
-    Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(short namespaceId, CancellationToken ct);
+    Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct);
 
     /// <summary>
     /// Reads or inserts the <c>(job_id, name)</c> step slot under a job-row lock and decides
@@ -111,7 +111,7 @@ internal interface IExecutionStore
     /// Maintenance backstop feed: finds Pending child-done latches in one namespace whose child
     /// landed terminal without setting them, so the caller can re-raise each and release the parent.
     /// </summary>
-    Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(short namespaceId, CancellationToken ct);
+    Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct);
 
     /// <summary>
     /// Drives the sleep-timer arm/consume transition and returns its one-row decision. Caller owns

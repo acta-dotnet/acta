@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION {{schema}}.reclaim_stuck_jobs(
-    p_namespace_id SMALLINT
+    p_namespace_id INT
 )
 RETURNS TABLE (job_id BIGINT, to_status SMALLINT, parent_id BIGINT)
 LANGUAGE plpgsql

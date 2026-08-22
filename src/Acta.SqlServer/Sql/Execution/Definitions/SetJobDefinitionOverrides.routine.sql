@@ -24,7 +24,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns SMALLINT, @existing_version INT;
+    DECLARE @ns INT, @existing_version INT;
 
     BEGIN TRY
         BEGIN TRANSACTION;

@@ -17,7 +17,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns_id SMALLINT;
+    DECLARE @ns_id INT;
     DECLARE @worker_id INT;
 
     BEGIN TRY

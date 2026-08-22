@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE {{schema}}.register_scheduled_jobs
-    @p_namespace_id SMALLINT,
+    @p_namespace_id INT,
     @p_definitions {{schema}}.job_schedule_slot_batch READONLY,
     @p_schedules {{schema}}.job_schedule_upsert_batch READONLY
 AS

@@ -22,7 +22,7 @@ DECLARE
     v_paused TIMESTAMPTZ;
     v_next TIMESTAMPTZ;
     v_version INT;
-    v_ns SMALLINT;
+    v_ns INT;
     v_def INT;
     v_lineage BIGINT;
     v_en INT;

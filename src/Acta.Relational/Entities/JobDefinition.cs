@@ -38,8 +38,8 @@ internal sealed class JobDefinition : IEntity<int>
     /// Owning service's namespace; logical FK to <c>JobNamespace.Id</c> (no enforced FK, SP-side
     /// validation).
     /// </summary>
-    [DbColumn("namespace_id", DbKind.Int16)]
-    public short NamespaceId { get; init; }
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
 
     /// <summary>
     /// Operator-facing kebab-case identifier; the natural key together with the namespace.

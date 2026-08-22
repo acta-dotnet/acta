@@ -10,11 +10,11 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_scope_id BIGINT;
-    v_namespace_id SMALLINT;
+    v_namespace_id INT;
 BEGIN
     CASE p_scope_code
         WHEN 20 /* TagScopeCode.Tenant */ THEN
-            SELECT t.id::BIGINT, NULL::SMALLINT INTO v_scope_id, v_namespace_id
+            SELECT t.id::BIGINT, NULL::INT INTO v_scope_id, v_namespace_id
             FROM {{schema}}.tenants t
             WHERE t.tenant_key = p_lookup_name
             FOR UPDATE;

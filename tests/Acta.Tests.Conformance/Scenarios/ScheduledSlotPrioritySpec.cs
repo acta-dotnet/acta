@@ -133,7 +133,7 @@ public abstract class ScheduledSlotPrioritySpec<TFixture> : ActaRuntimeTestBase<
 
     // Rebuilds the whole-namespace registration command from the persisted slot and reruns it through
     // the store port, exactly as a worker redeploy does, so the priority propagation goes through the routine.
-    private async Task ReRegisterAsync(short ns, int definitionId, CancellationToken ct)
+    private async Task ReRegisterAsync(int ns, int definitionId, CancellationToken ct)
     {
         var slot = await Db.From<Job>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == JobName).SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);

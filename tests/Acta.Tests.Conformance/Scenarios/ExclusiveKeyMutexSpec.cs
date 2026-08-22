@@ -222,7 +222,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         return count;
     }
 
-    private async Task<(IDbSession Db, int LeaseTtl, short Ns, int WorkerId)> ClaimDepsAsync(CancellationToken ct)
+    private async Task<(IDbSession Db, int LeaseTtl, int Ns, int WorkerId)> ClaimDepsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;

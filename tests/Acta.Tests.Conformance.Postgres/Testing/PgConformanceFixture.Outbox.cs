@@ -73,7 +73,7 @@ public sealed partial class PgConformanceFixture
     }
 
     /// <summary>Count Postgres-ledger jobs in a namespace carrying a deduplication key (mixed-provider proof).</summary>
-    public static async ValueTask<int> CountLedgerJobsByDedupAsync(short namespaceId, string dedup)
+    public static async ValueTask<int> CountLedgerJobsByDedupAsync(int namespaceId, string dedup)
     {
         await using var c = new NpgsqlConnection(Conn);
         await c.OpenAsync();

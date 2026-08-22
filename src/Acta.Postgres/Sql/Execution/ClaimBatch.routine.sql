@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION {{schema}}.claim_batch(
-    p_namespace_id SMALLINT,
+    p_namespace_id INT,
     p_leased_by_worker_id INT,
     p_claim_limit INT,
     p_lease_ttl_seconds INT,
@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.claim_batch(
 )
 RETURNS TABLE (
     id BIGINT,
-    namespace_id SMALLINT,
+    namespace_id INT,
     definition_id INT,
     execution_number INT,
     deduplication_key VARCHAR,
@@ -154,7 +154,7 @@ AS $$
     UNION ALL
     SELECT
         NULL::bigint,
-        NULL::smallint,
+        NULL::int,
         NULL::int,
         NULL::int,
         NULL::varchar,

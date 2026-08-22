@@ -11,7 +11,7 @@ internal static class RetentionTestOps
 {
     public static Task<PurgeExpiredDataResult> PurgeAsync(
         IServiceProvider services,
-        short namespaceId,
+        int namespaceId,
         int eventsRetentionDays,
         int alertRetentionDays,
         int workerRetentionSeconds,
@@ -63,7 +63,7 @@ internal static class RetentionTestOps
     /// </remarks>
     public static async Task<PurgeExpiredDataResult> PurgeUntilAsync(
         IServiceProvider services,
-        short namespaceId,
+        int namespaceId,
         int eventsRetentionDays,
         int alertRetentionDays,
         int workerRetentionSeconds,

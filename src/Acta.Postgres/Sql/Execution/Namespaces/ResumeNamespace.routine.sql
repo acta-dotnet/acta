@@ -8,7 +8,7 @@ RETURNS TABLE (action SMALLINT, version INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_id SMALLINT;
+    v_id INT;
     v_status SMALLINT;
     v_version INT;
 BEGIN

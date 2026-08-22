@@ -18,7 +18,7 @@ BEGIN
     SET XACT_ABORT ON;
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @scope_code SMALLINT = 10 /* SettingScopeCode.Global */;
-    DECLARE @namespace_id SMALLINT, @definition_id INT, @scope_id INT, @version INT;
+    DECLARE @namespace_id INT, @definition_id INT, @scope_id INT, @version INT;
 
     IF @p_namespace_name IS NOT NULL
         BEGIN

@@ -40,7 +40,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
         return rows.Count > 0 ? rows[^1] : throw new InvalidOperationException("start_worker returned no namespace/worker id row.");
     }
 
-    public Task StopWorkerAsync(short namespaceId, int workerId, CancellationToken ct) =>
+    public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) =>
         session.ExecuteAsync(
             new StoreCommand("Execution", "Workers/StopWorker"),
             cmd =>

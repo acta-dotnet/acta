@@ -24,7 +24,7 @@ RETURNS TABLE (ordinal INT, job_id BIGINT, job_ref UUID, action INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_ns_id SMALLINT;
+    v_ns_id INT;
     v_ns_status SMALLINT;
     v_def_id INT;
     v_def_priority SMALLINT;

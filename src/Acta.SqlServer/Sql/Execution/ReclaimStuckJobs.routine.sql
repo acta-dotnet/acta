@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE {{schema}}.reclaim_stuck_jobs
-    @p_namespace_id SMALLINT
+    @p_namespace_id INT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -12,7 +12,7 @@ BEGIN
         (
             id BIGINT NOT NULL PRIMARY KEY,
             job_ref UNIQUEIDENTIFIER NOT NULL,
-            namespace_id SMALLINT NOT NULL,
+            namespace_id INT NOT NULL,
             execution_number INT NOT NULL,
             lineage_root_id BIGINT NULL,
             definition_id INT NOT NULL,

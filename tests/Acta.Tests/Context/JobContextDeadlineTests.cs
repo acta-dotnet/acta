@@ -8,7 +8,7 @@ public class JobContextDeadlineTests
     {
         public override long JobId => 1;
         public override string JobNamespace => "ns";
-        public override short NamespaceId => 1;
+        public override int NamespaceId => 1;
         public override string JobName => "j";
         public override CancellationToken CancellationToken => default;
         public override DateTime? DeadlineAtUtc { get; } = deadline;

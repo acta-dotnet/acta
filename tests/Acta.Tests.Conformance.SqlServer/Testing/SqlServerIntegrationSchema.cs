@@ -99,8 +99,8 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
     private static async Task ThrowIfNamespaceIdSpaceExhaustedAsync(SqlConnection conn)
     {
         // IDENT_CURRENT reads the identity allocator's own high-water mark rather than MAX(id), so a
-        // namespace row removed by an explicit reset doesn't understate how much of the smallint
-        // space is spent - ids are never reused. On a brand-new table (no row ever inserted) it
+        // namespace row removed by an explicit reset doesn't understate how much of the int space
+        // is spent - ids are never reused. On a brand-new table (no row ever inserted) it
         // returns the identity seed (1), not 0 or NULL; that reads as "1 consumed", which is nowhere
         // near NamespaceIdBudget.Threshold, so a fresh database never trips the check.
         await using var cmd = conn.CreateCommand();

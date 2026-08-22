@@ -14,7 +14,7 @@ namespace Acta;
 /// <param name="Description">Operator-readable description, or null.</param>
 /// <param name="Version">Optimistic-concurrency row version; pass as the expected version to a CAS control verb.</param>
 public sealed record NamespaceListItem(
-    [property: JsonIgnore] short NamespaceId,
+    [property: JsonIgnore] int NamespaceId,
     string JobNamespace,
     NamespaceStatusCode Status,
     string? OwnerTeam,

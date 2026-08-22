@@ -3,7 +3,7 @@ DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
    the future, so a full-precision @now can transiently see a just-enqueued Ready row as not yet due
    (ready_count would include it while oldest_ready_age_seconds missed it). */
 DECLARE @due_now DATETIME2(3) = @now;
-DECLARE @ns_id SMALLINT = NULL;
+DECLARE @ns_id INT = NULL;
 
 IF @p_namespace_name IS NOT NULL
     BEGIN

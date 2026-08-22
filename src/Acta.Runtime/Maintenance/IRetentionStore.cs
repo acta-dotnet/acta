@@ -17,7 +17,7 @@ internal interface IRetentionStore
 
 /// <summary>Validated purge sweep bounds for one namespace.</summary>
 internal sealed record PurgeExpiredDataCommand(
-    short NamespaceId,
+    int NamespaceId,
     int EventsRetentionDays,
     int AlertRetention,
     int WorkerRetentionSeconds,
