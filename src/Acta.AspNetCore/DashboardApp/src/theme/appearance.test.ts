@@ -73,36 +73,6 @@ test('storage unavailable', () => {
   assert.doesNotThrow(() => resetAppearance());
 });
 
-for (const [legacy, expected] of [
-  ['dark', 'acta'],
-  ['light', 'light'],
-  ['system', 'acta'],
-] as const) {
-  test(`legacy ${legacy} maps to ${expected}`, () => {
-    installStorage();
-    records.set('acta-theme', legacy);
-    assert.equal(loadAppearance().theme, expected);
-  });
-}
-
-test('legacy Acta palette maps to Teal', () => {
-  installStorage();
-  records.set('acta-palette', 'acta');
-  assert.equal(loadAppearance().accent, 'teal');
-});
-
-test('legacy accent is retained', () => {
-  installStorage();
-  records.set('acta-palette', 'crimson');
-  assert.equal(loadAppearance().accent, 'crimson');
-});
-
-test('legacy Compact is ignored', () => {
-  installStorage();
-  records.set('acta-density', 'compact');
-  assert.equal(loadAppearance().textSize, 'default');
-});
-
 test('persisted system theme is honored', () => {
   installStorage();
   records.set('acta-appearance-v1', JSON.stringify({ version: 1, theme: 'system', accent: 'teal', textSize: 'default' }));

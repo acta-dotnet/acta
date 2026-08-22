@@ -10,16 +10,18 @@ namespace Acta.Tests.Conformance.Features.Jobs;
 
 /// <summary>
 /// Namespace status gate at enqueue: EnqueueOne/EnqueueBatch reject when the resolved namespace is
-/// suspended, and succeed again once it is reactivated. No API suspends a namespace yet
-/// (NamespaceStatusCode F3/F4), so this spec drives the transition with a direct SQL UPDATE via
-/// the test harness, mirroring <see cref="TenantEnqueueSpec{TFixture}"/>'s suspended-tenant coverage.
+/// suspended, and succeed again once it is reactivated. The status is flipped with a direct SQL
+/// UPDATE rather than through <c>INamespaces.SuspendAsync</c>, so this spec pins the enqueue gate on
+/// the persisted status alone and stays independent of the admin verb (which
+/// <c>SuspendResumeNamespaceSpec</c> covers), mirroring
+/// <see cref="TenantEnqueueSpec{TFixture}"/>'s suspended-tenant coverage.
 /// </summary>
 [ConformanceSpec(
     "enqueue-jobs.namespace-gate",
     "Enqueue rejects a suspended namespace and resumes once reactivated",
     Area = "Enqueue",
     Contract = "EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated.",
-    Arrange = "A namespace is registered via StartWorker, then its status_code is flipped directly (no suspend API exists yet).",
+    Arrange = "A namespace is registered via StartWorker, then its status_code is flipped directly, keeping the gate independent of the suspend API.",
     Act = "A job is enqueued while the namespace is suspended, then again after it is reactivated.",
     Assert = "The suspended attempt throws and persists nothing, and the reactivated attempt succeeds."
 )]

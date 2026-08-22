@@ -788,7 +788,7 @@
 
 ### Enqueue rejects a suspended namespace and resumes once reactivated
 - **Contract:** EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated.
-- **Arrange:** A namespace is registered via StartWorker, then its status_code is flipped directly (no suspend API exists yet).
+- **Arrange:** A namespace is registered via StartWorker, then its status_code is flipped directly, keeping the gate independent of the suspend API.
 - **Act:** A job is enqueued while the namespace is suspended, then again after it is reactivated.
 - **Assert:** The suspended attempt throws and persists nothing, and the reactivated attempt succeeds.
 - **Guarantees:**

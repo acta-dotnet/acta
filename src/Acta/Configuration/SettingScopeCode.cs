@@ -18,8 +18,6 @@ public enum SettingScopeCode : byte
     [Code("global", "Deployment-wide setting; scope_id is NULL.")]
     Global = 10,
 
-    // Value 20 is reserved for tenant scope.
-
     /// <summary>Setting scoped to one namespace; <c>scope_id</c> = namespaces.id.</summary>
     [Code("namespace", "Setting scoped to one namespace; scope_id = namespaces.id.")]
     Namespace = 30,

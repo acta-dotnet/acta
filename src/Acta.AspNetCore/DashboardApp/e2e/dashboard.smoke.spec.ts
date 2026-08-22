@@ -267,9 +267,6 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
   await mockDashboard(page, { controls: true });
   await page.addInitScript(() => {
     localStorage.removeItem('acta-appearance-v1');
-    localStorage.removeItem('acta-theme');
-    localStorage.removeItem('acta-palette');
-    localStorage.removeItem('acta-density');
   });
   // A fresh install follows the OS preference; pin it dark so the golden tokens are deterministic.
   await page.emulateMedia({ colorScheme: 'dark' });

@@ -3,9 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Tenant state machine. 10-spaced ids; live states 10..80. Id 90 is reserved for an
-/// Archived (hidden/historical) status, to be added when the dashboard/API need historical tenant
-/// cleanup.
+/// Tenant state machine. 10-spaced ids; live states 10..80.
 /// </summary>
 [JsonConverter(typeof(TenantStatusCodeJsonConverter))]
 [CodeKind("tenant-status")]

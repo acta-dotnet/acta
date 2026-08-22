@@ -136,23 +136,11 @@ export function loadAppearance(): AppearanceSettings {
         };
       }
     } catch {
-      // Continue to legacy migration.
+      // Unparseable settings fall back to the defaults below.
     }
   }
 
-  const legacyMode = safeGet('acta-theme');
-  const legacyPalette = safeGet('acta-palette');
-
-  return {
-    version: 1,
-    theme: legacyMode === 'light' ? 'light' : legacyMode ? 'acta' : 'system',
-    accent: legacyPalette === 'acta'
-      ? 'teal'
-      : isAccentId(legacyPalette)
-        ? legacyPalette
-        : 'teal',
-    textSize: 'default',
-  };
+  return DEFAULT_APPEARANCE;
 }
 
 const initialAppearance = loadAppearance();

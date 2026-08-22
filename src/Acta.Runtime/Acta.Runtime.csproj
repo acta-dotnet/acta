@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Tests need access to internal helpers (e.g. SchemaMigrationDiscovery) for unit coverage. -->
     <InternalsVisibleTo Include="Acta.Tests" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance" />
     <!-- The provider conformance heads build the internal outbox source store through the provider
@@ -32,9 +33,20 @@
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
+    <!-- Provider assemblies implement the internal semantic store contracts without exposing those
+         ports as public product API. -->
     <InternalsVisibleTo Include="Acta.Postgres" />
     <InternalsVisibleTo Include="Acta.SqlServer" />
     <InternalsVisibleTo Include="Acta.Sqlite" />
+    <!-- The Redis wake transport composes the internal InProcessWakeup for its local delivery layer. -->
+    <InternalsVisibleTo Include="Acta.Redis" />
+    <!-- Shared relational stores implement the internal store ports over IDbSession from Acta.Relational. -->
+    <InternalsVisibleTo Include="Acta.Relational" />
+    <!-- Code-emission tool reads the [DbTable]/[DbColumn] attribute graph and the ActaSchema metadata
+         to render DDL and docs. -->
+    <InternalsVisibleTo Include="Acta.Emit" />
+    <!-- Acta.Testing composes internal runtime services for deterministic host control and diagnostics. -->
+    <InternalsVisibleTo Include="Acta.Testing" />
   </ItemGroup>
 
   <ItemGroup>
