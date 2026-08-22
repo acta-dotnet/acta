@@ -28,14 +28,31 @@ if (multiFile.Count != 3)
     throw new InvalidOperationException($"docs/quickstart.md: expected 3 '// File:' sample files, found {multiFile.Count}.");
 }
 
-foreach (var (file, code) in multiFile)
+// Two headers naming one path would write the second over the first, leaving a published sample
+// uncompiled while the harness still reported a full extraction. Case-insensitively, because the
+// file system this writes to on Windows is, so a difference in case is still one file.
+var targets = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+for (var index = 0; index < multiFile.Count; index++)
 {
+    var (file, code) = multiFile[index];
+
     // The header names a path inside the sample's own project (Users/...), whose root is Users/Generated.
     const string prefix = "Users/";
     if (!file.StartsWith(prefix, StringComparison.Ordinal))
     {
         throw new InvalidOperationException($"docs/quickstart.md: sample file '{file}' is outside the {prefix} project.");
     }
+
+    if (targets.TryGetValue(file, out var earlier))
+    {
+        throw new InvalidOperationException(
+            $"docs/quickstart.md: '// File: {file}' heads both sample {earlier} and sample {index + 1} "
+                + "(counting the '// File:' samples in document order); writing the second would leave the first uncompiled. "
+                + "Give each sample its own path."
+        );
+    }
+    targets.Add(file, index + 1);
+
     Write($"Users/Generated/{file[prefix.Length..]}", code);
 }
 
