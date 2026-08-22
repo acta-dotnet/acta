@@ -111,6 +111,7 @@
   <Folder Name="/anvil/">
     <Project Path="anvil/Anvil/Anvil.csproj" />
     <Project Path="anvil/Anvil.Bench/Anvil.Bench.csproj" />
+    <Project Path="anvil/Anvil.Burst/Anvil.Burst.csproj" />
   </Folder>
   <Folder Name="/support/">
     <Project Path="support/Acta.LocalHost/Acta.LocalHost.csproj" />

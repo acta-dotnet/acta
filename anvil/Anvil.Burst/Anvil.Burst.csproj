@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Anvil.Burst</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <!-- Must stay false: Microsoft.Data.SqlClient throws "Globalization Invariant Mode is not supported"
+         at startup, so the SQL Server provider path needs ICU. Costs a few MB in the AOT binary. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+    <!-- Build-time AOT/trim analysis so reflection is caught without the native linker (CI does the link). -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Reflection-free JSON: BurstPayloadJsonContext (wired via j.UseJsonPayloads) supplies source-gen
+         metadata for the workload input AND for the scalars the runtime itself stores as durable
+         variables - the sys.alerts projection cursor is a long, its poison-skip records are strings. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- The four burst definitions deliberately share BurstInput and are always enqueued through the raw
+         JobEnqueueRequest path, which names the job, so the typed-route ambiguity ACTA0104 flags never
+         applies here. -->
+    <NoWarn>$(NoWarn);ACTA0104;IDE0011</NoWarn>
+    <!-- Microsoft.Data.SqlClient (SQL Server provider) is not AOT/trim-clean, and SQL Server is not an
+         AOT target - Postgres and SQLite are. Keep its per-assembly trim (IL2104) and AOT (IL3053)
+         rollup warnings visible but non-fatal. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2104;IL3053</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference
+      Include="..\..\src\Acta.Generators\Acta.Generators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+    <ProjectReference Include="..\..\src\Acta.Runtime\Acta.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
+    <ProjectReference Include="..\..\support\Acta.LocalHost\Acta.LocalHost.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!-- The harness opens its own connections for the two row operations no public API exposes: aging
+         events past the projection horizon, and aging alert rows past the retention window. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+  </ItemGroup>
+</Project>
