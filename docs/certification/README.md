@@ -12,7 +12,9 @@ evidence chain for released tags plus the runs that proved something no later ru
 Not every page here is a seal. [coverage-baseline-rc1.md](./coverage-baseline-rc1.md) is the other
 kind of evidence: line and branch coverage for the unit and SQLite suites, recorded with no gate and
 no target, and the blind-spot list that reading it produced. A seal says what held under chaos; that
-page says what nothing has ever run.
+page says what nothing has ever run. [burst-rc1.md](./burst-rc1.md) is a third kind: the alert
+burst certification — five runs proving a 10,000-event backlog projects in one invocation and
+drains in seconds, and a 100,000 backlog drains under bounded memory.
 
 ## Index
 

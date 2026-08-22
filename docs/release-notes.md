@@ -361,28 +361,29 @@ no upper bounds — your application (or your `Directory.Packages.props`) decide
 and this check is what makes that openness safe. `DriverVersionPolicy = DriverVersionPolicy.Warn`
 turns the refusal into one logged warning for hosts that validated the newer driver themselves.
 
-### Certification: four gates, four seals
+### Certification: four gates and a burst, all sealed
 
-All four ran on the release commit on 2026-08-16 and file under `docs/certification/`:
+The four chaos gates ran on the near-final rc.1 commit on 2026-08-22, after the adversarial review
+wave, and file under `docs/certification/`:
 
-- **`seal-20260816T081858Z.md` — PostgreSQL standard** (10,000 jobs, 64 slots, 7-minute kill
-  window): PASS, with the outbox handoff certified across its ownership seam — 5,000 producer rows
-  staged during the chaos, every one drained and delivered.
-- **`seal-20260816T083231Z.md` — SQL Server standard**: PASS at the same shape, 574 orphaned
-  attempts against PostgreSQL's 579 and identical job, step, and receipt totals to the row.
-- **`seal-20260816T085003Z.md` — SQLite**: PASS at 48 slots on one WAL file, reduced scope stated
-  on its face (single machine is the engine's deployment model; multi-machine claims are
-  permanently out of scope there). This ends the standing contradiction with releasing.md's "one
-  run per provider".
-- **`seal-20260816T090216Z.md` — the 3-participant / 2-namespace ensemble** both 0.8.0 ensemble
-  seals named as "one flag away and unrun": PASS. `namespace-isolation` was falsifiable for the
-  first time (a second namespace live and being killed beside the first) and held with zero rows,
-  and the run carries the release's non-vacuous `AtMostOnce` evidence: 44 of 400 charges
-  interrupted mid-body, none ever run twice.
+- **`seal-20260822T042959Z.md` — PostgreSQL standard** (10,000 jobs, 64 slots, 7-minute kill
+  window): PASS — 15,000 of 15,000 rows terminal Succeeded, 5,000 outbox rows staged during the
+  chaos and every one drained and delivered.
+- **`seal-20260822T044405Z.md` — SQL Server standard**: PASS at the same shape, with job, step,
+  and receipt totals identical to PostgreSQL's to the row.
+- **`seal-20260822T050227Z.md` — SQLite**: PASS at 48 slots on one WAL file shared by six
+  processes, reduced scope stated on its face.
+- **`seal-20260822T051714Z.md` — the 3-participant / 2-namespace ensemble**: PASS, and the
+  strongest at-most-once evidence Acta has recorded: **47 of 400 charges killed mid-body, none
+  ever run twice**, each terminalized as honestly ambiguous rather than confidently re-charged.
+  `namespace-isolation` held at zero rows with a second namespace live and being killed beside
+  the first.
 
-The SQLite gate's first run of this round is why the round exists: it failed `expected-outcome` on
-one row out of fifteen thousand, and that row was the lost step CAS described above — so all four
-seals are the re-run on the commit that fixed it.
+The alert pipeline has its own certification this release (`burst-rc1.md`): a 10,000-event backlog
+projects in **one invocation** and drains in about twelve seconds against the two-minute budget on
+every provider; 100,000 events drain in ten invocations at a 110–122 MB peak working set with the
+dashboard's alert list still answering in tens of milliseconds. Five runs, five passes — which is
+also the decision the plan tied to this gate: the batched-alert-SQL fallback stays unbuilt.
 
 ## 0.8.0-beta.1
 
