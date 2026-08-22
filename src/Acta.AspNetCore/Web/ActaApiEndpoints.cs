@@ -226,7 +226,7 @@ internal static class ActaApiEndpoints
                             parentJobId = await jobs.GetJobIdAsync(filter, ct);
                             if (parentJobId is null)
                             {
-                                return NotFound();
+                                return NotFound("Job");
                             }
                         }
 
@@ -279,7 +279,7 @@ internal static class ActaApiEndpoints
                     }
 
                     var snapshot = await jobs.GetAsync(lookup, ct);
-                    return snapshot is null ? NotFound() : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
+                    return snapshot is null ? NotFound("Job") : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
                 }
             )
             .WithSummary("Read one job.")
@@ -301,7 +301,7 @@ internal static class ActaApiEndpoints
                     var snapshot = await jobs.GetAsync(lookup, ct);
                     if (snapshot is null)
                     {
-                        return NotFound();
+                        return NotFound("Job");
                     }
 
                     var input = await jobs.GetInputAsync(JobLookup.ById(snapshot.JobId), ct);
@@ -338,7 +338,7 @@ internal static class ActaApiEndpoints
                     var snapshot = await jobs.GetAsync(lookup, ct);
                     if (snapshot is null)
                     {
-                        return NotFound();
+                        return NotFound("Job");
                     }
 
                     var detail = await JobDetailResponse.ComposeAsync(
@@ -605,10 +605,10 @@ internal static class ActaApiEndpoints
                     }
                     catch (ArgumentException)
                     {
-                        return NotFound();
+                        return NotFound("Tenant");
                     }
 
-                    return tenant is null ? NotFound() : Results.Json(tenant, DashboardJsonContext.Default.TenantDetail);
+                    return tenant is null ? NotFound("Tenant") : Results.Json(tenant, DashboardJsonContext.Default.TenantDetail);
                 }
             )
             .WithSummary("Read one tenant.")
@@ -679,7 +679,7 @@ internal static class ActaApiEndpoints
                             jobId = await jobs.GetJobIdAsync(job, ct);
                             if (jobId is null)
                             {
-                                return NotFound();
+                                return NotFound("Job");
                             }
                         }
 
@@ -689,7 +689,7 @@ internal static class ActaApiEndpoints
                             lineageRootId = await jobs.GetJobIdAsync(lineage, ct);
                             if (lineageRootId is null)
                             {
-                                return NotFound();
+                                return NotFound("Job");
                             }
                         }
 
@@ -777,7 +777,7 @@ internal static class ActaApiEndpoints
                             var jobId = await jobs.GetJobIdAsync(lookup, ct);
                             if (jobId is null)
                             {
-                                return NotFound();
+                                return NotFound("Job");
                             }
 
                             var query = new ListEventsQuery(
@@ -1141,7 +1141,7 @@ internal static class ActaApiEndpoints
                             jobId = await jobs.GetJobIdAsync(filter, ct);
                             if (jobId is null)
                             {
-                                return NotFound();
+                                return NotFound("Job");
                             }
                         }
 
@@ -1253,5 +1253,8 @@ internal static class ActaApiEndpoints
     private static IResult BadRequest(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);
 
-    private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.");
+    // The entity is named at every call site rather than defaulted, the way RefSegment.Malformed names
+    // its entity: a shared 404 helper that assumes one noun answers every other route with the wrong one.
+    private static IResult NotFound(string entity) =>
+        Results.Problem(statusCode: StatusCodes.Status404NotFound, title: $"{entity} not found.");
 }

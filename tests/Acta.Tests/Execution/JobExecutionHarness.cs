@@ -22,7 +22,8 @@ internal sealed class JobExecutionHarness(
     CompleteExecutionAction completionAction = CompleteExecutionAction.Completed,
     bool cancelAttemptOnStepCompletion = false,
     short maxAttempts = 3,
-    short failureCount = 0
+    short failureCount = 0,
+    int? maxInlinePayloadBytes = null
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -33,8 +34,8 @@ internal sealed class JobExecutionHarness(
 
     private readonly CancellationTokenSource _attemptCts = new();
 
-    // The execution-timeout source. In production JobExecutor links it into the attempt token, so
-    // firing the timeout cancels the attempt; TimeOutAttempt below reproduces that pairing.
+    // The execution-timeout source, handed to the RunningAttempt so a cancellation can be told from an
+    // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction);
 
@@ -48,9 +49,12 @@ internal sealed class JobExecutionHarness(
     public CompleteExecutionRequest Completion => Assert.Single(Submitted);
 
     /// <summary>
-    /// Fires this attempt's execution timeout the way the production watchdog does: the timeout source
-    /// is cancelled, which cancels the attempt token linked to it. Call from inside a handler; the
-    /// handler must then observe its token, exactly as a cooperative handler does in production.
+    /// Puts the attempt into the state a fired execution timeout leaves it in: the timeout source is
+    /// cancelled (so <c>RunningAttempt.TimedOut</c> reads true) and the attempt source is cancelled
+    /// after it. The two are cancelled separately because this harness owns them separately, where
+    /// production links the attempt token to the timeout source and gets the second cancel for free.
+    /// Call from inside a handler; the handler must then observe its token, as a cooperative handler
+    /// does in production.
     /// </summary>
     public void TimeOutAttempt()
     {
@@ -68,6 +72,13 @@ internal sealed class JobExecutionHarness(
         _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _attemptCts.Cancel : null;
 
         var options = Options.Create(new JobsOptions());
+        if (maxInlinePayloadBytes is { } configuredCap)
+        {
+            // One options instance feeds both the attempt context and JobExecution, so a configured
+            // cap moves the handler-write limit and the result-drop limit together, as it does in a host.
+            options.Value.MaxInlinePayloadBytes = configuredCap;
+        }
+
         var job = Job(failureCount);
         var context = new RuntimeJobContext(
             job,

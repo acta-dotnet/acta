@@ -807,11 +807,11 @@ public sealed class CodeGenerator : IIncrementalGenerator
         return "\"" + escaped + "\"";
     }
 
+    // Byte is the only legal storage: ACTA0201 rejects any other underlying type, so Invalid exists
+    // only to carry that rejection to the diagnostic and never reaches emission.
     private enum StorageKind
     {
         Byte,
-        Short,
-        Int,
         Invalid,
     }
 
@@ -819,8 +819,6 @@ public sealed class CodeGenerator : IIncrementalGenerator
         storage switch
         {
             StorageKind.Byte => "byte",
-            StorageKind.Short => "short",
-            StorageKind.Int => "int",
             _ => throw new InvalidOperationException($"Cannot render StorageKind.{storage} as a C# keyword."),
         };
 

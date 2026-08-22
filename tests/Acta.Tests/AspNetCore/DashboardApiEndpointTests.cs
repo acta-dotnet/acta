@@ -623,6 +623,34 @@ public sealed class DashboardApiEndpointTests
         Assert.Contains("\"displayName\":\"Acme\"", body);
     }
 
+    /// <summary>
+    /// A 404 names the thing that was not found. The two routes below share one problem-details
+    /// helper, which used to hardcode "Job not found." and answered a missing tenant with it.
+    /// </summary>
+    [Fact]
+    public async Task A_missing_row_is_reported_with_its_own_noun()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var missingTenant = await client.GetAsync("/acta/api/v1/tenants/nobody", TestContext.Current.CancellationToken);
+        var missingJob = await client.GetAsync($"/acta/api/v1/jobs/{Missing}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, missingTenant.StatusCode);
+        Assert.Contains(
+            "Tenant not found.",
+            await missingTenant.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+
+        Assert.Equal(HttpStatusCode.NotFound, missingJob.StatusCode);
+        Assert.Contains(
+            "Job not found.",
+            await missingJob.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+    }
+
     [Fact]
     public async Task Tenants_returns_page_with_no_store()
     {
