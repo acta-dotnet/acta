@@ -5,6 +5,9 @@
 -- The same SQL the bootstrap migration runner applies: the migration history table, every
 -- migration in order (each records its own history row), then the operator objects the
 -- provider installs.
+-- It also sets READ_COMMITTED_SNAPSHOT on the database, the way the runtime's own bootstrap
+-- does: the first batch, outside the transaction, skipped on a fresh install and on a re-run
+-- alike once the database has it on.
 --
 -- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already
 -- running an earlier Acta version: every statement is individually guarded, so it applies
@@ -18,6 +21,18 @@
 -- tablespaces, compression) is yours to add; keep the logical shape - tables, columns,
 -- constraints, routine signatures - intact.
 
+-- READ_COMMITTED_SNAPSHOT is part of a provisioned Acta database rather than an optional
+-- tuning knob: it is the configuration Acta certifies, and it is what keeps operator and
+-- dashboard reads from taking shared locks and trading blocking with the claim path. Job
+-- correctness does not depend on it - mutations are fenced by lock hints and
+-- compare-and-swap - but reader-side operability does. ALTER DATABASE cannot run inside a
+-- user transaction, hence this separate batch ahead of the one below. A database that
+-- already has it on skips the statement entirely, on install and on re-run alike; when it
+-- does run, WITH ROLLBACK IMMEDIATE disconnects the other sessions in the database, so run
+-- this file in a maintenance window.
+IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
+    ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+GO
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO

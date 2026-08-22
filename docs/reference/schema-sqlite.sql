@@ -5,6 +5,8 @@
 -- The same SQL the bootstrap migration runner applies: the migration history table, every
 -- migration in order (each records its own history row), then the operator objects the
 -- provider installs.
+-- It also puts the database in WAL journal mode, the way the runtime's own bootstrap does:
+-- the first line, ahead of the transaction, and a no-op on a database already in WAL.
 --
 -- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already
 -- running an earlier Acta version: every statement is individually guarded, so it applies
@@ -17,6 +19,14 @@
 -- accepts the result and applies nothing. Site-specific physical tuning (partitioning,
 -- tablespaces, compression) is yours to add; keep the logical shape - tables, columns,
 -- constraints, routine signatures - intact.
+
+-- WAL journal mode is part of a provisioned Acta database rather than an optional tuning
+-- knob: it is the configuration Acta certifies, and it is what lets readers run alongside
+-- the single writer instead of queueing behind one global write lock. journal_mode cannot
+-- change inside a transaction, hence this line ahead of the BEGIN below. The setting lives
+-- in the database file header rather than in the connection, so it is written once and a
+-- database already in WAL takes this as a no-op, on install and on re-run alike.
+PRAGMA journal_mode = WAL;
 
 BEGIN;
 

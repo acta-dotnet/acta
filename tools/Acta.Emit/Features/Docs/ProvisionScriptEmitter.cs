@@ -32,6 +32,7 @@ internal static class ProvisionScriptEmitter
         var (_, project, schema) = Providers.Single(p => string.Equals(p.Token, token, StringComparison.Ordinal));
         var providerDir = Path.Combine(repoRoot, "src", project);
         var mssql = string.Equals(token, "mssql", StringComparison.Ordinal);
+        var sqlite = string.Equals(token, "sqlite", StringComparison.Ordinal);
 
         var script = new StringBuilder();
         script.AppendLine(
@@ -47,6 +48,17 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("-- The same SQL the bootstrap migration runner applies: the migration history table, every");
         script.AppendLine("-- migration in order (each records its own history row), then the operator objects the");
         script.AppendLine("-- provider installs.");
+        if (mssql)
+        {
+            script.AppendLine("-- It also sets READ_COMMITTED_SNAPSHOT on the database, the way the runtime's own bootstrap");
+            script.AppendLine("-- does: the first batch, outside the transaction, skipped on a fresh install and on a re-run");
+            script.AppendLine("-- alike once the database has it on.");
+        }
+        if (sqlite)
+        {
+            script.AppendLine("-- It also puts the database in WAL journal mode, the way the runtime's own bootstrap does:");
+            script.AppendLine("-- the first line, ahead of the transaction, and a no-op on a database already in WAL.");
+        }
         script.AppendLine("--");
         script.AppendLine("-- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already");
         script.AppendLine("-- running an earlier Acta version: every statement is individually guarded, so it applies");
@@ -104,8 +116,45 @@ internal static class ProvisionScriptEmitter
 
         if (mssql)
         {
+            // READ_COMMITTED_SNAPSHOT the way SqlServerSchemaMigrator sets it (same guard, same
+            // termination clause), because the DBA path provisions databases the runtime bootstrap
+            // never touches. ALTER DATABASE cannot run inside a user transaction, so it is its own
+            // batch; it goes first so the session options below outlive any connection disruption
+            // the flip causes.
+            Append(
+                """
+                -- READ_COMMITTED_SNAPSHOT is part of a provisioned Acta database rather than an optional
+                -- tuning knob: it is the configuration Acta certifies, and it is what keeps operator and
+                -- dashboard reads from taking shared locks and trading blocking with the claim path. Job
+                -- correctness does not depend on it - mutations are fenced by lock hints and
+                -- compare-and-swap - but reader-side operability does. ALTER DATABASE cannot run inside a
+                -- user transaction, hence this separate batch ahead of the one below. A database that
+                -- already has it on skips the statement entirely, on install and on re-run alike; when it
+                -- does run, WITH ROLLBACK IMMEDIATE disconnects the other sessions in the database, so run
+                -- this file in a maintenance window.
+                IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
+                    ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+                """
+            );
             // Mirrors the runner's prelude: M001 has filtered indexes that require these session options.
             Append("SET QUOTED_IDENTIFIER ON;\nSET ANSI_NULLS ON;");
+        }
+        if (sqlite)
+        {
+            // The one PRAGMA SqliteSchemaMigrator stamps once at provision time. The rest
+            // (foreign_keys, busy_timeout, synchronous) are per-connection settings SqliteDialect
+            // applies on every open, so they would be theatre in a file that runs once.
+            Append(
+                """
+                -- WAL journal mode is part of a provisioned Acta database rather than an optional tuning
+                -- knob: it is the configuration Acta certifies, and it is what lets readers run alongside
+                -- the single writer instead of queueing behind one global write lock. journal_mode cannot
+                -- change inside a transaction, hence this line ahead of the BEGIN below. The setting lives
+                -- in the database file header rather than in the connection, so it is written once and a
+                -- database already in WAL takes this as a no-op, on install and on re-run alike.
+                PRAGMA journal_mode = WAL;
+                """
+            );
         }
         Append(mssql ? "SET XACT_ABORT ON;\nBEGIN TRANSACTION;" : "BEGIN;");
         Append(

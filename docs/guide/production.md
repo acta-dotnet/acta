@@ -67,15 +67,20 @@ DDL-capable principal (replace the default schema name throughout to relocate). 
 provisioned that way, the application principal needs only DML and EXECUTE on the Acta schema and
 never issues DDL. The scripts record the migration history themselves, so a bootstrap accepts the
 result and applies nothing; advanced deployments can even add site-specific physical tuning
-(partitioning, tablespaces) as long as the logical shape stays intact.
+(partitioning, tablespaces) as long as the logical shape stays intact. The SQLite script opens with
+`PRAGMA journal_mode = WAL;` for the same reason the SQL Server one sets READ_COMMITTED_SNAPSHOT
+below — the certified configuration should not depend on which path provisioned the database — and
+because journal mode lives in the file header, running it a second time changes nothing.
 
-One SQL Server pre-step the script cannot carry (it runs inside a transaction): enable
-READ_COMMITTED_SNAPSHOT on the database before or after running it —
-`ALTER DATABASE [yours] SET READ_COMMITTED_SNAPSHOT ON`. A self-applying bootstrap does this
-itself; the DBA path must do it by hand. Job correctness does not depend on it — Acta's mutations
-are fenced by lock hints and compare-and-swap, not snapshots — but without it the dashboard's and
-operators' read queries take shared locks and trade blocking with the claim path, which is not the
-configuration Acta certifies.
+The SQL Server script sets READ_COMMITTED_SNAPSHOT itself, the way a self-applying bootstrap does.
+It is the file's first batch, on its own outside the transaction because `ALTER DATABASE` cannot run
+inside one, and it is guarded on `sys.databases.is_read_committed_snapshot_on`: a database that
+already has it on skips the statement, so install and re-run behave the same. When it does have to
+run it disconnects the database's other sessions (`WITH ROLLBACK IMMEDIATE`), which is one more
+reason to run the file in a maintenance window. Job correctness does not depend on it — Acta's
+mutations are fenced by lock hints and compare-and-swap, not snapshots — but without it the
+dashboard's and operators' read queries take shared locks and trade blocking with the claim path,
+which is not the configuration Acta certifies.
 
 Migrations and routine installs run under an exclusive schema lock in one transaction, so applying
 a future `Mnnn` on a live system briefly blocks statements that collide with the objects it touches
