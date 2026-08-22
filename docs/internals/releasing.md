@@ -52,6 +52,18 @@ per-release gate run locally.
 - SQLite is single-node, so its run is reduced and its seal states which properties were out of scope.
 - File the JSON/MD seal under `docs/certification/`.
 
+## Coverage
+
+Published, never gated. The `build-test` CI job runs `tools/coverage.ps1`, which instruments
+`tests/Acta.Tests` and `tests/Acta.Tests.Conformance.Sqlite` with coverlet and merges them into one
+report, uploaded as the `coverage` artifact. There is no threshold and no percentage to fail on
+purpose: a target invites tests written to colour lines rather than to falsify behaviour.
+
+The deliverable is [the blind-spot list](../certification/coverage-baseline-rc1.md) — the recorded
+baseline plus, for ten failure areas, which code paths nothing executes. Re-read it per release
+round and update the numbers with `tools/coverage.ps1`; a blind spot that a new test closed should
+leave the list, and a new one should join it.
+
 ## Packaging
 
 Each line names the evidence that asserts it; none is checked by hand.

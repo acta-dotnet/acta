@@ -9,6 +9,11 @@ Superseded seals are pruned: when a certification round is re-cut on a later com
 shapes, the earlier round's seals leave the tree (git history keeps them). What remains is the
 evidence chain for released tags plus the runs that proved something no later run repeats.
 
+Not every page here is a seal. [coverage-baseline-rc1.md](./coverage-baseline-rc1.md) is the other
+kind of evidence: line and branch coverage for the unit and SQLite suites, recorded with no gate and
+no target, and the blind-spot list that reading it produced. A seal says what held under chaos; that
+page says what nothing has ever run.
+
 ## Index
 
 | Seal | Shape | Released in |
