@@ -89,6 +89,10 @@ Each line names the evidence that asserts it; none is checked by hand.
 - `docs/release-notes.md` carries a section for this version. Not "when applicable": a published tag
   with no notes leaves the upgrade path as a list of commit messages, which is how `0.6.0-beta.1` and
   `0.7.0-beta.1` both shipped. Lead with what a consumer must change, then everything else.
+- Flip the section header from "(unreleased)" to "Tagged <date>" **before** tagging, in the last
+  commit the tag points at. A tag is an immutable snapshot, so a header the tag captures as
+  "(unreleased)" says that forever — `v1.0.0-rc.1` ships with exactly that wart, and the GitHub
+  release links straight to it.
 - Preview compatibility policy stated in known limitations still matches the release.
 
 ## After publishing
