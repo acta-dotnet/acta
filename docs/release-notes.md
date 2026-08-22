@@ -1,177 +1,5 @@
 # Release notes
 
-## 0.9.0-beta.1
-
-The last breaking release: the next tag is 1.0.0-rc.1, and from 1.0 the .NET surface, HTTP surface,
-schema, and persisted codes are additive-only. Everything here is here because it was
-0.9.0-or-never. The headline is the outbox operator path — `Quarantined` was shipped vocabulary
-with no exit, and now it has one — surrounded by the rename settlement three naming audits of the
-frozen surfaces produced.
-
-> **Schema note:** the `M001` baseline was re-cut (stamp `init-entity-refs-v1`). Preview
-> policy applies: drop and reprovision the Acta database; the bootstrap refuses any history that
-> does not carry this build's stamp row. The external-outbox staging table changed too
-> (`input_data` → `input`, `job_namespace` widened to 128): producers re-run
-> `{Provider}OutboxDdl.CreateScript()` against their own database.
-
-### Upgrade actions, in order
-
-- **Reprovision.** The baseline stamp changed; an existing Acta database will not boot this build.
-- **Recheck every `INamespaces.ListAsync` call site.** It now returns
-  `PagedResult<NamespaceListItem>` (the row, with status and version); the old names-only read is
-  `ListNamesAsync`, same query type. Most call sites break loudly; `var` plus members both shapes
-  share compiles silently and starts reading rows where it read names.
-- **Walk the rename table below** for the .NET, HTTP, SQL, and persisted-code spellings.
-- The naming rules these renames settled into are written down in
-  [naming conventions](./internals/naming-conventions.md); post-1.0 names are measured against
-  that page rather than re-litigated.
-
-### The outbox gets its operator path
-
-`OutboxStatusCode.Quarantined` finally has an exit, designed around one fact: the staging table
-lives in the producer's database, which most operator hosts cannot reach.
-
-- **`IActaOperations.Outbox`**: `ListSourcesAsync` (one line per relay source, composed cross-peer
-  from the `sys.outbox` slot's persisted tick summary — any host with ledger access can answer, and
-  `IsLocal` says where the deeper reads work), `ListQuarantinedAsync` (paged, identity and failure
-  evidence only, host-local by design with a clear error elsewhere), `RequeueAsync`, and
-  `DiscardAsync`.
-- **Requeue and discard are accepted-then-applied.** The verb parks a durable command on the slot
-  job's bounded signal inbox (two fixed names, so at most two command rows per source ever exist);
-  the next relay pass applies it, writes an audit event carrying the operator identity, the
-  justification, and the applied row ids, and consumes the command in the same pass. Works from any
-  peer, survives owner downtime. A second command while one is pending is rejected with the pending
-  command's park instant; a pending command older than the worker-dead window is superseded, with
-  version-CAS keeping the overwrite race safe. `ControlAction` gains `Accepted` for exactly this
-  shape. Requeue resets the failure budget and keeps `last_error` as evidence; discard deletes the
-  rows with the ids preserved in the event, so proof outlives the payload.
-- **HTTP**: `GET /v1/outbox/sources`, `GET /v1/outbox/{jobNamespace}/quarantined`, and
-  `POST /v1/outbox/{jobNamespace}/{requeue,discard}` (202 accepted / 409 pending / 404 no slot).
-  They subsume `GET /overview/outbox`, which is removed — it was also the API's only unpaged
-  collection.
-- **Dashboard**: the Overview gains an outbox relays panel — backlog, quarantine, last tick per
-  source — with requeue-all/discard-all behind the confirmation dialog (discard types the
-  namespace). The health verdict now flags standing quarantined rows beside backlog lag.
-- New always-emitted events `outbox.requeued` (180) and `outbox.discarded` (181); the tick summary
-  string gains `quarantine=` (current total) and, when an operator command applied, `requeued=` /
-  `discarded=` tokens.
-- **Certification learned the seam**: Anvil now stages producer rows throughout the chaos window
-  and checks *drained* (staging empty after quiesce) and *delivered* (every committed producer
-  operation's job exists in the ledger) from the only place that can see both databases, while
-  `certify.sql` carries the ledger-reachable half (every relayed job Succeeded, plus the relayed
-  count as evidence).
-
-### Breaking: one M001 re-cut
-
-Four audit findings were unfixable after 1.0 and bundled into a single reprovision:
-
-- **`leases` → `locks`.** The table only ever stored named locks; the real execution lease lives on
-  `runtimes`. The one-member `kind_code` column retires with its persisted-code family, and the
-  recycling `version int` becomes a C#-minted `hold_token uuid` — the int had an ABA window where a
-  zombie holder surviving a steal → release → reacquire cycle could delete its successor's hold.
-- **`alerts.dedupe_key` stays** — reversed during execution by the column-width parity gate (one
-  name, two widths is the drift the gate exists to block); the operator-facing spelling comes from
-  `AlertsView` aliasing it to `deduplication_key`.
-- Check-constraint names lose their doubled `_code` segments (emitter fix), and the two worker
-  index names spell `last_seen`.
-- Staging table: `input_data` → `input` (parity with `jobs.input`), `job_namespace` widened to the
-  model's 128. `outbox_id` and `next_attempt_at_utc` keep their names — the audit's renames were
-  reversed on inspection (`_ref` is reserved for rendered public handles, and the column covers the
-  *first* delivery attempt, not a retry).
-
-### Breaking: persisted codes (ids unchanged, strings move)
-
-Same destructive-class precedent as 0.7.0:
-
-- Slugs: `priority` → `job-priority` (symmetric with `job-status`), and the deadline-behavior slug
-  drops its `job-` prefix. Event strings: `job.note` → `job.note-recorded`, and the dead-worker
-  event becomes `worker.died` — the two of 34 event strings that broke `noun.past-participle`.
-- CLR names (contract-free, the snapshot keys by kind): `JobEventCode` → `EventCode`,
-  `JobActorCode` → `ActorCode` — both families are ledger-wide, so their short slugs were right all
-  along.
-- Every retired string joined the canonical-vocabulary gate so it cannot come back meaning
-  something else.
-
-### Breaking: the .NET surface settlement
-
-- **The `Job` prefix comes off every type that is not literally a job**: `WorkerListItem`,
-  `WorkerDetail`, `AlertListItem`, `ScheduleListItem`, `ScheduleLookup`, `NamespaceStatusCode`, the
-  `List*Query` types, and peers. Tenant, already clean, was the template.
-- **`note` → `reasonMessage` on every operator parameter** (`note` is now reserved for the
-  application-authored `ctx.NoteAsync`); `JobSnapshot` → `JobDetail`, `SettingSnapshot` →
-  `SettingDetail` (`Detail` = single-entity read, `Snapshot` = point-in-time aggregate;
-  `OverviewSnapshot` stays); `JobControlAction` → `ControlAction`; `DefinitionOverrideResult` →
-  `DefinitionControlResult`; `ExecuteAndWaitAsync` → `RunAndWaitAsync`; `Search` → `NameContains`;
-  worker timestamps unified on `LastHeartbeatAtUtc`/`StartedAtUtc`; the five duplicate
-  `JobLineage*` types collapse into their `JobExplain*` twins.
-- **Gap closures that had to precede the freeze**: `ITags` mutations gain `actorKey` and
-  `reasonMessage`; `ISettings.SetAsync` gains `expectedVersion` (its `VersionConflict` member could
-  never previously occur); `IAlerts.GetAsync` exists; `JobDefinitionListItem` carries `Version`.
-- `Acta.Testing` joins the public-API gate, its snapshot records become init-only property records
-  so 1.x additions are additive, and `ScenarioSession<TInput>` is sealed.
-
-### Breaking: the HTTP surface
-
-- Namespace identity unified on `jobNamespace` (routes, fields); every other route noun names what it
-  addresses (`alertRef`, `workerRef`, `{jobNamespace}/{jobName}` for a definition, `{signalName}`).
-  No entity's DB integer is a wire identity any more: an alert, worker, or job is addressed by its
-  public ref, and a definition, namespace, or tenant by its natural key.
-- **Every control verb now names its target in the route.** The schedule verbs move from
-  body-addressed `POST /schedules/{action}` to
-  `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/{action}` (and the preview follows:
-  `GET .../preview?limit=`) — the same natural-key triple the schedule tag routes already used, so
-  a reader of the contract sees what an operation targets instead of an opaque verb. Resume,
-  trigger, and the outbox verbs now take an optional body (a bare POST acts with defaults).
-- The `/jobs/{jobRef}/detail` aggregate's job row rides as `job` (was `snapshot` — `Snapshot` is
-  reserved for point-in-time aggregates, and `OverviewSnapshot` is the only one).
-- `note` → `reasonMessage` on the six control request types; `version` → `expectedVersion` on the
-  two override requests; `lastSeenAtUtc` → `lastHeartbeatAtUtc`; `search` → `nameContains`;
-  `parentRef` → `parentJobRef`; preview `count` → `limit`; `format` → `formatName` where the value
-  is a name; `/events` gains `includeTotal`.
-- **The ~45 query parameters that were absent from `openapi.json` are now documented and
-  drift-checked**, so the frozen contract actually protects the filter surface.
-
-### Breaking: entity refs replace integer identities
-
-`job_` had a public ref since 0.8.0; alerts and workers did not, so half the surface still addressed
-rows by a dense integer that a restored backup can recycle. 0.9.0 finishes the job — the rule is now
-*a database integer is never a wire identity*, written down in
-[naming conventions](./internals/naming-conventions.md) and enforced by three gates rather than by
-review.
-
-- **`alr_` and `wrk_` join `job_`.** Both are UUIDv7 values minted in C# and passed into the write, so
-  the database never defaults one; both get a unique index. `alerts.alert_ref` is applied on the
-  INSERT arm of the dedupe upsert only, so **an alert that re-fires while its incident is open keeps
-  the ref its first firing minted** — a delivered notification's link never goes stale.
-- **Routes re-keyed.** `GET /alerts/{alertRef}` (new) plus the acknowledge / resolve verbs and the
-  alert tag routes; `GET /workers/{workerRef}` and the worker tag routes;
-  `GET|PATCH /definitions/{jobNamespace}/{jobName}` plus its `/events` and tag routes. `/events`
-  filters are now `jobRef`, `lineageRootJobRef`, `workerRef` and `tenantKey`; a malformed ref answers
-  400 and a well-formed one that names no row answers 404, matching the sibling endpoints.
-- **Every remaining integer identity left the payloads.** `jobId`, `parentJobId`, `lineageRootId`,
-  `definitionId`, `tenantId`, `namespaceId`, `workerId`, `leasedByWorkerId`, `alertId` and
-  `jobScheduleId` are no longer serialized; the .NET records keep them for in-process callers behind
-  `[JsonIgnore]`. Values stay numeric and are unaffected: `jobEventId`, `executionNumber`,
-  `occurrenceCount`, `failureCount`, `version`, page sizes and counts.
-- **Events reads gained `tenantKey` and `workerRef`**, and worker-actor rows changed what `actor_key`
-  holds: it now stores the acting worker's ref as canonical lowercase uuid text (previously the worker
-  id), and read projections render it as `wrk_...`. The denormalized copy is what makes the timeline
-  outlive its worker — after retention reaps the row the joined `workerRef` reads null while
-  `actorKey` still names the worker an operator saw.
-- **CLI output is ref-based**, plain and `--json` alike: control, status, events, snapshot, explain and
-  debug all print `job_...` / `wrk_...` and no internal id, and the events continuation hint hands back
-  `jobs events <job_...> --after <cursor>`. Numeric-id *input* is still accepted (`jobs info 42`) as the
-  documented advanced path. One behavior change: a control verb whose target no longer exists now
-  prints a uniform `job not found` on stderr instead of a control block reading `action: NotFound` —
-  same exit code 2, one message across all five not-found paths.
-- **Reprovisioning in place leaves stale PostgreSQL overloads.** `start_worker`, `raise_job_alert`,
-  `acknowledge_job_alert` and `resolve_job_alert_manual` all changed arity or parameter types, and the
-  installer issues `CREATE OR REPLACE FUNCTION` without a `DROP`. The old overload therefore lingers
-  beside the new one on a database provisioned by an earlier build. It is harmless — every call is
-  positional and the arity plus parameter types disambiguate — but a fresh provision (the documented
-  0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
-  anyway.
-
 ## 1.0.0-rc.1
 
 Tagged 2026-08-22. The headline pair: durable waits
@@ -404,6 +232,178 @@ projects in **one invocation** and drains in about twelve seconds against the tw
 every provider; 100,000 events drain in ten invocations at a 113–133 MB peak working set with the
 dashboard's alert list still answering in tens of milliseconds. Five runs, five passes — which is
 also the decision the plan tied to this gate: the batched-alert-SQL fallback stays unbuilt.
+
+## 0.9.0-beta.1
+
+The last breaking release: the next tag is 1.0.0-rc.1, and from 1.0 the .NET surface, HTTP surface,
+schema, and persisted codes are additive-only. Everything here is here because it was
+0.9.0-or-never. The headline is the outbox operator path — `Quarantined` was shipped vocabulary
+with no exit, and now it has one — surrounded by the rename settlement three naming audits of the
+frozen surfaces produced.
+
+> **Schema note:** the `M001` baseline was re-cut (stamp `init-entity-refs-v1`). Preview
+> policy applies: drop and reprovision the Acta database; the bootstrap refuses any history that
+> does not carry this build's stamp row. The external-outbox staging table changed too
+> (`input_data` → `input`, `job_namespace` widened to 128): producers re-run
+> `{Provider}OutboxDdl.CreateScript()` against their own database.
+
+### Upgrade actions, in order
+
+- **Reprovision.** The baseline stamp changed; an existing Acta database will not boot this build.
+- **Recheck every `INamespaces.ListAsync` call site.** It now returns
+  `PagedResult<NamespaceListItem>` (the row, with status and version); the old names-only read is
+  `ListNamesAsync`, same query type. Most call sites break loudly; `var` plus members both shapes
+  share compiles silently and starts reading rows where it read names.
+- **Walk the rename table below** for the .NET, HTTP, SQL, and persisted-code spellings.
+- The naming rules these renames settled into are written down in
+  [naming conventions](./internals/naming-conventions.md); post-1.0 names are measured against
+  that page rather than re-litigated.
+
+### The outbox gets its operator path
+
+`OutboxStatusCode.Quarantined` finally has an exit, designed around one fact: the staging table
+lives in the producer's database, which most operator hosts cannot reach.
+
+- **`IActaOperations.Outbox`**: `ListSourcesAsync` (one line per relay source, composed cross-peer
+  from the `sys.outbox` slot's persisted tick summary — any host with ledger access can answer, and
+  `IsLocal` says where the deeper reads work), `ListQuarantinedAsync` (paged, identity and failure
+  evidence only, host-local by design with a clear error elsewhere), `RequeueAsync`, and
+  `DiscardAsync`.
+- **Requeue and discard are accepted-then-applied.** The verb parks a durable command on the slot
+  job's bounded signal inbox (two fixed names, so at most two command rows per source ever exist);
+  the next relay pass applies it, writes an audit event carrying the operator identity, the
+  justification, and the applied row ids, and consumes the command in the same pass. Works from any
+  peer, survives owner downtime. A second command while one is pending is rejected with the pending
+  command's park instant; a pending command older than the worker-dead window is superseded, with
+  version-CAS keeping the overwrite race safe. `ControlAction` gains `Accepted` for exactly this
+  shape. Requeue resets the failure budget and keeps `last_error` as evidence; discard deletes the
+  rows with the ids preserved in the event, so proof outlives the payload.
+- **HTTP**: `GET /v1/outbox/sources`, `GET /v1/outbox/{jobNamespace}/quarantined`, and
+  `POST /v1/outbox/{jobNamespace}/{requeue,discard}` (202 accepted / 409 pending / 404 no slot).
+  They subsume `GET /overview/outbox`, which is removed — it was also the API's only unpaged
+  collection.
+- **Dashboard**: the Overview gains an outbox relays panel — backlog, quarantine, last tick per
+  source — with requeue-all/discard-all behind the confirmation dialog (discard types the
+  namespace). The health verdict now flags standing quarantined rows beside backlog lag.
+- New always-emitted events `outbox.requeued` (180) and `outbox.discarded` (181); the tick summary
+  string gains `quarantine=` (current total) and, when an operator command applied, `requeued=` /
+  `discarded=` tokens.
+- **Certification learned the seam**: Anvil now stages producer rows throughout the chaos window
+  and checks *drained* (staging empty after quiesce) and *delivered* (every committed producer
+  operation's job exists in the ledger) from the only place that can see both databases, while
+  `certify.sql` carries the ledger-reachable half (every relayed job Succeeded, plus the relayed
+  count as evidence).
+
+### Breaking: one M001 re-cut
+
+Four audit findings were unfixable after 1.0 and bundled into a single reprovision:
+
+- **`leases` → `locks`.** The table only ever stored named locks; the real execution lease lives on
+  `runtimes`. The one-member `kind_code` column retires with its persisted-code family, and the
+  recycling `version int` becomes a C#-minted `hold_token uuid` — the int had an ABA window where a
+  zombie holder surviving a steal → release → reacquire cycle could delete its successor's hold.
+- **`alerts.dedupe_key` stays** — reversed during execution by the column-width parity gate (one
+  name, two widths is the drift the gate exists to block); the operator-facing spelling comes from
+  `AlertsView` aliasing it to `deduplication_key`.
+- Check-constraint names lose their doubled `_code` segments (emitter fix), and the two worker
+  index names spell `last_seen`.
+- Staging table: `input_data` → `input` (parity with `jobs.input`), `job_namespace` widened to the
+  model's 128. `outbox_id` and `next_attempt_at_utc` keep their names — the audit's renames were
+  reversed on inspection (`_ref` is reserved for rendered public handles, and the column covers the
+  *first* delivery attempt, not a retry).
+
+### Breaking: persisted codes (ids unchanged, strings move)
+
+Same destructive-class precedent as 0.7.0:
+
+- Slugs: `priority` → `job-priority` (symmetric with `job-status`), and the deadline-behavior slug
+  drops its `job-` prefix. Event strings: `job.note` → `job.note-recorded`, and the dead-worker
+  event becomes `worker.died` — the two of 34 event strings that broke `noun.past-participle`.
+- CLR names (contract-free, the snapshot keys by kind): `JobEventCode` → `EventCode`,
+  `JobActorCode` → `ActorCode` — both families are ledger-wide, so their short slugs were right all
+  along.
+- Every retired string joined the canonical-vocabulary gate so it cannot come back meaning
+  something else.
+
+### Breaking: the .NET surface settlement
+
+- **The `Job` prefix comes off every type that is not literally a job**: `WorkerListItem`,
+  `WorkerDetail`, `AlertListItem`, `ScheduleListItem`, `ScheduleLookup`, `NamespaceStatusCode`, the
+  `List*Query` types, and peers. Tenant, already clean, was the template.
+- **`note` → `reasonMessage` on every operator parameter** (`note` is now reserved for the
+  application-authored `ctx.NoteAsync`); `JobSnapshot` → `JobDetail`, `SettingSnapshot` →
+  `SettingDetail` (`Detail` = single-entity read, `Snapshot` = point-in-time aggregate;
+  `OverviewSnapshot` stays); `JobControlAction` → `ControlAction`; `DefinitionOverrideResult` →
+  `DefinitionControlResult`; `ExecuteAndWaitAsync` → `RunAndWaitAsync`; `Search` → `NameContains`;
+  worker timestamps unified on `LastHeartbeatAtUtc`/`StartedAtUtc`; the five duplicate
+  `JobLineage*` types collapse into their `JobExplain*` twins.
+- **Gap closures that had to precede the freeze**: `ITags` mutations gain `actorKey` and
+  `reasonMessage`; `ISettings.SetAsync` gains `expectedVersion` (its `VersionConflict` member could
+  never previously occur); `IAlerts.GetAsync` exists; `JobDefinitionListItem` carries `Version`.
+- `Acta.Testing` joins the public-API gate, its snapshot records become init-only property records
+  so 1.x additions are additive, and `ScenarioSession<TInput>` is sealed.
+
+### Breaking: the HTTP surface
+
+- Namespace identity unified on `jobNamespace` (routes, fields); every other route noun names what it
+  addresses (`alertRef`, `workerRef`, `{jobNamespace}/{jobName}` for a definition, `{signalName}`).
+  No entity's DB integer is a wire identity any more: an alert, worker, or job is addressed by its
+  public ref, and a definition, namespace, or tenant by its natural key.
+- **Every control verb now names its target in the route.** The schedule verbs move from
+  body-addressed `POST /schedules/{action}` to
+  `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/{action}` (and the preview follows:
+  `GET .../preview?limit=`) — the same natural-key triple the schedule tag routes already used, so
+  a reader of the contract sees what an operation targets instead of an opaque verb. Resume,
+  trigger, and the outbox verbs now take an optional body (a bare POST acts with defaults).
+- The `/jobs/{jobRef}/detail` aggregate's job row rides as `job` (was `snapshot` — `Snapshot` is
+  reserved for point-in-time aggregates, and `OverviewSnapshot` is the only one).
+- `note` → `reasonMessage` on the six control request types; `version` → `expectedVersion` on the
+  two override requests; `lastSeenAtUtc` → `lastHeartbeatAtUtc`; `search` → `nameContains`;
+  `parentRef` → `parentJobRef`; preview `count` → `limit`; `format` → `formatName` where the value
+  is a name; `/events` gains `includeTotal`.
+- **The ~45 query parameters that were absent from `openapi.json` are now documented and
+  drift-checked**, so the frozen contract actually protects the filter surface.
+
+### Breaking: entity refs replace integer identities
+
+`job_` had a public ref since 0.8.0; alerts and workers did not, so half the surface still addressed
+rows by a dense integer that a restored backup can recycle. 0.9.0 finishes the job — the rule is now
+*a database integer is never a wire identity*, written down in
+[naming conventions](./internals/naming-conventions.md) and enforced by three gates rather than by
+review.
+
+- **`alr_` and `wrk_` join `job_`.** Both are UUIDv7 values minted in C# and passed into the write, so
+  the database never defaults one; both get a unique index. `alerts.alert_ref` is applied on the
+  INSERT arm of the dedupe upsert only, so **an alert that re-fires while its incident is open keeps
+  the ref its first firing minted** — a delivered notification's link never goes stale.
+- **Routes re-keyed.** `GET /alerts/{alertRef}` (new) plus the acknowledge / resolve verbs and the
+  alert tag routes; `GET /workers/{workerRef}` and the worker tag routes;
+  `GET|PATCH /definitions/{jobNamespace}/{jobName}` plus its `/events` and tag routes. `/events`
+  filters are now `jobRef`, `lineageRootJobRef`, `workerRef` and `tenantKey`; a malformed ref answers
+  400 and a well-formed one that names no row answers 404, matching the sibling endpoints.
+- **Every remaining integer identity left the payloads.** `jobId`, `parentJobId`, `lineageRootId`,
+  `definitionId`, `tenantId`, `namespaceId`, `workerId`, `leasedByWorkerId`, `alertId` and
+  `jobScheduleId` are no longer serialized; the .NET records keep them for in-process callers behind
+  `[JsonIgnore]`. Values stay numeric and are unaffected: `jobEventId`, `executionNumber`,
+  `occurrenceCount`, `failureCount`, `version`, page sizes and counts.
+- **Events reads gained `tenantKey` and `workerRef`**, and worker-actor rows changed what `actor_key`
+  holds: it now stores the acting worker's ref as canonical lowercase uuid text (previously the worker
+  id), and read projections render it as `wrk_...`. The denormalized copy is what makes the timeline
+  outlive its worker — after retention reaps the row the joined `workerRef` reads null while
+  `actorKey` still names the worker an operator saw.
+- **CLI output is ref-based**, plain and `--json` alike: control, status, events, snapshot, explain and
+  debug all print `job_...` / `wrk_...` and no internal id, and the events continuation hint hands back
+  `jobs events <job_...> --after <cursor>`. Numeric-id *input* is still accepted (`jobs info 42`) as the
+  documented advanced path. One behavior change: a control verb whose target no longer exists now
+  prints a uniform `job not found` on stderr instead of a control block reading `action: NotFound` —
+  same exit code 2, one message across all five not-found paths.
+- **Reprovisioning in place leaves stale PostgreSQL overloads.** `start_worker`, `raise_job_alert`,
+  `acknowledge_job_alert` and `resolve_job_alert_manual` all changed arity or parameter types, and the
+  installer issues `CREATE OR REPLACE FUNCTION` without a `DROP`. The old overload therefore lingers
+  beside the new one on a database provisioned by an earlier build. It is harmless — every call is
+  positional and the arity plus parameter types disambiguate — but a fresh provision (the documented
+  0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
+  anyway.
 
 ## 0.8.0-beta.1
 
