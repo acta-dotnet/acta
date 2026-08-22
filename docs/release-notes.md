@@ -172,9 +172,9 @@ review.
   0.9.0 path) has exactly one of each, and reprovisioning is what the upgrade actions above ask for
   anyway.
 
-## 1.0.0-rc.1 (unreleased)
+## 1.0.0-rc.1
 
-The release candidate's own changes, recorded here as they land. The headline pair: durable waits
+Tagged 2026-08-22. The headline pair: durable waits
 can now give up, and an alert outage has an identity instead of a time bucket.
 
 > **Schema note:** preview policy applies — drop and reprovision. `M001` was re-cut as the 1.0
