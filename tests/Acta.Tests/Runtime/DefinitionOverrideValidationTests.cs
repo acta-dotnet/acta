@@ -33,7 +33,15 @@ public sealed class DefinitionOverrideValidationTests
 
     private static Task<DefinitionControlResult> UpdateAsync(DefinitionsService service, JobDefinitionPolicyOverrides overrides) =>
         service
-            .UpdateOverridesAsync(Namespace, "invoice", expectedVersion: 1, overrides, actorKey: "tester", reasonMessage: null, TestContext.Current.CancellationToken)
+            .UpdateOverridesAsync(
+                Namespace,
+                "invoice",
+                expectedVersion: 1,
+                overrides,
+                actorKey: "tester",
+                reasonMessage: null,
+                TestContext.Current.CancellationToken
+            )
             .AsTask();
 
     private static (DefinitionsService Service, RecordingDefinitionStore Store) Build()
@@ -48,12 +56,18 @@ public sealed class DefinitionOverrideValidationTests
         var (service, store) = Build();
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            UpdateAsync(service, new JobDefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds + 1))
+            UpdateAsync(
+                service,
+                new JobDefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds + 1)
+            )
         );
         Assert.Empty(store.OverrideWrites);
 
         // The ceiling itself is a legal value.
-        var outcome = await UpdateAsync(service, new JobDefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds));
+        var outcome = await UpdateAsync(
+            service,
+            new JobDefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
+        );
         Assert.Equal(ControlAction.Applied, outcome.Action);
     }
 

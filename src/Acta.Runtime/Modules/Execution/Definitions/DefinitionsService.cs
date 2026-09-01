@@ -192,7 +192,10 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         // RunbookUrl is a link an operator will click from an alert, bound for an ASCII column: a
         // truncated URL is a broken one and a non-ASCII value fails or mangles per provider, so both
         // are rejected like Backoff rather than silently coerced.
-        if (overrides.RunbookUrl is { } url && (url.Length > ActaTextLimits.DefinitionRunbookUrl || url.AsSpan().ContainsAnyExceptInRange((char)0x20, (char)0x7E)))
+        if (
+            overrides.RunbookUrl is { } url
+            && (url.Length > ActaTextLimits.DefinitionRunbookUrl || url.AsSpan().ContainsAnyExceptInRange((char)0x20, (char)0x7E))
+        )
         {
             throw new ArgumentException(
                 $"RunbookUrl override must be at most {ActaTextLimits.DefinitionRunbookUrl} printable ASCII characters.",
