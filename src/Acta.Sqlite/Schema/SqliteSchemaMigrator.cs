@@ -31,9 +31,11 @@ internal static class SqliteSchemaMigrator
         await SchemaMigrationRunner.ApplyAsync(connection, schemaName, Hooks, ct);
     }
 
-    // Dev convenience: opens the connection (SQLite creates the database file on first open), enables
-    // WAL for concurrent readers, then applies migrations. Production deployments can apply the script
-    // in infrastructure and call ApplyAsync directly.
+    /// <summary>
+    /// Dev convenience: opens the connection (SQLite creates the database file on first open), enables
+    /// WAL for concurrent readers, then applies migrations. Production deployments can apply the script
+    /// in infrastructure and call ApplyAsync directly.
+    /// </summary>
     public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);

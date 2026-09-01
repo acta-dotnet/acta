@@ -13,7 +13,7 @@ namespace Acta.Runtime.Modules.Execution.Settings;
 /// </summary>
 internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions> options)
 {
-    // Operator/manual only: the actor is stamped here, never accepted from the caller.
+    /// <summary>Operator/manual only: the actor is stamped here, never accepted from the caller.</summary>
     private static JobControlActor Operator(string? actorKey) =>
         new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
@@ -69,7 +69,7 @@ internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions>
         return new AdminControlResult(outcome.Action, outcome.Version);
     }
 
-    // Scope targets are lookups of already-registered entities, so shape-only validation suffices.
+    /// <summary>Scope targets are lookups of already-registered entities, so shape-only validation suffices.</summary>
     private static void ValidateScope(string? namespaceName, string? jobName)
     {
         if (jobName is not null && namespaceName is null)

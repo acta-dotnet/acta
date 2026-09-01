@@ -38,7 +38,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
 
     private static readonly WorkerRegistration Registration = new("orders", null, null, [], []);
 
-    // ---- WorkerHeartbeat: feeds the job-lease deadline; cancels only on an authoritative drop ----
 
     [Fact]
     public async Task Worker_heartbeat_feeds_the_job_lease_deadline_on_a_confirmed_renewal()
@@ -94,7 +93,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         Assert.Equal(deadline, attempt.JobLeaseGoodUntil);
     }
 
-    // ---- LockLeaseHeartbeat: feeds lock deadlines; cancels on false; tolerates throw/release-race ----
 
     [Fact]
     public async Task Lock_heartbeat_extends_held_locks_even_when_the_worker_lease_is_failing()
@@ -186,7 +184,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         Assert.False(cts.IsCancellationRequested);
     }
 
-    // ---- AttemptWatchdog: enforces deadlines, in-memory, per attempt ----
 
     [Fact]
     public Task Watchdog_does_not_cancel_an_attempt_with_runway_beyond_the_margin()
@@ -295,7 +292,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         return Task.CompletedTask;
     }
 
-    // ---- test doubles ----
 
     private abstract class WorkerStoreStub : IWorkerStore
     {

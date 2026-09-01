@@ -8,7 +8,6 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Scenarios;
 
-// ---------- spec-local probe ----------
 
 /// <summary>
 /// Spec-local body-invocation counter: keyed by job id so parallel tests don't collide.
@@ -50,7 +49,6 @@ internal static class StepExhaustionProbes
         );
 }
 
-// ---------- spec-local manifest ----------
 
 /// <summary>
 /// Hand-written manifest for the two exhaustion-probe jobs. Kept isolated from
@@ -112,7 +110,6 @@ public sealed class StepExhaustionManifest : IJobManifest
         ]);
 }
 
-// ---------- spec ----------
 
 /// <summary>
 /// Conformance for step exhaustion guarantees beyond attempt-count: window exhaustion fires
@@ -201,7 +198,6 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(JobEventReasonCode.JobUnhandledException, finishedEvent.ReasonCode);
     }
 
-    // ---------- helpers ----------
 
     private async Task<IReadOnlyList<JobStep>> ReadStepsAsync(long jobId, CancellationToken ct)
     {

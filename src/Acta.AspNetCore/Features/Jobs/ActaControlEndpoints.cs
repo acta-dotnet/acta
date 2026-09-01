@@ -63,12 +63,14 @@ internal static class ActaControlEndpoints
         MapSignal(group, options);
     }
 
-    // POST /jobs/{jobRef}/input: amend a job's stored input, round-tripping the job's own payload format.
-    // The body carries exactly one of "input" (raw JSON, stored as json), "text" (stored as text), or
-    // "base64" (stored under the job's current binary format id). The chosen field must match the stored
-    // format, except that "input" is a json fallback for any non-none format (the runner decodes by the
-    // stored id). A no-input job has nothing to amend (409); an over-size payload surfaces as 413; an
-    // in-flight job is rejected (409) by the verb.
+    /// <summary>
+    /// POST /jobs/{jobRef}/input: amend a job's stored input, round-tripping the job's own payload format.
+    /// The body carries exactly one of "input" (raw JSON, stored as json), "text" (stored as text), or
+    /// "base64" (stored under the job's current binary format id). The chosen field must match the stored
+    /// format, except that "input" is a json fallback for any non-none format (the runner decodes by the
+    /// stored id). A no-input job has nothing to amend (409); an over-size payload surfaces as 413; an
+    /// in-flight job is rejected (409) by the verb.
+    /// </summary>
     private static void MapInput(RouteGroupBuilder group, ActaEndpointOptions options)
     {
         group
@@ -205,9 +207,11 @@ internal static class ActaControlEndpoints
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
-    // POST /jobs/{jobRef}/reschedule: unlike the other verbs, the target instant travels in the body
-    // rather than being framework-computed, so this uses ReadJsonBodyAsync (mandatory body) instead of
-    // MapVerb's optional-reason ReadAsync.
+    /// <summary>
+    /// POST /jobs/{jobRef}/reschedule: unlike the other verbs, the target instant travels in the body
+    /// rather than being framework-computed, so this uses ReadJsonBodyAsync (mandatory body) instead of
+    /// MapVerb's optional-reason ReadAsync.
+    /// </summary>
     private static void MapReschedule(RouteGroupBuilder group, ActaEndpointOptions options)
     {
         group
@@ -264,9 +268,11 @@ internal static class ActaControlEndpoints
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
-    // POST /jobs/{jobRef}/reprioritize: like reschedule, the target priority travels in the body, so
-    // this uses ReadJsonBodyAsync (mandatory body) instead of MapVerb's optional-reason ReadAsync. An
-    // unrecognized priority name fails deserialization inside ReadJsonBodyAsync, which maps it to 400.
+    /// <summary>
+    /// POST /jobs/{jobRef}/reprioritize: like reschedule, the target priority travels in the body, so
+    /// this uses ReadJsonBodyAsync (mandatory body) instead of MapVerb's optional-reason ReadAsync. An
+    /// unrecognized priority name fails deserialization inside ReadJsonBodyAsync, which maps it to 400.
+    /// </summary>
     private static void MapReprioritize(RouteGroupBuilder group, ActaEndpointOptions options)
     {
         group
@@ -314,13 +320,15 @@ internal static class ActaControlEndpoints
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
-    // POST /jobs/{jobRef}/signals/{signalName}: raise a named signal on a job. This is operator control, so it
-    // sits behind EnableControls (only mapped when controls are on) and the confirmation header, like the
-    // destructive verbs. The name is validated as user-kebab at the edge: underscores are not valid kebab,
-    // so the reserved child-latch "__" names are rejected as malformed, and the sys. reservation is
-    // rejected by the same validator. An empty body raises a presence-only signal; a non-empty
-    // application/json body is stored verbatim as a JSON payload that the handler's WaitSignalAsync<T>
-    // deserializes.
+    /// <summary>
+    /// POST /jobs/{jobRef}/signals/{signalName}: raise a named signal on a job. This is operator control, so it
+    /// sits behind EnableControls (only mapped when controls are on) and the confirmation header, like the
+    /// destructive verbs. The name is validated as user-kebab at the edge: underscores are not valid kebab,
+    /// so the reserved child-latch "__" names are rejected as malformed, and the sys. reservation is
+    /// rejected by the same validator. An empty body raises a presence-only signal; a non-empty
+    /// application/json body is stored verbatim as a JSON payload that the handler's WaitSignalAsync&lt;T&gt;
+    /// deserializes.
+    /// </summary>
     private static void MapSignal(RouteGroupBuilder group, ActaEndpointOptions options)
     {
         group
@@ -439,10 +447,12 @@ internal static class ActaControlEndpoints
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
     }
 
-    // The two outcomes /input settles before the verb runs, in the family envelope rather than as a
-    // ProblemDetails: an unresolvable ref is the same not-found the other verbs report, and a job with
-    // no stored input is a rejected transition, not a malformed request. Status is null because neither
-    // outcome read one.
+    /// <summary>
+    /// The two outcomes /input settles before the verb runs, in the family envelope rather than as a
+    /// ProblemDetails: an unresolvable ref is the same not-found the other verbs report, and a job with
+    /// no stored input is a rejected transition, not a malformed request. Status is null because neither
+    /// outcome read one.
+    /// </summary>
     private static IResult Envelope(JobRef jobRef, ControlAction action, int statusCode, string message) =>
         Results.Json(
             new JobControlResponse(jobRef, action, null, message),

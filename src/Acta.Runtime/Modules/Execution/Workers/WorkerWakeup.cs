@@ -198,9 +198,11 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
         }
     }
 
-    // Stable low-cardinality tag values are not derived from enum display text, so an enum rename
-    // cannot silently rename an operator-facing metric dimension. Job-completion channels omit the
-    // namespace tag because a per-job value would explode tag cardinality.
+    /// <summary>
+    /// Stable low-cardinality tag values are not derived from enum display text, so an enum rename
+    /// cannot silently rename an operator-facing metric dimension. Job-completion channels omit the
+    /// namespace tag because a per-job value would explode tag cardinality.
+    /// </summary>
     internal static string? NamespaceTag(WorkerWakeupChannel channel) =>
         channel.Kind switch
         {

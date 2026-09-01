@@ -311,11 +311,13 @@ internal static class TagEndpoints
     private static IResult InvalidTarget(ArgumentException ex) =>
         ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", ex.Message);
 
-    // The three ref-addressed targets. A ref that does not parse names nothing, and it is caller
-    // input, so it reports the same way a malformed catalog identifier already did and the helpers
-    // above answer both with the 400. No parameter name on the throw: the message is the wire's
-    // detail here, and ArgumentException would append "(Parameter '...')" to it, which would put two
-    // spellings of one refusal on the API.
+    /// <summary>
+    /// The three ref-addressed targets. A ref that does not parse names nothing, and it is caller
+    /// input, so it reports the same way a malformed catalog identifier already did and the helpers
+    /// above answer both with the 400. No parameter name on the throw: the message is the wire's
+    /// detail here, and ArgumentException would append "(Parameter '...')" to it, which would put two
+    /// spellings of one refusal on the API.
+    /// </summary>
     private static TagTarget JobTarget(string jobRef, ActaEndpointOptions options) =>
         JobTargetBinding.TryParseTarget(jobRef, options, out var lookup)
             ? TagTarget.ForJob(lookup)
@@ -354,8 +356,10 @@ internal static class TagEndpoints
     private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
         TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));
 
-    // A read has no envelope to answer with - its 200 is the tag list itself - so an unknown target
-    // there is the plain problem document every other read returns.
+    /// <summary>
+    /// A read has no envelope to answer with - its 200 is the tag list itself - so an unknown target
+    /// there is the plain problem document every other read returns.
+    /// </summary>
     private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found.");
 
     /// <summary>

@@ -460,7 +460,6 @@ public class CliOutputTests
         Assert.Contains("\"status\":null", json.ToString());
     }
 
-    // ---- No_integer_identities_in_cli_output -------------------------------------------------
     // Every internal id a CLI fixture can carry is a distinctive sentinel, so a writer that prints
     // one is caught by the digits themselves - not by a field name a rename could slip past. The
     // counterpart assertion is that the ref or key the operator addresses the row by IS printed, so

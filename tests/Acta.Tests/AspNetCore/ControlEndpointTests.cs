@@ -656,7 +656,6 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    // ---- format-aware input amend (POST /jobs/{ref}/input) ----
 
     private static HttpRequestMessage AmendInput(object body, bool confirm = true)
     {
@@ -790,7 +789,6 @@ public sealed class ControlEndpointTests
         Assert.Empty(jobs.InputAmendCalls);
     }
 
-    // ---- format-aware enqueue (POST /jobs) ----
 
     private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)
     {

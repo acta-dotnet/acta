@@ -172,7 +172,6 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         Assert.Equal(ControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "gone"), ct: ct)).Action);
     }
 
-    // ---------- helpers ----------
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 

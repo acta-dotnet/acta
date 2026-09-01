@@ -254,7 +254,6 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Null(raise.Status);
     }
 
-    // ---------- helpers ----------
 
     private static Task SetJobStatusReadyAsync(IDbSession db, long jobId, CancellationToken ct) =>
         db.ExecuteRawAsync(

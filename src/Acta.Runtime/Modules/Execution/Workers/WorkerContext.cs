@@ -18,27 +18,33 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 {
     public WorkerRegistration? WorkerRegistration { get; } = workerRegistration;
 
-    // Worker-only state. All these fields stay empty in enqueue-only mode.
     public Dictionary<string, int> NamespaceIds { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> WorkerIdByNamespace { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, Dictionary<string, int>> DefinitionIdsByNamespace { get; } = new(StringComparer.Ordinal);
 
-    // definitions.id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync
-    // after UpsertDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to
-    // resolve the descriptor by ClaimedJob.DefinitionId, keeping `claim_batch` free of
-    // any JOIN to definitions. Each descriptor carries the definition's effective (override-or-
-    // default) policy. Concurrent because the definition-policy reload tick re-overlays entries while
-    // executor threads read them.
+    /// <summary>
+    /// definitions.id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync after
+    /// UpsertDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to resolve the
+    /// descriptor by ClaimedJob.DefinitionId, keeping <c>claim_batch</c> free of any JOIN to
+    /// definitions. Each descriptor carries the definition's effective (override-or-default)
+    /// policy. Concurrent because the definition-policy reload tick re-overlays entries while
+    /// executor threads read them.
+    /// </summary>
     public ConcurrentDictionary<int, JobDescriptor> DescriptorByDefinitionId { get; } = new();
 
-    // Slot job ids (one per recurring definition) returned by the startup schedule upsert. Consulted
-    // on the execution hot path to branch a claimed slot fire into the recurring path.
+    /// <summary>
+    /// Slot job ids (one per recurring definition) returned by the startup schedule upsert.
+    /// Consulted on the execution hot path to branch a claimed slot fire into the recurring path.
+    /// </summary>
     public HashSet<long> RecurringSlotJobIds { get; } = [];
 
-    // Jobs this worker is mid-execution on: job_id -> the attempt's cancellation source + held locks.
-    // The dispatcher registers an entry around each attempt; the heartbeat cancels the source when
-    // extend_worker_leases reports the job left this worker's lease set (externally cancelled / stolen) and
-    // extends every lock the attempt holds through the lock store while it stays.
+    /// <summary>
+    /// Jobs this worker is mid-execution on: job_id to the attempt's cancellation source + held
+    /// locks. The dispatcher registers an entry around each attempt; the heartbeat cancels the
+    /// source when extend_worker_leases reports the job left this worker's lease set (externally
+    /// cancelled / stolen) and extends every lock the attempt holds through the lock store while it
+    /// stays.
+    /// </summary>
     public ConcurrentDictionary<long, RunningAttempt> RunningAttempts { get; } = new();
 
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
@@ -54,8 +60,10 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
         return false;
     }
 
-    // Resolves and validates the (namespaceId, workerId) pair for the registered worker namespace.
-    // Shared by RunOnceAsync and the production claim loop.
+    /// <summary>
+    /// Resolves and validates the (namespaceId, workerId) pair for the registered worker namespace.
+    /// Shared by RunOnceAsync and the production claim loop.
+    /// </summary>
     public (int NamespaceId, int WorkerId) ResolveWorker(string namespaceName)
     {
         if (WorkerRegistration is null)
@@ -93,11 +101,13 @@ internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTo
     private readonly CancellationTokenSource _cts = cts;
     private readonly CancellationTokenSource? _timeoutCts = timeoutCts;
 
-    // Held lock -> monotonic Stopwatch timestamp its lease is conservatively good until.
+    /// <summary>Held lock to the monotonic Stopwatch timestamp its lease is conservatively good until.</summary>
     private readonly ConcurrentDictionary<LockToken, long> _heldLocks = new();
 
-    // Job lease's conservative good-until (monotonic Stopwatch timestamp). Written by the worker heartbeat,
-    // read by the watchdog on another thread - accessed only through Volatile.
+    /// <summary>
+    /// Job lease's conservative good-until (monotonic Stopwatch timestamp). Written by the worker
+    /// heartbeat, read by the watchdog on another thread - accessed only through Volatile.
+    /// </summary>
     private long _jobLeaseGoodUntil;
 
     /// <summary>

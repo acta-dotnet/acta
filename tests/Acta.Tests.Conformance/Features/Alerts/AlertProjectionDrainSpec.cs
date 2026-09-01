@@ -152,7 +152,6 @@ public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<T
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
     }
 
-    // ---------- staging ----------
 
     /// <summary>
     /// One definition carrying the <c>OnTerminal</c> profile and one job under it. <c>OnTerminal</c>
@@ -202,7 +201,6 @@ public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<T
         return ids;
     }
 
-    // ---------- driving the projector ----------
 
     private Task RunAlertsAsync(long cursorOwnerJobId, AlertDrainBudget? drain, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain, ct);

@@ -32,8 +32,10 @@ internal sealed record JobSnapshotRow(
     Guid? LeasedByWorkerRef
 )
 {
-    // Named, not positional: this row is in SELECT order and the snapshot in entity order, and both
-    // carry runs of same-typed fields a positional call would silently swap.
+    /// <summary>
+    /// Named, not positional: this row is in SELECT order and the snapshot in entity order, and
+    /// both carry runs of same-typed fields a positional call would silently swap.
+    /// </summary>
     public JobDetail ToSnapshot() =>
         new(
             JobId: JobId,

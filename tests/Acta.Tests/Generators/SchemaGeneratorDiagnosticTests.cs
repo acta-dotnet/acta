@@ -122,9 +122,7 @@ public class SchemaGeneratorDiagnosticTests
 
     private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => [.. result.Diagnostics.Where(d => d.Id == id)];
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0401: schema declarations must be complete
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Entity_without_primary_key_errors_ACTA0401()
@@ -354,9 +352,7 @@ public class SchemaGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0401"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0402: column mappings must match the CLR type
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void String_column_without_size_errors_ACTA0402()
@@ -461,9 +457,7 @@ public class SchemaGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0402"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0403: column defaults must match the kind and not fight allocation
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void UtcNow_default_on_non_utc_column_errors_ACTA0403()
@@ -535,9 +529,7 @@ public class SchemaGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0403"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // Clean entity
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Valid_entities_produce_no_diagnostics()

@@ -248,6 +248,46 @@ LIMIT 1;
   idiom).
 - Target line length 140, matching `.csharpierrc.json`.
 
+## C# comment style
+
+Every fact has exactly one home, and a comment is the home of last resort. Deleting a comment that
+restates code loses nothing - the code still says it. The homes, in order of preference:
+
+1. **The code.** If a name, type, structure change, or assertion can make the fact visible, put it
+   there. Self-describing code carries no comments; a comment there is a duplicate, and duplicates
+   rot.
+2. **`///` XML docs on declarations.** Every comment that sits on a type, interface, method, or
+   property is written as a `///` doc comment. Public members get generous docs - contract,
+   behavior, gotchas - written for the IntelliSense reader; that is the product surface. Internal
+   members get a tight `<summary>` only (no `<param>`/`<returns>`/`<remarks>` scaffolding unless a
+   tag carries a contract that fits nowhere else), stating only claims the code cannot make.
+3. **A plain `//` comment inside a method body** stating a claim the code cannot make: an
+   invariant, a concurrency or lease contract, an external constraint, a
+   why-not-the-obvious-alternative. A few lines at most. `//` never sits on a declaration and `///`
+   never appears inside a body, with one structural exception: a comment on one attribute inside an
+   attribute list, or on one parameter inside a positional-record parameter list, stays `//`,
+   because `///` has no valid target there (CS1587).
+4. **A doc file.** Anything needing paragraphs goes to `docs/internals/` (contributors) or
+   `llms.txt` (consumers).
+
+Never, anywhere: restating what adjacent code visibly does, section banner comments, naming
+history, notes addressed to a reviewer, narration of the change being made.
+
+**Voice: plain claim first, then the why.** The first sentence states the contract or fact in plain
+words; justification follows. One fact per sentence. Do not open with a riddle ("Exact by
+construction, not by luck:") or argue against alternatives nobody proposed - keep a "rather than Y"
+only when Y is a real trap someone might reintroduce. Vivid concrete phrasing is welcome;
+compressed aphorisms are not.
+
+**Tests:** comments are spec claims. Keep one-liners stating the contract being proven; delete
+comments that restate the test name or the arrange block.
+
+`Acta.Tests.Aot.CommentStyleTests` mechanically enforces the floor over `src/Acta*`: plain-ASCII
+comment text (no em dashes, arrows, emoji), XML doc blocks of 16 lines or less, `<remarks>` on
+internal types only via its allowlist (reserved for concurrency/CAS/provider-difference contracts;
+clearing an entry after a scrub tightens the ratchet), and no stale markers (TODO, "later",
+"placeholder"). Run that test class after any comment pass.
+
 ## Proof harness
 
 Anvil (`anvil/Anvil`) is the local proof harness for crash recovery, retries, worker reclaim,

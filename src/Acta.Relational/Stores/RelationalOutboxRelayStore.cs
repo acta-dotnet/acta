@@ -22,12 +22,16 @@ namespace Acta.Relational.Stores;
 /// </summary>
 internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect dialect, string? schema, string table) : IOutboxRelayStore
 {
-    // The ADR bounds last_error to 512 characters (the physical column width on every provider); truncate
-    // here so a longer provider/target error never overflows the reschedule/quarantine write.
+    /// <summary>
+    /// The ADR bounds last_error to 512 characters (the physical column width on every provider); truncate
+    /// here so a longer provider/target error never overflows the reschedule/quarantine write.
+    /// </summary>
     private const int MaxLastError = 512;
 
-    // The qualified source table reference for the store-composed backlog count; the claim/finalize
-    // bodies get the same reference substituted by the provider's resource catalog.
+    /// <summary>
+    /// The qualified source table reference for the store-composed backlog count; the claim/finalize
+    /// bodies get the same reference substituted by the provider's resource catalog.
+    /// </summary>
     private readonly string _tableRef = OutboxIdentifier.Qualify(table, schema);
 
     public async Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct)
@@ -151,13 +155,17 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
         return affected.Select(row => row.OutboxId).ToList();
     }
 
-    // NULL (not an empty array) is the every-quarantined-row form the operator SQL tests for.
+    /// <summary>
+    /// NULL (not an empty array) is the every-quarantined-row form the operator SQL tests for.
+    /// </summary>
     private static string? ToOptionalIdArray(IReadOnlyList<Guid>? ids) => ids is null ? null : ToIdArray(ids);
 
     private static string? Truncate(string? value) => value is { Length: > MaxLastError } ? value[..MaxLastError] : value;
 
-    // A JSON array of the claimed ids as their canonical GUID text; every provider's set-based finalize
-    // parses it. GUIDs contain no JSON-significant characters, so no escaping is required.
+    /// <summary>
+    /// A JSON array of the claimed ids as their canonical GUID text; every provider's set-based finalize
+    /// parses it. GUIDs contain no JSON-significant characters, so no escaping is required.
+    /// </summary>
     private static string ToIdArray(IReadOnlyList<Guid> ids)
     {
         var builder = new StringBuilder(ids.Count * 40 + 2).Append('[');
@@ -174,8 +182,10 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
         return builder.Append(']').ToString();
     }
 
-    // The per-row reschedule records ([{outbox_id, failure_count, backoff_seconds, last_error}, ...]). Built
-    // with Utf8JsonWriter (AOT-safe, correctly escapes last_error). last_error is truncated to the column cap.
+    /// <summary>
+    /// The per-row reschedule records ([{outbox_id, failure_count, backoff_seconds, last_error}, ...]). Built
+    /// with Utf8JsonWriter (AOT-safe, correctly escapes last_error). last_error is truncated to the column cap.
+    /// </summary>
     private static string RescheduleJson(IReadOnlyList<OutboxReschedule> rows)
     {
         var buffer = new ArrayBufferWriter<byte>();
@@ -197,7 +207,9 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
-    // The per-row quarantine records ([{outbox_id, failure_count, last_error}, ...]).
+    /// <summary>
+    /// The per-row quarantine records ([{outbox_id, failure_count, last_error}, ...]).
+    /// </summary>
     private static string QuarantineJson(IReadOnlyList<OutboxQuarantine> rows)
     {
         var buffer = new ArrayBufferWriter<byte>();

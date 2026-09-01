@@ -20,8 +20,10 @@ internal sealed class JobMetrics : IDisposable
 {
     public const string MeterName = "Acta";
 
-    // Exposed so tests can scope a MeterListener to THIS instance's meter; same-named meters from
-    // parallel test hosts would otherwise cross-capture identical instrument/tag measurements.
+    /// <summary>
+    /// Exposed so tests can scope a MeterListener to THIS instance's meter; same-named meters from
+    /// parallel test hosts would otherwise cross-capture identical instrument/tag measurements.
+    /// </summary>
     internal Meter Meter { get; }
 
     private readonly Counter<long> _executions;
@@ -34,8 +36,10 @@ internal sealed class JobMetrics : IDisposable
     private readonly Counter<long> _wakeupPublishFailures;
     private readonly Counter<long> _wakeupWaits;
 
-    // Each worker registers its namespace's live in-flight count; the observable gauge reads them on
-    // collection. Reading live state beats maintaining a running total that can drift on a crash.
+    /// <summary>
+    /// Each worker registers its namespace's live in-flight count; the observable gauge reads them
+    /// on collection. Reading live state beats a running total that can drift on a crash.
+    /// </summary>
     private readonly List<(string Namespace, Func<int> LiveCount)> _executingSources = [];
 
     public JobMetrics()
@@ -93,10 +97,12 @@ internal sealed class JobMetrics : IDisposable
     public void RecordClaim(string @namespace, string result) =>
         _claims.Add(1, new TagList { { "namespace", @namespace }, { "result", result } });
 
-    // namespace is the channel's namespace ("*" for all-worker-namespaces, ABSENT for job-completion
-    // channels whose per-job value would explode cardinality); channel is one of { worker_namespace,
-    // all_worker_namespaces, job_completion }; reason is one of { work_available, horizon_changed,
-    // job_finished, unknown }.
+    /// <summary>
+    /// namespace is the channel's namespace ("*" for all-worker-namespaces, ABSENT for
+    /// job-completion channels whose per-job value would explode cardinality); channel is one of
+    /// { worker_namespace, all_worker_namespaces, job_completion }; reason is one of
+    /// { work_available, horizon_changed, job_finished, unknown }.
+    /// </summary>
     public void RecordWakeupPublish(string? @namespace, string channel, string reason)
     {
         var tags = new TagList { { "channel", channel }, { "reason", reason } };
@@ -124,13 +130,18 @@ internal sealed class JobMetrics : IDisposable
         _wakeupPublishFailures.Add(1, tags);
     }
 
-    // result is one of { signaled, timed_out }; a signaled wait is a wakeup interrupting an idle sleep.
+    /// <summary>
+    /// result is one of { signaled, timed_out }; a signaled wait is a wakeup interrupting an idle
+    /// sleep.
+    /// </summary>
     public void RecordWakeupWait(string @namespace, string result) =>
         _wakeupWaits.Add(1, new TagList { { "namespace", @namespace }, { "result", result } });
 
-    // outcome is one of { replayed, interrupted, succeeded, failed, exhausted } - the five RuntimeJobContext
-    // actually emits, pinned as a set in JobMetricsTests. step_name is
-    // deliberately excluded: it is user-defined and would blow up cardinality; it stays on the log scope.
+    /// <summary>
+    /// outcome is one of { replayed, interrupted, succeeded, failed, exhausted } - the five
+    /// RuntimeJobContext actually emits, pinned as a set in JobMetricsTests. step_name is
+    /// deliberately excluded: user-defined, would blow up cardinality; it stays on the log scope.
+    /// </summary>
     public void RecordStep(string @namespace, string jobName, string outcome) =>
         _steps.Add(
             1,

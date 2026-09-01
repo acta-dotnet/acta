@@ -135,7 +135,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task SetProgressCoreAsync<T>(T value, CancellationToken ct);
 
-    // ---------- Variables ----------
 
     /// <summary>
     /// Set a durable per-job variable to a non-null JSON value. Last write wins.
@@ -296,7 +295,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct);
 
-    // ---------- State reset ----------
 
     /// <summary>
     /// Clears this Job's durable state (every <c>JobCheckpoint</c>, <c>JobStep</c>, and
@@ -325,7 +323,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task ResetStateCoreAsync(CancellationToken ct);
 
-    // ---------- Reschedule / Sleep ----------
 
     /// <summary>
     /// Re-arms this Job to run again after <paramref name="delay"/> and stops the current attempt
@@ -354,7 +351,6 @@ public abstract class JobContext
         throw new RescheduleJobException(resumeAtUtc, reasonMessage);
     }
 
-    // ---------- Handler-initiated control ----------
 
     /// <summary>
     /// Deliberately ends this Job as terminal <c>Failed</c> for a business reason. Throws
@@ -453,7 +449,6 @@ public abstract class JobContext
         CancellationToken ct
     );
 
-    // ---------- Signals ----------
 
     /// <summary>
     /// Durable, replay-safe named wait. Returns immediately when the signal <paramref name="name"/> is
@@ -555,10 +550,13 @@ public abstract class JobContext
         return SignalWaitResult<T>.Signalled(value);
     }
 
-    // Rejects a non-positive timeout before any store call: a zero or negative expiration would arm a
-    // slot that is due the instant it is written. Both non-positive cases are rejected here rather than
-    // delegating the negative one, because DurationSyntax phrases it as a delay ("Delay must not be
-    // negative"), which is the wrong noun for a wait. What survives the check rounds like SleepAsync.
+    /// <summary>
+    /// Rejects a non-positive timeout before any store call: a zero or negative expiration would
+    /// arm a slot that is due the instant it is written. Both non-positive cases are rejected here
+    /// rather than delegating the negative one, because DurationSyntax phrases it as a delay
+    /// ("Delay must not be negative"), which is the wrong noun for a wait. What survives the check
+    /// rounds like SleepAsync.
+    /// </summary>
     private static int ToWaitTimeoutSeconds(TimeSpan timeout) =>
         timeout <= TimeSpan.Zero
             ? throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Wait timeout must be positive.")
@@ -597,7 +595,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value);
 
-    // ---------- Child jobs ----------
 
     private const string ChildSignalPrefix = "sys.child.";
 
@@ -726,10 +723,12 @@ public abstract class JobContext
         return ChildWaitResult.Expired(childJobId);
     }
 
-    // Read side of the child-latch checkpoint key. The name is persisted in the ledger and matched as
-    // text against the one RaiseChildLatch writes, in another process and possibly another culture, so
-    // the two renderings must agree byte for byte; the invariant culture is stated on both sides rather
-    // than inherited from whatever the ambient one happens to be.
+    /// <summary>
+    /// Read side of the child-latch checkpoint key. The name is persisted in the ledger and matched
+    /// as text against the one RaiseChildLatch writes, in another process and possibly another
+    /// culture, so the two renderings must agree byte for byte; the invariant culture is stated on
+    /// both sides rather than inherited from whatever the ambient one happens to be.
+    /// </summary>
     private static string ChildLatchName(long childJobId) => ChildSignalPrefix + childJobId.ToString(CultureInfo.InvariantCulture);
 
     private static ChildJobOutcome ParseChildOutcome(long childJobId, SignalWaitOutcome outcome) =>
@@ -817,26 +816,21 @@ public abstract class JobContext
         return ChildrenWaitResult.From(await WaitChildGroupAsync(childJobIds, timeout, linked.Token));
     }
 
-    // The one place the group deadline rule lives; every bounded group API funnels through it, and a
-    // null timeout is the unbounded loop these wrappers have always run.
-    //
-    // At most one child arms per pass, because the first wait that cannot resolve suspends the attempt.
-    // Reaching it still costs real time: every member ahead of it that resolves from its own latch is a
-    // store round trip. So the pass reads the DB clock once, anchors a monotonic stopwatch to that
-    // reading, and carries it forward, giving each iteration a remaining measured at the moment it runs
-    // rather than one measured before the walk began. Without that, the arming member would have
-    // inherited the whole walk as deadline overshoot. Mirrors the alerting pass's settlement clock, and
-    // costs no extra clock round trip.
-    //
-    // Each arm rounds the remaining time DOWN to whole seconds; a slot armed on an earlier pass keeps
-    // its own due even once the remaining time has shrunk, and that is harmless because both were
-    // derived from the same fixed instant.
-    //
-    // A slot's due therefore lands within one second before the group deadline, plus the arm's own
-    // store round trip, which stamps the due against a clock that has moved on since the remaining was
-    // measured. That residual is one round trip, the same on every arm, and it never accumulates,
-    // because every arm measures from the deadline rather than from the previous arm. Removing it
-    // outright would need the arm to take an absolute instant instead of a duration.
+    /// <summary>
+    /// The one place the group deadline rule lives; every bounded group API funnels through it, and
+    /// a null timeout is the unbounded loop these wrappers have always run. At most one child arms
+    /// per pass (the first unresolvable wait suspends the attempt), but reaching it costs a store
+    /// round trip per already-resolved member, so the pass reads the DB clock once, anchors a
+    /// monotonic stopwatch to that reading, and carries it forward: each iteration's remaining is
+    /// measured at the moment it runs, so the arming member does not inherit the whole walk as
+    /// deadline overshoot (the alerting pass's settlement clock uses the same technique; neither
+    /// costs an extra clock round trip). Each arm rounds the remaining DOWN to whole seconds; a
+    /// slot armed on an earlier pass keeps its own due, harmless because both derive from the same
+    /// fixed instant. A slot's due lands within one second before the group deadline plus one arm
+    /// round trip; that residual never accumulates because every arm measures from the deadline,
+    /// not the previous arm, and removing it outright would need the arm to take an absolute
+    /// instant instead of a duration.
+    /// </summary>
     private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
         IReadOnlyList<long> childJobIds,
         TimeSpan? timeout,
@@ -861,24 +855,20 @@ public abstract class JobContext
         return outcomes;
     }
 
-    // The whole seconds left until the group deadline, floored, with a floor of one. The anchor is the
-    // pass's one DB clock reading advanced by the monotonic time the pass has spent since, so the
-    // walk over already-resolved members is spent out of the group's budget rather than added to it.
-    //
-    // A group deadline is a NOT-BEFORE, not a not-after: a member does not give up before the instant,
-    // and the store may stamp its due a round trip past it because the arm reads the clock again. That
-    // trailing round trip is deliberate and absorbed by those semantics; flooring is what keeps it to a
-    // round trip instead of a whole extra second.
-    //
-    // A wait must also carry a positive bound, so an already-passed deadline arms one second rather
-    // than zero. Accepted consequence: a child whose latch does not exist yet at that point suspends
-    // once before it can expire, because wait_signal resolves only a wait an earlier call armed. That
-    // costs one extra second-long tick per unfinished child, and the alternative is a special case
-    // inside the arbiter that every other wait would have to reason about.
-    //
-    // Internal, and over bare instants rather than the protected WaitDeadline, so the arithmetic can be
-    // pinned directly: Stopwatch is a static monotonic source with no seam, so a unit fact cannot make
-    // a pass take measurable time.
+    /// <summary>
+    /// The whole seconds left until the group deadline, floored, with a floor of one. The anchor is
+    /// the pass's one DB clock reading advanced by the monotonic time spent since, so the walk over
+    /// already-resolved members is spent out of the group's budget rather than added to it. A group
+    /// deadline is a NOT-BEFORE, not a not-after: a member does not give up before the instant, and
+    /// the store may stamp its due a round trip past it; flooring keeps that to a round trip
+    /// instead of a whole extra second. A wait must carry a positive bound, so an already-passed
+    /// deadline arms one second rather than zero; a child whose latch does not exist yet then
+    /// suspends once before it can expire (wait_signal resolves only a wait an earlier call armed),
+    /// costing one extra second-long tick per unfinished child - accepted because the alternative
+    /// is a special case inside the arbiter that every other wait would have to reason about.
+    /// Internal, over bare instants rather than the protected WaitDeadline, so a unit test can pin
+    /// the arithmetic directly: Stopwatch is a static monotonic source with no seam.
+    /// </summary>
     internal static TimeSpan RemainingWait(DateTime deadlineAtUtc, DateTime passNowUtc, TimeSpan elapsed)
     {
         var remaining = deadlineAtUtc - (passNowUtc + elapsed);
@@ -886,17 +876,16 @@ public abstract class JobContext
         return TimeSpan.FromSeconds(seconds);
     }
 
-    // Reserved deadline-slot name, derived from the group's identity the way MapAsync derives a child
-    // name from an item key: the child ids hashed to a stable tail. The ids come back identical on
-    // every replay (a child start dedupes onto the same row), so the name is stable, and the sys.
-    // prefix is rejected for user variable names, so it cannot collide with one. Two waits on the same
-    // children in the same Job are the same group and deliberately share the deadline.
-    //
-    // Sorted first, so the name is a property of the SET of children rather than of the order the
-    // caller happened to list them in. A handler that reorders the same ids between replays would
-    // otherwise mint a second slot and hand the group a fresh budget, which would make never-restart a
-    // promise about caller discipline instead of a structural one. Caller order is not lost: the
-    // outcome array is built in the order the ids were given.
+    /// <summary>
+    /// Reserved deadline-slot name: the child ids hashed to a stable tail. The ids come back
+    /// identical on every replay (a child start dedupes onto the same row), so the name is stable,
+    /// and the sys. prefix is rejected for user variable names, so it cannot collide with one. Two
+    /// waits on the same children in the same Job are the same group and deliberately share the
+    /// deadline. Sorted first, so the name is a property of the SET of children: a handler that
+    /// reorders the same ids between replays would otherwise mint a second slot and hand the group
+    /// a fresh budget, making never-restart a promise about caller discipline instead of a
+    /// structural one. Caller order is not lost; the outcome array follows the order given.
+    /// </summary>
     private static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
     {
         var ordered = new long[childJobIds.Count];
@@ -914,13 +903,17 @@ public abstract class JobContext
         return GroupDeadlinePrefix + ShortHash(canonical.ToString());
     }
 
-    // Internal rather than private so the test host can find the slot it has to rewind to stage a group
-    // expiry, off the one name that writes it.
+    /// <summary>
+    /// Internal rather than private so the test host can find the slot it has to rewind to stage a
+    /// group expiry, off the one name that writes it.
+    /// </summary>
     internal const string GroupDeadlinePrefix = "sys.wait-group.";
 
-    // A wrapper starts every child before it waits on any of them, so a rejected timeout has to throw
-    // ahead of the first enqueue rather than when the wait finally reaches it. A null timeout is the
-    // unbounded overload and has nothing to check.
+    /// <summary>
+    /// Rejects a bad timeout before the first enqueue: a wrapper starts every child before it
+    /// waits on any of them, so a rejection at wait time would leave enqueued children nothing is
+    /// going to wait for. A null timeout is the unbounded overload and has nothing to check.
+    /// </summary>
     private static void ValidateGroupTimeout(TimeSpan? timeout)
     {
         if (timeout is { } bound)
@@ -1040,8 +1033,11 @@ public abstract class JobContext
             _ => JobOutcome.Failed(childJobId),
         };
 
-    // What a timed-out wait leaves the child in: Acta cancels it before the handler resumes, so the
-    // outcome reports Cancelled beside the timeout flag rather than inventing a status of its own.
+    /// <summary>
+    /// What a timed-out wait leaves the child in: Acta cancels it before the handler resumes, so
+    /// the outcome reports Cancelled beside the timeout flag rather than inventing a status of its
+    /// own.
+    /// </summary>
     private const JobStatusCode TimedOutChildStatus = JobStatusCode.Cancelled;
 
     /// <summary>
@@ -1183,7 +1179,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct);
 
-    // ---------- Child-job groups: Map, Parallel, Join ----------
 
     /// <summary>
     /// Waits for every child handle to reach a terminal status and returns the outcomes in caller
@@ -1440,7 +1435,6 @@ public abstract class JobContext
         return Convert.ToHexStringLower(hash.AsSpan(0, 8));
     }
 
-    // ---------- Steps ----------
 
     /// <summary>
     /// Runs <paramref name="body"/> as a durable, replay-safe step identified by
@@ -1552,7 +1546,6 @@ public abstract class JobContext
         CancellationToken ct
     );
 
-    // ---------- Locking ----------
 
     private const int LockBackoffBaseMs = 50;
     private const int LockBackoffCapMs = 1000;
@@ -1663,7 +1656,7 @@ public abstract class JobContext
         }
     }
 
-    // Exponential (base doubled per attempt), capped, full-jittered, clamped to the remaining budget.
+    /// <summary>Exponential (base doubled per attempt), capped, full-jittered, clamped to the remaining budget.</summary>
     private static int NextLockBackoffMs(int attempt, long remainingMs)
     {
         var exp = LockBackoffBaseMs * (1L << Math.Min(attempt, 20));
@@ -1690,7 +1683,6 @@ public abstract class JobContext
     /// </summary>
     protected virtual void OnLockReleaseFailure(string key, LockScope scope, Exception exception) { }
 
-    // ---------- Alerts ----------
 
     /// <summary>
     /// Persists an operator-facing alert from inside the handler. The framework stamps the origin
@@ -1742,15 +1734,13 @@ public abstract class JobContext
     /// </summary>
     /// <remarks>
     /// Annotation, not logging: <c>events</c> is indexed for timeline queries, so use <c>ILogger</c>
-    /// for volume. Notes ignore <c>AuditLevel</c>, which is a volume control over events Acta chooses
-    /// to record; dropping an explicit call would be data loss, not filtering.
+    /// for volume. Notes ignore <c>AuditLevel</c> (a volume control over events Acta chooses to
+    /// record; dropping an explicit call would be data loss, not filtering), so it no longer bounds
+    /// a job's total event volume - that is the caller's decision to make. Notes are the only event
+    /// code an application can write, and the runtime never emits it: an application can annotate
+    /// the ledger but can never forge <c>job.execution-finished</c>. Do not widen this to a second
+    /// code.
     /// </remarks>
-    // Notes are the only event code an application can write, and the runtime never emits it. That is
-    // what keeps every other event provably system-written: an application can annotate the ledger,
-    // but it can never forge job.execution-finished. Do not widen this to a second code.
-    //
-    // Accepted consequence of ignoring AuditLevel: it no longer bounds a job's total event volume.
-    // That is the caller's decision to make, and a silent drop would be the worse failure.
     public async Task NoteAsync(string message, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);

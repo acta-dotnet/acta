@@ -31,7 +31,7 @@ internal sealed class LockLeaseHeartbeat(
     private readonly long _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
     private readonly ILogger _log = log;
 
-    // Serializes TickAsync so the loop cannot race itself (double extends against one lock).
+    /// <summary>Serializes TickAsync so the loop cannot race itself (double extends against one lock).</summary>
     private readonly SemaphoreSlim _tickGate = new(1, 1);
 
     public async Task RunAsync(CancellationToken ct)
@@ -84,9 +84,11 @@ internal sealed class LockLeaseHeartbeat(
         }
     }
 
-    // One lock-lease pass: extend every lock each running attempt holds, feeding a confirmed extend's
-    // deadline forward and cancelling on a definitive loss. The deterministic single-shot the loop drives
-    // per tick; tests drive it via WorkerRuntime.RunHeartbeatOnceAsync.
+    /// <summary>
+    /// One lock-lease pass: extend every lock each running attempt holds, feeding a confirmed
+    /// extend's deadline forward and cancelling on a definitive loss. The deterministic single-shot
+    /// the loop drives per tick; tests drive it via WorkerRuntime.RunHeartbeatOnceAsync.
+    /// </summary>
     public async Task TickAsync(CancellationToken ct)
     {
         await _tickGate.WaitAsync(ct);

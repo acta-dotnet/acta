@@ -338,7 +338,6 @@ public abstract class ChildTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(parent, ct));
     }
 
-    // ---------- helpers ----------
 
     private async Task<JobEnqueueOutcome> StartParentAsync(string childJobName, CancellationToken ct) =>
         await Jobs.EnqueueAsync(

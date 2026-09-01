@@ -293,7 +293,9 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
         where T : class =>
         await session.ExecuteSingleAsync(command, bind, mapRow, ct) ?? throw new InvalidOperationException(missingMessage);
 
-    // Scalar parameter list for the non-recurring complete_execution shape (identical across providers).
+    /// <summary>
+    /// Scalar parameter list for the non-recurring complete_execution shape (identical across providers).
+    /// </summary>
     private static List<DbParameterSpec> BuildNonRecurringParameters(CompleteExecutionRequest request)
     {
         var resultBytes = request.Result.IsEmpty ? [] : request.Result.ToArray();

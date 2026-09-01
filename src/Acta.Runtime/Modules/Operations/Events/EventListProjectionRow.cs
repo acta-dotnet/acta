@@ -67,9 +67,11 @@ internal sealed record EventListProjectionRow(
             TenantKey
         );
 
-    // Worker-actor rows persist the acting worker's public ref as the raw uuid text the emitting SQL
-    // cast it to. Render it in the same canonical wrk_ form operators see everywhere else, leaving
-    // every other actor's key exactly as stored.
+    /// <summary>
+    /// Worker-actor rows persist the acting worker's public ref as the raw uuid text the emitting
+    /// SQL cast it to. Render it in the same canonical wrk_ form operators see everywhere else,
+    /// leaving every other actor's key exactly as stored.
+    /// </summary>
     private string? CanonicalActorKey() =>
         ActorCode == ActorCode.Worker && Guid.TryParse(ActorKey, out var parsed) ? new Acta.WorkerRef(parsed).ToString() : ActorKey;
 }

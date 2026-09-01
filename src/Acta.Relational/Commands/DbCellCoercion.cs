@@ -29,16 +29,22 @@ internal static class DbCellCoercion
                 ? throw new InvalidOperationException(emptyMessage)
                 : Convert.ToString(value, CultureInfo.InvariantCulture) ?? throw new InvalidOperationException(emptyMessage);
 
-    // Postgres/SQL Server return a UTC DateTime (kind Unspecified); SQLite stores instants as epoch
-    // milliseconds and returns a long. Normalize both to a Utc-kind DateTime.
+    /// <summary>
+    /// Postgres/SQL Server return a UTC DateTime (kind Unspecified); SQLite stores instants as epoch
+    /// milliseconds and returns a long. Normalize both to a Utc-kind DateTime.
+    /// </summary>
     public static Func<object?, DateTime> DateTimeUtc(string emptyMessage) =>
         value => value is null or DBNull ? throw new InvalidOperationException(emptyMessage) : ToUtc(value);
 
-    // Postgres/SQL Server return a DateTime; SQLite returns a long (epoch milliseconds).
+    /// <summary>
+    /// Postgres/SQL Server return a DateTime; SQLite returns a long (epoch milliseconds).
+    /// </summary>
     public static DateTime GetDateTimeUtc(this IDataRecord reader, int ordinal) => ToUtc(reader.GetValue(ordinal));
 
-    // The single DB-value -> UTC rule shared by the reader extension, the scalar factory,
-    // the query materializer, and DbScalarCoercion.
+    /// <summary>
+    /// The single DB-value -&gt; UTC rule shared by the reader extension, the scalar factory,
+    /// the query materializer, and DbScalarCoercion.
+    /// </summary>
     public static DateTime ToUtc(object raw) =>
         raw switch
         {
@@ -47,7 +53,9 @@ internal static class DbCellCoercion
             _ => DateTime.SpecifyKind(Convert.ToDateTime(raw, CultureInfo.InvariantCulture), DateTimeKind.Utc),
         };
 
-    // SqlServer code columns are tinyint (byte); Postgres are smallint (short).
+    /// <summary>
+    /// SqlServer code columns are tinyint (byte); Postgres are smallint (short).
+    /// </summary>
     public static byte GetByteFromNumeric(this IDataRecord r, int ordinal) =>
         r.GetValue(ordinal) switch
         {

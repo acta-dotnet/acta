@@ -126,10 +126,13 @@ internal sealed class WorkerRuntimeHost(
         }
     }
 
-    // Await every runtime's claim/dispatch loop draining its claimed + in-flight work, bounded by the host
-    // shutdown token. Awaiting the loop (not a sampled in-flight count) so channel-buffered claims are run
-    // too. A drain that does not finish within HostOptions.ShutdownTimeout cancels the token; the base stop
-    // then ends the stragglers and sys.recovery reclaims them.
+    /// <summary>
+    /// Await every runtime's claim/dispatch loop draining its claimed + in-flight work, bounded by
+    /// the host shutdown token. Awaiting the loop (not a sampled in-flight count) so
+    /// channel-buffered claims are run too. A drain that does not finish within
+    /// HostOptions.ShutdownTimeout cancels the token; the base stop then ends the stragglers and
+    /// sys.recovery reclaims them.
+    /// </summary>
     private async Task WaitForDrainAsync(CancellationToken cancellationToken)
     {
         try

@@ -7,6 +7,11 @@ namespace Acta;
 /// lifecycle and signal control verbs. Same-process and cross-process callers both reach the durable
 /// substrate through this seam.
 /// </summary>
+/// <remarks>
+/// There is deliberately no out-of-handler alert verb here: alerts are raised in-handler via
+/// <c>ctx.AlertAsync</c> and by the framework's automatic failure alerts, keeping the operator
+/// surface minimal.
+/// </remarks>
 public interface IJobs
 {
     /// <summary>
@@ -128,21 +133,19 @@ public interface IJobs
         CancellationToken ct = default
     );
 
-    // ---- Transactional enqueue ----
-    // Each fire-and-forget enqueue shape has a twin that takes the caller's already-started
-    // <see cref="DbTransaction"/> as its first argument and inserts the job through that transaction, so
-    // a same-database business mutation and the enqueue share one commit outcome. The caller owns the
-    // transaction lifecycle; Acta never opens, commits, rolls back, disposes, or independently retries
-    // it. Unlike the Acta-owned path these publish NO worker wakeup: normal polling is the pickup path,
-    // since Acta cannot know whether or when the caller commits. The returned <see cref="JobEnqueueOutcome"/>
-    // (its <c>JobId</c>/<c>JobRef</c>) is provisional until the caller commits; a rollback means that
-    // identity never became durable. Any transactional-enqueue exception requires the caller to roll back
-    // the complete business transaction. There is deliberately no transactional <c>RunAndWaitAsync</c>:
-    // the job is invisible to other connections until commit, so waiting inside would be misleading.
-
     /// <summary>
-    /// Transactional twin of <see cref="EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>: inserts
-    /// the job through <paramref name="transaction"/> and publishes no wakeup.
+    /// Transactional twin of <see cref="EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>:
+    /// inserts the job through the caller's already-started <paramref name="transaction"/>, so a
+    /// same-database business mutation and the enqueue share one commit outcome. The rules here
+    /// hold for every transactional twin below. The caller owns the transaction lifecycle; Acta
+    /// never opens, commits, rolls back, disposes, or independently retries it. Unlike the
+    /// Acta-owned path these publish NO worker wakeup - normal polling is the pickup path, since
+    /// Acta cannot know whether or when the caller commits. The returned
+    /// <see cref="JobEnqueueOutcome"/> is provisional until the caller commits; a rollback means
+    /// that identity never became durable. Any transactional-enqueue exception requires the caller
+    /// to roll back the complete business transaction. There is deliberately no transactional
+    /// <c>RunAndWaitAsync</c>: the job is invisible to other connections until commit, so waiting
+    /// inside would be misleading.
     /// </summary>
     ValueTask<JobEnqueueOutcome> EnqueueAsync(DbTransaction transaction, JobEnqueueRequest request, CancellationToken ct = default);
 

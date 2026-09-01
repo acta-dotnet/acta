@@ -4,6 +4,10 @@ using System.Text.Json;
 
 namespace Acta.Runtime.Kernel;
 
+/// <summary>
+/// Canonicalizes tag filters into the <c>[{"name", "value_search"}]</c> JSON projection the
+/// provider SQL matches against; the shape is a contract with the stores' tag-filter queries.
+/// </summary>
 internal static class TagFilterJson
 {
     public static string? Normalize(IReadOnlyList<TagFilter>? filters, string queryName)

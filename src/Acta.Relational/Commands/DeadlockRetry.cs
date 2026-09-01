@@ -37,7 +37,9 @@ internal static class DeadlockRetry
         }
     }
 
-    // Linear base with jitter: scaled by attempt number so each retry waits longer, randomized so two
-    // victims retrying together do not pick the same instant and deadlock again.
+    /// <summary>
+    /// Linear base with jitter: scaled by attempt number so each retry waits longer, randomized so two
+    /// victims retrying together do not pick the same instant and deadlock again.
+    /// </summary>
     private static int BackoffMs(int attempt) => Random.Shared.Next(4, 16) * attempt;
 }

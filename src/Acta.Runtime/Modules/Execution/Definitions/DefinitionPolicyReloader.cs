@@ -66,11 +66,14 @@ internal sealed class DefinitionPolicyReloader(
         }
     }
 
-    // One reload pass: re-overlay the effective policy of every definition in the namespace. The whole
-    // catalog is read each tick regardless, so tracking which rows changed buys nothing. It also costs
-    // correctness: a modified_at_utc watermark drops any row committed after the read but stamped at or
-    // before the newest value that read saw, leaving that override unapplied until the row changes again.
-    // Deterministic single-shot the loop drives per tick; tests drive it via WorkerRuntime.
+    /// <summary>
+    /// One reload pass: re-overlay the effective policy of every definition in the namespace. The
+    /// whole catalog is read each tick regardless, so tracking which rows changed buys nothing. It
+    /// also costs correctness: a modified_at_utc watermark drops any row committed after the read
+    /// but stamped at or before the newest value that read saw, leaving that override unapplied
+    /// until the row changes again. Deterministic single-shot the loop drives per tick; tests drive
+    /// it via WorkerRuntime.
+    /// </summary>
     public async Task TickAsync(string ns, CancellationToken ct)
     {
         if (!_context.NamespaceIds.TryGetValue(ns, out var namespaceId))

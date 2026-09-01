@@ -87,7 +87,6 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     /// <summary>Override to run extra teardown before <see cref="Services"/> is disposed.</summary>
     protected virtual ValueTask BeforeDisposeAsync() => ValueTask.CompletedTask;
 
-    // ---------- shared entity reads ----------
     // Thin reads over Acta's From<T> table reader shared by every spec so they aren't copy-pasted. The
     // shared acta_test schema is append-only, so isolation is by id / namespace filter.
 

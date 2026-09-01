@@ -359,7 +359,6 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         }
     }
 
-    // ---------- helpers ----------
 
     private async Task<IReadOnlyList<TestJobRow>> ReadChildrenAsync(long parentId, CancellationToken ct)
     {

@@ -2,11 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>
+/// Delivery state of one alert row. Numeric bands are a readability convention only; behavior
+/// follows the explicit members.
+/// </summary>
 [JsonConverter(typeof(AlertDeliveryStatusCodeJsonConverter))]
 [CodeKind("alert-delivery-status")]
 public enum AlertDeliveryStatusCode : byte
 {
-    // Numeric bands are a readability convention only; behavior matches explicit members.
     [Code("pending", "Materialized; awaiting the first send attempt.")]
     Pending = 10,
 

@@ -11,8 +11,10 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
     private const string ListOperationName = "ListJobAlerts";
     private const string OrderCreatedDesc = "created_at_utc desc, id desc";
 
-    // The control surface is operator/manual only: the actor (Operator) is stamped here, never accepted
-    // from the caller, so a caller cannot forge the audit actor.
+    /// <summary>
+    /// The control surface is operator/manual only: the actor (Operator) is stamped here, never
+    /// accepted from the caller, so a caller cannot forge the audit actor.
+    /// </summary>
     private static JobControlActor Operator(string? actorKey) =>
         new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 

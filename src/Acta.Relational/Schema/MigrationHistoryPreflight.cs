@@ -92,6 +92,8 @@ internal static class MigrationHistoryPreflight
                 + "principal has no privilege on is indistinguishable from a table that is not there."
         );
 
-    // The published per-dialect script, named by the same token the provider hooks carry.
+    /// <summary>
+    /// The published per-dialect script, named by the same token the provider hooks carry.
+    /// </summary>
     private static string ProvisionScript(string dialectToken) => $"docs/reference/schema-{dialectToken}.sql";
 }

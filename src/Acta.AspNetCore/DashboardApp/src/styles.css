@@ -414,6 +414,12 @@ a:hover { text-decoration: underline; }
   text-rendering: optimizeLegibility;
 }
 .brand .brand-dot { color: var(--accent); }
+/* The brand anchor is not a nav row. The generic nav.side a rule outweighs .brand, so without
+   this override its 20px row padding stacks onto brand-q's 20px and shoves the wordmark off the
+   sidebar's shared left edge; the vertical 8px stays because the brand block's top rhythm was
+   tuned with it in place. Same reason the nav hover fill is turned off here. */
+nav.side a.brand { padding: 8px 0; gap: 9px; }
+nav.side a.brand:hover:not(.active) { background: none; }
 /* The wordmark is the home link; it keeps its ink and never underlines. */
 a.brand:hover { color: var(--ink); text-decoration: none; }
 .brand-mark { display: inline-flex; color: var(--accent); }

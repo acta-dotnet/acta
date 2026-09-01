@@ -204,9 +204,11 @@ internal sealed class WorkerRuntimeInitializer(
         await ReconcileSchedulesAsync(namespaceId, ct);
     }
 
-    // Worker-init clock-skew guard: measure the host-vs-DB clock offset (real GetUtcNow + the system
-    // clock, deliberately NOT the schedule IActaClock that tests fake), then warn or throw per the
-    // configured thresholds. AllowClockSkew downgrades the fail to a warning.
+    /// <summary>
+    /// Worker-init clock-skew guard: measure the host-vs-DB clock offset (real GetUtcNow + the
+    /// system clock, deliberately NOT the schedule IActaClock that tests fake), then warn or throw
+    /// per the configured thresholds. AllowClockSkew downgrades the fail to a warning.
+    /// </summary>
     private Task<ClockSkewVerdict> ValidateClockSkewAsync(string namespaceName, CancellationToken ct)
     {
         var opts = _options.Value;
@@ -222,9 +224,11 @@ internal sealed class WorkerRuntimeInitializer(
         return validator.ValidateAsync(namespaceName, ct);
     }
 
-    // A manifest-less worker with framework jobs disabled would claim namespace jobs it can never
-    // dispatch; the claimed rows would rot until lease recovery. Enqueue-only deployments don't call
-    // Run() and never reach this initializer.
+    /// <summary>
+    /// A manifest-less worker with framework jobs disabled would claim namespace jobs it can never
+    /// dispatch; the claimed rows would rot until lease recovery. Enqueue-only deployments don't
+    /// call Run() and never reach this initializer.
+    /// </summary>
     internal static void ValidateHasDescriptors(string namespaceName, ImmutableArray<JobDescriptor> descriptors)
     {
         if (descriptors.IsEmpty)
@@ -237,10 +241,12 @@ internal sealed class WorkerRuntimeInitializer(
         }
     }
 
-    // The generator rejects duplicate job names only within one generated manifest; a worker combines
-    // the framework manifest plus every registered manifest, so the combined set must be validated
-    // before any catalog write. A collision would otherwise register last-writer-wins and dispatch an
-    // arbitrary one of the colliding handlers.
+    /// <summary>
+    /// The generator rejects duplicate job names only within one generated manifest; a worker
+    /// combines the framework manifest plus every registered manifest, so the combined set must be
+    /// validated before any catalog write. A collision would otherwise register last-writer-wins
+    /// and dispatch an arbitrary one of the colliding handlers.
+    /// </summary>
     internal static void ValidateUniqueJobNames(ImmutableArray<JobDescriptor> descriptors)
     {
         var duplicates = descriptors
@@ -258,10 +264,12 @@ internal sealed class WorkerRuntimeInitializer(
         }
     }
 
-    // Fail fast on an unresolvable schedule timezone before any catalog write. A bad identifier would
-    // otherwise surface deep in the claim and fire path. This applies to cron schedules only; interval
-    // schedules ignore zones by design. Operator overrides applied through SQL templates remain the
-    // operator's responsibility.
+    /// <summary>
+    /// Fail fast on an unresolvable schedule timezone before any catalog write. A bad identifier
+    /// would otherwise surface deep in the claim and fire path. This applies to cron schedules
+    /// only; interval schedules ignore zones by design. Operator overrides applied through SQL
+    /// templates remain the operator's responsibility.
+    /// </summary>
     private static void ValidateScheduleTimeZones(ImmutableArray<JobDescriptor> descriptors)
     {
         foreach (var descriptor in descriptors)
@@ -295,8 +303,11 @@ internal sealed class WorkerRuntimeInitializer(
         }
     }
 
-    // Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less by
-    // the runtime, so every slot fire would trip the enqueue guard instead of surfacing at startup.
+    /// <summary>
+    /// Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less
+    /// by the runtime, so every slot fire would trip the enqueue guard instead of surfacing at
+    /// startup.
+    /// </summary>
     private static void ValidateTenantRequirements(ImmutableArray<JobDescriptor> descriptors)
     {
         foreach (var descriptor in descriptors)
@@ -330,10 +341,12 @@ internal sealed class WorkerRuntimeInitializer(
         }
     }
 
-    // Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules
-    // against persisted cursors at startup. The upsert set is the union of {descriptors that declare
-    // >= 1 [JobSchedule]} and {definitions with persisted schedule state}, so removed schedules can
-    // cancel an existing slot, while ordinary non-scheduled jobs are never touched.
+    /// <summary>
+    /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules
+    /// against persisted cursors at startup. The upsert set is the union of {descriptors that
+    /// declare >= 1 [JobSchedule]} and {definitions with persisted schedule state}, so removed
+    /// schedules can cancel an existing slot, while ordinary non-scheduled jobs are never touched.
+    /// </summary>
     private async Task ReconcileSchedulesAsync(int namespaceId, CancellationToken ct)
     {
         var stored = await _schedules.GetScheduleStateAsync(namespaceId, ct);
@@ -442,8 +455,10 @@ internal sealed class WorkerRuntimeInitializer(
         }
     }
 
-    // Slot default input: fabricate new TIn() and serialize via the descriptor's emitted delegate.
-    // No-payload / data-less inputs persist as format 0 with empty bytes.
+    /// <summary>
+    /// Slot default input: fabricate new TIn() and serialize via the descriptor's emitted delegate.
+    /// No-payload / data-less inputs persist as format 0 with empty bytes.
+    /// </summary>
     private (byte InputFormatId, ReadOnlyMemory<byte> Input) SerializeSlotInput(JobDescriptor descriptor)
     {
         if (descriptor.InputPayloadFormat.IsNone || descriptor.CreateDefaultInput is null || descriptor.SerializeInput is null)

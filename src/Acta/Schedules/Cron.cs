@@ -10,7 +10,6 @@ namespace Acta;
 /// </summary>
 public static class Cron
 {
-    // Sub-minute (six-field, seconds-leading)
 
     /// <summary>Every 5 seconds.</summary>
     public const string Every5Seconds = "*/5 * * * * *";
@@ -21,7 +20,6 @@ public static class Cron
     /// <summary>Every 30 seconds.</summary>
     public const string Every30Seconds = "*/30 * * * * *";
 
-    // Minute
 
     /// <summary>Every minute, on the minute.</summary>
     public const string EveryMinute = "* * * * *";
@@ -44,7 +42,6 @@ public static class Cron
     /// <summary>Every 30 minutes.</summary>
     public const string Every30Minutes = "*/30 * * * *";
 
-    // Hour
 
     /// <summary>Every hour, on the hour.</summary>
     public const string Hourly = "0 * * * *";
@@ -64,7 +61,6 @@ public static class Cron
     /// <summary>Every 12 hours, on the hour.</summary>
     public const string Every12Hours = "0 */12 * * *";
 
-    // Day (24-hour clock, in the schedule's time zone)
 
     /// <summary>Every day at midnight.</summary>
     public const string Daily = "0 0 * * *";
@@ -84,7 +80,6 @@ public static class Cron
     /// <summary>Every day at 18:00.</summary>
     public const string DailyAt18 = "0 18 * * *";
 
-    // Week (0 = Sunday through 6 = Saturday)
 
     /// <summary>Weekly, Sunday at midnight (alias of <see cref="EverySunday"/>).</summary>
     public const string Weekly = "0 0 * * 0";
@@ -122,7 +117,6 @@ public static class Cron
     /// <summary>On the hour from 09:00 to 17:00, Monday through Friday (fires once per hour).</summary>
     public const string BusinessHours = "0 9-17 * * 1-5";
 
-    // Month
 
     /// <summary>Monthly, the 1st at midnight (alias of <see cref="FirstOfMonth"/>).</summary>
     public const string Monthly = "0 0 1 * *";
@@ -136,7 +130,6 @@ public static class Cron
     /// <summary>The 15th of each month at midnight.</summary>
     public const string FifteenthOfMonth = "0 0 15 * *";
 
-    // Quarter (January, April, July, October)
 
     /// <summary>The 1st of each quarter at midnight (alias of <see cref="FirstOfQuarter"/>).</summary>
     public const string Quarterly = "0 0 1 */3 *";
@@ -147,7 +140,6 @@ public static class Cron
     /// <summary>The 15th of each quarter at midnight.</summary>
     public const string FifteenthOfQuarter = "0 0 15 */3 *";
 
-    // Year
 
     /// <summary>January 1st at midnight.</summary>
     public const string Yearly = "0 0 1 1 *";

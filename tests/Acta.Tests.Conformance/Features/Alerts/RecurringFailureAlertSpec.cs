@@ -93,7 +93,6 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Null(repeated.ResolvedAtUtc);
     }
 
-    // ---------- driving the slot ----------
 
     private Task<long> SlotIdAsync(CancellationToken ct) => AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, JobName, ct);
 
@@ -114,7 +113,6 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(expectedFires, RecurringPingHandler.TriggersFor(TestNamespace).Count);
     }
 
-    // ---------- driving the projector ----------
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain: null, ct);

@@ -52,7 +52,6 @@ public class EntitySchemaTests
         Assert.Equal(typeof(Job), ActaSchema.For<Job>().ClrType);
     }
 
-    // ---------- Column-level metadata ----------
 
     [Fact]
     public void StatusCode_Is_ByteBackedCode()
@@ -101,7 +100,6 @@ public class EntitySchemaTests
         Assert.True(c.IsCoded);
     }
 
-    // ---------- Defaults, sequences, concurrency tokens, identity ----------
 
     [Fact]
     public void JobRuntime_Version_Is_ConcurrencyToken()
@@ -164,7 +162,6 @@ public class EntitySchemaTests
         Assert.False(c.HasServerDefault);
     }
 
-    // ---------- Composite primary key ----------
 
     [Fact]
     public void JobResult_Has_CompositePk()
@@ -188,7 +185,6 @@ public class EntitySchemaTests
         Assert.False(en.IsSolePrimaryKey);
     }
 
-    // ---------- Indexes / checks / foreign keys ----------
 
     [Fact]
     public void JobRuntime_Indexes_Include_Ready()
@@ -225,7 +221,6 @@ public class EntitySchemaTests
         Assert.Empty(ActaSchema.For<JobEvent>().ForeignKeys);
     }
 
-    // ---------- Enum-type capture ----------
 
     [Fact]
     public void StatusCode_Captures_EnumTypeName()
@@ -245,7 +240,6 @@ public class EntitySchemaTests
         Assert.False(string.IsNullOrEmpty(c.CodeKind));
     }
 
-    // ---------- Lookup invariants ----------
 
     [Fact]
     public void Column_Lookup_Is_CaseSensitive()
@@ -262,7 +256,6 @@ public class EntitySchemaTests
         Assert.Throws<InvalidOperationException>(() => s.Column("does_not_exist"));
     }
 
-    // ---------- ActaSchema vocabulary ----------
 
     [Fact]
     public void ActaSchema_Surfaces_Same_Column_Instances()
@@ -283,7 +276,6 @@ public class EntitySchemaTests
         Assert.Equal("events", ActaSchema.JobEvent.Table);
     }
 
-    // ---------- Assembly-wide manifest ----------
 
     [Fact]
     public void Entities_Manifest_Covers_AllKnownEntities()
@@ -299,7 +291,6 @@ public class EntitySchemaTests
         Assert.Contains("workers", names);
     }
 
-    // ---------- Tenant catalog + tenant_id scope ----------
 
     [Fact]
     public void JobTenant_Catalog_Has_TenantKey_Unique_And_StatusCode()
@@ -362,7 +353,6 @@ public class EntitySchemaTests
         Assert.Equal(["id", "tenant_key", "status_code"], columns.Take(3));
     }
 
-    // ---------- Central settings table ----------
 
     [Fact]
     public void Settings_Schema_Has_ScopedIdentity_And_ValuePair()
@@ -393,7 +383,6 @@ public class EntitySchemaTests
         Assert.Contains("settings", ActaSchema.Entities.Select(e => e.TableName));
     }
 
-    // ---------- Operator display / description / ack / namespace status columns ----------
 
     [Fact]
     public void Definition_DisplayName_Triplet_Follows_RunbookUrl_Pattern()

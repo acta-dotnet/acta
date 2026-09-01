@@ -63,10 +63,6 @@ public static class ActaServiceCollectionExtensions
         services.AddOptions<JobsOptions>().ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<JobsOptions>, JobsOptionsValidator>());
 
-        // The swappable lock store (leases-backed ILockStore) and the DB-backed UTC clock are
-        // registered by the selected SQL provider over its own connection; a Redis-backed ILockStore
-        // or a deterministic test IActaClock can replace them via a prior registration.
-
         // Swappable wake transport. InProcessWakeup is the default: same-process enqueues, control
         // verbs, and completions wake local waiters (claim loops, RunAndWaitAsync completion waits)
         // instantly; a transport package replaces the IWorkerWakeup registration for cross-process
@@ -75,12 +71,10 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IWorkerWakeup, InProcessWakeup>();
         services.TryAddSingleton<WorkerWakeupPublisher>();
 
-        // Slice runtime services: payload serializer registry, descriptor index, and the thin
-        // IJobs surface. The three built-in serializers register through TryAddEnumerable so the
-        // registry's IEnumerable<IJobPayloadSerializer> ctor sees all of them (consumer apps add
-        // more by registering additional IJobPayloadSerializer implementations). Per-handler
-        // invokers and (de)serializers live on the descriptor (generator-emitted), so no reflection
-        // invoker is registered.
+        // The three built-in serializers register through TryAddEnumerable so the registry's
+        // IEnumerable<IJobPayloadSerializer> ctor sees all of them (consumer apps add more by
+        // registering additional implementations). Per-handler invokers and (de)serializers live on
+        // the descriptor (generator-emitted), so no reflection invoker is registered.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, JsonJobPayloadSerializer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, BytesJobPayloadSerializer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, TextJobPayloadSerializer>());
@@ -118,8 +112,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
 
-        // Process-wide Acta meter. One singleton owns the instruments; every worker runtime emits
-        // into it. Consumers light it up with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
+        // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();
 
         // Swappable alert transports: the delivery loop resolves one from the channel's transport
@@ -128,9 +121,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAlertTransport, LogAlertTransport>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAlertTransport, SlackAlertTransport>());
         services.TryAddSingleton<IAlertTransportRegistry, AlertTransportRegistry>();
-
-        // Alerts are raised in-handler via ctx.AlertAsync and by the framework's automatic failure
-        // alerts; there is no out-of-handler operator alert verb on IJobs (minimum operator surface).
 
         // Ambient JobContext for DI-resolved handlers (e.g. MediatR IRequestHandlers and pipeline
         // behaviors that can't take a JobContext method parameter): the runtime sets the accessor at
@@ -175,10 +165,9 @@ public static class ActaServiceCollectionExtensions
             sp.GetService<ILogger<AlertRoutingCheck>>()
         ));
 
-        // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and RunAndWaitAsync facade.
-        // Built from the declared catalogs: Reference contributes routes without a worker, Run contributes
-        // its worker's modules. The raw JobEnqueueRequest path needs no index. Captured here because the
-        // namespace is assigned per Reference/Run call, not on the namespace-neutral manifest.
+        // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and RunAndWaitAsync
+        // facade. The raw JobEnqueueRequest path needs no index. Captured here because the namespace
+        // is assigned per Reference/Run call, not on the namespace-neutral manifest.
         var typeIndex = JobTypeIndex.Build(builder.Catalogs);
         services.AddSingleton(typeIndex);
 
@@ -191,10 +180,9 @@ public static class ActaServiceCollectionExtensions
         // Same catalogs again, so an enqueue-only host answers for every job it references.
         services.AddSingleton(JobDescriptorIndex.Build(builder.Catalogs));
 
-        // Pipeline behaviors: the ordered resolver list captured on the builder (outermost first),
-        // snapshotted into the per-worker JobExecution's fold. Each behavior type was registered scoped by
-        // AddPipelineBehavior; this singleton holds only the order and never captures a scope, so
-        // per-attempt resolution runs against the attempt scope inside JobBehaviorPipeline.Build.
+        // Each behavior type was registered scoped by AddPipelineBehavior; this singleton holds only
+        // the order and never captures a scope, so per-attempt resolution runs against the attempt
+        // scope inside JobBehaviorPipeline.Build.
         services.AddSingleton(new JobBehaviorPipeline(builder.PipelineBehaviors.ToArray()));
 
         // One WorkerRuntime per declared worker: a process running several j.Run(...) calls fans out

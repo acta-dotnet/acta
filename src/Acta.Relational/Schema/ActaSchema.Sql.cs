@@ -4,7 +4,9 @@ internal static partial class ActaSchema
 {
     internal static partial class Sql
     {
-        // checkpoint_slot dispatch discriminator (CheckpointSlotAction); never persisted.
+        /// <summary>
+        /// checkpoint_slot dispatch discriminator (CheckpointSlotAction); never persisted.
+        /// </summary>
         public static readonly DbValueSpec<short> SlotAction = new(
             ParameterName: "p_action",
             Kind: DbKind.Int16,
@@ -41,7 +43,9 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // Nullable scope targets for the settings operations: null means the scope narrows no further.
+        /// <summary>
+        /// Nullable scope targets for the settings operations: null means the scope narrows no further.
+        /// </summary>
         public static readonly DbValueSpec<string?> ScopeNamespaceName = new(
             ParameterName: "p_namespace_name",
             Kind: DbKind.AsciiString,
@@ -87,8 +91,10 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // start_step at-most-once switch: when true, a re-entered pending step is terminalized
-        // Interrupted rather than re-invoked. Passed in each call; never persisted on the row.
+        /// <summary>
+        /// start_step at-most-once switch: when true, a re-entered pending step is terminalized
+        /// Interrupted rather than re-invoked. Passed in each call; never persisted on the row.
+        /// </summary>
         public static readonly DbValueSpec<bool> AtMostOnce = new(
             ParameterName: "p_at_most_once",
             Kind: DbKind.Boolean,
@@ -125,8 +131,10 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // Claim routines can either transition straight to execution for the combined loop or land
-        // in the dispatched state for buffered executor startup.
+        /// <summary>
+        /// Claim routines can either transition straight to execution for the combined loop or land
+        /// in the dispatched state for buffered executor startup.
+        /// </summary>
         public static readonly DbValueSpec<bool> StartExecuting = new(
             ParameterName: "p_start_executing",
             Kind: DbKind.Boolean,
@@ -145,8 +153,10 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // extend_worker_leases drain flag: true flips an Active worker to Draining as the heartbeat
-        // refreshes its leases, so a graceful stop surfaces the draining phase without a dedicated routine.
+        /// <summary>
+        /// extend_worker_leases drain flag: true flips an Active worker to Draining as the heartbeat
+        /// refreshes its leases, so a graceful stop surfaces the draining phase without a dedicated routine.
+        /// </summary>
         public static readonly DbValueSpec<bool> Draining = new(
             ParameterName: "p_draining",
             Kind: DbKind.Boolean,
@@ -156,9 +166,11 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // complete_execution re-arm mode: non-null status_code selects the re-arm branch
-        // (150=Rescheduled, 151=Suspended); the host derives next_run_at_utc from the resume instant
-        // or db_now + delay_seconds.
+        /// <summary>
+        /// complete_execution re-arm mode: non-null status_code selects the re-arm branch
+        /// (150=Rescheduled, 151=Suspended); the host derives next_run_at_utc from the resume instant
+        /// or db_now + delay_seconds.
+        /// </summary>
         public static readonly DbValueSpec<byte?> RescheduleStatusCode = new(
             ParameterName: "p_reschedule_status_code",
             Kind: DbKind.Byte,
@@ -186,9 +198,11 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // complete_execution signal-suspend: non-null alongside reschedule_status_code = 151 selects the
-        // signal branch. The awaited slot is locked and re-checked so a raise that arrived while the
-        // handler was still Executing lands the Job Ready instead of stranding it Suspended.
+        /// <summary>
+        /// complete_execution signal-suspend: non-null alongside reschedule_status_code = 151 selects the
+        /// signal branch. The awaited slot is locked and re-checked so a raise that arrived while the
+        /// handler was still Executing lands the Job Ready instead of stranding it Suspended.
+        /// </summary>
         public static readonly DbValueSpec<string?> WaitSignalName = new(
             ParameterName: "p_wait_signal_name",
             Kind: DbKind.AsciiString,
@@ -198,9 +212,11 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // complete_execution handler-control: non-null target Status (200 Failed / 220 Cancelled /
-        // 30 Paused) for a deliberate ctx.FailAsync / CancelAsync / PauseAsync termination. Takes the
-        // non-recurring path; overrides to_status and emits the matching lifecycle event.
+        /// <summary>
+        /// complete_execution handler-control: non-null target Status (200 Failed / 220 Cancelled /
+        /// 30 Paused) for a deliberate ctx.FailAsync / CancelAsync / PauseAsync termination. Takes the
+        /// non-recurring path; overrides to_status and emits the matching lifecycle event.
+        /// </summary>
         public static readonly DbValueSpec<byte?> HandlerStatusCode = new(
             ParameterName: "p_handler_status_code",
             Kind: DbKind.Byte,
@@ -210,8 +226,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // arm_or_consume_sleep_timer: the wait length / absolute resume instant the routine resolves to
-        // a stored due_at_utc under a job-level lock.
+        /// <summary>
+        /// arm_or_consume_sleep_timer: the wait length / absolute resume instant the routine resolves to
+        /// a stored due_at_utc under a job-level lock.
+        /// </summary>
         public static readonly DbValueSpec<int?> SleepDelaySeconds = new(
             ParameterName: "p_delay_seconds",
             Kind: DbKind.Int32,
@@ -230,9 +248,11 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // wait_signal: the bounded wait's length in DB-clock seconds, resolved to the slot's absolute
-        // due_at_utc only when the Pending row is first inserted. Null arms an unbounded wait, and a
-        // re-entry never re-reads it, which is what makes replay unable to extend the expiration.
+        /// <summary>
+        /// wait_signal: the bounded wait's length in DB-clock seconds, resolved to the slot's absolute
+        /// due_at_utc only when the Pending row is first inserted. Null arms an unbounded wait, and a
+        /// re-entry never re-reads it, which is what makes replay unable to extend the expiration.
+        /// </summary>
         public static readonly DbValueSpec<int?> WaitTimeoutSeconds = new(
             ParameterName: "p_timeout_seconds",
             Kind: DbKind.Int32,
@@ -242,9 +262,11 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // Step completion receives the outcome discriminator and the live-resolved retry policy used
-        // to decide retry versus exhaustion. The application precomputes jittered backoff seconds;
-        // storage compares the delayed retry time against the retry window.
+        /// <summary>
+        /// Step completion receives the outcome discriminator and the live-resolved retry policy used
+        /// to decide retry versus exhaustion. The application precomputes jittered backoff seconds;
+        /// storage compares the delayed retry time against the retry window.
+        /// </summary>
         public static readonly DbValueSpec<bool> StepSucceeded = new(
             ParameterName: "p_succeeded",
             Kind: DbKind.Boolean,
@@ -281,8 +303,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // complete_execution / cancel_job retention stamping: non-null seconds added to db_now to set
-        // runtimes.retention_until_utc at a terminal landing. NULL leaves the column untouched.
+        /// <summary>
+        /// complete_execution / cancel_job retention stamping: non-null seconds added to db_now to set
+        /// runtimes.retention_until_utc at a terminal landing. NULL leaves the column untouched.
+        /// </summary>
         public static readonly DbValueSpec<int?> RetentionSeconds = new(
             ParameterName: "p_retention_seconds",
             Kind: DbKind.Int32,
@@ -292,10 +316,12 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // complete_execution final status / next-run / failure-count. On the non-recurring scalar path
-        // p_final_status stays NULL (keeps the recurring branch off) and p_job_next_run_at_utc NULL; the
-        // one-shot retry path passes p_failure_count = the bumped count so the routine's
-        // COALESCE(p_failure_count, failure_count) persists it. NULL leaves failure_count untouched.
+        /// <summary>
+        /// complete_execution final status / next-run / failure-count. On the non-recurring scalar path
+        /// p_final_status stays NULL (keeps the recurring branch off) and p_job_next_run_at_utc NULL; the
+        /// one-shot retry path passes p_failure_count = the bumped count so the routine's
+        /// COALESCE(p_failure_count, failure_count) persists it. NULL leaves failure_count untouched.
+        /// </summary>
         public static readonly DbValueSpec<byte?> FinalStatus = new(
             ParameterName: "p_final_status",
             Kind: DbKind.Byte,
@@ -323,8 +349,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // sys.alerts projection cursor: the highest events.id consumed on the prior tick; the read
-        // returns rows with id strictly greater, so the monotonic event id is the resumable watermark.
+        /// <summary>
+        /// sys.alerts projection cursor: the highest events.id consumed on the prior tick; the read
+        /// returns rows with id strictly greater, so the monotonic event id is the resumable watermark.
+        /// </summary>
         public static readonly DbValueSpec<long> CursorEventId = new(
             ParameterName: "p_cursor_event_id",
             Kind: DbKind.Int64,
@@ -334,9 +362,11 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // sys.alerts projection source: the id of the events row being projected into an alert. Null for a
-        // manual raise, which has no event behind it. The raise and auto-resolve compare it against the
-        // alert's stored last_projected_event_id so a replayed event changes nothing.
+        /// <summary>
+        /// sys.alerts projection source: the id of the events row being projected into an alert. Null for a
+        /// manual raise, which has no event behind it. The raise and auto-resolve compare it against the
+        /// alert's stored last_projected_event_id so a replayed event changes nothing.
+        /// </summary>
         public static readonly DbValueSpec<long?> SourceEventId = new(
             ParameterName: "p_source_event_id",
             Kind: DbKind.Int64,
@@ -346,9 +376,11 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // sys.alerts safe horizon: how many seconds behind the database's own clock the projection read
-        // stops, so an event whose id was allocated before a still-open transaction's is never stepped
-        // over. Derived from the provider command timeout; see RelationalAlertStore.SafeHorizonLagSeconds.
+        /// <summary>
+        /// sys.alerts safe horizon: how many seconds behind the database's own clock the projection read
+        /// stops, so an event whose id was allocated before a still-open transaction's is never stepped
+        /// over. Derived from the provider command timeout; see RelationalAlertStore.SafeHorizonLagSeconds.
+        /// </summary>
         public static readonly DbValueSpec<int> AlertLagSeconds = new(
             ParameterName: "p_alert_lag_seconds",
             Kind: DbKind.Int32,
@@ -358,7 +390,9 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // sys.alerts batch cap: max rows the projection / delivery read returns per tick.
+        /// <summary>
+        /// sys.alerts batch cap: max rows the projection / delivery read returns per tick.
+        /// </summary>
         public static readonly DbValueSpec<int> AlertBatchSize = new(
             ParameterName: "p_alert_batch_size",
             Kind: DbKind.Int32,
@@ -368,7 +402,9 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // lineage-map direct-children cap: the read fetches ChildLimit + 1 so the caller can flag a truncated set.
+        /// <summary>
+        /// lineage-map direct-children cap: the read fetches ChildLimit + 1 so the caller can flag a truncated set.
+        /// </summary>
         public static readonly DbValueSpec<int> ChildFetchLimit = new(
             ParameterName: "p_child_limit",
             Kind: DbKind.Int32,
@@ -378,7 +414,9 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // purge_expired_data sweep knobs.
+        /// <summary>
+        /// purge_expired_data sweep knobs.
+        /// </summary>
         public static readonly DbValueSpec<int> EventsRetentionDays = new(
             ParameterName: "p_events_retention_days",
             Kind: DbKind.Int32,
@@ -424,7 +462,9 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // List-read paging: rows requested per page plus one row to detect HasMore.
+        /// <summary>
+        /// List-read paging: rows requested per page plus one row to detect HasMore.
+        /// </summary>
         public static readonly DbValueSpec<int> PageTake = new(
             ParameterName: "p_take",
             Kind: DbKind.Int32,
@@ -472,8 +512,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read correlation filter: non-null restricts to jobs whose correlation_key matches exactly.
-        // Sized to the correlation_key column (64); matched verbatim (the value is never canonicalized).
+        /// <summary>
+        /// List-read correlation filter: non-null restricts to jobs whose correlation_key matches exactly.
+        /// Sized to the correlation_key column (64); matched verbatim (the value is never canonicalized).
+        /// </summary>
         public static readonly DbValueSpec<string?> CorrelationKeyFilter = new(
             ParameterName: "p_correlation_key",
             Kind: DbKind.AsciiString,
@@ -483,8 +525,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read tag filters encoded as JSON rows with canonical tag name and internal value_search.
-        // NULL means no tag filter. The operation SQL parses this provider-locally.
+        /// <summary>
+        /// List-read tag filters encoded as JSON rows with canonical tag name and internal value_search.
+        /// NULL means no tag filter. The operation SQL parses this provider-locally.
+        /// </summary>
         public static readonly DbValueSpec<string?> TagFiltersJson = new(
             ParameterName: "p_tag_filters",
             Kind: DbKind.UnicodeString,
@@ -539,7 +583,9 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // List-read parent filter: non-null restricts to the direct children of one job (ix_jobs_parent).
+        /// <summary>
+        /// List-read parent filter: non-null restricts to the direct children of one job (ix_jobs_parent).
+        /// </summary>
         public static readonly DbValueSpec<long?> ParentIdFilter = new(
             ParameterName: "p_parent_id",
             Kind: DbKind.Int64,
@@ -549,7 +595,9 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read keyset cursors: the last returned row's order-key values; all NULL on page one.
+        /// <summary>
+        /// List-read keyset cursors: the last returned row's order-key values; all NULL on page one.
+        /// </summary>
         public static readonly DbValueSpec<DateTime?> CursorCreatedAtUtc = new(
             ParameterName: "p_cursor_created_at_utc",
             Kind: DbKind.UtcInstant,
@@ -577,7 +625,9 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // ListJobEvents created-instant range: inclusive lower bound / exclusive upper bound; NULL skips each.
+        /// <summary>
+        /// ListJobEvents created-instant range: inclusive lower bound / exclusive upper bound; NULL skips each.
+        /// </summary>
         public static readonly DbValueSpec<DateTime?> EventCreatedFromUtc = new(
             ParameterName: "p_created_from_utc",
             Kind: DbKind.UtcInstant,
@@ -641,7 +691,9 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read tri-state flags: true applies the restriction, NULL skips it.
+        /// <summary>
+        /// List-read tri-state flags: true applies the restriction, NULL skips it.
+        /// </summary>
         public static readonly DbValueSpec<bool?> LiveOnlyFlag = new(
             ParameterName: "p_live_only",
             Kind: DbKind.Boolean,
@@ -660,8 +712,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // ListJobs tri-state flags: true restricts to terminal rows / rows with a live schedule
-        // attached; NULL skips each (false is folded to NULL before binding).
+        /// <summary>
+        /// ListJobs tri-state flags: true restricts to terminal rows / rows with a live schedule
+        /// attached; NULL skips each (false is folded to NULL before binding).
+        /// </summary>
         public static readonly DbValueSpec<bool?> TerminalOnlyFlag = new(
             ParameterName: "p_terminal_only",
             Kind: DbKind.Boolean,
@@ -680,8 +734,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read tri-state flag: null skips the filter, true/false restrict to acknowledged/unacknowledged
-        // rows (unlike the "only" flags above, both non-null states are meaningful, not just true).
+        /// <summary>
+        /// List-read tri-state flag: null skips the filter, true/false restrict to acknowledged/unacknowledged
+        /// rows (unlike the "only" flags above, both non-null states are meaningful, not just true).
+        /// </summary>
         public static readonly DbValueSpec<bool?> AcknowledgedFilter = new(
             ParameterName: "p_acknowledged",
             Kind: DbKind.Boolean,
@@ -691,8 +747,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read total toggle: when requested, storage computes the filter-wide row count into the
-        // second result set. Skipping the total keeps a page read from paying that cost.
+        /// <summary>
+        /// List-read total toggle: when requested, storage computes the filter-wide row count into the
+        /// second result set. Skipping the total keeps a page read from paying that cost.
+        /// </summary>
         public static readonly DbValueSpec<bool?> IncludeTotalFlag = new(
             ParameterName: "p_include_total",
             Kind: DbKind.Boolean,
@@ -702,7 +760,9 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // Overview slow-count toggle: non-null computes full-scope totals; NULL skips them.
+        /// <summary>
+        /// Overview slow-count toggle: non-null computes full-scope totals; NULL skips them.
+        /// </summary>
         public static readonly DbValueSpec<bool?> IncludeSlowCountsFlag = new(
             ParameterName: "p_include_slow_counts",
             Kind: DbKind.Boolean,
@@ -712,10 +772,12 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // List-read name search: non-null restricts to rows whose name LIKE the bound pattern (the
-        // caller wraps the term in '%' on both sides, so this is a contains match, matching how the
-        // tenant list searches); NULL matches all. Names are kebab and the filter validators reject
-        // '%' and '_', so a caller cannot smuggle LIKE wildcards through the term.
+        /// <summary>
+        /// List-read name search: non-null restricts to rows whose name LIKE the bound pattern (the
+        /// caller wraps the term in '%' on both sides, so this is a contains match, matching how the
+        /// tenant list searches); NULL matches all. Names are kebab and the filter validators reject
+        /// '%' and '_', so a caller cannot smuggle LIKE wildcards through the term.
+        /// </summary>
         public static readonly DbValueSpec<string?> NameSearchFilter = new(
             ParameterName: "p_name_search",
             Kind: DbKind.AsciiString,
@@ -725,9 +787,11 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // Tenant list free-text search: non-null is a pre-lowercased '%term%' LIKE pattern matched
-        // (case-insensitively, via LOWER() on the columns) against tenant_key / display_name /
-        // description; NULL matches all. Unicode so it can carry display_name / description text.
+        /// <summary>
+        /// Tenant list free-text search: non-null is a pre-lowercased '%term%' LIKE pattern matched
+        /// (case-insensitively, via LOWER() on the columns) against tenant_key / display_name /
+        /// description; NULL matches all. Unicode so it can carry display_name / description text.
+        /// </summary>
         public static readonly DbValueSpec<string?> TenantSearch = new(
             ParameterName: "p_search",
             Kind: DbKind.UnicodeString,
@@ -737,8 +801,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // set_schedule_overrides CAS guard: the caller's expected schedules.version; a mismatch rejects
-        // with the row's current state instead of writing.
+        /// <summary>
+        /// set_schedule_overrides CAS guard: the caller's expected schedules.version; a mismatch rejects
+        /// with the row's current state instead of writing.
+        /// </summary>
         public static readonly DbValueSpec<int> ExpectedScheduleVersion = new(
             ParameterName: "p_expected_version",
             Kind: DbKind.Int32,
@@ -748,9 +814,11 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // Optional CAS guard for upsert-style admin writes (set_setting): null skips the version
-        // check (last write wins); non-null requires an existing row at exactly that version, else
-        // the write is rejected with VersionConflict (or NotFound when no row exists at the scope).
+        /// <summary>
+        /// Optional CAS guard for upsert-style admin writes (set_setting): null skips the version
+        /// check (last write wins); non-null requires an existing row at exactly that version, else
+        /// the write is rejected with VersionConflict (or NotFound when no row exists at the scope).
+        /// </summary>
         public static readonly DbValueSpec<int?> ExpectedRowVersionOptional = new(
             ParameterName: "p_expected_version",
             Kind: DbKind.Int32,
@@ -760,7 +828,9 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // Admin metadata CAS guard: the caller's expected row version; a mismatch rejects with the row's current version.
+        /// <summary>
+        /// Admin metadata CAS guard: the caller's expected row version; a mismatch rejects with the row's current version.
+        /// </summary>
         public static readonly DbValueSpec<int> ExpectedRowVersion = new(
             ParameterName: "p_expected_version",
             Kind: DbKind.Int32,
@@ -770,8 +840,10 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // set_schedule_overrides full-set override values: NULL clears the respective override column.
-        // Sized to match schedules.expression / schedules.time_zone_id (the columns they fall back to).
+        /// <summary>
+        /// set_schedule_overrides full-set override values: NULL clears the respective override column.
+        /// Sized to match schedules.expression / schedules.time_zone_id (the columns they fall back to).
+        /// </summary>
         public static readonly DbValueSpec<string?> ScheduleExpressionOverride = new(
             ParameterName: "p_expression",
             Kind: DbKind.AsciiString,
@@ -790,9 +862,11 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // park_outbox_signal supersede guard: a pending command whose park instant is at or before
-        // this cutoff (now minus WorkerDeadAfter) has had no live consumer for the whole dead window,
-        // so a new command may overwrite it; anything younger rejects instead.
+        /// <summary>
+        /// park_outbox_signal supersede guard: a pending command whose park instant is at or before
+        /// this cutoff (now minus WorkerDeadAfter) has had no live consumer for the whole dead window,
+        /// so a new command may overwrite it; anything younger rejects instead.
+        /// </summary>
         public static readonly DbValueSpec<DateTime> StaleBefore = new(
             ParameterName: "p_stale_before_utc",
             Kind: DbKind.UtcInstant,
@@ -802,9 +876,11 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        // set_schedule_overrides audit text: the rendered what-changed summary written to
-        // events.reason_message. A separate parameter from p_reason_message, which carries the
-        // operator's justification into schedules.reason_message on the same command.
+        /// <summary>
+        /// set_schedule_overrides audit text: the rendered what-changed summary written to
+        /// events.reason_message. A separate parameter from p_reason_message, which carries the
+        /// operator's justification into schedules.reason_message on the same command.
+        /// </summary>
         public static readonly DbValueSpec<string?> ChangeSummary = new(
             ParameterName: "p_change_summary",
             Kind: DbKind.UnicodeString,
@@ -814,8 +890,10 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        // set_schedule_overrides: the target schedule's own cursor, recomputed in C# from the new
-        // effective expression/time zone (distinct from p_job_next_run_at_utc, the owning slot's MIN).
+        /// <summary>
+        /// set_schedule_overrides: the target schedule's own cursor, recomputed in C# from the new
+        /// effective expression/time zone (distinct from p_job_next_run_at_utc, the owning slot's MIN).
+        /// </summary>
         public static readonly DbValueSpec<DateTime?> ScheduleNextRunAtUtc = new(
             ParameterName: "p_schedule_next_run_at_utc",
             Kind: DbKind.UtcInstant,

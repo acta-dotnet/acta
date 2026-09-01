@@ -25,9 +25,11 @@ internal static class JobDepthEndpoints
         MapEnqueue(group, options);
     }
 
-    // GET /jobs/input-template: the enqueue form's shape hint, served from the in-process manifest.
-    // A job this host never registered is not an error (a dashboard can point at a shared ledger it
-    // has no job assembly for), so it answers 200 with a null template and the form seeds `{}`.
+    /// <summary>
+    /// GET /jobs/input-template: the enqueue form's shape hint, served from the in-process manifest.
+    /// A job this host never registered is not an error (a dashboard can point at a shared ledger it
+    /// has no job assembly for), so it answers 200 with a null template and the form seeds `{}`.
+    /// </summary>
     private static void MapInputTemplate(RouteGroupBuilder group)
     {
         group
@@ -73,8 +75,10 @@ internal static class JobDepthEndpoints
             .Produces<JobInputTemplateResponse>(StatusCodes.Status200OK);
     }
 
-    // POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
-    // EnqueueRejectedException, mapped to 409 by the outer group's exception filter.
+    /// <summary>
+    /// POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
+    /// EnqueueRejectedException, mapped to 409 by the outer group's exception filter.
+    /// </summary>
     private static void MapEnqueue(RouteGroupBuilder group, ActaEndpointOptions options)
     {
         group

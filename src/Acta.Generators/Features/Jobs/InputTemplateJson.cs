@@ -14,8 +14,10 @@ namespace Acta.Generators.Features.Jobs;
 /// </summary>
 internal static class InputTemplateJson
 {
-    // Depth 1 is the input type itself. Deeper nesting emits null rather than a shape: the hint is a
-    // starting point for a human, not a schema, and unbounded recursion would hang the compiler.
+    /// <summary>
+    /// Depth 1 is the input type itself. Deeper nesting emits null rather than a shape: the hint is a
+    /// starting point for a human, not a schema, and unbounded recursion would hang the compiler.
+    /// </summary>
     private const int MaxDepth = 3;
 
     /// <summary>
@@ -28,7 +30,9 @@ internal static class InputTemplateJson
         return WriteObject(sb, inputType, depth: 1, path: []) ? sb.ToString() : null;
     }
 
-    // False when the type has no settable members; the caller distinguishes "no shape" from "{}".
+    /// <summary>
+    /// False when the type has no settable members; the caller distinguishes "no shape" from "{}".
+    /// </summary>
     private static bool WriteObject(StringBuilder sb, ITypeSymbol type, int depth, List<ITypeSymbol> path)
     {
         var members = Members(type).ToList();
@@ -126,8 +130,10 @@ internal static class InputTemplateJson
         }
     }
 
-    // Public instance properties carrying a setter or init, base types first. Record positional
-    // parameters arrive here as the init-only properties the compiler synthesizes for them.
+    /// <summary>
+    /// Public instance properties carrying a setter or init, base types first. Record positional
+    /// parameters arrive here as the init-only properties the compiler synthesizes for them.
+    /// </summary>
     private static IEnumerable<IPropertySymbol> Members(ITypeSymbol type)
     {
         var chain = new List<ITypeSymbol>();
@@ -172,8 +178,10 @@ internal static class InputTemplateJson
             : CamelCase(property.Name);
     }
 
-    // Mirrors JsonNamingPolicy.CamelCase, which lowercases a leading run of capitals but keeps the
-    // last one when a lowercase letter follows it ("IPAddress" -> "ipAddress", "ID" -> "id").
+    /// <summary>
+    /// Mirrors JsonNamingPolicy.CamelCase, which lowercases a leading run of capitals but keeps the
+    /// last one when a lowercase letter follows it ("IPAddress" -&gt; "ipAddress", "ID" -&gt; "id").
+    /// </summary>
     private static string CamelCase(string name)
     {
         if (name.Length == 0 || !char.IsUpper(name[0]))

@@ -104,9 +104,12 @@ internal sealed class WorkerBuilder(IServiceCollection services) : IWorkerBuilde
         return this;
     }
 
-    // Acta-owned names are lowercase (repo convention): a mixed-case override survives quoted DDL but the
-    // relay interpolates it unquoted, so PostgreSQL folds it to lowercase and shape validation then fails
-    // confusingly. The same OutboxIdentifier guard backs the provider staging extensions and DDL API.
+    /// <summary>
+    /// Acta-owned names are lowercase: a mixed-case override survives quoted DDL but the relay
+    /// interpolates it unquoted, so PostgreSQL folds it to lowercase and shape validation then
+    /// fails confusingly. The same <see cref="OutboxIdentifier"/> guard backs the provider staging
+    /// extensions and DDL API.
+    /// </summary>
     private static void ValidateOverride(string? value, string kind)
     {
         if (value is not null)

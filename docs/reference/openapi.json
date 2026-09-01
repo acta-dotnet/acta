@@ -7939,7 +7939,9 @@
           }
         }
       },
-      "AlertDeliveryStatusCode": { },
+      "AlertDeliveryStatusCode": {
+        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
+      },
       "AlertDetail": {
         "required": [
           "alertRef",
@@ -8047,7 +8049,9 @@
         },
         "description": "The single-alert read model returned by ValueTask&lt;AlertDetail?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). Today it carries the\nlist row's fields; it is a distinct type because a detail read can grow additively (delivery\nhistory, the alerting event's detail) without the list row paying for it.\n\nTwo delivery fields read differently than their names suggest. RetryCount is the\nattempts spent in the current send series, not over the row's life: a delivered send ends the\nseries and resets it. RetryAfterUtc is the earliest instant the alert may be sent again -\nthe next retry while delivery is unsettled, the next reminder once it has settled - and null when\nnothing is scheduled."
       },
-      "AlertKindCode": { },
+      "AlertKindCode": {
+        "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral."
+      },
       "AlertListItem": {
         "required": [
           "alertRef",
@@ -9057,7 +9061,9 @@
         },
         "description": "The complete operator-override set applied to a job definition's policy. Each field is the override\nfor its policy slot: a non-null value sets the override, `null` clears it (the effective value\nfalls back to the code default). Applied as a whole - the supplied set replaces the row's current\noverrides - so the dashboard reads the current overrides, edits, and writes the full set back. Never\ntouches the code-owned defaults, the contract/formats, or `definition_hash`."
       },
-      "JobDefinitionStatusCode": { },
+      "JobDefinitionStatusCode": {
+        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
+      },
       "JobDetail": {
         "required": [
           "jobRef",
@@ -9206,7 +9212,7 @@
             ]
           }
         },
-        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids."
+        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids.\n`DefinitionId` is the surrogate for the namespace+name pair; non-null because the job\nrow's definition_id is NOT NULL."
       },
       "JobDetailResponse": {
         "required": [
@@ -11599,7 +11605,9 @@
         "description": "One worker row in a ValueTask&lt;PagedResult&lt;WorkerListItem&gt;&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page."
       },
       "WorkerRef": { },
-      "WorkerStatusCode": { }
+      "WorkerStatusCode": {
+        "description": "Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90,\nterminal success at 100, terminal error at 200+."
+      }
     }
   },
   "tags": [

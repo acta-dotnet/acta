@@ -193,7 +193,6 @@ public abstract class MultiScheduleSlotSpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Equal(1, slot.ExecutionNumber);
     }
 
-    // ---------- helpers ----------
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {

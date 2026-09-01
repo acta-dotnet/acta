@@ -21,8 +21,11 @@ internal sealed class NamespacesService(INamespaceStore store)
 
     private static string? Reason(string? msg) => msg.Truncate(ActaTextLimits.ReasonMessage);
 
-    // Lookup-permissive shape validation, then an explicit sys rejection: a well-formed non-sys name
-    // passes, sys throws ArgumentException, a malformed name throws the kebab ArgumentException.
+    /// <summary>
+    /// Lookup-permissive shape validation, then an explicit sys rejection: a well-formed non-sys
+    /// name passes, sys throws ArgumentException, a malformed name throws the kebab
+    /// ArgumentException.
+    /// </summary>
     private static string ResolveWritableName(string name)
     {
         ArgumentNullException.ThrowIfNull(name);

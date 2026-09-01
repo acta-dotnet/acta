@@ -153,15 +153,20 @@ internal static class JobExplainer
         );
     }
 
-    // The worker that last ran the job, under the same identity rule as the lease label. Distinct from
-    // Lease: it is set even for states with no live lease (Suspended, Failed), so the operator sees who
-    // last touched it; null once that worker's row is gone.
+    /// <summary>
+    /// The worker that last ran the job, under the same identity rule as the lease label. Distinct
+    /// from Lease: it is set even for states with no live lease (Suspended, Failed), so the
+    /// operator sees who last touched it; null once that worker's row is gone.
+    /// </summary>
     private static string? LastExecutedByLabel(ExplainHeaderRow h) => WorkerIdentity(h.LastExecutedByWorkerName, h.LastExecutedByWorkerRef);
 
-    // A Suspended job is blocked on a pending signal, a pending child latch, or a pending timer
-    // checkpoint; a signal wins when several are present (a job awaits one primitive at a time, and the
-    // signal is the operator-actionable one). A signal's and a child latch's due is the wait's timeout
-    // instant, carried through so the headline can name it; a timer's is when it resumes.
+    /// <summary>
+    /// A Suspended job is blocked on a pending signal, a pending child latch, or a pending timer
+    /// checkpoint; a signal wins when several are present (a job awaits one primitive at a time,
+    /// and the signal is the operator-actionable one). A signal's and a child latch's due is the
+    /// wait's timeout instant, carried through so the headline can name it; a timer's is when it
+    /// resumes.
+    /// </summary>
     private static JobExplainWait? FindWait(IReadOnlyList<ExplainCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
@@ -188,9 +193,11 @@ internal static class JobExplainer
         return null;
     }
 
-    // The latch name is the framework-owned sys.child.{id} key, so the readable half is the id: an
-    // operator wants the child's number, not the slot's spelling. A name that does not parse is shown
-    // verbatim rather than guessed at.
+    /// <summary>
+    /// The latch name is the framework-owned sys.child.{id} key, so the readable half is the id: an
+    /// operator wants the child's number, not the slot's spelling. A name that does not parse is
+    /// shown verbatim rather than guessed at.
+    /// </summary>
     private static string ChildLabel(string slotName) =>
         slotName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
             ? $"child job {slotName[RaiseChildLatch.NamePrefix.Length..]}"
@@ -270,10 +277,13 @@ internal static class JobExplainer
 
     private static string Attempts(short count) => count == 1 ? "1 attempt" : $"{count} attempts";
 
-    // The one rule every worker mention in the prose follows: the deployment version reads as the
-    // worker's name (e.g. "payments-v42"); with no version recorded, its public ref; with the workers
-    // row itself gone (retention purges workers, so a lease or an execution can outlive its holder),
-    // nothing at all. The internal worker id is never prose, and a missing row never fabricates a ref.
+    /// <summary>
+    /// The one rule every worker mention in the prose follows: the deployment version reads as the
+    /// worker's name (e.g. "payments-v42"); with no version recorded, its public ref; with the
+    /// workers row itself gone (retention purges workers, so a lease or an execution can outlive
+    /// its holder), nothing at all. The internal worker id is never prose, and a missing row never
+    /// fabricates a ref.
+    /// </summary>
     private static string? WorkerIdentity(string? deploymentVersion, Guid? workerRef) =>
         (Blank(deploymentVersion), workerRef) switch
         {
@@ -288,13 +298,15 @@ internal static class JobExplainer
 
     private static string DuePhrase(DateTime due, DateTime now) => due > now ? $"due in {Humanize(due - now)}" : $"due {Ago(due, now)}";
 
-    // An absolute instant, not a relative phrase: a wait's deadline is the thing an operator diaries
-    // against, and it stays true however long the explanation sits in a terminal buffer.
+    /// <summary>
+    /// An absolute instant, not a relative phrase: a wait's deadline is the thing an operator
+    /// diaries against, and it stays true however long the explanation sits in a terminal buffer.
+    /// </summary>
     private static string Instant(DateTime utc) => utc.ToString("yyyy-MM-dd HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
     private static string Ago(DateTime instant, DateTime now) => $"{Humanize(now - instant)} ago";
 
-    // Compact human duration: seconds under a minute, minutes under an hour, then h/m, then d/h.
+    /// <summary>Compact human duration: seconds under a minute, minutes under an hour, then h/m, then d/h.</summary>
     private static string Humanize(TimeSpan span)
     {
         if (span.Ticks < 0)

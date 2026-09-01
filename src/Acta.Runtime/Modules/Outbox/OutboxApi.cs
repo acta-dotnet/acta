@@ -180,8 +180,10 @@ internal sealed class OutboxApi(
             : new OutboxControlResult(ControlAction.Rejected, admission.PendingSinceUtc);
     }
 
-    // The slot resolves by its fixed deduplication key, gated on the job name so a user job that
-    // happens to reuse the key can never receive operator commands or spoof a source line.
+    /// <summary>
+    /// The slot resolves by its fixed deduplication key, gated on the job name so a user job that
+    /// happens to reuse the key can never receive operator commands or spoof a source line.
+    /// </summary>
     private async ValueTask<long?> ResolveSlotJobIdAsync(string jobNamespace, CancellationToken ct) =>
         await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, SlotJobName), ct) is { JobName: SlotJobName } slot
             ? slot.JobId
@@ -218,8 +220,11 @@ internal sealed class OutboxApi(
                     + "run the listing there (sources report IsLocal), or requeue/discard from any peer."
             );
 
-    // Reads the summary's last "<token>N" value up to the next space, so trailing tokens don't spoil
-    // the parse. Null means the token is absent (an older summary format): unknown, not zero.
+    /// <summary>
+    /// Reads the summary's last "&lt;token&gt;N" value up to the next space, so trailing tokens
+    /// don't spoil the parse. Null means the token is absent (an older summary format): unknown,
+    /// not zero.
+    /// </summary>
     internal static long? ParseToken(string? tick, string token)
     {
         var index = tick?.LastIndexOf(token, StringComparison.Ordinal) ?? -1;

@@ -2,11 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>
+/// Lifecycle status of a declared alert channel. Numeric bands are a readability convention only;
+/// behavior follows the explicit members.
+/// </summary>
 [JsonConverter(typeof(AlertChannelStatusCodeJsonConverter))]
 [CodeKind("alert-channel-status")]
 public enum AlertChannelStatusCode : byte
 {
-    // Numeric bands are a readability convention only; behavior matches explicit members.
     [Code("active", "Channel accepts deliveries.")]
     Active = 10,
 

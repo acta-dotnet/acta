@@ -39,14 +39,13 @@ internal sealed class WorkerRuntime
     private readonly AttemptWatchdog _watchdog;
     private readonly DefinitionPolicyReloader _policyReloader;
 
-    // Cancelled by BeginDrainAsync to stop the claim loop's producer while the heartbeat and in-flight
-    // handlers run on under the host token. Lives for the runtime's lifetime so the drain signal is never
-    // lost to a startup race; a lightweight source with no timer and no WaitHandle needs no disposal (see the
-    // CA1001 suppression above).
+    /// <summary>
+    /// Cancelled by BeginDrainAsync to stop the claim loop's producer while the heartbeat and
+    /// in-flight handlers run on under the host token. Lives for the runtime's lifetime so the
+    /// drain signal is never lost to a startup race; a lightweight source with no timer and no
+    /// WaitHandle needs no disposal (see the CA1001 suppression above).
+    /// </summary>
     private readonly CancellationTokenSource _drainCts = new();
-
-    // The claim/dispatch loop task, captured so the host can await the actual drain (all claimed + in-flight
-    // work finished), not a sampled in-flight count that misses channel-buffered claims.
 
     public WorkerRuntime(
         ActaProviderInfo provider,

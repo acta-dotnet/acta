@@ -200,7 +200,6 @@ public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase
         Assert.InRange(defaultState.NextRunAtUtc!.Value, tBefore, tAfter);
     }
 
-    // ---------- helpers ----------
 
     // The database clock, which is the one the verbs stamp their instants from.
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);

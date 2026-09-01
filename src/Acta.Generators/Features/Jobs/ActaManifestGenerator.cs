@@ -76,7 +76,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(collected, static (spc, tuple) => Emit(spc, tuple.Left.Left, tuple.Left.Right, tuple.Right));
     }
 
-    // A [JobSchedule] rides a [Job] definition; without one it would silently never fire.
+    /// <summary>
+    /// A [JobSchedule] rides a [Job] definition; without one it would silently never fire.
+    /// </summary>
     private static DiagnosticRecord? TransformOrphanSchedule(GeneratorAttributeSyntaxContext ctx)
     {
         if (ctx.TargetSymbol is not IMethodSymbol method)
@@ -251,7 +253,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         );
     }
 
-    // Framework defaults: keep aligned with JobAttribute's defaults.
+    /// <summary>
+    /// Framework defaults: keep aligned with JobAttribute's defaults.
+    /// </summary>
     private const short DefaultMaxAttempts = 15;
     private const string DefaultPriorityName = "Normal";
     private const string DefaultAuditLevelName = "Audit";
@@ -528,8 +532,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         );
     }
 
-    // Validates the raw `Backoff` DSL string (format + the 64-char storage ceiling) but carries the
-    // RAW text forward - the definitions column stores the expression itself, never the parsed knobs.
+    /// <summary>
+    /// Validates the raw `Backoff` DSL string (format + the 64-char storage ceiling) but carries the
+    /// RAW text forward - the definitions column stores the expression itself, never the parsed knobs.
+    /// </summary>
     private static string? ReadBackoff(KeyValuePair<string, TypedConstant> named, List<DiagnosticRecord> diagnostics, Location location)
     {
         if (named.Value.Value is not string text || string.IsNullOrWhiteSpace(text))
@@ -554,8 +560,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return text;
     }
 
-    // [Job] durations accept both the human syntax (e.g. "1m") and its ISO-8601 time-only
-    // equivalent (e.g. "PT1M"). The descriptor and DB carry whole seconds.
+    /// <summary>
+    /// [Job] durations accept both the human syntax (e.g. "1m") and its ISO-8601 time-only
+    /// equivalent (e.g. "PT1M"). The descriptor and DB carry whole seconds.
+    /// </summary>
     private static int? ReadDurationSeconds(
         KeyValuePair<string, TypedConstant> named,
         List<DiagnosticRecord> diagnostics,
@@ -594,9 +602,11 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         );
     }
 
-    // Enum-typed attribute arguments box as their underlying type: byte for the code-family enums
-    // (JobPriorityCode / JobAuditLevelCode / AlertProfileCode), so an `is int` pattern silently
-    // misses them. Read whatever integral the constant carries and narrow to byte.
+    /// <summary>
+    /// Enum-typed attribute arguments box as their underlying type: byte for the code-family enums
+    /// (JobPriorityCode / JobAuditLevelCode / AlertProfileCode), so an `is int` pattern silently
+    /// misses them. Read whatever integral the constant carries and narrow to byte.
+    /// </summary>
     private static bool TryGetEnumByte(TypedConstant constant, out byte value)
     {
         value = 0;
@@ -863,8 +873,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return type.IsRefLikeType ? true : type.SpecialType == SpecialType.System_Void;
     }
 
-    // True when `new T()` is safe AND the type has no instance state (canonical: empty record).
-    // Used to detect pure dispatch-key DTOs the runtime can fabricate without a payload.
+    /// <summary>
+    /// True when `new T()` is safe AND the type has no instance state (canonical: empty record).
+    /// Used to detect pure dispatch-key DTOs the runtime can fabricate without a payload.
+    /// </summary>
     private static bool IsParameterlessDataLess(ITypeSymbol type)
     {
         if (type is not INamedTypeSymbol nt)
@@ -994,16 +1006,20 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return builder.ToImmutable();
     }
 
-    // A single-token expression starting with a digit (human form, e.g. `5m`) or `P`/`p` (ISO 8601, e.g.
-    // `PT5M`/`P1D`) is an interval; a space-separated or macro expression (e.g. `0 5 * * *`, `@daily`) is cron.
+    /// <summary>
+    /// A single-token expression starting with a digit (human form, e.g. `5m`) or `P`/`p` (ISO 8601, e.g.
+    /// `PT5M`/`P1D`) is an interval; a space-separated or macro expression (e.g. `0 5 * * *`, `@daily`) is cron.
+    /// </summary>
     private static string InferExpressionKindName(string expression)
     {
         var e = expression.Trim();
         return e.Length > 0 && e.IndexOf(' ') < 0 && (e[0] is 'P' or 'p' || char.IsDigit(e[0])) ? "Interval" : "Cron";
     }
 
-    // Arity-suffixed metadata name (e.g. `System.Threading.Tasks.Task`1`) for comparison
-    // against the *MetadataName constants above.
+    /// <summary>
+    /// Arity-suffixed metadata name (e.g. `System.Threading.Tasks.Task`1`) for comparison
+    /// against the *MetadataName constants above.
+    /// </summary>
     private static string TypeFullName(ITypeSymbol type)
     {
         if (type is INamedTypeSymbol named)
@@ -1197,7 +1213,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
     private static readonly string[] BuiltinFormatNames = ["json", "text", "bytes", "none"];
 
-    // ACTA0131: declaration validity; returns the name-to-id map of the clean declarations.
+    /// <summary>
+    /// ACTA0131: declaration validity; returns the name-to-id map of the clean declarations.
+    /// </summary>
     private static Dictionary<string, byte> ValidatePayloadFormats(SourceProductionContext spc, ImmutableArray<CustomPayloadFormat> formats)
     {
         var result = new Dictionary<string, byte>(StringComparer.Ordinal);
@@ -1248,7 +1266,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return result;
     }
 
-    // ACTA0121 / ACTA0122: declaration and expression validity for every [JobSchedule].
+    /// <summary>
+    /// ACTA0121 / ACTA0122: declaration and expression validity for every [JobSchedule].
+    /// </summary>
     private static bool ValidateSchedules(SourceProductionContext spc, DiscoveredJob job, bool isFrameworkAssembly)
     {
         if (job.Schedules.IsDefaultOrEmpty)
@@ -1295,8 +1315,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return ok;
     }
 
-    // Mirrors NextOccurrenceCalculator.ParseInterval: an interval is the human form (number + ms/s/m/h/d)
-    // or a positive ISO 8601 duration via XmlConvert; cron uses the conservative Cronos-dialect validator.
+    /// <summary>
+    /// Mirrors NextOccurrenceCalculator.ParseInterval: an interval is the human form (number + ms/s/m/h/d)
+    /// or a positive ISO 8601 duration via XmlConvert; cron uses the conservative Cronos-dialect validator.
+    /// </summary>
     private static bool IsValidScheduleExpression(string expression, string kindName)
     {
         return kindName == "Interval"
@@ -1380,10 +1402,12 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
     private static bool HasBlockingDiagnostics(DiscoveredJob job) => job.Diagnostics.Any();
 
-    // Manifest type name = the assembly's area (RootNamespace's last segment). Non-"Jobs" areas get
-    // the short "{Area}Jobs" (e.g. "HelloActa" to "HelloActaJobs"). An area already ending in "Jobs"
-    // keeps a "Manifest" suffix ("TestJobs" to "TestJobsManifest", "Jobs" to "JobsManifest") because
-    // "{Area}" alone would equal the type's own namespace segment and the namespace would shadow it.
+    /// <summary>
+    /// Manifest type name = the assembly's area (RootNamespace's last segment). Non-"Jobs" areas get
+    /// the short "{Area}Jobs" (e.g. "HelloActa" to "HelloActaJobs"). An area already ending in "Jobs"
+    /// keeps a "Manifest" suffix ("TestJobs" to "TestJobsManifest", "Jobs" to "JobsManifest") because
+    /// "{Area}" alone would equal the type's own namespace segment and the namespace would shadow it.
+    /// </summary>
     private static string ManifestTypeName(string rootNamespace)
     {
         var dot = rootNamespace.LastIndexOf('.');
@@ -1727,12 +1751,16 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
     private static string DisplayName(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-    // A zero-input handler has no TIn; its descriptor InputType slot is the framework NoInput
-    // sentinel so the runtime keeps a non-null input type for hashing, registration, and dispatch.
+    /// <summary>
+    /// A zero-input handler has no TIn; its descriptor InputType slot is the framework NoInput
+    /// sentinel so the runtime keeps a non-null input type for hashing, registration, and dispatch.
+    /// </summary>
     private static string InputTypeExpr(DiscoveredJob j) => j.InputType is null ? "global::Acta.NoInput" : DisplayName(j.InputType);
 
-    // Job name (kebab) -> C# identifier: capitalize the first letter of each alphanumeric run,
-    // drop separators. "hello" -> "Hello", "send-mail" -> "SendMail", "sys.alerts" -> "SysAlerts".
+    /// <summary>
+    /// Job name (kebab) -&gt; C# identifier: capitalize the first letter of each alphanumeric run,
+    /// drop separators. "hello" -&gt; "Hello", "send-mail" -&gt; "SendMail", "sys.alerts" -&gt; "SysAlerts".
+    /// </summary>
     private static string PascalCase(string jobName)
     {
         var sb = new StringBuilder(jobName.Length);
@@ -1769,8 +1797,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     /// </summary>
     private static class Diagnostics
     {
-        // ACTA01xx descriptors. Messages are fully formatted at the check site; every descriptor passes
-        // them through. Static descriptors keep the IDs discoverable for analyzer release tracking (RS2002).
+        /// <summary>
+        /// ACTA01xx descriptors. Messages are fully formatted at the check site; every descriptor passes
+        /// them through. Static descriptors keep the IDs discoverable for analyzer release tracking (RS2002).
+        /// </summary>
         private static readonly DiagnosticDescriptor DuplicateName = new(
             id: "ACTA0101",
             title: "Job names must be unique within the manifest",
@@ -1897,7 +1927,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 _ => throw new InvalidOperationException($"Unknown ACTA01xx descriptor '{id}'."),
             };
 
-        // ACTA0101: duplicate [Job] name within the manifest.
+        /// <summary>
+        /// ACTA0101: duplicate [Job] name within the manifest.
+        /// </summary>
         public static DiagnosticRecord DuplicateJobName(DiscoveredJob job) =>
             new(
                 "ACTA0101",
@@ -1905,7 +1937,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0102: invalid [Job] name.
+        /// <summary>
+        /// ACTA0102: invalid [Job] name.
+        /// </summary>
         public static DiagnosticRecord InvalidJobName(DiscoveredJob job) =>
             new(
                 "ACTA0102",
@@ -1913,7 +1947,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0103: invalid handler signature; one ID, per-variant messages.
+        /// <summary>
+        /// ACTA0103: invalid handler signature; one ID, per-variant messages.
+        /// </summary>
         public static DiagnosticRecord InvalidParameterOrder(IMethodSymbol method, Location location) =>
             new(
                 "ACTA0103",
@@ -1984,7 +2020,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 location
             );
 
-        // ACTA0104: duplicate input type within the manifest (warning; the manifest still emits).
+        /// <summary>
+        /// ACTA0104: duplicate input type within the manifest (warning; the manifest still emits).
+        /// </summary>
         public static DiagnosticRecord DuplicateInputType(DiscoveredJob job, string inputTypeName) =>
             new(
                 "ACTA0104",
@@ -1992,8 +2030,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0106: contract member name collision within the manifest (warning; the jobs stay
-        // valid, only their contract members are omitted).
+        /// <summary>
+        /// ACTA0106: contract member name collision within the manifest (warning; the jobs stay
+        /// valid, only their contract members are omitted).
+        /// </summary>
         public static DiagnosticRecord ContractMemberCollision(DiscoveredJob job, string memberName) =>
             new(
                 "ACTA0106",
@@ -2001,7 +2041,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0105: invalid [Job] policy value; one ID, per-variant messages.
+        /// <summary>
+        /// ACTA0105: invalid [Job] policy value; one ID, per-variant messages.
+        /// </summary>
         public static DiagnosticRecord InvalidDuration(string argument, string value, Location location) =>
             new(
                 "ACTA0105",
@@ -2019,7 +2061,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 location
             );
 
-        // ACTA0121: invalid [JobSchedule] declaration; one ID, per-variant messages.
+        /// <summary>
+        /// ACTA0121: invalid [JobSchedule] declaration; one ID, per-variant messages.
+        /// </summary>
         public static DiagnosticRecord ScheduleWithoutJob(IMethodSymbol method, Location location) =>
             new(
                 "ACTA0121",
@@ -2055,7 +2099,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0122: invalid schedule expression.
+        /// <summary>
+        /// ACTA0122: invalid schedule expression.
+        /// </summary>
         public static DiagnosticRecord InvalidScheduleExpression(DiscoveredJob job, string scheduleName, string expression) =>
             new(
                 "ACTA0122",
@@ -2063,7 +2109,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
-        // ACTA0123: scheduled handler whose input cannot be default-constructed.
+        /// <summary>
+        /// ACTA0123: scheduled handler whose input cannot be default-constructed.
+        /// </summary>
         public static DiagnosticRecord ScheduledInputNotConstructible(IMethodSymbol method, ITypeSymbol inputType, Location location) =>
             new(
                 "ACTA0123",
@@ -2071,7 +2119,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 location
             );
 
-        // ACTA0131: invalid [JobPayloadFormatDeclaration]; one ID, per-variant messages.
+        /// <summary>
+        /// ACTA0131: invalid [JobPayloadFormatDeclaration]; one ID, per-variant messages.
+        /// </summary>
         public static DiagnosticRecord PayloadFormatIdReserved(CustomPayloadFormat format) =>
             new(
                 "ACTA0131",
@@ -2100,7 +2150,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 format.Location
             );
 
-        // ACTA0132: invalid [Job] payload-format usage; one ID, per-variant messages.
+        /// <summary>
+        /// ACTA0132: invalid [Job] payload-format usage; one ID, per-variant messages.
+        /// </summary>
         public static DiagnosticRecord PayloadFormatConflict(string other, Location location) =>
             new(
                 "ACTA0132",

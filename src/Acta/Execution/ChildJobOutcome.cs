@@ -20,9 +20,11 @@ public sealed record ChildJobOutcome(long ChildJobId, JobStatusCode Status)
     /// <summary>True when the child landed <c>Succeeded</c>. False on a timed-out child.</summary>
     public bool Succeeded => !TimedOut && Status == JobStatusCode.Succeeded;
 
-    // The driven status, not an observed one: the group timeout cancels the unfinished child before the
-    // handler resumes, so Cancelled is what Acta made true. A child that landed terminal in the same
-    // instant as the expiry keeps whatever status it actually reached, and the flag is what says this
-    // entry does not report it.
+    /// <summary>
+    /// Reports the status Acta drove the child to, not one it observed: the group timeout cancels
+    /// the unfinished child before the handler resumes, so Cancelled is what Acta made true. A
+    /// child that landed terminal in the same instant as the expiry keeps whatever status it
+    /// actually reached, and the flag says this entry does not report it.
+    /// </summary>
     internal static ChildJobOutcome Expired(long childJobId) => new(childJobId, JobStatusCode.Cancelled) { TimedOut = true };
 }

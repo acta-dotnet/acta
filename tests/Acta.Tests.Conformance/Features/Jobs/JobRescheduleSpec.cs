@@ -92,7 +92,6 @@ public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
-    // ---------- helpers ----------
 
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {

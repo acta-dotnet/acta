@@ -19,7 +19,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
 
         var failures = new List<string>();
 
-        // Retention windows are destructive: a value below one unit purges live data.
         if (options.JobEventsRetention < TimeSpan.FromDays(1))
         {
             failures.Add("JobsOptions.JobEventsRetention must be >= 1 day: retention is destructive.");
@@ -49,7 +48,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.AlertRetention must be a whole number of days: retention is applied in day granularity.");
         }
 
-        // Idle claim-loop pacing.
         if (options.SafetyPollInterval < TimeSpan.FromSeconds(1))
         {
             failures.Add("JobsOptions.SafetyPollInterval must be >= 1s: it is the idle claim loop's DB-traffic bound.");
@@ -65,7 +63,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.ClaimIdleJitterMax must be between 0 and 1s.");
         }
 
-        // Per-process throughput and payload limits.
         if (options.ClaimBatchSize < 1)
         {
             failures.Add("JobsOptions.ClaimBatchSize must be >= 1: it is the per-poll claim count.");
@@ -112,7 +109,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             );
         }
 
-        // Alert delivery and escalation.
         if (options.AlertDeliveryMaxRetries < 1)
         {
             failures.Add("JobsOptions.AlertDeliveryMaxRetries must be >= 1: at least one delivery attempt must be allowed.");
@@ -220,9 +216,8 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.MaxInlinePayloadBytes must be <= 256 MB: larger payloads belong behind a blob reference.");
         }
 
-        // Named against the knob the caller actually set. The lease cap below is the same ceiling seen
-        // from the derived side, and reporting only that would name a property a deployment cannot
-        // assign - the one way this rework could have made an error message worse.
+        // The heartbeat cap is the lease-day ceiling seen from the derived side; the message names
+        // the knob a deployment can actually assign.
         if (options.HeartbeatInterval > TimeSpan.FromHours(6))
         {
             failures.Add(

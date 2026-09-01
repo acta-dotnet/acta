@@ -113,8 +113,10 @@ internal sealed class CliCommandRunner(
         return true;
     }
 
-    // A signal value is passed through verbatim as a JSON payload the handler reads via
-    // WaitSignalAsync<T>; omitting --value raises a presence-only signal.
+    /// <summary>
+    /// A signal value is passed through verbatim as a JSON payload the handler reads via
+    /// WaitSignalAsync&lt;T&gt;; omitting --value raises a presence-only signal.
+    /// </summary>
     private static JobPayload SignalPayload(string? value) =>
         value is null ? JobPayload.None : JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(value));
 

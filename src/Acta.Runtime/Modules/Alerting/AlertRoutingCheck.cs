@@ -19,9 +19,11 @@ internal sealed class AlertRoutingCheck(
     ILogger<AlertRoutingCheck>? log = null
 ) : IAlertRoutingCheck
 {
-    // The one implicit channel: every alert (user or sys-critical) with no declared
-    // AlertChannelName routes here, so failures deliver out of the box to the log transport without
-    // any operator config. Operators override it, or add more channels, via AddAlertChannel.
+    /// <summary>
+    /// The one implicit channel: every alert (user or sys-critical) with no declared
+    /// AlertChannelName routes here, so failures deliver out of the box to the log transport
+    /// without any operator config. Operators override it, or add more channels, via AddAlertChannel.
+    /// </summary>
     private const string DefaultAlertChannelName = "default";
 
     private readonly ILogger _log = log ?? (ILogger)NullLogger.Instance;

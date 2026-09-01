@@ -28,8 +28,10 @@ internal abstract class OutboxSourceDialect : ISqlDialect
 
     public bool WrapsMutationInTransaction => true;
 
-    // Recover-expired then claim run as two statements; one transaction gives the claim statement the
-    // recovered rows and keeps the lease stamp atomic. Providers may override for a stricter begin mode.
+    /// <summary>
+    /// Recover-expired then claim run as two statements; one transaction gives the claim statement the
+    /// recovered rows and keeps the lease stamp atomic. Providers may override for a stricter begin mode.
+    /// </summary>
     public virtual DbTransaction BeginImmediateTransaction(DbConnection connection) => connection.BeginTransaction();
 
     public virtual bool IsTransientConflict(Exception exception) => false;
@@ -42,8 +44,10 @@ internal abstract class OutboxSourceDialect : ISqlDialect
 
     public abstract DbParameter CreateParameter(DbParameterSpec spec);
 
-    // The outbox source never invokes a routine or a ledger bulk binder; the store composes inline SQL
-    // and binds scalar parameters only. These stay unreachable rather than shipping a second binder path.
+    /// <summary>
+    /// The outbox source never invokes a routine or a ledger bulk binder; the store composes inline SQL
+    /// and binds scalar parameters only. These stay unreachable rather than shipping a second binder path.
+    /// </summary>
     private static NotSupportedException NotOutbox([System.Runtime.CompilerServices.CallerMemberName] string member = "") =>
         new($"The external-outbox source dialect runs inline SQL only; '{member}' is not part of its surface.");
 

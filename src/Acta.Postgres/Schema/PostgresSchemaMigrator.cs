@@ -28,8 +28,10 @@ internal static class PostgresSchemaMigrator
         await SchemaMigrationRunner.ApplyAsync(connection, schemaName, Hooks, ct);
     }
 
-    // Dev convenience: connects to `postgres`, creates the target DB if missing, then ApplyAsync.
-    // Production deployments should create the DB in infrastructure and call ApplyAsync directly.
+    /// <summary>
+    /// Dev convenience: connects to `postgres`, creates the target DB if missing, then ApplyAsync.
+    /// Production deployments should create the DB in infrastructure and call ApplyAsync directly.
+    /// </summary>
     public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);

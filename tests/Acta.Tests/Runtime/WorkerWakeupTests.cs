@@ -20,7 +20,6 @@ public sealed class WorkerWakeupTests
     private static readonly TimeSpan WaitBriefly = TimeSpan.FromMilliseconds(50);
     private static readonly CancellationToken None = CancellationToken.None;
 
-    // ---- AsyncWakeSignal ----
 
     [Fact]
     public async Task Set_before_wait_latches_and_satisfies_exactly_one_wait()
@@ -76,7 +75,6 @@ public sealed class WorkerWakeupTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => wait.WaitAsync(WaitGenerously, None));
     }
 
-    // ---- InProcessWakeup: worker-namespace channels ----
 
     [Fact]
     public async Task Namespace_wake_wakes_that_namespaces_waiter_only()
@@ -146,7 +144,6 @@ public sealed class WorkerWakeupTests
         );
     }
 
-    // ---- InProcessWakeup: job-completion channels (unbounded keyspace) ----
 
     [Fact]
     public async Task Job_completion_wake_reaches_a_pending_waiter()
@@ -212,7 +209,6 @@ public sealed class WorkerWakeupTests
         Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await jobWait.WaitAsync(WaitGenerously, None));
     }
 
-    // ---- WorkerLoop.ComputeSleep ----
 
     private static readonly TimeSpan Safety = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan Floor = TimeSpan.FromMilliseconds(50);
@@ -294,7 +290,6 @@ public sealed class WorkerWakeupTests
         Assert.Equal(Safety, WorkerLoop.ComputeSleep(horizon, Safety, Floor, Jitter));
     }
 
-    // ---- WorkerWakeupPublisher ----
 
     [Fact]
     public async Task A_throwing_transport_never_breaks_the_publishing_caller()
@@ -371,7 +366,6 @@ public sealed class WorkerWakeupTests
         Assert.Equal("job_finished", Tags["reason"]);
     }
 
-    // ---- WorkerWakeupChannel ----
 
     [Fact]
     public void Channel_factories_enforce_the_reserved_and_canonical_names()

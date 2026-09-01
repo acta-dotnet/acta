@@ -40,7 +40,7 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     /// </summary>
     internal IReadOnlyList<Func<IServiceProvider, IJobPipelineBehavior>> PipelineBehaviors => _pipelineBehaviors;
 
-    /// <summary>True when <see cref="DisableCli"/> was called; suppresses the CLI host swap.</summary>
+    /// <summary>Suppresses the CLI host swap.</summary>
     internal bool CliDisabled { get; private set; }
 
     public IActaBuilder ConfigureOptions(Action<JobsOptions> configure)

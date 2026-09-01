@@ -2,13 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>
+/// Lifecycle status of a job definition. Numeric bands are a readability convention only;
+/// behavior follows the explicit members. There is no per-definition Deprecated state by design:
+/// operators pause individual Jobs via <c>IJobs.PauseAsync</c>.
+/// </summary>
 [JsonConverter(typeof(JobDefinitionStatusCodeJsonConverter))]
 [CodeKind("job-definition-status")]
 public enum JobDefinitionStatusCode : byte
 {
-    // Numeric bands are a readability convention only; behavior matches explicit members.
-    // Operators pause individual Jobs via IJobs.PauseAsync; there's no per-definition Deprecated
-    // state by design.
     [Code("active", "Enqueue allowed; claim allowed.")]
     Active = 10,
 

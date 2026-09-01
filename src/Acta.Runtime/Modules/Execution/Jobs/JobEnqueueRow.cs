@@ -42,8 +42,10 @@ internal readonly record struct EnqueueOutcomeRow(int Ordinal, long JobId, Guid 
 /// </summary>
 internal static class JobEnqueueRows
 {
-    // Names must already be lowercase Acta names; equality keys normalize to lowercase ASCII.
-    // CorrelationKey is an external token and is preserved exactly.
+    /// <summary>
+    /// Names must already be lowercase Acta names; equality keys normalize to lowercase ASCII.
+    /// CorrelationKey is an external token and is preserved exactly.
+    /// </summary>
     internal static JobEnqueueRow Canonicalize(JobEnqueueRow row)
     {
         IReadOnlyList<TagInput>? tags = row.Tags?.Select((t, i) => TagInput.Normalize(t, $"Tags[{i}]")).ToList();
@@ -61,9 +63,12 @@ internal static class JobEnqueueRows
         };
     }
 
-    // The absolute (NextRunAtUtc) and relative (DelaySeconds) delayed-enqueue channels are mutually
-    // exclusive; the SQL COALESCE would silently prefer the absolute one, so reject the ambiguity here
-    // rather than pick a winner. A negative delay is meaningless (the routine clamps null to immediate).
+    /// <summary>
+    /// The absolute (NextRunAtUtc) and relative (DelaySeconds) delayed-enqueue channels are
+    /// mutually exclusive; the SQL COALESCE would silently prefer the absolute one, so reject the
+    /// ambiguity here rather than pick a winner. A negative delay is meaningless (the routine
+    /// clamps null to immediate).
+    /// </summary>
     internal static void ValidateRow(JobEnqueueRow row, int index)
     {
         if (row.NextRunAtUtc is not null && row.DelaySeconds is not null)

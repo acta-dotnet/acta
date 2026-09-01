@@ -18,22 +18,21 @@ namespace Acta.Relational.Stores;
 internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect dialect, SqlProviderOptions options) : IAlertStore
 {
     /// <summary>
-    /// How far behind the database's own clock the alertable-event read stops, in seconds.
+    /// How far behind the database's own clock the alertable-event read stops, in seconds: two
+    /// command timeouts, so it needs no option of its own.
     /// </summary>
     /// <remarks>
-    /// <c>events.id</c> is allocated when the row is inserted, not when its transaction commits, and the
-    /// alertable insert sits mid-routine with blocking parent-row locks after it - so a lower id can
-    /// commit after a higher one was already read and checkpointed, and nothing would read it again.
-    /// <c>created_at_utc</c> is stamped inside the writing transaction and so never post-dates its
-    /// commit: waiting for the stamp to fall behind the horizon waits out every transaction that could
-    /// still commit a lower id.
+    /// <c>events.id</c> is allocated at insert, not commit, and the alertable insert sits
+    /// mid-routine with blocking parent-row locks after it - so a lower id can commit after a
+    /// higher one was already read and checkpointed, and nothing would read it again.
+    /// <c>created_at_utc</c> is stamped inside the writing transaction and never post-dates its
+    /// commit: waiting for the stamp to fall behind the horizon waits out every transaction that
+    /// could still commit a lower id. A writing routine is one client statement, so its transaction
+    /// lives at most one CommandTimeout from the statement's start (past that the client cancels it
+    /// and it dies); one timeout covers the gap between stamp and commit, the second covers
+    /// PostgreSQL's now() (the transaction's start instant, which can precede the insert by the
+    /// same bound). Rounding up keeps a sub-second timeout from collapsing the horizon to zero.
     /// </remarks>
-    // Two command timeouts is that bound, and it needs no option of its own. A writing routine is one
-    // client statement, so its transaction lives at most one CommandTimeout from the statement's start -
-    // past that the client cancels and it dies. One timeout covers the gap between the stamp and the
-    // commit; the second covers PostgreSQL's now(), which is the transaction's start instant rather than
-    // the insert's and can precede the insert by the same bound. Rounding up keeps a sub-second timeout
-    // from collapsing the horizon to zero.
     internal static int SafeHorizonLagSeconds(TimeSpan commandTimeout) =>
         (int)Math.Min(int.MaxValue, Math.Ceiling(commandTimeout.TotalSeconds) * 2);
 
@@ -117,10 +116,12 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             ct
         );
 
-    // Inline UPDATE in every provider (no routine), so it loads by literal path with no write
-    // transaction, matching the provider stores' ExecuteNonQuery-without-transaction shape. The CAS
-    // result is read as a returned row (RETURNING / OUTPUT, as extend_worker_leases already does)
-    // rather than from rows-affected, which is a driver-dependent number across the three providers.
+    /// <summary>
+    /// Inline UPDATE in every provider (no routine), so it loads by literal path with no write
+    /// transaction, matching the provider stores' ExecuteNonQuery-without-transaction shape. The CAS
+    /// result is read as a returned row (RETURNING / OUTPUT, as extend_worker_leases already does)
+    /// rather than from rows-affected, which is a driver-dependent number across the three providers.
+    /// </summary>
     public Task<bool> UpdateAlertDeliveryAsync(
         long alertId,
         int expectedVersion,
@@ -143,8 +144,10 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             ct
         );
 
-    // Inline UPDATE in every provider (no routine); the number of rows closed is the command's
-    // rows-affected count, read after draining the reader.
+    /// <summary>
+    /// Inline UPDATE in every provider (no routine); the number of rows closed is the command's
+    /// rows-affected count, read after draining the reader.
+    /// </summary>
     public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
         session.QueryAsync(
             "Sql/Alerting/ResolveJobAlerts.sql",

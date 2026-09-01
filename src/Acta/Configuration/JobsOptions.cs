@@ -125,16 +125,21 @@ public sealed class JobsOptions
         internal set => _workerDeadAfter = value;
     }
 
-    // The two ratios, named rather than inlined so the relationship is greppable from either derived
-    // member. 4x is the lease's own margin (three missable beats); 7x is that plus three more before a
-    // worker is tombstoned, because retiring one that might still recover is the expensive mistake.
+    /// <summary>
+    /// The lease derives at 4x the heartbeat (three missable beats of margin); the dead-worker
+    /// window at 7x - three more beats before a worker is tombstoned, because retiring one that
+    /// might still recover is the expensive mistake. Named constants so the relationship is
+    /// greppable from either derived member.
+    /// </summary>
     internal const int LeaseHeartbeatMultiple = 4;
     internal const int DeadAfterHeartbeatMultiple = 7;
 
-    // The derived pair is decoupled only from inside the engine, and only by things that must vary it
-    // independently: the benchmark sweeps the lease as an experiment variable, and the drain specs need
-    // frequent beats beside a long lease so the suite's cross-test parallelism cannot starve a tick into
-    // a spurious reclaim. Null means derived, which is every deployment.
+    /// <summary>
+    /// Null means derived, which is every deployment. The derived pair is decoupled only from
+    /// inside the engine, and only by things that must vary it independently: the benchmark sweeps
+    /// the lease as an experiment variable, and the drain specs need frequent beats beside a long
+    /// lease so the suite's cross-test parallelism cannot starve a tick into a spurious reclaim.
+    /// </summary>
     private int? _leaseTtlSeconds;
     private TimeSpan? _workerDeadAfter;
 
@@ -166,12 +171,11 @@ public sealed class JobsOptions
     /// <strong>Turning this off disables crash recovery:</strong> <c>sys.recovery</c> is the only thing
     /// that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay
     /// <c>Executing</c> behind a lapsed lease permanently. The runtime warns at startup when it is off.
+    /// <para>This flag does not govern <c>sys.outbox</c>: that job registers only with an explicit
+    /// <c>AddOutboxRelay</c>, and the relay re-registers <c>sys.recovery</c> and <c>sys.alerts</c>
+    /// as its dependencies even when this is false. "Driven externally" means you have written the
+    /// reclaim sweep yourself; nothing in the box does it.</para>
     /// </remarks>
-    // Named for what it governs - all three are sys. jobs - rather than "framework", which also implied
-    // sys.outbox. It does not govern that one: sys.outbox registers only with an explicit
-    // AddOutboxRelay, and that relay re-registers sys.recovery and sys.alerts as its dependencies even
-    // when this is false. "Driven externally" means you have written the reclaim sweep yourself;
-    // nothing in the box does it.
     public bool RegisterSystemJobs { get; set; } = true;
 
     /// <summary>

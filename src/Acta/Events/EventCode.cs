@@ -6,6 +6,13 @@ namespace Acta;
 /// Stable family-local event identifiers. Nearby values improve catalog readability but carry no
 /// runtime subject, subgroup, or outcome semantics. Match events by enum member or textual code.
 /// </summary>
+/// <remarks>
+/// There is deliberately no <c>job.enqueued</c> event: the Job row's own
+/// <c>(created_at_utc, namespace_id, definition_id)</c> already records the enqueue fact, and a
+/// separate event row would be pure write amplification on the narrow append-heavy events table.
+/// Dedup outcomes surface to the caller via <c>JobEnqueueOutcome.Action</c>; cross-job rate
+/// analytics query <c>acta.jobs</c> directly.
+/// </remarks>
 [JsonConverter(typeof(EventCodeJsonConverter))]
 [ReservedCodeRange(224, 254, "Architecture-controlled reserve")]
 [CodeKind("event", Extensible = true)]
@@ -18,7 +25,6 @@ public enum EventCode : byte
     [Code("unspecified", "Event id not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    // ---------- Tenant / namespace admin ----------
     [Code("tenant.suspended", "An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason.")]
     TenantSuspended = 10,
 
@@ -40,19 +46,13 @@ public enum EventCode : byte
     [Code("namespace.updated", "An operator changed a namespace owner team / description. ReasonMessage carries the reason.")]
     NamespaceUpdated = 22,
 
-    // ---------- Definition lifecycle ----------
-    // job_id / job_ref are null; definition_id carries the identity. Emitted when an operator
-    // edits a definition's policy overrides (who via actor_*, when via created_at_utc, what via
-    // reason_message). Always emitted regardless of audit level: config governance is low-volume.
-
+    /// <summary>
+    /// job_id / job_ref are null; definition_id carries the identity. Emitted when an operator
+    /// edits a definition's policy overrides (who via actor_*, when via created_at_utc, what via
+    /// reason_message). Always emitted regardless of audit level: config governance is low-volume.
+    /// </summary>
     [Code("definition.overrides-updated", "An operator changed a job definition's policy overrides; ReasonMessage summarizes the change.")]
     JobDefinitionOverridesUpdated = 30,
-
-    // ---------- Job lifecycle ----------
-    // No job.enqueued event: the Job row's own (created_at_utc, namespace_id, definition_id)
-    // already records the enqueue fact; a separate event row would be pure write amplification on
-    // the narrow append-heavy events table. Dedup outcomes surface to the caller via
-    // JobEnqueueOutcome.Action; cross-job rate analytics query acta.jobs directly.
 
     [Code("job.execution-started", "Handler invocation began; paired with job.execution-finished on (JobId, ExecutionNumber).")]
     JobExecutionStarted = 40,
@@ -99,8 +99,6 @@ public enum EventCode : byte
     )]
     JobInputAmended = 76,
 
-    // ---------- Substrate ----------
-
     [Code("job.signal-raised", "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.")]
     JobSignalRaised = 80,
 
@@ -116,9 +114,10 @@ public enum EventCode : byte
     )]
     JobNoteRecorded = 90,
 
-    // ---------- Schedule lifecycle ----------
-    // Emitted against the slot job_id (JobEvent has no schedule_id); the schedule name rides reason_message.
-
+    /// <summary>
+    /// Every schedule.* event is emitted against the slot job_id (JobEvent has no schedule_id);
+    /// the schedule name rides reason_message.
+    /// </summary>
     [Code("schedule.paused", "A recurring schedule was paused; ReasonMessage carries the schedule name.")]
     SchedulePaused = 100,
 
@@ -143,9 +142,9 @@ public enum EventCode : byte
     )]
     ScheduleTriggered = 104,
 
-    // ---------- Worker lifecycle ----------
-    // job_id is null on every worker.* event; worker_id / namespace_id carry the identity.
-
+    /// <summary>
+    /// job_id is null on every worker.* event; worker_id / namespace_id carry the identity.
+    /// </summary>
     [Code("worker.started", "Worker process registered; a workers row was appended (Status: Active).")]
     WorkerStarted = 120,
 
@@ -155,28 +154,30 @@ public enum EventCode : byte
     [Code("worker.died", "Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead.")]
     WorkerDied = 122,
 
-    // ---------- Alert lifecycle ----------
-    // job_id carries the alert's job when it has one; the alert id rides reason_message. Always
-    // emitted regardless of audit level: alert workflow is low-volume operator activity.
-
+    /// <summary>
+    /// On every alert.* event, job_id carries the alert's job when it has one; the alert id rides
+    /// reason_message. Always emitted regardless of audit level: alert workflow is low-volume
+    /// operator activity.
+    /// </summary>
     [Code("alert.acknowledged", "Operator acknowledged an alert; ReasonMessage carries the alert id and note.")]
     AlertAcknowledged = 140,
 
     [Code("alert.resolved", "Operator manually resolved an alert; ReasonMessage carries the alert id and note.")]
     AlertResolved = 141,
 
-    // ---------- Settings ----------
-    // No job columns; Detail carries {"name": ...} identifying the setting, since events has no
-    // setting column. Always emitted: settings writes are low-volume operator/deployment activity.
-
+    /// <summary>
+    /// No job columns; Detail carries {"name": ...} identifying the setting, since events has no
+    /// setting column. Always emitted: settings writes are low-volume operator/deployment activity.
+    /// </summary>
     [Code("setting.updated", "A durable setting was written (created or overwritten); Detail carries the setting name.")]
     SettingUpdated = 160,
 
-    // ---------- Outbox operator path ----------
-    // Written against the namespace's sys.outbox slot job by the tick that applies a parked operator
-    // command. Always emitted regardless of audit level: this is the evidence trail for actions whose
-    // subject rows live (or lived) in the producer's database, outside the ledger's reach.
-
+    /// <summary>
+    /// Both outbox.* events are written against the namespace's sys.outbox slot job by the tick
+    /// that applies a parked operator command. Always emitted regardless of audit level: this is
+    /// the evidence trail for actions whose subject rows live (or lived) in the producer's
+    /// database, outside the ledger's reach.
+    /// </summary>
     [Code(
         "outbox.requeued",
         "An operator command returned quarantined outbox rows to Pending; ReasonMessage carries the justification and the row ids."

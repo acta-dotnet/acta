@@ -10,9 +10,6 @@ namespace Acta.Runtime.Cli;
 /// </summary>
 internal static class CliOutput
 {
-    /// <summary>
-    /// Writes a control-verb result in plain or JSON format.
-    /// </summary>
     public static void WriteControl(TextWriter writer, string verb, JobRef jobRef, JobControlResult result, bool json)
     {
         if (json)
@@ -42,9 +39,6 @@ internal static class CliOutput
         writer.WriteLine($"status: {(result.Status is { } s ? s.ToString() : "(none)")}");
     }
 
-    /// <summary>
-    /// Writes a job snapshot in plain or JSON format.
-    /// </summary>
     public static void WriteSnapshot(TextWriter writer, JobDetail snapshot, bool json)
     {
         if (json)
@@ -228,8 +222,10 @@ internal static class CliOutput
         }
     }
 
-    // Same identity rule the explanation prose uses: name (with the ref alongside when known), else the
-    // bare ref, else a non-identity phrase once the holder's row has been purged.
+    /// <summary>
+    /// Same identity rule the explanation prose uses: name (with the ref alongside when known),
+    /// else the bare ref, else a non-identity phrase once the holder's row has been purged.
+    /// </summary>
     private static string LeaseWorkerLabel(JobExplainLease lease)
     {
         var worker = (lease.WorkerName is { Length: > 0 } ? lease.WorkerName : null, lease.WorkerRef) switch
@@ -382,9 +378,6 @@ internal static class CliOutput
         writer.WriteLine($"status: {(status is { } p ? p.ToString() : "(none)")}");
     }
 
-    /// <summary>
-    /// Writes a job id and status in plain or JSON format.
-    /// </summary>
     public static void WriteStatus(TextWriter writer, JobRef jobRef, JobStatusCode status, bool json)
     {
         if (json)
@@ -404,9 +397,6 @@ internal static class CliOutput
         writer.WriteLine($"status: {status}");
     }
 
-    /// <summary>
-    /// Writes usage help listing all verbs and the registered namespaces.
-    /// </summary>
     public static void WriteUsage(TextWriter writer, IReadOnlyList<string> namespaces)
     {
         writer.WriteLine("Usage: <app> jobs <verb> <job-ref|deduplication-key|id> [options]");
@@ -443,8 +433,10 @@ internal static class CliOutput
         writer.WriteLine("Exit codes: 0 applied/found, 1 rejected/failed, 2 not found, 64 usage error.");
     }
 
-    // The UTF-8 JSON bytes are decoded to a string and re-encoded by the TextWriter; the CLI host
-    // sets Console.OutputEncoding to UTF-8 so non-ASCII reason messages survive the round trip.
+    /// <summary>
+    /// The UTF-8 JSON bytes are decoded to a string and re-encoded by the TextWriter; the CLI host
+    /// sets Console.OutputEncoding to UTF-8 so non-ASCII reason messages survive the round trip.
+    /// </summary>
     private static void WriteJson(TextWriter writer, Action<Utf8JsonWriter> body)
     {
         using var buffer = new MemoryStream();
