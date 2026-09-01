@@ -93,7 +93,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     /// Transform
     /// ============================================================================================
     /// </summary>
-
     private static EntityInfo? Transform(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
     {
         if (ctx.TargetSymbol is not INamedTypeSymbol cls)
@@ -688,7 +687,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     /// Emit
     /// ============================================================================================
     /// </summary>
-
     private static void Emit(SourceProductionContext spc, ImmutableArray<EntityInfo> entities)
     {
         if (entities.IsDefaultOrEmpty)
@@ -755,7 +753,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     /// <summary>
     /// -------- ActaSchema.Generated.cs --------
     /// </summary>
-
     private static string EmitActaSchema(ImmutableArray<EntityInfo> entities)
     {
         var sb = new StringBuilder();
@@ -1009,7 +1006,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     /// <summary>
     /// -------- EntityBinder.Generated.cs --------
     /// </summary>
-
     private static string EmitEntityBinder(ImmutableArray<EntityInfo> entities)
     {
         var sb = new StringBuilder();
@@ -1106,7 +1102,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     /// Wire types
     /// ============================================================================================
     /// </summary>
-
     private readonly record struct EntityInfo(
         string EntityName,
         string EntityFqn,

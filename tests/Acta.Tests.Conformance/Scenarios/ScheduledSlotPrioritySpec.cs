@@ -122,7 +122,6 @@ public abstract class ScheduledSlotPrioritySpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(JobPriorityCode.High, runtime!.Priority);
     }
 
-
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
         var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);

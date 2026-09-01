@@ -156,7 +156,6 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobSignalRaised, ct));
     }
 
-
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {
         var enqueued = await Jobs.EnqueueAsync(

@@ -203,7 +203,6 @@ public abstract class IntervalScheduleFireSpec<TFixture> : ActaRuntimeTestBase<T
         Assert.Equal(1, slot.ExecutionNumber);
     }
 
-
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
         var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);

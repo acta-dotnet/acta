@@ -656,7 +656,6 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-
     private static HttpRequestMessage AmendInput(object body, bool confirm = true)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/input");
@@ -788,7 +787,6 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Empty(jobs.InputAmendCalls);
     }
-
 
     private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)
     {

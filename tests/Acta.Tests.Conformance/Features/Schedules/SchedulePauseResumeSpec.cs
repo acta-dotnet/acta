@@ -319,7 +319,6 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
         Assert.Equal("only", resumed!.ReasonMessage);
     }
 
-
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
     private ScheduleLookup Lookup(string jobName, string scheduleName) =>

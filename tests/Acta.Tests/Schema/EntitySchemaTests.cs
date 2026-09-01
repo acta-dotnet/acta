@@ -52,7 +52,6 @@ public class EntitySchemaTests
         Assert.Equal(typeof(Job), ActaSchema.For<Job>().ClrType);
     }
 
-
     [Fact]
     public void StatusCode_Is_ByteBackedCode()
     {
@@ -99,7 +98,6 @@ public class EntitySchemaTests
         Assert.Equal(DbKind.Byte, c.Kind);
         Assert.True(c.IsCoded);
     }
-
 
     [Fact]
     public void JobRuntime_Version_Is_ConcurrencyToken()
@@ -162,7 +160,6 @@ public class EntitySchemaTests
         Assert.False(c.HasServerDefault);
     }
 
-
     [Fact]
     public void JobResult_Has_CompositePk()
     {
@@ -184,7 +181,6 @@ public class EntitySchemaTests
         Assert.False(jobId.IsSolePrimaryKey); // composite - no IDENTITY convention fires
         Assert.False(en.IsSolePrimaryKey);
     }
-
 
     [Fact]
     public void JobRuntime_Indexes_Include_Ready()
@@ -221,7 +217,6 @@ public class EntitySchemaTests
         Assert.Empty(ActaSchema.For<JobEvent>().ForeignKeys);
     }
 
-
     [Fact]
     public void StatusCode_Captures_EnumTypeName()
     {
@@ -240,7 +235,6 @@ public class EntitySchemaTests
         Assert.False(string.IsNullOrEmpty(c.CodeKind));
     }
 
-
     [Fact]
     public void Column_Lookup_Is_CaseSensitive()
     {
@@ -255,7 +249,6 @@ public class EntitySchemaTests
         var s = ActaSchema.For<Job>();
         Assert.Throws<InvalidOperationException>(() => s.Column("does_not_exist"));
     }
-
 
     [Fact]
     public void ActaSchema_Surfaces_Same_Column_Instances()
@@ -276,7 +269,6 @@ public class EntitySchemaTests
         Assert.Equal("events", ActaSchema.JobEvent.Table);
     }
 
-
     [Fact]
     public void Entities_Manifest_Covers_AllKnownEntities()
     {
@@ -290,7 +282,6 @@ public class EntitySchemaTests
         Assert.Contains("results", names);
         Assert.Contains("workers", names);
     }
-
 
     [Fact]
     public void JobTenant_Catalog_Has_TenantKey_Unique_And_StatusCode()
@@ -353,7 +344,6 @@ public class EntitySchemaTests
         Assert.Equal(["id", "tenant_key", "status_code"], columns.Take(3));
     }
 
-
     [Fact]
     public void Settings_Schema_Has_ScopedIdentity_And_ValuePair()
     {
@@ -382,7 +372,6 @@ public class EntitySchemaTests
     {
         Assert.Contains("settings", ActaSchema.Entities.Select(e => e.TableName));
     }
-
 
     [Fact]
     public void Definition_DisplayName_Triplet_Follows_RunbookUrl_Pattern()

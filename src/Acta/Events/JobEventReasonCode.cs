@@ -18,7 +18,6 @@ public enum JobEventReasonCode : byte
     [Code("unspecified", "Reason id not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-
     /// <summary>
     /// Default catch-all when no system-catalog code fits. The operator-readable story lives in
     /// <c>ReasonMessage</c>.

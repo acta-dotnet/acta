@@ -359,7 +359,6 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         }
     }
 
-
     private async Task<IReadOnlyList<TestJobRow>> ReadChildrenAsync(long parentId, CancellationToken ct)
     {
         var children = await Db.From<Job>().Where(j => j.ParentId == parentId).ToListAsync(ct);
