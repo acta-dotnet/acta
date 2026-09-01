@@ -86,8 +86,14 @@ internal sealed class JobExecution(
         // The deadline anchor is DB-stamped (job.created_at_utc); comparing it against the worker
         // clock here is deliberate and bounded by the worker-init clock-skew guard, trading a small
         // skew sensitivity for not paying a DB round-trip on every admission.
+        // A recurring slot never consults the whole-job deadline: the deadline anchors to job
+        // creation and the slot row lives forever, so any Strict deadline would cancel the slot -
+        // terminally - the first time it is claimed past that anchor. Worker init rejects the
+        // Deadline + [JobSchedule] combination outright; this guard keeps a slot that predates the
+        // rule (or gained a deadline through an override) alive.
         var deadlineHitAtAdmission =
-            descriptor.DeadlineBehavior == DeadlineBehaviorCode.Strict
+            !isRecurring
+            && descriptor.DeadlineBehavior == DeadlineBehaviorCode.Strict
             && jobContext.DeadlineAtUtc is { } admitDue
             && admitDue <= DateTime.UtcNow;
 
@@ -438,7 +444,10 @@ internal sealed class JobExecution(
         short failedAttempted = 0;
         int failedRetryDelaySeconds = 0;
         var failedInBudget = false;
-        if (outcome == ExecutionOutcome.Failed && IsRetryable(failureReason))
+        // One-shot only: MaxAttempts is the one-off retry budget and the deadline guard's
+        // handlerStatusCode would take the terminal branch ahead of the recurring branch, stopping
+        // the slot permanently over retry math that never applies to it.
+        if (!isRecurring && outcome == ExecutionOutcome.Failed && IsRetryable(failureReason))
         {
             failedAttempted = (short)(job.FailureCount + 1);
             failedInBudget = failedAttempted < descriptor.MaxAttempts;

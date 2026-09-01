@@ -23,13 +23,19 @@ public sealed class StepOptionsBuilder
     internal StepOptionsBuilder() { }
 
     /// <summary>
-    /// Override the maximum number of attempts (at least 1) before the step exhausts.
+    /// Override the maximum number of attempts (1 to 32767, the persisted range) before the step
+    /// exhausts. The runtime narrows the value to a 16-bit column; without the upper bound a value
+    /// past 32767 would wrap negative and exhaust the step on its first failure.
     /// </summary>
     public StepOptionsBuilder MaxAttempts(int maxAttempts)
     {
-        if (maxAttempts < 1)
+        if (maxAttempts is < 1 or > short.MaxValue)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxAttempts), maxAttempts, "MaxAttempts must be at least 1.");
+            throw new ArgumentOutOfRangeException(
+                nameof(maxAttempts),
+                maxAttempts,
+                $"MaxAttempts must be between 1 and {short.MaxValue}."
+            );
         }
         _maxAttempts = maxAttempts;
         return this;

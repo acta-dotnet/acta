@@ -162,6 +162,7 @@ internal sealed class WorkerRuntimeInitializer(
         ValidateUniqueJobNames(allDescriptors);
         ValidateScheduleTimeZones(allDescriptors);
         ValidateTenantRequirements(allDescriptors);
+        ValidateDeadlineRequirements(allDescriptors);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
         // throws here (before register), Warn logs and continues. The SQL routine remains the
@@ -299,6 +300,27 @@ internal sealed class WorkerRuntimeInitializer(
                         ex
                     );
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fail fast on a scheduled definition that declares a deadline: the deadline anchors to job
+    /// creation and a recurring slot's row lives forever, so a Strict deadline would terminally
+    /// cancel the slot the first time it is claimed past that anchor, and an Advisory one can never
+    /// mean anything an occurrence could act on.
+    /// </summary>
+    internal static void ValidateDeadlineRequirements(ImmutableArray<JobDescriptor> descriptors)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.DeadlineSeconds is not null && !descriptor.Schedules.IsDefaultOrEmpty)
+            {
+                throw new InvalidOperationException(
+                    $"Job '{descriptor.JobName}' declares Deadline together with [JobSchedule]. "
+                        + "A deadline anchors to job creation, and a recurring slot is created once and lives "
+                        + "forever, so the combination would cancel the slot instead of bounding an occurrence."
+                );
             }
         }
     }

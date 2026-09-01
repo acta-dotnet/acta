@@ -186,17 +186,29 @@ public sealed class JobContextWaitTimeoutTests
         Assert.Equal(TimeSpan.FromSeconds(100), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.Zero));
         Assert.Equal(TimeSpan.FromSeconds(70), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromSeconds(30)));
 
-        // However late in the walk a member arms, its due lands at or before the deadline: the remaining
-        // is what is left at that moment, floored to whole seconds, so elapsed + remaining never exceeds
-        // the budget. The one exception is the positive-bound floor, which the next fact owns.
+        // However late in the walk a member arms, its due lands at or after the deadline (a group
+        // deadline is a not-before: a member must not give up while the group still has budget), and
+        // never more than one rounded-up second past it. Flooring instead armed a slot up to a second
+        // short, and a replay in that gap durably expired a child that was still inside its budget.
         foreach (var elapsed in (TimeSpan[])[TimeSpan.Zero, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(60.7), TimeSpan.FromSeconds(98)])
         {
             var armedAtUtc = passNowUtc + elapsed;
-            Assert.True(
-                armedAtUtc + JobContext.RemainingWait(deadlineAtUtc, passNowUtc, elapsed) <= deadlineAtUtc,
-                $"a member armed {elapsed} into the walk outlived the deadline."
-            );
+            var due = armedAtUtc + JobContext.RemainingWait(deadlineAtUtc, passNowUtc, elapsed);
+            Assert.True(due >= deadlineAtUtc, $"a member armed {elapsed} into the walk could give up before the deadline.");
+            Assert.True(due <= deadlineAtUtc.AddSeconds(1), $"a member armed {elapsed} into the walk overshot by more than the rounding.");
         }
+    }
+
+    [Fact]
+    public void The_group_deadline_name_is_a_property_of_the_child_set()
+    {
+        var canonical = JobContext.GroupDeadlineName([7, 9]);
+
+        // Reordering and duplicate listings are the same group and must share one budget slot; a
+        // genuinely different set is a different group.
+        Assert.Equal(canonical, JobContext.GroupDeadlineName([9, 7]));
+        Assert.Equal(canonical, JobContext.GroupDeadlineName([7, 7, 9]));
+        Assert.NotEqual(canonical, JobContext.GroupDeadlineName([7, 9, 11]));
     }
 
     [Fact]

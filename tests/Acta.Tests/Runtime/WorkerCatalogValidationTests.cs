@@ -53,6 +53,61 @@ public sealed class WorkerCatalogValidationTests
         WorkerRuntimeInitializer.ValidateHasDescriptors("billing", [Descriptor("job-one", typeof(HandlerA))]);
     }
 
+    [Fact]
+    public void A_scheduled_definition_with_a_deadline_fails_startup()
+    {
+        // A deadline anchors to job creation and a recurring slot's row lives forever, so a Strict
+        // deadline would terminally cancel the slot the first time it is claimed past that anchor.
+        var scheduled = Descriptor("nightly", typeof(HandlerA)) with
+        {
+            DeadlineSeconds = 1800,
+            Schedules =
+            [
+                new ScheduleDescriptor(
+                    "nightly",
+                    "default",
+                    "0 0 * * *",
+                    TimeZoneId: null,
+                    MisfireStrategyCode.Skip,
+                    ScheduleExpressionKindCode.Cron,
+                    Description: null,
+                    Environments: []
+                ),
+            ],
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            WorkerRuntimeInitializer.ValidateDeadlineRequirements([scheduled])
+        );
+
+        Assert.Contains("nightly", ex.Message);
+        Assert.Contains("Deadline", ex.Message);
+    }
+
+    [Fact]
+    public void A_deadline_without_schedules_and_a_schedule_without_a_deadline_pass()
+    {
+        var oneShot = Descriptor("one-shot", typeof(HandlerA)) with { DeadlineSeconds = 1800 };
+        var scheduled = Descriptor("nightly", typeof(HandlerB)) with
+        {
+            Schedules =
+            [
+                new ScheduleDescriptor(
+                    "nightly",
+                    "default",
+                    "0 0 * * *",
+                    TimeZoneId: null,
+                    MisfireStrategyCode.Skip,
+                    ScheduleExpressionKindCode.Cron,
+                    Description: null,
+                    Environments: []
+                ),
+            ],
+        };
+
+        WorkerRuntimeInitializer.ValidateDeadlineRequirements([oneShot, scheduled]);
+    }
+
     private sealed class HandlerA;
 
     private sealed class HandlerB;

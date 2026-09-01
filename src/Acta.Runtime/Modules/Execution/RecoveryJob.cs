@@ -28,7 +28,11 @@ internal sealed class RecoveryJob(
     WorkerWakeupPublisher wakeupPublisher
 )
 {
-    private readonly int _deadAfterSeconds = (int)options.Value.WorkerDeadAfter.TotalSeconds;
+    /// <summary>
+    /// Ceiling, because the boundary is a promise to the worker: flooring a fractional window (a
+    /// 45.1s heartbeat derives 315.7s) would tombstone a live worker up to a second early.
+    /// </summary>
+    private readonly int _deadAfterSeconds = (int)Math.Ceiling(options.Value.WorkerDeadAfter.TotalSeconds);
 
     /// <summary>
     /// Runs one recovery pass: sweeps dead workers globally (all namespaces), then reclaims stuck

@@ -836,8 +836,11 @@ public abstract class JobContext
             return await WaitChildrenAsync(childJobIds, ct);
         }
 
-        var deadline = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
+        // Anchored BEFORE the deadline round trip: the stored NowUtc was read inside that call, so
+        // starting the stopwatch after it would leave the clock response and the checkpoint write
+        // outside the measured elapsed and quietly extend the budget by those round trips.
         var passStarted = Stopwatch.GetTimestamp();
+        var deadline = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
 
         var outcomes = new ChildJobOutcome[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)
@@ -850,12 +853,14 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// The whole seconds left until the group deadline, floored, with a floor of one. The anchor is
-    /// the pass's one DB clock reading advanced by the monotonic time spent since, so the walk over
-    /// already-resolved members is spent out of the group's budget rather than added to it. A group
-    /// deadline is a NOT-BEFORE, not a not-after: a member does not give up before the instant, and
-    /// the store may stamp its due a round trip past it; flooring keeps that to a round trip
-    /// instead of a whole extra second. A wait must carry a positive bound, so an already-passed
+    /// The whole seconds left until the group deadline, rounded UP, with a floor of one. The anchor
+    /// is the pass's one DB clock reading advanced by the monotonic time spent since, so the walk
+    /// over already-resolved members is spent out of the group's budget rather than added to it. A
+    /// group deadline is a NOT-BEFORE, not a not-after: a member does not give up before the
+    /// instant, so the rounding must go up - a floored value armed a slot up to a second short of
+    /// the deadline, and a replay in that gap durably expired a child that was still inside its
+    /// budget. The store may still stamp the due a round trip past the deadline, which the
+    /// not-before semantics absorb. A wait must carry a positive bound, so an already-passed
     /// deadline arms one second rather than zero; a child whose latch does not exist yet then
     /// suspends once before it can expire (wait_signal resolves only a wait an earlier call armed),
     /// costing one extra second-long tick per unfinished child - accepted because the alternative
@@ -866,7 +871,10 @@ public abstract class JobContext
     internal static TimeSpan RemainingWait(DateTime deadlineAtUtc, DateTime passNowUtc, TimeSpan elapsed)
     {
         var remaining = deadlineAtUtc - (passNowUtc + elapsed);
-        var seconds = remaining.Ticks <= TimeSpan.TicksPerSecond ? 1L : remaining.Ticks / TimeSpan.TicksPerSecond;
+        var seconds =
+            remaining.Ticks <= TimeSpan.TicksPerSecond
+                ? 1L
+                : (remaining.Ticks + TimeSpan.TicksPerSecond - 1) / TimeSpan.TicksPerSecond;
         return TimeSpan.FromSeconds(seconds);
     }
 
@@ -875,12 +883,13 @@ public abstract class JobContext
     /// identical on every replay (a child start dedupes onto the same row), so the name is stable,
     /// and the sys. prefix is rejected for user variable names, so it cannot collide with one. Two
     /// waits on the same children in the same Job are the same group and deliberately share the
-    /// deadline. Sorted first, so the name is a property of the SET of children: a handler that
-    /// reorders the same ids between replays would otherwise mint a second slot and hand the group
-    /// a fresh budget, making never-restart a promise about caller discipline instead of a
-    /// structural one. Caller order is not lost; the outcome array follows the order given.
+    /// deadline. Sorted and de-duplicated first, so the name is a property of the SET of children:
+    /// a handler that reorders the same ids - or lists one twice on one replay and once on the
+    /// next - would otherwise mint a second slot and hand the group a fresh budget, making
+    /// never-restart a promise about caller discipline instead of a structural one. Caller order
+    /// is not lost; the outcome array follows the order given.
     /// </summary>
-    private static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
+    internal static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
     {
         var ordered = new long[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)
@@ -890,9 +899,14 @@ public abstract class JobContext
         Array.Sort(ordered);
 
         var canonical = new StringBuilder();
+        long? previous = null;
         foreach (var id in ordered)
         {
-            canonical.Append(id.ToString(CultureInfo.InvariantCulture)).Append('.');
+            if (id != previous)
+            {
+                canonical.Append(id.ToString(CultureInfo.InvariantCulture)).Append('.');
+            }
+            previous = id;
         }
         return GroupDeadlinePrefix + ShortHash(canonical.ToString());
     }

@@ -112,7 +112,11 @@ internal sealed class AlertsJob(
         // The database clock is read once, here, and every settlement below stamps itself from that
         // instant plus the time the pass has spent since - see AlertSettlementClock for why a pass-start
         // instant alone is the wrong base once a pass can legally run for tens of seconds.
-        var settlement = AlertSettlementClock.Start(await _clock.GetUtcNowAsync(ct));
+        // Anchored BEFORE the clock query: the database stamps its instant while the request is in
+        // flight, so measuring from after the response drops the round trip and stamps every
+        // settlement - and the reminder and retry instants derived from it - early by that much.
+        var clockRequestedAt = Stopwatch.GetTimestamp();
+        var settlement = new AlertSettlementClock(await _clock.GetUtcNowAsync(ct), clockRequestedAt);
         await GenerateAsync(ctx, ct);
         await DeliverAsync(ctx, settlement, ct);
     }
