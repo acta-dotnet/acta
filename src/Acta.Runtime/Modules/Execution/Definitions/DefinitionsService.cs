@@ -147,9 +147,12 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         {
             throw new ArgumentOutOfRangeException(nameof(overrides), "MaxAttempts override must be at least 1.");
         }
-        if (overrides.ExecutionTimeoutSeconds is <= 0)
+        if (overrides.ExecutionTimeoutSeconds is <= 0 or > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         {
-            throw new ArgumentOutOfRangeException(nameof(overrides), "ExecutionTimeoutSeconds override must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(overrides),
+                $"ExecutionTimeoutSeconds override must be between 1 and {JobDefinitionRegistration.MaxExecutionTimeoutSeconds}."
+            );
         }
         if (overrides.DeadlineSeconds is < 0)
         {
@@ -186,12 +189,13 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             }
         }
 
-        // RunbookUrl is a link an operator will click from an alert: a truncated URL is a broken one,
-        // so an over-length value is rejected like Backoff rather than silently cut.
-        if (overrides.RunbookUrl is { Length: > ActaTextLimits.DefinitionRunbookUrl })
+        // RunbookUrl is a link an operator will click from an alert, bound for an ASCII column: a
+        // truncated URL is a broken one and a non-ASCII value fails or mangles per provider, so both
+        // are rejected like Backoff rather than silently coerced.
+        if (overrides.RunbookUrl is { } url && (url.Length > ActaTextLimits.DefinitionRunbookUrl || url.AsSpan().ContainsAnyExceptInRange((char)0x20, (char)0x7E)))
         {
             throw new ArgumentException(
-                $"RunbookUrl override must be at most {ActaTextLimits.DefinitionRunbookUrl} characters.",
+                $"RunbookUrl override must be at most {ActaTextLimits.DefinitionRunbookUrl} printable ASCII characters.",
                 nameof(overrides)
             );
         }
@@ -215,7 +219,10 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         // Mirrors ValidateDeadlineRequirements on the registration path: a deadline anchors to job
         // creation and a recurring slot's row lives forever, so a deadline override on a scheduled
         // definition could never mean anything an occurrence could act on. Rejected here so the
-        // override never lands instead of sitting in the row as a silent no-op.
+        // override never lands instead of sitting in the row as a silent no-op. Advisory, not
+        // transactional: a schedule registered between this read and the write leaves an ignored
+        // override, which is harmless because JobExecutor builds every slot context with a null
+        // deadline regardless.
         if (overrides.DeadlineSeconds is > 0 && await store.DefinitionHasSchedulesAsync(definitionId.Value, ct))
         {
             throw new ArgumentException(

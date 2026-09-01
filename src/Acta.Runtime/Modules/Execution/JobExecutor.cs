@@ -121,7 +121,13 @@ internal sealed class JobExecutor(
             // unwind margin absorbs the seed's slack in the meantime.
             JobLeaseGoodUntil = Stopwatch.GetTimestamp() + (long)(_leaseTtlSeconds * (double)Stopwatch.Frequency),
         };
-        var timeoutSeconds = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
+        // Clamped to CancelAfter's ceiling regardless of where the value came from (descriptor or
+        // operator override): an over-limit value would throw right here - after the claim, before the
+        // cleanup try - and every reclaim would walk the job straight back into the same throw.
+        var timeoutSeconds = Math.Min(
+            descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
+            JobDefinitionRegistration.MaxExecutionTimeoutSeconds
+        );
         if (timeoutSeconds > 0)
         {
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));

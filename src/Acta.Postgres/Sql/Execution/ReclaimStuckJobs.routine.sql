@@ -15,7 +15,10 @@ BEGIN
             j.definition_id,
             j.tenant_id,
             j.audit_level_code,
-            (r.failure_count + 1) AS new_failure_count,
+            /* Saturated at short.MaxValue like the worker path: the column is SMALLINT and a recurring
+               slot's count accumulates unbounded, so an unguarded +1 would eventually error the whole
+               sweep and wedge recovery for the namespace. */
+            LEAST(r.failure_count + 1, 32767) AS new_failure_count,
             jd.max_attempts_effective AS max_attempts,
             jd.retention_seconds_effective AS retention_seconds,
             /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc,
