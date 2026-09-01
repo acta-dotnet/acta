@@ -5,6 +5,8 @@ namespace Acta.Tests.Conformance.Postgres.Features.Definitions;
 
 // One concrete class per spec; xunit v3 runs each class as its own parallel test collection.
 
+public sealed class PgDefinitionDeadlineOverrideGuardSpec : DefinitionDeadlineOverrideGuardSpec<PgConformanceFixture>;
+
 public sealed class PgDefinitionOverrideBindMatrixSpec : DefinitionOverrideBindMatrixSpec<PgConformanceFixture>;
 
 public sealed class PgFrameworkJobRegistrationSpec : FrameworkJobRegistrationSpec<PgConformanceFixture>;

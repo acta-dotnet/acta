@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Contract = "A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state.",
     Arrange = "Store fault injection is armed to crash a worker at the claim, start, post-complete, and mid-handler boundaries.",
     Act = "A worker crashes at each boundary, its lease is expired, and reclaim orphans the attempt for a later worker.",
-    Assert = "Every boundary recovers through a single legal final state and the job completes exactly once."
+    Assert = "Every boundary recovers to a single legal final state, the job completes exactly once, and a reclaimed recurring slot re-arms Ready instead of terminalizing."
 )]
 public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -180,5 +180,40 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
         ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
+    }
+
+    [Fact(DisplayName = "Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed")]
+    public async Task Reclaim_never_terminalizes_a_recurring_slot()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
+        var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
+
+        // recurring-ping declares MaxAttempts = 2: one accumulated failed occurrence plus this
+        // crashed one lands exactly on the budget - the count the Failed arm used to fire on.
+        var affected = await Db.From<Acta.Relational.Entities.JobRuntime>()
+            .Where(r => r.Id == slotId)
+            .UpdateOnlyAsync(
+                () =>
+                    new Acta.Relational.Entities.JobRuntime
+                    {
+                        Status = JobStatusCode.Executing,
+                        FailureCount = 1,
+                        LeasedByWorkerId = workerId,
+                        LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5),
+                    },
+                ct
+            );
+        Assert.Equal(1, affected);
+
+        await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct);
+
+        // MaxAttempts is the one-off retry budget: the slot re-arms Ready with the failure counted
+        // and no retention stamp, because a schedule must never be terminalized by a crash.
+        var reclaimed = await Jobs.GetAsync(JobLookup.ById(slotId), ct);
+        Assert.Equal(JobStatusCode.Ready, reclaimed!.Status);
+        Assert.Equal((short)2, reclaimed.FailureCount);
+        Assert.Null(reclaimed.RetentionUntilUtc);
     }
 }

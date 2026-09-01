@@ -76,9 +76,7 @@ public sealed class WorkerCatalogValidationTests
             ],
         };
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            WorkerRuntimeInitializer.ValidateDeadlineRequirements([scheduled])
-        );
+        var ex = Assert.Throws<InvalidOperationException>(() => WorkerRuntimeInitializer.ValidateDeadlineRequirements([scheduled]));
 
         Assert.Contains("nightly", ex.Message);
         Assert.Contains("Deadline", ex.Message);

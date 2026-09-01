@@ -77,5 +77,8 @@ internal static class ActaTextLimits
     public const int AlertTitle = 512;
     public const int AlertMessage = 512;
     public const int DefinitionBackoff = 64;
+    public const int DefinitionDisplayName = 128;
+    public const int DefinitionDescription = 512;
+    public const int DefinitionRunbookUrl = 512;
     public const int ScheduleReasonMessage = 512;
 }

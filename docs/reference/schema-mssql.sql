@@ -4826,7 +4826,15 @@ BEGIN
                         AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
                         AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
-                ) THEN 1 ELSE 0 END AS wait_resolved
+                ) THEN 1 ELSE 0 END AS wait_resolved,
+                /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
+                   across occurrences, so a recurring reclaim always re-arms Ready instead of
+                   terminally failing the schedule - mirroring ComputeRecurringOutcome on the worker path. */
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM acta.schedules sc
+                    WHERE sc.job_id = r.job_id
+                ) THEN 1 ELSE 0 END AS is_recurring
             FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK)
             INNER JOIN acta.jobs j ON j.id = r.job_id
             INNER JOIN acta.definitions jd ON jd.id = j.definition_id
@@ -4844,7 +4852,7 @@ BEGIN
             status_code = CASE
                 WHEN s.wait_resolved = 1
                     THEN 20 /* JobStatusCode.Suspended */
-                WHEN s.new_failure_count >= s.max_attempts
+                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
                     THEN 200 /* JobStatusCode.Failed */
                 ELSE 10  /* JobStatusCode.Ready */
             END,
@@ -4856,14 +4864,14 @@ BEGIN
             next_run_at_utc = CASE
                 WHEN s.wait_resolved = 1
                     THEN r.next_run_at_utc
-                WHEN s.new_failure_count >= s.max_attempts
+                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
                     THEN r.next_run_at_utc
                 ELSE @now
             END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             retention_until_utc = CASE
-                WHEN s.wait_resolved = 0 AND s.new_failure_count >= s.max_attempts
+                WHEN s.wait_resolved = 0 AND s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
                     THEN DATEADD(SECOND, s.retention_seconds, @now)
                 ELSE r.retention_until_utc
             END,

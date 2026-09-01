@@ -6,6 +6,7 @@ using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
 using Acta.Runtime.Hosting;
+using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Outbox;
 
 namespace Acta.Relational.Stores;
@@ -160,7 +161,12 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
     /// </summary>
     private static string? ToOptionalIdArray(IReadOnlyList<Guid>? ids) => ids is null ? null : ToIdArray(ids);
 
-    private static string? Truncate(string? value) => value is { Length: > MaxLastError } ? value[..MaxLastError] : value;
+    /// <summary>
+    /// Routed through <see cref="MessageTruncator"/> rather than a raw cut: last_error carries handler
+    /// exception text, and a raw cut at the cap can split a surrogate pair, which Npgsql's UTF-8
+    /// encoder rejects - failing the very write that records why the outbox row failed.
+    /// </summary>
+    private static string? Truncate(string? value) => MessageTruncator.Truncate(value, MaxLastError);
 
     /// <summary>
     /// A JSON array of the claimed ids as their canonical GUID text; every provider's set-based finalize

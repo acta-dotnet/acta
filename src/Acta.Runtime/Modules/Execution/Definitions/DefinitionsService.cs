@@ -186,12 +186,42 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             }
         }
 
+        // RunbookUrl is a link an operator will click from an alert: a truncated URL is a broken one,
+        // so an over-length value is rejected like Backoff rather than silently cut.
+        if (overrides.RunbookUrl is { Length: > ActaTextLimits.DefinitionRunbookUrl })
+        {
+            throw new ArgumentException(
+                $"RunbookUrl override must be at most {ActaTextLimits.DefinitionRunbookUrl} characters.",
+                nameof(overrides)
+            );
+        }
+
+        // Display name and description are free-form text: truncated to their columns like every other
+        // operator-supplied message, so an over-length value never surfaces as a provider write error.
+        overrides = overrides with
+        {
+            DisplayName = overrides.DisplayName.Truncate(ActaTextLimits.DefinitionDisplayName),
+            Description = overrides.Description.Truncate(ActaTextLimits.DefinitionDescription),
+        };
+
         var actor = new JobControlActor(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
         var definitionId = await ResolveDefinitionIdAsync(jobNamespace, jobName, ct);
         if (definitionId is null)
         {
             return new DefinitionControlResult(ControlAction.NotFound);
+        }
+
+        // Mirrors ValidateDeadlineRequirements on the registration path: a deadline anchors to job
+        // creation and a recurring slot's row lives forever, so a deadline override on a scheduled
+        // definition could never mean anything an occurrence could act on. Rejected here so the
+        // override never lands instead of sitting in the row as a silent no-op.
+        if (overrides.DeadlineSeconds is > 0 && await store.DefinitionHasSchedulesAsync(definitionId.Value, ct))
+        {
+            throw new ArgumentException(
+                $"Definition '{jobNamespace}/{jobName}' is scheduled; a DeadlineSeconds override cannot apply to a recurring slot.",
+                nameof(overrides)
+            );
         }
 
         var outcome = await store.SetDefinitionOverridesAsync(

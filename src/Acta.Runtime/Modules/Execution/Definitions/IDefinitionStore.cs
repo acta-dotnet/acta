@@ -21,6 +21,12 @@ internal interface IDefinitionStore
     ValueTask<JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct);
 
     /// <summary>
+    /// Whether any schedule row belongs to the definition's slot job. The override write path uses
+    /// this to mirror the registration-time rule that a scheduled definition cannot carry a deadline.
+    /// </summary>
+    Task<bool> DefinitionHasSchedulesAsync(int definitionId, CancellationToken ct);
+
+    /// <summary>
     /// One keyset page of grid-shaped definition rows ordered namespace, name, id ascending plus an
     /// opt-in filter-wide total, fetched in a single round trip.
     /// </summary>

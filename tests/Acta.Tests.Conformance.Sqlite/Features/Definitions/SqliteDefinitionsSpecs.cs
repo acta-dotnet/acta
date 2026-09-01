@@ -5,6 +5,8 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Definitions;
 
 // One concrete class per spec; xunit v3 runs each class as its own parallel test collection.
 
+public sealed class SqliteDefinitionDeadlineOverrideGuardSpec : DefinitionDeadlineOverrideGuardSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteDefinitionOverrideBindMatrixSpec : DefinitionOverrideBindMatrixSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteFrameworkJobRegistrationSpec : FrameworkJobRegistrationSpec<SqliteConformanceFixture>;

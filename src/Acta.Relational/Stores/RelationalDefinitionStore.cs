@@ -42,6 +42,14 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
             ct
         );
 
+    public Task<bool> DefinitionHasSchedulesAsync(int definitionId, CancellationToken ct) =>
+        session.QueryAsync(
+            "Sql/Execution/Definitions/DefinitionHasSchedules.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.DefinitionId, definitionId)),
+            async (reader, token) => await reader.ReadAsync(token),
+            ct
+        );
+
     public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
             "Sql/Execution/Definitions/ListJobDefinitions.sql",

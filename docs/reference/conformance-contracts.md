@@ -279,6 +279,18 @@
 
 ## Catalog
 
+### A deadline override is rejected on a scheduled definition
+- **Contract:** A DeadlineSeconds override on a definition whose slot job carries schedule rows is rejected before the write and never lands as a silent no-op.
+- **Arrange:** One definition owns a registered recurring slot with a schedule row and a second definition has no schedules.
+- **Act:** UpdateOverrides attempts a DeadlineSeconds override on each, plus a deadline-free override on the scheduled one.
+- **Assert:** The scheduled definition rejects the deadline override with nothing landed, while the deadline-free and unscheduled-definition overrides both apply.
+- **Guarantees:**
+  - A DeadlineSeconds override on a scheduled definition is rejected and nothing lands
+  - A deadline-free override still applies to a scheduled definition
+  - A DeadlineSeconds override on an unscheduled definition applies
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.DefinitionHasSchedulesAsync`
+
 ### Definition override bind matrix: all 13 slots
 - **Contract:** All 13 override slots bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base.
 - **Arrange:** A definition is registered with well-known base policy values behind all 13 override slots.
@@ -454,12 +466,13 @@
 - **Contract:** A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state.
 - **Arrange:** Store fault injection is armed to crash a worker at the claim, start, post-complete, and mid-handler boundaries.
 - **Act:** A worker crashes at each boundary, its lease is expired, and reclaim orphans the attempt for a later worker.
-- **Assert:** Every boundary recovers through a single legal final state and the job completes exactly once.
+- **Assert:** Every boundary recovers to a single legal final state, the job completes exactly once, and a reclaimed recurring slot re-arms Ready instead of terminalizing.
 - **Guarantees:**
   - Claim-only crash recovers with no execution-started event and an orphaned recovery event
   - Crash after start orphans the started execution before retry and finishes once
   - Crash before CompleteExecution does not replay the durable step on recovery
   - Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once
+  - Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed
 
 ## ChildJobs
 
@@ -2494,6 +2507,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Deliverable alerts read due rows, remind open incidents, and settle by version<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
+| `IDefinitionStore.DefinitionHasSchedulesAsync` | A deadline override is rejected on a scheduled definition |
 | `IDefinitionStore.GetDefinitionAsync` | GetJobDefinition returns one definition by id and null for an unknown id |
 | `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade or retire |
 | `IDefinitionStore.ListDefinitionsAsync` | ListJobDefinitions filter-matrix selects exactly matching rows per dimension<br>ListJobDefinitions pages the catalog by name order without duplicates |
@@ -2609,6 +2623,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/CompleteExecution` | yes | yes | yes |
 | `Execution/CompleteExecutionsBatch` | yes | yes | · |
 | `Execution/CompleteStep` | yes | yes | yes |
+| `Execution/Definitions/DefinitionHasSchedules` | yes | yes | yes |
 | `Execution/Definitions/DefinitionsView` | yes | yes | yes |
 | `Execution/Definitions/GetDefinitionContracts` | yes | yes | yes |
 | `Execution/Definitions/GetJobDefinition` | yes | yes | yes |

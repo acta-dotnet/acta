@@ -29,7 +29,15 @@ BEGIN
                     AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
                     AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
                     AND c.due_at_utc = r.next_run_at_utc
-            ) AS wait_resolved
+            ) AS wait_resolved,
+            /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
+               occurrences, so a recurring reclaim always re-arms Ready instead of terminally failing
+               the schedule - mirroring ComputeRecurringOutcome on the worker path. */
+            EXISTS (
+                SELECT 1
+                FROM {{schema}}.schedules sc
+                WHERE sc.job_id = r.job_id
+            ) AS is_recurring
         FROM {{schema}}.runtimes r
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
         INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
@@ -47,18 +55,18 @@ BEGIN
         SET
             status_code = CASE
                 WHEN s.wait_resolved THEN 20 /* JobStatusCode.Suspended */
-                WHEN s.new_failure_count >= s.max_attempts THEN 200 /* JobStatusCode.Failed */
+                WHEN NOT s.is_recurring AND s.new_failure_count >= s.max_attempts THEN 200 /* JobStatusCode.Failed */
                 ELSE 10 /* JobStatusCode.Ready */ END,
             failure_count = CASE WHEN s.wait_resolved
                 THEN r.failure_count
                 ELSE s.new_failure_count END,
             next_run_at_utc = CASE
                 WHEN s.wait_resolved THEN r.next_run_at_utc
-                WHEN s.new_failure_count >= s.max_attempts THEN r.next_run_at_utc
+                WHEN NOT s.is_recurring AND s.new_failure_count >= s.max_attempts THEN r.next_run_at_utc
                 ELSE now() END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
-            retention_until_utc = CASE WHEN NOT s.wait_resolved AND s.new_failure_count >= s.max_attempts
+            retention_until_utc = CASE WHEN NOT s.wait_resolved AND NOT s.is_recurring AND s.new_failure_count >= s.max_attempts
                 THEN now() + make_interval(secs => s.retention_seconds)
                 ELSE r.retention_until_utc END,
             modified_at_utc = now(),

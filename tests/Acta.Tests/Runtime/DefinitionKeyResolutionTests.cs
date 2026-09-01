@@ -101,6 +101,8 @@ public sealed class DefinitionKeyResolutionTests
             return ValueTask.FromResult(row is null ? null : Detail(row));
         }
 
+        public Task<bool> DefinitionHasSchedulesAsync(int definitionId, CancellationToken ct) => Task.FromResult(false);
+
         public Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct)
         {
             OverrideWrites.Add(command);

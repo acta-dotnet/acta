@@ -199,6 +199,8 @@ public sealed class LoopTickCancellationFilterTests
         public ValueTask<Acta.JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<bool> DefinitionHasSchedulesAsync(int definitionId, CancellationToken ct) => throw new NotSupportedException();
+
         public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
             throw new NotSupportedException();
 
@@ -253,6 +255,8 @@ public sealed class LoopTickCancellationFilterTests
 
         public ValueTask<Acta.JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
             throw new NotSupportedException();
+
+        public Task<bool> DefinitionHasSchedulesAsync(int definitionId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
             throw new NotSupportedException();

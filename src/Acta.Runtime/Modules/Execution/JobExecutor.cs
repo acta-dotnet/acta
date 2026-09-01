@@ -175,7 +175,14 @@ internal sealed class JobExecutor(
                 _serializers,
                 _lockStore,
                 fireOutcome?.TriggeringScheduleNames ?? [],
-                descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
+                // A recurring slot never carries the whole-job deadline: it anchors to job creation
+                // and the slot row lives forever, so the Strict paths would cancel the slot
+                // terminally and the advisory surface (ctx.IsOverdue, ctx.TimeUntilDeadline) would
+                // report permanently overdue to every occurrence. Worker init rejects the
+                // Deadline + [JobSchedule] combination; a null here covers slots that predate the
+                // rule or gained a deadline through an override, in the one place every consumer
+                // reads from.
+                !isRecurring && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
                     ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
                     : (DateTime?)null,
                 attemptCts.Token,

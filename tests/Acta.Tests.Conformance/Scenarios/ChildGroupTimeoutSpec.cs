@@ -471,18 +471,17 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
     private async Task<IReadOnlyList<JobCheckpoint>> ReadLatchesAsync(long jobId, CancellationToken ct) =>
         [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == JobCheckpointKindCode.ChildLatch)];
 
-    // One second is the coarsest overshoot an arm can legitimately produce: RemainingWait floors to
-    // whole seconds but never below one, so a member armed with under a second left is deliberately
-    // given a due past the deadline. Where plenty of time is left, as in the facts that call this, the
-    // floor cannot bite and the only overshoot is the arm's own store round trip, which is sub-second.
-    // The walk to reach the arming member is not in that residual: the remaining is recomputed against
-    // a monotonic reading at each iteration, so time spent on earlier members comes out of the budget.
-    // Both are bounded, neither accumulates, and a group deadline is a not-before, not a not-after.
+    // Two seconds is the coarsest overshoot an arm can legitimately produce: RemainingWait rounds the
+    // remaining UP to whole seconds (a group deadline is a not-before, so a member never gives up
+    // early), which puts a due at most one second past the deadline, and the arm's own store round
+    // trip adds a sub-second on top - together under two. The walk to reach the arming member is not
+    // in that residual: the remaining is recomputed against a monotonic reading at each iteration, so
+    // time spent on earlier members comes out of the budget. Both are bounded, neither accumulates.
     private static void AssertWithinGroupDeadline(JobCheckpoint latch, DateTime deadlineAtUtc)
     {
         Assert.NotNull(latch.DueAtUtc);
         Assert.True(
-            latch.DueAtUtc!.Value <= deadlineAtUtc.AddSeconds(1),
+            latch.DueAtUtc!.Value <= deadlineAtUtc.AddSeconds(2),
             $"{latch.Name} due {latch.DueAtUtc} outlived the group deadline {deadlineAtUtc} by more than the arm's rounding."
         );
     }

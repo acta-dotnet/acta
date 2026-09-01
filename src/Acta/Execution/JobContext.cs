@@ -815,15 +815,15 @@ public abstract class JobContext
     /// a null timeout is the unbounded loop these wrappers have always run. At most one child arms
     /// per pass (the first unresolvable wait suspends the attempt), but reaching it costs a store
     /// round trip per already-resolved member, so the pass reads the DB clock once, anchors a
-    /// monotonic stopwatch to that reading, and carries it forward: each iteration's remaining is
-    /// measured at the moment it runs, so the arming member does not inherit the whole walk as
-    /// deadline overshoot (the alerting pass's settlement clock uses the same technique; neither
-    /// costs an extra clock round trip). Each arm rounds the remaining DOWN to whole seconds; a
-    /// slot armed on an earlier pass keeps its own due, harmless because both derive from the same
-    /// fixed instant. A slot's due lands within one second before the group deadline plus one arm
-    /// round trip; that residual never accumulates because every arm measures from the deadline,
-    /// not the previous arm, and removing it outright would need the arm to take an absolute
-    /// instant instead of a duration.
+    /// monotonic stopwatch to the moment of that reading, and carries it forward: each iteration's
+    /// remaining is measured at the moment it runs, so the arming member neither inherits the whole
+    /// walk as deadline overshoot nor loses budget it never spent (the alerting pass's settlement
+    /// clock uses the same technique; neither costs an extra clock round trip). Each arm rounds the
+    /// remaining UP to whole seconds - the deadline is a not-before, see
+    /// <see cref="RemainingWait"/> - so a slot's due lands at or up to one second past the group
+    /// deadline, plus one arm round trip of store skew; that residual never accumulates because
+    /// every arm measures from the deadline, not the previous arm. A slot armed on an earlier pass
+    /// keeps its own due, harmless because both derive from the same fixed instant.
     /// </summary>
     private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
         IReadOnlyList<long> childJobIds,
@@ -836,16 +836,14 @@ public abstract class JobContext
             return await WaitChildrenAsync(childJobIds, ct);
         }
 
-        // Anchored BEFORE the deadline round trip: the stored NowUtc was read inside that call, so
-        // starting the stopwatch after it would leave the clock response and the checkpoint write
-        // outside the measured elapsed and quietly extend the budget by those round trips.
-        var passStarted = Stopwatch.GetTimestamp();
         var deadline = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
 
         var outcomes = new ChildJobOutcome[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)
         {
-            var remaining = RemainingWait(deadline.DeadlineAtUtc, deadline.NowUtc, Stopwatch.GetElapsedTime(passStarted));
+            // Elapsed since the implementation captured NowUtc, so the checkpoint write that followed
+            // the clock read is charged to the budget while the request leg before it is not.
+            var remaining = RemainingWait(deadline.DeadlineAtUtc, deadline.NowUtc, Stopwatch.GetElapsedTime(deadline.AnchorTimestamp));
             var result = await TryWaitChildAsync(childJobIds[i], remaining, ct);
             outcomes[i] = result.Outcome ?? ChildJobOutcome.Expired(childJobIds[i]);
         }
@@ -872,9 +870,7 @@ public abstract class JobContext
     {
         var remaining = deadlineAtUtc - (passNowUtc + elapsed);
         var seconds =
-            remaining.Ticks <= TimeSpan.TicksPerSecond
-                ? 1L
-                : (remaining.Ticks + TimeSpan.TicksPerSecond - 1) / TimeSpan.TicksPerSecond;
+            remaining.Ticks <= TimeSpan.TicksPerSecond ? 1L : (remaining.Ticks + TimeSpan.TicksPerSecond - 1) / TimeSpan.TicksPerSecond;
         return TimeSpan.FromSeconds(seconds);
     }
 
@@ -933,8 +929,12 @@ public abstract class JobContext
     /// <summary>
     /// A bounded group wait's fixed end instant plus the clock reading it was measured against, so the
     /// caller can derive the remaining time without a second round trip.
+    /// <c>AnchorTimestamp</c> is the <see cref="Stopwatch.GetTimestamp"/> taken the moment
+    /// <c>NowUtc</c> was obtained: elapsed measured from it maps the monotonic clock onto the DB
+    /// clock, while a timestamp taken before or after the round trip would count time the reading
+    /// does not cover and shift every derived remaining by that leg.
     /// </summary>
-    protected readonly record struct WaitDeadline(DateTime DeadlineAtUtc, DateTime NowUtc);
+    protected readonly record struct WaitDeadline(DateTime DeadlineAtUtc, DateTime NowUtc, long AnchorTimestamp);
 
     /// <summary>
     /// Subclass sink: read the group's stored absolute deadline, writing <c>db_now + timeout</c> on the
@@ -947,7 +947,7 @@ public abstract class JobContext
     protected virtual Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
     {
         var nowUtc = DateTime.UtcNow;
-        return Task.FromResult(new WaitDeadline(nowUtc + timeout, nowUtc));
+        return Task.FromResult(new WaitDeadline(nowUtc + timeout, nowUtc, Stopwatch.GetTimestamp()));
     }
 
     /// <summary>

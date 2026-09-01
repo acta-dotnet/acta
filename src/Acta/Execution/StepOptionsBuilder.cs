@@ -31,11 +31,7 @@ public sealed class StepOptionsBuilder
     {
         if (maxAttempts is < 1 or > short.MaxValue)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(maxAttempts),
-                maxAttempts,
-                $"MaxAttempts must be between 1 and {short.MaxValue}."
-            );
+            throw new ArgumentOutOfRangeException(nameof(maxAttempts), maxAttempts, $"MaxAttempts must be between 1 and {short.MaxValue}.");
         }
         _maxAttempts = maxAttempts;
         return this;

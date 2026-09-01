@@ -627,9 +627,6 @@ internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan 
 /// </summary>
 internal readonly struct AlertSettlementClock(DateTime baseUtc, long startedTimestamp)
 {
-    /// <summary>Starts a pass clock from <paramref name="baseUtc"/>, read from the database just now.</summary>
-    public static AlertSettlementClock Start(DateTime baseUtc) => new(baseUtc, Stopwatch.GetTimestamp());
-
     /// <summary>The base instant plus the elapsed time since it was read.</summary>
     public DateTime UtcNow => baseUtc + Stopwatch.GetElapsedTime(startedTimestamp);
 }
