@@ -9,15 +9,9 @@ namespace Acta.Runtime.Hosting;
 /// the manifests it hosts, read by <see cref="Acta.Runtime.Modules.Execution.Workers.WorkerRuntime"/> at <c>InitializeAsync</c> to upsert the
 /// <c>namespaces</c> row, the per-namespace <c>definitions</c> rows, and the <c>workers</c> row,
 /// and by <see cref="Acta.Runtime.Modules.Execution.Workers.WorkerRuntime.RunLoopAsync"/> to decide whether to enter the claim-poll loop.
+/// The one-runtime-per-Run fan-out and the enqueue-only topology are documented in
+/// docs/internals/design.md (Boundaries).
 /// </summary>
-/// <remarks>
-/// <see cref="ActaServiceCollectionExtensions.UseActa"/> registers one <see cref="Acta.Runtime.Modules.Execution.Workers.WorkerRuntime"/>
-/// per declared worker, so a process running several <c>Run(...)</c> calls fans out one claim/dispatch/
-/// heartbeat trio per namespace. Enqueue-only runtimes (HTTP frontends, dashboards) omit <c>Run(...)</c>
-/// and may <c>Reference(...)</c> manifests for typed enqueue: neither creates a
-/// <see cref="WorkerRegistration"/>, so the process registers no worker and never writes catalog rows;
-/// enqueue resolves <c>(namespace, jobName)</c> to ids via SQL JOIN at INSERT time.
-/// </remarks>
 internal sealed record WorkerRegistration(
     string NamespaceName,
     string? OwnerTeam,

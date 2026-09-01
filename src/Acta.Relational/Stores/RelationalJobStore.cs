@@ -251,8 +251,10 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             ct
         );
 
-    // Transactional twins reuse the same StoreCommand, dialect binders, and outcome projection as the
-    // owned path; only the execute seam differs (the caller's transaction, no wake, no retry).
+    /// <summary>
+    /// Transactional twins reuse the same StoreCommand, dialect binders, and outcome projection as the
+    /// owned path; only the execute seam differs (the caller's transaction, no wake, no retry).
+    /// </summary>
     public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneInTransactionAsync(
         DbTransaction transaction,
         JobEnqueueRow row,

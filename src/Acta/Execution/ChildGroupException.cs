@@ -13,9 +13,11 @@ public sealed class ChildGroupException(IReadOnlyList<ChildJobOutcome> failed) :
     /// <summary>The non-succeeded child outcomes (failed, cancelled, or timed out).</summary>
     public IReadOnlyList<ChildJobOutcome> Failed { get; } = failed;
 
-    // A timed-out child is labelled by the wait that gave up on it, not by the Cancelled status Acta
-    // then drove it to: an operator reading this message needs to know the group ran out of time, and
-    // "Cancelled" alone reads as somebody's deliberate stop.
+    /// <summary>
+    /// A timed-out child is labelled by the wait that gave up on it, not by the Cancelled status
+    /// Acta then drove it to: an operator reading this message needs to know the group ran out of
+    /// time, and "Cancelled" alone reads as somebody's deliberate stop.
+    /// </summary>
     private static string BuildMessage(IReadOnlyList<ChildJobOutcome> failed)
     {
         ArgumentNullException.ThrowIfNull(failed);

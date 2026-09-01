@@ -18,17 +18,13 @@ namespace Acta.Runtime.Modules.Execution;
 /// <c>descriptor.Invoker</c> invocation wrapped in the registered pipeline behaviors, result
 /// serialization, and the <c>complete_execution</c> write (including recurring-completion outcome
 /// math). With no behaviors registered, dispatch uses <c>descriptor.Invoker</c> directly.
+/// <para>Separate from <see cref="JobExecutor"/> on purpose, and the seam is not "claim versus
+/// run": both are strictly per-attempt, and the worker loop does the claiming. JobExecutor is the
+/// frame - four disposal obligations plus the running-attempt registration, all of which must
+/// unwind whatever happens in here; this is the body it wraps. "Execution" is the persisted
+/// vocabulary (execution_number, start_execution, ExecutionStatusCode - frozen at 1.0), while
+/// "run" names a scheduled time in this schema (next_run_at_utc), never an attempt.</para>
 /// </summary>
-// Separate from JobExecutor on purpose, and the seam is not "claim versus run": both are strictly
-// per-attempt, and the worker loop does the claiming. JobExecutor is the frame - four disposal
-// obligations (log scope, both cancellation sources, attempt DI scope) plus the running-attempt
-// registration, all of which must unwind whatever happens in here. This is the body it wraps.
-// Merging them nests a 600-line state machine four levels deep inside that unwind and gives one
-// class thirteen constructor dependencies.
-//
-// Named for what the ledger calls it: execution_number, start_execution, complete_execution and
-// ExecutionStatusCode are the persisted vocabulary and freeze at 1.0, while "run" names a scheduled
-// time in this schema (next_run_at_utc), never an attempt.
 internal sealed class JobExecution(
     IJobStore jobStore,
     IExecutionStore execution,
@@ -709,9 +705,11 @@ internal sealed class JobExecution(
         };
     }
 
-    // Stable low-cardinality tag value for the executions/duration metrics. Kept off ToString() so an
-    // enum rename can't silently rename an operator-facing metric dimension. Internal: the Bulk
-    // completion sink emits the same metric at durable finalization and must share the tag values.
+    /// <summary>
+    /// Stable low-cardinality tag value for the executions/duration metrics. Kept off ToString() so
+    /// an enum rename can't silently rename an operator-facing metric dimension. Internal: the Bulk
+    /// completion sink emits the same metric at durable finalization and must share the tag values.
+    /// </summary>
     internal static string OutcomeTag(ExecutionOutcome outcome) =>
         outcome switch
         {
@@ -724,29 +722,34 @@ internal sealed class JobExecution(
             _ => "unknown",
         };
 
-    // Failures eligible for the one-shot retry budget: an unhandled exception, an execution timeout,
-    // or an attempt aborted by lease/lock pressure. A deliberate ctx.FailAsync (HandlerFailed) takes
-    // the handler-status path and never retries; a null reason falls through to a terminal completion.
+    /// <summary>
+    /// Failures eligible for the one-shot retry budget: an unhandled exception, an execution
+    /// timeout, or an attempt aborted by lease/lock pressure. A deliberate ctx.FailAsync
+    /// (HandlerFailed) takes the handler-status path and never retries; a null reason falls through
+    /// to a terminal completion.
+    /// </summary>
     private static bool IsRetryable(JobEventReasonCode? reason) =>
         reason
             is JobEventReasonCode.JobUnhandledException
                 or JobEventReasonCode.JobExecutionTimeout
                 or JobEventReasonCode.JobAttemptAborted;
 
-    // Recurring completion outcome, computed in C# from the attempt result and the planned slot MIN.
-    // A recurring slot re-arms Ready on failure regardless of the consecutive-failure count: MaxAttempts
-    // is the one-off retry budget only and never terminalizes a recurring slot. Exhausted schedules pause
-    // regardless of outcome; a success resets the failure counter to zero, a failure bumps it (saturating
-    // at short.MaxValue so a long outage cannot overflow it into the negatives).
-    //
-    // The Ready rollover carries the attempt's reason through, like every other completion shape: the
-    // status says the slot is armed for its next occurrence, the reason says how the attempt that just
-    // ended ended. The alertable set admits a Ready event only for reasons 20/21/22 (unhandled
-    // exception, lease expired, execution timeout - GetAlertableEvents.sql), so dropping the reason
-    // left a nightly job that throws every night writing an unreasoned event that filter could never
-    // see: the failure never alerted and jobs explain had nothing to show. An aborted attempt (25,
-    // JobAttemptAborted) also rolls over Ready and stays non-alerting by design, symmetric with a
-    // one-shot re-arm for the same reason. A clean success supplies no reason and so still records none.
+    /// <summary>
+    /// Recurring completion outcome, computed in C# from the attempt result and the planned slot
+    /// MIN. A recurring slot re-arms Ready on failure regardless of the consecutive-failure count:
+    /// MaxAttempts is the one-off retry budget only and never terminalizes a recurring slot.
+    /// Exhausted schedules pause regardless of outcome; a success resets the failure counter to
+    /// zero, a failure bumps it (saturating at short.MaxValue so a long outage cannot overflow it).
+    /// <para>The Ready rollover carries the attempt's reason through, like every other completion
+    /// shape: the status says the slot is armed for its next occurrence, the reason says how the
+    /// attempt that just ended ended. The alertable set admits a Ready event only for reasons
+    /// 20/21/22 (unhandled exception, lease expired, execution timeout - GetAlertableEvents.sql),
+    /// so dropping the reason left a nightly job that throws every night writing an unreasoned
+    /// event that filter could never see: the failure never alerted and jobs explain had nothing to
+    /// show. An aborted attempt (25, JobAttemptAborted) also rolls over Ready and stays
+    /// non-alerting by design, symmetric with a one-shot re-arm for the same reason. A clean
+    /// success supplies no reason and so still records none.</para>
+    /// </summary>
     internal static (
         JobStatusCode FinalStatus,
         short FailureCount,

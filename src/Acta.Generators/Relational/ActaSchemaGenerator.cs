@@ -31,8 +31,10 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     private const string DbConcurrencyTokenAttr = "Acta.Relational.Schema.DbConcurrencyTokenAttribute";
     private const string CodeKindAttr = "Acta.CodeKindAttribute";
 
-    // ACTA04xx diagnostics: see docs/internals/design.md § AOT and SQL parameter metadata policy.
-    // Messages are fully formatted at the check site; every descriptor passes them through.
+    /// <summary>
+    /// ACTA04xx diagnostics: see docs/internals/design.md § AOT and SQL parameter metadata policy.
+    /// Messages are fully formatted at the check site; every descriptor passes them through.
+    /// </summary>
     private static readonly DiagnosticDescriptor SchemaDeclaration = new(
         id: "ACTA0401",
         title: "Schema declarations must be complete",
@@ -86,9 +88,11 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(entities.Collect(), static (spc, items) => Emit(spc, items));
     }
 
-    // ============================================================================================
-    // Transform
-    // ============================================================================================
+    /// <summary>
+    /// ============================================================================================
+    /// Transform
+    /// ============================================================================================
+    /// </summary>
 
     private static EntityInfo? Transform(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
     {
@@ -605,8 +609,10 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         return v is int i && i != 0 ? i : null;
     }
 
-    // Resolve a named enum-typed arg (e.g. `Default = DbDefault.UtcNow`) by constant value, so
-    // enum reordering doesn't break us.
+    /// <summary>
+    /// Resolve a named enum-typed arg (e.g. `Default = DbDefault.UtcNow`) by constant value, so
+    /// enum reordering doesn't break us.
+    /// </summary>
     private static string? ReadNamedArgEnum(AttributeData a, string name)
     {
         foreach (var kv in a.NamedArguments)
@@ -677,9 +683,11 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         return (t.NullableAnnotation == NullableAnnotation.Annotated, t);
     }
 
-    // ============================================================================================
-    // Emit
-    // ============================================================================================
+    /// <summary>
+    /// ============================================================================================
+    /// Emit
+    /// ============================================================================================
+    /// </summary>
 
     private static void Emit(SourceProductionContext spc, ImmutableArray<EntityInfo> entities)
     {
@@ -744,7 +752,9 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         spc.AddSource("EntityBinder.Generated.cs", EmitEntityBinder(emittable));
     }
 
-    // -------- ActaSchema.Generated.cs --------
+    /// <summary>
+    /// -------- ActaSchema.Generated.cs --------
+    /// </summary>
 
     private static string EmitActaSchema(ImmutableArray<EntityInfo> entities)
     {
@@ -996,7 +1006,9 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         return s is null ? "null" : "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
-    // -------- EntityBinder.Generated.cs --------
+    /// <summary>
+    /// -------- EntityBinder.Generated.cs --------
+    /// </summary>
 
     private static string EmitEntityBinder(ImmutableArray<EntityInfo> entities)
     {
@@ -1063,7 +1075,9 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         return c.IsNullable ? "r.IsDBNull(" + ordinal + ") ? null : " + typed : typed;
     }
 
-    // Convert.To* on narrow numerics keeps reads provider-tolerant (tinyint vs smallint).
+    /// <summary>
+    /// Convert.To* on narrow numerics keeps reads provider-tolerant (tinyint vs smallint).
+    /// </summary>
     private static string BindTypedExpression(ColumnInfo c, int ordinal)
     {
         var ord = ordinal.ToString(CultureInfo.InvariantCulture);
@@ -1087,9 +1101,11 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         return c.IsCoded ? "(" + c.NonNullableTypeFqn + ")" + readExpr : readExpr;
     }
 
-    // ============================================================================================
-    // Wire types
-    // ============================================================================================
+    /// <summary>
+    /// ============================================================================================
+    /// Wire types
+    /// ============================================================================================
+    /// </summary>
 
     private readonly record struct EntityInfo(
         string EntityName,
@@ -1178,7 +1194,9 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
 
     private readonly record struct ForeignKeyInfo(string Name, string Column, string TargetFqn, string TargetColumn, string OnDeleteName);
 
-    // snake_case -> PascalCase: status_code -> StatusCode
+    /// <summary>
+    /// snake_case -&gt; PascalCase: status_code -&gt; StatusCode
+    /// </summary>
     private static string PascalCase(string snake)
     {
         if (string.IsNullOrEmpty(snake))

@@ -28,7 +28,6 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
 {
     private const int LiveLeaseTtl = 30;
 
-    // ---------- StartExecution outcomes ----------
 
     [Fact(DisplayName = "StartExecution with wrong worker returns NotOwner and writes no job.execution-started event")]
     public async Task Start_wrong_worker_returns_not_owner_and_no_event()
@@ -94,7 +93,6 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionStarted, ct));
     }
 
-    // ---------- CompleteExecution outcomes ----------
 
     [Fact(DisplayName = "CompleteExecution with wrong worker returns NotOwner and writes no job.execution-finished event")]
     public async Task Complete_wrong_worker_returns_not_owner_and_no_event()
@@ -222,7 +220,6 @@ public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase
         Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
-    // ---------- helpers ----------
 
     private async Task<(IDbSession Db, ISqlDialect Dialect, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {

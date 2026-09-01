@@ -239,7 +239,6 @@ public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFix
         Assert.Equal(expectedNext, resumedSlot.NextRunAtUtc); // the sole schedule, now honoring the overridden expression
     }
 
-    // ---------- helpers ----------
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 

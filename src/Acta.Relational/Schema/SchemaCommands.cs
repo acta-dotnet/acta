@@ -61,8 +61,10 @@ internal static class SchemaCommands
         return found is not null and not DBNull && Convert.ToInt64(found, CultureInfo.InvariantCulture) > 0;
     }
 
-    // tx is nullable because the read-only preflight runs outside a transaction: it takes no schema
-    // lock and writes nothing, so there is no boundary for it to join.
+    /// <summary>
+    /// tx is nullable because the read-only preflight runs outside a transaction: it takes no schema
+    /// lock and writes nothing, so there is no boundary for it to join.
+    /// </summary>
     public static async Task<IReadOnlyDictionary<int, string>> LoadAppliedVersions(
         DbConnection conn,
         DbTransaction? tx,

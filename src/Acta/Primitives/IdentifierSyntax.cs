@@ -28,7 +28,6 @@ public static class IdentifierSyntax
     /// </summary>
     public const int BareIdentifierMaxLength = 63;
 
-    // ----- Predicates (pure, no throw) -----
 
     /// <summary>True if <paramref name="value"/> is a strict single-segment kebab identifier:
     /// <c>^[a-z][a-z0-9-]*$</c>, no dots, no leading / trailing <c>-</c>.</summary>
@@ -76,7 +75,6 @@ public static class IdentifierSyntax
     /// shape only and do not call this.</summary>
     public static bool IsReservedSystemName(string value) => value == ReservedSystemName || StartsWithSystemPrefix(value);
 
-    // ----- Validators (throw ArgumentException on failure) -----
 
     /// <summary>Validate strict single-segment kebab shape + length. Throws on dots, on leading /
     /// trailing <c>-</c>, on uppercase letters, on length overflow, or on empty.</summary>
@@ -219,7 +217,6 @@ public static class IdentifierSyntax
         EnsureNoControlChars(value, paramName, "Value");
     }
 
-    // ----- Canonicalizers and normalizers -----
 
     /// <summary>Normalize a string by folding it to invariant lowercase. Prefer the name/key-specific
     /// helpers below at Acta boundaries so each caller uses the right validation and normalization policy.</summary>
@@ -326,7 +323,6 @@ public static class IdentifierSyntax
         return trimmed.ToLowerInvariant();
     }
 
-    // ----- Internals -----
 
     private static void EnsureNonEmptyAndLength(string value, string paramName, int maxLength)
     {

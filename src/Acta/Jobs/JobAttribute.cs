@@ -4,6 +4,13 @@ namespace Acta;
 /// Declares a <c>JobDefinition</c> on a handler method, registering it with the source generator.
 /// The operator-facing kebab-case <see cref="Name"/> is the identity copied into SQL, dashboards, and alerts.
 /// </summary>
+/// <remarks>
+/// Two knobs are deliberately absent. No <c>LeaseTtl</c>: the lease window is a single
+/// worker-wide value (<c>JobsOptions.LeaseTtlSeconds</c>) that the heartbeat refreshes while a
+/// handler runs, and a per-definition policy would re-add a JOIN on the hot claim path. No
+/// per-definition <c>ExecutionRetention</c>: all <c>JobEvent</c> rows honor the single cluster
+/// knob <c>JobsOptions.JobEventsRetention</c>.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class JobAttribute(string name) : Attribute
 {
@@ -47,19 +54,12 @@ public sealed class JobAttribute(string name) : Attribute
     /// </summary>
     public DeadlineBehaviorCode DeadlineBehavior { get; init; } = DeadlineBehaviorCode.Strict;
 
-    // No LeaseTtl knob: the lease window is a single worker-wide value
-    // (JobsOptions.LeaseTtlSeconds, default 180s) that WorkerHeartbeat refreshes while a
-    // handler runs. A per-definition policy here would re-add a JOIN on the hot claim path.
-
     /// <summary>
     /// How long terminal Jobs are retained before the retention sweep deletes them, in Acta duration
     /// syntax, e.g. <c>"90d"</c> (the default) or <c>"6h"</c>. <c>"0s"</c> means purge at the next
     /// sweep. Null = framework default.
     /// </summary>
     public string? JobRetention { get; init; }
-
-    // No per-definition ExecutionRetention: all JobEvent rows honor the single cluster knob
-    // JobsOptions.JobEventsRetention.
 
     /// <summary>
     /// Audit emission level; gates audit-filtered per-job <c>JobEvent</c> writes but not the alert

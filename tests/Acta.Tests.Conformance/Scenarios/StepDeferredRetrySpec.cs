@@ -186,7 +186,6 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Equal((short)0, job3.FailureCount);
     }
 
-    // ---------- helpers ----------
 
     private async Task<IReadOnlyList<JobStep>> ReadStepsAsync(long jobId, CancellationToken ct)
     {

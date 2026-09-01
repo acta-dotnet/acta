@@ -171,8 +171,10 @@ public readonly record struct Backoff
         return text;
     }
 
-    // The upper bound mirrors the generator's BackoffExpressionValidator so a multiplier accepted
-    // here (e.g. through a definition override) is never rejected in a [Job] declaration.
+    /// <summary>
+    /// The upper bound mirrors the generator's BackoffExpressionValidator so a multiplier accepted
+    /// here (e.g. through a definition override) is never rejected in a [Job] declaration.
+    /// </summary>
     private static double ParsePositiveNumber(string text, string name)
     {
         return

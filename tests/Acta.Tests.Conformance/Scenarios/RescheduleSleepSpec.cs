@@ -29,8 +29,8 @@ namespace Acta.Tests.Conformance.Scenarios;
 public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    // ---------- P0: Reschedule ----------
 
+    // P0: Reschedule
     [Fact(DisplayName = "Reschedule re-arms Ready with a forward-dated next_run, no budget charge and no result")]
     public async Task Reschedule_via_context_method_rearms_ready_with_forward_dated_next_run()
     {
@@ -88,8 +88,8 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
     }
 
-    // ---------- P0: Sleep ----------
 
+    // P0: Sleep
     [Fact(DisplayName = "First sleep arms one Pending timer and suspends the handler")]
     public async Task First_sleep_arms_pending_timer_and_suspends_the_handler()
     {
@@ -168,8 +168,8 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
 
-    // ---------- P1: hardening ----------
 
+    // P1: hardening
     [Fact(DisplayName = "Sleep validation rejects invalid names, reserved names and negative delay")]
     public async Task Sleep_validation_rejects_invalid_names_and_negative_delay()
     {
@@ -220,7 +220,6 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
-    // ---------- helpers ----------
 
     private async Task<IReadOnlyList<JobCheckpoint>> ReadTimersAsync(long jobId, CancellationToken ct)
     {

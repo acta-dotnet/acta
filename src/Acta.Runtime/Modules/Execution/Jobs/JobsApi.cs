@@ -28,9 +28,11 @@ internal sealed class JobsApi(
         CancellationToken ct = default
     ) => jobsService.EnqueueBatchAsync(requests, ct);
 
-    // Transactional twins: build the same wire request as the owned overloads, then insert it through
-    // the caller's transaction with no wakeup (see IJobs). The fluent typed twin is a default interface
-    // method that forwards here after building its options.
+    /// <summary>
+    /// Transactional twins: build the same wire request as the owned overloads, then insert it
+    /// through the caller's transaction with no wakeup (see IJobs). The fluent typed twin is a
+    /// default interface method that forwards here after building its options.
+    /// </summary>
     public ValueTask<JobEnqueueOutcome> EnqueueAsync(
         DbTransaction transaction,
         JobEnqueueRequest request,
@@ -122,7 +124,7 @@ internal sealed class JobsApi(
         return await AwaitTypedResultAsync<TResult>(outcome.JobId, options, ct);
     }
 
-    // Validated before EnqueueAsync, so invalid wait options never enqueue a job.
+    /// <summary>Validated before EnqueueAsync, so invalid wait options never enqueue a job.</summary>
     private static JobExecutionOptions ValidatedExecutionOptions(JobExecutionOptions? options)
     {
         options ??= new JobExecutionOptions();
@@ -137,8 +139,11 @@ internal sealed class JobsApi(
             : options;
     }
 
-    // Resolve the input type to its route, serialize, and fold the typed options onto a wire request.
-    // A None-format input (no-input job) carries JobPayload.None directly, with no serializer round-trip.
+    /// <summary>
+    /// Resolve the input type to its route, serialize, and fold the typed options onto a wire
+    /// request. A None-format input (no-input job) carries JobPayload.None directly, with no
+    /// serializer round-trip.
+    /// </summary>
     private JobEnqueueRequest BuildTypedRequest<TInput>(TInput input, JobEnqueueOptions? options)
         where TInput : notnull
     {
@@ -214,10 +219,12 @@ internal sealed class JobsApi(
         return await AwaitTypedResultAsync<TResult>(outcome.JobId, options, ct);
     }
 
-    // Resolve the contract's route from the manifest binding, validate the contract's compile-time
-    // types against the registered descriptor (guards hand-built contracts), serialize, and fold the
-    // options onto a wire request. A None-format input carries JobPayload.None with no serializer
-    // round-trip (the no-input overload passes a default input that is never read).
+    /// <summary>
+    /// Resolve the contract's route from the manifest binding, validate the contract's compile-time
+    /// types against the registered descriptor (guards hand-built contracts), serialize, and fold
+    /// the options onto a wire request. A None-format input carries JobPayload.None with no
+    /// serializer round-trip (the no-input overload passes a default input that is never read).
+    /// </summary>
     private JobEnqueueRequest BuildContractRequest<TInput>(
         JobContract<TInput> job,
         TInput input,
@@ -264,8 +271,10 @@ internal sealed class JobsApi(
         );
     }
 
-    // A default(JobContract<T>) or otherwise malformed contract is rejected with an intentional
-    // ArgumentException rather than an incidental NullReferenceException downstream.
+    /// <summary>
+    /// A default(JobContract&lt;T&gt;) or otherwise malformed contract is rejected with an
+    /// intentional ArgumentException rather than an incidental NullReferenceException downstream.
+    /// </summary>
     private static Type ValidateContract<TInput>(JobContract<TInput> job)
     {
         if (job.ManifestType is null || string.IsNullOrWhiteSpace(job.JobName))
@@ -277,9 +286,11 @@ internal sealed class JobsApi(
             : job.ManifestType;
     }
 
-    // Wait for terminal status then materialize the typed result. Shared by the type-inference and
-    // contract RunAndWaitAsync overloads. A Succeeded job that stored no result is a caller contract
-    // mismatch (throws), never a default(TResult).
+    /// <summary>
+    /// Wait for terminal status then materialize the typed result. Shared by the type-inference and
+    /// contract RunAndWaitAsync overloads. A Succeeded job that stored no result is a caller
+    /// contract mismatch (throws), never a default(TResult).
+    /// </summary>
     private async ValueTask<JobOutcome<TResult>> AwaitTypedResultAsync<TResult>(
         long jobId,
         JobExecutionOptions options,
@@ -318,13 +329,15 @@ internal sealed class JobsApi(
         }
     }
 
-    // Client-side wait loop: poll the terminal status until reached or the local wait budget expires.
-    // The budget is measured with Stopwatch (local monotonic time), not IActaClock; a wait timeout is a
-    // caller-side concern, not a durable server decision; the Job keeps running after the caller stops.
-    // Between polls the loop waits on the job's completion channel, so a completion wake from a
-    // colocated worker (or a cross-process transport) is observed immediately; without one the
-    // PollInterval is the discovery floor, so split deployments without a shared transport keep pure
-    // polling latency.
+    /// <summary>
+    /// Client-side wait loop: poll the terminal status until reached or the local wait budget
+    /// expires. The budget is measured with Stopwatch (local monotonic time), not IActaClock; a
+    /// wait timeout is a caller-side concern, not a durable server decision; the Job keeps running
+    /// after the caller stops. Between polls the loop waits on the job's completion channel, so a
+    /// completion wake from a colocated worker (or a cross-process transport) is observed
+    /// immediately; without one the PollInterval is the discovery floor, so split deployments
+    /// without a shared transport keep pure polling latency.
+    /// </summary>
     private async ValueTask<(JobDetail? Snapshot, bool TimedOut)> AwaitTerminalAsync(
         long jobId,
         JobExecutionOptions options,
@@ -468,8 +481,11 @@ internal sealed class JobsApi(
             ? RaiseSignalCoreAsync(job, name, valueFormatId: 0, value: null, actorKey, ct)
             : RaiseSignalCoreAsync(job, name, value.Format.Id, value.Data.ToArray(), actorKey, ct);
 
-    // Raise sets the (job_id, name) slot last-writer-wins and conditionally releases a Suspended job.
-    // The actor (Operator) and reason (SignalReleased) are stamped here, never accepted from the caller.
+    /// <summary>
+    /// Raise sets the (job_id, name) slot last-writer-wins and conditionally releases a Suspended
+    /// job. The actor (Operator) and reason (SignalReleased) are stamped here, never accepted from
+    /// the caller.
+    /// </summary>
     private ValueTask<JobControlResult> RaiseSignalCoreAsync(
         JobLookup job,
         string name,

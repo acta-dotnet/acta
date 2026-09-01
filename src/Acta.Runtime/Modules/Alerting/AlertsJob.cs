@@ -33,34 +33,42 @@ internal sealed class AlertsJob(
     JobMetrics? metrics = null
 )
 {
-    // User-kebab: stored on the sys.alerts slot's own variable bag, so no user
-    // variable collides. Internal because the crash-replay and poison-event tests stage their
-    // failures against this exact checkpoint name; referencing the constant makes a rename a compile
-    // error instead of a spec that quietly stops staging its crash.
+    /// <summary>
+    /// User-kebab: stored on the sys.alerts slot's own variable bag, so no user variable collides.
+    /// Internal because the crash-replay and poison-event tests stage their failures against this
+    /// exact checkpoint name; referencing the constant makes a rename a compile error instead of a
+    /// spec that quietly stops staging its crash.
+    /// </summary>
     internal const string CursorVariableName = "alerts-cursor";
 
-    // Internal for the same reason as the cursor name: the retention sweep prunes these by prefix and
-    // its spec stages them against this exact one, so a rename is a compile error rather than a spec
-    // that quietly stops staging what it prunes.
+    /// <summary>
+    /// Internal for the same reason as the cursor name: the retention sweep prunes these by prefix
+    /// and its spec stages them against this exact one, so a rename is a compile error rather than
+    /// a spec that quietly stops staging what it prunes.
+    /// </summary>
     internal const string SkipVariablePrefix = "alerts-skip-";
     private const string DefaultChannelName = "default";
     private const int GenerateBatchSize = 256;
     private const int DeliverBatchSize = 256;
 
-    // The generate drain's two bounds, and the reason each one is where it is. 40 batches of 256 is
-    // 10,240 events in one invocation: a burst clears in a tick instead of the ~40 minutes that one
-    // batch per minute took, while the pass still has a ceiling rather than scanning an uncapped
-    // backlog. The 30s budget is soft and checked BETWEEN batches, so the batch in flight always
-    // finishes and always checkpoints; it makes a long pass yield on its own terms well inside the
-    // framework's 300s execution timeout, which sys.alerts inherits and which stays the backstop.
-    // Delivery is deliberately NOT drained this way and stays at DeliverBatchSize per invocation:
-    // pushing 10,000 webhooks through one tick would turn protecting the database into an outage on
-    // the operator's own channel.
+    /// <summary>
+    /// The generate drain's two bounds, and the reason each one is where it is. 40 batches of 256
+    /// is 10,240 events in one invocation: a burst clears in a tick instead of the ~40 minutes that
+    /// one batch per minute took, while the pass still has a ceiling rather than scanning an
+    /// uncapped backlog. The 30s budget is soft and checked BETWEEN batches, so the batch in flight
+    /// always finishes and always checkpoints; it makes a long pass yield on its own terms well
+    /// inside the framework's 300s execution timeout, which sys.alerts inherits and which stays the
+    /// backstop. Delivery is deliberately NOT drained this way and stays at DeliverBatchSize per
+    /// invocation: pushing 10,000 webhooks through one tick would turn protecting the database into
+    /// an outage on the operator's own channel.
+    /// </summary>
     private const int GenerateMaxBatches = 40;
     private static readonly TimeSpan GenerateTimeBudget = TimeSpan.FromSeconds(30);
 
-    // Delivery retry curve, independent of any job's backoff policy. 30s to 1h, doubling, 10% jitter
-    // (the ranged-expression defaults) - parsed once from the same DSL every definition uses.
+    /// <summary>
+    /// Delivery retry curve, independent of any job's backoff policy. 30s to 1h, doubling, 10%
+    /// jitter (the ranged-expression defaults) - parsed once from the same DSL every definition uses.
+    /// </summary>
     private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
 
     private readonly IAlertStore _store = store;
@@ -73,9 +81,11 @@ internal sealed class AlertsJob(
     private readonly ILogger _log = log ?? NullLogger<AlertsJob>.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
-    // The shipped drain bounds as one value. Internal because the drain specs stage backlogs relative
-    // to the real batch size rather than to a literal 256, so raising the constant keeps those specs
-    // spanning batches instead of quietly collapsing into single-batch passes.
+    /// <summary>
+    /// The shipped drain bounds as one value. Internal because the drain specs stage backlogs
+    /// relative to the real batch size rather than to a literal 256, so raising the constant keeps
+    /// those specs spanning batches instead of quietly collapsing into single-batch passes.
+    /// </summary>
     internal static readonly AlertDrainBudget DefaultDrain = new(GenerateBatchSize, GenerateMaxBatches, GenerateTimeBudget);
 
     /// <summary>
@@ -107,18 +117,20 @@ internal sealed class AlertsJob(
         await DeliverAsync(ctx, settlement, ct);
     }
 
-    // One bounded drain per invocation: batches until the backlog runs out, the batch cap is reached,
-    // or the elapsed budget is spent - whichever comes first. The cursor is written after every
-    // completed batch rather than once at the end, so whatever ends the pass - a bound, a crash, the
-    // execution timeout - keeps every batch already projected and the next invocation resumes behind
-    // it. Re-offering the one batch that was in flight is safe by construction: the raise and resolve
-    // paths refuse to move an incident an equal-or-newer event already marked.
-    //
-    // The cursor below is the highest id the READ returned, which is only a safe checkpoint because the
-    // store's read is horizon-bounded: it withholds events too recent for every transaction that could
-    // still commit a lower id to have finished. Without that bound this fold would step over an id whose
-    // transaction had not committed yet, and nothing would ever read that event again. Any change here
-    // that reads events from a source other than IAlertStore.GetAlertableEventsAsync reopens that.
+    /// <summary>
+    /// One bounded drain per invocation: batches until the backlog runs out, the batch cap is
+    /// reached, or the elapsed budget is spent - whichever comes first. The cursor is written after
+    /// every completed batch rather than once at the end, so whatever ends the pass - a bound, a
+    /// crash, the execution timeout - keeps every batch already projected and the next invocation
+    /// resumes behind it. Re-offering the one batch that was in flight is safe by construction: the
+    /// raise and resolve paths refuse to move an incident an equal-or-newer event already marked.
+    /// <para>The cursor is the highest id the READ returned, which is only a safe checkpoint because
+    /// the store's read is horizon-bounded: it withholds events too recent for every transaction
+    /// that could still commit a lower id to have finished. Without that bound this fold would step
+    /// over an id whose transaction had not committed yet, and nothing would ever read that event
+    /// again. Any change here that reads events from a source other than
+    /// IAlertStore.GetAlertableEventsAsync reopens that.</para>
+    /// </summary>
     private async Task GenerateAsync(JobContext ctx, CancellationToken ct)
     {
         var cursor = await ctx.GetVariableOrDefaultAsync<long>(CursorVariableName, 0L, ct);
@@ -175,9 +187,11 @@ internal sealed class AlertsJob(
         LogDrainBound(ctx, "batch-cap", projected, elapsed);
     }
 
-    // Information, not Warning: reaching a bound is the design working. The line an operator wants is
-    // the one that explains why a backlog is clearing a tick at a time, so it names which bound ended
-    // the pass and how much the pass got through.
+    /// <summary>
+    /// Information, not Warning: reaching a bound is the design working. The line an operator wants
+    /// is the one that explains why a backlog is clearing a tick at a time, so it names which bound
+    /// ended the pass and how much the pass got through.
+    /// </summary>
     private void LogDrainBound(JobContext ctx, string reason, int projected, Stopwatch elapsed) =>
         _log.LogInformation(
             "ACTA sys.alerts: the generate drain stopped at its ({Reason}) bound in namespace ({Namespace}) having projected {Count} events in {DurationMs} ms; the next pass resumes from the cursor.",
@@ -214,10 +228,12 @@ internal sealed class AlertsJob(
         _metrics?.RecordAlertProjectionSkip(ctx.JobNamespace, reason);
     }
 
-    // Classify one event and emit the alerts selected by its definition profile. Failure events can
-    // fire first-failure, final-failure, or threshold-reached alerts. A success emits nothing: it only
-    // closes this job's open automatic failure alerts, keeping the resolved timestamp as the single
-    // source of truth for open state.
+    /// <summary>
+    /// Classify one event and emit the alerts selected by its definition profile. Failure events
+    /// can fire first-failure, final-failure, or threshold-reached alerts. A success emits nothing:
+    /// it only closes this job's open automatic failure alerts, keeping the resolved timestamp as
+    /// the single source of truth for open state.
+    /// </summary>
     private async Task ProjectAsync(JobContext ctx, AlertableEvent e, CancellationToken ct)
     {
         var profile = e.AlertProfile;
@@ -346,7 +362,10 @@ internal sealed class AlertsJob(
         }
     }
 
-    // Encodes the render-don't-pass-typed rule for log sites: a serializing sink must never see the raw uuid.
+    /// <summary>
+    /// Encodes the render-don't-pass-typed rule for log sites: a serializing sink must never see
+    /// the raw uuid.
+    /// </summary>
     private static string RenderRef(Guid alertRef) => new AlertRef(alertRef).ToString();
 
     private static (string Title, string Message) Render(AlertableEvent e, AlertKindCode reason)
@@ -531,27 +550,32 @@ internal sealed class AlertsJob(
         }
     }
 
-    // When a delivered send should be repeated, written into retry_after_utc as the row's one "not
-    // before" instant. Automatic alerts track a condition Acta watches, so while the incident stays open
-    // the operator is re-notified on the interval. A manual alert is one handler's statement at one
-    // moment: nothing in Acta knows whether it still holds, and the caller owns resolving it, so turning
-    // every ctx.AlertAsync into an unbounded daily nag would be Acta inventing a lifecycle it cannot see.
+    /// <summary>
+    /// When a delivered send should be repeated, written into retry_after_utc as the row's one
+    /// "not before" instant. Automatic alerts track a condition Acta watches, so while the incident
+    /// stays open the operator is re-notified on the interval. A manual alert is one handler's
+    /// statement at one moment: nothing in Acta knows whether it still holds, and the caller owns
+    /// resolving it, so turning every ctx.AlertAsync into an unbounded daily nag would be Acta
+    /// inventing a lifecycle it cannot see.
+    /// </summary>
     private DateTime? ReminderAfter(DeliverableAlert a, DateTime nowUtc) =>
         a.Origin == AlertOriginCode.Automatic ? nowUtc + _reminderInterval : null;
 
-    // Every settlement writes against the version the row carried when this pass selected it. Losing
-    // that compare-and-swap is a correct outcome, not an error: the row moved on and the newer state is
-    // the one that should stand. Three partners move it. An operator resolve, and a competing worker's
-    // settlement of the same attempt, both leave the row settled, so the lost write changes nothing that
-    // matters. The most frequent one is quieter: the raise path's collapse arm bumps version too, so a
-    // repeat of the same condition - a ctx.AlertAsync landing inside the send window - makes this settle
-    // lose, and the row keeps the state the read found it in - Pending, RetryAfter with an instant
-    // already elapsed, or a settled row whose reminder instant has passed - each of which the next
-    // pass selects again. That is a re-send on the next pass, which
-    // delivery is allowed (at least once) and which is the better answer anyway: the re-send carries the
-    // occurrence count the repeat just wrote. So there is no retry and no warning here; the next pass
-    // re-selects whatever is genuinely due. Debug, because the only reader who wants this line is someone
-    // tracing why one attempt left no trace.
+    /// <summary>
+    /// Every settlement writes against the version the row carried when this pass selected it.
+    /// Losing that compare-and-swap is a correct outcome, not an error: the row moved on and the
+    /// newer state is the one that should stand. Three partners move it. An operator resolve, and a
+    /// competing worker's settlement of the same attempt, both leave the row settled, so the lost
+    /// write changes nothing that matters. The most frequent one is quieter: the raise path's
+    /// collapse arm bumps version too, so a repeat of the same condition - a ctx.AlertAsync landing
+    /// inside the send window - makes this settle lose, and the row keeps the state the read found
+    /// it in (Pending, RetryAfter with an instant already elapsed, or a settled row whose reminder
+    /// instant has passed), each of which the next pass selects again. That is a re-send on the
+    /// next pass, which delivery is allowed (at least once) and which is the better answer anyway:
+    /// the re-send carries the occurrence count the repeat just wrote. So there is no retry and no
+    /// warning here; the next pass re-selects whatever is genuinely due. Debug, because the only
+    /// reader who wants this line is someone tracing why one attempt left no trace.
+    /// </summary>
     private async Task WriteSettlementAsync(
         DeliverableAlert a,
         AlertDeliveryStatusCode status,

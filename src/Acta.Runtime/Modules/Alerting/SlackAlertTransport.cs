@@ -13,7 +13,7 @@ namespace Acta.Runtime.Modules.Alerting;
 /// </summary>
 internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<SlackAlertTransport>? log = null) : IAlertTransport
 {
-    // App-lifetime singleton transport uses one long-lived HttpClient (the documented singleton pattern).
+    /// <summary>App-lifetime singleton transport uses one long-lived HttpClient (the documented singleton pattern).</summary>
     private readonly HttpClient _http = http ?? new HttpClient();
     private readonly ILogger _log = log ?? NullLogger<SlackAlertTransport>.Instance;
 

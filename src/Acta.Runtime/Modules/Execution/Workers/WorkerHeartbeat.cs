@@ -29,19 +29,26 @@ internal sealed class WorkerHeartbeat(
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
 
-    // Lease TTL as monotonic Stopwatch ticks. The job-lease deadline is measured on Stopwatch, not wall
-    // time: it cannot jump backward on an NTP/VM correction (which would make a lapsed lease look live),
-    // and it is readable even while the store is down.
+    /// <summary>
+    /// Lease TTL as monotonic Stopwatch ticks. The job-lease deadline is measured on Stopwatch, not
+    /// wall time: it cannot jump backward on an NTP/VM correction (which would make a lapsed lease
+    /// look live), and it is readable even while the store is down.
+    /// </summary>
     private readonly long _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
     private readonly ILogger _log = log;
 
-    // Set once when the runtime begins a graceful drain. Every subsequent lease refresh then flips the
-    // worker Active -> Draining (idempotent once Draining), so the draining phase is visible without a
-    // dedicated routine. Volatile: written from the host's StopAsync thread, read on the heartbeat loop.
+    /// <summary>
+    /// Set once when the runtime begins a graceful drain. Every subsequent lease refresh then flips
+    /// the worker Active to Draining (idempotent once Draining), so the draining phase is visible
+    /// without a dedicated routine. Volatile: written from the host's StopAsync thread, read on the
+    /// heartbeat loop.
+    /// </summary>
     private volatile bool _draining;
 
-    // Serializes TickAsync: the heartbeat loop and BeginDrainAsync's immediate stamp can fire concurrently,
-    // and a tick must not race itself (double lease extends, double feed).
+    /// <summary>
+    /// Serializes TickAsync: the heartbeat loop and BeginDrainAsync's immediate stamp can fire
+    /// concurrently, and a tick must not race itself (double lease extends, double feed).
+    /// </summary>
     private readonly SemaphoreSlim _tickGate = new(1, 1);
 
     public async Task RunAsync(CancellationToken ct)
@@ -112,9 +119,12 @@ internal sealed class WorkerHeartbeat(
         await TickAsync(ct);
     }
 
-    // One worker-heartbeat pass: renew this worker's batched job leases, then feed each still-owned
-    // attempt's job-lease deadline and cancel any the refresh authoritatively dropped. The deterministic
-    // single-shot the loop drives per tick; tests drive it via WorkerRuntime.RunHeartbeatOnceAsync.
+    /// <summary>
+    /// One worker-heartbeat pass: renew this worker's batched job leases, then feed each
+    /// still-owned attempt's job-lease deadline and cancel any the refresh authoritatively dropped.
+    /// The deterministic single-shot the loop drives per tick; tests drive it via
+    /// WorkerRuntime.RunHeartbeatOnceAsync.
+    /// </summary>
     public async Task TickAsync(CancellationToken ct)
     {
         // Refresh every worker's leases first and union the still-owned ids, THEN feed once. A process can
@@ -175,11 +185,14 @@ internal sealed class WorkerHeartbeat(
         }
     }
 
-    // For each job this process was running as of the pre-extend snapshot: if an authoritative refresh
-    // renewed it, feed its job-lease deadline forward; if the authoritative refresh dropped it (operator
-    // cancel, or a stolen/reclaimed lease), cancel the attempt now. `live` is null when the refresh threw
-    // (store unreachable): a definitive gone can't be told from a blip, so nothing is fed or cancelled here
-    // - the deadline is left in place and the watchdog cancels only once it is about to lapse.
+    /// <summary>
+    /// For each job this process was running as of the pre-extend snapshot: if an authoritative
+    /// refresh renewed it, feed its job-lease deadline forward; if the authoritative refresh
+    /// dropped it (operator cancel, or a stolen/reclaimed lease), cancel the attempt now. `live` is
+    /// null when the refresh threw (store unreachable): a definitive gone can't be told from a
+    /// blip, so nothing is fed or cancelled here - the deadline is left in place and the watchdog
+    /// cancels only once it is about to lapse.
+    /// </summary>
     private void FeedJobLeases(KeyValuePair<long, RunningAttempt>[] snapshot, HashSet<long>? live, long renewRequestedAt)
     {
         if (live is null)

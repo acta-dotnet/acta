@@ -154,7 +154,7 @@ More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [`docs/gu
 
 **You do not get:** deterministic event-history replay, BPMN or a visual workflow designer, a message bus, a sidecar, a hosted control plane, or workflow SaaS orchestration.
 
-The execution model is **checkpoints, not replay**: a handler may re-enter from the top after a crash or suspend, but completed durable slots do not repeat their work. This keeps Acta-owned state repeat-safe; external side effects still need idempotency. The hot path stays close to the metal: source-generated dispatch with no reflection, one SQL round-trip per state change.
+The execution model is **checkpoints, not replay**: a handler may re-enter from the top after a crash or suspend, but completed durable slots do not repeat their work. This keeps Acta-owned state repeat-safe; external side effects still need idempotency. The hot path stays close to the metal: source-generated dispatch with no reflection, one SQL round-trip per state change. Every shipped package is marked Native AOT compatible (`IsAotCompatible`), and the load harness publishes as Native AOT.
 
 ## Documentation
 

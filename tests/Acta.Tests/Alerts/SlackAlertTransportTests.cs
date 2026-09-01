@@ -141,7 +141,6 @@ public sealed class SlackAlertTransportTests
         Assert.Empty(log.Entries);
     }
 
-    // ---------- fixtures ----------
 
     private static readonly AlertRef TestAlertRef = new(new Guid("019826f0-0000-7000-8000-0000000005a1"));
     private static readonly JobRef TestJobRef = new(new Guid("019826f0-0000-7000-8000-0000000005a2"));

@@ -83,7 +83,9 @@ internal sealed record JobDetailResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal
 )
 {
-    // The dashboard walked the same child cap; keep it here so the lineage panel is unchanged.
+    /// <summary>
+    /// The dashboard walked the same child cap; keep it here so the lineage panel is unchanged.
+    /// </summary>
     private const int ChildLimit = 100;
 
     /// <summary>

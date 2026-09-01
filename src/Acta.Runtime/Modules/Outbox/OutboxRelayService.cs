@@ -15,7 +15,7 @@ namespace Acta.Runtime.Modules.Outbox;
 /// </summary>
 internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
 {
-    // Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.
+    /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
     private const int BatchSize = 256;
 
@@ -89,8 +89,10 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
     private static EventCode EventCodeFor(string name) =>
         name == OutboxSignalNames.Requeue ? EventCode.OutboxRequeued : EventCode.OutboxDiscarded;
 
-    // The evidence line: operator justification first, then the applied count and the bounded id sample
-    // (the same 10-id bound the quarantine alert uses), truncated to the events column width.
+    /// <summary>
+    /// The evidence line: operator justification first, then the applied count and the bounded id
+    /// sample (the same 10-id bound the quarantine alert uses), truncated to the events column width.
+    /// </summary>
     private static string Evidence(string? reasonMessage, IReadOnlyList<Guid> affected)
     {
         var applied = $"{affected.Count} row(s): [{OutboxQuarantineTickException.FormatSample(affected)}]";
@@ -98,17 +100,22 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         return text.Truncate(ActaTextLimits.ReasonMessage)!;
     }
 
-    // One shared per-tick work budget, measured in target-enqueue attempts. Both source claims (each of
-    // which makes at least one attempt) and the per-group retries of a rejected batch draw it down, so
-    // isolating a rejected batch is work inside the tick bound rather than a way to bypass it. The cap
-    // equals the 5,120-row envelope (MaxBatches * BatchSize): the happy path of 20 non-rejecting batches
-    // spends only 20 attempts, while a pathological all-rejecting workload releases its unprocessed
-    // remainder once the envelope is spent instead of running unbounded retries past the 180s source lease.
+    /// <summary>
+    /// One shared per-tick work budget, measured in target-enqueue attempts. Both source claims
+    /// (each of which makes at least one attempt) and the per-group retries of a rejected batch
+    /// draw it down, so isolating a rejected batch is work inside the tick bound rather than a way
+    /// to bypass it. The cap equals the 5,120-row envelope (MaxBatches * BatchSize): the happy path
+    /// of 20 non-rejecting batches spends only 20 attempts, while a pathological all-rejecting
+    /// workload releases its unprocessed remainder once the envelope is spent instead of running
+    /// unbounded retries past the 180s source lease.
+    /// </summary>
     private const int MaxTargetEnqueues = MaxBatches * BatchSize;
 
-    // Deliberately shorter than Backoff.Default. A job's retry horizon is sized for a human to read
-    // the alert; a stuck outbox row is undelivered product, so once the target recovers the relay
-    // should not sit on a day-long delay before noticing.
+    /// <summary>
+    /// Deliberately shorter than Backoff.Default. A job's retry horizon is sized for a human to
+    /// read the alert; a stuck outbox row is undelivered product, so once the target recovers the
+    /// relay should not sit on a day-long delay before noticing.
+    /// </summary>
     private static readonly Backoff RowBackoff = Backoff.Range(TimeSpan.FromMinutes(1), TimeSpan.FromHours(8));
 
     private readonly ILogger _log = log ?? NullLogger<OutboxRelayService>.Instance;
@@ -121,13 +128,15 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
 
     private sealed record OutboxGroup(OutboxRow Representative, IReadOnlyList<OutboxRow> Rows)
     {
-        // Materialized once at construction (read on both the finalize and release paths).
+        /// <summary>Materialized once at construction (read on both the finalize and release paths).</summary>
         public IReadOnlyList<Guid> Ids { get; } = Rows.Select(r => r.OutboxId).ToList();
     }
 
-    // Mutable per-tick relay accounting: Relayed counts jobs actually inserted at the target;
-    // Deduplicated counts source rows absorbed without a new job (coalesced members plus
-    // target-deduplicated representatives), so Relayed + Deduplicated equals the safely-ingested rows.
+    /// <summary>
+    /// Mutable per-tick relay accounting: Relayed counts jobs actually inserted at the target;
+    /// Deduplicated counts source rows absorbed without a new job (coalesced members plus
+    /// target-deduplicated representatives), so Relayed + Deduplicated equals the safely-ingested rows.
+    /// </summary>
     private sealed class TickCounters
     {
         public int Relayed { get; set; }
@@ -135,7 +144,9 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         public int Deduplicated { get; set; }
     }
 
-    // Mutable per-tick target-enqueue allowance shared across every batch and its per-group retries.
+    /// <summary>
+    /// Mutable per-tick target-enqueue allowance shared across every batch and its per-group retries.
+    /// </summary>
     private sealed class TickBudget(int remaining)
     {
         public int Remaining { get; private set; } = remaining;
@@ -212,8 +223,10 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         return new OutboxTickSummary(claimedTotal, counters.Relayed, counters.Deduplicated, quarantinedIds.Count, backlog, quarantineTotal);
     }
 
-    // Processes one claimed batch. Returns true when the per-tick target-enqueue budget was exhausted
-    // mid-batch: the unprocessed remainder was released and the tick must end.
+    /// <summary>
+    /// Processes one claimed batch. Returns true when the per-tick target-enqueue budget was
+    /// exhausted mid-batch: the unprocessed remainder was released and the tick must end.
+    /// </summary>
     private async Task<bool> ProcessBatchAsync(
         IReadOnlyList<OutboxRow> claimed,
         Guid token,
@@ -347,10 +360,13 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         return false;
     }
 
-    // The whole batch goes to the target in one round trip; a deterministic batch rejection falls back to
-    // one target call per group so a single offending group is isolated while the rest still ingest. Every
-    // attempt draws down the shared tick budget; when it is spent the remaining groups are left unresolved
-    // (released by the caller). Infrastructure exceptions propagate.
+    /// <summary>
+    /// The whole batch goes to the target in one round trip; a deterministic batch rejection falls
+    /// back to one target call per group so a single offending group is isolated while the rest
+    /// still ingest. Every attempt draws down the shared tick budget; when it is spent the
+    /// remaining groups are left unresolved (released by the caller). Infrastructure exceptions
+    /// propagate.
+    /// </summary>
     private async Task EnqueueGroupsAsync(
         IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
         Dictionary<OutboxGroup, GroupOutcome> results,
@@ -404,9 +420,12 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         }
     }
 
-    // One target round trip drawing a single unit of the shared budget. Reports (Exhausted: true) when the
-    // budget is spent and no call was made, (Exhausted: false, Error: null) on safe ingestion (Inserted or
-    // Deduplicated), and the rejection message on a deterministic rejection. Infrastructure faults throw.
+    /// <summary>
+    /// One target round trip drawing a single unit of the shared budget. Reports (Exhausted: true)
+    /// when the budget is spent and no call was made, (Exhausted: false, Error: null) on safe
+    /// ingestion (Inserted or Deduplicated), and the rejection message on a deterministic
+    /// rejection. Infrastructure faults throw.
+    /// </summary>
     private async Task<(bool Exhausted, string? Error)> TryEnqueueAsync(
         IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
         TickBudget budget,
@@ -461,11 +480,14 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         }
     }
 
-    // Group claimed rows by target identity; the earliest (created_at_utc, outbox_id) row is the
-    // representative sent to the target, avoiding the ledger's same-batch duplicate-key rejection. The
-    // group keeps every member row so retry/quarantine can advance each row's own failure count. The
-    // grouping key is case-folded (keys are ASCII by contract) to match the target's dedup normalization,
-    // so two case-variant handoffs coalesce into one group instead of colliding at the target.
+    /// <summary>
+    /// Group claimed rows by target identity; the earliest (created_at_utc, outbox_id) row is the
+    /// representative sent to the target, avoiding the ledger's same-batch duplicate-key rejection.
+    /// The group keeps every member row so retry/quarantine can advance each row's own failure
+    /// count. The grouping key is case-folded (keys are ASCII by contract) to match the target's
+    /// dedup normalization, so two case-variant handoffs coalesce into one group instead of
+    /// colliding at the target.
+    /// </summary>
     private static List<OutboxGroup> Coalesce(IReadOnlyList<OutboxRow> claimed) =>
         [
             .. claimed
@@ -489,10 +511,13 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         }
     }
 
-    // Deterministic target rejections consume the row's budget (reschedule with backoff, quarantine at
-    // threshold): input problems (validation, oversize) plus the ledger's typed routing/target-state
-    // rejections (unknown route, suspended namespace/tenant, unknown tenant) surfaced as
-    // EnqueueRejectedException. Everything else is infrastructure and retried without consuming budget.
+    /// <summary>
+    /// Deterministic target rejections consume the row's budget (reschedule with backoff,
+    /// quarantine at threshold): input problems (validation, oversize) plus the ledger's typed
+    /// routing/target-state rejections (unknown route, suspended namespace/tenant, unknown tenant)
+    /// surfaced as EnqueueRejectedException. Everything else is infrastructure and retried without
+    /// consuming budget.
+    /// </summary>
     private static bool IsDeterministicRejection(Exception ex) =>
         ex is ArgumentException or PayloadTooLargeException or EnqueueRejectedException;
 }

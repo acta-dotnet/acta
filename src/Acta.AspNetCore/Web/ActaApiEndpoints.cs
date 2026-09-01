@@ -1214,8 +1214,10 @@ internal static class ActaApiEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
-    // Only the typed validation exceptions are caller errors; anything else (including a plain
-    // ArgumentException thrown by a server-side bug) falls through to the sanitized 500 handler.
+    /// <summary>
+    /// Only the typed validation exceptions are caller errors; anything else (including a plain
+    /// ArgumentException thrown by a server-side bug) falls through to the sanitized 500 handler.
+    /// </summary>
     private static async Task<IResult> Guard(Func<Task<IResult>> action)
     {
         try
@@ -1253,8 +1255,10 @@ internal static class ActaApiEndpoints
     private static IResult BadRequest(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);
 
-    // The entity is named at every call site rather than defaulted, the way RefSegment.Malformed names
-    // its entity: a shared 404 helper that assumes one noun answers every other route with the wrong one.
+    /// <summary>
+    /// The entity is named at every call site rather than defaulted, the way RefSegment.Malformed names
+    /// its entity: a shared 404 helper that assumes one noun answers every other route with the wrong one.
+    /// </summary>
     private static IResult NotFound(string entity) =>
         Results.Problem(statusCode: StatusCodes.Status404NotFound, title: $"{entity} not found.");
 }

@@ -12,10 +12,12 @@ namespace Acta.AspNetCore.Web;
 /// </summary>
 internal static class ControlAuthorizationFilter
 {
-    // The entity literals every control endpoint family routes under. A route's combined pattern
-    // (host mount prefix + local path) is scanned for the last of these; whatever mount prefix a host
-    // chooses, the control routes always end in one of these, so this stays stable regardless of where
-    // the API is mounted. Extend this list alongside a new control-endpoint family.
+    /// <summary>
+    /// The entity literals every control endpoint family routes under. A route's combined pattern
+    /// (host mount prefix + local path) is scanned for the last of these; whatever mount prefix a host
+    /// chooses, the control routes always end in one of these, so this stays stable regardless of where
+    /// the API is mounted. Extend this list alongside a new control-endpoint family.
+    /// </summary>
     private static readonly string[] Entities = ["jobs", "tenants", "namespaces", "schedules", "definitions", "alerts", "workers"];
 
     public static void Attach(RouteGroupBuilder controls)
@@ -43,10 +45,12 @@ internal static class ControlAuthorizationFilter
         );
     }
 
-    // "jobs" is dropped as the implicit default entity (/jobs/{jobRef}/cancel -> "cancel"); other
-    // families keep their entity prefix (/tenants/{key}/suspend -> "tenants.suspend"). Route parameters
-    // are skipped; a pattern with no recognized entity or no literal segments left falls back to the
-    // HTTP method.
+    /// <summary>
+    /// "jobs" is dropped as the implicit default entity (/jobs/{jobRef}/cancel -&gt; "cancel"); other
+    /// families keep their entity prefix (/tenants/{key}/suspend -&gt; "tenants.suspend"). Route parameters
+    /// are skipped; a pattern with no recognized entity or no literal segments left falls back to the
+    /// HTTP method.
+    /// </summary>
     private static string DeriveVerb(HttpContext http)
     {
         var pattern = (http.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "";

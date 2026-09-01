@@ -244,10 +244,12 @@ internal sealed class CompletionSink
         }
     }
 
-    // Buffered completions are always plain terminal landings (Succeeded/Failed), never Ready: publish the
-    // job-finished wakeup so a colocated RunAndWaitAsync caller observes the outcome, plus the
-    // parent-release wakeup the routine reports. Deferred to flush time (the small
-    // extra latency is part of Bulk's relaxed contract).
+    /// <summary>
+    /// Buffered completions are always plain terminal landings (Succeeded/Failed), never Ready:
+    /// publish the job-finished wakeup so a colocated RunAndWaitAsync caller observes the outcome,
+    /// plus the parent-release wakeup the routine reports. Deferred to flush time (the small extra
+    /// latency is part of Bulk's relaxed contract).
+    /// </summary>
     private async Task PublishWakeupsAsync(CompleteExecutionResult result, BufferedCompletion b)
     {
         if (result.Action != CompleteExecutionAction.Completed)
@@ -278,9 +280,11 @@ internal sealed class CompletionSink
         }
     }
 
-    // The Bulk execution metric is recorded here, at durable finalization, not at handler finish:
-    // a buffered completion can still lose its CAS or fail to flush, and "acta.executions" must
-    // count what the store confirmed, matching the Direct/Buffered post-CAS semantics.
+    /// <summary>
+    /// The Bulk execution metric is recorded here, at durable finalization, not at handler finish:
+    /// a buffered completion can still lose its CAS or fail to flush, and "acta.executions" must
+    /// count what the store confirmed, matching the Direct/Buffered post-CAS semantics.
+    /// </summary>
     private void RecordDurableCompletion(BufferedCompletion b) =>
         _metrics?.RecordExecution(
             b.JobNamespace,

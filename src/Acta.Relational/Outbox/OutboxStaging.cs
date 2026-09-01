@@ -18,8 +18,10 @@ namespace Acta.Relational.Outbox;
 /// </summary>
 internal static class OutboxStaging
 {
-    // The canonical INSERT column list and VALUES clause, byte-identical across every provider. The provider
-    // extension binds these named parameters with its own typed parameter objects.
+    /// <summary>
+    /// The canonical INSERT column list and VALUES clause, byte-identical across every provider. The provider
+    /// extension binds these named parameters with its own typed parameter objects.
+    /// </summary>
     private const string InsertColumnsAndValues = """
             (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
              correlation_key, exclusive_key, priority_code, next_run_at_utc, delay_seconds, tenant_key, meta)

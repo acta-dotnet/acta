@@ -2,12 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>
+/// Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90,
+/// terminal success at 100, terminal error at 200+.
+/// </summary>
 [JsonConverter(typeof(WorkerStatusCodeJsonConverter))]
 [CodeKind("worker-status")]
 public enum WorkerStatusCode : byte
 {
-    // Mirrors the JobStatusCode band scheme: live states 10..90, terminal success at 100,
-    // terminal error at 200+.
     [Code("active", "Polling claim; accepting work.")]
     Active = 10,
 

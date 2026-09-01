@@ -122,7 +122,6 @@ public abstract class ScheduledSlotPrioritySpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(JobPriorityCode.High, runtime!.Priority);
     }
 
-    // ---------- helpers ----------
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {

@@ -24,8 +24,10 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     private static readonly ScheduleControlResult NotFound = new(ControlAction.NotFound, null, null, null, null);
     private static readonly ScheduleControlResult Rejected = new(ControlAction.Rejected, null, null, null, null);
 
-    // The control surface is operator/manual only: the actor (Operator) is stamped here, never accepted
-    // from the caller, so a caller cannot forge the audit actor.
+    /// <summary>
+    /// The control surface is operator/manual only: the actor (Operator) is stamped here, never
+    /// accepted from the caller, so a caller cannot forge the audit actor.
+    /// </summary>
     private static JobControlActor Operator(string? actorKey) =>
         new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
 
@@ -268,8 +270,10 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         return new PagedResult<ScheduleListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
-    // Resolve the owning slot job and locate the named schedule among its live (non-orphaned) rows.
-    // Null means either the job or the schedule was absent (both surface as NotFound).
+    /// <summary>
+    /// Resolve the owning slot job and locate the named schedule among its live (non-orphaned)
+    /// rows. Null means either the job or the schedule was absent (both surface as NotFound).
+    /// </summary>
     private async ValueTask<(long JobId, DateTime NowUtc, IReadOnlyList<LiveSchedule> Live, LiveSchedule Target)?> ResolveTargetAsync(
         ScheduleLookup schedule,
         CancellationToken ct
@@ -299,9 +303,12 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
 
     private static string? RowReason(string? reasonMessage) => reasonMessage.Truncate(ActaTextLimits.ScheduleReasonMessage);
 
-    // Mirrors the [JobSchedule] registration path's validation, restricted to the schedule's existing
-    // kind (expression_kind_code carries no override, so an operator override cannot switch Cron<->interval).
-    // Cronos/interval parse failures surface as ArgumentException before any DB write.
+    /// <summary>
+    /// Mirrors the [JobSchedule] registration path's validation, restricted to the schedule's
+    /// existing kind (expression_kind_code carries no override, so an operator override cannot
+    /// switch Cron and interval). Cronos/interval parse failures surface as ArgumentException
+    /// before any DB write.
+    /// </summary>
     private static void ValidateExpression(string expression, ScheduleExpressionKindCode kind)
     {
         try
@@ -336,7 +343,10 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         }
     }
 
-    // A short operator-readable summary of what changed, e.g. "name: expression 0 0 * * * -> */5 * * * *; tz cleared".
+    /// <summary>
+    /// A short operator-readable summary of what changed, e.g.
+    /// "name: expression 0 0 * * * -&gt; */5 * * * *; tz cleared".
+    /// </summary>
     private static string ChangeSummary(LiveSchedule t, string newExpression, string? newTimeZone)
     {
         var parts = new List<string>(2);
@@ -358,9 +368,11 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     private static ScheduleControlResult ToResult(ScheduleControlOutcome o) =>
         new((ControlAction)(byte)o.Action, o.Status, o.PausedUntilUtc, o.NextRunAtUtc, o.Version);
 
-    // When recomputation finds an upcoming slot, the slot job lands ready. It may carry a scheduled run
-    // time, but waking idle loops makes them re-read their horizon. Without an upcoming slot, the job
-    // stays paused and needs no wake.
+    /// <summary>
+    /// When recomputation finds an upcoming slot, the slot job lands ready. It may carry a
+    /// scheduled run time, but waking idle loops makes them re-read their horizon. Without an
+    /// upcoming slot, the job stays paused and needs no wake.
+    /// </summary>
     private ValueTask PublishScheduleWakeAsync(DateTime? jobNextRun, JobControlActionInternal action, CancellationToken ct) =>
         action == JobControlActionInternal.Applied && jobNextRun is not null
             ? wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct)

@@ -40,9 +40,7 @@ public class ManifestGeneratorDiagnosticTests
 
     private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => [.. result.Diagnostics.Where(d => d.Id == id)];
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0101: duplicate job name
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Duplicate_job_name_errors_ACTA0101()
@@ -74,9 +72,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.All(errors, d => Assert.Equal(DiagnosticSeverity.Error, d.Severity));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0102: invalid job name
-    // ----------------------------------------------------------------------------------------
 
     [Theory]
     [InlineData("Send_Email")]
@@ -183,9 +179,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(result.Diagnostics);
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0103: invalid handler signature (all variants share the ID)
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Async_void_handler_errors_ACTA0103()
@@ -385,9 +379,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0103"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0104: duplicate input type (warning)
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Duplicate_input_type_warns_ACTA0104_and_keeps_both_jobs_in_the_manifest()
@@ -447,9 +439,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(Of(result, "ACTA0104"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0105: invalid policy value
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Malformed_duration_errors_ACTA0105()
@@ -745,9 +735,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Contains("JobRetentionSeconds = 7776000,", manifest);
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0121: invalid schedule declaration
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void JobSchedule_without_Job_errors_ACTA0121()
@@ -849,9 +837,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0121"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0122: invalid schedule expression
-    // ----------------------------------------------------------------------------------------
 
     [Theory]
     [InlineData("nonsense")]
@@ -969,9 +955,7 @@ public class ManifestGeneratorDiagnosticTests
         }
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0123: scheduled input not constructible
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Scheduled_input_without_parameterless_ctor_errors_ACTA0123()
@@ -995,9 +979,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0123"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0131: invalid payload format declaration
-    // ----------------------------------------------------------------------------------------
 
     private const string SerializerBody = """
         public JobPayloadFormat Format => default;
@@ -1124,9 +1106,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(result.Diagnostics);
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0132: invalid [Job] payload-format usage
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Format_shorthand_is_valid_no_diagnostics()
@@ -1287,9 +1267,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(Of(result, "ACTA0132"));
     }
 
-    // ----------------------------------------------------------------------------------------
     // ACTA0106: contract member name collision (separators removed, case-insensitive)
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Contract_member_collision_warns_ACTA0106()
@@ -1316,10 +1294,8 @@ public class ManifestGeneratorDiagnosticTests
         Assert.All(warnings, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
     }
 
-    // ----------------------------------------------------------------------------------------
     // MisfireStrategy default: an unset [JobSchedule] misfire emits Skip (forward-only, drop missed),
     // matching the production scheduler's default; CatchUpOnce is opt-in.
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void JobSchedule_without_Misfire_defaults_to_Skip()
@@ -1385,9 +1361,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Contains("MisfireStrategy: MisfireStrategyCode.CatchUpOnce", manifest);
     }
 
-    // ----------------------------------------------------------------------------------------
     // Deadline policy: [Job] Deadline and DeadlineBehavior flow through to the emitted descriptor
-    // ----------------------------------------------------------------------------------------
 
     [Fact]
     public void Deadline_and_behavior_are_emitted_in_descriptor()

@@ -117,7 +117,6 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
         Assert.True(row.Version > 0, "Upsert must bump the schedule row version, not insert a fresh row.");
     }
 
-    // ---------- helpers ----------
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 

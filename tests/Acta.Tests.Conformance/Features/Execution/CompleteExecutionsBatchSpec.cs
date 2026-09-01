@@ -315,7 +315,6 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         Assert.Equal(CompleteExecutionAction.NotOwner, scalar.Action);
     }
 
-    // ---------- helpers ----------
 
     private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {

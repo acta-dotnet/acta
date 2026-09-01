@@ -32,8 +32,10 @@ internal static partial class SqlServerSchemaMigrator
         await SchemaMigrationRunner.ApplyAsync(connection, schemaName, Hooks, ct);
     }
 
-    // Dev convenience: connects to master, creates the DB if missing, then calls ApplyAsync.
-    // Production deployments should create the DB in infrastructure and call ApplyAsync directly.
+    /// <summary>
+    /// Dev convenience: connects to master, creates the DB if missing, then calls ApplyAsync.
+    /// Production deployments should create the DB in infrastructure and call ApplyAsync directly.
+    /// </summary>
     public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
@@ -170,17 +172,21 @@ internal static partial class SqlServerSchemaMigrator
         await SchemaMigrationRunner.ResetSchemaAsync(connection, schemaName, Hooks, ct);
     }
 
-    // The bounded bootstrap retries admit only documented transient conditions; a permanent
-    // configuration error (missing permission, syntax, definitively bad credentials) surfaces on the
-    // first attempt instead of burning the whole 30s budget. 1205 deadlock victim; 1807/5061
-    // concurrent CREATE/ALTER DATABASE contention; 4060 database unopenable mid-create or
-    // mid-restart; 18456 login rejected while the freshly-bounced database settles (credentials
-    // were already proven against master before either retry loop runs, so this cannot mask a wrong
-    // password); -2 client timeout; 0/64/233/10053/10054/10060 connection killed or reset.
+    /// <summary>
+    /// The bounded bootstrap retries admit only documented transient conditions; a permanent
+    /// configuration error (missing permission, syntax, definitively bad credentials) surfaces on the
+    /// first attempt instead of burning the whole 30s budget. 1205 deadlock victim; 1807/5061
+    /// concurrent CREATE/ALTER DATABASE contention; 4060 database unopenable mid-create or
+    /// mid-restart; 18456 login rejected while the freshly-bounced database settles (credentials
+    /// were already proven against master before either retry loop runs, so this cannot mask a wrong
+    /// password); -2 client timeout; 0/64/233/10053/10054/10060 connection killed or reset.
+    /// </summary>
     internal static bool IsTransientBootstrapNumber(int number) =>
         number is 1205 or 1807 or 5061 or 4060 or 18456 or -2 or 0 or 64 or 233 or 10053 or 10054 or 10060;
 
-    // Splits on a line containing only `GO`. Don't put a bare `GO` inside string literals.
+    /// <summary>
+    /// Splits on a line containing only `GO`. Don't put a bare `GO` inside string literals.
+    /// </summary>
     internal static IEnumerable<string> SplitOnGo(string script) => GoSeparatorRegex().Split(script);
 
     [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]

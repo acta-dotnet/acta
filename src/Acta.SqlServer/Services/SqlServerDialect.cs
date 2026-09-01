@@ -24,15 +24,19 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public bool SupportsRoutines => true;
 
-    // 1205: deadlock victim. 2801: an installed routine changed during concurrent bootstrap.
+    /// <summary>
+    /// 1205: deadlock victim. 2801: an installed routine changed during concurrent bootstrap.
+    /// </summary>
     public bool IsTransientConflict(Exception exception) => exception is SqlException { Number: 1205 or 2801 };
 
-    // A token-cancelled command surfaces as SqlException Number 0 ("A severe error occurred on the
-    // current command") at severity Class 11, the attention signal. 3980 ("the batch is aborted" by
-    // a client abort signal) is an unambiguous cancellation code. Number 0 is SqlClient's catch-all
-    // for a severe error, so a connection-fatal fault (KILL, transport reset) can also carry it, but
-    // at Class 20+; excluding the fatal classes keeps a genuine transport fault racing a cancelled
-    // token surfacing as the error it is. The retry funnel consults this only under a cancelled token.
+    /// <summary>
+    /// A token-cancelled command surfaces as SqlException Number 0 ("A severe error occurred on the
+    /// current command") at severity Class 11, the attention signal. 3980 ("the batch is aborted" by
+    /// a client abort signal) is an unambiguous cancellation code. Number 0 is SqlClient's catch-all
+    /// for a severe error, so a connection-fatal fault (KILL, transport reset) can also carry it, but
+    /// at Class 20+; excluding the fatal classes keeps a genuine transport fault racing a cancelled
+    /// token surfacing as the error it is. The retry funnel consults this only under a cancelled token.
+    /// </summary>
     public bool IsCancellation(Exception exception) =>
         exception is SqlException { Number: 3980 } or SqlException { Number: 0, Class: < 20 };
 
@@ -148,7 +152,9 @@ internal sealed class SqlServerDialect : ISqlDialect
             }
         );
 
-    // Column order and types must match the job_enqueue_batch TVP.
+    /// <summary>
+    /// Column order and types must match the job_enqueue_batch TVP.
+    /// </summary>
     private static readonly SqlMetaData[] BatchColumns =
     [
         new("ordinal", SqlDbType.Int),
@@ -263,7 +269,9 @@ internal sealed class SqlServerDialect : ISqlDialect
         );
     }
 
-    // Column order must match the job_definition_batch TVP.
+    /// <summary>
+    /// Column order must match the job_definition_batch TVP.
+    /// </summary>
     private static readonly SqlMetaData[] DefinitionColumns =
     [
         new("name", SqlDbType.VarChar, 128),
@@ -565,10 +573,12 @@ internal sealed class SqlServerDialect : ISqlDialect
         }
     }
 
-    // The TVP CREATE TYPE bodies live in M001 (emitted from tools/Acta.Emit's SqlServerDdlDialect),
-    // while the SqlDataRecord shapes bind positionally against them here; TvpParityTests compares the
-    // two through this map so a column added on one side fails a unit test, not a live DB apply.
-    // Declared last: a static initializer reading the arrays above must run after them.
+    /// <summary>
+    /// The TVP CREATE TYPE bodies live in M001 (emitted from tools/Acta.Emit's SqlServerDdlDialect),
+    /// while the SqlDataRecord shapes bind positionally against them here; TvpParityTests compares the
+    /// two through this map so a column added on one side fails a unit test, not a live DB apply.
+    /// Declared last: a static initializer reading the arrays above must run after them.
+    /// </summary>
     internal static readonly IReadOnlyDictionary<string, SqlMetaData[]> TvpShapes = new Dictionary<string, SqlMetaData[]>(
         StringComparer.Ordinal
     )
@@ -647,7 +657,9 @@ internal sealed class SqlServerDialect : ISqlDialect
         }
     }
 
-    // SetValue replaces the whole field; SetBytes against a reused record can retain a prior payload tail.
+    /// <summary>
+    /// SetValue replaces the whole field; SetBytes against a reused record can retain a prior payload tail.
+    /// </summary>
     private static void SetBytesOrNull(SqlDataRecord record, int ordinal, ReadOnlyMemory<byte> data, bool present)
     {
         if (!present)

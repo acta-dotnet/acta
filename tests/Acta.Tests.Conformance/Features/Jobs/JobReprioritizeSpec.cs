@@ -96,7 +96,6 @@ public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
-    // ---------- helpers ----------
 
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {

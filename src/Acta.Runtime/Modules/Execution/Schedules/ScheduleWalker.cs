@@ -129,12 +129,14 @@ internal static class ScheduleWalker
         return (schedules, SlotMin(contributions));
     }
 
-    // A schedule fires when active and due, or when a timed pause has elapsed (auto-resume).
+    /// <summary>A schedule fires when active and due, or when a timed pause has elapsed (auto-resume).</summary>
     private static bool IsDue(LiveSchedule s, DateTime nowUtc) =>
         s.Status == ScheduleStatusCode.Paused ? s.PausedUntilUtc is { } until && until <= nowUtc : s.NextRunAtUtc is { } n && n <= nowUtc;
 
-    // The slot's next run is the earliest schedule contribution: active schedules offer their cursor, a
-    // timed pause still ahead offers its wake instant, an indefinite pause or exhausted schedule offers
-    // nothing (null, ignored by Min).
+    /// <summary>
+    /// The slot's next run is the earliest schedule contribution: active schedules offer their
+    /// cursor, a timed pause still ahead offers its wake instant, an indefinite pause or exhausted
+    /// schedule offers nothing (null, ignored by Min).
+    /// </summary>
     private static DateTime? SlotMin(IEnumerable<DateTime?> contributions) => contributions.Min();
 }

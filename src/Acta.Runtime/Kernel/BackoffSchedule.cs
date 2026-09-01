@@ -2,8 +2,7 @@ namespace Acta.Runtime.Kernel;
 
 /// <summary>
 /// Computes the retry backoff delay for a failed attempt: <c>initial * multiplier^(attempt-1)</c>,
-/// capped at the maximum, with symmetric jitter applied. The single origin of the retry growth curve so
-/// the policy lives in one place.
+/// capped at the maximum, with symmetric jitter applied. The single origin of the retry growth curve.
 /// </summary>
 internal static class BackoffSchedule
 {
@@ -41,9 +40,6 @@ internal static class BackoffSchedule
         return (int)Math.Round(delay);
     }
 
-    /// <summary>
-    /// Whole-second delay for retry <paramref name="attemptNumber"/>, from a parsed <see cref="Acta.Backoff"/>.
-    /// </summary>
     public static int ComputeDelaySeconds(int attemptNumber, Backoff backoff) =>
         ComputeDelaySeconds(
             attemptNumber,

@@ -129,9 +129,6 @@ internal static class QueryValidation
         }
     }
 
-    /// <summary>
-    /// Rejects an optional id filter that is zero or negative.
-    /// </summary>
     public static void ValidatePositiveId(long? value, string paramName)
     {
         if (value is < 1)

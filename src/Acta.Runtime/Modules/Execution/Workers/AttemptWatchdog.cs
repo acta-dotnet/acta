@@ -19,18 +19,24 @@ internal sealed class AttemptWatchdog
     private readonly WorkerRegistration? _workerRegistration;
     private readonly WorkerContext _context;
 
-    // Scan cadence: one quarter heartbeat interval. At the tightest validated config (LeaseTtl = 2x
-    // HeartbeatInterval), the unwind margin is half an interval, so even a threshold crossed immediately
-    // after one scan is observed with at least a quarter interval left before expiry.
+    /// <summary>
+    /// Scan cadence: one quarter heartbeat interval. At the tightest validated config
+    /// (LeaseTtl = 2x HeartbeatInterval), the unwind margin is half an interval, so even a
+    /// threshold crossed immediately after one scan is observed with at least a quarter interval
+    /// left before expiry.
+    /// </summary>
     private readonly TimeSpan _cadence;
 
-    // Unwind margin as monotonic Stopwatch ticks: cancel this far before a conservative deadline. Set to
-    // half the base runway (LeaseTtl - HeartbeatInterval), which is always strictly less than the runway a
-    // healthy attempt still has just before each renewal, so a renewer that keeps up never trips it - for
-    // every config the validator permits (LeaseTtl >= 2x HeartbeatInterval), not only the 4x default. The
-    // remaining half-runway is the handler's window to observe cancellation and unwind before the lease
-    // actually lapses (a full interval at the 4x default). The faster scan preserves a quarter-interval
-    // worst-case window even at the 2x floor.
+    /// <summary>
+    /// Unwind margin as monotonic Stopwatch ticks: cancel this far before a conservative deadline.
+    /// Set to half the base runway (LeaseTtl - HeartbeatInterval), which is always strictly less
+    /// than the runway a healthy attempt still has just before each renewal, so a renewer that
+    /// keeps up never trips it - for every config the validator permits (LeaseTtl >= 2x
+    /// HeartbeatInterval), not only the 4x default. The remaining half-runway is the handler's
+    /// window to observe cancellation and unwind before the lease actually lapses (a full interval
+    /// at the 4x default). The faster scan preserves a quarter-interval worst-case window even at
+    /// the 2x floor.
+    /// </summary>
     private readonly long _marginStopwatchTicks;
     private readonly Func<long> _getTimestamp;
     private readonly ILogger _log;
@@ -83,9 +89,12 @@ internal sealed class AttemptWatchdog
         }
     }
 
-    // One watchdog pass: cancel every attempt whose earliest lease deadline is within the unwind margin.
-    // Pure in-memory (no store calls), so it always runs to completion on time. Exposed for the test seam
-    // and returns a completed task so RunHeartbeatOnceAsync can await the three passes uniformly.
+    /// <summary>
+    /// One watchdog pass: cancel every attempt whose earliest lease deadline is within the unwind
+    /// margin. Pure in-memory (no store calls), so it always runs to completion on time. Exposed
+    /// for the test seam and returns a completed task so RunHeartbeatOnceAsync can await the three
+    /// passes uniformly.
+    /// </summary>
     public Task TickAsync(CancellationToken ct)
     {
         var now = _getTimestamp();

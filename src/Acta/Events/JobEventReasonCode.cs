@@ -18,7 +18,6 @@ public enum JobEventReasonCode : byte
     [Code("unspecified", "Reason id not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    // ---------- Job transitions ----------
 
     /// <summary>
     /// Default catch-all when no system-catalog code fits. The operator-readable story lives in
@@ -57,8 +56,10 @@ public enum JobEventReasonCode : byte
     [Code("job.schedules-exhausted", "Recurring slot has no live JobSchedule yielding a next instant; row is system-paused.")]
     JobSchedulesExhausted = 30,
 
-    // The actor (operator / system / worker) is carried separately by JobEvent.actor_code; this
-    // code says WHY/HOW the control happened, not WHO.
+    /// <summary>
+    /// This code says WHY/HOW the control happened, not WHO; the actor (operator / system /
+    /// worker) is carried separately by JobEvent.actor_code.
+    /// </summary>
     [Code("job.control-manual", "Operator-initiated control transition via an IJobs control verb (Cancel/Pause/Resume/Restart).")]
     JobControlManual = 40,
 
@@ -128,9 +129,9 @@ public enum JobEventReasonCode : byte
     )]
     JobWaitTimedOut = 65,
 
-    // ---------- Worker / system ----------
-    // worker.* events carry job_id = null; the reason lives on events, never on a job row.
-
+    /// <summary>
+    /// worker.* events carry job_id = null; the reason lives on events, never on a job row.
+    /// </summary>
     [Code("worker.clean-shutdown", "Worker process exited cleanly via SIGTERM / IHostedService.StopAsync.")]
     WorkerCleanShutdown = 100,
 

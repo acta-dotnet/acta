@@ -15,7 +15,6 @@ public class JobRequestBuilderTests
     private const string Ns = "samples";
     private const string Name = "fetch-joke";
 
-    // ----- happy-path equivalence -----
 
     [Fact]
     public void Create_with_namespace_and_name_builds_equivalent_to_record_constructor()
@@ -33,7 +32,6 @@ public class JobRequestBuilderTests
         Assert.Null(request.Tags);
     }
 
-    // ----- payload setters -----
 
     [Fact]
     public void Json_sets_payload_via_JobPayload_Json()
@@ -93,7 +91,6 @@ public class JobRequestBuilderTests
         Assert.Equal(expected.Format.Id, built.Input.Format.Id);
     }
 
-    // ----- wire-field setters -----
 
     [Fact]
     public void DeduplicationKey_assigns_field()
@@ -162,7 +159,6 @@ public class JobRequestBuilderTests
         );
     }
 
-    // ----- delayed enqueue -----
 
     [Fact]
     public void Default_NextRunAtUtc_is_null()
@@ -223,7 +219,6 @@ public class JobRequestBuilderTests
         Assert.Null(relativeWins.NextRunAtUtc);
     }
 
-    // ----- tag setters -----
 
     [Fact]
     public void Tag_appends_to_tags_list()
@@ -329,7 +324,6 @@ public class JobRequestBuilderTests
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).Tags(new TagInput("a", "1"), null!));
     }
 
-    // ----- Batch() convenience overload -----
 
     [Fact]
     public void Batch_without_id_adds_presence_only_tag()
@@ -373,7 +367,6 @@ public class JobRequestBuilderTests
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).Batch(tooLong));
     }
 
-    // ----- deduplication convenience -----
 
     [Fact]
     public void Deduplicate_composes_DeduplicationKey_from_jobName_and_businessKey()
@@ -392,7 +385,6 @@ public class JobRequestBuilderTests
         Assert.Equal(DeduplicationKey.ForDefinition(Name, "a"), built2.DeduplicationKey);
     }
 
-    // ----- identifier validation -----
 
     [Theory]
     [InlineData("")] // empty
@@ -445,7 +437,6 @@ public class JobRequestBuilderTests
         );
     }
 
-    // ----- name casing -----
 
     [Fact]
     public void Builder_rejects_mixed_case_job_name()
@@ -453,7 +444,6 @@ public class JobRequestBuilderTests
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, "Add-Numbers"));
     }
 
-    // ----- Build() repeatability -----
 
     [Fact]
     public void Build_is_repeatable_and_isolates_subsequent_mutation()
@@ -486,7 +476,6 @@ public class JobRequestBuilderTests
         Assert.Equal(2, secondBuild.Tags!.Count);
     }
 
-    // ----- direct tests for new IdentifierSyntax helper -----
 
     public class ValidateUserDottedKebabTests
     {
@@ -525,7 +514,6 @@ public class JobRequestBuilderTests
         }
     }
 
-    // ----- direct tests for new JobPayload factories -----
 
     public class JobPayloadConvenienceFactoryTests
     {

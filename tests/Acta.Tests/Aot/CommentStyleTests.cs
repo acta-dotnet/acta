@@ -91,7 +91,6 @@ public sealed partial class CommentStyleTests
         "src/Acta.Runtime/Modules/Execution/Definitions/JobTypeIndex.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerContext.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerHeartbeat.cs",
-        "src/Acta.Runtime/Hosting/WorkerRegistration.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntime.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeHost.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeInitializer.cs",

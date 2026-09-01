@@ -140,9 +140,11 @@ internal sealed class DbSession : IDbSession
         return rows.Count > 0 ? rows[^1] : null;
     }
 
-    // Caller-transaction execute: joins the supplied transaction rather than owning one. No connection
-    // open/dispose, no BeginWriteTransaction, no commit/rollback, and no DeadlockRetry - Acta never
-    // retries inside the caller's transaction; any failure requires the caller to roll it back.
+    /// <summary>
+    /// Caller-transaction execute: joins the supplied transaction rather than owning one. No connection
+    /// open/dispose, no BeginWriteTransaction, no commit/rollback, and no DeadlockRetry - Acta never
+    /// retries inside the caller's transaction; any failure requires the caller to roll it back.
+    /// </summary>
     public Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
         DbTransaction transaction,
         StoreCommand command,
@@ -169,8 +171,10 @@ internal sealed class DbSession : IDbSession
         );
     }
 
-    // Structural validation only (no database-identity probe): the transaction must be attached to an
-    // open connection of this provider's concrete ADO.NET type. Fails before any command executes.
+    /// <summary>
+    /// Structural validation only (no database-identity probe): the transaction must be attached to an
+    /// open connection of this provider's concrete ADO.NET type. Fails before any command executes.
+    /// </summary>
     private DbConnection ValidateCallerTransaction(DbTransaction transaction)
     {
         var connection = CallerTransaction.RequireOpenConnection(transaction);
@@ -195,13 +199,15 @@ internal sealed class DbSession : IDbSession
             ct
         );
 
-    // The one owned-write shape, split at the point where the batch has fully executed and is ready to
-    // commit. Everything before that point - open, begin, bind, execute - runs inside DeadlockRetry: a
-    // transient there leaves nothing committed, and the attempt's transaction is rolled back by its
-    // dispose before the next attempt re-opens. The commit and teardown run OUTSIDE the retry, because
-    // a transient raised once the batch has landed is not safely replayable: re-running the whole batch
-    // against rows it already changed reads as a lost CAS. Such a failure surfaces as the error it is,
-    // for the executor's retryable-abort path and the caller's own failure budget to recover.
+    /// <summary>
+    /// The one owned-write shape, split at the point where the batch has fully executed and is ready to
+    /// commit. Everything before that point - open, begin, bind, execute - runs inside DeadlockRetry: a
+    /// transient there leaves nothing committed, and the attempt's transaction is rolled back by its
+    /// dispose before the next attempt re-opens. The commit and teardown run OUTSIDE the retry, because
+    /// a transient raised once the batch has landed is not safely replayable: re-running the whole batch
+    /// against rows it already changed reads as a lost CAS. Such a failure surfaces as the error it is,
+    /// for the executor's retryable-abort path and the caller's own failure budget to recover.
+    /// </summary>
     private async Task<T> ExecuteThenCommitAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
@@ -257,15 +263,17 @@ internal sealed class DbSession : IDbSession
         );
     }
 
-    // Tears a failed attempt down without ever becoming the failure itself. The transaction goes first
-    // (its dispose is what rolls back) and the connection goes regardless, because a rollback on a
-    // connection the database already aborted is the likeliest thing here to throw, and losing the
-    // connection to it would leak one per failed attempt. Both teardown failures are swallowed so the
-    // attempt's own exception is what propagates: DeadlockRetry classifies whatever leaves this scope,
-    // and a dispose exception in its place would make a transient stop looking like one and abandon a
-    // retry that would have succeeded. Swallowed toward the caller is not swallowed outright: each one
-    // is logged at warning, because a connection that failed to dispose never returns to the pool and
-    // pool exhaustion is otherwise the first symptom an operator sees.
+    /// <summary>
+    /// Tears a failed attempt down without ever becoming the failure itself. The transaction goes first
+    /// (its dispose is what rolls back) and the connection goes regardless, because a rollback on a
+    /// connection the database already aborted is the likeliest thing here to throw, and losing the
+    /// connection to it would leak one per failed attempt. Both teardown failures are swallowed so the
+    /// attempt's own exception is what propagates: DeadlockRetry classifies whatever leaves this scope,
+    /// and a dispose exception in its place would make a transient stop looking like one and abandon a
+    /// retry that would have succeeded. Swallowed toward the caller is not swallowed outright: each one
+    /// is logged at warning, because a connection that failed to dispose never returns to the pool and
+    /// pool exhaustion is otherwise the first symptom an operator sees.
+    /// </summary>
     private async ValueTask DisposeFailedAttemptAsync(DbTransaction? tx, DbConnection conn)
     {
         try
@@ -300,16 +308,20 @@ internal sealed class DbSession : IDbSession
         }
     }
 
-    // Carries the still-open connection and uncommitted transaction of a batch that executed cleanly
-    // out of the retried region, so the commit can happen outside it.
+    /// <summary>
+    /// Carries the still-open connection and uncommitted transaction of a batch that executed cleanly
+    /// out of the retried region, so the commit can happen outside it.
+    /// </summary>
     private readonly record struct ExecutedBatch<T>(DbConnection Connection, DbTransaction? Transaction, T Value);
 
     private DbTransaction? BeginWriteTransaction(DbConnection conn) =>
         _dialect.WrapsMutationInTransaction ? _dialect.BeginImmediateTransaction(conn) : null;
 
-    // Binds parameters before configuring the routine: the Postgres routine command text is built
-    // from the bound parameter list, so it must be populated first. Inline providers set the body up
-    // front and bind afterward.
+    /// <summary>
+    /// Binds parameters before configuring the routine: the Postgres routine command text is built
+    /// from the bound parameter list, so it must be populated first. Inline providers set the body up
+    /// front and bind afterward.
+    /// </summary>
     private DbCommand CreateBoundWriteCommand(DbConnection conn, DbTransaction? tx, StoreCommand command, Action<DbCommand> bind)
     {
         var cmd = conn.CreateCommand();
@@ -332,8 +344,10 @@ internal sealed class DbSession : IDbSession
         return cmd;
     }
 
-    // Routine providers return one result set; inline providers put the outcome in the LAST set
-    // (leading statements are guards/writes), so advance and keep the final result set.
+    /// <summary>
+    /// Routine providers return one result set; inline providers put the outcome in the LAST set
+    /// (leading statements are guards/writes), so advance and keep the final result set.
+    /// </summary>
     private async Task<IReadOnlyList<T>> ReadPrimaryRowsAsync<T>(DbCommand cmd, Func<DbDataReader, T> mapRow, CancellationToken ct)
     {
         var rows = new List<T>();

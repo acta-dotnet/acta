@@ -15,9 +15,11 @@ namespace Acta.AspNetCore.Web;
 /// </remarks>
 internal static class ProducesJsonExtensions
 {
-    // Takes the interface rather than a generic self-type: C# cannot infer one type argument and
-    // require the other, so a generic builder parameter would force every call site to spell out
-    // RouteGroupBuilder as well. These are statements, not fluent chains, so nothing is lost.
+    /// <summary>
+    /// Takes the interface rather than a generic self-type: C# cannot infer one type argument and
+    /// require the other, so a generic builder parameter would force every call site to spell out
+    /// RouteGroupBuilder as well. These are statements, not fluent chains, so nothing is lost.
+    /// </summary>
     public static void ProducesJson<TResponse>(this IEndpointConventionBuilder builder, int statusCode = StatusCodes.Status200OK) =>
         builder.Add(endpoint => endpoint.Metadata.Add(new ActaProducesResponse(statusCode, typeof(TResponse))));
 

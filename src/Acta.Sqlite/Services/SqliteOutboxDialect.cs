@@ -16,7 +16,9 @@ namespace Acta.Sqlite.Services;
 /// </summary>
 internal sealed class SqliteOutboxDialect : OutboxSourceDialect
 {
-    // The canonical SQLite outbox instant encoding (millisecond ISO text), shared with the staging extension.
+    /// <summary>
+    /// The canonical SQLite outbox instant encoding (millisecond ISO text), shared with the staging extension.
+    /// </summary>
     public const string InstantFormat = "yyyy-MM-dd HH:mm:ss.fff";
 
     private readonly SqliteDialect _inner = new(ExecutionProfile.Direct);

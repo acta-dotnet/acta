@@ -8,9 +8,6 @@ namespace Acta.Runtime.Services.Time;
 /// </summary>
 internal interface IActaClock
 {
-    /// <summary>
-    /// Current UTC instant from the authoritative clock.
-    /// </summary>
     ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct);
 }
 

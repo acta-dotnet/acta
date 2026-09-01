@@ -215,14 +215,18 @@ internal sealed class JobsService(
         return new PagedResult<JobListItem>(items, nextCursor, hasMore, pageSize, page.Total);
     }
 
-    // Acta-owned single enqueue: shares the whole pipeline with the caller-transaction twin and, unlike
-    // it, publishes the post-enqueue wakeup.
+    /// <summary>
+    /// Acta-owned single enqueue: shares the whole pipeline with the caller-transaction twin and,
+    /// unlike it, publishes the post-enqueue wakeup.
+    /// </summary>
     public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct) =>
         EnqueueOneCoreAsync(request, (row, jobRef, token) => store.EnqueueOneAsync(row, jobRef, token), publishWake: true, ct);
 
-    // Caller-transaction single enqueue: same normalization, size, canonicalization, validation, and
-    // exception translation as the owned path, but inserts through the supplied transaction and never
-    // wakes a worker (Acta cannot know whether or when the caller commits).
+    /// <summary>
+    /// Caller-transaction single enqueue: same normalization, size, canonicalization, validation,
+    /// and exception translation as the owned path, but inserts through the supplied transaction
+    /// and never wakes a worker (Acta cannot know whether or when the caller commits).
+    /// </summary>
     public ValueTask<JobEnqueueOutcome> EnqueueInTransactionAsync(
         DbTransaction transaction,
         JobEnqueueRequest request,
@@ -282,7 +286,7 @@ internal sealed class JobsService(
         return outcome;
     }
 
-    // Acta-owned batch enqueue: publishes one wakeup per distinct due namespace.
+    /// <summary>Acta-owned batch enqueue: publishes one wakeup per distinct due namespace.</summary>
     public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(IReadOnlyList<JobEnqueueRequest> requests, CancellationToken ct) =>
         EnqueueBatchCoreAsync(
             requests,
@@ -292,8 +296,10 @@ internal sealed class JobsService(
             ct
         );
 
-    // Caller-transaction batch enqueue: the whole batch inserts through the supplied transaction and no
-    // wakeup is published.
+    /// <summary>
+    /// Caller-transaction batch enqueue: the whole batch inserts through the supplied transaction
+    /// and no wakeup is published.
+    /// </summary>
     public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchInTransactionAsync(
         DbTransaction transaction,
         IReadOnlyList<JobEnqueueRequest> requests,
@@ -472,9 +478,12 @@ internal sealed class JobsService(
     public ValueTask<JobControlResult> PauseAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct) =>
         ApplyControlAsync(job, (id, c) => store.PauseJobAsync(id, Input(reasonMessage, actorKey), c), ct);
 
-    // Resume and restart are recurring-aware: a recurring slot recomputes its misfire-aware slot MIN
-    // (run-now for non-recurring jobs). A recurring slot whose schedules all yield no upcoming run is
-    // rejected rather than resumed/restarted to run-now; restart must not resurrect a removed slot.
+    /// <summary>
+    /// Resume and restart are recurring-aware: a recurring slot recomputes its misfire-aware slot
+    /// MIN (run-now for non-recurring jobs). A recurring slot whose schedules all yield no upcoming
+    /// run is rejected rather than resumed/restarted to run-now; restart must not resurrect a
+    /// removed slot.
+    /// </summary>
     public async ValueTask<JobControlResult> ResumeAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct)
     {
         var result = await ApplyControlAsync(
@@ -566,9 +575,11 @@ internal sealed class JobsService(
 
     public Task ResetJobStateAsync(long jobId, CancellationToken ct) => store.ResetJobStateAsync(jobId, ct);
 
-    // Enqueue guards raise provider exceptions whose message begins with a stable ACTA:ENQ_* token
-    // (sqlite RAISE carries only text, so the discriminator lives in the message). Tokens are matched
-    // by substring because provider wrappers may prepend context (e.g. "SQLite Error N:").
+    /// <summary>
+    /// Enqueue guards raise provider exceptions whose message begins with a stable ACTA:ENQ_* token
+    /// (sqlite RAISE carries only text, so the discriminator lives in the message). Tokens are
+    /// matched by substring because provider wrappers may prepend context (e.g. "SQLite Error N:").
+    /// </summary>
     private static readonly (string Token, EnqueueRejectionReason Reason)[] EnqueueRejectionTokens =
     [
         ("ACTA:ENQ_NS_SUSPENDED:", EnqueueRejectionReason.NamespaceSuspended),
@@ -594,10 +605,12 @@ internal sealed class JobsService(
         return null;
     }
 
-    // The enqueue publish rule: a request schedules ahead of now when it carries a positive delay or
-    // any absolute run time; otherwise it is due now and wakes WorkAvailable whether inserted or
-    // deduplicated. A scheduled-ahead INSERT wakes HorizonChanged; a scheduled-ahead dedupe changes
-    // nothing, so no wake.
+    /// <summary>
+    /// The enqueue publish rule: a request schedules ahead of now when it carries a positive delay
+    /// or any absolute run time; otherwise it is due now and wakes WorkAvailable whether inserted
+    /// or deduplicated. A scheduled-ahead INSERT wakes HorizonChanged; a scheduled-ahead dedupe
+    /// changes nothing, so no wake.
+    /// </summary>
     private static WorkerWakeupReason? EnqueueWakeReason(JobEnqueueRequest request, JobEnqueueAction action)
     {
         var scheduledAhead = request.DelaySeconds is > 0 || request.NextRunAtUtc is not null;
@@ -626,11 +639,13 @@ internal sealed class JobsService(
         );
     }
 
-    // Same-batch duplicate DeduplicationKeys never reach the dedup logic in the routine (it only matches
-    // rows already in the table), so the providers diverge: SQL Server trips the unique index and
-    // throws, Postgres skips one row via ON CONFLICT and returns a null job_id. Reject in C# before
-    // any SQL so the outcome is identical everywhere. The dedup scope mirrors the unique indexes: per
-    // namespace for roots, per direct parent for children.
+    /// <summary>
+    /// Same-batch duplicate DeduplicationKeys never reach the dedup logic in the routine (it only
+    /// matches rows already in the table), so the providers diverge: SQL Server trips the unique
+    /// index and throws, Postgres skips one row via ON CONFLICT and returns a null job_id. Reject
+    /// in C# before any SQL so the outcome is identical everywhere. The dedup scope mirrors the
+    /// unique indexes: per namespace for roots, per direct parent for children.
+    /// </summary>
     internal static void ValidateDeduplicationKeyUniqueness(IReadOnlyList<JobEnqueueRow> rows)
     {
         if (rows.Count < 2)
@@ -673,10 +688,12 @@ internal sealed class JobsService(
         }
     }
 
-    // The public control surface is operator/manual only: the actor (Operator) and causal reason
-    // (ControlManual) are stamped here, never accepted from the caller. reason_message is capped to
-    // the column's declared length so an over-length operator message is capped identically on both
-    // providers.
+    /// <summary>
+    /// The public control surface is operator/manual only: the actor (Operator) and causal reason
+    /// (ControlManual) are stamped here, never accepted from the caller. reason_message is capped
+    /// to the column's declared length so an over-length operator message is capped identically on
+    /// both providers.
+    /// </summary>
     private static JobControlInput Input(string? msg, string? actorKey) =>
         new(Operator(actorKey), Acta.JobEventReasonCode.JobControlManual, msg.Truncate(ActaTextLimits.ReasonMessage));
 

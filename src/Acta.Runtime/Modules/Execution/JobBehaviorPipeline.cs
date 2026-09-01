@@ -41,8 +41,10 @@ internal sealed class JobBehaviorPipeline(IReadOnlyList<Func<IServiceProvider, I
         return next;
     }
 
-    // A behavior must call next at most once: a second call would re-run the handler within the same
-    // attempt. The interface cannot enforce this, so each captured continuation is guarded.
+    /// <summary>
+    /// A behavior must call next at most once: a second call would re-run the handler within the
+    /// same attempt. The interface cannot enforce this, so each captured continuation is guarded.
+    /// </summary>
     private static JobBehaviorDelegate Once(JobBehaviorDelegate next)
     {
         var called = 0;

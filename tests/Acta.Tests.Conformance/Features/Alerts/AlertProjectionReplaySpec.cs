@@ -226,7 +226,6 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(3, Assert.Single(afterSecondReplay, a => a.Kind == AlertKindCode.FirstFailure).OccurrenceCount);
     }
 
-    // ---------- driving the slot ----------
 
     private Task<long> SlotIdAsync(CancellationToken ct) => AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, JobName, ct);
 
@@ -263,7 +262,6 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal((short)0, slot.FailureCount);
     }
 
-    // ---------- driving the projector ----------
 
     // The compiled AlertsJob constant names the cursor variable, so the crash this spec stages keeps
     // targeting the projector's real checkpoint even if the projector renames it.

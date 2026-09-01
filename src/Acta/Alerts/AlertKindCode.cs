@@ -2,6 +2,10 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>
+/// What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is
+/// not behavioral.
+/// </summary>
 [JsonConverter(typeof(AlertKindCodeJsonConverter))]
 [CodeKind("alert-kind", Extensible = true)]
 public enum AlertKindCode : byte
@@ -13,7 +17,6 @@ public enum AlertKindCode : byte
     [Code("unspecified", "Alert kind not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    // Sparse catalog ids leave insertion room; numeric ordering is not behavioral.
     [Code("first-failure", "Failure that opened the incident; emitted by Automatic origin on non-terminal failure.")]
     FirstFailure = 10,
 

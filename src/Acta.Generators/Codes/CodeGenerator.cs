@@ -429,8 +429,10 @@ public sealed class CodeGenerator : IIncrementalGenerator
         return true;
     }
 
-    // ACTA02xx diagnostics. Messages are fully formatted at the check site; every descriptor passes
-    // them through. Static descriptors keep the IDs discoverable for analyzer release tracking (RS2002).
+    /// <summary>
+    /// ACTA02xx diagnostics. Messages are fully formatted at the check site; every descriptor passes
+    /// them through. Static descriptors keep the IDs discoverable for analyzer release tracking (RS2002).
+    /// </summary>
     private static readonly DiagnosticDescriptor CodeFamilyDeclaration = new(
         id: "ACTA0201",
         title: "Code-family declarations must be complete",
@@ -651,9 +653,11 @@ public sealed class CodeGenerator : IIncrementalGenerator
         spc.AddSource($"{extName}.g.cs", sb.ToString());
     }
 
-    // Canonical strings only, both ways: the wire form of a code is its kebab Code string, and the
-    // numeric id is a storage detail that never crosses JSON. Reading a number or a numeric string
-    // would be compatibility shaping for a producer that does not exist.
+    /// <summary>
+    /// Canonical strings only, both ways: the wire form of a code is its kebab Code string, and the
+    /// numeric id is a storage detail that never crosses JSON. Reading a number or a numeric string
+    /// would be compatibility shaping for a producer that does not exist.
+    /// </summary>
     private static void AppendJsonConverter(StringBuilder sb, FamilyModel family, string typeName)
     {
         sb.AppendLine();
@@ -807,8 +811,10 @@ public sealed class CodeGenerator : IIncrementalGenerator
         return "\"" + escaped + "\"";
     }
 
-    // Byte is the only legal storage: ACTA0201 rejects any other underlying type, so Invalid exists
-    // only to carry that rejection to the diagnostic and never reaches emission.
+    /// <summary>
+    /// Byte is the only legal storage: ACTA0201 rejects any other underlying type, so Invalid exists
+    /// only to carry that rejection to the diagnostic and never reaches emission.
+    /// </summary>
     private enum StorageKind
     {
         Byte,
@@ -822,7 +828,9 @@ public sealed class CodeGenerator : IIncrementalGenerator
             _ => throw new InvalidOperationException($"Cannot render StorageKind.{storage} as a C# keyword."),
         };
 
-    // Fatal marks family-level breakage that suppresses emission for the whole family.
+    /// <summary>
+    /// Fatal marks family-level breakage that suppresses emission for the whole family.
+    /// </summary>
     private sealed record DiagnosticRecord(string Id, string Message, bool Fatal = false);
 
     private sealed record FieldHit(
@@ -851,7 +859,9 @@ public sealed class CodeGenerator : IIncrementalGenerator
 
     private sealed record ReservationModel(short Id, string Code);
 
-    // Start/End only: the range's whole machine effect is the ACTA0204 assignment gate, which treats
-    // every held id alike. PermanentlyUnavailable on the attribute records intent for readers.
+    /// <summary>
+    /// Start/End only: the range's whole machine effect is the ACTA0204 assignment gate, which treats
+    /// every held id alike. PermanentlyUnavailable on the attribute records intent for readers.
+    /// </summary>
     private sealed record ReservedRangeModel(short Start, short End);
 }

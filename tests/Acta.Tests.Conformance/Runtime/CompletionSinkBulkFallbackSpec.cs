@@ -220,7 +220,6 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         );
     }
 
-    // ---------- helpers ----------
 
     // A child of a Suspended parent, claimed and started: the batch routine self-filters it (it has a
     // parent), so it reaches the scalar fallback.

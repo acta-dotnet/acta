@@ -46,10 +46,12 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
     public static JsonJobPayloadSerializer WithResolver(IJsonTypeInfoResolver resolver) =>
         new(BuildDefaults(resolver ?? throw new ArgumentNullException(nameof(resolver))));
 
-    // The reflection members below (string-enum converter, DefaultJsonTypeInfoResolver) run only inside
-    // the IsReflectionEnabledByDefault branch - i.e. never under reflection-off Native AOT, where the
-    // branch is dead and trimmed. The analyzer can't evaluate the feature switch, so suppress here; the
-    // guarantee is the feature guard, not these attributes.
+    /// <summary>
+    /// The reflection members below (string-enum converter, DefaultJsonTypeInfoResolver) run only
+    /// inside the IsReflectionEnabledByDefault branch - never under reflection-off Native AOT,
+    /// where the branch is dead and trimmed. The analyzer can't evaluate the feature switch, so
+    /// suppress here; the guarantee is the feature guard, not these attributes.
+    /// </summary>
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2026",
@@ -105,10 +107,13 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
 
     public JobPayloadFormat Format => JobPayloadFormat.Json;
 
-    // Resolve T's metadata from the configured options and use the JsonTypeInfo<T> overloads, which are
-    // free of the reflection Requires* attributes the generic JsonSerializer.Serialize<T>/Deserialize<T>
-    // overloads carry. Under reflection-on the default resolver supplies the metadata; under reflection-off
-    // the app-supplied source-generated resolver does. An unresolved T throws a clear "no metadata" error.
+    /// <summary>
+    /// Resolves T's metadata from the configured options and uses the JsonTypeInfo&lt;T&gt;
+    /// overloads, which are free of the reflection Requires* attributes the generic
+    /// JsonSerializer.Serialize/Deserialize overloads carry. Under reflection-on the default
+    /// resolver supplies the metadata; under reflection-off the app-supplied source-generated
+    /// resolver does. An unresolved T throws a clear "no metadata" error.
+    /// </summary>
     public JobPayload Serialize<T>(T value)
     {
         var typeInfo = (JsonTypeInfo<T>)_options.GetTypeInfo(typeof(T));

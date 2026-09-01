@@ -38,10 +38,12 @@ internal sealed class WorkerLoop(
 
     public Task RunLoopAsync(CancellationToken ct) => RunLoopAsync(ct, ct);
 
-    // hostCt cancels in-flight execution (a hard stop); drainCt only stops the claim producer, so a
-    // graceful drain lets in-flight handlers run to completion under the still-live hostCt before the loop
-    // returns. A hard stop passes the same token for both; the single-token overload above keeps that
-    // shape for tests and callers that don't drain.
+    /// <summary>
+    /// hostCt cancels in-flight execution (a hard stop); drainCt only stops the claim producer, so
+    /// a graceful drain lets in-flight handlers run to completion under the still-live hostCt
+    /// before the loop returns. A hard stop passes the same token for both; the single-token
+    /// overload above keeps that shape for tests and callers that don't drain.
+    /// </summary>
     public async Task RunLoopAsync(CancellationToken hostCt, CancellationToken drainCt)
     {
         if (_workerRegistration is null)
@@ -133,11 +135,13 @@ internal sealed class WorkerLoop(
         }
     }
 
-    // Producer: claim Ready jobs and hand them off. WriteAsync blocks when the channel is full (all
-    // executors busy + buffer full), natural backpressure capping how far ahead the worker claims.
-    // An empty claim sleeps until the horizon's nearest run time (capped by the safety poll), and the
-    // wakeup transport interrupts that sleep the moment a publish makes work claimable, so idle
-    // pickup is signal-latency, not poll-cadence.
+    /// <summary>
+    /// Producer: claim Ready jobs and hand them off. WriteAsync blocks when the channel is full
+    /// (all executors busy + buffer full), natural backpressure capping how far ahead the worker
+    /// claims. An empty claim sleeps until the horizon's nearest run time (capped by the safety
+    /// poll), and the wakeup transport interrupts that sleep the moment a publish makes work
+    /// claimable, so idle pickup is signal-latency, not poll-cadence.
+    /// </summary>
     private async Task ClaimLoopAsync(ChannelWriter<ClaimedJob> writer, string ns, int namespaceId, int workerId, CancellationToken ct)
     {
         var options = _options.Value;
@@ -201,11 +205,13 @@ internal sealed class WorkerLoop(
         }
     }
 
-    // The idle sleep: how long an empty-handed claim loop waits before the next claim, bounded below
-    // by the anti-spin floor and above by the safety poll. Both horizon instants are DB-sourced, so
-    // their difference is a valid duration with no host-clock assumption. Jitter staggers N workers
-    // holding the same deadline; the cap is applied AFTER jitter so SafetyPollInterval remains the
-    // hard upper bound on idle sleep.
+    /// <summary>
+    /// The idle sleep: how long an empty-handed claim loop waits before the next claim, bounded
+    /// below by the anti-spin floor and above by the safety poll. Both horizon instants are
+    /// DB-sourced, so their difference is a valid duration with no host-clock assumption. Jitter
+    /// staggers N workers holding the same deadline; the cap is applied AFTER jitter so
+    /// SafetyPollInterval remains the hard upper bound on idle sleep.
+    /// </summary>
     internal static TimeSpan ComputeSleep(ClaimHorizon? horizon, TimeSpan safetyPoll, TimeSpan floor, TimeSpan jitterMax)
     {
         if (horizon is not { NextReadyAtUtc: { } nextReady } h)
@@ -232,9 +238,11 @@ internal sealed class WorkerLoop(
         return jittered > safetyPoll ? safetyPoll : jittered;
     }
 
-    // Consumer: one of N loops draining the shared channel. Each job runs to completion before the
-    // loop pulls the next, so live concurrency equals the executor count. A per-job fault is logged
-    // and swallowed so one bad job never tears the executor down.
+    /// <summary>
+    /// Consumer: one of N loops draining the shared channel. Each job runs to completion before the
+    /// loop pulls the next, so live concurrency equals the executor count. A per-job fault is
+    /// logged and swallowed so one bad job never tears the executor down.
+    /// </summary>
     private async Task ExecutorLoopAsync(ChannelReader<ClaimedJob> reader, string ns, int namespaceId, int workerId, CancellationToken ct)
     {
         try

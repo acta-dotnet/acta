@@ -154,7 +154,9 @@ internal static class CronExpressionValidator
         return TryParseValue(body.Substring(0, dash), spec, out _) && TryParseValue(body.Substring(dash + 1), spec, out _);
     }
 
-    // The dash separating a range, skipping position 0 so a lone "-" never splits to empty parts.
+    /// <summary>
+    /// The dash separating a range, skipping position 0 so a lone "-" never splits to empty parts.
+    /// </summary>
     private static int IndexOfRangeDash(string body) => body.IndexOf('-', 1 > body.Length - 1 ? body.Length - 1 : 1);
 
     private static bool TryParseValue(string text, FieldSpec spec, out int value)

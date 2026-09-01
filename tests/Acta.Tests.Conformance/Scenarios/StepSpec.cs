@@ -221,7 +221,6 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         Assert.Empty(await ReadStepsAsync(enqueued.JobId, ct));
     }
 
-    // ---------- helpers ----------
 
     private async Task<IReadOnlyList<JobStep>> ReadStepsAsync(long jobId, CancellationToken ct)
     {

@@ -138,11 +138,14 @@ internal sealed class RuntimeJobContext(
         return Deserialize<T>(stored);
     }
 
-    // One deadline for a whole group wait, stored under a reserved sys. slot name so it can never
-    // collide with a user variable. Written once and read forever after: the get-or-set upsert returns
-    // whatever landed first, so a replay, a crash, or a second call with a different timeout all resolve
-    // to the same instant and the group's budget can never restart. Ticks rather than a serialized
-    // DateTime, so the stored bytes are exact and carry no format or kind ambiguity across a round trip.
+    /// <summary>
+    /// One deadline for a whole group wait, stored under a reserved sys. slot name so it can never
+    /// collide with a user variable. Written once and read forever after: the get-or-set upsert
+    /// returns whatever landed first, so a replay, a crash, or a second call with a different
+    /// timeout all resolve to the same instant and the group's budget can never restart. Ticks
+    /// rather than a serialized DateTime, so the stored bytes are exact and carry no format or kind
+    /// ambiguity across a round trip.
+    /// </summary>
     protected override async Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
     {
         // The DB clock, not the host's: the slot dues this deadline is spent against are stamped by the
@@ -194,9 +197,11 @@ internal sealed class RuntimeJobContext(
     protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
         WaitSignalCoreAsync(name, timeoutSeconds: null, resumeOnTimeout: false, ct);
 
-    // Policy is code, not state: the slot records only the absolute expiration, so which overload the
-    // handler called decides what an expired wait does, and a replay of the other overload against the
-    // same slot is free to decide differently.
+    /// <summary>
+    /// Which overload the handler called decides what an expired wait does: the slot records only
+    /// the absolute expiration, so timeout policy lives in code, and a replay of the other
+    /// overload against the same slot is free to decide differently.
+    /// </summary>
     protected override async Task<SignalWaitOutcome> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
@@ -218,15 +223,16 @@ internal sealed class RuntimeJobContext(
         };
     }
 
-    // The wait timed out, so this parent stopped waiting; the child and everything under it is work
-    // nobody is going to read. Reason JobWaitTimedOut rather than JobParentCancelled, because the
-    // parent was NOT cancelled and the timeline must not say it was.
-    //
-    // Follow-up transactions, like every other cascade, and NOT atomic with the Expired flip that
-    // preceded them. A crash mid-walk leaves live stragglers, and no maintenance pass sweeps them: the
-    // only repair is the parent replaying this wait, re-deriving TimedOut off the Expired slot, and
-    // re-running the cancel. A parent that lands terminal without replaying strands them, which
-    // docs/technical/known-limitations.md states as a known limitation.
+    /// <summary>
+    /// The wait timed out, so this parent stopped waiting; the child and everything under it is
+    /// work nobody is going to read. Reason JobWaitTimedOut rather than JobParentCancelled, because
+    /// the parent was NOT cancelled and the timeline must not say it was.
+    /// <para>Follow-up transactions, like every other cascade, and NOT atomic with the Expired flip
+    /// that preceded them. A crash mid-walk leaves live stragglers, and no maintenance pass sweeps
+    /// them: the only repair is the parent replaying this wait, re-deriving TimedOut off the
+    /// Expired slot, and re-running the cancel. A parent that lands terminal without replaying
+    /// strands them, which docs/technical/known-limitations.md states as a known limitation.</para>
+    /// </summary>
     protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
     {
         // Parentage is a safety rail, not an optimization. A wait on an id that is not this job's child
@@ -324,10 +330,12 @@ internal sealed class RuntimeJobContext(
         CancellationToken ct
     ) => RunStepImplAsync(name, body, storeResult: true, options, ct);
 
-    // Durable step orchestration: start (decide invoke/replay/suspend/exhausted), run the body,
-    // complete (success or retry/exhaust). Retries re-arm the parent budget-neutrally via
-    // StepRetrySignal; the policy is resolved live from the parent [Job] defaults + per-step
-    // overrides each attempt and never persisted.
+    /// <summary>
+    /// Durable step orchestration: start (decide invoke/replay/suspend/exhausted), run the body,
+    /// complete (success or retry/exhaust). Retries re-arm the parent budget-neutrally via
+    /// StepRetrySignal; the policy is resolved live from the parent [Job] defaults + per-step
+    /// overrides each attempt and never persisted.
+    /// </summary>
     private async Task<TResult> RunStepImplAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
@@ -525,9 +533,12 @@ internal sealed class RuntimeJobContext(
 
     private LockToken? _exclusiveKeyToken;
 
-    // Exclusive-key admission mutex, taken by the runner after the start CAS and before the handler.
-    // Key space {ns_id}.excl.{key} is disjoint from RunWithLock's {ns_id}.lock.{key} / global.lock.{key}.
-    // Normalized defensively so one mutex group across case never depends on the stored value alone.
+    /// <summary>
+    /// Exclusive-key admission mutex, taken by the runner after the start CAS and before the
+    /// handler. Key space {ns_id}.excl.{key} is disjoint from RunWithLock's {ns_id}.lock.{key} /
+    /// global.lock.{key}. Normalized defensively so one mutex group across case never depends on
+    /// the stored value alone.
+    /// </summary>
     internal async Task<bool> TryAcquireExclusiveKeyLockAsync(string exclusiveKey, CancellationToken ct)
     {
         var key = $"{_namespaceId}.excl.{IdentifierSyntax.NormalizeKey(exclusiveKey, nameof(exclusiveKey))}";
@@ -601,8 +612,11 @@ internal sealed class RuntimeJobContext(
         await _alerts.RaiseManualAsync(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey, ct);
     }
 
-    // Caller-controlled handler writes (variables, progress) HARD-THROW past the inline cap; the write
-    // never reaches storage. Handler results take a separate warn-and-persist path in JobExecution.
+    /// <summary>
+    /// Caller-controlled handler writes (variables, progress) HARD-THROW past the inline cap; the
+    /// write never reaches storage. Handler results take a separate warn-and-persist path in
+    /// JobExecution.
+    /// </summary>
     private void EnsureInlineSize(string entryPoint, JobPayload payload)
     {
         var length = payload.Data.Length;
@@ -663,9 +677,11 @@ internal sealed class RuntimeJobContext(
         }
     }
 
-    // RunWithLock key space: namespace-scoped {ns_id}.lock.{key}, or global.lock.{key} cross-namespace.
-    // The `global` sentinel cannot equal a numeric namespace id, so a global lock never collides with a
-    // namespace-scoped one.
+    /// <summary>
+    /// RunWithLock key space: namespace-scoped {ns_id}.lock.{key}, or global.lock.{key}
+    /// cross-namespace. The `global` sentinel cannot equal a numeric namespace id, so a global lock
+    /// never collides with a namespace-scoped one.
+    /// </summary>
     private string ComposeLockKey(string key, LockScope scope)
     {
         key = IdentifierSyntax.NormalizeKey(key, nameof(key));

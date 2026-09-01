@@ -60,8 +60,10 @@ internal static class WaitTimeoutStaging
         return deadlines.Count;
     }
 
-    // Filtered in memory rather than in the query: the slot name is a prefix match on a framework-owned
-    // key, and a job carries a handful of variables at most.
+    /// <summary>
+    /// Filtered in memory rather than in the query: the slot name is a prefix match on a framework-owned
+    /// key, and a job carries a handful of variables at most.
+    /// </summary>
     private static async Task<IReadOnlyList<string>> FindGroupDeadlinesAsync(
         IDbSession db,
         long jobId,

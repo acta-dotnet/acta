@@ -8,10 +8,6 @@ namespace Acta.Runtime.Kernel;
 /// </summary>
 internal static class MessageTruncator
 {
-    /// <summary>
-    /// Returns <paramref name="value"/> unchanged when it is null, when <paramref name="maxLength"/>
-    /// is null, or when it already fits; otherwise its first <paramref name="maxLength"/> characters.
-    /// </summary>
     public static string? Truncate(this string? value, int? maxLength) =>
         value is not null && maxLength is { } max && value.Length > max ? value[..max] : value;
 }

@@ -33,8 +33,10 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
     private readonly RedisChannel _wakePattern;
     private readonly TimeSpan _remoteJitterMax;
 
-    // Channels with a delayed wake already scheduled. Set membership is the whole state: the value is
-    // unused, and ConcurrentDictionary is just the set primitive .NET does not otherwise ship.
+    /// <summary>
+    /// Channels with a delayed wake already scheduled. Set membership is the whole state: the value is
+    /// unused, and ConcurrentDictionary is just the set primitive .NET does not otherwise ship.
+    /// </summary>
     private readonly ConcurrentDictionary<WorkerWakeupChannel, byte> _pendingJittered = new();
     private readonly ILogger _log;
 
@@ -93,9 +95,11 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         return await _local.WaitAsync(channel, timeout, ct);
     }
 
-    // One pattern subscription per process, established lazily by the first waiter; publish-only
-    // processes never subscribe. A subscription raced by Redis downtime resubscribes with the
-    // multiplexer's reconnect; wakes missed meanwhile are covered by the waiters' poll floors.
+    /// <summary>
+    /// One pattern subscription per process, established lazily by the first waiter; publish-only
+    /// processes never subscribe. A subscription raced by Redis downtime resubscribes with the
+    /// multiplexer's reconnect; wakes missed meanwhile are covered by the waiters' poll floors.
+    /// </summary>
     private async ValueTask EnsureSubscribedAsync(CancellationToken ct)
     {
         if (_subscribed)
@@ -183,8 +187,10 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
     }
 
-    // Both dispose shapes: hosting disposes the container asynchronously, but plain
-    // ServiceProvider.Dispose() is synchronous and throws on an IAsyncDisposable-only singleton.
+    /// <summary>
+    /// Both dispose shapes: hosting disposes the container asynchronously, but plain
+    /// ServiceProvider.Dispose() is synchronous and throws on an IAsyncDisposable-only singleton.
+    /// </summary>
     public void Dispose()
     {
         if (_subscribed)

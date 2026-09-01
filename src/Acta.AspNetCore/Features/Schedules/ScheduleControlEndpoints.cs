@@ -201,8 +201,10 @@ internal static class ScheduleControlEndpoints
     private static ScheduleLookup Lookup(string jobNamespace, string jobName, string scheduleName) =>
         new(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
 
-    // A malformed identifier or an invalid override value surfaces from the facade as
-    // ArgumentException: caller input, so 400 rather than the sanitized 500 backstop.
+    /// <summary>
+    /// A malformed identifier or an invalid override value surfaces from the facade as
+    /// ArgumentException: caller input, so 400 rather than the sanitized 500 backstop.
+    /// </summary>
     private static async Task<IResult> Invoke(string verb, Func<ValueTask<ScheduleControlResult>> action)
     {
         try

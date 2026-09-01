@@ -78,7 +78,6 @@ public sealed class ControlContractTests
 
     private static readonly object Reason = new { reasonMessage = "because" };
 
-    // ---- the table ----
 
     // Rows run in order against one shared fake, and a row's Stage mutates it, so the table is
     // order-dependent by construction. Every row that depends on staged state sets it, and the two
@@ -462,7 +461,6 @@ public sealed class ControlContractTests
 
     private static string Path(string route, string key) => route[..route.IndexOf('{', StringComparison.Ordinal)] + key;
 
-    // ---- the facts ----
 
     [Fact]
     public async Task Every_control_outcome_answers_with_its_declared_type()
@@ -573,7 +571,6 @@ public sealed class ControlContractTests
         );
     }
 
-    // ---- reading the endpoint graph ----
 
     /// <summary>One declared response: the route, verb, status, and body type the graph promises.</summary>
     private sealed record Declaration(string Route, string Method, int Status, Type Type);
@@ -616,7 +613,6 @@ public sealed class ControlContractTests
     private static IReadOnlyList<string> Methods(RouteEndpoint endpoint) =>
         endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods is { } methods ? [.. methods] : [];
 
-    // ---- one request, one answer ----
 
     private static HttpRequestMessage Request(Case row)
     {
@@ -710,7 +706,6 @@ public sealed class ControlContractTests
 
     private static string Listed(IEnumerable<string> names) => string.Join(", ", names.OrderBy(name => name, StringComparer.Ordinal));
 
-    // ---- what the contract requires ----
 
     private const string ContractDocument = "docs/reference/openapi.json";
 

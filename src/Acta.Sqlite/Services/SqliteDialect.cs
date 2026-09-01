@@ -22,13 +22,17 @@ namespace Acta.Sqlite.Services;
 /// </summary>
 internal sealed class SqliteDialect : ISqlDialect
 {
-    // Instants are stored as epoch milliseconds (INTEGER) so numeric comparison matches chronological
-    // order on the hot path. Every bound instant goes through ToUnixMs; every db_now reading uses the
-    // {{now}} token (CAST(unixepoch('now','subsec')*1000 AS INTEGER)).
+    /// <summary>
+    /// Instants are stored as epoch milliseconds (INTEGER) so numeric comparison matches chronological
+    /// order on the hot path. Every bound instant goes through ToUnixMs; every db_now reading uses the
+    /// {{now}} token (CAST(unixepoch('now','subsec')*1000 AS INTEGER)).
+    /// </summary>
     private static readonly DateTime UnixEpoch = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    // Per-connection PRAGMAs, set on every open. journal_mode (WAL) persists in the file header and is
-    // set once by the migrator; synchronous is per-connection and chosen by the execution profile.
+    /// <summary>
+    /// Per-connection PRAGMAs, set on every open. journal_mode (WAL) persists in the file header and is
+    /// set once by the migrator; synchronous is per-connection and chosen by the execution profile.
+    /// </summary>
     private readonly string _connectionPragmas;
 
     public SqliteDialect(ExecutionProfile profile)
@@ -51,10 +55,14 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public bool WrapsMutationInTransaction => true;
 
-    // SQLITE_BUSY (5) / SQLITE_LOCKED (6): retry the rolled-back store operation.
+    /// <summary>
+    /// SQLITE_BUSY (5) / SQLITE_LOCKED (6): retry the rolled-back store operation.
+    /// </summary>
     public bool IsTransientConflict(Exception exception) => exception is SqliteException { SqliteErrorCode: 5 or 6 };
 
-    // BEGIN IMMEDIATE takes the reserved write lock up front so concurrent writers honor busy_timeout.
+    /// <summary>
+    /// BEGIN IMMEDIATE takes the reserved write lock up front so concurrent writers honor busy_timeout.
+    /// </summary>
     public DbTransaction BeginImmediateTransaction(DbConnection connection) =>
         ((SqliteConnection)connection).BeginTransaction(deferred: false);
 
@@ -67,15 +75,19 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public bool OwnsConnection(DbConnection connection) => connection is SqliteConnection;
 
-    // Caller connections we have already prepared, so repeat transactional enqueues on one long-lived
-    // connection skip re-registering the functions and the foreign_keys PRAGMA round trip. Keyed weakly so
-    // a collected caller connection drops out; Microsoft.Data.Sqlite re-applies CreateFunction on reopen,
-    // so a prepared connection stays valid across the caller's own close/reopen.
+    /// <summary>
+    /// Caller connections we have already prepared, so repeat transactional enqueues on one long-lived
+    /// connection skip re-registering the functions and the foreign_keys PRAGMA round trip. Keyed weakly so
+    /// a collected caller connection drops out; Microsoft.Data.Sqlite re-applies CreateFunction on reopen,
+    /// so a prepared connection stays valid across the caller's own close/reopen.
+    /// </summary>
     private static readonly ConditionalWeakTable<DbConnection, object> PreparedCallerConnections = [];
 
-    // Caller-transaction preparation: the caller made this SqliteConnection itself, so our StateChange
-    // hook never ran. Install only the two connection-local functions the inline enqueue SQL needs and
-    // verify foreign_keys is ON; never touch the busy timeout, synchronous mode, or transaction kind.
+    /// <summary>
+    /// Caller-transaction preparation: the caller made this SqliteConnection itself, so our StateChange
+    /// hook never ran. Install only the two connection-local functions the inline enqueue SQL needs and
+    /// verify foreign_keys is ON; never touch the busy timeout, synchronous mode, or transaction kind.
+    /// </summary>
     public void PrepareCallerConnection(DbConnection connection)
     {
         if (PreparedCallerConnections.TryGetValue(connection, out _))
@@ -136,7 +148,9 @@ internal sealed class SqliteDialect : ISqlDialect
         return new SqliteParameter { ParameterName = "@" + spec.Name, Value = ToSqliteValue(spec.Kind, DbParams.Coerce(spec)) };
     }
 
-    // SupportsRoutines is false; stores never reach the routine-invocation path.
+    /// <summary>
+    /// SupportsRoutines is false; stores never reach the routine-invocation path.
+    /// </summary>
     public void ConfigureRoutineCommand(DbCommand command, string schema, string routineName) =>
         throw new NotSupportedException("SQLite has no stored routines; store commands run as inline SQL.");
 
@@ -372,10 +386,12 @@ internal sealed class SqliteDialect : ISqlDialect
         AddText(command, "@p_schedule_advances", json);
     }
 
-    // Unreachable, and kept because ISqlDialect requires the member. Two seams stop a batch before
-    // any binding: WorkerRuntime builds no CompletionSink for a provider with SupportsRoutines false,
-    // so nothing buffers completions here, and RelationalExecutionStore.CompleteExecutionsBatchAsync
-    // throws on the same flag if something calls it directly anyway.
+    /// <summary>
+    /// Unreachable, and kept because ISqlDialect requires the member. Two seams stop a batch before
+    /// any binding: WorkerRuntime builds no CompletionSink for a provider with SupportsRoutines false,
+    /// so nothing buffers completions here, and RelationalExecutionStore.CompleteExecutionsBatchAsync
+    /// throws on the same flag if something calls it directly anyway.
+    /// </summary>
     public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema) =>
         throw new NotSupportedException("The SQLite provider has no batched-completion routine; Bulk degrades to Direct.");
 
