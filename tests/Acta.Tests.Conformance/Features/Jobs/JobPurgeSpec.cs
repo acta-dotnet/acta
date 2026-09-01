@@ -123,7 +123,6 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
-
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {
         var enqueued = await Jobs.EnqueueAsync(

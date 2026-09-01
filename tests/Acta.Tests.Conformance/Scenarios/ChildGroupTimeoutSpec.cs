@@ -404,7 +404,6 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Null(unboundedMap.ActiveWait.DueAtUtc);
     }
 
-
     // Every bounded wrapper resolves the same way: one member is let through, the group deadline is
     // rewound past, and the parent resumes reporting a group timeout beside the member that landed.
     private async Task AssertWrapperTimesOutAsync(string parentJobName)

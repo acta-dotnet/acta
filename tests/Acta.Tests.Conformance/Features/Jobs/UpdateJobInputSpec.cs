@@ -192,7 +192,6 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
-
     private async Task<Job> ReadJobRowAsync(long jobId, CancellationToken ct)
     {
         var job = await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);

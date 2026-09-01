@@ -249,7 +249,6 @@ public sealed class CompletionSinkDegradedFlushTests
         Assert.Equal(Enumerable.Range(100, 40).Select(i => (long)i).ToArray(), committed);
     }
 
-
     private static CompletionSink Sink(ScriptedExecutionStore store, WakeupSpy wakes, RecordingLogger log) =>
         new(
             store,

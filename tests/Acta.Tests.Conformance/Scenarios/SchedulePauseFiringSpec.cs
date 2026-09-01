@@ -89,7 +89,6 @@ public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Contains(EventCode.SchedulePauseExpired, events.Select(e => e.EventCode));
     }
 
-
     private ScheduleLookup Lookup() => new(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ScheduleName);
 
     private async Task<long> SlotIdAsync(CancellationToken ct)

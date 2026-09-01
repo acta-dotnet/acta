@@ -229,7 +229,6 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Equal(JobEventReasonCode.JobHandlerCancelled, cancelEvent.JobEventReasonCode);
     }
 
-
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
         // The recurring slot's deduplication_key is the definition's job name.

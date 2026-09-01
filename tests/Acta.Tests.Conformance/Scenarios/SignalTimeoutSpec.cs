@@ -419,7 +419,6 @@ public abstract class SignalTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-
     private async Task<int> CountReasonAsync(long jobId, JobEventReasonCode reason, CancellationToken ct) =>
         await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
 

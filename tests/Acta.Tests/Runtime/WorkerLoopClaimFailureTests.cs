@@ -104,7 +104,6 @@ public sealed class WorkerLoopClaimFailureTests
         Assert.Equal(1, store.Calls);
     }
 
-
     private static IReadOnlyList<RecordingLogger.Entry> ClaimErrors(RecordingLogger log) =>
         [.. log.Entries.Where(e => e.Level == LogLevel.Error && e.Message.Contains("claim iteration failed", StringComparison.Ordinal))];
 
@@ -148,7 +147,6 @@ public sealed class WorkerLoopClaimFailureTests
             await Task.Delay(10);
         }
     }
-
 
     private sealed class ClaimStore(Func<CancellationToken, ClaimResult> onClaim) : IExecutionStore
     {

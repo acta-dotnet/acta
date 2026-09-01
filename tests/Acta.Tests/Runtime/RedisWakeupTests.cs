@@ -47,7 +47,6 @@ public sealed class RedisWakeupTests
         return await wait;
     }
 
-
     [Fact]
     public void UseRedisWakeup_replaces_the_in_process_registration()
     {

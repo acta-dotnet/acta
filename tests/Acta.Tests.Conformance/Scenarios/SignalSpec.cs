@@ -254,7 +254,6 @@ public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Null(raise.Status);
     }
 
-
     private static Task SetJobStatusReadyAsync(IDbSession db, long jobId, CancellationToken ct) =>
         db.ExecuteRawAsync(
             "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",

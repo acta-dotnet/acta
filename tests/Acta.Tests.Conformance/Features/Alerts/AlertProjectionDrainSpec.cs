@@ -152,7 +152,6 @@ public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<T
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
     }
 
-
     /// <summary>
     /// One definition carrying the <c>OnTerminal</c> profile and one job under it. <c>OnTerminal</c>
     /// with terminal-failure events is the quietest alerting shape there is: each event emits exactly
@@ -200,7 +199,6 @@ public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<T
 
         return ids;
     }
-
 
     private Task RunAlertsAsync(long cursorOwnerJobId, AlertDrainBudget? drain, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain, ct);

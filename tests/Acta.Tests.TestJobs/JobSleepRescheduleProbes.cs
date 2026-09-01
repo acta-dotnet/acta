@@ -21,7 +21,6 @@ public sealed class FakeControlException : JobControlException
 /// </summary>
 public static class JobSleepRescheduleProbes
 {
-
     [Job("job-reschedule-delay")]
     public static async Task RescheduleDelay(JobContext ctx, CancellationToken ct)
     {
@@ -40,7 +39,6 @@ public static class JobSleepRescheduleProbes
     [Job("job-reschedule-until-past")]
     public static Task RescheduleUntilPast(JobContext ctx, CancellationToken ct) =>
         throw new RescheduleJobException(DateTimeOffset.UtcNow.AddMinutes(-5), "immediate");
-
 
     [Job("job-sleep-basic")]
     public static async Task SleepBasic(JobContext ctx, CancellationToken ct)
@@ -72,7 +70,6 @@ public static class JobSleepRescheduleProbes
         var negative = await Rejects<ArgumentOutOfRangeException>(() => ctx.SleepAsync("neg", TimeSpan.FromSeconds(-1), ct: ct));
         return new SleepValidationResult(invalid, reserved, negative);
     }
-
 
     [Job("job-control-unknown")]
     public static Task ControlUnknown(JobContext ctx, CancellationToken ct) => throw new FakeControlException();

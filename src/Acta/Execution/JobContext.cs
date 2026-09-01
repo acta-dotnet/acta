@@ -135,7 +135,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task SetProgressCoreAsync<T>(T value, CancellationToken ct);
 
-
     /// <summary>
     /// Set a durable per-job variable to a non-null JSON value. Last write wins.
     /// <para>
@@ -295,7 +294,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct);
 
-
     /// <summary>
     /// Clears this Job's durable state (every <c>JobCheckpoint</c>, <c>JobStep</c>, and
     /// <c>JobResult</c> row) so the next execution starts as new. Does not change the Job's status,
@@ -323,7 +321,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task ResetStateCoreAsync(CancellationToken ct);
 
-
     /// <summary>
     /// Re-arms this Job to run again after <paramref name="delay"/> and stops the current attempt
     /// without charging the failure budget. Throws <see cref="RescheduleJobException"/> synchronously;
@@ -350,7 +347,6 @@ public abstract class JobContext
         ct.ThrowIfCancellationRequested();
         throw new RescheduleJobException(resumeAtUtc, reasonMessage);
     }
-
 
     /// <summary>
     /// Deliberately ends this Job as terminal <c>Failed</c> for a business reason. Throws
@@ -448,7 +444,6 @@ public abstract class JobContext
         string? reasonMessage,
         CancellationToken ct
     );
-
 
     /// <summary>
     /// Durable, replay-safe named wait. Returns immediately when the signal <paramref name="name"/> is
@@ -594,7 +589,6 @@ public abstract class JobContext
     /// Subclass sink: deserializes a raised signal payload via the runtime serializer registry.
     /// </summary>
     protected abstract T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value);
-
 
     private const string ChildSignalPrefix = "sys.child.";
 
@@ -1179,7 +1173,6 @@ public abstract class JobContext
     /// </summary>
     protected abstract Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct);
 
-
     /// <summary>
     /// Waits for every child handle to reach a terminal status and returns the outcomes in caller
     /// order. A nicer wrapper over
@@ -1435,7 +1428,6 @@ public abstract class JobContext
         return Convert.ToHexStringLower(hash.AsSpan(0, 8));
     }
 
-
     /// <summary>
     /// Runs <paramref name="body"/> as a durable, replay-safe step identified by
     /// <paramref name="name"/>. The first invocation runs the body and records the outcome; on a parent
@@ -1545,7 +1537,6 @@ public abstract class JobContext
         StepOptions options,
         CancellationToken ct
     );
-
 
     private const int LockBackoffBaseMs = 50;
     private const int LockBackoffCapMs = 1000;
@@ -1682,7 +1673,6 @@ public abstract class JobContext
     /// throw; the wrapper defensively suppresses observer failures to preserve the handler outcome.
     /// </summary>
     protected virtual void OnLockReleaseFailure(string key, LockScope scope, Exception exception) { }
-
 
     /// <summary>
     /// Persists an operator-facing alert from inside the handler. The framework stamps the origin

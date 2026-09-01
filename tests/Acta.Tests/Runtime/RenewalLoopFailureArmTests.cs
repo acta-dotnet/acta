@@ -34,7 +34,6 @@ public sealed class RenewalLoopFailureArmTests
 
     private static readonly WorkerRegistration Registration = new("orders", null, null, [], []);
 
-
     [Fact]
     public async Task A_lock_lease_tick_that_fails_before_the_first_beat_is_logged_and_the_loop_still_exits_cleanly()
     {
@@ -128,7 +127,6 @@ public sealed class RenewalLoopFailureArmTests
         Assert.Empty(log.Errors);
     }
 
-
     [Fact]
     public async Task A_periodic_worker_heartbeat_tick_that_fails_is_logged_as_retrying_next_tick()
     {
@@ -194,7 +192,6 @@ public sealed class RenewalLoopFailureArmTests
         Assert.Empty(log.Errors);
     }
 
-
     [Fact]
     public async Task A_watchdog_tick_that_throws_is_logged_and_the_next_tick_still_enforces_the_deadline()
     {
@@ -235,7 +232,6 @@ public sealed class RenewalLoopFailureArmTests
         Assert.True(attemptCts.IsCancellationRequested);
     }
 
-
     private static (WorkerContext Context, TrackedAttempt Attempt, LockToken Token) Attempt()
     {
         var context = new WorkerContext(Registration);
@@ -256,7 +252,6 @@ public sealed class RenewalLoopFailureArmTests
     }
 
     private sealed record TrackedAttempt(RunningAttempt Attempt, CancellationTokenSource Cts);
-
 
     // Answers the Nth call by cancelling the loop's own token and then failing, which is a connection
     // torn down under a running query at shutdown: the exact state in which a tick failure reaches
