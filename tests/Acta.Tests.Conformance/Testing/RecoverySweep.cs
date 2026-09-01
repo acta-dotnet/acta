@@ -15,7 +15,12 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class RecoverySweep
 {
-    private const int MaxAttempts = 300;
+    // The retry window must outlast the longest lock a parallel spec can hold over the shared job
+    // table: a blocked chaos handler keeps its attempt alive up to its PT10S ExecutionTimeout, so a
+    // 3-second window could exhaust against a healthy neighbour and fail the assert on a genuine
+    // eligible row (observed on the SqlServer suite in CI). Fifteen seconds clears that hold with
+    // margin while a genuine zero still surfaces quickly - the loop exits on the first reclaim.
+    private const int MaxAttempts = 1500;
 
     public static async Task<ReclaimStuckJobsResult> ReclaimAtLeastOneAsync(
         IServiceProvider services,
