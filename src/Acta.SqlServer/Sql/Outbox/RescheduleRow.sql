@@ -16,7 +16,7 @@ INNER JOIN
         outbox_id UNIQUEIDENTIFIER '$.outbox_id',
         failure_count INT '$.failure_count',
         backoff_seconds INT '$.backoff_seconds',
-        last_error VARCHAR(512) '$.last_error'
+        last_error NVARCHAR(512) '$.last_error'
     ) AS r
     ON o.outbox_id = r.outbox_id
 WHERE o.claim_token = @p_claim_token AND o.status_code = 20 /* OutboxStatusCode.Claimed */;

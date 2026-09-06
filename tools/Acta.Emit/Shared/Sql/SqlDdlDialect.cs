@@ -14,11 +14,11 @@ internal abstract class SqlDdlDialect
 
     // Identity of the baseline generation, written into the generated M001 bodies and required at
     // bootstrap by SchemaMigrationRunner.RequiredBaselineStamp, so a database built from a different
-    // one fails loudly rather than taking a mismatched schema. `baseline-1.0.1` amended the
-    // still-unshipped baseline to widen namespaces.id, and every M001 statement is existence-guarded,
-    // so a database built from `baseline-1.0` would take the amended M001 as a no-op and run on
-    // smallint columns; moving the stamp is what turns that silence into a refusal.
-    protected const string BaselineStamp = "baseline-1.0.1";
+    // one fails loudly rather than taking a mismatched schema. It names the day the baseline was cut,
+    // so a re-cut identifies itself. Every M001 statement is existence-guarded, so a database built
+    // from an earlier generation would take the re-cut M001 as a no-op and run on the old shape;
+    // moving the stamp is what turns that silence into a refusal.
+    protected const string BaselineStamp = "baseline-20260909";
 
     // Every migration records its plain snake name; the baseline generation identity lives in a
     // dedicated version-0 sentinel row that every full baseline ('init' at any version - a provider

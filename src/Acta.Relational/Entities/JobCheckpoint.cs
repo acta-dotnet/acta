@@ -28,6 +28,14 @@ namespace Acta.Relational.Entities;
     Name = "ck_checkpoints_value_pair",
     Sql = "(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)"
 )]
+// Each stateful arm names status_code NOT NULL before testing membership. A CHECK passes on unknown,
+// and `NULL IN (...)` is unknown, so an arm without it admits the stateless shape it means to reject.
+[DbCheck(
+    Name = "ck_checkpoints_kind_shape",
+    Sql = "(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL)"
+        + " OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30))"
+        + " OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100))"
+)]
 internal sealed class JobCheckpoint : IEntity
 {
     /// <summary>
@@ -55,7 +63,8 @@ internal sealed class JobCheckpoint : IEntity
 
     /// <summary>
     /// <c>Pending</c> / <c>Set</c> / <c>Expired</c> (signals, child latches) or <c>Pending</c> /
-    /// <c>Consumed</c> (timers). NULL for the stateless kinds (variable, progress).
+    /// <c>Consumed</c> (timers). NULL for the stateless kinds (variable, progress). Bound to
+    /// <see cref="Kind"/> with <see cref="DueAtUtc"/> by <c>ck_checkpoints_kind_shape</c>.
     /// </summary>
     [DbColumn("status_code")]
     public JobCheckpointStatusCode? Status { get; set; }

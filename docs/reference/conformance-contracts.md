@@ -2164,6 +2164,7 @@
   - ck_runtimes_counters rejects an UPDATE to a negative failure_count
   - Closed-family constraints reject unassigned values and 255
   - Consumer payload format 255 remains storable
+  - ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE
   - ck_steps_attempt_number rejects an INSERT with attempt_number zero
   - ck_workers_max_concurrency rejects an INSERT with max_concurrency zero
   - runtimes and tags agree with jobs on namespace_id after EnqueueOne, EnqueueBatch, a child enqueue, and Restart

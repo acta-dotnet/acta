@@ -1,16 +1,21 @@
 CREATE OR ALTER PROCEDURE {{schema}}.resume_tenant
     @p_tenant_key VARCHAR(128),
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_reason_message NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @id INT, @status TINYINT, @version INT;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @id INT, @status TINYINT, @version INT;
+
         SELECT
             @id = t.id,
             @status = t.status_code,
@@ -20,20 +25,20 @@ BEGIN
 
         IF @id IS NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
                     CAST(NULL AS INT) AS version;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF @status = 10 /* TenantStatusCode.Active */
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(3 /* AdminControlAction.AlreadyInState */ AS SMALLINT) AS action,
                     @version AS version;
-                RETURN;
+                GOTO Finish;
             END;
 
         UPDATE {{schema}}.tenants
@@ -53,13 +58,18 @@ BEGIN
             NULL, NULL, NULL, NULL, NULL, @p_reason_message
         );
 
-        COMMIT TRANSACTION;
         SELECT
             CAST(1 /* AdminControlAction.Applied */ AS SMALLINT) AS action,
             @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

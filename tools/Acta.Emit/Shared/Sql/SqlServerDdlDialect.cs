@@ -177,10 +177,12 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
             -- Per-schedule cursor advances applied by acta.complete_execution on a recurring slot fire.
             -- One row per due schedule; next_run_at_utc NULL clears the cursor (schedule exhausted).
+            -- expected_version is the schedule version the plan read; NULL applies the advance unguarded.
             IF TYPE_ID(N'{{schema}}.job_schedule_advance_batch') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.job_schedule_advance_batch AS TABLE (
-                schedule_id     BIGINT       NOT NULL PRIMARY KEY,
-                next_run_at_utc DATETIME2(3) NULL
+                schedule_id      BIGINT       NOT NULL PRIMARY KEY,
+                next_run_at_utc  DATETIME2(3) NULL,
+                expected_version INT          NULL
             );');
             GO
 

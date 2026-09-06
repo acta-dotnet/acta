@@ -9,21 +9,23 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @action TINYINT;
-    DECLARE @started TABLE (
-        id BIGINT NOT NULL,
-        job_ref UNIQUEIDENTIFIER NOT NULL,
-        namespace_id INT NOT NULL,
-        lineage_root_id BIGINT NULL,
-        definition_id INT NOT NULL,
-        tenant_id INT NULL,
-        execution_number INT NOT NULL,
-        audit_level_code TINYINT NOT NULL
-    );
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @action TINYINT;
+        DECLARE @started TABLE (
+            id BIGINT NOT NULL,
+            job_ref UNIQUEIDENTIFIER NOT NULL,
+            namespace_id INT NOT NULL,
+            lineage_root_id BIGINT NULL,
+            definition_id INT NOT NULL,
+            tenant_id INT NULL,
+            execution_number INT NOT NULL,
+            audit_level_code TINYINT NOT NULL
+        );
 
         UPDATE r
         SET
@@ -120,16 +122,14 @@ BEGIN
                 END;
             END
 
-        COMMIT TRANSACTION;
-
         SELECT @action;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

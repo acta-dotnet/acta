@@ -4,13 +4,15 @@ CREATE OR REPLACE FUNCTION {{schema}}.reschedule_job(
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
     p_reason_code SMALLINT,
-    p_reason_message VARCHAR
+    p_reason_message VARCHAR,
+    p_expected_version INT DEFAULT NULL
 )
-RETURNS TABLE (action SMALLINT, status_code SMALLINT)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_from_status SMALLINT;
+    v_version INT;
     v_namespace_id INT;
     v_lineage BIGINT;
     v_definition INT;
@@ -19,30 +21,35 @@ DECLARE
     v_audit SMALLINT;
     v_job_ref UUID;
 BEGIN
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref
-    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref
+    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
+    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
     FROM {{schema}}.jobs j
     JOIN {{schema}}.runtimes r ON r.job_id = j.id
     WHERE j.id = p_id
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
         RETURN;
     END IF;
 
     IF v_from_status NOT IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
         RETURN;
     END IF;
 
-    UPDATE {{schema}}.runtimes
+    UPDATE {{schema}}.runtimes AS r
     SET
         next_run_at_utc = p_next_run_at_utc,
         status_code = 10 /* JobStatusCode.Ready */,
         modified_at_utc = now(),
-        version = version + 1
-    WHERE job_id = p_id;
+        version = r.version + 1
+    WHERE r.job_id = p_id;
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (
@@ -85,6 +92,6 @@ BEGIN
             p_reason_message);
     END IF;
 
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 10 /* JobStatusCode.Ready */::SMALLINT;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 10 /* JobStatusCode.Ready */::SMALLINT, v_version + 1;
 END;
 $$;

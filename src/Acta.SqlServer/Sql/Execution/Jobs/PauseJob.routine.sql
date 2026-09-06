@@ -1,22 +1,25 @@
 CREATE OR ALTER PROCEDURE {{schema}}.pause_job
     @p_id BIGINT,
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_reason_code TINYINT,
-    @p_reason_message NVARCHAR(512)
+    @p_reason_message NVARCHAR(512),
+    @p_expected_version INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE
-        @from_status TINYINT, @namespace_id INT,
-        @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-        @job_ref UNIQUEIDENTIFIER;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE
+            @from_status TINYINT, @namespace_id INT,
+            @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
+            @job_ref UNIQUEIDENTIFIER, @version INT;
 
         SELECT
             @from_status = r.status_code,
@@ -26,18 +29,30 @@ BEGIN
             @tenant_id = j.tenant_id,
             @execution_number = r.execution_number,
             @audit_level = j.audit_level_code,
-            @job_ref = j.job_ref
+            @job_ref = j.job_ref,
+            @version = r.version
         FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
         WHERE r.job_id = @p_id;
 
         IF @from_status IS NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code;
-                RETURN;
+                    CAST(NULL AS TINYINT) AS status_code,
+                    CAST(NULL AS INT) AS version;
+                GOTO Finish;
+            END;
+
+        IF @p_expected_version IS NOT NULL AND @version <> @p_expected_version
+            BEGIN
+
+                SELECT
+                    CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
+                    @from_status AS status_code,
+                    @version AS version;
+                GOTO Finish;
             END;
 
         IF
@@ -47,11 +62,12 @@ BEGIN
                 10 /* JobStatusCode.Ready */
             )
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status_code;
-                RETURN;
+                    @from_status AS status_code,
+                    @version AS version;
+                GOTO Finish;
             END;
 
         UPDATE {{schema}}.runtimes
@@ -60,6 +76,7 @@ BEGIN
             modified_at_utc = @now,
             version = version + 1
         WHERE job_id = @p_id;
+        SET @version = @version + 1;
 
         IF @audit_level = 20 /* JobAuditLevelCode.Audit */
             BEGIN
@@ -85,17 +102,19 @@ BEGIN
                 );
             END
 
-        COMMIT TRANSACTION;
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            CAST(30 /* JobStatusCode.Paused */ AS TINYINT) AS status_code;
+            CAST(30 /* JobStatusCode.Paused */ AS TINYINT) AS status_code,
+            @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

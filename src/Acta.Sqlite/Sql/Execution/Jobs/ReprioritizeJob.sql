@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._reprioritize_job;
 
 CREATE TEMP TABLE _reprioritize_job AS
-SELECT j.id, r.status_code AS from_status
+SELECT j.id, r.status_code AS from_status, r.version AS from_version
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_id;
@@ -49,6 +49,7 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_id
     AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 UPDATE {{schema}}.runtimes
@@ -58,14 +59,22 @@ SET
     version = version + 1
 WHERE
     job_id = @p_id
+    AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
-    s.from_status AS status_code
+    s.from_status AS status_code,
+    CASE
+        WHEN s.id IS NULL THEN NULL
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
+        WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN s.from_version + 1
+        ELSE s.from_version
+    END AS version
 FROM (SELECT @p_id AS qid) q
 LEFT JOIN temp._reprioritize_job s ON s.id = q.qid;

@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
@@ -187,6 +188,87 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         var stored = await Db.From<JobCheckpoint>().Where(c => c.JobId == enq.JobId && c.Name == "custom-format").SingleOrDefaultAsync(ct);
         Assert.NotNull(stored);
         Assert.Equal(byte.MaxValue, stored!.ValueFormatId);
+    }
+
+    [Fact(DisplayName = "ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE")]
+    public async Task Checkpoints_kind_shape_rejects_mismatched_shapes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var due = DateTime.UtcNow.AddMinutes(5);
+
+        // status_code is written as a literal rather than bound, for the reason the steps fixture
+        // below omits its nullable column: a null TINYINT parameter leaves SQL Server no type to
+        // infer. due_at_utc is bound only on the calls that set it.
+        Task<int> InsertAsync(string name, JobCheckpointKindCode kind, JobCheckpointStatusCode? status, DateTime? dueAtUtc)
+        {
+            var statusSql = status is null ? "NULL" : ((byte)status.Value).ToString(CultureInfo.InvariantCulture);
+            var sql =
+                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, due_at_utc, value_format_id) "
+                + $"VALUES (@p_job_id, @p_kind, @p_name, {statusSql}, {(dueAtUtc is null ? "NULL" : "@p_due")}, 0)";
+
+            return dueAtUtc is null
+                ? Db.ExecuteRawAsync(sql, ct, ("@p_job_id", enq.JobId), ("@p_kind", (byte)kind), ("@p_name", name))
+                : Db.ExecuteRawAsync(
+                    sql,
+                    ct,
+                    ("@p_job_id", enq.JobId),
+                    ("@p_kind", (byte)kind),
+                    ("@p_name", name),
+                    ("@p_due", dueAtUtc.Value)
+                );
+        }
+
+        Task<int> SetStatusAsync(string name, JobCheckpointStatusCode? status)
+        {
+            var statusSql = status is null ? "NULL" : ((byte)status.Value).ToString(CultureInfo.InvariantCulture);
+            return Db.ExecuteRawAsync(
+                "UPDATE {schema}.checkpoints SET status_code = " + statusSql + " WHERE job_id = @p_job_id AND name = @p_name",
+                ct,
+                ("@p_job_id", enq.JobId),
+                ("@p_name", name)
+            );
+        }
+
+        // One control per legal arm, so a rejection below proves the shape was refused and not the
+        // statement.
+        Assert.Equal(1, await InsertAsync("ok-variable", JobCheckpointKindCode.Variable, null, null));
+        Assert.Equal(1, await InsertAsync("ok-progress", JobCheckpointKindCode.Progress, null, null));
+        Assert.Equal(1, await InsertAsync("ok-signal", JobCheckpointKindCode.Signal, JobCheckpointStatusCode.Pending, due));
+        Assert.Equal(1, await InsertAsync("ok-latch", JobCheckpointKindCode.ChildLatch, JobCheckpointStatusCode.Set, null));
+        Assert.Equal(1, await InsertAsync("ok-timer", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Pending, due));
+        Assert.Equal(1, await InsertAsync("ok-timer-consumed", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Consumed, due));
+
+        // A stateful kind with no status. This is the shape the stateful arms admitted while they
+        // tested membership alone: `NULL IN (...)` is unknown, and a CHECK passes on unknown.
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-signal-null", JobCheckpointKindCode.Signal, null, due));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-latch-null", JobCheckpointKindCode.ChildLatch, null, null));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-timer-null", JobCheckpointKindCode.Timer, null, due));
+
+        // A stateful kind carrying a status its own arm does not list.
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertAsync("bad-timer-set", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Set, due)
+        );
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertAsync("bad-signal-consumed", JobCheckpointKindCode.Signal, JobCheckpointStatusCode.Consumed, due)
+        );
+
+        // A stateless kind carrying either of the columns bound to the stateful arms.
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertAsync("bad-variable-status", JobCheckpointKindCode.Variable, JobCheckpointStatusCode.Pending, null)
+        );
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertAsync("bad-progress-status", JobCheckpointKindCode.Progress, JobCheckpointStatusCode.Set, null)
+        );
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-variable-due", JobCheckpointKindCode.Variable, null, due));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-progress-due", JobCheckpointKindCode.Progress, null, due));
+
+        // The constraint is re-evaluated on every write, and an UPDATE is how a live slot would
+        // actually reach a bad shape, so the same shapes have to be unreachable that way too.
+        Assert.Equal(1, await SetStatusAsync("ok-signal", JobCheckpointStatusCode.Set));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-signal", null));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-timer", JobCheckpointStatusCode.Set));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-variable", JobCheckpointStatusCode.Pending));
     }
 
     [Fact(DisplayName = "ck_steps_attempt_number rejects an INSERT with attempt_number zero")]

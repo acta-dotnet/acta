@@ -7,11 +7,13 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @retired TABLE (id INT PRIMARY KEY);
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @retired TABLE (id INT PRIMARY KEY);
 
         UPDATE jd SET
             status_code = 10 /* JobDefinitionStatusCode.Active */,
@@ -175,22 +177,20 @@ BEGIN
             AND jd.id IN (SELECT id FROM @retired)
             AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */);
 
-        COMMIT TRANSACTION;
+        SELECT
+            jd.name,
+            jd.id
+        FROM @p_definitions src
+        INNER JOIN {{schema}}.definitions jd
+            ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-
-    SELECT
-        jd.name,
-        jd.id
-    FROM @p_definitions src
-    INNER JOIN {{schema}}.definitions jd
-        ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;
 END;
 GO

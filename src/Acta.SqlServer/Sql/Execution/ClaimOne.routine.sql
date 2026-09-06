@@ -9,38 +9,40 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @lease_expires DATETIME2(3) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
-    /* Dueness compares at the column's DATETIME2(3) precision: enqueue rounds next_run_at_utc up to
-       0.5 ms into the future, so a full-precision @now can transiently see a just-enqueued row as
-       not yet due. Rounding is monotonic, so the same-precision comparison never can. */
-    DECLARE @due_now DATETIME2(3) = @now;
-
-    DECLARE
-        @claimed TABLE
-        (
-            id BIGINT NOT NULL PRIMARY KEY,
-            job_ref UNIQUEIDENTIFIER NOT NULL,
-            namespace_id INT NOT NULL,
-            lineage_root_id BIGINT NULL,
-            definition_id INT NOT NULL,
-            tenant_id INT NULL,
-            execution_number INT NOT NULL,
-            deduplication_key VARCHAR(128) NULL,
-            correlation_key VARCHAR(64) NULL,
-            exclusive_key VARCHAR(128) NULL,
-            input_format_id TINYINT NOT NULL,
-            input VARBINARY(MAX) NULL,
-            next_run_at_utc DATETIME2(3) NULL,
-            created_at_utc DATETIME2(3) NOT NULL,
-            audit_level_code TINYINT NOT NULL,
-            failure_count SMALLINT NOT NULL,
-            version INT NOT NULL,
-            from_status TINYINT NOT NULL
-        );
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @lease_expires DATETIME2(3) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
+        /* Dueness compares at the column's DATETIME2(3) precision: enqueue rounds next_run_at_utc up to
+           0.5 ms into the future, so a full-precision @now can transiently see a just-enqueued row as
+           not yet due. Rounding is monotonic, so the same-precision comparison never can. */
+        DECLARE @due_now DATETIME2(3) = @now;
+
+        DECLARE
+            @claimed TABLE
+            (
+                id BIGINT NOT NULL PRIMARY KEY,
+                job_ref UNIQUEIDENTIFIER NOT NULL,
+                namespace_id INT NOT NULL,
+                lineage_root_id BIGINT NULL,
+                definition_id INT NOT NULL,
+                tenant_id INT NULL,
+                execution_number INT NOT NULL,
+                deduplication_key VARCHAR(128) NULL,
+                correlation_key VARCHAR(64) NULL,
+                exclusive_key VARCHAR(128) NULL,
+                input_format_id TINYINT NOT NULL,
+                input VARBINARY(MAX) NULL,
+                next_run_at_utc DATETIME2(3) NULL,
+                created_at_utc DATETIME2(3) NOT NULL,
+                audit_level_code TINYINT NOT NULL,
+                failure_count SMALLINT NOT NULL,
+                version INT NOT NULL,
+                from_status TINYINT NOT NULL
+            );
 
         WITH candidates AS (
             /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
@@ -118,36 +120,34 @@ BEGIN
                 WHERE c.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
             END
 
-        COMMIT TRANSACTION;
+        SELECT
+            id,
+            namespace_id,
+            definition_id,
+            execution_number,
+            deduplication_key,
+            correlation_key,
+            exclusive_key,
+            input_format_id,
+            input,
+            next_run_at_utc,
+            @lease_expires AS lease_expires_at_utc,
+            created_at_utc,
+            failure_count,
+            version,
+            job_ref,
+            tenant_id,
+            CAST(NULL AS DATETIME2(7)) AS db_now,
+            CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc
+        FROM @claimed;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-
-    SELECT
-        id,
-        namespace_id,
-        definition_id,
-        execution_number,
-        deduplication_key,
-        correlation_key,
-        exclusive_key,
-        input_format_id,
-        input,
-        next_run_at_utc,
-        @lease_expires AS lease_expires_at_utc,
-        created_at_utc,
-        failure_count,
-        version,
-        job_ref,
-        tenant_id,
-        CAST(NULL AS DATETIME2(7)) AS db_now,
-        CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc
-    FROM @claimed;
 END;
 GO

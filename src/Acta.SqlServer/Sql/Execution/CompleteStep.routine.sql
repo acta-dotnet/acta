@@ -15,14 +15,16 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-    DECLARE @attempt SMALLINT;
-    DECLARE @created DATETIME2(3);
-    DECLARE @next DATETIME2(3);
-    DECLARE @outcome SMALLINT;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @attempt SMALLINT;
+        DECLARE @created DATETIME2(3);
+        DECLARE @next DATETIME2(3);
+        DECLARE @outcome SMALLINT;
 
         SELECT
             @attempt = attempt_number,
@@ -96,18 +98,16 @@ BEGIN
                     END
             END
 
-        COMMIT TRANSACTION;
-
         SELECT
             @outcome AS outcome_code,
             @next AS next_retry_at_utc;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

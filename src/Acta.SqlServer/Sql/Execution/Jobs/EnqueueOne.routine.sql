@@ -22,23 +22,23 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
-    DECLARE @def_audit TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
-    DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
-    DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
-
-    -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
-    -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
-    -- on error rethrow and let the caller roll back the whole transaction.
     DECLARE @entry_trancount INT = @@TRANCOUNT;
-
-    -- Server-generate the job ref when the caller omits it (a proc default cannot be NEWID()).
-    SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
-
     BEGIN TRY
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
+        DECLARE @def_audit TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
+        DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
+        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
+
+        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
+        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
+        -- on error rethrow and let the caller roll back the whole transaction.
+
+        -- Server-generate the job ref when the caller omits it (a proc default cannot be NEWID()).
+        SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
 
         SELECT
             @ns_id = ns.id,
@@ -205,26 +205,23 @@ BEGIN
                 FROM @p_tag_batch t;
             END;
 
+        SELECT
+            0 AS ordinal,
+            COALESCE(@job_id, @existing_id) AS job_id,
+            CASE WHEN @job_id IS NOT NULL THEN @p_job_ref ELSE @existing_ref END AS job_ref,
+            CASE
+                WHEN @job_id IS NOT NULL
+                    THEN 1 /* JobEnqueueAction.Inserted */
+                ELSE 2 /* JobEnqueueAction.Deduplicated */
+            END AS action;
+
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
         IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-
-    SELECT
-        0 AS ordinal,
-        COALESCE(@job_id, @existing_id) AS job_id,
-        CASE WHEN @job_id IS NOT NULL THEN @p_job_ref ELSE @existing_ref END AS job_ref,
-        CASE
-            WHEN @job_id IS NOT NULL
-                THEN 1 /* JobEnqueueAction.Inserted */
-            ELSE 2 /* JobEnqueueAction.Deduplicated */
-        END AS action;
 END;
 GO

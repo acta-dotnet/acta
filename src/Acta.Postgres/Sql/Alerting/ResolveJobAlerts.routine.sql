@@ -1,7 +1,16 @@
+CREATE OR REPLACE FUNCTION {{schema}}.resolve_job_alerts(
+    p_namespace_id INT,
+    p_job_id BIGINT,
+    p_source_event_id BIGINT
+)
+RETURNS TABLE (resolved_count INT)
+LANGUAGE sql
+AS $$
+WITH resolved AS (
 UPDATE {{schema}}.alerts
 SET
     resolved_at_utc = now(),
-    last_projected_event_id = @p_source_event_id,
+    last_projected_event_id = p_source_event_id,
     /* Closing the incident settles its delivery too: a notification queued for a condition that has
        cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
        row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
@@ -14,9 +23,13 @@ SET
     modified_at_utc = now(),
     version = version + 1
 WHERE
-    namespace_id = @p_namespace_id
-    AND job_id = @p_job_id
+    namespace_id = p_namespace_id
+    AND job_id = p_job_id
     AND origin_code = 10 /* AlertOriginCode.Automatic */
     AND kind_code IN (10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */)
     AND resolved_at_utc IS NULL
-    AND (last_projected_event_id IS NULL OR last_projected_event_id < @p_source_event_id);
+    AND (last_projected_event_id IS NULL OR last_projected_event_id < p_source_event_id)
+RETURNING 1
+)
+SELECT count(*)::INT AS resolved_count FROM resolved;
+$$;

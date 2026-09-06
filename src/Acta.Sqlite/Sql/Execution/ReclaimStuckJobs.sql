@@ -14,7 +14,15 @@ SELECT
             AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
             AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
             AND c.due_at_utc = r.next_run_at_utc
-    ) THEN 1 ELSE 0 END AS wait_resolved
+    ) THEN 1 ELSE 0 END AS wait_resolved,
+    /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
+       occurrences, so a recurring reclaim always re-arms Ready instead of terminally failing the
+       schedule - mirroring ComputeRecurringOutcome on the worker path. */
+    CASE WHEN EXISTS (
+        SELECT 1
+        FROM {{schema}}.schedules sc
+        WHERE sc.job_id = r.job_id
+    ) THEN 1 ELSE 0 END AS is_recurring
 FROM {{schema}}.runtimes r
 WHERE
     r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
@@ -54,7 +62,7 @@ SELECT
     r.status_code,
     CASE
         WHEN rj.wait_resolved = 1 THEN 20 /* JobStatusCode.Suspended */
-        WHEN (r.failure_count + 1) >= jd.max_attempts_effective THEN 200 /* JobStatusCode.Failed */
+        WHEN rj.is_recurring = 0 AND (r.failure_count + 1) >= jd.max_attempts_effective THEN 200 /* JobStatusCode.Failed */
         ELSE 10 /* JobStatusCode.Ready */ END,
     230 /* ExecutionStatusCode.Orphaned */,
     NULL,
@@ -76,18 +84,21 @@ UPDATE {{schema}}.runtimes
 SET
     status_code = CASE
         WHEN rj.wait_resolved = 1 THEN 20 /* JobStatusCode.Suspended */
-        WHEN (runtimes.failure_count + 1) >= jd.max_attempts_effective THEN 200 /* JobStatusCode.Failed */
+        WHEN rj.is_recurring = 0 AND (runtimes.failure_count + 1) >= jd.max_attempts_effective THEN 200 /* JobStatusCode.Failed */
         ELSE 10 /* JobStatusCode.Ready */ END,
+    /* Saturated at short.MaxValue like the worker path: the runtime reads this as Int16 and a
+       recurring slot's count accumulates unbounded, so an unguarded +1 would eventually store a
+       value outside the Int16 model the other providers reject. */
     failure_count = CASE WHEN rj.wait_resolved = 1
         THEN runtimes.failure_count
-        ELSE runtimes.failure_count + 1 END,
+        ELSE MIN(runtimes.failure_count + 1, 32767) END,
     next_run_at_utc = CASE
         WHEN rj.wait_resolved = 1 THEN runtimes.next_run_at_utc
-        WHEN (runtimes.failure_count + 1) >= jd.max_attempts_effective THEN runtimes.next_run_at_utc
+        WHEN rj.is_recurring = 0 AND (runtimes.failure_count + 1) >= jd.max_attempts_effective THEN runtimes.next_run_at_utc
         ELSE {{now}} END,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
-    retention_until_utc = CASE WHEN rj.wait_resolved = 0 AND (runtimes.failure_count + 1) >= jd.max_attempts_effective
+    retention_until_utc = CASE WHEN rj.wait_resolved = 0 AND rj.is_recurring = 0 AND (runtimes.failure_count + 1) >= jd.max_attempts_effective
         THEN {{now}} + (jd.retention_seconds_effective) * 1000
         ELSE runtimes.retention_until_utc END,
     modified_at_utc = {{now}},

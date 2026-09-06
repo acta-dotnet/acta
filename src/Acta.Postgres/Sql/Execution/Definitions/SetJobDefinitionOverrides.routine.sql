@@ -27,7 +27,7 @@ DECLARE
     v_version INT;
 BEGIN
     SELECT jd.namespace_id, jd.version INTO v_ns, v_version
-    FROM {{schema}}.definitions jd WHERE jd.id = p_id;
+    FROM {{schema}}.definitions jd WHERE jd.id = p_id FOR UPDATE;
 
     IF v_ns IS NULL THEN
         RETURN QUERY SELECT 2 /* DefinitionOverrideAction.NotFound */::SMALLINT;
@@ -56,7 +56,7 @@ BEGIN
         description_override = p_description_override,
         modified_at_utc = now(),
         version = version + 1
-    WHERE id = p_id;
+    WHERE id = p_id AND version = p_version;
 
     INSERT INTO {{schema}}.events (
         event_code,

@@ -3,7 +3,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.update_job_input
     @p_input_format_id TINYINT,
     @p_input VARBINARY(MAX),
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_reason_code TINYINT,
     @p_reason_message NVARCHAR(512)
 AS
@@ -11,16 +11,18 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE
-        @from_status TINYINT, @namespace_id INT,
-        @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-        @job_ref UNIQUEIDENTIFIER, @old_format_id TINYINT, @old_input VARBINARY(MAX);
-    DECLARE @detail VARBINARY(MAX);
-    DECLARE @detail_format_id TINYINT = 0 /* JobPayloadFormat.None */;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE
+            @from_status TINYINT, @namespace_id INT,
+            @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
+            @job_ref UNIQUEIDENTIFIER, @old_format_id TINYINT, @old_input VARBINARY(MAX);
+        DECLARE @detail VARBINARY(MAX);
+        DECLARE @detail_format_id TINYINT = 0 /* JobPayloadFormat.None */;
 
         SELECT
             @from_status = r.status_code,
@@ -39,11 +41,11 @@ BEGIN
 
         IF @from_status IS NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF
@@ -52,11 +54,11 @@ BEGIN
                 50 /* JobStatusCode.Executing */
             )
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
-                RETURN;
+                GOTO Finish;
             END;
 
         UPDATE {{schema}}.jobs
@@ -109,17 +111,18 @@ BEGIN
                 );
             END
 
-        COMMIT TRANSACTION;
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @from_status AS status_code;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

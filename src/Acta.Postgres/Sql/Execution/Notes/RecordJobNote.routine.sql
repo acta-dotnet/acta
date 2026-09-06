@@ -1,17 +1,21 @@
 -- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
 -- Denormalized columns are read from the job, so a note cannot disagree with the row it is about.
+
+-- Returns the inserted count where it returned VOID. A return type cannot be replaced in place
+-- (42P13) and the create itself fails, so unlike the trailing arity drops this one precedes it;
+-- no argument list, the name has one signature.
+DROP FUNCTION IF EXISTS {{schema}}.record_job_note;
+
 CREATE OR REPLACE FUNCTION {{schema}}.record_job_note(
     p_job_id BIGINT,
     p_reason_message VARCHAR,
     p_detail_format_id SMALLINT,
     p_detail BYTEA
 )
-RETURNS VOID
-LANGUAGE plpgsql
+RETURNS TABLE (inserted INT)
+LANGUAGE sql
 AS $$
-DECLARE
-    v_rows INT;
-BEGIN
+WITH inserted AS (
     INSERT INTO {{schema}}.events (
         event_code,
         created_at_utc,
@@ -42,13 +46,8 @@ BEGIN
         p_reason_message
     FROM {{schema}}.jobs j
     JOIN {{schema}}.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_job_id;
-
-    GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-    IF v_rows = 0 THEN
-        RAISE EXCEPTION 'ACTA:NOTE_UNKNOWN_JOB:record_job_note: unknown job id'
-            USING ERRCODE = 'P0001';
-    END IF;
-END;
+    WHERE j.id = p_job_id
+    RETURNING 1
+)
+SELECT count(*)::INT AS inserted FROM inserted;
 $$;

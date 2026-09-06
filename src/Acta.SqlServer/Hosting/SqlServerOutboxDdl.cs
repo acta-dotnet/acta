@@ -34,7 +34,7 @@ public static class SqlServerOutboxDdl
                 delay_seconds int NULL,
                 tenant_key varchar(128) NULL,
                 meta nvarchar(max) NULL,
-                last_error varchar(512) NULL,
+                last_error nvarchar(512) NULL,
                 created_at_utc datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
                 status_code tinyint NOT NULL DEFAULT 10,
                 failure_count int NOT NULL DEFAULT 0,

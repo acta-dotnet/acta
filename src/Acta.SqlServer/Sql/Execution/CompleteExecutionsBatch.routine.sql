@@ -5,22 +5,24 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-    DECLARE @updated TABLE (
-        ordinal INT NOT NULL PRIMARY KEY,
-        job_id BIGINT NOT NULL,
-        execution_number INT NOT NULL,
-        job_ref UNIQUEIDENTIFIER NOT NULL,
-        namespace_id INT NOT NULL,
-        lineage_root_id BIGINT NULL,
-        definition_id INT NOT NULL,
-        tenant_id INT NULL,
-        audit_level_code TINYINT NOT NULL
-    );
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        DECLARE @updated TABLE (
+            ordinal INT NOT NULL PRIMARY KEY,
+            job_id BIGINT NOT NULL,
+            execution_number INT NOT NULL,
+            job_ref UNIQUEIDENTIFIER NOT NULL,
+            namespace_id INT NOT NULL,
+            lineage_root_id BIGINT NULL,
+            definition_id INT NOT NULL,
+            tenant_id INT NULL,
+            audit_level_code TINYINT NOT NULL
+        );
 
         UPDATE r
         SET
@@ -92,21 +94,20 @@ BEGIN
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
             OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0);
 
-        COMMIT TRANSACTION;
+        SELECT
+            b.ordinal,
+            CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT) AS finalized
+        FROM @p_batch b
+        LEFT JOIN @updated u ON u.ordinal = b.ordinal
+        ORDER BY b.ordinal;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-
-    SELECT
-        b.ordinal,
-        CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT) AS finalized
-    FROM @p_batch b
-    LEFT JOIN @updated u ON u.ordinal = b.ordinal
-    ORDER BY b.ordinal;
 END;
+GO

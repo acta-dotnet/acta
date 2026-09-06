@@ -24,32 +24,34 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @action TINYINT;
-    DECLARE @recurring BIT = CASE WHEN @p_final_status IS NOT NULL THEN 1 ELSE 0 END;
-
-    DECLARE @rearm BIT = CASE WHEN @p_reschedule_status_code IS NOT NULL THEN 1 ELSE 0 END;
-
-    DECLARE @signal_suspend BIT = CASE WHEN @rearm = 1 AND @p_wait_signal_name IS NOT NULL THEN 1 ELSE 0 END;
-
-    DECLARE @handler BIT = CASE WHEN @p_handler_status_code IS NOT NULL THEN 1 ELSE 0 END;
-    DECLARE @sig_state TINYINT = NULL;
-    DECLARE @sig_due DATETIME2(3) = NULL;
-    DECLARE @to_status TINYINT;
-    DECLARE @final_status TINYINT;
-    DECLARE @final_next_run DATETIME2(3);
-    DECLARE @parent_id BIGINT;
-    DECLARE @parent_released TINYINT = 0;
-
-    DECLARE @matched BIT = 0;
-    DECLARE
-        @c_ref UNIQUEIDENTIFIER, @c_ns INT, @c_lineage BIGINT, @c_def INT, @c_tenant INT, @c_exec INT,
-        @c_audit TINYINT,
-        @c_next_existing DATETIME2(3), @c_retention_existing DATETIME2(3), @c_failcount_existing SMALLINT;
-    DECLARE @c_next DATETIME2(3), @c_retention DATETIME2(3), @c_failcount SMALLINT;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @action TINYINT;
+        DECLARE @recurring BIT = CASE WHEN @p_final_status IS NOT NULL THEN 1 ELSE 0 END;
+
+        DECLARE @rearm BIT = CASE WHEN @p_reschedule_status_code IS NOT NULL THEN 1 ELSE 0 END;
+
+        DECLARE @signal_suspend BIT = CASE WHEN @rearm = 1 AND @p_wait_signal_name IS NOT NULL THEN 1 ELSE 0 END;
+
+        DECLARE @handler BIT = CASE WHEN @p_handler_status_code IS NOT NULL THEN 1 ELSE 0 END;
+        DECLARE @sig_state TINYINT = NULL;
+        DECLARE @sig_due DATETIME2(3) = NULL;
+        DECLARE @to_status TINYINT;
+        DECLARE @final_status TINYINT;
+        DECLARE @final_next_run DATETIME2(3);
+        DECLARE @parent_id BIGINT;
+        DECLARE @parent_released TINYINT = 0;
+
+        DECLARE @matched BIT = 0;
+        DECLARE
+            @c_ref UNIQUEIDENTIFIER, @c_ns INT, @c_lineage BIGINT, @c_def INT, @c_tenant INT, @c_exec INT,
+            @c_audit TINYINT,
+            @c_next_existing DATETIME2(3), @c_retention_existing DATETIME2(3), @c_failcount_existing SMALLINT;
+        DECLARE @c_next DATETIME2(3), @c_retention DATETIME2(3), @c_failcount SMALLINT;
 
         IF @signal_suspend = 1
             BEGIN
@@ -525,21 +527,19 @@ BEGIN
                 END;
             END
 
-        COMMIT TRANSACTION;
-
         SELECT
             @action,
             @final_status,
             @final_next_run,
             @now,
             @parent_released;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

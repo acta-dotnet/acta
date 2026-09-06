@@ -7,12 +7,14 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @lock_result INT;
-    DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.register_scheduled_jobs';
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @lock_result INT;
+        DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.register_scheduled_jobs';
 
         EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction';
 
@@ -204,19 +206,17 @@ BEGIN
         FROM {{schema}}.schedules AS js
         INNER JOIN @candidates AS c ON c.id = js.id;
 
-        COMMIT TRANSACTION;
-
         SELECT
             definition_id,
             slot_id
         FROM @slots;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

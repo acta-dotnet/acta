@@ -245,13 +245,14 @@ CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     , CONSTRAINT pk_runtimes PRIMARY KEY (job_id)
     , CONSTRAINT ck_runtimes_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
     , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
+    , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_retention ON runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, status_code) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 
 -- JobSchedule
 CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
@@ -303,6 +304,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.settings (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT ck_settings_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_settings_scope_pair CHECK ((scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL))
     , CONSTRAINT ck_settings_scope_code CHECK (scope_code IN (10, 30, 40))
     , CONSTRAINT ck_settings_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
 ) STRICT;
@@ -402,6 +404,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100)))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
     , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 30, 100))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
@@ -410,7 +413,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-1.0.1', '{{schema}}')
+VALUES (0, 'baseline-20260909', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

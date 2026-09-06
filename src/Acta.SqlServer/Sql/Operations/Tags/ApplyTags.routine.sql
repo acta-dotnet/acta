@@ -9,28 +9,30 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @scope_id BIGINT, @namespace_id INT;
-    DECLARE @items TABLE (
-        name VARCHAR(128) NOT NULL PRIMARY KEY,
-        value NVARCHAR(128) NULL,
-        value_search NVARCHAR(128) NULL
-    );
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
 
-    INSERT INTO @items (name, value, value_search)
-    SELECT
-        name,
-        value,
-        value_search
-    FROM
-        OPENJSON (@p_items_json)
-        WITH (
-            name VARCHAR(128) '$.name',
-            value NVARCHAR(128) '$.value',
-            value_search NVARCHAR(128) '$.value_search'
+        DECLARE @scope_id BIGINT, @namespace_id INT;
+        DECLARE @items TABLE (
+            name VARCHAR(128) NOT NULL PRIMARY KEY,
+            value NVARCHAR(128) NULL,
+            value_search NVARCHAR(128) NULL
         );
 
-    BEGIN TRY
-        BEGIN TRANSACTION;
+        INSERT INTO @items (name, value, value_search)
+        SELECT
+            name,
+            value,
+            value_search
+        FROM
+            OPENJSON (@p_items_json)
+            WITH (
+                name VARCHAR(128) '$.name',
+                value NVARCHAR(128) '$.value',
+                value_search NVARCHAR(128) '$.value_search'
+            );
 
         IF @p_scope_code = 20 /* TagScopeCode.Tenant */
             SELECT
@@ -85,9 +87,9 @@ BEGIN
 
         IF @scope_id IS NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT CAST(2 /* TagMutationAction.NotFound */ AS TINYINT) AS action;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF @p_mutation = 1 /* TagMutationKind.Replace */
@@ -151,11 +153,16 @@ BEGIN
         ELSE
             THROW 50000, 'Unsupported tag mutation code.', 1;
 
-        COMMIT TRANSACTION;
         SELECT CAST(1 /* TagMutationAction.Applied */ AS TINYINT) AS action;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

@@ -78,9 +78,11 @@ internal sealed class JobEvent : IEntity<long>
     /// Identifier of the actor whose <see cref="ActorCode"/> classifies it. Format depends on
     /// <see cref="ActorCode"/>; see the <see cref="ActorCode"/> doc. A string identifier by design
     /// (its format varies by <see cref="ActorCode"/>), an accepted exception to the integer-<c>_id</c>
-    /// convention.
+    /// convention. Unicode, unlike the other key columns: for an operator it carries the
+    /// authenticated principal's name, and an audit trail that folds two names differing only by a
+    /// diacritic onto one spelling cannot say who acted.
     /// </summary>
-    [DbColumn("actor_key", DbKind.AsciiString, Size = 128)]
+    [DbColumn("actor_key", DbKind.UnicodeString, Size = 128)]
     public string? ActorKey { get; init; }
 
     // No enforced FKs: audit outlives Job and JobAlert retention, so references here are logical only.

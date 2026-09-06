@@ -1,3 +1,5 @@
+-- Only the selected section can stage rows; SQLite owns one immediate transaction for the file.
+DROP TABLE IF EXISTS temp._purge_skip;
 DROP TABLE IF EXISTS temp._purge_jobs;
 DROP TABLE IF EXISTS temp._purge_events;
 DROP TABLE IF EXISTS temp._purge_alerts;
@@ -9,16 +11,17 @@ CREATE TEMP TABLE _purge_jobs AS
 SELECT r.job_id AS id
 FROM {{schema}}.runtimes r
 WHERE
-    r.namespace_id = @p_namespace_id
+    @p_section = 1
+    AND r.namespace_id = @p_namespace_id
     AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND r.retention_until_utc IS NOT NULL
-    AND r.retention_until_utc <= {{now}}
+    AND r.retention_until_utc <= @p_cutoff_utc
     -- Lineage guard: parent_id carries no FK, so purging a parent whose children still exist would
     -- orphan their lineage (same rule as the manual purge_job). Only leaves delete in this pass; a
-    -- fully-expired subtree drains bottom-up across successive retention ticks.
+    -- fully-expired subtree drains bottom-up across successive batches.
     AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = r.job_id)
 ORDER BY r.retention_until_utc, r.job_id
-LIMIT (@p_batch_size * @p_max_iterations);
+LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags
 WHERE
@@ -32,10 +35,11 @@ CREATE TEMP TABLE _purge_events AS
 SELECT id
 FROM {{schema}}.events
 WHERE
-    namespace_id = @p_namespace_id
-    AND created_at_utc <= {{now}} - (@p_events_retention_days) * 86400000
+    @p_section = 2
+    AND namespace_id = @p_namespace_id
+    AND created_at_utc <= @p_cutoff_utc
 ORDER BY created_at_utc, id
-LIMIT (@p_batch_size * @p_max_iterations);
+LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags WHERE scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM temp._purge_events);
 DELETE FROM {{schema}}.events WHERE id IN (SELECT id FROM temp._purge_events);
@@ -44,11 +48,12 @@ CREATE TEMP TABLE _purge_alerts AS
 SELECT id
 FROM {{schema}}.alerts
 WHERE
-    namespace_id = @p_namespace_id
-    AND created_at_utc <= {{now}} - (@p_alert_retention_days) * 86400000
+    @p_section = 3
+    AND namespace_id = @p_namespace_id
+    AND created_at_utc <= @p_cutoff_utc
     AND delivery_status_code IN (30 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
 ORDER BY created_at_utc, id
-LIMIT (@p_batch_size * @p_max_iterations);
+LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_alerts);
 DELETE FROM {{schema}}.alerts WHERE id IN (SELECT id FROM temp._purge_alerts);
@@ -60,11 +65,12 @@ CREATE TEMP TABLE _purge_undelivered_alerts AS
 SELECT id
 FROM {{schema}}.alerts
 WHERE
-    namespace_id = @p_namespace_id
-    AND created_at_utc <= {{now}} - (@p_alert_retention_days) * 86400000
+    @p_section = 4
+    AND namespace_id = @p_namespace_id
+    AND created_at_utc <= @p_cutoff_utc
     AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
 ORDER BY created_at_utc, id
-LIMIT (@p_batch_size * @p_max_iterations);
+LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags
 WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_undelivered_alerts);
@@ -73,29 +79,32 @@ DELETE FROM {{schema}}.alerts WHERE id IN (SELECT id FROM temp._purge_undelivere
 -- sys.alerts records one poison-skip variable per unprojectable event on its own recurring slot
 -- (whose deduplication_key is the job name) and never reads it back; nothing else prunes them, so
 -- they age out on the alert window like the alerts they stand in for.
-DELETE FROM {{schema}}.checkpoints
-WHERE rowid IN (
-    SELECT c.rowid
+CREATE TEMP TABLE _purge_skip AS
+    SELECT c.rowid AS id
     FROM {{schema}}.checkpoints c
     INNER JOIN {{schema}}.jobs j ON j.id = c.job_id
     WHERE
-        j.namespace_id = @p_namespace_id
+        @p_section = 5
+        AND j.namespace_id = @p_namespace_id
         AND j.deduplication_key = 'sys.alerts'
         AND j.parent_id IS NULL
         AND c.kind_code = 10 /* JobCheckpointKindCode.Variable */
         AND c.name LIKE 'alerts-skip-%'
-        AND c.modified_at_utc <= {{now}} - (@p_alert_retention_days) * 86400000
-    LIMIT (@p_batch_size * @p_max_iterations));
+        AND c.modified_at_utc <= @p_cutoff_utc
+    LIMIT @p_batch_size;
+
+DELETE FROM {{schema}}.checkpoints WHERE rowid IN (SELECT id FROM temp._purge_skip);
 
 CREATE TEMP TABLE _purge_workers AS
 SELECT id
 FROM {{schema}}.workers
 WHERE
-    namespace_id = @p_namespace_id
+    @p_section = 6
+    AND namespace_id = @p_namespace_id
     AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-    AND last_seen_at_utc <= {{now}} - (@p_worker_retention_seconds) * 1000
+    AND last_seen_at_utc <= @p_cutoff_utc
 ORDER BY last_seen_at_utc, id
-LIMIT (@p_batch_size * @p_max_iterations);
+LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags WHERE scope_code = 70 /* TagScopeCode.Worker */ AND scope_id IN (SELECT id FROM temp._purge_workers);
 DELETE FROM {{schema}}.workers WHERE id IN (SELECT id FROM temp._purge_workers);
@@ -104,16 +113,18 @@ CREATE TEMP TABLE _purge_locks AS
 SELECT lock_key
 FROM {{schema}}.locks
 WHERE
-    expires_at_utc <= {{now}}
+    @p_section = 7
+    AND expires_at_utc <= @p_cutoff_utc
 ORDER BY expires_at_utc
-LIMIT (@p_batch_size * @p_max_iterations);
+LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.locks WHERE lock_key IN (SELECT lock_key FROM temp._purge_locks);
 
 SELECT
-    (SELECT COUNT(*) FROM temp._purge_jobs) AS jobs_deleted,
-    (SELECT COUNT(*) FROM temp._purge_events) AS events_deleted,
-    (SELECT COUNT(*) FROM temp._purge_alerts) AS alerts_deleted,
-    (SELECT COUNT(*) FROM temp._purge_undelivered_alerts) AS undelivered_alerts_purged,
-    (SELECT COUNT(*) FROM temp._purge_workers) AS workers_deleted,
-    (SELECT COUNT(*) FROM temp._purge_locks) AS locks_deleted;
+    (SELECT COUNT(*) FROM temp._purge_jobs)
+    + (SELECT COUNT(*) FROM temp._purge_events)
+    + (SELECT COUNT(*) FROM temp._purge_alerts)
+    + (SELECT COUNT(*) FROM temp._purge_undelivered_alerts)
+    + (SELECT COUNT(*) FROM temp._purge_skip)
+    + (SELECT COUNT(*) FROM temp._purge_workers)
+    + (SELECT COUNT(*) FROM temp._purge_locks) AS deleted_count;

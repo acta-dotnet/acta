@@ -1,8 +1,5 @@
 -- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
 -- Denormalized columns are read from the job, so a note cannot disagree with the row it is about.
-SELECT ACTA_ERROR('ACTA:NOTE_UNKNOWN_JOB:record_job_note: unknown job id')
-WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.jobs WHERE id = @p_job_id);
-
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -35,3 +32,5 @@ SELECT
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_job_id;
+
+SELECT CHANGES() AS inserted;

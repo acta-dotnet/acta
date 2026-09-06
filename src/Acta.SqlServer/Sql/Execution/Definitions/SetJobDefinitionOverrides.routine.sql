@@ -15,7 +15,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.set_job_definition_overrides
     @p_display_name_override NVARCHAR(128),
     @p_description_override NVARCHAR(512),
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_reason_code TINYINT,
     @p_reason_message NVARCHAR(512)
 AS
@@ -23,30 +23,30 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns INT, @existing_version INT;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @ns INT, @existing_version INT;
 
         SELECT
             @ns = jd.namespace_id,
             @existing_version = jd.version
-        FROM {{schema}}.definitions jd
+        FROM {{schema}}.definitions jd WITH (UPDLOCK, ROWLOCK)
         WHERE jd.id = @p_id;
 
         IF @ns IS NULL
             BEGIN
-                COMMIT TRANSACTION;
                 SELECT CAST(2 /* DefinitionOverrideAction.NotFound */ AS TINYINT) AS action;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF @existing_version <> @p_version
             BEGIN
-                COMMIT TRANSACTION;
                 SELECT CAST(3 /* DefinitionOverrideAction.VersionConflict */ AS TINYINT) AS action;
-                RETURN;
+                GOTO Finish;
             END;
 
         UPDATE {{schema}}.definitions SET
@@ -66,7 +66,7 @@ BEGIN
             modified_at_utc = @now,
             version = jd.version + 1
         FROM {{schema}}.definitions jd
-        WHERE jd.id = @p_id;
+        WHERE jd.id = @p_id AND jd.version = @p_version;
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,
@@ -89,15 +89,16 @@ BEGIN
             @p_reason_code, @p_reason_message
         );
 
-        COMMIT TRANSACTION;
         SELECT CAST(1 /* DefinitionOverrideAction.Applied */ AS TINYINT) AS action;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

@@ -8,16 +8,18 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-    DECLARE @due DATETIME2(3) = COALESCE(@p_resume_at_utc, DATEADD(SECOND, @p_delay_seconds, @now));
-    DECLARE @outcome SMALLINT;
-    DECLARE @result_due DATETIME2(3) = NULL;
-    DECLARE @existing_state TINYINT;
-    DECLARE @existing_due DATETIME2(3);
-    DECLARE @lock_id BIGINT;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @due DATETIME2(3) = COALESCE(@p_resume_at_utc, DATEADD(SECOND, @p_delay_seconds, @now));
+        DECLARE @outcome SMALLINT;
+        DECLARE @result_due DATETIME2(3) = NULL;
+        DECLARE @existing_state TINYINT;
+        DECLARE @existing_due DATETIME2(3);
+        DECLARE @lock_id BIGINT;
 
         SELECT @lock_id = job_id
         FROM {{schema}}.runtimes WITH (UPDLOCK, HOLDLOCK)
@@ -92,18 +94,16 @@ BEGIN
                 SET @result_due = @due;
             END
 
-        COMMIT TRANSACTION;
-
         SELECT
             @outcome AS outcome_code,
             @result_due AS due_at_utc;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

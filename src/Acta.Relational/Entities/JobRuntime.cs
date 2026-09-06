@@ -43,9 +43,12 @@ namespace Acta.Relational.Entities;
     Filter = "retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)",
     Usage = "maintenance"
 )]
+// status_code stays in the filter but out of the key, which is all the heartbeat needs: keying on it
+// would move every in-flight entry to a new key on the Dispatched-to-Executing transition, and one
+// worker's entries share a leaf page, so that write lands on this index's hottest page.
 [DbIndex(
     Name = "ix_runtimes_worker_inflight",
-    Columns = ["leased_by_worker_id", "status_code"],
+    Columns = ["leased_by_worker_id", "job_id"],
     Filter = "leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)",
     Usage = "heartbeat"
 )]
@@ -54,6 +57,10 @@ namespace Acta.Relational.Entities;
     Sql = "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_runtimes_counters", Sql = "execution_number >= 0 AND failure_count >= 0")]
+// One direction only: a row that is not in flight cannot still carry a lease. The converse is left
+// unenforced because no run has established that every in-flight row is leased at every instant, and
+// a CHECK that turns out to be wrong fails the write rather than reporting the disagreement.
+[DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
 internal sealed class JobRuntime : IEntity<long>
 {
     /// <summary>
@@ -106,7 +113,8 @@ internal sealed class JobRuntime : IEntity<long>
     /// <summary>
     /// Worker that currently holds the in-flight execution lease, if any. No FK; write-time
     /// validation in the claim routine. Paired with <see cref="LeaseExpiresAtUtc"/> by
-    /// <c>ck_runtimes_lease_consistency</c>.
+    /// <c>ck_runtimes_lease_consistency</c>, and released before <see cref="Status"/> leaves
+    /// <c>Dispatched</c> or <c>Executing</c> by <c>ck_runtimes_status_lease</c>.
     /// </summary>
     [DbColumn("leased_by_worker_id", DbKind.Int32)]
     public int? LeasedByWorkerId { get; set; }

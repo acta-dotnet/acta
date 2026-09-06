@@ -10,40 +10,52 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    INSERT INTO {{schema}}.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        detail_format_id,
-        detail,
-        reason_message)
-    SELECT
-        90 /* EventCode.JobNoteRecorded */,
-        SYSUTCDATETIME(),
-        j.namespace_id,
-        50 /* ActorCode.Job */,
-        j.id,
-        j.job_ref,
-        r.execution_number,
-        COALESCE(j.lineage_root_id, j.id),
-        j.definition_id,
-        j.tenant_id,
-        @p_detail_format_id,
-        @p_detail,
-        @p_reason_message
-    FROM {{schema}}.jobs j
-    JOIN {{schema}}.runtimes r ON r.job_id = j.id
-    WHERE j.id = @p_job_id;
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
 
-    IF @@ROWCOUNT = 0
-    BEGIN
-        THROW 50000, 'ACTA:NOTE_UNKNOWN_JOB:record_job_note: unknown job id', 1;
-    END
-END
+        INSERT INTO {{schema}}.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            detail_format_id,
+            detail,
+            reason_message)
+        SELECT
+            90 /* EventCode.JobNoteRecorded */,
+            SYSUTCDATETIME(),
+            j.namespace_id,
+            50 /* ActorCode.Job */,
+            j.id,
+            j.job_ref,
+            r.execution_number,
+            COALESCE(j.lineage_root_id, j.id),
+            j.definition_id,
+            j.tenant_id,
+            @p_detail_format_id,
+            @p_detail,
+            @p_reason_message
+        FROM {{schema}}.jobs j
+        JOIN {{schema}}.runtimes r ON r.job_id = j.id
+        WHERE j.id = @p_job_id;
+
+        SELECT @@ROWCOUNT AS inserted;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO

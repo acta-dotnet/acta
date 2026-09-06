@@ -20,3 +20,5 @@ WHERE
     AND kind_code IN (10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */)
     AND resolved_at_utc IS NULL
     AND (last_projected_event_id IS NULL OR last_projected_event_id < @p_source_event_id);
+
+SELECT changes() AS resolved_count;

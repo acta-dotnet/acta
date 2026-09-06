@@ -18,14 +18,16 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-    DECLARE @state TINYINT, @fmt TINYINT = 0;
-    DECLARE @val VARBINARY(MAX) = NULL;
-    DECLARE @due DATETIME2(3) = NULL;
-    DECLARE @outcome SMALLINT;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @state TINYINT, @fmt TINYINT = 0;
+        DECLARE @val VARBINARY(MAX) = NULL;
+        DECLARE @due DATETIME2(3) = NULL;
+        DECLARE @outcome SMALLINT;
 
         SELECT
             @state = status_code,
@@ -89,18 +91,17 @@ BEGIN
                 SET @val = NULL;
             END
 
-        COMMIT TRANSACTION;
         SELECT
             @outcome AS outcome_code,
             @fmt AS value_format_id,
             @val AS value;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

@@ -16,12 +16,14 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns_id INT;
-    DECLARE @worker_id INT;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @ns_id INT;
+        DECLARE @worker_id INT;
 
         UPDATE {{schema}}.namespaces
         SET
@@ -97,19 +99,17 @@ BEGIN
             NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
         );
 
-        COMMIT TRANSACTION;
+        SELECT
+            @ns_id AS namespace_id,
+            @worker_id AS worker_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-
-    SELECT
-        @ns_id AS namespace_id,
-        @worker_id AS worker_id;
 END;
 GO

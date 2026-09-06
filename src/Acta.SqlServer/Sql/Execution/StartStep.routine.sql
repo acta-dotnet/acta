@@ -7,20 +7,22 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-    DECLARE @outcome SMALLINT;
-    DECLARE @attempt SMALLINT;
-    DECLARE @version INT;
-    DECLARE @next DATETIME2(3) = NULL;
-    DECLARE @rfid TINYINT = 0;
-    DECLARE @result VARBINARY(MAX) = NULL;
-    DECLARE @rcode SMALLINT = NULL;
-    DECLARE @rmsg NVARCHAR(512) = NULL;
-    DECLARE @state TINYINT;
-    DECLARE @existing_next DATETIME2(3);
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @outcome SMALLINT;
+        DECLARE @attempt SMALLINT;
+        DECLARE @version INT;
+        DECLARE @next DATETIME2(3) = NULL;
+        DECLARE @rfid TINYINT = 0;
+        DECLARE @result VARBINARY(MAX) = NULL;
+        DECLARE @rcode SMALLINT = NULL;
+        DECLARE @rmsg NVARCHAR(512) = NULL;
+        DECLARE @state TINYINT;
+        DECLARE @existing_next DATETIME2(3);
 
         SELECT
             @state = status_code,
@@ -128,8 +130,6 @@ BEGIN
                 SET @rmsg = NULL;
             END
 
-        COMMIT TRANSACTION;
-
         SELECT
             @outcome AS outcome_code,
             @attempt AS attempt_number,
@@ -139,13 +139,13 @@ BEGIN
             @result AS result,
             @rcode AS reason_code,
             @rmsg AS reason_message;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

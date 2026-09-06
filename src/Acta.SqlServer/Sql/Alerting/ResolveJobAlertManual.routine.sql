@@ -1,21 +1,23 @@
 CREATE OR ALTER PROCEDURE {{schema}}.resolve_job_alert_manual
     @p_alert_ref UNIQUEIDENTIFIER,
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_reason_message NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-    DECLARE
-        @namespace_id INT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
-        @ack DATETIME2(7), @resolved DATETIME2(7),
-        @definition_id INT, @lineage_root_id BIGINT, @execution_number INT;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE
+            @namespace_id INT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
+            @ack DATETIME2(7), @resolved DATETIME2(7),
+            @definition_id INT, @lineage_root_id BIGINT, @execution_number INT;
 
         SELECT
             @namespace_id = a.namespace_id,
@@ -28,22 +30,22 @@ BEGIN
 
         IF @namespace_id IS NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS DATETIME2(7)) AS acknowledged_at_utc,
                     CAST(NULL AS DATETIME2(7)) AS resolved_at_utc;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF @resolved IS NOT NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
                     @ack AS acknowledged_at_utc,
                     @resolved AS resolved_at_utc;
-                RETURN;
+                GOTO Finish;
             END;
 
         SELECT
@@ -94,18 +96,19 @@ BEGIN
             NULL, @p_reason_message
         );
 
-        COMMIT TRANSACTION;
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @ack AS acknowledged_at_utc,
             @resolved AS resolved_at_utc;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

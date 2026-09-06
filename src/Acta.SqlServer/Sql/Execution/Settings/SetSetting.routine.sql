@@ -9,50 +9,53 @@ CREATE OR ALTER PROCEDURE {{schema}}.set_setting
     @p_namespace_name VARCHAR(128),
     @p_job_name VARCHAR(128),
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_reason_message NVARCHAR(512),
     @p_expected_version INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @scope_code SMALLINT = 10 /* SettingScopeCode.Global */;
-    DECLARE @namespace_id INT, @definition_id INT, @scope_id INT, @version INT;
 
-    IF @p_namespace_name IS NOT NULL
-        BEGIN
-            SELECT @namespace_id = n.id FROM {{schema}}.namespaces n
-            WHERE n.name = @p_namespace_name;
-            IF @namespace_id IS NULL
-                BEGIN
-                    SELECT
-                        CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
-                        CAST(NULL AS INT) AS version;
-                    RETURN;
-                END;
-            IF @p_job_name IS NULL
-                BEGIN
-                    SET @scope_code = 30 /* SettingScopeCode.Namespace */; SET @scope_id = @namespace_id;
-                END
-            ELSE
-                BEGIN
-                    SELECT @definition_id = d.id
-                    FROM {{schema}}.definitions d
-                    WHERE d.namespace_id = @namespace_id AND d.name = @p_job_name;
-                    IF @definition_id IS NULL
-                        BEGIN
-                            SELECT
-                                CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
-                                CAST(NULL AS INT) AS version;
-                            RETURN;
-                        END;
-                    SET @scope_code = 40 /* SettingScopeCode.Definition */; SET @scope_id = @definition_id;
-                END;
-        END;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @scope_code SMALLINT = 10 /* SettingScopeCode.Global */;
+        DECLARE @namespace_id INT, @definition_id INT, @scope_id INT, @version INT;
+
+        IF @p_namespace_name IS NOT NULL
+            BEGIN
+                SELECT @namespace_id = n.id FROM {{schema}}.namespaces n
+                WHERE n.name = @p_namespace_name;
+                IF @namespace_id IS NULL
+                    BEGIN
+                        SELECT
+                            CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
+                            CAST(NULL AS INT) AS version;
+                        GOTO Finish;
+                    END;
+                IF @p_job_name IS NULL
+                    BEGIN
+                        SET @scope_code = 30 /* SettingScopeCode.Namespace */; SET @scope_id = @namespace_id;
+                    END
+                ELSE
+                    BEGIN
+                        SELECT @definition_id = d.id
+                        FROM {{schema}}.definitions d
+                        WHERE d.namespace_id = @namespace_id AND d.name = @p_job_name;
+                        IF @definition_id IS NULL
+                            BEGIN
+                                SELECT
+                                    CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
+                                    CAST(NULL AS INT) AS version;
+                                GOTO Finish;
+                            END;
+                        SET @scope_code = 40 /* SettingScopeCode.Definition */; SET @scope_id = @definition_id;
+                    END;
+            END;
 
         SELECT @version = s.version
         FROM {{schema}}.settings s WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
@@ -64,19 +67,19 @@ BEGIN
         -- CAS misses never create and never write the event: report the row as it stands.
         IF @p_expected_version IS NOT NULL AND @version IS NULL
             BEGIN
-                ROLLBACK TRANSACTION;
+
                 SELECT
                     CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
                     CAST(NULL AS INT) AS version;
-                RETURN;
+                GOTO Finish;
             END;
         IF @p_expected_version IS NOT NULL AND @version <> @p_expected_version
             BEGIN
-                ROLLBACK TRANSACTION;
+
                 SELECT
                     CAST(4 /* AdminControlAction.VersionConflict */ AS SMALLINT) AS action,
                     @version AS version;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF @version IS NULL
@@ -113,13 +116,18 @@ BEGIN
             1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"name":"' + @p_name + '"}')
         );
 
-        COMMIT TRANSACTION;
         SELECT
             CAST(1 /* AdminControlAction.Applied */ AS SMALLINT) AS action,
             @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

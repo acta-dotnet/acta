@@ -6,16 +6,16 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-    -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
-    -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
-    -- on error rethrow and let the caller roll back the whole transaction.
     DECLARE @entry_trancount INT = @@TRANCOUNT;
-
     BEGIN TRY
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
+        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
+        -- on error rethrow and let the caller roll back the whole transaction.
 
         DECLARE @resolved TABLE (
             ordinal INT PRIMARY KEY,
@@ -307,30 +307,27 @@ BEGIN
         INNER JOIN @map m ON m.job_ref = b.job_ref
         INNER JOIN @resolved r ON r.ordinal = t.ordinal;
 
+        SELECT
+            b.ordinal,
+            COALESCE(m.id, e.id) AS job_id,
+            COALESCE(m.job_ref, e.job_ref) AS job_ref,
+            CASE
+                WHEN m.id IS NOT NULL
+                    THEN 1 /* JobEnqueueAction.Inserted */
+                ELSE 2 /* JobEnqueueAction.Deduplicated */
+            END AS action
+        FROM @p_batch b
+        LEFT JOIN @map m ON m.job_ref = b.job_ref
+        LEFT JOIN @existing e ON e.ordinal = b.ordinal
+        ORDER BY b.ordinal;
+
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
         IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-
-    SELECT
-        b.ordinal,
-        COALESCE(m.id, e.id) AS job_id,
-        COALESCE(m.job_ref, e.job_ref) AS job_ref,
-        CASE
-            WHEN m.id IS NOT NULL
-                THEN 1 /* JobEnqueueAction.Inserted */
-            ELSE 2 /* JobEnqueueAction.Deduplicated */
-        END AS action
-    FROM @p_batch b
-    LEFT JOIN @map m ON m.job_ref = b.job_ref
-    LEFT JOIN @existing e ON e.ordinal = b.ordinal
-    ORDER BY b.ordinal;
 END;
 GO

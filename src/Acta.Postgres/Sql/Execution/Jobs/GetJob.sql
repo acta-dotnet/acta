@@ -24,7 +24,8 @@ SELECT
     j.tenant_id,
     t.tenant_key,
     j.definition_id,
-    lw.worker_ref AS leased_by_worker_ref
+    lw.worker_ref AS leased_by_worker_ref,
+    r.version
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id

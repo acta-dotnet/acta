@@ -6,7 +6,8 @@ namespace Acta.Relational.Entities;
 /// The live job policy: one row per definition, the single source of truth for every per-job policy.
 /// Each policy field is a <b>default</b> (code-owned, synced from <c>[Job]</c>) paired with a nullable
 /// <b>override</b> (operator-edited, NULL = none); the <b>effective</b> value is
-/// <c>COALESCE(&lt;field&gt;_override, &lt;field&gt;)</c>, computed at the point of use and never stored.
+/// <c>COALESCE(&lt;field&gt;_override, &lt;field&gt;)</c>, database-generated and never independently
+/// writable; the providers that support generated columns persist them.
 /// Identity, the type contract, and formats are code-fixed (no override). One entity, never split.
 /// </summary>
 [DbTable("definitions")]

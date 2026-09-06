@@ -3,13 +3,15 @@ CREATE OR REPLACE FUNCTION {{schema}}.cancel_job(
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
     p_reason_code SMALLINT,
-    p_reason_message VARCHAR
+    p_reason_message VARCHAR,
+    p_expected_version INT DEFAULT NULL
 )
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, parent_id BIGINT)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, parent_id BIGINT, version INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_from_status SMALLINT;
+    v_version INT;
     v_namespace_id INT;
     v_lineage_root_id BIGINT;
     v_definition_id INT;
@@ -31,15 +33,21 @@ BEGIN
         r.leased_by_worker_id,
         j.audit_level_code,
         j.parent_id,
-        j.job_ref
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_worker_id, v_audit_level, v_parent_id, v_job_ref
+        j.job_ref,
+        r.version
+    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_worker_id, v_audit_level, v_parent_id, v_job_ref, v_version
     FROM {{schema}}.jobs j
     JOIN {{schema}}.runtimes r ON r.job_id = j.id
     WHERE j.id = p_id
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::BIGINT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::BIGINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_parent_id, v_version;
         RETURN;
     END IF;
 
@@ -50,7 +58,7 @@ BEGIN
         40 /* JobStatusCode.Dispatched */,
         50 /* JobStatusCode.Executing */
     ) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_parent_id;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_parent_id, v_version;
         RETURN;
     END IF;
 
@@ -59,15 +67,15 @@ BEGIN
     FROM {{schema}}.definitions jd
     WHERE jd.id = v_definition_id;
 
-    UPDATE {{schema}}.runtimes
+    UPDATE {{schema}}.runtimes AS r
     SET
         status_code = 220 /* JobStatusCode.Cancelled */,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         retention_until_utc = now() + make_interval(secs => v_retention_seconds),
         modified_at_utc = now(),
-        version = version + 1
-    WHERE job_id = p_id;
+        version = r.version + 1
+    WHERE r.job_id = p_id;
 
     IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
         IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
@@ -151,6 +159,6 @@ BEGIN
             p_reason_message);
     END IF;
 
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 220 /* JobStatusCode.Cancelled */::SMALLINT, v_parent_id;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 220 /* JobStatusCode.Cancelled */::SMALLINT, v_parent_id, v_version + 1;
 END;
 $$;

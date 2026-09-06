@@ -16,47 +16,49 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-    DECLARE @v_ns INT = (
-        SELECT id FROM {{schema}}.namespaces
-        WHERE name = @p_namespace_name
-    );
-    IF @v_ns IS NULL
-        THROW 50000, 'raise_job_alert: unknown namespace', 1;
-
-    DECLARE @v_job_ref UNIQUEIDENTIFIER = (
-        SELECT job_ref FROM {{schema}}.jobs
-        WHERE id = @p_job_id
-    );
-
-    IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
-        THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
-
-    IF @p_dedupe_key IS NULL
-        BEGIN
-            INSERT INTO {{schema}}.alerts (
-                namespace_id, alert_ref, job_id, job_ref,
-                origin_code, severity_code, kind_code, title, message, channel_name,
-                dedupe_key, occurrence_count, last_projected_event_id,
-                delivery_status_code, retry_count,
-                created_at_utc, modified_at_utc, version
-            )
-            VALUES (
-                @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                NULL, 1, @p_source_event_id,
-                @p_delivery_status_code, 0,
-                @now, @now, 0
-            );
-            SELECT 1, @p_source_event_id;
-            RETURN;
-        END
-
-    DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        DECLARE @v_ns INT = (
+            SELECT id FROM {{schema}}.namespaces
+            WHERE name = @p_namespace_name
+        );
+        IF @v_ns IS NULL
+            THROW 50000, 'raise_job_alert: unknown namespace', 1;
+
+        DECLARE @v_job_ref UNIQUEIDENTIFIER = (
+            SELECT job_ref FROM {{schema}}.jobs
+            WHERE id = @p_job_id
+        );
+
+        IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
+            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
+
+        IF @p_dedupe_key IS NULL
+            BEGIN
+                INSERT INTO {{schema}}.alerts (
+                    namespace_id, alert_ref, job_id, job_ref,
+                    origin_code, severity_code, kind_code, title, message, channel_name,
+                    dedupe_key, occurrence_count, last_projected_event_id,
+                    delivery_status_code, retry_count,
+                    created_at_utc, modified_at_utc, version
+                )
+                VALUES (
+                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
+                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                    NULL, 1, @p_source_event_id,
+                    @p_delivery_status_code, 0,
+                    @now, @now, 0
+                );
+                SELECT 1, @p_source_event_id;
+                GOTO Finish;
+            END
+
+        DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
 
         -- The identity's one OPEN row absorbs the repeat; resolution being terminal, a resolved row must
         -- be left for the insert arm below. UPDLOCK/HOLDLOCK over the equality predicate serializes
@@ -133,16 +135,16 @@ BEGIN
                     END
             END
 
-        COMMIT TRANSACTION;
-
         SELECT TOP (1) occurrence_count, last_projected_event_id FROM @updated;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

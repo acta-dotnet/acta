@@ -1,21 +1,23 @@
 CREATE OR ALTER PROCEDURE {{schema}}.purge_job
     @p_id BIGINT,
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_reason_code TINYINT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE
-        @from_status TINYINT, @namespace_id INT,
-        @definition_id INT, @tenant_id INT,
-        @job_ref UNIQUEIDENTIFIER, @job_name VARCHAR(128);
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE
+            @from_status TINYINT, @namespace_id INT,
+            @definition_id INT, @tenant_id INT,
+            @job_ref UNIQUEIDENTIFIER, @job_name VARCHAR(128);
 
         /* Lock the jobs row too: child enqueue locks jobs (not runtimes), and under RCSI the
            child guard below only serializes if we hold the same resource. */
@@ -33,11 +35,11 @@ BEGIN
 
         IF @from_status IS NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF
@@ -47,11 +49,11 @@ BEGIN
                 220 /* JobStatusCode.Cancelled */
             )
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
-                RETURN;
+                GOTO Finish;
             END;
 
         -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
@@ -62,11 +64,11 @@ BEGIN
                 WHERE c.parent_id = @p_id
             )
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code;
-                RETURN;
+                GOTO Finish;
             END;
 
         DECLARE @schedule_ids TABLE (id BIGINT PRIMARY KEY);
@@ -115,17 +117,18 @@ BEGIN
             @p_reason_code, CONCAT('purged ', LOWER(CONVERT(VARCHAR(36), @job_ref)), ' (', @job_name, ')')
         );
 
-        COMMIT TRANSACTION;
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(NULL AS TINYINT) AS status_code;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

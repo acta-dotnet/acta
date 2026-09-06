@@ -8,19 +8,21 @@ CREATE OR ALTER PROCEDURE {{schema}}.set_schedule_overrides
     @p_job_next_run_at_utc DATETIME2(7),
     @p_schedule_next_run_at_utc DATETIME2(7),
     @p_actor_code TINYINT,
-    @p_actor_key VARCHAR(128),
+    @p_actor_key NVARCHAR(128),
     @p_change_summary NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
+        DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
 
         /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
            runtimes then schedules, so every writer of both must take runtimes first. */
@@ -42,26 +44,26 @@ BEGIN
 
         IF @schedule_id IS NULL
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
                     CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
                     CAST(NULL AS INT) AS version;
-                RETURN;
+                GOTO Finish;
             END;
 
         IF @version <> @p_expected_version
             BEGIN
-                COMMIT TRANSACTION;
+
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @status AS status_code,
                     @paused AS paused_until_utc,
                     @next AS next_run_at_utc,
                     @version AS version;
-                RETURN;
+                GOTO Finish;
             END;
 
         SELECT
@@ -129,20 +131,21 @@ BEGIN
                 );
             END
 
-        COMMIT TRANSACTION;
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             @status AS status_code,
             @paused AS paused_until_utc,
             @next AS next_run_at_utc,
             @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
 END;

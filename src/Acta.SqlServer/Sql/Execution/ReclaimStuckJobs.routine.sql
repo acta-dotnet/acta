@@ -5,32 +5,37 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-    DECLARE
-        @reclaimed TABLE
-        (
-            id BIGINT NOT NULL PRIMARY KEY,
-            job_ref UNIQUEIDENTIFIER NOT NULL,
-            namespace_id INT NOT NULL,
-            execution_number INT NOT NULL,
-            lineage_root_id BIGINT NULL,
-            definition_id INT NOT NULL,
-            tenant_id INT NULL,
-            from_status_code TINYINT NOT NULL,
-            to_status_code TINYINT NOT NULL,
-            audit_level_code TINYINT NOT NULL,
-            parent_id BIGINT NULL
-        );
-
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        DECLARE
+            @reclaimed TABLE
+            (
+                id BIGINT NOT NULL PRIMARY KEY,
+                job_ref UNIQUEIDENTIFIER NOT NULL,
+                namespace_id INT NOT NULL,
+                execution_number INT NOT NULL,
+                lineage_root_id BIGINT NULL,
+                definition_id INT NOT NULL,
+                tenant_id INT NULL,
+                from_status_code TINYINT NOT NULL,
+                to_status_code TINYINT NOT NULL,
+                audit_level_code TINYINT NOT NULL,
+                parent_id BIGINT NULL
+            );
 
         WITH stuck AS (
             SELECT
                 r.job_id AS id,
                 r.status_code AS from_status,
-                (r.failure_count + 1) AS new_failure_count,
+                /* Saturated at short.MaxValue like the worker path: the column is SMALLINT and a
+                   recurring slot's count accumulates unbounded, so an unguarded +1 would eventually
+                   error the whole sweep and wedge recovery for the namespace. */
+                CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
                 jd.max_attempts_effective AS max_attempts,
                 jd.retention_seconds_effective AS retention_seconds,
                 /* The job was parked on THIS slot: the suspend copied the slot's due into
@@ -44,7 +49,15 @@ BEGIN
                         AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
                         AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
-                ) THEN 1 ELSE 0 END AS wait_resolved
+                ) THEN 1 ELSE 0 END AS wait_resolved,
+                /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
+                   across occurrences, so a recurring reclaim always re-arms Ready instead of
+                   terminally failing the schedule - mirroring ComputeRecurringOutcome on the worker path. */
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.schedules sc
+                    WHERE sc.job_id = r.job_id
+                ) THEN 1 ELSE 0 END AS is_recurring
             FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK)
             INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
             INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
@@ -62,7 +75,7 @@ BEGIN
             status_code = CASE
                 WHEN s.wait_resolved = 1
                     THEN 20 /* JobStatusCode.Suspended */
-                WHEN s.new_failure_count >= s.max_attempts
+                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
                     THEN 200 /* JobStatusCode.Failed */
                 ELSE 10  /* JobStatusCode.Ready */
             END,
@@ -74,14 +87,14 @@ BEGIN
             next_run_at_utc = CASE
                 WHEN s.wait_resolved = 1
                     THEN r.next_run_at_utc
-                WHEN s.new_failure_count >= s.max_attempts
+                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
                     THEN r.next_run_at_utc
                 ELSE @now
             END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             retention_until_utc = CASE
-                WHEN s.wait_resolved = 0 AND s.new_failure_count >= s.max_attempts
+                WHEN s.wait_resolved = 0 AND s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
                     THEN DATEADD(SECOND, s.retention_seconds, @now)
                 ELSE r.retention_until_utc
             END,
@@ -138,21 +151,19 @@ BEGIN
         FROM @reclaimed
         WHERE audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
 
-        COMMIT TRANSACTION;
+        SELECT
+            id AS job_id,
+            to_status_code AS to_status,
+            parent_id
+        FROM @reclaimed;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0
-            BEGIN
-                ROLLBACK TRANSACTION;
-            END;
-
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-
-    SELECT
-        id AS job_id,
-        to_status_code AS to_status,
-        parent_id
-    FROM @reclaimed;
 END;
 GO

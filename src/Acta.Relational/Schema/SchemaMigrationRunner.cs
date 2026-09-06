@@ -16,11 +16,15 @@ internal static class SchemaMigrationRunner
     /// is how that fails loudly instead of silently applying a mismatched schema. Two places own it:
     /// SqlDdlDialect.BaselineStamp (which writes it into the generated M001 bodies) and the constant
     /// here (which requires it at bootstrap); BaselineStampParityTests fails the build if they drift.
-    /// `baseline-1.0.1` is the generation 1.0 ships: it amended the still-unshipped baseline to widen
-    /// namespaces.id, and a database stamped `baseline-1.0` is reprovisioned rather than upgraded,
-    /// because the amended M001's existence guards would otherwise skip every statement in silence.
+    /// The stamp names the day the baseline was cut, so a re-cut identifies itself and no two cuts
+    /// can share a value by oversight: rc.1 shipped `baseline-1.0.1` under the older version-style
+    /// naming, and rc.2 cuts `baseline-20260909`. Two cuts on one day would share a stamp, which makes
+    /// a same-day re-cut one generation by construction; that is the intermediate development build,
+    /// and it is why a stamp is never reused across days. A database from any earlier generation is
+    /// reprovisioned rather than upgraded, because the re-cut M001's existence guards would otherwise
+    /// skip every statement in silence and leave it running a schema nobody chose.
     /// </summary>
-    internal const string RequiredBaselineStamp = "baseline-1.0.1";
+    internal const string RequiredBaselineStamp = "baseline-20260909";
 
     /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the

@@ -22,6 +22,10 @@ namespace Acta.Relational.Entities;
 )]
 [DbUniqueIndex(Name = "ux_settings_global_name", Columns = ["scope_code", "name"], Filter = "scope_id IS NULL", Usage = "uniqueness")]
 [DbCheck(Name = "ck_settings_value_pair", Sql = "(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)")]
+[DbCheck(
+    Name = "ck_settings_scope_pair",
+    Sql = "(scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL)"
+)]
 internal sealed class Setting : IEntity<int>
 {
     /// <summary>Surrogate row identifier; DB-assigned identity.</summary>
@@ -37,7 +41,8 @@ internal sealed class Setting : IEntity<int>
 
     /// <summary>
     /// Target catalog row for narrowed scopes (<c>namespaces.id</c> / <c>definitions.id</c>); NULL for
-    /// <c>Global</c>. No FK: the referenced catalog differs per <see cref="ScopeCode"/>.
+    /// <c>Global</c>. No FK: the referenced catalog differs per <see cref="ScopeCode"/>. Paired with
+    /// <see cref="ScopeCode"/> by <c>ck_settings_scope_pair</c>.
     /// </summary>
     [DbColumn("scope_id", DbKind.Int32)]
     public int? ScopeId { get; init; }

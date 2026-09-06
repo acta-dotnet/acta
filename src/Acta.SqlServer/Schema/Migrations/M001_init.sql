@@ -139,7 +139,7 @@ CREATE TABLE {{schema}}.events (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     namespace_id int NOT NULL,
     actor_code tinyint NOT NULL,
-    actor_key varchar(128) NULL,
+    actor_key nvarchar(128) NULL,
     job_id bigint NULL,
     job_ref uniqueidentifier NULL,
     execution_number int NULL,
@@ -278,13 +278,14 @@ CREATE TABLE {{schema}}.runtimes (
     , CONSTRAINT pk_runtimes PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_runtimes_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
     , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
+    , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 CREATE INDEX ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);
 CREATE INDEX ix_runtimes_retention ON {{schema}}.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
-CREATE INDEX ix_runtimes_worker_inflight ON {{schema}}.runtimes (leased_by_worker_id, status_code) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
+CREATE INDEX ix_runtimes_worker_inflight ON {{schema}}.runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 END
 GO
 
@@ -346,6 +347,7 @@ CREATE TABLE {{schema}}.settings (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_settings PRIMARY KEY (id)
     , CONSTRAINT ck_settings_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_settings_scope_pair CHECK ((scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL))
     , CONSTRAINT ck_settings_scope_code CHECK (scope_code IN (10, 30, 40))
 );
 CREATE UNIQUE INDEX ux_settings_scope_name ON {{schema}}.settings (scope_code, scope_id, name) WHERE scope_id IS NOT NULL;
@@ -466,6 +468,7 @@ CREATE TABLE {{schema}}.checkpoints (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100)))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
     , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 30, 100))
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
@@ -543,10 +546,12 @@ GO
 
 -- Per-schedule cursor advances applied by acta.complete_execution on a recurring slot fire.
 -- One row per due schedule; next_run_at_utc NULL clears the cursor (schedule exhausted).
+-- expected_version is the schedule version the plan read; NULL applies the advance unguarded.
 IF TYPE_ID(N'{{schema}}.job_schedule_advance_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.job_schedule_advance_batch AS TABLE (
-    schedule_id     BIGINT       NOT NULL PRIMARY KEY,
-    next_run_at_utc DATETIME2(3) NULL
+    schedule_id      BIGINT       NOT NULL PRIMARY KEY,
+    next_run_at_utc  DATETIME2(3) NULL,
+    expected_version INT          NULL
 );');
 GO
 
@@ -605,7 +610,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-1.0.1', '{{schema}}');
+VALUES (0, 'baseline-20260909', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');
