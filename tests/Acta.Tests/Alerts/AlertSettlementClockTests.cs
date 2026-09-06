@@ -45,7 +45,7 @@ public sealed class AlertSettlementClockTests
     [Fact]
     public void A_pass_that_has_just_read_the_clock_settles_at_that_instant_or_after_it()
     {
-        var clock = AlertSettlementClock.Start(PassStart);
+        var clock = new AlertSettlementClock(PassStart, Stopwatch.GetTimestamp());
 
         // Never behind the base instant: the offset is elapsed time, which cannot go backwards, so a
         // settlement can never be stamped before the pass that wrote it began.
