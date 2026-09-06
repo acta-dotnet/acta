@@ -8,8 +8,66 @@ namespace Acta.Runtime.Kernel;
 /// </summary>
 internal static class MessageTruncator
 {
-    public static string? Truncate(this string? value, int? maxLength) =>
-        value is not null && maxLength is { } max && value.Length > max ? value[..max] : value;
+    /// <summary>
+    /// Returns text no provider refuses: unpaired surrogates and U+0000 are replaced with U+FFFD and
+    /// a cut never splits a surrogate pair. Npgsql's UTF-8 encoder throws on a lone surrogate and
+    /// PostgreSQL rejects NUL in text outright, while SqlClient stores both and SQLite replaces the
+    /// surrogate - so without the replacement the same reason message succeeds, round-trips, or
+    /// fails depending on the provider, and a raw cut at the cap manufactures a lone surrogate out
+    /// of a valid emoji at the boundary. A failed write here is worst on the paths that carry reason
+    /// text: the completion or alert recording a failure would itself fail. Text this returns can
+    /// still differ per provider where a column is narrower than Unicode (a SQL Server varchar
+    /// folds non-ASCII); that is the column's contract, not this cut's.
+    /// </summary>
+    public static string? Truncate(this string? value, int? maxLength)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        // Only the prefix that can survive the cut is sanitized: index max is never emitted, and the
+        // pair check at max - 1 still sees its partner at max, so the result is identical to
+        // sanitizing the whole value without scanning and copying a megabyte to keep 512 chars.
+        var window = maxLength is { } cap && value.Length - 1 > cap ? value[..(cap + 1)] : value;
+        var sanitized = ReplaceUnstorable(window);
+        if (maxLength is not { } max || sanitized.Length <= max)
+        {
+            return sanitized;
+        }
+
+        // Sanitization left only well-formed pairs, so a bad cut can only land after a high surrogate.
+        return max > 0 && char.IsHighSurrogate(sanitized[max - 1]) ? sanitized[..(max - 1)] : sanitized[..max];
+    }
+
+    private static string ReplaceUnstorable(string value)
+    {
+        // Most values carry neither surrogates nor NUL; scan first so the common case allocates nothing.
+        var first = 0;
+        while (first < value.Length && !char.IsSurrogate(value[first]) && value[first] != '\0')
+        {
+            first++;
+        }
+        if (first == value.Length)
+        {
+            return value;
+        }
+
+        var chars = value.ToCharArray();
+        for (var i = first; i < chars.Length; i++)
+        {
+            if (char.IsHighSurrogate(chars[i]) && i + 1 < chars.Length && char.IsLowSurrogate(chars[i + 1]))
+            {
+                i++;
+                continue;
+            }
+            if (char.IsSurrogate(chars[i]) || chars[i] == '\0')
+            {
+                chars[i] = '\uFFFD';
+            }
+        }
+        return new string(chars);
+    }
 }
 
 /// <summary>
