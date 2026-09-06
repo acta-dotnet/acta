@@ -13,8 +13,16 @@ release-candidate line the schema baseline (`M001`) could be re-cut per release,
 provisioned by a pre-rc build — or by the first rc.1 cut, which the certification round amended
 once to widen the namespace id — may need one reprovision on the way in. Bootstrap compares the
 baseline stamp recorded in the database against the one this build ships and refuses to start on a
-mismatch, so a stale database fails loudly instead of taking a schema it was not built for; old
-renumbered code values are intentionally incompatible, and there is no translation migration.
+mismatch, so a database built from a different baseline generation fails loudly instead of taking a
+schema it was not built for; old renumbered code values are intentionally incompatible, and there is
+no translation migration.
+
+The stamp separates baseline generations, not every amendment within one. rc.2 amends `M001` to make
+`events.actor_key` Unicode while keeping the `baseline-1.0.1` stamp, so an rc.1 database starts
+without complaint and its statements, being existence-guarded, leave the existing column in place.
+On SQL Server that column stays `varchar(128)` and keeps folding an operator's non-ASCII name to
+`?`. Reprovisioning it is a manual step the release notes call out; nothing in bootstrap enforces
+it.
 
 ## Execution model
 

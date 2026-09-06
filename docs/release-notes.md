@@ -1,5 +1,142 @@
 # Release notes
 
+## 1.0.0-rc.2 (unreleased)
+
+A correctness round over the paths a release candidate has to get right before anyone leans on
+them: crash recovery, the audit trail, and the bounds on what an operator or an attribute can
+declare. Nothing here adds a feature to the execution model; most of it makes a guarantee the docs
+already claimed actually hold on every provider.
+
+### What a consumer must change
+
+**Server ledger mutations are stored routines on both server providers**, 56 per provider, now
+including alert delivery and automatic resolution. Reads remain embedded SQL and installed views
+remain queryable. Resource discovery selects execution without a provider-wide routine flag. SQL
+Server operations own one transaction or join the caller's; retention commits one bounded batch per
+invocation, with sweep iteration in the runtime. Client-side mapping and disposal failures cannot
+trigger mutation replay. Routines reinstall on every start, and the two whose signature changed drop
+their retired form first, so the routine layer upgrades in place. The schema note at the end of this
+section says which databases must still be reprovisioned. See
+[SQL execution policy](internals/sql-execution-policy.md).
+
+Three things that compiled and ran on rc.1 now fail at worker startup, each with the job named:
+
+- **`Deadline` together with `[JobSchedule]`.** A deadline anchors to job creation and a recurring
+  slot is created once and lives forever, so the combination could never bound an occurrence; a
+  Strict deadline would instead cancel the slot the first time it was claimed past that anchor.
+  Remove the deadline from the scheduled job. For a slot that predates the rule, or one an operator
+  hands a `DeadlineSeconds` override, the executor builds every occurrence with no deadline, so the
+  override lands but is ignored.
+- **A code-declared `ExecutionTimeout` past 24.8 days** (`int.MaxValue` milliseconds, the ceiling
+  `CancelAfter` accepts). On rc.1 it registered, the catalog reported it, and every attempt ran
+  clamped with no diagnostic.
+- **A `RunbookUrl` that is not printable ASCII or exceeds 512 characters, or a `DisplayName` over
+  128 or `Description` over 512.** On rc.1 a URL with a diacritic stored as `?` on SQL Server and
+  intact elsewhere; over-length text failed with a raw provider error.
+
+**The job control verbs gained an optional `expectedVersion`.** `CancelAsync`, `PauseAsync`,
+`ResumeAsync`, `RestartAsync`, `RescheduleAsync`, and `ReprioritizeAsync` take `int? expectedVersion
+= null` after `actorKey`. A call that passes `ct` positionally no longer compiles; name it
+(`ct: ct`). `JobControlResult` gained a trailing `Version`, `ControlAction` gained
+`VersionConflict`, and `JobDetail` gained `Version`, so a record deconstruction or a positional
+construction of either record needs the extra member. Behavior with the token left null is exactly
+rc.1's, see below.
+
+`StepOptionsBuilder.MaxAttempts` now rejects values above 32,767: the runtime narrows the value to
+the persisted 16-bit column, and a larger one wrapped negative and exhausted the step on its first
+failure.
+
+Operator overrides through `IJobs`, the HTTP API, and the dashboard hold the same bounds:
+`ExecutionTimeoutSeconds` must be between 1 and the ceiling, a `RunbookUrl` outside printable ASCII
+or over 512 characters is rejected, and `DisplayName` and `Description` are cut to their columns.
+
+### Recovery
+
+- **A recurring slot can no longer be killed by a crash.** `MaxAttempts` is the one-off retry
+  budget, but a slot's `failure_count` accumulates across every occurrence for the life of the
+  schedule, and the reclaim sweep compared the two. Once a schedule had gathered enough failures,
+  the next worker crash while running it marked the slot `Failed`, silently ending the schedule.
+  `reclaim_stuck_jobs` in all three dialects now knows a slot from a one-off and always re-arms it
+  `Ready`, matching what the worker path already did. The same count saturates at 32,767 in the
+  sweep, so an unbounded slot could never overflow the column and error the whole sweep for the
+  namespace.
+- **Worker startup validates the catalog before it writes anything.** Manifest assembly and the
+  shape checks (empty catalog, duplicate names, time zones, tenant requirements, the deadline rule)
+  ran after the worker row and its `worker.started` event were committed, so a failing catalog left
+  an Active worker that would never heartbeat. The checks now run first; a shape failure writes no
+  row.
+- **Fractional windows round up, not down.** `WorkerRetention` and `WorkerDeadAfter` were floored
+  to whole seconds: retention could delete up to a second before the configured instant, and a live
+  worker could be tombstoned up to a second early.
+
+### The audit trail
+
+- **An operator's name is stored as typed.** `events.actor_key` was an ASCII column and every
+  control surface folded a non-ASCII principal name to `?` before writing it, so two operators whose
+  names differ only by a diacritic became one spelling on the durable record. The column is Unicode
+  now, on every provider, and the 24 SQL Server routines that took the key as `VARCHAR(128)` take
+  `NVARCHAR(128)`. The schema note above says which databases need reprovisioning.
+- **A failure's reason text can no longer fail its own write.** A cut at a column cap could split a
+  surrogate pair, and the providers disagreed on the result: Npgsql refused the lone surrogate,
+  SqlClient stored it, SQLite replaced it. The completion or alert recording a failure could itself
+  fail on PostgreSQL. Truncation is now pair-safe, replaces unpaired surrogates and U+0000 (which
+  PostgreSQL rejects in text outright) with U+FFFD, and the outbox relay's `last_error` cut uses the
+  same path. On SQL Server, the host outbox table's `last_error` is `nvarchar(512)` so a handler's
+  non-ASCII error text is kept rather than folded.
+
+### Waits and clocks
+
+- **A bounded child-group wait never gives up early.** The remaining time to the group deadline was
+  floored to whole seconds, so a member could be armed up to a second short of the deadline, and a
+  replay in that gap durably expired a child that was still inside its budget. The remaining now
+  rounds up (a slot's due lands at or up to one second past the group deadline, which the
+  not-before semantics absorb), and the monotonic anchor is taken the moment the database clock
+  reading lands, so the checkpoint write counts against the budget while the request leg before it
+  does not.
+- **The group deadline is a property of the child set.** The persisted `sys.wait-group.*` name is
+  built from the sorted, de-duplicated child ids, so listing one child twice on one replay and once
+  on the next can no longer mint a second slot with a fresh budget. A handler that listed the same
+  id twice on rc.1 gets a new slot name after upgrading, which the preview reprovision policy
+  already covers.
+- **Alert settlement instants are no longer stamped early.** The alerting pass anchored its monotonic
+  clock after the database clock query returned, dropping the round trip; it anchors before the
+  request now, so every settlement and the reminder and retry instants derived from it are at or
+  after the true instant.
+
+### Job control verbs take an optional expected version
+
+The definition, schedule, tenant, and namespace controls have always been compare-and-set: a stale
+`expectedVersion` is refused with the row's current version. The job verbs were not, on purpose: an
+operator has to be able to pause or cancel a job that is moving, and a mandatory token on a row whose
+version changes with every claim, step, and signal would turn "pause it" into a retry loop. That
+argument still holds, so the token on the job verbs is optional and null by default, which writes
+unconditionally exactly as rc.1 did. The dashboard sends none.
+
+An API caller that wants the guard reads `JobDetail.Version` (new on the read surface, straight from
+`runtimes.version`) and passes it. A row that moved in between answers `ControlAction.VersionConflict`
+carrying the current status and version, and nothing is written, not even the audit event. Over HTTP
+the four MapVerb bodies, reschedule, and reprioritize accept `expectedVersion`; a conflict is `409` with
+`action: versionConflict` and the current `version` in the same `JobControlResponse` body every other
+outcome uses. Purge, input amendment, and signals take no token: purge deletes the row, input
+amendment writes `jobs` rather than `runtimes`, and a signal is not a control transition.
+
+### Housekeeping
+
+- The recovery-sweep retry in the conformance suite is bounded by fifteen seconds of wall clock, so
+  a genuine zero surfaces in fifteen seconds however long each reclaim round trip takes.
+
+> **Schema note:** `events.actor_key` is now a Unicode column, so an operator's name reaches the
+> audit trail as typed instead of with every non-ASCII character folded to `?`. The baseline stamp
+> stays `baseline-1.0.1`, and Postgres and SQLite databases from rc.1 need nothing: their column
+> type was already Unicode. **A SQL Server database provisioned by rc.1 must be dropped and
+> reprovisioned** to take the change - M001's statements are existence-guarded, so an existing
+> `varchar(128)` column is left in place, and SQL Server would keep folding names into it without
+> any error. The routines re-install on every start and need no action.
+>
+> The same applies to the host's outbox table on SQL Server: `last_error` is now `nvarchar(512)`
+> in the DDL Acta emits, so a handler's non-ASCII error text is kept instead of folded. An outbox
+> table created by rc.1 keeps its `varchar(512)` column until the host widens or recreates it.
+
 ## 1.0.0-rc.1
 
 Tagged 2026-08-22. The headline pair: durable waits
