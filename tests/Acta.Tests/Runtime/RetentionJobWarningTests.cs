@@ -1,4 +1,5 @@
 using Acta.Runtime.Maintenance;
+using Acta.Runtime.Services.Time;
 using Acta.Tests.Context;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -39,15 +40,128 @@ public sealed class RetentionJobWarningTests
         Assert.Empty(logger.Records);
     }
 
+    [Fact]
+    public async Task Multiple_committed_alert_batches_produce_one_warning_with_the_total()
+    {
+        var logger = new RecordingLogger();
+        var batches = new Queue<int>([2, 3, 0]);
+        var store = new DelegateRetentionStore(section => section == RetentionSection.UndeliveredAlerts ? batches.Dequeue() : 0);
+
+        await CreateJob(store, logger).Handle(new RecordingJobContext(), TestContext.Current.CancellationToken);
+
+        AssertPurgeWarning(logger, 5);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Failed_sweep_warns_about_committed_alert_batches_and_preserves_the_error(bool failInSameSection)
+    {
+        var logger = new RecordingLogger();
+        var batches = new Queue<int>([2, 3, 0]);
+        var failure = new InvalidOperationException("failed retention batch");
+        var store = new DelegateRetentionStore(section =>
+        {
+            if (section == RetentionSection.UndeliveredAlerts)
+            {
+                if (failInSameSection && batches.Count == 1)
+                {
+                    throw failure;
+                }
+                return batches.Dequeue();
+            }
+            return section == RetentionSection.Workers ? throw failure : 0;
+        });
+
+        var caught = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateJob(store, logger).Handle(new RecordingJobContext(), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Same(failure, caught);
+        AssertPurgeWarning(logger, 5);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Cancelled_sweep_warns_about_committed_alert_batches_and_preserves_cancellation(bool cancelInSameSection)
+    {
+        var logger = new RecordingLogger();
+        var batches = new Queue<int>([2, 3, 0]);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var store = new DelegateRetentionStore(section =>
+        {
+            if (section == RetentionSection.UndeliveredAlerts)
+            {
+                var deleted = batches.Dequeue();
+                if (cancelInSameSection && batches.Count == 1)
+                {
+                    cancellation.Cancel();
+                }
+                return deleted;
+            }
+            if (section == RetentionSection.Workers)
+            {
+                cancellation.Cancel();
+            }
+            return 0;
+        });
+
+        var caught = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            CreateJob(store, logger).Handle(new RecordingJobContext(), cancellation.Token)
+        );
+
+        Assert.Equal(cancellation.Token, caught.CancellationToken);
+        AssertPurgeWarning(logger, 5);
+    }
+
+    [Fact]
+    public async Task Failure_before_any_alert_batch_commits_logs_no_purge_warning()
+    {
+        var logger = new RecordingLogger();
+        var store = new DelegateRetentionStore(static _ => throw new InvalidOperationException("failed retention batch"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateJob(store, logger).Handle(new RecordingJobContext(), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Empty(logger.Records);
+    }
+
+    private static void AssertPurgeWarning(RecordingLogger logger, int count)
+    {
+        var record = Assert.Single(logger.Records);
+        Assert.Equal(LogLevel.Warning, record.Level);
+        Assert.Contains($"purged {count} alerts", record.Message, StringComparison.Ordinal);
+        Assert.Contains("alert-retention-cap", record.Message, StringComparison.Ordinal);
+    }
+
     private static RetentionJob CreateJob(IRetentionStore store, ILogger<RetentionJob> logger) =>
-        new(store, Options.Create(new JobsOptions()), logger);
+        new(new RetentionCoordinator(store, new StubClock()), Options.Create(new JobsOptions()), logger);
+
+    private sealed class DelegateRetentionStore(Func<RetentionSection, int> execute) : IRetentionStore
+    {
+        public Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct) =>
+            Task.FromResult(execute(command.Section));
+    }
 
     private sealed class StubRetentionStore(int undelivered) : IRetentionStore
     {
-        public Task<PurgeExpiredDataResult> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct) =>
+        private readonly HashSet<RetentionSection> _visited = [];
+
+        public Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct) =>
             Task.FromResult(
-                new PurgeExpiredDataResult(Jobs: 7, Events: 9, Alerts: 3, UndeliveredAlertsPurged: undelivered, Workers: 1, Locks: 2)
+                _visited.Add(command.Section)
+                    ? command.Section == RetentionSection.UndeliveredAlerts
+                        ? undelivered
+                        : 3
+                    : 0
             );
+    }
+
+    private sealed class StubClock : IServerClock
+    {
+        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(DateTime.UtcNow);
     }
 
     private sealed class RecordingLogger : ILogger<RetentionJob>

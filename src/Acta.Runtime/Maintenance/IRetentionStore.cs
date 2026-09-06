@@ -1,19 +1,30 @@
 namespace Acta.Runtime.Maintenance;
 
 /// <summary>
-/// Persistence port for cross-feature expiration purging: one namespace-scoped
-/// <c>purge_expired_data</c> sweep running seven ordered bounded delete sections (terminal jobs past
-/// retention, old events, settled alerts, undelivered alerts past the same window, the projector's
-/// aged poison-skip variables, terminal workers, and a global expired-lock reap).
+/// Persistence port for one atomic, bounded batch of a retention section.
 /// </summary>
 internal interface IRetentionStore
 {
     /// <summary>
-    /// Runs one bounded purge pass and returns the per-section deleted counts. Batch and iteration
-    /// caps bound each tick; the next fire continues any backlog.
+    /// Deletes at most BatchSize eligible roots in the selected section, including their dependents.
+    /// A failed batch rolls back; earlier successful batches belong to the sweep coordinator.
     /// </summary>
-    Task<PurgeExpiredDataResult> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct);
+    Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct);
 }
+
+/// <summary>Transient command selectors, not persisted codes. Order is the retention sweep order.</summary>
+internal enum RetentionSection
+{
+    Jobs = 1,
+    Events = 2,
+    SettledAlerts = 3,
+    UndeliveredAlerts = 4,
+    PoisonSkipCheckpoints = 5,
+    Workers = 6,
+    Locks = 7,
+}
+
+internal sealed record PurgeExpiredDataBatchCommand(int NamespaceId, RetentionSection Section, DateTime CutoffUtc, int BatchSize);
 
 /// <summary>Validated purge sweep bounds for one namespace.</summary>
 internal sealed record PurgeExpiredDataCommand(

@@ -20,7 +20,7 @@ internal static class RetentionTestOps
         CancellationToken ct
     ) =>
         services
-            .GetRequiredService<IRetentionStore>()
+            .GetRequiredService<RetentionCoordinator>()
             .PurgeExpiredDataAsync(
                 new PurgeExpiredDataCommand(
                     namespaceId,

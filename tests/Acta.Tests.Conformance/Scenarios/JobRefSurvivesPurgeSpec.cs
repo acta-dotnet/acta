@@ -27,7 +27,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 )]
 [CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResolveJobIdByRefAsync))]
 [CoversStoreMethod(typeof(IEventStore), nameof(IEventStore.ListEventsAsync))]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeExpiredDataAsync))]
+[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

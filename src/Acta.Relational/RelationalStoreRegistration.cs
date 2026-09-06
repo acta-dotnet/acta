@@ -30,6 +30,7 @@ internal static class RelationalStoreRegistration
 {
     internal static void AddActaRelationalStores(this IServiceCollection services)
     {
+        services.AddSingleton<RetentionCoordinator>();
         services.AddSingleton<IOverviewStore, RelationalOverviewStore>();
         services.AddSingleton<IEventStore, RelationalEventStore>();
         services.AddSingleton<IDefinitionStore, RelationalDefinitionStore>();

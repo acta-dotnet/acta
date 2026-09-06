@@ -12,7 +12,7 @@ namespace Acta.Runtime.Maintenance;
 /// only coordination, so exactly one pass runs per namespace per tick. <c>AuditLevel.Failures</c>
 /// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
 /// </summary>
-internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> options, ILogger<RetentionJob>? log = null)
+internal sealed class RetentionJob(RetentionCoordinator coordinator, IOptions<JobsOptions> options, ILogger<RetentionJob>? log = null)
 {
     /// <summary>
     /// Per-tick bound: at most BatchSize * MaxIterations rows deleted per section; the next hourly
@@ -46,7 +46,7 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
     [JobSchedule("default", Cron.Hourly)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
-        var result = await store.PurgeExpiredDataAsync(
+        await coordinator.PurgeExpiredDataAsync(
             new PurgeExpiredDataCommand(
                 ctx.NamespaceId,
                 _eventsRetentionDays,
@@ -55,13 +55,9 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
                 BatchSize,
                 MaxIterations
             ),
+            count => LogUndeliveredPurge(ctx, count),
             ct
         );
-
-        if (result.UndeliveredAlertsPurged > 0)
-        {
-            LogUndeliveredPurge(ctx, result.UndeliveredAlertsPurged);
-        }
     }
 
     /// <summary>

@@ -27,7 +27,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 )]
 [CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.StopWorkerAsync))]
 [CoversStoreMethod(typeof(IEventStore), nameof(IEventStore.ListEventsAsync))]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeExpiredDataAsync))]
+[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class WorkerRefSurvivesPurgeSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

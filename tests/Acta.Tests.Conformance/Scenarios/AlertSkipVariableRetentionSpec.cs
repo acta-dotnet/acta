@@ -22,7 +22,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Act = "PurgeExpiredData.Run executes with a wide alert window and then with a cutoff in the future.",
     Assert = "The wide window keeps every variable and the future cutoff deletes only the projector slot's skip variables."
 )]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeExpiredDataAsync))]
+[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class AlertSkipVariableRetentionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

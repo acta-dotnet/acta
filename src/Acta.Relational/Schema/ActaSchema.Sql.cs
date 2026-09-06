@@ -415,10 +415,10 @@ internal static partial class ActaSchema
         );
 
         /// <summary>
-        /// purge_expired_data sweep knobs.
+        /// purge_expired_data batch parameters.
         /// </summary>
-        public static readonly DbValueSpec<int> EventsRetentionDays = new(
-            ParameterName: "p_events_retention_days",
+        public static readonly DbValueSpec<int> PurgeSection = new(
+            ParameterName: "p_section",
             Kind: DbKind.Int32,
             Size: null,
             Precision: null,
@@ -426,18 +426,9 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        public static readonly DbValueSpec<int> AlertRetention = new(
-            ParameterName: "p_alert_retention_days",
-            Kind: DbKind.Int32,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
-
-        public static readonly DbValueSpec<int> WorkerRetentionSeconds = new(
-            ParameterName: "p_worker_retention_seconds",
-            Kind: DbKind.Int32,
+        public static readonly DbValueSpec<DateTime> PurgeCutoffUtc = new(
+            ParameterName: "p_cutoff_utc",
+            Kind: DbKind.UtcInstant,
             Size: null,
             Precision: null,
             Scale: null,
@@ -446,15 +437,6 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int> PurgeBatchSize = new(
             ParameterName: "p_batch_size",
-            Kind: DbKind.Int32,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
-
-        public static readonly DbValueSpec<int> PurgeMaxIterations = new(
-            ParameterName: "p_max_iterations",
             Kind: DbKind.Int32,
             Size: null,
             Precision: null,

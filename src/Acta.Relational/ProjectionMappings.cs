@@ -41,7 +41,6 @@
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.LineageChildRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.LineageJobRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.LineageStepRow),
-    typeof(global::Acta.Runtime.Maintenance.PurgeExpiredDataResult),
     typeof(global::Acta.Runtime.Modules.Execution.Schedules.JobScheduleListRow),
     typeof(global::Acta.Runtime.Modules.Execution.Schedules.LiveSchedule),
     typeof(global::Acta.Runtime.Modules.Execution.Schedules.RegisteredScheduleSlot),

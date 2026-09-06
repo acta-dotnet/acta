@@ -6,33 +6,30 @@ using Acta.Runtime.Maintenance;
 namespace Acta.Relational.Stores;
 
 /// <summary>
-/// Shared relational <see cref="IRetentionStore"/> over <see cref="IDbSession"/>: one bounded
-/// <c>purge_expired_data</c> sweep whose per-section counts come back as the primary result set of one
-/// command, mapped once for every provider (routine vs inline lives behind the session).
+/// Shared relational port for one atomic batch. The runtime coordinator owns the sweep loops.
 /// </summary>
 internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect dialect) : IRetentionStore
 {
-    public async Task<PurgeExpiredDataResult> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct)
+    public async Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
+        if (command.Section is < RetentionSection.Jobs or > RetentionSection.Locks)
+        {
+            throw new ArgumentOutOfRangeException(nameof(command));
+        }
         var rows = await session.ExecuteAsync(
             new StoreCommand("Maintenance", "PurgeExpiredData"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, command.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventsRetentionDays, command.EventsRetentionDays));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertRetention, command.AlertRetention));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WorkerRetentionSeconds, command.WorkerRetentionSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeSection, (int)command.Section));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeCutoffUtc, command.CutoffUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeBatchSize, command.BatchSize));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeMaxIterations, command.MaxIterations));
             },
-            DbProjectionResolver.Resolve<PurgeExpiredDataResult>(),
+            static reader => reader.GetInt32(0),
             ct
         );
 
-        return rows.Count > 0
-            ? rows[^1]
-            : throw new InvalidOperationException(
-                "purge_expired_data returned no row; it must return exactly one (jobs, events, alerts, undelivered alerts, workers, locks) count row."
-            );
+        return rows.Single();
     }
 }

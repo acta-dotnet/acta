@@ -31,7 +31,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Act = "PurgeExpiredData.Run executes with wide and future-cutoff windows driving each sweep section to a deterministic boundary.",
     Assert = "Expired jobs delete with cascade alongside expired events, aged alerts of every delivery status, both terminal worker statuses and expired locks."
 )]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeExpiredDataAsync))]
+[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
