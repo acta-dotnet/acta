@@ -23,7 +23,7 @@ internal sealed class PostgresDialect : ISqlDialect
 
     public string DialectToken => "pg";
 
-    public bool SupportsRoutines => true;
+    public bool SupportsBatchCompletion => true;
 
     public bool IsTransientConflict(Exception exception) =>
         exception is PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected };

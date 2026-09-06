@@ -122,14 +122,22 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
     public async Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct)
     {
         var read = DbProjectionResolver.Resolve<OutboxQuarantinedRow>();
-        return await session.ExecuteAsync(
+        return await session.QueryAsync(
             new StoreCommand("Outbox", "ListQuarantinedRows"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.PageSize, command.PageSize));
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.AfterOutboxId, command.AfterOutboxId));
             },
-            read,
+            async (reader, token) =>
+            {
+                var rows = new List<OutboxQuarantinedRow>();
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(read(reader));
+                }
+                return rows;
+            },
             ct
         );
     }

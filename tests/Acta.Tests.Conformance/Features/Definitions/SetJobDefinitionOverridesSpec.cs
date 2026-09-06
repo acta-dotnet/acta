@@ -30,6 +30,43 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static JobControlActor Actor => new(ActorCode.Operator, "tester");
 
+    [Fact(DisplayName = "Competing definition overrides with one version have one winner and one audit event")]
+    public async Task Concurrent_overrides_have_one_winner()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var name = TestKey("override-race");
+        var id = await RegisterAsync(name, 3, ct);
+        var before = await ReadAsync(name, ct);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = Enumerable
+            .Range(0, 8)
+            .Select(async i =>
+            {
+                await start.Task;
+                return await DefinitionTestOps.UpdateOverridesAsync(
+                    Services,
+                    TestNamespace,
+                    name,
+                    before.Version,
+                    new JobDefinitionPolicyOverrides(MaxAttempts: (short)(10 + i)),
+                    Actor,
+                    "race",
+                    ct
+                );
+            })
+            .ToArray();
+        start.SetResult();
+        var outcomes = await Task.WhenAll(attempts);
+
+        Assert.Single(outcomes, o => o.Action == ControlAction.Applied);
+        Assert.Equal(7, outcomes.Count(o => o.Action == ControlAction.Rejected));
+        Assert.Equal(before.Version + 1, (await ReadAsync(name, ct)).Version);
+        var events = await Db.From<JobEvent>()
+            .Where(e => e.DefinitionId == id && e.EventCode == EventCode.JobDefinitionOverridesUpdated)
+            .ToListAsync(ct);
+        Assert.Single(events);
+    }
+
     private static JobDescriptor Def(string name, short maxAttempts) =>
         new(
             JobName: name,

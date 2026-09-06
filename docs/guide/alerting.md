@@ -290,7 +290,7 @@ The delivery guarantee:
 > An alert resolved before delivery selection is not sent. Resolution suppresses further pending and
 > retry attempts. A transport attempt already in progress may still complete.
 
-Both resolve paths settle the delivery they close (`ResolveJobAlerts.sql`,
+Both resolve paths settle the delivery they close (`ResolveJobAlerts.routine.sql`,
 `ResolveJobAlertManual.routine.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
 retry timer clears, so a notification queued for a condition that has cleared is cancelled rather than
 sent. An already-settled row (`Delivered`, `Failed`, `Suppressed`) keeps its status — resolving does

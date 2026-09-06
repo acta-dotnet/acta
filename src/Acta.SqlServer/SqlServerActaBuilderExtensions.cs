@@ -28,7 +28,7 @@ public static class SqlServerActaBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.SqlServer, SupportsRoutines: true));
+        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.SqlServer, SupportsBatchCompletion: true));
         builder.Services.Configure(configure);
         builder.Services.AddOptions<SqlServerProviderOptions>().ValidateOnStart();
         builder.Services.TryAddEnumerable(

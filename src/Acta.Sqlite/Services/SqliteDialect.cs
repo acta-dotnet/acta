@@ -49,11 +49,15 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public string DialectToken => "sqlite";
 
-    public bool SupportsRoutines => false;
+    public bool SupportsBatchCompletion => false;
+
+    public void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionRequest request)
+    {
+        command.Parameters.Add(CreateParameter(new DbParameterSpec("p_recurring_result_cap", request.RecurringResultCap, DbKind.Int32)));
+        command.Parameters.Add(CreateParameter(new DbParameterSpec("p_schedule_advances", "[]", DbKind.UnicodeString, Size: 8)));
+    }
 
     public bool ResultSetIsLast => true;
-
-    public bool WrapsMutationInTransaction => true;
 
     /// <summary>
     /// SQLITE_BUSY (5) / SQLITE_LOCKED (6): retry the rolled-back store operation.
@@ -63,7 +67,7 @@ internal sealed class SqliteDialect : ISqlDialect
     /// <summary>
     /// BEGIN IMMEDIATE takes the reserved write lock up front so concurrent writers honor busy_timeout.
     /// </summary>
-    public DbTransaction BeginImmediateTransaction(DbConnection connection) =>
+    public DbTransaction BeginOwnedWriteTransaction(DbConnection connection) =>
         ((SqliteConnection)connection).BeginTransaction(deferred: false);
 
     public DbConnection CreateConnection(string connectionString)
@@ -149,7 +153,7 @@ internal sealed class SqliteDialect : ISqlDialect
     }
 
     /// <summary>
-    /// SupportsRoutines is false; stores never reach the routine-invocation path.
+    /// SQLite embeds inline resources only, so stores never reach routine invocation.
     /// </summary>
     public void ConfigureRoutineCommand(DbCommand command, string schema, string routineName) =>
         throw new NotSupportedException("SQLite has no stored routines; store commands run as inline SQL.");
@@ -388,7 +392,7 @@ internal sealed class SqliteDialect : ISqlDialect
 
     /// <summary>
     /// Unreachable, and kept because ISqlDialect requires the member. Two seams stop a batch before
-    /// any binding: WorkerRuntime builds no CompletionSink for a provider with SupportsRoutines false,
+    /// any binding: WorkerRuntime builds no CompletionSink for a provider with SupportsBatchCompletion false,
     /// so nothing buffers completions here, and RelationalExecutionStore.CompleteExecutionsBatchAsync
     /// throws on the same flag if something calls it directly anyway.
     /// </summary>

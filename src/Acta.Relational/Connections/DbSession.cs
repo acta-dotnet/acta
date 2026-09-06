@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Runtime.ExceptionServices;
 using Acta.Relational.Commands;
 using Acta.Relational.Resources;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,7 @@ namespace Acta.Relational.Connections;
 
 /// <summary>
 /// Provider-backed execute surface. Owns connection open, deadlock retry, routine-vs-inline dispatch,
-/// the inline write transaction, and primary-result-set selection so shared stores stay provider-free.
+/// provider-owned write transactions, and primary-result-set selection so shared stores stay provider-free.
 /// </summary>
 internal sealed class DbSession : IDbSession
 {
@@ -97,14 +98,16 @@ internal sealed class DbSession : IDbSession
         Action<DbCommand> bind,
         Func<DbDataReader, CancellationToken, Task<T>> read,
         CancellationToken ct
-    ) =>
-        Run(
+    )
+    {
+        var kind = _sql.Resolve(command);
+        return Run(
             async token =>
             {
                 await using var conn = await OpenConnectionAsync(token);
                 await using var cmd = conn.CreateCommand();
                 cmd.CommandTimeout = _commandTimeoutSeconds;
-                if (_dialect.SupportsRoutines)
+                if (kind == StoreExecutionKind.Routine)
                 {
                     bind(cmd);
                     _dialect.ConfigureRoutineCommand(cmd, Schema, command.RoutineName);
@@ -120,13 +123,14 @@ internal sealed class DbSession : IDbSession
             },
             ct
         );
+    }
 
     public Task<IReadOnlyList<T>> ExecuteAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
         Func<DbDataReader, T> mapRow,
         CancellationToken ct
-    ) => ExecuteThenCommitAsync(command, bind, (cmd, token) => ReadPrimaryRowsAsync(cmd, mapRow, token), ct);
+    ) => ExecuteThenCommitAsync(command, bind, (cmd, kind, token) => ReadPrimaryRowsAsync(cmd, mapRow, kind, token), ct);
 
     public async Task<T?> ExecuteSingleAsync<T>(
         StoreCommand command,
@@ -136,7 +140,7 @@ internal sealed class DbSession : IDbSession
     )
         where T : class
     {
-        var rows = await ExecuteThenCommitAsync(command, bind, (cmd, token) => ReadPrimaryRowsAsync(cmd, mapRow, token), ct);
+        var rows = await ExecuteThenCommitAsync(command, bind, (cmd, kind, token) => ReadPrimaryRowsAsync(cmd, mapRow, kind, token), ct);
         return rows.Count > 0 ? rows[^1] : null;
     }
 
@@ -153,21 +157,24 @@ internal sealed class DbSession : IDbSession
         CancellationToken ct
     )
     {
+        var kind = _sql.Resolve(command);
         var connection = ValidateCallerTransaction(transaction);
         _dialect.PrepareCallerConnection(connection);
         // Single attempt (Acta never retries inside the caller's transaction) but through the same
         // IsCancellation funnel the owned paths use: a token-cancelled provider command (SqlClient surfaces
         // it as SqlException 3980/0, not OperationCanceledException) is translated here too.
-        return DeadlockRetry.RunAsync(
-            async token =>
-            {
-                await using var cmd = CreateBoundWriteCommand(connection, transaction, command, bind);
-                return await ReadPrimaryRowsAsync(cmd, mapRow, token);
-            },
-            static _ => false,
-            maxAttempts: 1,
-            ct,
-            _dialect.IsCancellation
+        return UnwrapClientFailureAsync(() =>
+            DeadlockRetry.RunAsync(
+                async token =>
+                {
+                    var cmd = CreateBoundWriteCommand(connection, transaction, command, kind, bind);
+                    return await UseWriteResourceAsync(cmd, c => ReadPrimaryRowsAsync(c, mapRow, kind, token));
+                },
+                static _ => false,
+                maxAttempts: 1,
+                ct,
+                _dialect.IsCancellation
+            )
         );
     }
 
@@ -191,7 +198,7 @@ internal sealed class DbSession : IDbSession
         ExecuteThenCommitAsync<object?>(
             command,
             bind,
-            async (cmd, token) =>
+            async (cmd, _, token) =>
             {
                 await cmd.ExecuteNonQueryAsync(token);
                 return null;
@@ -200,21 +207,18 @@ internal sealed class DbSession : IDbSession
         );
 
     /// <summary>
-    /// The one owned-write shape, split at the point where the batch has fully executed and is ready to
-    /// commit. Everything before that point - open, begin, bind, execute - runs inside DeadlockRetry: a
-    /// transient there leaves nothing committed, and the attempt's transaction is rolled back by its
-    /// dispose before the next attempt re-opens. The commit and teardown run OUTSIDE the retry, because
-    /// a transient raised once the batch has landed is not safely replayable: re-running the whole batch
-    /// against rows it already changed reads as a lost CAS. Such a failure surfaces as the error it is,
-    /// for the executor's retryable-abort path and the caller's own failure budget to recover.
+    /// Retries database-aborted attempts after cleanup. SQLite keeps its transaction open until
+    /// reading succeeds, then commits outside retry. Server calls commit inside the command.
+    /// Binding, mapping, and resource-disposal failures are excluded from conflict classification.
     /// </summary>
     private async Task<T> ExecuteThenCommitAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
-        Func<DbCommand, CancellationToken, Task<T>> execute,
+        Func<DbCommand, StoreExecutionKind, CancellationToken, Task<T>> execute,
         CancellationToken ct
     )
     {
+        var kind = _sql.Resolve(command);
         var executed = await Run(
             async token =>
             {
@@ -222,9 +226,9 @@ internal sealed class DbSession : IDbSession
                 DbTransaction? tx = null;
                 try
                 {
-                    tx = BeginWriteTransaction(conn);
-                    await using var cmd = CreateBoundWriteCommand(conn, tx, command, bind);
-                    return new ExecutedBatch<T>(conn, tx, await execute(cmd, token));
+                    tx = _dialect.BeginOwnedWriteTransaction(conn);
+                    var cmd = CreateBoundWriteCommand(conn, tx, command, kind, bind);
+                    return new ExecutedBatch<T>(conn, tx, await UseWriteResourceAsync(cmd, c => execute(c, kind, token)));
                 }
                 catch
                 {
@@ -314,68 +318,174 @@ internal sealed class DbSession : IDbSession
     /// </summary>
     private readonly record struct ExecutedBatch<T>(DbConnection Connection, DbTransaction? Transaction, T Value);
 
-    private DbTransaction? BeginWriteTransaction(DbConnection conn) =>
-        _dialect.WrapsMutationInTransaction ? _dialect.BeginImmediateTransaction(conn) : null;
-
     /// <summary>
     /// Binds parameters before configuring the routine: the Postgres routine command text is built
-    /// from the bound parameter list, so it must be populated first. Inline providers set the body up
+    /// from the bound parameter list, so it must be populated first. Inline commands set the body up
     /// front and bind afterward.
     /// </summary>
-    private DbCommand CreateBoundWriteCommand(DbConnection conn, DbTransaction? tx, StoreCommand command, Action<DbCommand> bind)
+    private DbCommand CreateBoundWriteCommand(
+        DbConnection conn,
+        DbTransaction? tx,
+        StoreCommand command,
+        StoreExecutionKind kind,
+        Action<DbCommand> bind
+    )
     {
         var cmd = conn.CreateCommand();
-        cmd.CommandTimeout = _commandTimeoutSeconds;
-        // Join whatever transaction the caller passes. On the owned path this is the inline write
-        // transaction (SQLite) or null (routine providers, already single-CALL atomic); on the
-        // caller-transaction path it is the supplied transaction for every provider.
-        cmd.Transaction = tx;
-        if (_dialect.SupportsRoutines)
+        try
         {
-            bind(cmd);
-            _dialect.ConfigureRoutineCommand(cmd, Schema, command.RoutineName);
-        }
-        else
-        {
-            cmd.CommandText = _sql.Load(command.SqlPath);
-            bind(cmd);
-        }
+            cmd.CommandTimeout = _commandTimeoutSeconds;
+            // SQLite joins the session-owned transaction; server commands own their database boundary.
+            // The caller-transaction path always joins the supplied transaction.
+            cmd.Transaction = tx;
+            if (kind == StoreExecutionKind.Routine)
+            {
+                bind(cmd);
+                _dialect.ConfigureRoutineCommand(cmd, Schema, command.RoutineName);
+            }
+            else
+            {
+                cmd.CommandText = _sql.Load(command.SqlPath);
+                bind(cmd);
+            }
 
-        return cmd;
+            return cmd;
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                cmd.Dispose();
+            }
+            catch (Exception cleanup)
+            {
+                _log.LogWarning(cleanup, "Acta: disposing an unbound command failed.");
+            }
+            throw new ClientCommandFailure(ex);
+        }
     }
 
     /// <summary>
-    /// Routine providers return one result set; inline providers put the outcome in the LAST set
-    /// (leading statements are guards/writes), so advance and keep the final result set.
+    /// Server commands expose one business result set. SQLite and outbox inline batches select the
+    /// final result set. Drain completely before reporting success or committing a session-owned transaction.
     /// </summary>
-    private async Task<IReadOnlyList<T>> ReadPrimaryRowsAsync<T>(DbCommand cmd, Func<DbDataReader, T> mapRow, CancellationToken ct)
+    private async Task<IReadOnlyList<T>> ReadPrimaryRowsAsync<T>(
+        DbCommand cmd,
+        Func<DbDataReader, T> mapRow,
+        StoreExecutionKind kind,
+        CancellationToken ct
+    )
     {
-        var rows = new List<T>();
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        if (_dialect.ResultSetIsLast)
-        {
-            do
+        var dataReader = await cmd.ExecuteReaderAsync(ct);
+        return await UseWriteResourceAsync(
+            dataReader,
+            async reader =>
             {
-                rows.Clear();
-                while (await reader.ReadAsync(ct))
+                var rows = new List<T>();
+                if (kind == StoreExecutionKind.Inline && _dialect.ResultSetIsLast)
                 {
-                    rows.Add(mapRow(reader));
+                    do
+                    {
+                        rows.Clear();
+                        while (await reader.ReadAsync(ct))
+                        {
+                            rows.Add(MapRow(reader, mapRow));
+                        }
+                    } while (await reader.NextResultAsync(ct));
                 }
-            } while (await reader.NextResultAsync(ct));
-        }
-        else
-        {
-            while (await reader.ReadAsync(ct))
-            {
-                rows.Add(mapRow(reader));
+                else
+                {
+                    while (await reader.ReadAsync(ct))
+                    {
+                        rows.Add(MapRow(reader, mapRow));
+                    }
+
+                    // A trailing statement can fail after the business rows arrived. Observe that failure
+                    // before reporting success, without applying the business mapper to unrelated result shapes.
+                    while (await reader.NextResultAsync(ct))
+                    {
+                        while (await reader.ReadAsync(ct)) { }
+                    }
+                }
+
+                return rows;
             }
+        );
+    }
+
+    private static T MapRow<T>(DbDataReader reader, Func<DbDataReader, T> mapRow)
+    {
+        try
+        {
+            return mapRow(reader);
+        }
+        catch (Exception ex)
+        {
+            throw new ClientCommandFailure(ex);
+        }
+    }
+
+    /// <summary>
+    /// A mapper/binder/teardown exception is never evidence that the database aborted the operation.
+    /// Preserves its original public exception while excluding it from provider conflict classification.
+    /// </summary>
+    private sealed class ClientCommandFailure(Exception cause) : Exception("Client command processing failed.", cause);
+
+    private async Task<T> UseWriteResourceAsync<TResource, T>(TResource resource, Func<TResource, Task<T>> execute)
+        where TResource : IAsyncDisposable
+    {
+        T result;
+        try
+        {
+            result = await execute(resource);
+        }
+        catch
+        {
+            try
+            {
+                await resource.DisposeAsync();
+            }
+            catch (Exception cleanup)
+            {
+                _log.LogWarning(cleanup, "Acta: disposing a failed command or reader failed.");
+            }
+            throw;
         }
 
-        return rows;
+        try
+        {
+            await resource.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new ClientCommandFailure(ex);
+        }
+        return result;
+    }
+
+    private static async Task<T> UnwrapClientFailureAsync<T>(Func<Task<T>> execute)
+    {
+        try
+        {
+            return await execute();
+        }
+        catch (ClientCommandFailure ex)
+        {
+            ExceptionDispatchInfo.Throw(ex.InnerException!);
+            throw;
+        }
     }
 
     public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) => Run(action, ct);
 
     private Task<T> Run<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
-        DeadlockRetry.RunAsync(action, _dialect.IsTransientConflict, _retryAttempts, ct, _dialect.IsCancellation);
+        UnwrapClientFailureAsync(() =>
+            DeadlockRetry.RunAsync(
+                action,
+                ex => ex is not ClientCommandFailure && _dialect.IsTransientConflict(ex),
+                _retryAttempts,
+                ct,
+                _dialect.IsCancellation
+            )
+        );
 }

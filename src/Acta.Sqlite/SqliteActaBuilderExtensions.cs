@@ -30,7 +30,7 @@ public static class SqliteActaBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.Sqlite, SupportsRoutines: false));
+        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.Sqlite, SupportsBatchCompletion: false));
         builder.Services.Configure(configure);
         builder.Services.AddOptions<SqliteProviderOptions>().ValidateOnStart();
         builder.Services.TryAddEnumerable(

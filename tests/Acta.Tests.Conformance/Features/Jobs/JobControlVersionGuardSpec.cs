@@ -24,6 +24,30 @@ namespace Acta.Tests.Conformance.Features.Jobs;
 public abstract class JobControlVersionGuardSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
+    [Fact(DisplayName = "Competing pauses with one version have one winner and one audit event")]
+    public async Task Concurrent_matching_tokens_have_one_winner()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await EnqueueAsync(ct);
+        var before = await ReadJobAsync(job, ct);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = Enumerable
+            .Range(0, 8)
+            .Select(async _ =>
+            {
+                await start.Task;
+                return await Jobs.PauseAsync(JobLookup.ById(job), "race", "spec-actor", before.Version, ct);
+            })
+            .ToArray();
+        start.SetResult();
+        var outcomes = await Task.WhenAll(attempts);
+
+        Assert.Single(outcomes, o => o.Action == ControlAction.Applied);
+        Assert.Equal(7, outcomes.Count(o => o.Action == ControlAction.VersionConflict));
+        Assert.Equal(before.Version + 1, (await ReadJobAsync(job, ct)).Version);
+        Assert.Equal(1, await CountEventsAsync(job, EventCode.JobPaused, ct));
+    }
+
     [Fact(DisplayName = "PauseAsync with a stale expected version is VersionConflict and writes nothing")]
     public async Task Stale_token_conflicts_without_writing()
     {

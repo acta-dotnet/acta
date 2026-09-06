@@ -86,28 +86,18 @@ public sealed partial class AotPolicyTests
         new("Acta.Testing raw connection helper", new Regex(@"\bGetConnectionAsync\s*\(", RegexOptions.Compiled), Allow()),
         new("RuntimeParam", new Regex(@"\bRuntimeParam\b", RegexOptions.Compiled), Allow()),
         new("P parameter catalog", new Regex(@"\bP\.", RegexOptions.Compiled), Allow()),
-        // SqliteDialect begins an immediate transaction so the inline-only provider's multi-statement
-        // write body is atomic (same rationale as the commit/rollback allowlist below); the migration
-        // runner opens one to apply DDL. Routine providers (PG/MSSQL) never take this path.
-        // The independent external-outbox source session wraps its two-statement claim (recover-expired
-        // then claim-due) in one write transaction per provider: the shared source dialect begins it for
-        // PG/MSSQL, and the SQLite source dialect begins IMMEDIATE. This is the narrow, justified source
-        // session the outbox plan permits; the ledger routine providers still never take this path.
+        // Only schema migration and SQLite begin transactions in C#. Server operations establish
+        // atomicity inside their SQL command; shared stores never open transactions directly.
         new(
             "C# transaction begin/open",
             new Regex(@"\b(BeginTransaction|OpenTransaction)\b", RegexOptions.Compiled),
             Allow(
                 "src/Acta.Relational/Schema/SchemaMigrationRunner.cs",
                 "src/Acta.Sqlite/Services/SqliteDialect.cs",
-                "src/Acta.Relational/Connections/OutboxSourceDialect.cs",
                 "src/Acta.Sqlite/Services/SqliteOutboxDialect.cs"
             )
         ),
-        // DbSession wraps execute-style calls in a write transaction ONLY for an inline-only provider
-        // (SQLite) that has no stored routine to make its multi-statement write body atomic; routine
-        // providers (PG/MSSQL) keep single-CALL atomicity and never enter that path.
-        // DbSession owns the single inline-provider write transaction for every shared store; the
-        // migration runner opens one to apply DDL. No provider store commits directly any more.
+        // DbSession commits its SQLite transaction; server operations commit inside the command.
         new(
             "C# transaction commit",
             new Regex(@"\bCommitAsync\b", RegexOptions.Compiled),

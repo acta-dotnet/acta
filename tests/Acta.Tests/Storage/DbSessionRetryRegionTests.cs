@@ -24,6 +24,7 @@ public class DbSessionRetryRegionTests
     private sealed class TransientException : Exception { }
 
     private static readonly StoreCommand Command = new("Execution", "CompleteStep");
+    private static readonly StoreCommand InlineCommand = new("Outbox", "ClaimDueRows");
 
     private static DbSession NewSession(FakeDialect dialect, int retryAttempts = 5) =>
         new(
@@ -34,8 +35,164 @@ public class DbSessionRetryRegionTests
                 DeadlockRetryAttempts = retryAttempts,
             },
             dialect,
-            new SqlResourceCatalog(typeof(DbSessionRetryRegionTests).Assembly, "acta")
+            new SqlResourceCatalog(typeof(Acta.Postgres.Configuration.PostgresProviderOptions).Assembly, "acta")
         );
+
+    [Fact]
+    public async Task Resource_dispatch_is_independent_of_session_transaction_ownership()
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log) { OwnsWriteTransaction = false };
+        var session = NewSession(dialect);
+        var ct = TestContext.Current.CancellationToken;
+
+        await session.ExecuteAsync(InlineCommand, static _ => { }, ct);
+        Assert.Equal(new[] { "open", "execute", "conn-dispose" }, log);
+        Assert.Equal(0, dialect.RoutineCalls);
+        Assert.Contains("acta_outbox", dialect.LastCommand!.CommandText);
+        Assert.Null(dialect.LastCommand.Transaction);
+
+        log.Clear();
+        await session.ExecuteAsync(Command, static _ => { }, ct);
+        Assert.Equal(new[] { "open", "execute", "conn-dispose" }, log);
+        Assert.Equal(1, dialect.RoutineCalls);
+        Assert.Null(dialect.LastCommand!.Transaction);
+    }
+
+    [Fact]
+    public async Task Missing_command_fails_before_opening_a_connection()
+    {
+        var log = new List<string>();
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            NewSession(new FakeDialect(log))
+                .ExecuteAsync(new StoreCommand("Missing", "Command"), static _ => { }, TestContext.Current.CancellationToken)
+        );
+        Assert.Empty(log);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Client_failures_are_not_retried_even_if_their_type_matches_a_database_conflict(bool failMapper)
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log) { OwnsWriteTransaction = false };
+        var session = NewSession(dialect);
+        await Assert.ThrowsAsync<TransientException>(() =>
+            session.ExecuteAsync(
+                Command,
+                _ =>
+                {
+                    if (!failMapper)
+                    {
+                        throw new TransientException();
+                    }
+                },
+                (DbDataReader _) => failMapper ? throw new TransientException() : 0,
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(failMapper ? 1 : 0, dialect.Executions);
+        Assert.Equal(1, log.Count(e => e == "open"));
+        Assert.Equal(0, dialect.Commits);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Successful_execution_is_not_replayed_when_command_or_reader_disposal_fails(bool failReader)
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log)
+        {
+            OwnsWriteTransaction = false,
+            FailReaderDispose = failReader,
+            FailCommandDispose = !failReader,
+        };
+        await Assert.ThrowsAsync<TransientException>(() =>
+            NewSession(dialect).ExecuteAsync(Command, static _ => { }, static r => r.GetInt32(0), TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(1, dialect.Executions);
+        Assert.Equal(1, log.Count(e => e == "conn-dispose"));
+    }
+
+    [Fact]
+    public async Task Server_abort_after_business_rows_retries_without_client_transaction_commands()
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log) { OwnsWriteTransaction = false, FailTrailingWhile = attempt => attempt == 1 };
+        var rows = await NewSession(dialect)
+            .ExecuteAsync(Command, static _ => { }, static r => r.GetInt32(0), TestContext.Current.CancellationToken);
+        Assert.Equal(new[] { 7 }, rows);
+        Assert.Equal(2, dialect.Executions);
+        Assert.Equal(0, dialect.Transactions);
+        Assert.Equal(0, dialect.Commits);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Inline_execution_retries_but_commit_does_not(bool failCommit)
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log) { FailExecuteWhile = attempt => !failCommit && attempt == 1, FailCommit = failCommit };
+        var work = NewSession(dialect).ExecuteAsync(InlineCommand, static _ => { }, TestContext.Current.CancellationToken);
+        if (failCommit)
+        {
+            await Assert.ThrowsAsync<TransientException>(() => work);
+        }
+        else
+        {
+            await work;
+        }
+        Assert.Equal(failCommit ? 1 : 2, dialect.Executions);
+        Assert.Equal(1, dialect.Commits);
+        Assert.Equal(failCommit ? 1 : 2, log.Count(e => e == "tx-dispose"));
+    }
+
+    [Fact]
+    public async Task Inline_reader_drains_trailing_results_without_mapping_their_shape()
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log);
+        var rows = await NewSession(dialect)
+            .ExecuteAsync(InlineCommand, static _ => { }, static r => r.GetInt32(0), TestContext.Current.CancellationToken);
+        Assert.Equal(new[] { 7 }, rows);
+        Assert.True(log.IndexOf("reader-drained") < log.IndexOf("commit"));
+    }
+
+    [Fact]
+    public async Task Failure_after_business_rows_rolls_back_before_replaying_on_a_fresh_connection()
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log) { FailTrailingWhile = attempt => attempt == 1 };
+        var rows = await NewSession(dialect)
+            .ExecuteAsync(InlineCommand, static _ => { }, static r => r.GetInt32(0), TestContext.Current.CancellationToken);
+        Assert.Equal(new[] { 7 }, rows);
+        Assert.Equal(2, dialect.Executions);
+        Assert.Equal(1, dialect.Commits);
+        Assert.True(log.IndexOf("tx-dispose") < log.LastIndexOf("open"));
+    }
+
+    [Fact]
+    public async Task Caller_owned_inline_failure_does_not_retry_or_finalize_the_transaction()
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log) { FailTrailingWhile = static _ => true };
+        var session = NewSession(dialect);
+        var ct = TestContext.Current.CancellationToken;
+        await using var connection = await session.OpenConnectionAsync(ct);
+        await using var transaction = dialect.BeginOwnedWriteTransaction(connection);
+        log.Clear();
+
+        await Assert.ThrowsAsync<TransientException>(() =>
+            session.ExecuteInTransactionAsync(transaction!, InlineCommand, static _ => { }, static r => r.GetInt32(0), ct)
+        );
+        Assert.Equal(1, dialect.Executions);
+        Assert.Equal(0, dialect.Commits);
+        Assert.Equal(new[] { "execute" }, log);
+        Assert.Same(transaction, dialect.LastCommand!.Transaction);
+    }
 
     [Fact]
     public async Task Commit_and_teardown_run_once_after_the_batch_executes()
@@ -154,9 +311,8 @@ public class DbSessionRetryRegionTests
         Assert.Equal(2, log.Count(entry => entry == "conn-dispose"));
     }
 
-    // Fake provider seam: routine-shaped (so no SQL resource is loaded) and transaction-wrapped (so the
-    // commit the region boundary is about actually happens). Only the non-generic execute path is
-    // driven, so no reader is ever created.
+    // The provider catalog selects the command form. This fake records execution boundaries and
+    // injects failures at points that are difficult to trigger deterministically with real drivers.
     private sealed class FakeDialect(List<string> log) : ISqlDialect
     {
         public Func<int, bool> FailExecuteWhile { get; init; } = static _ => false;
@@ -164,6 +320,16 @@ public class DbSessionRetryRegionTests
         public Func<int, bool> FailTransactionDisposeWhile { get; init; } = static _ => false;
 
         public bool FailCommit { get; init; }
+
+        public bool FailReaderDispose { get; init; }
+
+        public bool FailCommandDispose { get; init; }
+
+        public Func<int, bool> FailTrailingWhile { get; init; } = static _ => false;
+
+        public int RoutineCalls { get; private set; }
+
+        public DbCommand? LastCommand { get; set; }
 
         public int Executions { get; private set; }
 
@@ -175,9 +341,9 @@ public class DbSessionRetryRegionTests
 
         public string DialectToken => "sqlite";
 
-        public bool SupportsRoutines => true;
+        public bool SupportsBatchCompletion => true;
 
-        public bool WrapsMutationInTransaction => true;
+        public bool OwnsWriteTransaction { get; init; } = true;
 
         public bool IsTransientConflict(Exception exception) => exception is TransientException;
 
@@ -185,8 +351,12 @@ public class DbSessionRetryRegionTests
 
         public bool OwnsConnection(DbConnection connection) => connection is FakeConnection;
 
-        public DbTransaction BeginImmediateTransaction(DbConnection connection)
+        public DbTransaction? BeginOwnedWriteTransaction(DbConnection connection)
         {
+            if (!OwnsWriteTransaction)
+            {
+                return null;
+            }
             log.Add("begin");
             Transactions++;
             return new FakeTransaction(this, (FakeConnection)connection, log, Transactions);
@@ -194,7 +364,11 @@ public class DbSessionRetryRegionTests
 
         public bool ShouldFailDispose(int transactionOrdinal) => FailTransactionDisposeWhile(transactionOrdinal);
 
-        public void ConfigureRoutineCommand(DbCommand command, string schema, string routineName) => command.CommandText = routineName;
+        public void ConfigureRoutineCommand(DbCommand command, string schema, string routineName)
+        {
+            RoutineCalls++;
+            command.CommandText = routineName;
+        }
 
         public bool ShouldFailExecute()
         {
@@ -315,6 +489,9 @@ public class DbSessionRetryRegionTests
 
     private sealed class FakeCommand(FakeDialect dialect, List<string> log) : DbCommand
     {
+        public override ValueTask DisposeAsync() =>
+            dialect.FailCommandDispose ? ValueTask.FromException(new TransientException()) : base.DisposeAsync();
+
         public DbConnection? DbConnectionAccessor { get; init; }
 
         [AllowNull]
@@ -342,6 +519,7 @@ public class DbSessionRetryRegionTests
 
         public override int ExecuteNonQuery()
         {
+            dialect.LastCommand = this;
             if (dialect.ShouldFailExecute())
             {
                 throw new TransientException();
@@ -357,7 +535,103 @@ public class DbSessionRetryRegionTests
 
         protected override DbParameter CreateDbParameter() => throw new NotSupportedException();
 
-        protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) => throw new NotSupportedException();
+        protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
+        {
+            ExecuteNonQuery();
+            return new FakeReader(dialect, log);
+        }
+    }
+
+    private sealed class FakeReader(FakeDialect dialect, List<string> log) : DbDataReader
+    {
+        public override ValueTask DisposeAsync() =>
+            dialect.FailReaderDispose ? ValueTask.FromException(new TransientException()) : base.DisposeAsync();
+
+        private int _result;
+        private bool _read;
+
+        public override bool Read()
+        {
+            if (_read)
+            {
+                return false;
+            }
+            _read = true;
+            return true;
+        }
+
+        public override bool NextResult()
+        {
+            if (dialect.FailTrailingWhile(dialect.Executions))
+            {
+                throw new TransientException();
+            }
+            _read = false;
+            if (++_result == 1)
+            {
+                return true;
+            }
+            log.Add("reader-drained");
+            return false;
+        }
+
+        public override object GetValue(int ordinal) => _result == 0 ? 7 : "different trailing shape";
+
+        public override int GetInt32(int ordinal) => (int)GetValue(ordinal);
+
+        public override int FieldCount => 1;
+        public override bool HasRows => true;
+        public override bool IsClosed => false;
+        public override int RecordsAffected => -1;
+        public override int Depth => 0;
+        public override object this[int ordinal] => GetValue(ordinal);
+        public override object this[string name] => GetValue(0);
+
+        public override string GetName(int ordinal) => "result";
+
+        public override int GetOrdinal(string name) => 0;
+
+        public override bool IsDBNull(int ordinal) => false;
+
+        public override Type GetFieldType(int ordinal) => GetValue(ordinal).GetType();
+
+        public override string GetDataTypeName(int ordinal) => GetFieldType(ordinal).Name;
+
+        public override int GetValues(object[] values)
+        {
+            values[0] = GetValue(0);
+            return 1;
+        }
+
+        public override IEnumerator GetEnumerator() => throw new NotSupportedException();
+
+        public override bool GetBoolean(int ordinal) => throw new NotSupportedException();
+
+        public override byte GetByte(int ordinal) => throw new NotSupportedException();
+
+        public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length) =>
+            throw new NotSupportedException();
+
+        public override char GetChar(int ordinal) => throw new NotSupportedException();
+
+        public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length) =>
+            throw new NotSupportedException();
+
+        public override DateTime GetDateTime(int ordinal) => throw new NotSupportedException();
+
+        public override decimal GetDecimal(int ordinal) => throw new NotSupportedException();
+
+        public override double GetDouble(int ordinal) => throw new NotSupportedException();
+
+        public override float GetFloat(int ordinal) => throw new NotSupportedException();
+
+        public override Guid GetGuid(int ordinal) => throw new NotSupportedException();
+
+        public override short GetInt16(int ordinal) => throw new NotSupportedException();
+
+        public override long GetInt64(int ordinal) => throw new NotSupportedException();
+
+        public override string GetString(int ordinal) => (string)GetValue(ordinal);
     }
 
     // Never populated: the test's bind action adds nothing, so every member is unreachable ceremony the

@@ -52,6 +52,27 @@ public sealed partial class MsSqlProvisionScriptSpec
                 }
             }
 
+            // A body-only replacement must be repaired by bootstrap even with no pending MNNN.
+            var changedBody = File.ReadAllText(
+                    Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Services", "Locks", "ExtendLock.routine.sql")
+                )
+                .ReplaceLineEndings("\n")
+                .Replace("{{schema}}", schema)
+                .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- versionless_body_probe");
+            foreach (var batch in SplitOnGo(changedBody))
+            {
+                await using var alter = conn.CreateCommand();
+                alter.CommandText = batch;
+                await alter.ExecuteNonQueryAsync(ct);
+            }
+            await using (var definition = conn.CreateCommand())
+            {
+                definition.CommandText = $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.extend_lock'))";
+                Assert.Contains("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
+                await Acta.SqlServer.Schema.SqlServerSchemaMigrator.ApplyAsync(conn, schema, ct);
+                Assert.DoesNotContain("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
+            }
+
             // One history row per migration section in the file plus the version-0 baseline-stamp
             // row, no more (the double run must not stamp anything twice), counted from the
             // script's own BEGIN banners.
@@ -67,7 +88,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             Assert.True(await reader.ReadAsync(ct));
             Assert.Equal(migrations, reader.GetInt32(0));
             Assert.Equal(0, reader.GetInt32(1));
-            Assert.True(reader.GetInt32(2) > 0, "no routines were installed");
+            Assert.Equal(56, reader.GetInt32(2));
         }
         finally
         {

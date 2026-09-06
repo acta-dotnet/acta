@@ -33,7 +33,7 @@ internal sealed class SqliteOutboxDialect : OutboxSourceDialect
 
     public override bool IsTransientConflict(Exception exception) => _inner.IsTransientConflict(exception);
 
-    public override DbTransaction BeginImmediateTransaction(DbConnection connection) =>
+    public override DbTransaction BeginOwnedWriteTransaction(DbConnection connection) =>
         ((SqliteConnection)connection).BeginTransaction(deferred: false);
 
     public override DbParameter CreateParameter(DbParameterSpec spec)

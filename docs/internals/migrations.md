@@ -12,6 +12,13 @@ for SQLite views), so they simply re-apply on every bootstrap. Editing a routine
 needs **no migration at all**: change the collocated `.sql` resource, rebuild, and the next bootstrap
 reinstalls it.
 
+## Command execution ownership
+
+Server ledger mutations use installed routines, reads use embedded SQL, and SQLite mutations use
+immediate transactions. Resource kind selects execution; transaction ownership comes from the call
+path and provider mechanics. The complete rules, including caller transactions, retries, retention
+batches, and rolling-version obligations, are in [SQL execution policy](sql-execution-policy.md).
+
 ## Commands
 
 ```

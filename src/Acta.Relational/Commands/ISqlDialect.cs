@@ -18,36 +18,21 @@ internal interface ISqlDialect
     string DialectToken { get; }
 
     /// <summary>
-    /// Whether this provider installs store commands as stored routines (procedures/functions). SQL Server
-    /// and PostgreSQL return <c>true</c>; an inline-only provider returns <c>false</c>, routing every
-    /// command through its inline <c>.sql</c> body.
+    /// Whether execution completion accepts a native batch. Independent of SQL resource placement.
     /// </summary>
-    bool SupportsRoutines { get; }
+    bool SupportsBatchCompletion { get; }
 
     /// <summary>
-    /// Whether a store command's result rows come from the LAST statement of a multi-statement body
-    /// rather than the first. Routine providers (one stored routine, one result set) return
-    /// <c>false</c>; an inline-only provider (SQLite) runs the command as a sequence of statements
-    /// whose final statement is the result SELECT (leading statements may be validation guards or
-    /// writes), so the reader advances to the last result set.
+    /// Whether an inline command's result rows come from the LAST result set. SQLite and external
+    /// outbox commands use this convention; server ledger commands expose one business result set.
     /// </summary>
     bool ResultSetIsLast => false;
 
     /// <summary>
-    /// Whether the store wraps execute-style calls in its own write transaction. Routine providers
-    /// return <c>false</c>: a stored routine is already atomic. An inline-only provider (SQLite)
-    /// returns <c>true</c> so write bodies run all-or-nothing under one <c>BEGIN IMMEDIATE</c> write
-    /// lock, while read-style calls stay lock-free.
+    /// Begins a session-owned write transaction when the provider requires one. Server commands
+    /// establish atomicity in the database and return null. SQLite uses BEGIN IMMEDIATE.
     /// </summary>
-    bool WrapsMutationInTransaction => false;
-
-    /// <summary>
-    /// Begins the write transaction used for execute-style calls when
-    /// <see cref="WrapsMutationInTransaction"/> is set. SQLite takes the reserved write lock up front
-    /// (<c>BEGIN IMMEDIATE</c>) so a busy writer waits rather than failing late on lock upgrade.
-    /// </summary>
-    DbTransaction BeginImmediateTransaction(DbConnection connection) =>
-        throw new NotSupportedException("This dialect does not wrap store commands in a write transaction.");
+    DbTransaction? BeginOwnedWriteTransaction(DbConnection connection) => null;
 
     /// <summary>
     /// Whether an exception is a transient lock conflict (the database aborted this command as a
@@ -87,6 +72,9 @@ internal interface ISqlDialect
     DbParameter CreateParameter(DbParameterSpec spec);
 
     void ConfigureRoutineCommand(DbCommand command, string schema, string routineName);
+
+    /// <summary>Binds parameters required by a provider's non-recurring completion implementation.</summary>
+    void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionRequest request) { }
 
     /// <summary>Binds a one-row enqueue in the provider-native shape (typed arrays / TVP / JSON).</summary>
     void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema);

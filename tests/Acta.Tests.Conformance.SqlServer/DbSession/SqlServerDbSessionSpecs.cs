@@ -7,6 +7,8 @@ namespace Acta.Tests.Conformance.SqlServer.DbSession;
 
 public sealed class SqlServerDbSessionWriteSpec : DbSessionWriteSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerAtomicCommandTransactionSpec : AtomicCommandTransactionSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerFluentReadSpec : FluentReadSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerSettingsUniqueKeySpec : SettingsUniqueKeySpec<SqlServerConformanceFixture>;

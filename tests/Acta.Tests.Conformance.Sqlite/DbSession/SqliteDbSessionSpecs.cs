@@ -5,6 +5,8 @@ namespace Acta.Tests.Conformance.Sqlite.DbSession;
 
 public sealed class SqliteDbSessionWriteSpec : DbSessionWriteSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteAtomicCommandTransactionSpec : AtomicCommandTransactionSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteFluentReadSpec : FluentReadSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteSettingsUniqueKeySpec : SettingsUniqueKeySpec<SqliteConformanceFixture>;

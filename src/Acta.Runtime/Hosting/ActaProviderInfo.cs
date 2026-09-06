@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta.Runtime.Hosting;
 
 /// <summary>Provider-neutral runtime facts supplied by the selected durable provider package.</summary>
-internal sealed record ActaProviderInfo(DbProvider Provider, bool SupportsRoutines);
+internal sealed record ActaProviderInfo(DbProvider Provider, bool SupportsBatchCompletion);
 
 /// <summary>Owns the single durable-provider invariant for one Acta service collection.</summary>
 internal static class ActaProviderRegistration

@@ -10,7 +10,7 @@ namespace Acta.Relational.Connections;
 /// <summary>
 /// Base <see cref="ISqlDialect"/> for the external-outbox source session. Unlike the ledger dialects,
 /// every provider drives its outbox claim/finalize commands through inline SQL (Acta installs no routine
-/// in a producer database), so <see cref="SupportsRoutines"/> is always false, the claim's RETURNING /
+/// in a producer database). The claim's RETURNING /
 /// OUTPUT rows come from the last statement, and the two-statement claim runs under one write
 /// transaction. The ledger-only binder surface (enqueue / definition / completion) is never reached from
 /// the outbox store and throws. Providers supply connection creation, parameter binding, and transient
@@ -22,17 +22,16 @@ internal abstract class OutboxSourceDialect : ISqlDialect
 
     public abstract string DialectToken { get; }
 
-    public bool SupportsRoutines => false;
+    public bool SupportsBatchCompletion => false;
 
     public bool ResultSetIsLast => true;
 
-    public bool WrapsMutationInTransaction => true;
-
     /// <summary>
     /// Recover-expired then claim run as two statements; one transaction gives the claim statement the
-    /// recovered rows and keeps the lease stamp atomic. Providers may override for a stricter begin mode.
+    /// recovered rows and keeps the lease stamp atomic. Servers own it inside the command; SQLite
+    /// overrides this hook to begin an immediate transaction.
     /// </summary>
-    public virtual DbTransaction BeginImmediateTransaction(DbConnection connection) => connection.BeginTransaction();
+    public virtual DbTransaction? BeginOwnedWriteTransaction(DbConnection connection) => null;
 
     public virtual bool IsTransientConflict(Exception exception) => false;
 

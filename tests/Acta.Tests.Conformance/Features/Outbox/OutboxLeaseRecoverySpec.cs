@@ -23,6 +23,23 @@ namespace Acta.Tests.Conformance.Features.Outbox;
 public abstract class OutboxLeaseRecoverySpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
+    // PostgreSQL and SQL Server reject a negative LIMIT/TOP at execution. Their provider heads
+    // exercise this probe to prove statement two's failure cannot commit statement one's recovery.
+    protected async Task AssertFailedServerClaimRollsBackRecoveryAsync()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var oldToken = Guid.NewGuid();
+        var expired = ClaimedExpiredRow(TestKey("failed-claim"), oldToken);
+        await Fixture.SeedOutboxRowAsync(TableName, expired);
+
+        await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(() => ClaimAsync(Guid.NewGuid(), -1, ct));
+
+        var state = await Fixture.ReadOutboxRowAsync(TableName, expired.OutboxId);
+        Assert.Equal((byte)OutboxStatusCode.Claimed, state.StatusCode);
+        Assert.Equal(oldToken, state.ClaimToken);
+        Assert.Single(await ClaimAsync(Guid.NewGuid(), 1, ct));
+    }
+
     [Fact(DisplayName = "An expired lease is recovered and reclaimed under the new token")]
     public async Task Expired_lease_is_recovered_and_reclaimed()
     {

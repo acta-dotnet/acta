@@ -5,7 +5,11 @@ namespace Acta.Tests.Conformance.Postgres.Features.Outbox;
 
 public sealed class PgOutboxClaimSpec : OutboxClaimSpec<PgConformanceFixture>;
 
-public sealed class PgOutboxLeaseRecoverySpec : OutboxLeaseRecoverySpec<PgConformanceFixture>;
+public sealed class PgOutboxLeaseRecoverySpec : OutboxLeaseRecoverySpec<PgConformanceFixture>
+{
+    [Xunit.Fact]
+    public Task Claim_failure_rolls_back_the_preceding_recovery_statement() => AssertFailedServerClaimRollsBackRecoveryAsync();
+}
 
 public sealed class PgOutboxDeleteSpec : OutboxDeleteSpec<PgConformanceFixture>;
 

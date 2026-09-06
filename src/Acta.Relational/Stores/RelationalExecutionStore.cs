@@ -44,6 +44,10 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.DetailFormatId, detail?.Format.Id ?? (byte)0));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.Detail, detail?.Data.ToArray()));
             },
+            static reader =>
+                reader.GetInt32(0) == 1
+                    ? true
+                    : throw new InvalidOperationException("ACTA:NOTE_UNKNOWN_JOB:record_job_note: unknown job id"),
             ct
         );
 
@@ -182,17 +186,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
                         cmd.Parameters.Add(dialect.CreateParameter(spec));
                     }
 
-                    // Inline-only providers reference every named parameter in the body, so the two
-                    // recurring-only params must be bound inert on the non-recurring path.
-                    if (!dialect.SupportsRoutines)
-                    {
-                        cmd.Parameters.Add(
-                            dialect.CreateParameter(new DbParameterSpec("p_recurring_result_cap", request.RecurringResultCap, DbKind.Int32))
-                        );
-                        cmd.Parameters.Add(
-                            dialect.CreateParameter(new DbParameterSpec("p_schedule_advances", "[]", DbKind.UnicodeString, Size: 8))
-                        );
-                    }
+                    dialect.BindNonRecurringCompletionDefaults(cmd, request);
                 }
                 else
                 {
@@ -209,7 +203,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
         CancellationToken ct
     )
     {
-        if (!dialect.SupportsRoutines)
+        if (!dialect.SupportsBatchCompletion)
         {
             throw new NotSupportedException("The SQLite provider has no batched-completion routine; Bulk degrades to Direct.");
         }

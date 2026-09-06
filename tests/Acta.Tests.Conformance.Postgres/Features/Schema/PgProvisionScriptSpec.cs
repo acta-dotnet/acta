@@ -46,6 +46,33 @@ public sealed partial class PgProvisionScriptSpec
                 await provision.ExecuteNonQueryAsync(ct);
             }
 
+            // A body-only replacement must be repaired by bootstrap even with no pending MNNN.
+            await using (var alter = conn.CreateCommand())
+            {
+                alter.CommandText = File.ReadAllText(
+                        Path.Combine(
+                            IntegrationConfig.FindRepoRoot(),
+                            "src",
+                            "Acta.Postgres",
+                            "Sql",
+                            "Services",
+                            "Locks",
+                            "ExtendLock.routine.sql"
+                        )
+                    )
+                    .Replace("{{schema}}", schema)
+                    .Replace("AS $$", "AS $$\n-- versionless_body_probe");
+                await alter.ExecuteNonQueryAsync(ct);
+            }
+            await using (var definition = conn.CreateCommand())
+            {
+                definition.CommandText =
+                    $"SELECT pg_get_functiondef(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = '{schema}' AND p.proname = 'extend_lock'";
+                Assert.Contains("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
+                await Acta.Postgres.Schema.PostgresSchemaMigrator.ApplyAsync(conn, schema, ct);
+                Assert.DoesNotContain("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
+            }
+
             // One history row per migration section in the file plus the version-0 baseline-stamp
             // row, no more (the double run must not stamp anything twice), counted from the
             // script's own BEGIN banners.
@@ -61,7 +88,7 @@ public sealed partial class PgProvisionScriptSpec
             Assert.True(await reader.ReadAsync(ct));
             Assert.Equal(migrations, reader.GetInt64(0));
             Assert.Equal(0, reader.GetInt64(1));
-            Assert.True(reader.GetInt64(2) > 0, "no routines were installed");
+            Assert.Equal(56, reader.GetInt64(2));
         }
         finally
         {

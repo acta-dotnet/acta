@@ -52,8 +52,8 @@ public sealed class ProviderRegistrationTests
         var exception = Assert.Throws<InvalidOperationException>(() =>
             services.UseActa(builder =>
             {
-                builder.Services.AddSingleton(new ActaProviderInfo(DbProvider.Postgres, SupportsRoutines: true));
-                builder.Services.AddSingleton(new ActaProviderInfo(DbProvider.Sqlite, SupportsRoutines: false));
+                builder.Services.AddSingleton(new ActaProviderInfo(DbProvider.Postgres, SupportsBatchCompletion: true));
+                builder.Services.AddSingleton(new ActaProviderInfo(DbProvider.Sqlite, SupportsBatchCompletion: false));
             })
         );
 

@@ -22,7 +22,7 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public string DialectToken => "mssql";
 
-    public bool SupportsRoutines => true;
+    public bool SupportsBatchCompletion => true;
 
     /// <summary>
     /// 1205: deadlock victim. 2801: an installed routine changed during concurrent bootstrap.

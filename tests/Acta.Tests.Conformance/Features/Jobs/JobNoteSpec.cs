@@ -1,6 +1,7 @@
 using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
@@ -19,6 +20,15 @@ namespace Acta.Tests.Conformance.Features.Jobs;
 public abstract class JobNoteSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
+    [Fact(DisplayName = "A note for an unknown job throws the stable marker before committing")]
+    public async Task Unknown_job_is_rejected()
+    {
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Services.GetRequiredService<IExecutionStore>().RecordJobNoteAsync(-1, "unknown", null, TestContext.Current.CancellationToken)
+        );
+        Assert.Contains("ACTA:NOTE_UNKNOWN_JOB:", error.Message);
+    }
+
     [Fact(DisplayName = "NoteAsync appends job.note-recorded events carrying the message and the optional detail payload")]
     public async Task Notes_are_appended_to_the_job_timeline()
     {

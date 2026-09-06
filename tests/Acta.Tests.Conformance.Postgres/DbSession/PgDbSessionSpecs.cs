@@ -7,6 +7,8 @@ namespace Acta.Tests.Conformance.Postgres.DbSession;
 
 public sealed class PgDbSessionWriteSpec : DbSessionWriteSpec<PgConformanceFixture>;
 
+public sealed class PgAtomicCommandTransactionSpec : AtomicCommandTransactionSpec<PgConformanceFixture>;
+
 public sealed class PgFluentReadSpec : FluentReadSpec<PgConformanceFixture>;
 
 public sealed class PgSettingsUniqueKeySpec : SettingsUniqueKeySpec<PgConformanceFixture>;

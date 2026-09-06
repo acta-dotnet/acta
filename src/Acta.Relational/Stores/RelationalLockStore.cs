@@ -8,7 +8,7 @@ namespace Acta.Relational.Stores;
 /// <summary>
 /// Shared relational <c>locks</c>-backed <see cref="ILockStore"/> over <see cref="IDbSession"/>:
 /// acquire is steal-on-expiry stamping a caller-minted hold token; extend and release are
-/// token-CAS. Minting the token in code keeps the routines free of per-dialect uuid generation and
+/// token-CAS. Minting the token in code keeps the SQL free of per-dialect uuid generation and
 /// makes acquire success a plain row-count. The provider mechanics (routine vs inline write) live
 /// behind the session.
 /// </summary>

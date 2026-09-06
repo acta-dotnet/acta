@@ -27,6 +27,30 @@ namespace Acta.Tests.Conformance.Features.Locks;
 public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
+    [Fact(DisplayName = "Simultaneous acquisitions of a new key return exactly one live token")]
+    public async Task Concurrent_acquires_have_one_winner()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = Services.GetRequiredService<ILockStore>();
+        var key = TestKey("lock-race");
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = Enumerable
+            .Range(1, 8)
+            .Select(async i =>
+            {
+                await start.Task;
+                return await store.TryAcquireAsync(key, TimeSpan.FromMinutes(1), -i, ct);
+            })
+            .ToArray();
+        start.SetResult();
+        var tokens = await Task.WhenAll(attempts);
+        var winner = Assert.Single(tokens, t => t.HasValue)!.Value;
+        var row = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+        Assert.NotNull(row);
+        Assert.Equal(winner.HoldToken, row.HoldToken);
+        Assert.True(await store.ReleaseAsync(winner, ct));
+    }
+
     [Fact(DisplayName = "First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null")]
     public async Task Acquire_lands_a_lease_row_and_blocks_a_competing_acquire()
     {

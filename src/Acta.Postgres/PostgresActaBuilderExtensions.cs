@@ -28,7 +28,7 @@ public static class PostgresActaBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.Postgres, SupportsRoutines: true));
+        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.Postgres, SupportsBatchCompletion: true));
         builder.Services.Configure(configure);
         builder.Services.AddOptions<PostgresProviderOptions>().ValidateOnStart();
         builder.Services.TryAddEnumerable(

@@ -12,8 +12,7 @@ namespace Acta.Relational.Stores;
 /// every SQL provider: the incident-identity raise, the generate/deliver reads, the delivery-outcome and
 /// auto-resolve writes, the operator acknowledge/resolve verbs, and the paged list are written once.
 /// Provider differences live behind the session (routine vs inline, result-set selection) and the
-/// dialect (parameter creation). The delivery-outcome and auto-resolve writes are inline SQL in every
-/// provider (no routine), so they load by literal path through the session's read seam.
+/// dialect (parameter creation).
 /// </summary>
 internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect dialect, SqlProviderOptions options) : IAlertStore
 {
@@ -117,12 +116,9 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         );
 
     /// <summary>
-    /// Inline UPDATE in every provider (no routine), so it loads by literal path with no write
-    /// transaction, matching the provider stores' ExecuteNonQuery-without-transaction shape. The CAS
-    /// result is read as a returned row (RETURNING / OUTPUT, as extend_worker_leases already does)
-    /// rather than from rows-affected, which is a driver-dependent number across the three providers.
+    /// Atomic delivery CAS. A returned row means this attempt still owned the observed version.
     /// </summary>
-    public Task<bool> UpdateAlertDeliveryAsync(
+    public async Task<bool> UpdateAlertDeliveryAsync(
         long alertId,
         int expectedVersion,
         AlertDeliveryStatusCode status,
@@ -130,41 +126,39 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         DateTime? retryAfterUtc,
         CancellationToken ct
     ) =>
-        session.QueryAsync(
-            "Sql/Alerting/UpdateAlertDelivery.sql",
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Version, expectedVersion));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)status));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryCount, retryCount));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryAfterUtc, retryAfterUtc));
-            },
-            async (reader, token) => await reader.ReadAsync(token),
-            ct
-        );
+        (
+            await session.ExecuteAsync(
+                new StoreCommand("Alerting", "UpdateAlertDelivery"),
+                cmd =>
+                {
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Version, expectedVersion));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.DeliveryStatusCode, (short)status));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryCount, retryCount));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.RetryAfterUtc, retryAfterUtc));
+                },
+                static _ => true,
+                ct
+            )
+        ).Count != 0;
 
     /// <summary>
-    /// Inline UPDATE in every provider (no routine); the number of rows closed is the command's
-    /// rows-affected count, read after draining the reader.
+    /// Atomic incident resolution returns an explicit count, independent of driver row-count tokens.
     /// </summary>
-    public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-        session.QueryAsync(
-            "Sql/Alerting/ResolveJobAlerts.sql",
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.JobId, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SourceEventId, sourceEventId));
-            },
-            async (reader, token) =>
-            {
-                while (await reader.NextResultAsync(token)) { }
-
-                return reader.RecordsAffected;
-            },
-            ct
-        );
+    public async Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+        (
+            await session.ExecuteAsync(
+                new StoreCommand("Alerting", "ResolveJobAlerts"),
+                cmd =>
+                {
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.JobId, jobId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SourceEventId, sourceEventId));
+                },
+                static reader => reader.GetInt32(0),
+                ct
+            )
+        ).Single();
 
     public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
         ControlAsync("AcknowledgeJobAlert", command, ct);

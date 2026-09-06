@@ -47,7 +47,7 @@ public sealed class CliRegistrationTests
         {
             services.UseActa(j =>
             {
-                j.Services.AddSingleton(new ActaProviderInfo(DbProvider.SqlServer, SupportsRoutines: true));
+                j.Services.AddSingleton(new ActaProviderInfo(DbProvider.SqlServer, SupportsBatchCompletion: true));
                 j.Run<FakeManifest>("payments");
                 if (disableCli)
                 {

@@ -31,9 +31,9 @@ public sealed class SqliteBulkProfileDegradationSpec : ActaRuntimeTestBase<Sqlit
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // SupportsRoutines is the flag WorkerRuntime reads to decide whether to build a CompletionSink
+        // SupportsBatchCompletion is the flag WorkerRuntime reads to decide whether to build a CompletionSink
         // at all, so a false here is what makes Bulk degrade to Direct before any completion buffers.
-        Assert.False(Services.GetRequiredService<SqliteDialect>().SupportsRoutines);
+        Assert.False(Services.GetRequiredService<SqliteDialect>().SupportsBatchCompletion);
 
         // And the store refuses the batch outright, so the degradation cannot be bypassed by calling
         // the sink's path directly.

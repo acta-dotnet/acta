@@ -99,7 +99,7 @@ internal sealed class WorkerRuntime
         // profiles: nothing is ever enqueued and the flusher is never started. Only routine providers
         // (SQL Server, Postgres) get a sink - Bulk degrades to Direct on inline-only providers (SQLite),
         // which have no batched-completion routine.
-        var completionSink = provider.SupportsRoutines
+        var completionSink = provider.SupportsBatchCompletion
             ? new CompletionSink(rootServices.GetRequiredService<IExecutionStore>(), publisher, options, logger, metrics)
             : null;
 

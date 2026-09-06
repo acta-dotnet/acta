@@ -62,4 +62,8 @@
       LogicalName="Acta.Tests.Schema.Migrations.M002_add_widgets.sql"
     />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\DbSession\Ambiguous.sql" LogicalName="Acta.Tests.Sql.Testing.Ambiguous.sql" />
+    <EmbeddedResource Include="Fixtures\DbSession\Ambiguous.routine.sql" LogicalName="Acta.Tests.Sql.Testing.Ambiguous.routine.sql" />
+  </ItemGroup>
 </Project>

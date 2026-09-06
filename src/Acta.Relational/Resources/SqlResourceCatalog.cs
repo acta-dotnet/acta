@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using Acta.Relational.Commands;
 using Acta.Runtime.Hosting;
 
 namespace Acta.Relational.Resources;
@@ -22,6 +23,7 @@ internal sealed class SqlResourceCatalog
     private readonly string? _table;
     private readonly HashSet<string> _resources;
     private readonly ConcurrentDictionary<string, string> _rendered = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<StoreCommand, StoreExecutionKind> _commands = new();
 
     public SqlResourceCatalog(Assembly assembly, string? schema, string? table = null)
     {
@@ -43,6 +45,28 @@ internal sealed class SqlResourceCatalog
     /// Rendered SQL for a capability-local resource path such as <c>Sql/Overview/GetOverview.sql</c>.
     /// </summary>
     public string Load(string path) => Render(_prefix + path.Replace('/', '.'));
+
+    /// <summary>Each command has exactly one provider-owned form; no provider-wide fallback.</summary>
+    public StoreExecutionKind Resolve(StoreCommand command) =>
+        _commands.GetOrAdd(
+            command,
+            c =>
+            {
+                var inlineName = _prefix + c.SqlPath.Replace('/', '.');
+                var routineName = inlineName[..^".sql".Length] + ".routine.sql";
+                var inline = _resources.Contains(inlineName);
+                var routine = _resources.Contains(routineName);
+                if (inline == routine)
+                {
+                    throw new InvalidOperationException(
+                        $"Provider assembly '{_assembly.GetName().Name}' must embed exactly one SQL form for '{c.SqlPath}'; "
+                            + (inline ? "both inline and routine resources exist." : "neither inline nor routine resource exists.")
+                    );
+                }
+
+                return routine ? StoreExecutionKind.Routine : StoreExecutionKind.Inline;
+            }
+        );
 
     /// <summary>
     /// The provider's feature-local routine bodies (<c>*.routine.sql</c>), each paired with its

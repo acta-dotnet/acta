@@ -138,6 +138,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 
 ### Substrate
 
+- **Server ledger mutations are atomic routines; reads are embedded SQL and installed views.** SQLite supplies transactional inline equivalents. Resource kind selects dispatch, caller transactions remain supported on all providers, and installed routines retain their executable compatibility obligations throughout 1.x. See [SQL execution policy](sql-execution-policy.md). *Reason:* one database command for state transitions, ordinary SQL visibility, and an explicit shared database contract.
 - **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, and each provider's `M001_init.sql` are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
 - **Hot-row mutation goes through semantic store methods.** State-mutating store methods are implemented once as shared `Relational{Feature}Store` in `Acta.Relational` over `IDbSession` + `ISqlDialect`; providers own the executable SQL and dialect binds, not store classes. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
 - **`JobEvent` is the execution ledger AND the audit timeline.** Paired `started`/`finished` events on `(JobId, ExecutionNumber)` carry per-attempt history; no per-attempt table. *Reason:* one append-only substrate, one retention sweep.

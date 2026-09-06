@@ -5,7 +5,7 @@ namespace Acta.Relational.Connections;
 
 /// <summary>
 /// Internal relational execute surface consumed by the shared stores. Owns connection open, deadlock
-/// retry, routine-vs-inline dispatch, the inline write transaction, and primary-result-set selection,
+/// retry, routine-vs-inline dispatch, provider-owned write transactions, and primary-result-set selection,
 /// so a shared store stays provider-free. Product behavior consumes semantic stores, never this seam.
 /// </summary>
 internal interface IDbSession
@@ -25,8 +25,8 @@ internal interface IDbSession
     );
 
     /// <summary>
-    /// Runs a routine-dispatched (routine providers) or inline (inline providers) read command with no
-    /// write transaction. For the routine reads whose provider bodies are functions, not literal SELECTs.
+    /// Runs a read command with no write transaction. Its provider resource selects routine or inline
+    /// execution, including routine reads whose bodies are functions instead of literal SELECTs.
     /// </summary>
     Task<T> QueryAsync<T>(
         StoreCommand command,
