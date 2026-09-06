@@ -1,11 +1,11 @@
 # Release notes
 
-## 1.0.0-rc.2 (unreleased)
+## 1.0.0-rc.2
 
-A correctness round over the paths a release candidate has to get right before anyone leans on
-them: crash recovery, the audit trail, and the bounds on what an operator or an attribute can
-declare. Nothing here adds a feature to the execution model; most of it makes a guarantee the docs
-already claimed actually hold on every provider.
+Tagged 2026-09-06. A correctness round over the paths a release candidate has to get right before
+anyone leans on them: crash recovery, the audit trail, and the bounds on what an operator or an
+attribute can declare. Nothing here adds a feature to the execution model; most of it makes a
+guarantee the docs already claimed actually hold on every provider.
 
 ### What a consumer must change
 
