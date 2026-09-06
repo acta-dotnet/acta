@@ -35,6 +35,7 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(JobExplanation))]
 [JsonSerializable(typeof(JobLineageMap))]
 [JsonSerializable(typeof(JobControlRequest))]
+[JsonSerializable(typeof(JobVersionedControlRequest))]
 [JsonSerializable(typeof(JobControlResponse))]
 [JsonSerializable(typeof(JobRescheduleRequest))]
 [JsonSerializable(typeof(JobReprioritizeRequest))]

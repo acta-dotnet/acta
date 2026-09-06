@@ -11,7 +11,7 @@ internal sealed record CancelJobOutcome(JobControlOutcome Outcome, long? ParentI
 /// <summary>
 /// Flat cancel routine row; wraps the shared control outcome after binding.
 /// </summary>
-internal readonly record struct CancelJobOutcomeRow(JobControlActionInternal Action, JobStatusCode? Status, long? ParentId)
+internal readonly record struct CancelJobOutcomeRow(JobControlActionInternal Action, JobStatusCode? Status, long? ParentId, int? Version)
 {
-    public CancelJobOutcome ToOutcome() => new(new JobControlOutcome(Action, Status), ParentId);
+    public CancelJobOutcome ToOutcome() => new(new JobControlOutcome(Action, Status, Version), ParentId);
 }

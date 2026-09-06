@@ -312,7 +312,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         // Cancelling a Ready job stamps an Operator-actor event alongside the enqueue-time actor.
         var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
-        await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
+        await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct: ct);
 
         var all = (await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
         Assert.NotEmpty(all);
@@ -340,7 +340,7 @@ public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
 
         var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
-        await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct);
+        await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct: ct);
 
         var all = (await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
         Assert.Contains(all, e => e.ReasonCode == JobEventReasonCode.JobControlManual);

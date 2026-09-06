@@ -18,6 +18,32 @@ internal static class ControlEndpointValidation
     ) => ReadOptionalTextAsync(http, options, DashboardJsonContext.Default.JobControlRequest, static r => r.ReasonMessage, ct);
 
     /// <summary>
+    /// Reads the reason-and-token body of the job control verbs that accept a compare-and-set guard.
+    /// <c>ExpectedVersion</c> is null whenever the body is absent or omits it, which is the
+    /// unconditional write.
+    /// </summary>
+    public static async Task<(string? ReasonMessage, int? ExpectedVersion, IResult? Error)> ReadVersionedAsync(
+        HttpContext http,
+        ActaEndpointOptions options,
+        CancellationToken ct
+    )
+    {
+        var (body, error) = await ReadOptionalJsonBodyAsync(http, options, DashboardJsonContext.Default.JobVersionedControlRequest, ct);
+        if (error is not null)
+        {
+            return (null, null, error);
+        }
+
+        var reason = body?.ReasonMessage?.Trim();
+        if (string.IsNullOrEmpty(reason))
+        {
+            return (null, body?.ExpectedVersion, null);
+        }
+
+        return ValidateReasonLength(reason, options) is { } lengthError ? (null, null, lengthError) : (reason, body?.ExpectedVersion, null);
+    }
+
+    /// <summary>
     /// Reads an optional JSON body and extracts one caller-supplied text field via
     /// <paramref name="selectText"/> (e.g. <c>JobControlRequest.ReasonMessage</c>, <c>AlertControlRequest.Note</c>):
     /// no body at all is a no-op (null, null); a present body is parsed and shape-validated (415/400 on

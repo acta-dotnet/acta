@@ -238,7 +238,8 @@ public class CliRunnerClipboardTests
                         RetentionUntilUtc: null,
                         CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
                         ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-                        LeasedByWorkerRef: null
+                        LeasedByWorkerRef: null,
+                        Version: 3
                     )
                     : null
             );
@@ -405,6 +406,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
+            int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -412,6 +414,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
+            int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -419,6 +422,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
+            int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -426,6 +430,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
+            int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -434,6 +439,7 @@ public class CliRunnerClipboardTests
             DateTime nextRunAtUtc,
             string? reasonMessage = null,
             string? actorKey = null,
+            int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -442,6 +448,7 @@ public class CliRunnerClipboardTests
             JobPriorityCode priority,
             string? reasonMessage = null,
             string? actorKey = null,
+            int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -483,7 +490,7 @@ public class CliRunnerClipboardTests
         )
         {
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
-            return ValueTask.FromResult(new JobControlResult(1, ControlAction.Applied, JobStatusCode.Ready));
+            return ValueTask.FromResult(new JobControlResult(1, ControlAction.Applied, JobStatusCode.Ready, 4));
         }
     }
 }

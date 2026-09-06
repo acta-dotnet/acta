@@ -10,7 +10,13 @@ namespace Acta;
 /// <remarks>
 /// There is deliberately no out-of-handler alert verb here: alerts are raised in-handler via
 /// <c>ctx.AlertAsync</c> and by the framework's automatic failure alerts, keeping the operator
-/// surface minimal.
+/// surface minimal. The job control verbs (cancel, pause, resume, restart, reschedule, reprioritize)
+/// take an optional expectedVersion, unlike the definition, schedule, tenant, and namespace controls
+/// whose token is mandatory: each is a status-conditional transition an operator must be able to fire
+/// by hand against a moving job, and a required token on a row that changes every few seconds would
+/// turn "pause it" into a retry loop. Null, the default, writes unconditionally; two such operators
+/// are serialized by the store and both audited, and the last transition wins. A caller holding a
+/// <see cref="JobDetail.Version"/> passes it instead and gets a <see cref="ControlAction.VersionConflict"/> carrying the current version, not a lost update.
 /// </remarks>
 public interface IJobs
 {
@@ -313,6 +319,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -329,6 +336,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -343,6 +351,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -358,6 +367,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -374,6 +384,7 @@ public interface IJobs
         DateTime nextRunAtUtc,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -390,6 +401,7 @@ public interface IJobs
         JobPriorityCode priority,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
     );
 

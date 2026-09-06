@@ -29,12 +29,14 @@ internal sealed class RelationalSignalStore(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, command.Input.ReasonCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.Input.ReasonMessage));
             },
-            DbProjectionResolver.Resolve<JobControlOutcome>(),
+            DbProjectionResolver.Resolve<JobControlActionRow>(),
             ct
         )
-        ?? throw new InvalidOperationException(
-            "Control command 'RaiseSignal' returned no rows; it must return exactly one (action, status_code) row."
-        );
+            is { } row
+            ? row.ToOutcome()
+            : throw new InvalidOperationException(
+                "Control command 'RaiseSignal' returned no rows; it must return exactly one (action, status_code) row."
+            );
 
     public async Task<SignalWaitDecision> WaitSignalAsync(
         long jobId,

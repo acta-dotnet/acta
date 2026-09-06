@@ -194,16 +194,18 @@ export async function controlRequest<TResult extends { action: string }>(
   );
 }
 
-export type ControlAction = 'applied' | 'notFound' | 'rejected';
+export type ControlAction = 'applied' | 'notFound' | 'rejected' | 'versionConflict';
 
 // All seven job-control verbs (pause/resume/restart/cancel/reschedule/reprioritize/purge) return this
 // shape at `jobs/{jobRef}/{action}`; JobControls.svelte drives them all through useControlMutation
-// (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function.
+// (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function. The
+// dashboard sends no expectedVersion, so 'versionConflict' only reaches other API callers.
 export interface JobControlResponse {
   jobRef: string;
   action: ControlAction;
   status: string | null;
   message: string;
+  version: number | null;
 }
 
 // Alert-control POST response (acknowledge/resolve, at alerts/{alertRef}/{action}). AlertsList and

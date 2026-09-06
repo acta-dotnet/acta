@@ -287,7 +287,11 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("Execution", "Jobs/CancelJob"),
-            cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: true),
+            cmd =>
+            {
+                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
+            },
             DbProjectionResolver.Resolve<CancelJobOutcomeRow>(),
             ct
         );
@@ -295,43 +299,54 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
         return rows.Count > 0
             ? rows[^1].ToOutcome()
             : throw new InvalidOperationException(
-                "Control command 'CancelJob' returned no rows; it must return exactly one (action, status_code, parent_id) row."
+                "Control command 'CancelJob' returned no rows; it must return exactly one (action, status_code, parent_id, version) row."
             );
     }
 
     public Task<JobControlOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-        ControlAsync("Jobs/PauseJob", cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: true), ct);
+        VersionedControlAsync(
+            "Jobs/PauseJob",
+            cmd =>
+            {
+                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
+            },
+            ct
+        );
 
     public Task<JobControlOutcome> ResumeJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
-        ControlAsync(
+        VersionedControlAsync(
             "Jobs/ResumeJob",
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
+                AddExpectedVersion(cmd, input);
             },
             ct
         );
 
     public Task<JobControlOutcome> RestartJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
-        ControlAsync(
+        VersionedControlAsync(
             "Jobs/RestartJob",
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
+                AddExpectedVersion(cmd, input);
             },
             ct
         );
 
     public Task<JobControlOutcome> RescheduleJobAsync(long jobId, DateTime nextRunAtUtc, JobControlInput input, CancellationToken ct) =>
-        ControlAsync(
+        VersionedControlAsync(
             "Jobs/RescheduleJob",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
                 AddActorParameters(cmd, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
             },
             ct
         );
@@ -342,13 +357,14 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
         JobControlInput input,
         CancellationToken ct
     ) =>
-        ControlAsync(
+        VersionedControlAsync(
             "Jobs/ReprioritizeJob",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.PriorityCode, priority));
                 AddActorParameters(cmd, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
             },
             ct
         );
@@ -380,12 +396,30 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
         await session.ExecuteSingleAsync(
             new StoreCommand("Execution", operation),
             bind,
+            DbProjectionResolver.Resolve<JobControlActionRow>(),
+            ct
+        )
+            is { } row
+            ? row.ToOutcome()
+            : throw new InvalidOperationException(
+                $"Control command '{operation}' returned no rows; it must return exactly one (action, status_code) row."
+            );
+
+    private async Task<JobControlOutcome> VersionedControlAsync(string operation, Action<DbCommand> bind, CancellationToken ct) =>
+        await session.ExecuteSingleAsync(
+            new StoreCommand("Execution", operation),
+            bind,
             DbProjectionResolver.Resolve<JobControlOutcome>(),
             ct
         )
         ?? throw new InvalidOperationException(
-            $"Control command '{operation}' returned no rows; it must return exactly one (action, status_code) row."
+            $"Control command '{operation}' returned no rows; it must return exactly one (action, status_code, version) row."
         );
+
+    // The optional CAS guard is bound last on every versioned control routine, matching the routine's
+    // trailing parameter; PostgreSQL function arguments are positional.
+    private void AddExpectedVersion(DbCommand cmd, JobControlInput input) =>
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersionOptional, input.ExpectedVersion));
 
     private void AddControlParameters(DbCommand cmd, long jobId, JobControlInput input, bool includeReasonMessage)
     {

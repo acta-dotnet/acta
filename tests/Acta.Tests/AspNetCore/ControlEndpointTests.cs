@@ -68,7 +68,7 @@ public sealed class ControlEndpointTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Contains("\"action\":\"applied\"", body);
         var call = Assert.Single(jobs.ControlCalls);
-        Assert.Equal((verb, TestDashboardHost.FoundJobRef, "because", (string?)null), call);
+        Assert.Equal((verb, TestDashboardHost.FoundJobRef, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]
@@ -289,7 +289,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
         var call = Assert.Single(jobs.RescheduleCalls);
-        Assert.Equal((TestDashboardHost.FoundJobRef, nextRunAtUtc, "because", (string?)null), call);
+        Assert.Equal((TestDashboardHost.FoundJobRef, nextRunAtUtc, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]
@@ -384,7 +384,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
         var call = Assert.Single(jobs.ReprioritizeCalls);
-        Assert.Equal((TestDashboardHost.FoundJobRef, JobPriorityCode.High, "because", (string?)null), call);
+        Assert.Equal((TestDashboardHost.FoundJobRef, JobPriorityCode.High, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]

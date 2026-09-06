@@ -29,7 +29,8 @@ internal sealed record JobSnapshotRow(
     int? TenantId,
     string? TenantKey,
     int DefinitionId,
-    Guid? LeasedByWorkerRef
+    Guid? LeasedByWorkerRef,
+    int Version
 )
 {
     /// <summary>
@@ -63,7 +64,8 @@ internal sealed record JobSnapshotRow(
             LeaseExpiresAtUtc: LeaseExpiresAtUtc,
             RetentionUntilUtc: RetentionUntilUtc,
             ModifiedAtUtc: ModifiedAtUtc,
-            LeasedByWorkerRef: LeasedByWorkerRef is { } leasedRef ? new WorkerRef(leasedRef) : null
+            LeasedByWorkerRef: LeasedByWorkerRef is { } leasedRef ? new WorkerRef(leasedRef) : null,
+            Version: Version
         );
 }
 

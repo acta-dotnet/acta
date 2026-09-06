@@ -398,45 +398,51 @@ internal sealed class JobsApi(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
-    ) => jobsService.CancelAsync(job, reasonMessage, actorKey, ct);
+    ) => jobsService.CancelAsync(job, reasonMessage, actorKey, expectedVersion, ct);
 
     public ValueTask<JobControlResult> PauseAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
-    ) => jobsService.PauseAsync(job, reasonMessage, actorKey, ct);
+    ) => jobsService.PauseAsync(job, reasonMessage, actorKey, expectedVersion, ct);
 
     public ValueTask<JobControlResult> ResumeAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
-    ) => jobsService.ResumeAsync(job, reasonMessage, actorKey, ct);
+    ) => jobsService.ResumeAsync(job, reasonMessage, actorKey, expectedVersion, ct);
 
     public ValueTask<JobControlResult> RestartAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
-    ) => jobsService.RestartAsync(job, reasonMessage, actorKey, ct);
+    ) => jobsService.RestartAsync(job, reasonMessage, actorKey, expectedVersion, ct);
 
     public ValueTask<JobControlResult> RescheduleAsync(
         JobLookup job,
         DateTime nextRunAtUtc,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
-    ) => jobsService.RescheduleAsync(job, nextRunAtUtc, reasonMessage, actorKey, ct);
+    ) => jobsService.RescheduleAsync(job, nextRunAtUtc, reasonMessage, actorKey, expectedVersion, ct);
 
     public ValueTask<JobControlResult> ReprioritizeAsync(
         JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage = null,
         string? actorKey = null,
+        int? expectedVersion = null,
         CancellationToken ct = default
-    ) => jobsService.ReprioritizeAsync(job, priority, reasonMessage, actorKey, ct);
+    ) => jobsService.ReprioritizeAsync(job, priority, reasonMessage, actorKey, expectedVersion, ct);
 
     public ValueTask<JobControlResult> UpdateJobInputAsync(
         JobLookup job,

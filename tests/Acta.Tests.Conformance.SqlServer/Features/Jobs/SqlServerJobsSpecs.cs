@@ -13,6 +13,8 @@ public sealed class SqlServerEnqueueRejectionSpec : EnqueueRejectionSpec<SqlServ
 
 public sealed class SqlServerEnqueueRejectionTaxonomySpec : EnqueueRejectionTaxonomySpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerJobControlVersionGuardSpec : JobControlVersionGuardSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerJobNoteSpec : JobNoteSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerEnqueueSpec : EnqueueSpec<SqlServerConformanceFixture>;

@@ -32,7 +32,13 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         );
         await ShowSplitStateAsync("The append-mostly job row and hot runtime row start together", checkout.JobId, ct);
 
-        var release = await jobs.RescheduleAsync(checkout, DateTime.UnixEpoch, "release the HERO 201 enqueue snapshot", "concept-201", ct);
+        var release = await jobs.RescheduleAsync(
+            checkout,
+            DateTime.UnixEpoch,
+            "release the HERO 201 enqueue snapshot",
+            "concept-201",
+            ct: ct
+        );
         if (release.Action != ControlAction.Applied)
         {
             throw new InvalidOperationException($"Could not release checkout {checkout.JobRef}: {release.Action}.");

@@ -17,7 +17,7 @@ public class CliOutputTests
             w,
             "pause",
             SampleJobRef,
-            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused),
+            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused, 4),
             json: false
         );
         var text = w.ToString();
@@ -34,7 +34,7 @@ public class CliOutputTests
             w,
             "pause",
             SampleJobRef,
-            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused),
+            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused, 4),
             json: true
         );
         var text = w.ToString();
@@ -74,7 +74,8 @@ public class CliOutputTests
             RetentionUntilUtc: null,
             CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
             ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-            LeasedByWorkerRef: null
+            LeasedByWorkerRef: null,
+            Version: 3
         );
         CliOutput.WriteSnapshot(w, s, json: false);
         var text = w.ToString();
@@ -135,18 +136,19 @@ public class CliOutputTests
             RetentionUntilUtc: null,
             CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
             ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-            LeasedByWorkerRef: null
+            LeasedByWorkerRef: null,
+            Version: 3
         );
 
     [Fact]
     public void Control_null_status_prints_none_and_json_null()
     {
         var plain = new StringWriter();
-        CliOutput.WriteControl(plain, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null), json: false);
+        CliOutput.WriteControl(plain, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null, null), json: false);
         Assert.Contains("status: (none)", plain.ToString());
 
         var json = new StringWriter();
-        CliOutput.WriteControl(json, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null), json: true);
+        CliOutput.WriteControl(json, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null, null), json: true);
         Assert.Contains("\"status\":null", json.ToString());
     }
 
@@ -285,7 +287,8 @@ public class CliOutputTests
             RetentionUntilUtc: null,
             CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
             ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-            LeasedByWorkerRef: null
+            LeasedByWorkerRef: null,
+            Version: 3
         );
         CliOutput.WriteSnapshot(w, s, json: false);
         Assert.Contains("events: run 'jobs events", w.ToString());
@@ -537,7 +540,7 @@ public class CliOutputTests
             w,
             "pause",
             SampleJobRef,
-            new JobControlResult(SentinelJobId, ControlAction.Applied, JobStatusCode.Paused),
+            new JobControlResult(SentinelJobId, ControlAction.Applied, JobStatusCode.Paused, 4),
             json
         );
         AssertRefsOnly(w.ToString(), SampleJobRef.ToString());
@@ -630,7 +633,8 @@ public class CliOutputTests
             RetentionUntilUtc: null,
             CreatedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
             ModifiedAtUtc: new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc),
-            LeasedByWorkerRef: SentinelWorkerRef
+            LeasedByWorkerRef: SentinelWorkerRef,
+            Version: 3
         );
 
     private static PagedResult<EventListItem> SentinelEventPage() =>

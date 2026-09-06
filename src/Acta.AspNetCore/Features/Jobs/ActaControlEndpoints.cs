@@ -8,7 +8,8 @@ namespace Acta.AspNetCore.Features.Jobs;
 /// <summary>
 /// POST job-control endpoints: thin HTTP wrappers over the <see cref="IJobs"/> control verbs. The
 /// verbs own transition legality and audit stamping; this layer validates the request shape and
-/// maps <see cref="ControlAction"/> to 200 (applied), 409 (rejected), and 404 (not found).
+/// maps <see cref="ControlAction"/> to 200 (applied), 409 (rejected or version conflict), and 404
+/// (not found).
 /// </summary>
 internal static class ActaControlEndpoints
 {
@@ -25,37 +26,39 @@ internal static class ActaControlEndpoints
             options,
             "pause",
             "Pause the job until an operator resumes it.",
-            static (jobs, lookup, reason, actorKey, ct) => jobs.PauseAsync(lookup, reason, actorKey, ct)
+            static (jobs, lookup, reason, actorKey, expectedVersion, ct) => jobs.PauseAsync(lookup, reason, actorKey, expectedVersion, ct)
         );
         MapVerb(
             group,
             options,
             "resume",
             "Resume a paused job.",
-            static (jobs, lookup, reason, actorKey, ct) => jobs.ResumeAsync(lookup, reason, actorKey, ct)
+            static (jobs, lookup, reason, actorKey, expectedVersion, ct) => jobs.ResumeAsync(lookup, reason, actorKey, expectedVersion, ct)
         );
         MapVerb(
             group,
             options,
             "restart",
             "Restart a terminal job with its original input.",
-            static (jobs, lookup, reason, actorKey, ct) => jobs.RestartAsync(lookup, reason, actorKey, ct)
+            static (jobs, lookup, reason, actorKey, expectedVersion, ct) => jobs.RestartAsync(lookup, reason, actorKey, expectedVersion, ct)
         );
         MapVerb(
             group,
             options,
             "cancel",
             "Cancel the job.",
-            static (jobs, lookup, reason, actorKey, ct) => jobs.CancelAsync(lookup, reason, actorKey, ct)
+            static (jobs, lookup, reason, actorKey, expectedVersion, ct) => jobs.CancelAsync(lookup, reason, actorKey, expectedVersion, ct)
         );
-        // Purge carries no caller reason: the body still passes through MapVerb's confirmation-header and
-        // JSON-shape checks (for parity with the other verbs), but the parsed reason is never forwarded.
+        // Purge carries no caller reason and no version token: the body still passes through MapVerb's
+        // confirmation-header and JSON-shape checks (for parity with the other verbs), but the parsed
+        // reason is never forwarded.
         MapVerb(
             group,
             options,
             "purge",
             "Delete the job's record from the ledger.",
-            static (jobs, lookup, _, actorKey, ct) => jobs.PurgeAsync(lookup, actorKey, ct)
+            static (jobs, lookup, _, actorKey, _, ct) => jobs.PurgeAsync(lookup, actorKey, ct),
+            takesExpectedVersion: false
         );
         MapReschedule(group, options);
         MapReprioritize(group, options);
@@ -257,7 +260,14 @@ internal static class ActaControlEndpoints
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
                     var actorKey = http.User?.Identity?.Name;
-                    var result = await jobs.RescheduleAsync(JobLookup.ByRef(parsed), body.NextRunAtUtc, reason, actorKey, ct);
+                    var result = await jobs.RescheduleAsync(
+                        JobLookup.ByRef(parsed),
+                        body.NextRunAtUtc,
+                        reason,
+                        actorKey,
+                        body.ExpectedVersion,
+                        ct
+                    );
                     return ToResult("reschedule", parsed, result);
                 }
             )
@@ -309,7 +319,14 @@ internal static class ActaControlEndpoints
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
                     var actorKey = http.User?.Identity?.Name;
-                    var result = await jobs.ReprioritizeAsync(JobLookup.ByRef(parsed), body.Priority, reason, actorKey, ct);
+                    var result = await jobs.ReprioritizeAsync(
+                        JobLookup.ByRef(parsed),
+                        body.Priority,
+                        reason,
+                        actorKey,
+                        body.ExpectedVersion,
+                        ct
+                    );
                     return ToResult("reprioritize", parsed, result);
                 }
             )
@@ -408,40 +425,64 @@ internal static class ActaControlEndpoints
         ActaEndpointOptions options,
         string verb,
         string summary,
-        Func<IJobs, JobLookup, string?, string?, CancellationToken, ValueTask<JobControlResult>> invoke
+        Func<IJobs, JobLookup, string?, string?, int?, CancellationToken, ValueTask<JobControlResult>> invoke,
+        bool takesExpectedVersion = true
     )
     {
-        group
-            .MapPost(
-                "/jobs/{jobRef}/" + verb,
-                async (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
+        var builder = group.MapPost(
+            "/jobs/{jobRef}/" + verb,
+            async (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
+            {
+                if (!JobRef.TryParse(jobRef, out var parsed))
                 {
-                    if (!JobRef.TryParse(jobRef, out var parsed))
-                    {
-                        return RefSegment.Malformed("jobRef", "job");
-                    }
-
-                    var (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
-                    if (error is not null)
-                    {
-                        return error;
-                    }
-
-                    // Operator identity for the audit trail comes from the authenticated principal, never the
-                    // body; the verb stamps actor = Operator.
-                    var actorKey = http.User?.Identity?.Name;
-                    var result = await invoke(jobs, JobLookup.ByRef(parsed), reason, actorKey, ct);
-                    return ToResult(verb, parsed, result);
+                    return RefSegment.Malformed("jobRef", "job");
                 }
-            )
-            // One declaration for all five verbs, and it states the transition contract rather than
-            // just the happy path: applied is 200, a state that forbids the transition is 409, an
-            // unknown ref is 404. All three carry the same body, so a client reads `action` and the
-            // resulting `status` without special-casing the status code.
-            .WithSummary(summary)
-            // The body is read manually rather than bound, so the document only learns its shape from
-            // this declaration; optional because a bare POST applies the verb with no reason.
-            .AcceptsJson<JobControlRequest>(optional: true)
+
+                // Purge reads the reason-only body: declaring the token it ignores would put a dead
+                // knob in the published document.
+                string? reason;
+                IResult? error;
+                int? expectedVersion = null;
+                if (takesExpectedVersion)
+                {
+                    (reason, expectedVersion, error) = await ControlEndpointValidation.ReadVersionedAsync(http, options, ct);
+                }
+                else
+                {
+                    (reason, error) = await ControlEndpointValidation.ReadAsync(http, options, ct);
+                }
+
+                if (error is not null)
+                {
+                    return error;
+                }
+
+                // Operator identity for the audit trail comes from the authenticated principal, never the
+                // body; the verb stamps actor = Operator.
+                var actorKey = http.User?.Identity?.Name;
+                var result = await invoke(jobs, JobLookup.ByRef(parsed), reason, actorKey, expectedVersion, ct);
+                return ToResult(verb, parsed, result);
+            }
+        );
+
+        // One declaration for all five verbs, and it states the transition contract rather than
+        // just the happy path: applied is 200, a state that forbids the transition or a stale
+        // expectedVersion is 409, an unknown ref is 404. All three carry the same body, so a client
+        // reads `action`, `status` and `version` without special-casing the status code.
+        builder.WithSummary(summary);
+
+        // The body is read manually rather than bound, so the document only learns its shape from
+        // this declaration; optional because a bare POST applies the verb with no reason.
+        if (takesExpectedVersion)
+        {
+            builder.AcceptsJson<JobVersionedControlRequest>(optional: true);
+        }
+        else
+        {
+            builder.AcceptsJson<JobControlRequest>(optional: true);
+        }
+
+        builder
             .Produces<JobControlResponse>(StatusCodes.Status200OK)
             .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
             .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
@@ -455,7 +496,7 @@ internal static class ActaControlEndpoints
     /// </summary>
     private static IResult Envelope(JobRef jobRef, ControlAction action, int statusCode, string message) =>
         Results.Json(
-            new JobControlResponse(jobRef, action, null, message),
+            new JobControlResponse(jobRef, action, null, message, null),
             DashboardJsonContext.Default.JobControlResponse,
             statusCode: statusCode
         );
@@ -469,11 +510,15 @@ internal static class ActaControlEndpoints
                 StatusCodes.Status409Conflict,
                 $"{Title(verb)} rejected: the job's current status does not allow it."
             ),
+            ControlAction.VersionConflict => (
+                StatusCodes.Status409Conflict,
+                $"{Title(verb)} rejected: the job changed since you loaded it (version conflict). Reload and retry."
+            ),
             _ => (StatusCodes.Status404NotFound, "Job not found."),
         };
 
         return Results.Json(
-            new JobControlResponse(jobRef, result.Action, result.Status, message),
+            new JobControlResponse(jobRef, result.Action, result.Status, message, result.Version),
             DashboardJsonContext.Default.JobControlResponse,
             statusCode: statusCode
         );

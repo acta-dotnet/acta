@@ -169,6 +169,12 @@ is never a replacement row. Reschedule applies to Paused/Suspended/Ready rows an
 Ready; purge refuses a non-terminal job and a job that has child jobs (purge the children first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
+Cancel, pause, resume, restart, reschedule, and reprioritize also take an optional `expectedVersion`
+after `actorKey`. Left null, the verb writes unconditionally, which is what an operator acting on a
+moving job wants. Pass the `Version` from a `JobDetail` (or from a previous control result) and the
+write becomes a compare-and-set: a row that changed underneath you answers `VersionConflict` with its
+current version instead of overwriting someone else's decision.
+
 ### Schedule controls
 
 Address a schedule by its recurring slot job plus schedule name. Definition-backed slot jobs use the
@@ -191,8 +197,9 @@ different operations. Use [Schedule operations](./schedule-operations.md) before
 
 Read from the provider routines, not from intent. Every verb answers one of three ways: **applied**
 (`200`), **rejected** (`409`, the job exists but its status forbids the transition), or **not found**
-(`404`). All three carry the same `JobControlResponse` body, so a client reads `action` and the
-resulting `status` without special-casing the code.
+(`404`); a verb given an `expectedVersion` has a fourth, **version conflict** (`409`, the row moved
+since you read it), and nothing is written. All four carry the same `JobControlResponse` body, so a
+client reads `action`, the resulting `status`, and the row's `version` without special-casing the code.
 
 `R` Ready · `S` Suspended · `P` Paused · `D` Dispatched · `X` Executing · `✓` Succeeded · `F` Failed ·
 `C` Cancelled. **A** applied, **409** rejected.

@@ -33,6 +33,7 @@
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.JobInputRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.ExplainHeaderRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.ExplainStepRow),
+    typeof(global::Acta.Runtime.Modules.Execution.Api.JobControlActionRow),
     typeof(global::Acta.Runtime.Modules.Execution.Api.JobControlOutcome),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.JobListProjectionRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.JobResultRow),

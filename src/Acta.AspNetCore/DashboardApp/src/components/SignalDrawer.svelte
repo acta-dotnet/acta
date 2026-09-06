@@ -32,7 +32,7 @@
   const mutation = useControlMutation<{ jobRef: string; name: string; payload: unknown }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/signals/${vars.name}`,
     rawBody: (vars) => vars.payload,
-    notFound: (vars) => ({ jobRef: vars.jobRef, action: 'notFound', status: null, message: 'Job not found.' }),
+    notFound: (vars) => ({ jobRef: vars.jobRef, action: 'notFound', status: null, message: 'Job not found.', version: null }),
     invalidateKeys: () => [['jobs']] as const
   });
   let busy = $derived(mutation.isPending);

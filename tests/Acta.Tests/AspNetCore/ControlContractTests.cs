@@ -91,6 +91,12 @@ public sealed class ControlContractTests
         .. JobVerb("purge"),
         .. JobVerb("reschedule", new { nextRunAtUtc = "2030-01-01T00:00:00Z", reasonMessage = "because" }),
         .. JobVerb("reprioritize", new { priority = "high", reasonMessage = "because" }),
+        .. JobVerbVersionConflict("pause", new JsonObject { ["reasonMessage"] = "because" }),
+        .. JobVerbVersionConflict(
+            "reschedule",
+            new JsonObject { ["nextRunAtUtc"] = "2030-01-01T00:00:00Z", ["reasonMessage"] = "because" }
+        ),
+        .. JobVerbVersionConflict("reprioritize", new JsonObject { ["priority"] = "high", ["reasonMessage"] = "because" }),
         .. JobSignal(),
         .. JobInput(),
         .. Enqueue(),
@@ -185,7 +191,8 @@ public sealed class ControlContractTests
     }
 
     // Applied, rejected, and not-found at one job route: the fake answers by ref, so the three
-    // outcomes are three refs against the same verb.
+    // outcomes are three refs against the same verb. Purge takes no version token, so the fourth
+    // outcome is added only for the verbs that do.
     private static IEnumerable<Case> JobVerb(string verb, object? body = null)
     {
         var route = $"/jobs/{{jobRef}}/{verb}";
@@ -194,6 +201,28 @@ public sealed class ControlContractTests
             Job(route, "applied", $"/jobs/{Found}/{verb}", StatusCodes.Status200OK, "applied", body ?? Reason),
             Job(route, "rejected", $"/jobs/{Blocked}/{verb}", StatusCodes.Status409Conflict, "rejected", body ?? Reason),
             Job(route, "notFound", $"/jobs/{Missing}/{verb}", StatusCodes.Status404NotFound, "notFound", body ?? Reason),
+        ];
+    }
+
+    // The optional CAS token's own 409: same envelope as a status rejection, a different action, and
+    // the row's current version so the caller retries without a re-read.
+    private static IEnumerable<Case> JobVerbVersionConflict(string verb, JsonObject body)
+    {
+        body["expectedVersion"] = TestDashboardHost.CurrentJobVersion + 5;
+        return
+        [
+            new(
+                "jobs",
+                $"/jobs/{{jobRef}}/{verb}",
+                "POST",
+                "versionConflict",
+                $"/jobs/{Found}/{verb}",
+                StatusCodes.Status409Conflict,
+                typeof(JobControlResponse),
+                "versionConflict",
+                body,
+                TestDashboardHost.CurrentJobVersion
+            ),
         ];
     }
 

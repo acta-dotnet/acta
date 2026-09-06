@@ -7,16 +7,25 @@ namespace Acta.AspNetCore.Features.Jobs;
 internal sealed record JobControlRequest(string? ReasonMessage = null);
 
 /// <summary>
-/// Body of a job-reschedule POST. <c>NextRunAtUtc</c> is mandatory (missing or default is a 400); the
-/// framework stamps the actor and reason code itself.
+/// Body of the job-control POSTs that accept a compare-and-set token (pause, resume, restart, cancel).
+/// A null <c>ExpectedVersion</c> applies the verb unconditionally; a non-null one that misses the row's
+/// current version answers 409 with action versionConflict and writes nothing. Purge and the admin
+/// suspend/resume verbs take no token and keep the reason-only <see cref="JobControlRequest"/>.
 /// </summary>
-internal sealed record JobRescheduleRequest(DateTime NextRunAtUtc = default, string? ReasonMessage = null);
+internal sealed record JobVersionedControlRequest(string? ReasonMessage = null, int? ExpectedVersion = null);
+
+/// <summary>
+/// Body of a job-reschedule POST. <c>NextRunAtUtc</c> is mandatory (missing or default is a 400); the
+/// framework stamps the actor and reason code itself. <c>ExpectedVersion</c> is the optional CAS guard.
+/// </summary>
+internal sealed record JobRescheduleRequest(DateTime NextRunAtUtc = default, string? ReasonMessage = null, int? ExpectedVersion = null);
 
 /// <summary>
 /// Body of a job-reprioritize POST. <c>Priority</c> is mandatory; an unrecognized wire name fails
-/// deserialization (400). The framework stamps the actor and reason code itself.
+/// deserialization (400). The framework stamps the actor and reason code itself. <c>ExpectedVersion</c>
+/// is the optional CAS guard.
 /// </summary>
-internal sealed record JobReprioritizeRequest(JobPriorityCode Priority, string? ReasonMessage = null);
+internal sealed record JobReprioritizeRequest(JobPriorityCode Priority, string? ReasonMessage = null, int? ExpectedVersion = null);
 
 /// <summary>
 /// Body of a job-input-amend POST. Exactly one of <c>Input</c> (raw JSON, stored as json), <c>Text</c>

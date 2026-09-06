@@ -815,9 +815,10 @@ internal static partial class ActaSchema
         );
 
         /// <summary>
-        /// Optional CAS guard for upsert-style admin writes (set_setting): null skips the version
-        /// check (last write wins); non-null requires an existing row at exactly that version, else
-        /// the write is rejected with VersionConflict (or NotFound when no row exists at the scope).
+        /// Optional CAS guard for the upsert-style admin write (set_setting) and the job control verbs:
+        /// null skips the version check (last write wins); non-null requires an existing row at exactly
+        /// that version, else the write is rejected with VersionConflict (or NotFound when no row exists
+        /// at the scope).
         /// </summary>
         public static readonly DbValueSpec<int?> ExpectedRowVersionOptional = new(
             ParameterName: "p_expected_version",

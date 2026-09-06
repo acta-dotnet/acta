@@ -38,5 +38,8 @@ public sealed record JobDetail(
     DateTime? RetentionUntilUtc,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    WorkerRef? LeasedByWorkerRef
+    WorkerRef? LeasedByWorkerRef,
+    // The runtimes row's optimistic-concurrency counter, incremented by every write to the row. Pass it
+    // as expectedVersion on a control verb to turn that call into a compare-and-set.
+    int Version
 );

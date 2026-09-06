@@ -155,7 +155,7 @@
   >({
     path: (vars) => `jobs/${vars.jobRef}/${vars.action}`,
     body: (vars) => vars.extra ?? {},
-    notFound: (vars) => ({ jobRef: vars.jobRef, action: 'notFound', status: null, message: 'Job not found.' }),
+    notFound: (vars) => ({ jobRef: vars.jobRef, action: 'notFound', status: null, message: 'Job not found.', version: null }),
     invalidateKeys: () => [['jobs']] as const
   });
   let busy = $derived(mutation.isPending);

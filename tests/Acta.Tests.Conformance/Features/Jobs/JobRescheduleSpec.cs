@@ -36,7 +36,7 @@ public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture
         );
         var before = await ReadJobAsync(enqueued.JobId, ct);
 
-        var result = await Jobs.RescheduleAsync(enqueued, near, "ops", "spec-actor", ct);
+        var result = await Jobs.RescheduleAsync(enqueued, near, "ops", "spec-actor", ct: ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Ready, result.Status);

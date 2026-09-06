@@ -439,16 +439,27 @@ internal sealed class JobsService(
         return outcomes;
     }
 
-    public async ValueTask<JobControlResult> CancelAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct)
+    public async ValueTask<JobControlResult> CancelAsync(
+        JobLookup job,
+        string? reasonMessage,
+        string? actorKey,
+        int? expectedVersion,
+        CancellationToken ct
+    )
     {
         var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
-            return new JobControlResult(0, ControlAction.NotFound, null);
+            return new JobControlResult(0, ControlAction.NotFound, null, null);
         }
 
-        var cancel = await store.CancelJobAsync(jobId.Value, Input(reasonMessage, actorKey), ct);
-        var result = new JobControlResult(jobId.Value, (ControlAction)(byte)cancel.Outcome.Action, cancel.Outcome.Status);
+        var cancel = await store.CancelJobAsync(jobId.Value, Input(reasonMessage, actorKey, expectedVersion), ct);
+        var result = new JobControlResult(
+            jobId.Value,
+            (ControlAction)(byte)cancel.Outcome.Action,
+            cancel.Outcome.Status,
+            cancel.Outcome.Version
+        );
 
         if (result.Action == ControlAction.Applied)
         {
@@ -475,8 +486,13 @@ internal sealed class JobsService(
         return result;
     }
 
-    public ValueTask<JobControlResult> PauseAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct) =>
-        ApplyControlAsync(job, (id, c) => store.PauseJobAsync(id, Input(reasonMessage, actorKey), c), ct);
+    public ValueTask<JobControlResult> PauseAsync(
+        JobLookup job,
+        string? reasonMessage,
+        string? actorKey,
+        int? expectedVersion,
+        CancellationToken ct
+    ) => ApplyControlAsync(job, (id, c) => store.PauseJobAsync(id, Input(reasonMessage, actorKey, expectedVersion), c), ct);
 
     /// <summary>
     /// Resume and restart are recurring-aware: a recurring slot recomputes its misfire-aware slot
@@ -484,7 +500,13 @@ internal sealed class JobsService(
     /// run is rejected rather than resumed/restarted to run-now; restart must not resurrect a
     /// removed slot.
     /// </summary>
-    public async ValueTask<JobControlResult> ResumeAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct)
+    public async ValueTask<JobControlResult> ResumeAsync(
+        JobLookup job,
+        string? reasonMessage,
+        string? actorKey,
+        int? expectedVersion,
+        CancellationToken ct
+    )
     {
         var result = await ApplyControlAsync(
             job,
@@ -492,8 +514,8 @@ internal sealed class JobsService(
             {
                 var (reject, nextRun) = await ResolveRecurringNextRunAsync(id, c);
                 return reject
-                    ? new JobControlOutcome(JobControlActionInternal.Rejected, JobStatusCode.Paused)
-                    : await store.ResumeJobAsync(id, Input(reasonMessage, actorKey), nextRun, c);
+                    ? EmptySlotRejection
+                    : await store.ResumeJobAsync(id, Input(reasonMessage, actorKey, expectedVersion), nextRun, c);
             },
             ct
         );
@@ -501,7 +523,13 @@ internal sealed class JobsService(
         return result;
     }
 
-    public async ValueTask<JobControlResult> RestartAsync(JobLookup job, string? reasonMessage, string? actorKey, CancellationToken ct)
+    public async ValueTask<JobControlResult> RestartAsync(
+        JobLookup job,
+        string? reasonMessage,
+        string? actorKey,
+        int? expectedVersion,
+        CancellationToken ct
+    )
     {
         var result = await ApplyControlAsync(
             job,
@@ -509,8 +537,8 @@ internal sealed class JobsService(
             {
                 var (reject, nextRun) = await ResolveRecurringNextRunAsync(id, c);
                 return reject
-                    ? new JobControlOutcome(JobControlActionInternal.Rejected, JobStatusCode.Paused)
-                    : await store.RestartJobAsync(id, Input(reasonMessage, actorKey), nextRun, c);
+                    ? EmptySlotRejection
+                    : await store.RestartJobAsync(id, Input(reasonMessage, actorKey, expectedVersion), nextRun, c);
             },
             ct
         );
@@ -523,13 +551,14 @@ internal sealed class JobsService(
         DateTime nextRunAtUtc,
         string? reasonMessage,
         string? actorKey,
+        int? expectedVersion,
         CancellationToken ct
     )
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(nextRunAtUtc, DateTime.MinValue, nameof(nextRunAtUtc));
         var result = await ApplyControlAsync(
             job,
-            (id, c) => store.RescheduleJobAsync(id, nextRunAtUtc, Input(reasonMessage, actorKey), c),
+            (id, c) => store.RescheduleJobAsync(id, nextRunAtUtc, Input(reasonMessage, actorKey, expectedVersion), c),
             ct
         );
         await PublishControlWakeAsync(result, ct);
@@ -541,6 +570,7 @@ internal sealed class JobsService(
         JobPriorityCode priority,
         string? reasonMessage,
         string? actorKey,
+        int? expectedVersion,
         CancellationToken ct
     )
     {
@@ -551,7 +581,7 @@ internal sealed class JobsService(
 
         var result = await ApplyControlAsync(
             job,
-            (id, c) => store.ReprioritizeJobAsync(id, priority, Input(reasonMessage, actorKey), c),
+            (id, c) => store.ReprioritizeJobAsync(id, priority, Input(reasonMessage, actorKey, expectedVersion), c),
             ct
         );
         await PublishControlWakeAsync(result, ct);
@@ -694,11 +724,16 @@ internal sealed class JobsService(
     /// to the column's declared length so an over-length operator message is capped identically on
     /// both providers.
     /// </summary>
-    private static JobControlInput Input(string? msg, string? actorKey) =>
-        new(Operator(actorKey), Acta.JobEventReasonCode.JobControlManual, msg.Truncate(ActaTextLimits.ReasonMessage));
+    private static JobControlInput Input(string? msg, string? actorKey, int? expectedVersion = null) =>
+        new(Operator(actorKey), Acta.JobEventReasonCode.JobControlManual, msg.Truncate(ActaTextLimits.ReasonMessage), expectedVersion);
 
-    private static JobControlActor Operator(string? actorKey) =>
-        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+    /// <summary>
+    /// Resume and restart reject a recurring slot with no upcoming run before touching the store, so
+    /// this outcome carries no row version.
+    /// </summary>
+    private static readonly JobControlOutcome EmptySlotRejection = new(JobControlActionInternal.Rejected, JobStatusCode.Paused, null);
+
+    private static JobControlActor Operator(string? actorKey) => new(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
 
     private async ValueTask<JobControlResult> ApplyControlAsync(
         JobLookup job,
@@ -709,11 +744,11 @@ internal sealed class JobsService(
         var jobId = await GetJobIdAsync(job, ct);
         if (jobId is null)
         {
-            return new JobControlResult(0, ControlAction.NotFound, null);
+            return new JobControlResult(0, ControlAction.NotFound, null, null);
         }
 
         var result = await invoke(jobId.Value, ct);
-        return new JobControlResult(jobId.Value, (ControlAction)(byte)result.Action, result.Status);
+        return new JobControlResult(jobId.Value, (ControlAction)(byte)result.Action, result.Status, result.Version);
     }
 
     private ValueTask PublishControlWakeAsync(JobControlResult result, CancellationToken ct) =>
