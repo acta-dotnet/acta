@@ -6,6 +6,7 @@ Acta is a durable job engine for .NET: jobs, schedules, steps, waits, and alerts
 
 - Fast gate, no Docker: `dotnet test tests/Acta.Tests`. Full matrix needs Docker; see CONTRIBUTING.md.
 - Generated files are drift-checked; never hand-edit them. A stale contract test names its own regeneration command. Full artifact table: [docs/internals/releasing.md](./docs/internals/releasing.md).
+- Before any push, or at minimum before opening a PR, run the pre-PR sequence from CONTRIBUTING.md locally - at least `dotnet csharpier check .`, `dotnet run --project tools/Acta.Emit -- check`, and the fast test gate.
 
 ## Style
 
