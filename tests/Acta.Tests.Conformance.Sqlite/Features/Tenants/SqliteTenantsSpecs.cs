@@ -14,3 +14,5 @@ public sealed class SqliteRegisterTenantSpec : RegisterTenantSpec<SqliteConforma
 public sealed class SqliteSuspendResumeTenantSpec : SuspendResumeTenantSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteUpdateTenantSpec : UpdateTenantSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteUnicodeActorKeySpec : UnicodeActorKeySpec<SqliteConformanceFixture>;

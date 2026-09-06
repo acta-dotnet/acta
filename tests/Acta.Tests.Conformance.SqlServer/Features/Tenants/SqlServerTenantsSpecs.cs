@@ -14,3 +14,5 @@ public sealed class SqlServerRegisterTenantSpec : RegisterTenantSpec<SqlServerCo
 public sealed class SqlServerSuspendResumeTenantSpec : SuspendResumeTenantSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerUpdateTenantSpec : UpdateTenantSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerUnicodeActorKeySpec : UnicodeActorKeySpec<SqlServerConformanceFixture>;

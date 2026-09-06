@@ -157,9 +157,12 @@ internal sealed class OutboxApi(
         // The minted CommandId is what distinguishes "my park landed" from "a concurrent command
         // landed" in the admission read; the actor rides the payload so the applying tick can stamp
         // the evidence event with the operator identity captured at park time.
+        // The only operator path that stamps its actor without passing through JobControlActor, so its
+        // blank-means-unknown fold is repeated here or the event carries whitespace where every
+        // sibling stores NULL.
         var payload = new OutboxSignalPayload(
             Guid.NewGuid(),
-            JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey),
+            string.IsNullOrWhiteSpace(actorKey) ? null : actorKey.Truncate(ActaTextLimits.ActorKey),
             reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
             outboxIds
         );

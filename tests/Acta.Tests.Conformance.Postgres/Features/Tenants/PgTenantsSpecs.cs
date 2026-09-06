@@ -14,3 +14,5 @@ public sealed class PgRegisterTenantSpec : RegisterTenantSpec<PgConformanceFixtu
 public sealed class PgSuspendResumeTenantSpec : SuspendResumeTenantSpec<PgConformanceFixture>;
 
 public sealed class PgUpdateTenantSpec : UpdateTenantSpec<PgConformanceFixture>;
+
+public sealed class PgUnicodeActorKeySpec : UnicodeActorKeySpec<PgConformanceFixture>;

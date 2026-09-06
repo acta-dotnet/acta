@@ -28,8 +28,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     /// The control surface is operator/manual only: the actor (Operator) is stamped here, never
     /// accepted from the caller, so a caller cannot forge the audit actor.
     /// </summary>
-    private static JobControlActor Operator(string? actorKey) =>
-        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+    private static JobControlActor Operator(string? actorKey) => new(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
 
     public async ValueTask<ScheduleControlResult> PauseAsync(
         ScheduleLookup schedule,

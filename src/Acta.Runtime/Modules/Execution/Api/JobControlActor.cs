@@ -1,3 +1,5 @@
+using Acta.Runtime.Kernel;
+
 namespace Acta.Runtime.Modules.Execution.Api;
 
 /// <summary>
@@ -8,11 +10,11 @@ namespace Acta.Runtime.Modules.Execution.Api;
 /// </summary>
 internal readonly record struct JobControlActor
 {
-    private const int MaxActorKeyLength = 128;
-
     /// <summary>
-    /// Build a validated actor. <paramref name="actorKey"/> is ASCII, at most 128 chars, matching the
-    /// <c>events.actor_key</c> column.
+    /// Build a validated actor. <paramref name="actorKey"/> is at most <see cref="ActaTextLimits.ActorKey"/>
+    /// chars, matching the <c>events.actor_key</c> column; whitespace-only input means "unknown" and stores as null.
+    /// Externally-sourced identities (an authenticated principal name) are cut to the column through
+    /// <c>MessageTruncator</c> by the caller, so a pair-safe cut is the only transformation they see.
     /// </summary>
     public JobControlActor(ActorCode actorCode, string? actorKey = null)
     {
@@ -21,48 +23,13 @@ internal readonly record struct JobControlActor
             throw new ArgumentOutOfRangeException(nameof(actorCode), actorCode, "Unknown actor code.");
         }
 
-        if (actorKey is not null)
+        if (actorKey is { Length: > ActaTextLimits.ActorKey })
         {
-            if (actorKey.Length > MaxActorKeyLength)
-            {
-                throw new ArgumentException("Actor id cannot exceed 128 characters.", nameof(actorKey));
-            }
-
-            foreach (var ch in actorKey)
-            {
-                if (ch > '\x7f')
-                {
-                    throw new ArgumentException("Actor id must be ASCII.", nameof(actorKey));
-                }
-            }
+            throw new ArgumentException($"Actor key cannot exceed {ActaTextLimits.ActorKey} characters.", nameof(actorKey));
         }
 
         ActorCode = actorCode;
-        ActorKey = actorKey;
-    }
-
-    /// <summary>
-    /// Fold an externally-sourced operator identity (e.g. an authenticated principal name) into the
-    /// column's ASCII contract: non-ASCII characters become '?', over-length input is truncated.
-    /// Null stays null. Programmatic callers with known-good ids can construct directly.
-    /// </summary>
-    public static string? SanitizeActorKey(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var chars = (value.Length > MaxActorKeyLength ? value[..MaxActorKeyLength] : value).ToCharArray();
-        for (var i = 0; i < chars.Length; i++)
-        {
-            if (chars[i] > '\x7f')
-            {
-                chars[i] = '?';
-            }
-        }
-
-        return new string(chars);
+        ActorKey = string.IsNullOrWhiteSpace(actorKey) ? null : actorKey;
     }
 
     /// <summary>Actor classification stamped on the event.</summary>

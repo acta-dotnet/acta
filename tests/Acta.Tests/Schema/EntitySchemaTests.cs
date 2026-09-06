@@ -72,6 +72,16 @@ public class EntitySchemaTests
     }
 
     [Fact]
+    public void ActorKey_Is_NullableUnicode128()
+    {
+        var c = ActaSchema.For<JobEvent>().Column("actor_key");
+
+        Assert.Equal(DbKind.UnicodeString, c.Kind);
+        Assert.Equal(128, c.Size);
+        Assert.True(c.IsNullable);
+    }
+
+    [Fact]
     public void DeduplicationKey_Is_NullableAscii128()
     {
         var c = ActaSchema.For<Job>().Column("deduplication_key");

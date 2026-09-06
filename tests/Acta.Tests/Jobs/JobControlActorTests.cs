@@ -3,29 +3,31 @@ using Xunit;
 
 namespace Acta.Tests.Jobs;
 
+/// <summary>
+/// The actor id is the operator's name on the audit trail: it must survive intact, so the only
+/// transformations are whitespace-to-null and the caller's pair-safe cut to the column.
+/// </summary>
 public class JobControlActorTests
 {
     [Fact]
-    public void SanitizeActorKey_folds_non_ascii_characters_to_question_marks()
+    public void A_non_ascii_operator_name_is_kept_intact()
     {
-        Assert.Equal("?iga Novak", JobControlActor.SanitizeActorKey("Žiga Novak"));
+        var actor = new JobControlActor(ActorCode.Operator, "Žiga Novak");
+
+        Assert.Equal("Žiga Novak", actor.ActorKey);
     }
 
     [Fact]
-    public void SanitizeActorKey_returns_null_for_null_or_whitespace()
+    public void Null_or_whitespace_means_unknown_and_stores_as_null()
     {
-        Assert.Null(JobControlActor.SanitizeActorKey(null));
-        Assert.Null(JobControlActor.SanitizeActorKey("   "));
+        Assert.Null(new JobControlActor(ActorCode.Operator, null).ActorKey);
+        Assert.Null(new JobControlActor(ActorCode.Operator, "   ").ActorKey);
     }
 
     [Fact]
-    public void SanitizeActorKey_truncates_over_length_ascii_input()
+    public void An_over_length_actor_key_is_rejected_at_construction()
     {
-        var input = new string('a', 200);
-
-        var sanitized = JobControlActor.SanitizeActorKey(input);
-
-        Assert.Equal(128, sanitized!.Length);
-        Assert.Equal(new string('a', 128), sanitized);
+        Assert.Throws<ArgumentException>(() => new JobControlActor(ActorCode.Operator, new string('a', 129)));
+        Assert.Equal(128, new JobControlActor(ActorCode.Operator, new string('a', 128)).ActorKey!.Length);
     }
 }

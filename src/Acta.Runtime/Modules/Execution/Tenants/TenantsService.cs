@@ -15,8 +15,7 @@ internal sealed class TenantsService(ITenantStore store)
     private const string ListOperationName = "ListTenants";
 
     /// <summary>Operator/manual only: the actor is stamped here, never accepted from the caller.</summary>
-    private static JobControlActor Operator(string? actorKey) =>
-        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+    private static JobControlActor Operator(string? actorKey) => new(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
 
     private static string? Reason(string? msg) => msg.Truncate(ActaTextLimits.ReasonMessage);
 

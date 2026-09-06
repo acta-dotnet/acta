@@ -14,8 +14,7 @@ namespace Acta.Runtime.Modules.Execution.Settings;
 internal sealed class SettingsService(ISettingStore store, IOptions<JobsOptions> options)
 {
     /// <summary>Operator/manual only: the actor is stamped here, never accepted from the caller.</summary>
-    private static JobControlActor Operator(string? actorKey) =>
-        new(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+    private static JobControlActor Operator(string? actorKey) => new(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
 
     public async ValueTask<SettingDetail?> GetAsync(string name, string? namespaceName, string? jobName, CancellationToken ct)
     {
