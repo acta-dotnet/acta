@@ -5,6 +5,16 @@
 
 ## Admin
 
+### A non-ASCII operator name survives the audit event intact
+- **Contract:** The actor key stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters.
+- **Arrange:** An active tenant is registered.
+- **Act:** The tenant is suspended by an operator named with a diacritic and an astral-plane character.
+- **Assert:** The tenant.suspended event carries the operator name exactly as supplied.
+- **Guarantees:**
+  - The tenant.suspended event carries the operator name exactly as supplied
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.SuspendTenantAsync`
+
 ### A setting is set and read back by name at its inferred scope
 - **Contract:** Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting.
 - **Arrange:** A unique setting name, the test namespace, and one registered definition.
@@ -353,6 +363,7 @@
 - **Act:** An override set is applied then cleared, and stale-version and unknown-name writes are attempted.
 - **Assert:** Only the override columns change with effective recomputed, defaults and definition_hash stay put, bad writes reject, and a policy-changed event lands.
 - **Guarantees:**
+  - Competing definition overrides with one version have one winner and one audit event
   - Setting an override recomputes effective and leaves the default + hash untouched
   - Clearing an override reverts effective to the default
   - A stale version is rejected and changes nothing
@@ -709,6 +720,24 @@
   - A handler-paused job resumes to Ready via external control
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+
+### A job control verb takes an optional expected version and refuses a stale one.
+- **Contract:** A null expectedVersion applies unconditionally, a matching one applies and returns version + 1, and a stale one is VersionConflict that writes nothing.
+- **Arrange:** A Ready job whose runtime version is read before each attempt.
+- **Act:** PauseAsync and RescheduleAsync are invoked with a stale token, a matching token, and no token.
+- **Assert:** The stale attempt leaves status, version and events untouched, the matching and null attempts apply and bump the version, and an unknown lookup is NotFound.
+- **Guarantees:**
+  - Competing pauses with one version have one winner and one audit event
+  - PauseAsync with a stale expected version is VersionConflict and writes nothing
+  - PauseAsync with the current expected version applies and returns the bumped version
+  - A null expected version applies whatever the row's version is
+  - RescheduleAsync with a stale expected version is VersionConflict and leaves the cursor alone
+  - RescheduleAsync with the current expected version applies and bumps the version
+  - An unknown lookup is NotFound with a null version whether or not a token is supplied
+  - GetAsync exposes the runtime version a control verb takes back as its expected version
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RescheduleJobAsync`
 
 ### Operator purge hard-deletes a terminal job.
 - **Contract:** PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs.
@@ -1134,6 +1163,7 @@
 - **Act:** The job runs to completion on a real worker runtime.
 - **Assert:** Two job.note-recorded events exist for the job, actor Job, one with a JSON detail body and one with none.
 - **Guarantees:**
+  - A note for an unknown job throws the stable marker before committing
   - NoteAsync appends job.note-recorded events carrying the message and the optional detail payload
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.RecordJobNoteAsync`
@@ -1215,6 +1245,7 @@
 - **Act:** AcquireLock takes the free key and a competing acquire is attempted on the same key while the lease is still live.
 - **Assert:** The first acquire lands a live lease row and the competing acquire returns null.
 - **Guarantees:**
+  - Simultaneous acquisitions of a new key return exactly one live token
   - First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null
   - A competing acquire steals an expired lease and bumps the version
 - **Store methods:**
@@ -1905,7 +1936,7 @@
   - Skip variables past the alert window are deleted while the projector cursor survives
   - A skip-named variable on another job is left alone whatever its age
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
 
 ### A purged job's public ref still resolves to its surviving event timeline
 - **Contract:** After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline.
@@ -1915,7 +1946,7 @@
 - **Guarantees:**
   - After purge the job row is gone and GetAsync by ref is null, but ResolveJobIdByRef falls back to the surviving events that carry the denormalized job_ref
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResolveJobIdByRefAsync`
   - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
 
@@ -1939,7 +1970,7 @@
   - The lock sweep is bounded by batch size and iterations like every other section
   - Batching caps a single call at max iterations and a full run clears the rest
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
 
 ### Events outlive a purged worker with a canonical actor key
 - **Contract:** Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.
@@ -1949,7 +1980,7 @@
 - **Guarantees:**
   - After purge the worker row is gone while its events keep a canonical wrk_ actor key, a null workerRef, and the historical worker id
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeExpiredDataAsync`
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StopWorkerAsync`
   - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
 
@@ -2346,6 +2377,18 @@
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
 
+## Storage
+
+### Commands keep mutation and audit in one transaction
+- **Contract:** SQL failure rolls back the operation and successful caller-owned writes leave transaction finalization to the caller.
+- **Arrange:** A namespace with known metadata and version is updated using the provider's embedded command.
+- **Act:** The audit insert or mapper fails, or the caller explicitly commits or rolls back the successful command.
+- **Assert:** Mutation and audit persist or roll back together without replay after client mapping failures.
+- **Guarantees:**
+  - An audit constraint failure rolls back the namespace mutation
+  - A mapper failure cannot replay a server commit; SQLite rolls back its owned transaction
+  - A mutation joins the caller's transaction without finalizing it
+
 ## Tags
 
 ### Tags read and mutate all first-class targets and filter typed queries
@@ -2494,7 +2537,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 
 | Store method | Covering conformance specs |
 | --- | --- |
-| `IRetentionStore.PurgeExpiredDataAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
+| `IRetentionStore.PurgeBatchAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
@@ -2535,10 +2578,10 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.GetJobResultAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Contract enqueue names the job explicitly and resolves its route<br>GetJobResult returns null before completion and the typed result after<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.GetJobStatusAsync` | GetJobStatus returns the status for a known id and null for an unknown id |
 | `IJobStore.ListJobsAsync` | ListJobs filter-matrix selects exactly matching rows per dimension<br>ListJobs pages newest first by keyset cursor without duplicates |
-| `IJobStore.PauseJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
+| `IJobStore.PauseJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
 | `IJobStore.PurgeJobAsync` | Operator purge hard-deletes a terminal job. |
 | `IJobStore.ReprioritizeJobAsync` | Operator reprioritize changes claim priority, rejecting only terminal jobs. |
-| `IJobStore.RescheduleJobAsync` | Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs. |
+| `IJobStore.RescheduleJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs. |
 | `IJobStore.ResetJobStateAsync` | Reset clears one job's substrate and emits an audit-gated state-reset event |
 | `IJobStore.ResolveJobIdByDeduplicationKeyAsync` | ResolveJobIdByDeduplicationKey returns the id for a known key, null otherwise |
 | `IJobStore.ResolveJobIdByRefAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null |
@@ -2566,7 +2609,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ITenantStore.ListTenantsAsync` | ListTenants pages tenants key-ascending with an opt-in total |
 | `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration inserts a new Active tenant or returns the existing row |
 | `ITenantStore.ResumeTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
-| `ITenantStore.SuspendTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
+| `ITenantStore.SuspendTenantAsync` | A non-ASCII operator name survives the audit event intact<br>Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.UpdateTenantAsync` | Tenant update is a version-CAS write that clears fields on null |
 | `IWorkerStore.ExtendWorkerLeasesAsync` | Heartbeat extends a live lease and stamps last_seen |
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |

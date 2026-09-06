@@ -30,7 +30,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/JobVersionedControlRequest"
               }
             }
           }
@@ -149,7 +149,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/JobVersionedControlRequest"
               }
             }
           }
@@ -268,7 +268,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/JobVersionedControlRequest"
               }
             }
           }
@@ -387,7 +387,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/JobVersionedControlRequest"
               }
             }
           }
@@ -8214,7 +8214,8 @@
           "applied",
           "notFound",
           "rejected",
-          "accepted"
+          "accepted",
+          "versionConflict"
         ],
         "description": "Coarse outcome of an IJobs control verb."
       },
@@ -8509,7 +8510,8 @@
           "jobRef",
           "action",
           "status",
-          "message"
+          "message",
+          "version"
         ],
         "type": "object",
         "properties": {
@@ -8531,6 +8533,15 @@
           },
           "message": {
             "type": "string"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -9059,7 +9070,7 @@
             ]
           }
         },
-        "description": "The complete operator-override set applied to a job definition's policy. Each field is the override\nfor its policy slot: a non-null value sets the override, `null` clears it (the effective value\nfalls back to the code default). Applied as a whole - the supplied set replaces the row's current\noverrides - so the dashboard reads the current overrides, edits, and writes the full set back. Never\ntouches the code-owned defaults, the contract/formats, or `definition_hash`."
+        "description": "The complete operator-override set applied to a job definition's policy. Each field is the override\nfor its policy slot: a non-null value sets the override, `null` clears it (the effective value\nfalls back to the code default). Applied as a whole - the supplied set replaces the row's current\noverrides - so the dashboard reads the current overrides, edits, and writes the full set back. Never\ntouches the code-owned defaults, the contract/formats, or `definition_hash`. A\n`DeadlineSeconds` override on a scheduled definition lands but is ignored: a deadline anchors\nto job creation, and a recurring slot's row lives forever, so the runtime never hands a slot a\ndeadline."
       },
       "JobDefinitionStatusCode": {
         "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
@@ -9085,7 +9096,8 @@
           "retentionUntilUtc",
           "createdAtUtc",
           "modifiedAtUtc",
-          "leasedByWorkerRef"
+          "leasedByWorkerRef",
+          "version"
         ],
         "type": "object",
         "properties": {
@@ -9210,6 +9222,14 @@
                 "$ref": "#/components/schemas/WorkerRef"
               }
             ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids.\n`DefinitionId` is the surrogate for the namespace+name pair; non-null because the job\nrow's definition_id is NOT NULL."
@@ -10001,6 +10021,15 @@
               "null",
               "string"
             ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -10016,12 +10045,41 @@
               "null",
               "string"
             ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
       "JobStatusCode": { },
       "JobStepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
+      },
+      "JobVersionedControlRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
       },
       "JsonElement": { },
       "MisfireStrategyCode": { },
