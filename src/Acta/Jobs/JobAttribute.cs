@@ -44,7 +44,9 @@ public sealed class JobAttribute(string name) : Attribute
     /// <summary>
     /// Whole-job wall-clock deadline measured from job creation. Use Acta duration syntax, e.g. <c>"2h"</c>.
     /// Unlike <see cref="ExecutionTimeout"/> it spans retries. Null = no deadline. See
-    /// <see cref="DeadlineBehavior"/> for what the engine does when it is exceeded.
+    /// <see cref="DeadlineBehavior"/> for what the engine does when it is exceeded. Cannot be combined
+    /// with <c>[JobSchedule]</c>: a recurring slot is created once and lives forever, so a deadline
+    /// anchored to its creation could never bound an occurrence, and worker startup rejects the pair.
     /// </summary>
     public string? Deadline { get; init; }
 

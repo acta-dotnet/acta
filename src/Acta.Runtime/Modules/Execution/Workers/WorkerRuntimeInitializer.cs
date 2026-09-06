@@ -65,6 +65,63 @@ internal sealed class WorkerRuntimeInitializer(
         // the provider (a scalar clock read), not the Acta schema, so it is safe this early.
         await ValidateClockSkewAsync(ns, ct);
 
+        // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
+        // of the user manifests (the runtime assembly's own generated RuntimeJobs), so each namespace carries
+        // its maintenance catalog (unless JobsOptions.RegisterSystemJobs is off, e.g. external
+        // maintenance). System jobs are identified by their reserved sys. names; every manifest's
+        // descriptors land under this one worker's namespace.
+        var manifests = new List<JobDescriptorManifest>();
+
+        // The automatic framework set registers when RegisterSystemJobs is on; an explicit relay adds
+        // its sys.outbox/sys.recovery/sys.alerts subset even when that flag is off, without forcing
+        // sys.retention. Both are subsets of the one generated RuntimeJobs manifest, filtered by name.
+        var frameworkNames = new HashSet<string>(StringComparer.Ordinal);
+        if (_options.Value.RegisterSystemJobs)
+        {
+            frameworkNames.UnionWith(FrameworkJobs.AutomaticNames);
+        }
+        if (_workerRegistration.Relay is not null)
+        {
+            frameworkNames.UnionWith(FrameworkJobs.RelayNames);
+        }
+        // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
+        // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
+        // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
+        // at startup instead, because someone switching these off to trim overhead is not expecting
+        // to have switched off crash recovery.
+        if (!frameworkNames.Contains("sys.recovery"))
+        {
+            _log.LogWarning(
+                "Namespace ({Namespace}): sys.recovery is not registered, so crashed workers are never marked dead and their "
+                    + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
+                    + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
+                ns
+            );
+        }
+
+        if (frameworkNames.Count > 0)
+        {
+            manifests.Add(
+                new JobDescriptorManifest([.. RuntimeJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))])
+            );
+        }
+        manifests.AddRange(_workerRegistration.Manifests.Select(r => r.GetDescriptors()));
+
+        // Register every manifest's descriptors in ONE batch: register_job_definitions retires the
+        // namespace's definitions that are absent from its batch, so the batch must be the namespace's
+        // complete set (system + all user manifests), not one manifest at a time, or each
+        // call would retire the others' jobs. An empty combined set skips the call entirely (the
+        // RegisterJobDefinitions.Run early-return), so an enqueue-only / manifest-less worker never sweeps.
+        // The shape checks run before the worker row below is written: a catalog that fails them
+        // must leave no Active worker and no worker.started event behind for a process that will
+        // never heartbeat.
+        ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
+        ValidateHasDescriptors(ns, allDescriptors);
+        ValidateUniqueJobNames(allDescriptors);
+        ValidateScheduleTimeZones(allDescriptors);
+        ValidateTenantRequirements(allDescriptors);
+        ValidateDeadlineRequirements(allDescriptors);
+
         // Namespace + worker register in one round trip (one transaction): the namespace row is updated
         // only when its catalog hash changed and inserted only when the name is absent (an unchanged
         // restart writes nothing, allocates no id, and takes no key-range locks) and this process's
@@ -108,60 +165,7 @@ internal sealed class WorkerRuntimeInitializer(
         }
 
         var namespaceId = _context.NamespaceIds[ns];
-
-        // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
-        // of the user manifests (the runtime assembly's own generated RuntimeJobs), so each namespace carries
-        // its maintenance catalog (unless JobsOptions.RegisterSystemJobs is off, e.g. external
-        // maintenance). System jobs are identified by their reserved sys. names; every manifest's
-        // descriptors land under this one worker's namespace.
         var perNamespaceDefIds = new Dictionary<string, int>(StringComparer.Ordinal);
-        var manifests = new List<JobDescriptorManifest>();
-
-        // The automatic framework set registers when RegisterSystemJobs is on; an explicit relay adds
-        // its sys.outbox/sys.recovery/sys.alerts subset even when that flag is off, without forcing
-        // sys.retention. Both are subsets of the one generated RuntimeJobs manifest, filtered by name.
-        var frameworkNames = new HashSet<string>(StringComparer.Ordinal);
-        if (_options.Value.RegisterSystemJobs)
-        {
-            frameworkNames.UnionWith(FrameworkJobs.AutomaticNames);
-        }
-        if (_workerRegistration.Relay is not null)
-        {
-            frameworkNames.UnionWith(FrameworkJobs.RelayNames);
-        }
-        // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
-        // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
-        // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
-        // at startup instead, because someone switching these off to trim overhead is not expecting
-        // to have switched off crash recovery.
-        if (!frameworkNames.Contains("sys.recovery"))
-        {
-            _log.LogWarning(
-                "Namespace ({Namespace}): sys.recovery is not registered, so crashed workers are never marked dead and their "
-                    + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
-                    + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
-                ns
-            );
-        }
-
-        if (frameworkNames.Count > 0)
-        {
-            manifests.Add(
-                new JobDescriptorManifest([.. RuntimeJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))])
-            );
-        }
-        manifests.AddRange(_workerRegistration.Manifests.Select(r => r.GetDescriptors()));
-
-        // Register every manifest's descriptors in ONE batch: register_job_definitions retires the
-        // namespace's definitions that are absent from its batch, so the batch must be the namespace's
-        // complete set (system + all user manifests), not one manifest at a time, or each
-        // call would retire the others' jobs. An empty combined set skips the call entirely (the
-        // RegisterJobDefinitions.Run early-return), so an enqueue-only / manifest-less worker never sweeps.
-        ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
-        ValidateHasDescriptors(ns, allDescriptors);
-        ValidateUniqueJobNames(allDescriptors);
-        ValidateScheduleTimeZones(allDescriptors);
-        ValidateTenantRequirements(allDescriptors);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
         // throws here (before register), Warn logs and continues. The SQL routine remains the
@@ -299,6 +303,27 @@ internal sealed class WorkerRuntimeInitializer(
                         ex
                     );
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fail fast on a scheduled definition that declares a deadline: the deadline anchors to job
+    /// creation and a recurring slot's row lives forever, so a Strict deadline would terminally
+    /// cancel the slot the first time it is claimed past that anchor, and an Advisory one can never
+    /// mean anything an occurrence could act on.
+    /// </summary>
+    internal static void ValidateDeadlineRequirements(ImmutableArray<JobDescriptor> descriptors)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.DeadlineSeconds is not null && !descriptor.Schedules.IsDefaultOrEmpty)
+            {
+                throw new InvalidOperationException(
+                    $"Job '{descriptor.JobName}' declares Deadline together with [JobSchedule]. "
+                        + "A deadline anchors to job creation, and a recurring slot is created once and lives "
+                        + "forever, so the combination would cancel the slot instead of bounding an occurrence."
+                );
             }
         }
     }

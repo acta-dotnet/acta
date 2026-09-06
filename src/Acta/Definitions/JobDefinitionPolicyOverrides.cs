@@ -5,7 +5,10 @@ namespace Acta;
 /// for its policy slot: a non-null value sets the override, <c>null</c> clears it (the effective value
 /// falls back to the code default). Applied as a whole - the supplied set replaces the row's current
 /// overrides - so the dashboard reads the current overrides, edits, and writes the full set back. Never
-/// touches the code-owned defaults, the contract/formats, or <c>definition_hash</c>.
+/// touches the code-owned defaults, the contract/formats, or <c>definition_hash</c>. A
+/// <c>DeadlineSeconds</c> override on a scheduled definition lands but is ignored: a deadline anchors
+/// to job creation, and a recurring slot's row lives forever, so the runtime never hands a slot a
+/// deadline.
 /// </summary>
 public sealed record JobDefinitionPolicyOverrides(
     JobPriorityCode? Priority = null,
