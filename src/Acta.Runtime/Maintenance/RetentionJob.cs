@@ -28,7 +28,13 @@ internal sealed class RetentionJob(IRetentionStore store, IOptions<JobsOptions> 
     /// </summary>
     private readonly int _eventsRetentionDays = (int)options.Value.JobEventsRetention.TotalDays;
     private readonly int _alertRetentionDays = (int)options.Value.AlertRetention.TotalDays;
-    private readonly int _workerRetentionSeconds = (int)options.Value.WorkerRetention.TotalSeconds;
+
+    /// <summary>
+    /// Ceiling, because retention is destructive: flooring a fractional window would delete up to
+    /// a second before the configured instant. The day-granularity windows above are exact by the
+    /// validator's whole-days rule; WorkerRetention is exempt from it, so it rounds up here instead.
+    /// </summary>
+    private readonly int _workerRetentionSeconds = (int)Math.Ceiling(options.Value.WorkerRetention.TotalSeconds);
     private readonly ILogger _log = log ?? NullLogger<RetentionJob>.Instance;
 
     [Job(
