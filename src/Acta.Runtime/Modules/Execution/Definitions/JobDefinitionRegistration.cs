@@ -21,4 +21,12 @@ internal static class JobDefinitionRegistration
     public const string DefaultBackoffExpression = "1m..1d x2 ~10%";
     public const int DefaultExecutionTimeoutSeconds = 5 * 60;
     public const int DefaultJobRetentionSeconds = 90 * 24 * 60 * 60;
+
+    /// <summary>
+    /// Ceiling for a per-attempt execution timeout: the largest whole-second delay
+    /// <see cref="System.Threading.CancellationTokenSource.CancelAfter(TimeSpan)"/> accepts
+    /// (int.MaxValue milliseconds, about 24.8 days). A larger value would throw after the job is
+    /// claimed, turning one oversized policy value into a claim-and-crash loop.
+    /// </summary>
+    public const int MaxExecutionTimeoutSeconds = int.MaxValue / 1000;
 }

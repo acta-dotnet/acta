@@ -121,6 +121,10 @@ internal sealed class WorkerRuntimeInitializer(
         ValidateScheduleTimeZones(allDescriptors);
         ValidateTenantRequirements(allDescriptors);
         ValidateDeadlineRequirements(allDescriptors);
+        foreach (var descriptor in allDescriptors)
+        {
+            DefinitionsService.ValidateDescriptorShape(descriptor, ns);
+        }
 
         // Namespace + worker register in one round trip (one transaction): the namespace row is updated
         // only when its catalog hash changed and inserted only when the name is absent (an unchanged

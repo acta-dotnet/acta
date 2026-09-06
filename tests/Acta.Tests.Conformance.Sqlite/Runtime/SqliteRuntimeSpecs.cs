@@ -73,4 +73,6 @@ public sealed class SqliteBulkWorkerDrainSpec : BulkWorkerDrainSpec<SqliteConfor
 
 public sealed class SqliteWorkerRuntimeRegistrationSpec : WorkerRuntimeRegistrationSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqliteConformanceFixture>;

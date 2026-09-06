@@ -47,6 +47,9 @@ public sealed class TextLimitParityTests
         Assert.Equal(ActaSchema.JobAlert.Message.Size, ActaTextLimits.AlertMessage);
         Assert.Equal(ActaSchema.JobDefinition.Backoff.Size, ActaTextLimits.DefinitionBackoff);
         Assert.Equal(ActaSchema.JobDefinition.BackoffOverride.Size, ActaTextLimits.DefinitionBackoff);
+        Assert.Equal(ActaSchema.JobDefinition.DisplayNameOverride.Size, ActaTextLimits.DefinitionDisplayName);
+        Assert.Equal(ActaSchema.JobDefinition.DescriptionOverride.Size, ActaTextLimits.DefinitionDescription);
+        Assert.Equal(ActaSchema.JobDefinition.RunbookUrlOverride.Size, ActaTextLimits.DefinitionRunbookUrl);
         Assert.Equal(ActaSchema.JobSchedule.ReasonMessage.Size, ActaTextLimits.ScheduleReasonMessage);
     }
 }

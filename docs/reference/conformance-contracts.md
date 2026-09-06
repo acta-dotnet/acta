@@ -376,6 +376,14 @@
   - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.RegisterDefinitionsAsync`
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 
+### An invalid descriptor fails startup before the catalog is written
+- **Contract:** InitializeAsync validates every descriptor's shape before writing the worker row, so an invalid descriptor leaves no workers row and no WorkerStarted event.
+- **Arrange:** A hand-authored manifest declares one descriptor whose Backoff expression does not parse.
+- **Act:** InitializeAsync runs against the namespace.
+- **Assert:** It throws naming the job and the expression, and the namespace holds no worker row and no WorkerStarted event.
+- **Guarantees:**
+  - A manifest carrying an invalid descriptor writes no worker row and no WorkerStarted event
+
 ### Init writes namespace worker and full definition policy idempotently
 - **Contract:** InitializeAsync writes namespace and worker rows with a WorkerStarted event, persists each definition's full policy or framework defaults, and is idempotent.
 - **Arrange:** A worker runtime is built from a generated TestJobs manifest, with StartAsync deliberately not called.
@@ -454,12 +462,13 @@
 - **Contract:** A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state.
 - **Arrange:** Store fault injection is armed to crash a worker at the claim, start, post-complete, and mid-handler boundaries.
 - **Act:** A worker crashes at each boundary, its lease is expired, and reclaim orphans the attempt for a later worker.
-- **Assert:** Every boundary recovers through a single legal final state and the job completes exactly once.
+- **Assert:** Every boundary recovers to a single legal final state, the job completes exactly once, and a reclaimed recurring slot re-arms Ready instead of terminalizing.
 - **Guarantees:**
   - Claim-only crash recovers with no execution-started event and an orphaned recovery event
   - Crash after start orphans the started execution before retry and finishes once
   - Crash before CompleteExecution does not replay the durable step on recovery
   - Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once
+  - Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed
 
 ## ChildJobs
 

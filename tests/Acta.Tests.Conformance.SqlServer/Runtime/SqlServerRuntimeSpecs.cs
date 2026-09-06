@@ -71,4 +71,6 @@ public sealed class SqlServerBulkWorkerDrainSpec : BulkWorkerDrainSpec<SqlServer
 
 public sealed class SqlServerWorkerRuntimeRegistrationSpec : WorkerRuntimeRegistrationSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqlServerConformanceFixture>;

@@ -71,4 +71,6 @@ public sealed class PgBulkWorkerDrainSpec : BulkWorkerDrainSpec<PgConformanceFix
 
 public sealed class PgWorkerRuntimeRegistrationSpec : WorkerRuntimeRegistrationSpec<PgConformanceFixture>;
 
+public sealed class PgWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<PgConformanceFixture>;
+
 public sealed class PgCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<PgConformanceFixture>;

@@ -147,9 +147,12 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         {
             throw new ArgumentOutOfRangeException(nameof(overrides), "MaxAttempts override must be at least 1.");
         }
-        if (overrides.ExecutionTimeoutSeconds is <= 0)
+        if (overrides.ExecutionTimeoutSeconds is <= 0 or > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         {
-            throw new ArgumentOutOfRangeException(nameof(overrides), "ExecutionTimeoutSeconds override must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(overrides),
+                $"ExecutionTimeoutSeconds override must be between 1 and {JobDefinitionRegistration.MaxExecutionTimeoutSeconds}."
+            );
         }
         if (overrides.DeadlineSeconds is < 0)
         {
@@ -186,7 +189,29 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             }
         }
 
-        var actor = new JobControlActor(ActorCode.Operator, JobControlActor.SanitizeActorKey(actorKey).Truncate(ActaTextLimits.ActorKey));
+        // RunbookUrl is a link an operator will click from an alert, bound for an ASCII column: a
+        // truncated URL is a broken one and a non-ASCII value fails or mangles per provider, so both
+        // are rejected like Backoff rather than silently coerced.
+        if (
+            overrides.RunbookUrl is { } url
+            && (url.Length > ActaTextLimits.DefinitionRunbookUrl || url.AsSpan().ContainsAnyExceptInRange((char)0x20, (char)0x7E))
+        )
+        {
+            throw new ArgumentException(
+                $"RunbookUrl override must be at most {ActaTextLimits.DefinitionRunbookUrl} printable ASCII characters.",
+                nameof(overrides)
+            );
+        }
+
+        // Display name and description are free-form text: truncated to their columns like every other
+        // operator-supplied message, so an over-length value never surfaces as a provider write error.
+        overrides = overrides with
+        {
+            DisplayName = overrides.DisplayName.Truncate(ActaTextLimits.DefinitionDisplayName),
+            Description = overrides.Description.Truncate(ActaTextLimits.DefinitionDescription),
+        };
+
+        var actor = new JobControlActor(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
 
         var definitionId = await ResolveDefinitionIdAsync(jobNamespace, jobName, ct);
         if (definitionId is null)
@@ -310,25 +335,65 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             OutputFormatName: descriptor.OutputPayloadFormat?.Name ?? JobPayloadFormat.NoneName
         );
 
+    /// <summary>
+    /// Rejects a descriptor whose backoff, timeout, runbook URL, display name or description exceeds
+    /// the bounds the operator override gate enforces, so the two surfaces share one contract.
+    /// Declared text is rejected rather than truncated: the attribute is the developer's to fix.
+    /// </summary>
+    internal static void ValidateDescriptorShape(JobDescriptor descriptor, string namespaceLabel)
+    {
+        // Hand-authored IJobManifest descriptors bypass the generator's compile-time Backoff check, so
+        // this is the last gate before an invalid expression reaches the DB and crash-loops every
+        // execution.
+        var backoff = descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression;
+        if (!Backoff.TryParse(backoff, out _) || backoff.Length > ActaTextLimits.DefinitionBackoff)
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) has an invalid Backoff expression "
+                    + $"\"{backoff}\": it must be a valid Acta backoff expression of at most {ActaTextLimits.DefinitionBackoff} characters."
+            );
+        }
+
+        var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
+        if (executionTimeout > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares an ExecutionTimeout of {executionTimeout} seconds: "
+                    + $"the ceiling is {JobDefinitionRegistration.MaxExecutionTimeoutSeconds} seconds."
+            );
+        }
+        if (
+            descriptor.RunbookUrl is { } runbookUrl
+            && (
+                runbookUrl.Length > ActaTextLimits.DefinitionRunbookUrl
+                || runbookUrl.AsSpan().ContainsAnyExceptInRange((char)0x20, (char)0x7E)
+            )
+        )
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) has an invalid RunbookUrl: "
+                    + $"it must be at most {ActaTextLimits.DefinitionRunbookUrl} printable ASCII characters."
+            );
+        }
+        if (descriptor.DisplayName is { Length: > ActaTextLimits.DefinitionDisplayName })
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) has a DisplayName longer than {ActaTextLimits.DefinitionDisplayName} characters."
+            );
+        }
+        if (descriptor.Description is { Length: > ActaTextLimits.DefinitionDescription })
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) has a Description longer than {ActaTextLimits.DefinitionDescription} characters."
+            );
+        }
+    }
+
     private static JobDefinitionRow BuildRow(JobDescriptor descriptor, int namespaceId)
     {
         var priorityCode = (byte)descriptor.Priority;
         var maxAttempts = descriptor.MaxAttempts;
         var backoff = descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression;
-
-        // Hand-authored IJobManifest descriptors bypass the generator's compile-time Backoff check, so
-        // this is the only remaining gate before an invalid expression reaches the DB - mirrors the
-        // override write gate in UpdateOverridesAsync so a bad value fails fast at worker init instead of
-        // crash-looping every execution.
-        var maxBackoffLength = ActaTextLimits.DefinitionBackoff;
-        if (!Backoff.TryParse(backoff, out _) || backoff.Length > maxBackoffLength)
-        {
-            throw new ArgumentException(
-                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceId}) has an invalid Backoff expression "
-                    + $"\"{backoff}\": it must be a valid Acta backoff expression of at most {maxBackoffLength} characters."
-            );
-        }
-
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         var deadlineSeconds = descriptor.DeadlineSeconds ?? 0;
         var deadlineBehaviorCode = (byte)descriptor.DeadlineBehavior;
@@ -341,6 +406,8 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         var displayName = descriptor.DisplayName;
         var description = descriptor.Description;
         var contract = ContractOf(descriptor);
+
+        ValidateDescriptorShape(descriptor, namespaceId.ToString(CultureInfo.InvariantCulture));
 
         // definition_hash covers ALL code-owned columns (policy defaults + contract + formats) so one
         // C#-side comparison decides "needs upsert". Operator override columns are deliberately NOT
