@@ -438,7 +438,10 @@ internal sealed class JobExecution(
         short failedAttempted = 0;
         int failedRetryDelaySeconds = 0;
         var failedInBudget = false;
-        if (outcome == ExecutionOutcome.Failed && IsRetryable(failureReason))
+        // One-shot only: MaxAttempts is the one-off retry budget, and for a recurring slot the
+        // deadline guard inside could otherwise take the terminal handler branch ahead of the
+        // recurring branch (the slot's null DeadlineAtUtc is the second line of defense).
+        if (!isRecurring && outcome == ExecutionOutcome.Failed && IsRetryable(failureReason))
         {
             failedAttempted = (short)(job.FailureCount + 1);
             failedInBudget = failedAttempted < descriptor.MaxAttempts;
