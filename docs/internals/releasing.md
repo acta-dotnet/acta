@@ -60,9 +60,10 @@ report, uploaded as the `coverage` artifact. There is no threshold and no percen
 purpose: a target invites tests written to colour lines rather than to falsify behaviour.
 
 The deliverable is [the blind-spot list](../certification/coverage-baseline-rc1.md) — the recorded
-baseline plus, for ten failure areas, which code paths nothing executes. Re-read it per release
-round and update the numbers with `tools/coverage.ps1`; a blind spot that a new test closed should
-leave the list, and a new one should join it.
+baseline plus, for ten failure areas, which code paths nothing executes — and, per release round, a
+baseline page beside it that records the new numbers with `tools/coverage.ps1` and says which
+entries moved; a blind spot that a new test closed should leave the list, and a new one should join
+it.
 
 ## Packaging
 
