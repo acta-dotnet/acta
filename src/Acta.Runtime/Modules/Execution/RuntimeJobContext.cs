@@ -149,8 +149,11 @@ internal sealed class RuntimeJobContext(
     protected override async Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
     {
         // The DB clock, not the host's: the slot dues this deadline is spent against are stamped by the
-        // database, so measuring the group against anything else would import the worker's skew.
+        // database, so measuring the group against anything else would import the worker's skew. The
+        // anchor is stamped the moment the reading lands so elapsed-since covers exactly what the
+        // reading does not - including the checkpoint write below.
         var nowUtc = await Clock().GetUtcNowAsync(ct);
+        var anchor = Stopwatch.GetTimestamp();
         var stored = await CheckpointSlot.GetOrSetAsync(
             _executionStore,
             JobId,
@@ -159,7 +162,7 @@ internal sealed class RuntimeJobContext(
             JsonSerializer().Serialize((nowUtc + timeout).Ticks),
             ct
         );
-        return new WaitDeadline(new DateTime(Deserialize<long>(stored), DateTimeKind.Utc), nowUtc);
+        return new WaitDeadline(new DateTime(Deserialize<long>(stored), DateTimeKind.Utc), nowUtc, anchor);
     }
 
     private Acta.Runtime.Services.Time.IActaClock Clock() =>
