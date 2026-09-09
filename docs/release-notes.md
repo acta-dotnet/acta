@@ -61,13 +61,60 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
   sweep, so an unbounded slot could never overflow the column and error the whole sweep for the
   namespace.
 - **Worker startup validates the catalog before it writes anything.** Manifest assembly and the
-  shape checks (empty catalog, duplicate names, time zones, tenant requirements, the deadline rule)
+  shape checks (empty catalog, duplicate names, time zones, tenant requirements, the deadline rule,
+  and every descriptor's backoff, execution timeout, runbook URL, display name and description)
   ran after the worker row and its `worker.started` event were committed, so a failing catalog left
   an Active worker that would never heartbeat. The checks now run first; a shape failure writes no
   row.
+- **A host starting no longer cancels a slot another host is running.** Every host re-registers
+  every declared slot when it starts, and the upsert rewrote the slot's status, priority and next run
+  unconditionally, resetting the row to `Ready` underneath a running execution and leaving its lease
+  behind. The worker heartbeat treats the id set it reads back as authoritative and cancels any
+  running attempt missing from it, so the attempt was cancelled and its completion landed as
+  not-owner. The framework's own slots make the window ordinary rather than rare: the outbox relay
+  fires every five seconds, recovery and alerts every minute. Re-registration now skips only a slot
+  held under a live lease, on all three providers, and re-asserts the declaration on every other.
+  Nothing is lost by skipping, because the `schedules` rows are updated regardless and a recurring
+  completion reads its next run back from them.
+- **A crash can no longer take a namespace's recovery down with it.** A slot left `Dispatched` or
+  `Executing` by a dead worker, with its lease expired, is not running, and startup re-registration
+  now re-arms it and clears its lease rather than skipping it. This matters because `sys.recovery` is
+  itself a recurring slot and the only caller of the reclaim sweep: a crash that stranded it stopped
+  the sweep that would have freed it, and every later stranded job queued behind it. Reclaim covers
+  every other stranded row, including the other system slots. See
+  [known limitations](technical/known-limitations.md) for the case that remains.
 - **Fractional windows round up, not down.** `WorkerRetention` and `WorkerDeadAfter` were floored
   to whole seconds: retention could delete up to a second before the configured instant, and a live
   worker could be tombstoned up to a second early.
+
+### Locking and contention
+
+Both of these predate rc.2 and reproduce on the rc.1 tag. Neither asks anything of a consumer; the
+statements are internal.
+
+- **A `runtimes` update can no longer escalate to a table lock.** Four statements update `runtimes`
+  through a join whose driving set is a CTE or a table variable. SQL Server estimates those at low
+  cardinality and could source the update from a clustered scan rather than a seek, taking an update
+  lock per row, escalating to a table lock once the backlog passed the escalation threshold, and
+  holding it to commit, at which point every concurrent insert waited out the whole statement. Which
+  plan a statement compiled was not stable, so one workload could be fast or serialized from run to
+  run. `FORCESEEK` forbids the scan, and `pk_runtimes` is keyed on `job_id` with all four join
+  predicates resolving through it, so a seek is always available and the hint cannot fail to compile.
+  `start_execution` matches the shape but needs no hint, because it filters on a point predicate and
+  always seeks.
+- **The worker heartbeat no longer deadlocks against `start_execution`.** The heartbeat updated every
+  in-flight lease in one statement predicated on `leased_by_worker_id`, which drove it through
+  `ix_runtimes_worker_inflight`: it locked each index key and then went to the clustered row.
+  `start_execution` and `complete_execution` write `status_code` and `leased_by_worker_id`, both key
+  columns of that index, so they lock the clustered row first and the index key second. Index key
+  then base row against base row then index key, on one job, is a cycle, and SQL Server's
+  `system_health` session had recorded eighteen graphs of exactly that pair. The heartbeat now reads
+  the in-flight ids first and updates through the clustered index, which it can do because
+  `lease_expires_at_utc` is in no index key: it touches base rows only, so there is no ordering
+  against start or complete left to invert. PostgreSQL deadlocked on the same pair by a different
+  mechanism, its heartbeat and batch completion locking overlapping rows in index order against
+  unnest order. Both now lock in `job_id` order, and the buffered flush is sorted by job id before
+  its ordinals are assigned, which puts SQL Server's batch completion on that order for free.
 
 ### The audit trail
 
@@ -76,6 +123,14 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
   names differ only by a diacritic became one spelling on the durable record. The column is Unicode
   now, on every provider, and the 24 SQL Server routines that took the key as `VARCHAR(128)` take
   `NVARCHAR(128)`. The schema note above says which databases need reprovisioning.
+- **A note is filed under the attempt that wrote it.** `ctx.NoteAsync` recorded its event with the
+  `execution_number` read from the job's runtime row at write time rather than the attempt the
+  handler was running. Those agree only while the row stands still. A lapsed lease is reclaimed as
+  the next attempt while the handler is still running, because attempt cancellation reaches it
+  asynchronously and a handler that ignores its token never sees it at all, so the row can already
+  carry a later attempt by the time the note lands, and the note was filed under the execution that
+  replaced its author. The attempt is now supplied by the caller on all three providers, so a
+  handler's own account of its work is attributed to the attempt that wrote it.
 - **A failure's reason text can no longer fail its own write.** A cut at a column cap could split a
   surrogate pair, and the providers disagreed on the result: Npgsql refused the lone surrogate,
   SqlClient stored it, SQLite replaced it. The completion or alert recording a failure could itself
