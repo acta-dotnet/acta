@@ -84,6 +84,7 @@ internal sealed class WorkerRuntime
             rootServices.GetRequiredService<IDefinitionStore>(),
             rootServices.GetRequiredService<IScheduleStore>(),
             rootServices.GetRequiredService<IWorkerStore>(),
+            rootServices.GetRequiredService<IExecutionStore>(),
             clock,
             rootServices.GetRequiredService<IServerClock>(),
             serializers,

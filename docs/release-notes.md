@@ -76,12 +76,14 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
   held under a live lease, on all three providers, and re-asserts the declaration on every other.
   Nothing is lost by skipping, because the `schedules` rows are updated regardless and a recurring
   completion reads its next run back from them.
-- **A crash can no longer take a namespace's recovery down with it.** A slot left `Dispatched` or
-  `Executing` by a dead worker, with its lease expired, is not running, and startup re-registration
-  now re-arms it and clears its lease rather than skipping it. This matters because `sys.recovery` is
-  itself a recurring slot and the only caller of the reclaim sweep: a crash that stranded it stopped
-  the sweep that would have freed it, and every later stranded job queued behind it. Reclaim covers
-  every other stranded row, including the other system slots. See
+- **A crash can no longer take a namespace's recovery down with it.** The reclaim sweep, which returns
+  a job whose lease lapsed to `Ready`, ran only from the `sys.recovery` recurring slot, and that slot
+  is an ordinary job a worker can die holding. The sweep that would have freed it was then the one
+  that never ran, and every later stranded job queued behind it. A starting worker now runs the sweep
+  directly, before it touches the catalog, which does not go through the slot and so frees it. The
+  sweep is unchanged and still accounts for what it frees, giving each lost attempt its finished event
+  and its charge; it already takes rows with `SKIP LOCKED` / `READPAST`, so simultaneous starts claim
+  disjoint sets rather than double-charging. See
   [known limitations](technical/known-limitations.md) for the case that remains.
 - **Fractional windows round up, not down.** `WorkerRetention` and `WorkerDeadAfter` were floored
   to whole seconds: retention could delete up to a second before the configured instant, and a live

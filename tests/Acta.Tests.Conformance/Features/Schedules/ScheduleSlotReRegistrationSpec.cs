@@ -67,35 +67,36 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(secondCursor, schedule.NextRunAtUtc);
     }
 
-    [Fact(DisplayName = "Re-registering a slot whose lease has expired re-arms it instead of skipping it")]
-    public async Task Re_registering_a_stranded_slot_re_arms_it()
+    [Fact(DisplayName = "Initialize reclaims a slot stranded by a dead worker, so the recovery slot is never the one left stuck")]
+    public async Task Initialize_reclaims_a_stranded_slot()
     {
         var ct = TestContext.Current.CancellationToken;
-        var jobName = $"reregister-stranded-{Guid.NewGuid():N}";
-        var firstCursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
-        var secondCursor = FloorSeconds(DateTime.UtcNow.AddHours(9));
 
-        var defId = await CreateDefinitionAsync(jobName, ct);
-        await RegisterAsync(defId, jobName, firstCursor, [Slot("only", firstCursor)], JobStatusCode.Ready, ct);
+        // The manifest's own recurring slot, so re-registration re-asserts it rather than orphan-sweeping
+        // it the way it would an undeclared one.
+        var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping"), ct);
+        Assert.NotNull(slotId);
 
-        var slotId = await SlotIdAsync(jobName, ct);
+        // A worker claimed the slot and was killed: the row still reads Executing, but its lease lapsed
+        // and nothing is running behind it. sys.recovery is itself a slot and the only caller of the
+        // reclaim sweep, so when it is the stranded one no sweep can free it. Initialize runs the sweep
+        // directly, which is what stops a crash from taking a namespace's recovery down with it.
+        await LeaseInFlightAsync(Db, slotId!.Value, DateTime.UtcNow.AddMinutes(-5), ct);
 
-        // A worker claimed the slot and was killed. The row still reads Executing, but the lease has
-        // lapsed and nothing is running behind it. sys.recovery is itself a slot and the only caller of
-        // the reclaim sweep, so when it is the stranded one no sweep can free it and this is the only
-        // path back.
-        await LeaseInFlightAsync(Db, slotId, DateTime.UtcNow.AddMinutes(-5), ct);
+        await Runtime.InitializeAsync(ct);
 
-        await RegisterAsync(defId, jobName, secondCursor, [Slot("only", secondCursor)], JobStatusCode.Ready, ct);
-
-        var slot = await ReadJobAsync(slotId, ct);
+        var slot = await ReadJobAsync(slotId!.Value, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
 
-        // The lease has to be cleared with the status: ck_runtimes_status_lease admits a lease holder
-        // only in Dispatched or Executing, so re-arming without clearing it would fail the write.
-        var runtime = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var runtime = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId!.Value).ToListAsync(ct));
         Assert.Null(runtime.LeasedByWorkerId);
-        Assert.Equal(secondCursor, runtime.NextRunAtUtc);
+
+        // The sweep accounts for what it frees: the lost attempt gets its finished event, which a bare
+        // status flip would have left unpaired in the ledger forever.
+        var finished = await Db.From<JobEvent>()
+            .Where(e => e.JobId == slotId!.Value && e.EventCode == EventCode.JobExecutionFinished)
+            .ToListAsync(ct);
+        Assert.NotEmpty(finished);
     }
 
     [Fact(DisplayName = "Re-registering an idle slot re-asserts the declared cursor and status")]

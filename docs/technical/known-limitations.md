@@ -43,8 +43,8 @@ lapsed to `Ready`, runs from the `sys.recovery` recurring slot, and that slot is
 worker claims it and can die holding it. Reclaim covers every other stranded row in the namespace,
 including the other system slots, but it cannot free the slot it runs from, because a stranded
 `sys.recovery` means the sweep never executes. Every later stranded job then queues behind it.
-Startup re-registration re-arms any recurring slot whose lease has expired, so a host start, deploy
-or scale event heals the namespace; nothing heals it while the fleet merely keeps running.
+A starting worker runs the sweep directly, before it touches the catalog, so a host start, deploy or
+scale event heals the namespace. Nothing heals it while the fleet merely keeps running.
 
 Acta does not provide deterministic workflow replay. The model is checkpoints, not replay: durable
 slots record completed work and return stored results on re-entry, but the handler can re-enter from

@@ -2174,7 +2174,7 @@
 - **Assert:** The in-flight slot keeps its status, lease, and cursor, while the schedule row still takes the new declaration.
 - **Guarantees:**
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
-  - Re-registering a slot whose lease has expired re-arms it instead of skipping it
+  - Initialize reclaims a slot stranded by a dead worker, so the recovery slot is never the one left stuck
   - Re-registering an idle slot re-asserts the declared cursor and status
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`

@@ -29,6 +29,7 @@ internal sealed class WorkerRuntimeInitializer(
     IDefinitionStore definitionStore,
     IScheduleStore schedules,
     IWorkerStore workers,
+    IExecutionStore execution,
     IActaClock clock,
     IServerClock serverClock,
     IJobPayloadSerializerRegistry serializers,
@@ -43,6 +44,7 @@ internal sealed class WorkerRuntimeInitializer(
     private readonly IDefinitionStore _definitionStore = definitionStore;
     private readonly IScheduleStore _schedules = schedules;
     private readonly IWorkerStore _workers = workers;
+    private readonly IExecutionStore _execution = execution;
     private readonly IActaClock _clock = clock;
     private readonly IServerClock _serverClock = serverClock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
@@ -169,6 +171,15 @@ internal sealed class WorkerRuntimeInitializer(
         }
 
         var namespaceId = _context.NamespaceIds[ns];
+
+        // Free what a dead worker left in flight, before anything else reads the catalog. The sweep
+        // normally runs from the sys.recovery slot, and that slot is an ordinary job a worker can die
+        // holding; the sweep that would free it is then the one that never runs, and everything
+        // stranded from then on queues behind it. Calling the sweep here does not go through the slot, so a host
+        // start is the way out. Its FailedChildren are left to the slot's own stale-latch backstop,
+        // which runs within the minute now that the slot is free again.
+        await _execution.ReclaimStuckJobsAsync(namespaceId, ct);
+
         var perNamespaceDefIds = new Dictionary<string, int>(StringComparer.Ordinal);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
