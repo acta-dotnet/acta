@@ -9,7 +9,9 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 ## Build and test
 
 - `dotnet restore Acta.slnx`
-- `dotnet build Acta.slnx -c Release /p:ActaDashboardSkipNpm=true`
+- `dotnet build Acta.slnx -c Release -p:ActaDashboardSkipNpm=true` (write the property as `-p:`,
+  not `/p:`: a Git Bash shell rewrites a leading slash into a path, MSBuild rejects the switch, and
+  the pipeline still exits 0, so the step reads as a passing build that compiled nothing)
 - `dotnet test tests/Acta.Tests/Acta.Tests.csproj -c Release`
 - Full provider tests with Docker.
 - Dashboard `npm ci`, `npm test`, `npm run build`.
