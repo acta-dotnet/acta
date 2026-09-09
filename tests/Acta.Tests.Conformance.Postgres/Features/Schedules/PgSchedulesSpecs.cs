@@ -22,3 +22,5 @@ public sealed class PgSchedulePauseResumeSpec : SchedulePauseResumeSpec<PgConfor
 public sealed class PgScheduleTriggerNowSpec : ScheduleTriggerNowSpec<PgConformanceFixture>;
 
 public sealed class PgScheduleSysPreviewSpec : ScheduleSysPreviewSpec<PgConformanceFixture>;
+
+public sealed class PgScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<PgConformanceFixture>;

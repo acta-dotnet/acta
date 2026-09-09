@@ -2166,6 +2166,18 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 
+### A second host starting does not disturb a slot the first host is executing
+- **Contract:** Re-registration re-asserts the declaration on idle slots and skips slots in flight, leaving their status, lease, and cursor to the execution that owns them.
+- **Arrange:** A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.
+- **Act:** The same definition is registered again, as a second host does on startup.
+- **Assert:** The in-flight slot keeps its status, lease, and cursor, while the schedule row still takes the new declaration.
+- **Guarantees:**
+  - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
+  - Re-registering a slot whose lease has expired re-arms it instead of skipping it
+  - Re-registering an idle slot re-asserts the declared cursor and status
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+
 ### Preview resolves a sys. schedule through the lookup-permissive canonicalizer
 - **Contract:** Schedule preview resolves a sys.-prefixed system schedule name through the lookup-permissive canonicalizer rather than the write-validating one.
 - **Arrange:** The runtime registers the framework sys. jobs and their schedules.
@@ -2597,7 +2609,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IScheduleStore.GetScheduleStateAsync` | GetScheduleState returns live cursors for the namespace, empty when none exist<br>Schedule insert reconciles the cursor per misfire policy and upserts one row |
 | `IScheduleStore.ListJobSchedulesAsync` | ListJobSchedules filter-matrix selects exactly matching rows per dimension<br>ListJobSchedules pages live schedules next-run first without duplicates |
 | `IScheduleStore.PauseScheduleAsync` | A paused slot does not fire and a timed pause auto-resumes at its expiry<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Operator pause and resume control a schedule and recompute the owning slot |
-| `IScheduleStore.RegisterScheduledJobsAsync` | A recurring slot fires repeatedly on one stable id advancing cursors<br>Init auto-registers system definitions, slots and schedules<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator pause and resume control a schedule and recompute the owning slot<br>Recurring slot claims at its definition's priority<br>Schedule insert reconciles the cursor per misfire policy and upserts one row<br>Schedule registration is gated by the worker's environment |
+| `IScheduleStore.RegisterScheduledJobsAsync` | A recurring slot fires repeatedly on one stable id advancing cursors<br>A second host starting does not disturb a slot the first host is executing<br>Init auto-registers system definitions, slots and schedules<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator pause and resume control a schedule and recompute the owning slot<br>Recurring slot claims at its definition's priority<br>Schedule insert reconciles the cursor per misfire policy and upserts one row<br>Schedule registration is gated by the worker's environment |
 | `IScheduleStore.ResumeScheduleAsync` | Operator pause and resume control a schedule and recompute the owning slot |
 | `IScheduleStore.SetScheduleOverridesAsync` | Operator sets a CAS-guarded full-set schedule expression/time-zone override |
 | `IScheduleStore.TriggerScheduleNowAsync` | Operator manually fires a schedule now without disturbing its cadence |

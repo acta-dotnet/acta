@@ -59,13 +59,13 @@ JOIN {{schema}}.jobs j
     AND j.deduplication_key = json_extract(d.value, '$.deduplication_key')
 JOIN {{schema}}.definitions jd
     ON jd.id = json_extract(d.value, '$.definition_id')
--- Re-registration re-asserts the definition's declared priority onto the slot, overwriting any operator reprioritize.
 ON CONFLICT (job_id) DO UPDATE SET
     status_code = excluded.status_code,
     priority_code = excluded.priority_code,
     next_run_at_utc = excluded.next_run_at_utc,
     modified_at_utc = {{now}},
-    version = {{schema}}.runtimes.version + 1;
+    version = {{schema}}.runtimes.version + 1
+WHERE {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
 DROP TABLE IF EXISTS temp._reg_slots;
 

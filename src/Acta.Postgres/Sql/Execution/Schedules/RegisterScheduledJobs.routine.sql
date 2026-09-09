@@ -96,13 +96,13 @@ BEGIN
     AS d(definition_id, slot_status, slot_next_run)
     INNER JOIN _reg_slots AS sl ON sl.definition_id = d.definition_id
     INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
-    -- Re-registration re-asserts the definition's declared priority onto the slot, overwriting any operator reprioritize.
     ON CONFLICT (job_id) DO UPDATE SET
         status_code = EXCLUDED.status_code,
         priority_code = EXCLUDED.priority_code,
         next_run_at_utc = EXCLUDED.next_run_at_utc,
         modified_at_utc = now(),
-        version = {{schema}}.runtimes.version + 1;
+        version = {{schema}}.runtimes.version + 1
+    WHERE {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
     INSERT INTO {{schema}}.schedules (
         namespace_id,

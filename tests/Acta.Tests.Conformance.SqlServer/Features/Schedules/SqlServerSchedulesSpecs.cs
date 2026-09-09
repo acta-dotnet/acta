@@ -22,3 +22,5 @@ public sealed class SqlServerSchedulePauseResumeSpec : SchedulePauseResumeSpec<S
 public sealed class SqlServerScheduleTriggerNowSpec : ScheduleTriggerNowSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerScheduleSysPreviewSpec : ScheduleSysPreviewSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<SqlServerConformanceFixture>;

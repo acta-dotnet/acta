@@ -5374,7 +5374,6 @@ BEGIN
             j.namespace_id = @p_namespace_id
             AND j.parent_id IS NULL;
 
-        -- Re-registration re-asserts the definition's declared priority onto the slot, overwriting any operator reprioritize.
         UPDATE r
         SET
             status_code = d.slot_status_code,
@@ -5388,7 +5387,8 @@ BEGIN
         INNER JOIN acta.definitions AS jd ON jd.id = d.definition_id
         WHERE
             j.namespace_id = @p_namespace_id
-            AND j.parent_id IS NULL;
+            AND j.parent_id IS NULL
+            AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
         INSERT INTO acta.jobs (
             job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,

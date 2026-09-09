@@ -33,6 +33,14 @@ internal interface IScheduleStore
     /// (ensures each slot job, refreshes input/audit/status/cursor, upserts schedules, orphan-sweeps).
     /// Returns one <see cref="RegisteredScheduleSlot"/> per definition.
     /// </summary>
+    /// <remarks>
+    /// Every host re-registers every declared slot at startup, so this runs against slots another host
+    /// may be executing. It re-asserts the declaration on an idle slot, overwriting an operator
+    /// reprioritize, and leaves a Dispatched or Executing slot alone: resetting one would strand its
+    /// attempt, because the heartbeat cancels any running body missing from the id set it reads back.
+    /// Skipping costs nothing, because the recurring completion takes the next run from
+    /// <c>schedules</c> rather than from the slot row.
+    /// </remarks>
     Task<IReadOnlyList<RegisteredScheduleSlot>> RegisterScheduledJobsAsync(RegisterScheduledJobsCommand command, CancellationToken ct);
 
     /// <summary>

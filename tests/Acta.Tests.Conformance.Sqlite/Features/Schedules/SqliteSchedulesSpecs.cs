@@ -22,3 +22,5 @@ public sealed class SqliteSchedulePauseResumeSpec : SchedulePauseResumeSpec<Sqli
 public sealed class SqliteScheduleTriggerNowSpec : ScheduleTriggerNowSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteScheduleSysPreviewSpec : ScheduleSysPreviewSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<SqliteConformanceFixture>;
