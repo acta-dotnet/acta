@@ -18,7 +18,7 @@ internal abstract class SqlDdlDialect
     // so a re-cut identifies itself. Every M001 statement is existence-guarded, so a database built
     // from an earlier generation would take the re-cut M001 as a no-op and run on the old shape;
     // moving the stamp is what turns that silence into a refusal.
-    protected const string BaselineStamp = "baseline-20260909";
+    protected const string BaselineStamp = "baseline-20260910";
 
     // Every migration records its plain snake name; the baseline generation identity lives in a
     // dedicated version-0 sentinel row that every full baseline ('init' at any version - a provider

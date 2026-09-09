@@ -15,10 +15,13 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 - Dashboard `npm ci`, `npm test`, `npm run build`.
 - `dotnet run --project tools/Acta.Emit -- check`
 - `dotnet csharpier check .`
-- Schema guard, pre-1.0: a re-cut `M001` is allowed. When the release diff contains one, check that
-  the baseline stamp was bumped in both `SqlDdlDialect.BaselineStamp` and
-  `SchemaMigrationRunner.RequiredBaselineStamp`, and call out the required reprovision in the release
-  notes.
+- Schema guard, pre-1.0: a re-cut `M001` is allowed. When the release diff contains one, the stamp
+  reads `baseline-<yyyymmdd>` for the day it was cut, in both `SqlDdlDialect.BaselineStamp` and
+  `SchemaMigrationRunner.RequiredBaselineStamp`, so a database from any earlier cut refuses to start
+  instead of taking the re-cut as a no-op. Re-cutting again on a later day moves the stamp again;
+  there is no per-release budget, because the date is the identity.
+- The release notes name the changed objects and say that every provider's database must be dropped
+  and reprovisioned, since there is no upgrade path between generations before 1.0.
 - Schema/code-freeze guard, from 1.0.0: the release diff contains no M001 edits and no destructive
   migration statements, renumbered code pairs, retired-id reuse, or closed-family `255` assignments;
   schema changes ship only as additive `Mnnn` migrations.

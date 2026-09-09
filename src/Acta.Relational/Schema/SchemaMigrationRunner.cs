@@ -18,13 +18,13 @@ internal static class SchemaMigrationRunner
     /// here (which requires it at bootstrap); BaselineStampParityTests fails the build if they drift.
     /// The stamp names the day the baseline was cut, so a re-cut identifies itself and no two cuts
     /// can share a value by oversight: rc.1 shipped `baseline-1.0.1` under the older version-style
-    /// naming, and rc.2 cuts `baseline-20260909`. Two cuts on one day would share a stamp, which makes
+    /// naming, and rc.2 cuts `baseline-20260910`. Two cuts on one day would share a stamp, which makes
     /// a same-day re-cut one generation by construction; that is the intermediate development build,
     /// and it is why a stamp is never reused across days. A database from any earlier generation is
     /// reprovisioned rather than upgraded, because the re-cut M001's existence guards would otherwise
     /// skip every statement in silence and leave it running a schema nobody chose.
     /// </summary>
-    internal const string RequiredBaselineStamp = "baseline-20260909";
+    internal const string RequiredBaselineStamp = "baseline-20260910";
 
     /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the

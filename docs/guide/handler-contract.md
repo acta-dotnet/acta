@@ -25,6 +25,12 @@ Names passed to steps, signals, timers, variables, children, and child groups ar
 local labels. Renaming one creates a different durable slot and can repeat or strand work. See
 [Contract evolution § durable slot evolution](./contract-evolution.md) before changing a deployed name.
 
+Durable state belongs to the job, not to one occurrence of it. A recurring job's steps, variables, and
+checkpoints survive from one fire to the next, so a step that succeeded on Monday replays its recorded
+result on Tuesday instead of running again. That is the point of a durable slot, and it is why a
+recurring handler that must start clean calls `ctx.ResetStateAsync` rather than relying on the next
+fire to clear anything.
+
 ### At-most-once steps
 
 For a non-idempotent side effect where a double execution is worse than a skipped one (charge a card, send an email, call an external API with no deduplication key), configure the step `AtMostOnce`:

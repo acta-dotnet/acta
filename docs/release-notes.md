@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.2
 
-Tagged 2026-09-06. A correctness round over the paths a release candidate has to get right before
+Tagged 2026-09-09. A correctness round over the paths a release candidate has to get right before
 anyone leans on them: crash recovery, the audit trail, and the bounds on what an operator or an
 attribute can declare. Nothing here adds a feature to the execution model; most of it makes a
 guarantee the docs already claimed actually hold on every provider.
@@ -125,13 +125,20 @@ amendment writes `jobs` rather than `runtimes`, and a signal is not a control tr
 - The recovery-sweep retry in the conformance suite is bounded by fifteen seconds of wall clock, so
   a genuine zero surfaces in fifteen seconds however long each reclaim round trip takes.
 
-> **Schema note:** `events.actor_key` is now a Unicode column, so an operator's name reaches the
-> audit trail as typed instead of with every non-ASCII character folded to `?`. The baseline stamp
-> stays `baseline-1.0.1`, and Postgres and SQLite databases from rc.1 need nothing: their column
-> type was already Unicode. **A SQL Server database provisioned by rc.1 must be dropped and
-> reprovisioned** to take the change - M001's statements are existence-guarded, so an existing
-> `varchar(128)` column is left in place, and SQL Server would keep folding names into it without
-> any error. The routines re-install on every start and need no action.
+> **Schema note: every earlier database must be dropped and reprovisioned, on every provider.** The
+> baseline stamp now names the day the baseline was cut, and rc.2 cuts `baseline-20260910`, so rc.2
+> refuses to start against a database provisioned by rc.1 or by any earlier rc.2 build rather than
+> running on its schema. There is no upgrade path between generations before 1.0, and the
+> refusal is deliberate: M001's statements are existence-guarded, so without it the re-cut would
+> apply as a no-op and leave the old shape in place with no error.
+>
+> What the re-cut carries: `events.actor_key` is Unicode, so an operator's name reaches the audit
+> trail as typed instead of with every non-ASCII character folded to `?`. `runtimes` gains
+> `ck_runtimes_status_lease`, `checkpoints` gains `ck_checkpoints_kind_shape`, and `settings` gains
+> `ck_settings_scope_pair`. `ix_runtimes_worker_inflight` is re-keyed on
+> `(leased_by_worker_id, job_id)` with `status_code` left in its filter. The routines re-install on
+> every start and need no action. An amendment made inside a release under development does not
+> move the stamp; [known limitations](technical/known-limitations.md) states that gap.
 >
 > The same applies to the host's outbox table on SQL Server: `last_error` is now `nvarchar(512)`
 > in the DDL Acta emits, so a handler's non-ASCII error text is kept instead of folded. An outbox

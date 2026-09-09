@@ -17,12 +17,17 @@ mismatch, so a database built from a different baseline generation fails loudly 
 schema it was not built for; old renumbered code values are intentionally incompatible, and there is
 no translation migration.
 
-The stamp separates baseline generations, not every amendment within one. rc.2 amends `M001` to make
-`events.actor_key` Unicode while keeping the `baseline-1.0.1` stamp, so an rc.1 database starts
-without complaint and its statements, being existence-guarded, leave the existing column in place.
-On SQL Server that column stays `varchar(128)` and keeps folding an operator's non-ASCII name to
-`?`. Reprovisioning it is a manual step the release notes call out; nothing in bootstrap enforces
-it.
+The stamp names the day the baseline was cut. rc.2 cuts `baseline-20260910`, so a database
+provisioned by rc.1, or by any earlier rc.2 build, refuses to start rather than running on a schema
+nobody chose. That refusal is the point: every `M001` statement is
+existence-guarded, so without it an rc.1 database would take the re-cut as a no-op and keep
+`events.actor_key` as `varchar(128)` on SQL Server, folding an operator's non-ASCII name to `?`, and
+would keep the old `ix_runtimes_worker_inflight` key and none of the three row-shape constraints.
+
+Reprovisioning is still a manual step, and it is destructive: there is no upgrade path between
+generations before 1.0, and the refusal tells an operator to take one rather than silently
+diverging. The residual gap is one day wide: two cuts between the same midnights share a stamp, so a
+database provisioned from an earlier build made on the cut date is not detected.
 
 ## Execution model
 
@@ -105,6 +110,15 @@ Acta orders claims, not work. The claim scan reads ready rows by priority (highe
 next-run instant, then by `JobId`, and that is a claim-time sort, not a queue discipline. `JobId` is
 a stable tie-breaker inside one claim, not a multi-producer FIFO guarantee: database identities are
 allocation order, not commit order.
+
+The alert projector reads the event log by that same identity, so it withholds events until they are
+older than a safe horizon rather than trusting the id to mean committed. The horizon is twice the
+configured command timeout, which covers an event whose transaction commits after a later-numbered
+one because a routine writing an alertable event is a single statement inside a single transaction
+and cannot outlive its own timeout. That bound is enforced by the client, not the server: a writer
+host that freezes after its statement reaches the server can still commit past the horizon, and its
+event is then skipped. The consequence is a missed alert, never a wrong ledger. A fleet that raises
+the command timeout on some hosts and not others narrows the margin silently, so keep it uniform.
 
 Priority is strict, with no aging and no anti-starvation budget: while higher-priority ready rows
 exist, lower-priority rows are not claimed, and a sustained high-priority flood can defer the

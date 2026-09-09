@@ -53,10 +53,12 @@ internal sealed class JobEvent : IEntity<long>
     public EventCode EventCode { get; init; }
 
     /// <summary>
-    /// When the event was committed; rendered server-side via <see cref="DbDefault.UtcNow"/> in the same
-    /// transaction as the state mutation. The operation does not supply this value from C#. Named
-    /// <c>created_at_utc</c> for parity with every other entity's row-creation timestamp; for events, the
-    /// row-creation instant IS the event-occurrence instant (events are insert-only).
+    /// When the event was written; rendered server-side via <see cref="DbDefault.UtcNow"/> in the same
+    /// transaction as the state mutation. The operation does not supply this value from C#. It is not a
+    /// commit instant and does not order commits: PostgreSQL's <c>now()</c> is transaction start and SQL
+    /// Server's <c>SYSUTCDATETIME()</c> is statement time, so a long transaction commits after its own
+    /// stamp. Named <c>created_at_utc</c> for parity with every other entity's row-creation timestamp;
+    /// for events, the row-creation instant IS the event-occurrence instant (events are insert-only).
     /// </summary>
     [DbColumn("created_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
     public DateTime CreatedAtUtc { get; init; }

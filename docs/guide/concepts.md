@@ -87,6 +87,10 @@ two tenants is one key. When the business identity is tenant-relative, compose t
 `DeduplicationKey.ForTenant(tenantKey, businessKey)` (also valid for `ExclusiveKey` values, and
 nestable as the business key of `ForDefinition`).
 
+A deduplication key is unique only while the job holding it exists. Retention purges the job row, and
+the key is then free for reuse: the guarantee is bounded by job retention, not by wall-clock time or
+by the key itself. A caller that needs an identity to outlive retention owns that identity itself.
+
 ## Namespace vs tenant
 
 Namespace and tenant answer two different questions and never substitute for each other.

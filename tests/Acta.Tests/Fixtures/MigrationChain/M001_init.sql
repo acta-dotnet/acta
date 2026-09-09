@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.gadgets (
 ) STRICT;
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-20260909', '{{schema}}')
+VALUES (0, 'baseline-20260910', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

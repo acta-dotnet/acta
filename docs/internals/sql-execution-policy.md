@@ -99,6 +99,14 @@ treats the returned set as authoritative and cancels any running attempt missing
 PostgreSQL the same pair is ordered by locking `runtimes` rows in `job_id` order in both the heartbeat
 and batch completion, and the buffered flush is sorted by job id before its ordinals are assigned.
 
+Routines that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
+and `complete_execution` both do. `arm_or_consume_sleep_timer` is the one exception, taking the
+`runtimes` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
+signal raise on the same job acquires the two in opposite orders. No deadlock graph has ever shown
+that pair, and it is not reachable while both hold row locks on different slots, so the mutex stays
+until a run demonstrates otherwise; removing it would drop the serialization that two different timer
+names on one job rely on.
+
 ## Provisioning, compatibility, and SQL access
 
 Tables, columns, indexes, constraints, and durable types belong in numbered `MNNN` migrations.

@@ -108,7 +108,7 @@ SQLite state is one file. The quickstart writes `acta-local.db` beside your proj
 
 ## Use Acta when
 
-- You already run SQL Server, PostgreSQL, or SQLite.
+- You already run SQL Server 2019+, PostgreSQL 12+, or SQLite 3.42+. Those floors come from features the schema and SQL use rather than from a version check: `OPTIMIZE_FOR_SEQUENTIAL_KEY`, stored generated columns, and `STRICT` tables with sub-second `unixepoch`. The SQLite engine bundled by `Microsoft.Data.Sqlite` clears that floor.
 - You want durable background jobs without adding a broker.
 - You want job state inspectable with SQL.
 - You need retries, delays, schedules, and operator controls.
