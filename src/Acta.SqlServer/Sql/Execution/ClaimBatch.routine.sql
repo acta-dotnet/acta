@@ -104,7 +104,9 @@ BEGIN
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 audit_level_code, failure_count, version, from_status
             )
-        FROM {{schema}}.runtimes r
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- see docs/internals/sql-execution-policy.md.
+        FROM {{schema}}.runtimes r WITH (FORCESEEK)
         INNER JOIN candidates c ON c.id = r.job_id
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;
 

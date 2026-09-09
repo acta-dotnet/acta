@@ -80,6 +80,15 @@ section. Each batch is atomic; failure or cancellation later in the sweep preser
 The coordinator never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
 
+Every SQL Server statement that updates `runtimes` through a join carries `WITH (FORCESEEK)`. The
+driving set is always a CTE or table variable, which the optimizer estimates at low cardinality;
+without the hint it may source the update from a clustered scan of `runtimes`, take an update lock per
+row, escalate to a table lock once the backlog passes the escalation threshold, and hold it to commit,
+so every concurrent insert waits out the whole statement. `pk_runtimes` is keyed on `job_id` and every
+such join predicate resolves through it, so a seek is always available and the hint cannot fail to
+compile. The claim batch, the single claim, batch completion, and the stuck-job reclaim all take it.
+`StartExecution` does not: it filters on a point predicate and always seeks.
+
 ## Provisioning, compatibility, and SQL access
 
 Tables, columns, indexes, constraints, and durable types belong in numbered `MNNN` migrations.

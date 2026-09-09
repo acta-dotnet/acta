@@ -1741,7 +1741,9 @@ BEGIN
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 audit_level_code, failure_count, version, from_status
             )
-        FROM acta.runtimes r
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- see docs/internals/sql-execution-policy.md.
+        FROM acta.runtimes r WITH (FORCESEEK)
         INNER JOIN candidates c ON c.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 
@@ -1932,7 +1934,9 @@ BEGIN
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 audit_level_code, failure_count, version, from_status
             )
-        FROM acta.runtimes r
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- see docs/internals/sql-execution-policy.md.
+        FROM acta.runtimes r WITH (FORCESEEK)
         INNER JOIN candidates c ON c.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 
@@ -2588,7 +2592,9 @@ BEGIN
             b.ordinal, INSERTED.job_id, INSERTED.execution_number, j.job_ref, j.namespace_id,
             j.lineage_root_id, j.definition_id, j.tenant_id, j.audit_level_code
         INTO @updated
-        FROM acta.runtimes r
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- see docs/internals/sql-execution-policy.md.
+        FROM acta.runtimes r WITH (FORCESEEK)
         INNER JOIN acta.jobs j ON j.id = r.job_id
         INNER JOIN @p_batch b
             ON
@@ -5143,7 +5149,9 @@ BEGIN
                 id, job_ref, namespace_id, execution_number, lineage_root_id,
                 definition_id, tenant_id, from_status_code, to_status_code, audit_level_code, parent_id
             )
-        FROM acta.runtimes r
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- see docs/internals/sql-execution-policy.md.
+        FROM acta.runtimes r WITH (FORCESEEK)
         INNER JOIN stuck s ON s.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 

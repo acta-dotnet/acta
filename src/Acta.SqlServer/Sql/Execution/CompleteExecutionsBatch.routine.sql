@@ -41,7 +41,9 @@ BEGIN
             b.ordinal, INSERTED.job_id, INSERTED.execution_number, j.job_ref, j.namespace_id,
             j.lineage_root_id, j.definition_id, j.tenant_id, j.audit_level_code
         INTO @updated
-        FROM {{schema}}.runtimes r
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- see docs/internals/sql-execution-policy.md.
+        FROM {{schema}}.runtimes r WITH (FORCESEEK)
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
         INNER JOIN @p_batch b
             ON
