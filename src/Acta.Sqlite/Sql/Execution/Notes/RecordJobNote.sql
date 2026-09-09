@@ -1,5 +1,4 @@
 -- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
--- Denormalized columns are read from the job, so a note cannot disagree with the row it is about.
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -22,7 +21,7 @@ SELECT
     50 /* ActorCode.Job */,
     j.id,
     j.job_ref,
-    r.execution_number,
+    @p_execution_number,
     COALESCE(j.lineage_root_id, j.id),
     j.definition_id,
     j.tenant_id,
@@ -30,7 +29,6 @@ SELECT
     @p_detail,
     @p_reason_message
 FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_job_id;
 
 SELECT CHANGES() AS inserted;

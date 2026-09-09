@@ -98,8 +98,15 @@ internal interface IExecutionStore
     /// deliberately so: the invariant exists so an event never claims a transition that did not
     /// commit, and a note claims nothing but itself. It lives here rather than on the read-only event
     /// port because it is a handler-originated per-job write, like checkpoints and steps.
+    /// <para>
+    /// The attempt is supplied rather than read from the runtime row. A handler is running whenever it
+    /// writes a note, but its row can have moved on: a lapsed lease is reclaimed as the next attempt
+    /// while the handler runs, because attempt cancellation reaches it asynchronously and a handler
+    /// that ignores its token never sees it. Reading the row would file the note under the attempt
+    /// that replaced its author.
+    /// </para>
     /// </remarks>
-    Task RecordJobNoteAsync(long jobId, string message, JobPayload? detail, CancellationToken ct);
+    Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct);
 
     /// <summary>
     /// Reads the ids of a job's direct children, terminal ones included: the per-level feed for the

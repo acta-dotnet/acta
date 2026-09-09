@@ -33,12 +33,13 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             ct
         );
 
-    public Task RecordJobNoteAsync(long jobId, string message, JobPayload? detail, CancellationToken ct) =>
+    public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
         session.ExecuteAsync(
             new StoreCommand("Execution", "Notes/RecordJobNote"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ExecutionNumber, executionNumber));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, message));
                 // Format id 0 with a NULL body is the "no detail" encoding ck_events_detail_pair expects.
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.DetailFormatId, detail?.Format.Id ?? (byte)0));

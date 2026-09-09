@@ -1158,13 +1158,14 @@
   - Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution
 
 ### A handler writes application-authored notes onto the job's own timeline
-- **Contract:** ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's denormalized identity, and the optional JSON detail.
-- **Arrange:** A probe job calls NoteAsync once without detail and once with a typed detail payload.
-- **Act:** The job runs to completion on a real worker runtime.
-- **Assert:** Two job.note-recorded events exist for the job, actor Job, one with a JSON detail body and one with none.
+- **Contract:** ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt that authored it.
+- **Arrange:** A probe job calls NoteAsync once without detail and once with a typed detail payload, and a second job's runtime row is advanced past the attempt that writes.
+- **Act:** The job runs to completion on a real worker runtime, and a note is recorded for an earlier attempt than its row now carries.
+- **Assert:** Two job.note-recorded events exist, actor Job, one with a JSON detail body and one without, and a late note is filed under its author's attempt, not the row's.
 - **Guarantees:**
   - A note for an unknown job throws the stable marker before committing
   - NoteAsync appends job.note-recorded events carrying the message and the optional detail payload
+  - A note is filed under the attempt that wrote it, not the attempt its runtime row has reached
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.RecordJobNoteAsync`
 

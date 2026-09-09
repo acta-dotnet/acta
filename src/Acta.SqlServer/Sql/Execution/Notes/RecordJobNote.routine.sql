@@ -1,7 +1,7 @@
 -- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
--- Denormalized columns are read from the job, so a note cannot disagree with the row it is about.
 CREATE OR ALTER PROCEDURE {{schema}}.record_job_note
     @p_job_id BIGINT,
+    @p_execution_number INT,
     @p_reason_message NVARCHAR(512),
     @p_detail_format_id TINYINT,
     @p_detail VARBINARY(MAX)
@@ -36,7 +36,7 @@ BEGIN
             50 /* ActorCode.Job */,
             j.id,
             j.job_ref,
-            r.execution_number,
+            @p_execution_number,
             COALESCE(j.lineage_root_id, j.id),
             j.definition_id,
             j.tenant_id,
@@ -44,7 +44,6 @@ BEGIN
             @p_detail,
             @p_reason_message
         FROM {{schema}}.jobs j
-        JOIN {{schema}}.runtimes r ON r.job_id = j.id
         WHERE j.id = @p_job_id;
 
         SELECT @@ROWCOUNT AS inserted;

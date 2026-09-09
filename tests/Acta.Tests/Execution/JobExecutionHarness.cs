@@ -292,7 +292,7 @@ internal sealed class JobExecutionHarness(
         public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task RecordJobNoteAsync(long jobId, string message, JobPayload? detail, CancellationToken ct) =>
+        public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();

@@ -598,7 +598,7 @@ internal sealed class RuntimeJobContext(
         // Truncated rather than rejected: the message is prose for a human reading the timeline, and
         // failing a handler's note because its sentence ran long would be a poor trade. The detail
         // payload is the part that hard-throws.
-        return _executionStore.RecordJobNoteAsync(JobId, message.Truncate(ActaTextLimits.ReasonMessage)!, payload, ct);
+        return _executionStore.RecordJobNoteAsync(JobId, ExecutionNumber, message.Truncate(ActaTextLimits.ReasonMessage)!, payload, ct);
     }
 
     protected override async Task RaiseAlertCoreAsync(
