@@ -8,14 +8,13 @@ Known boundaries to review before using Acta in production-like environments.
 
 Acta is at the release-candidate line: the public API, schema, and persisted codes are closing, and
 release candidates change only for correctness, security, and documentation. The migration history
-freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Before the
-release-candidate line the schema baseline (`M001`) could be re-cut per release, so a database
-provisioned by a pre-rc build — or by the first rc.1 cut, which the certification round amended
-once to widen the namespace id — may need one reprovision on the way in. Bootstrap compares the
-baseline stamp recorded in the database against the one this build ships and refuses to start on a
-mismatch, so a database built from a different baseline generation fails loudly instead of taking a
-schema it was not built for; old renumbered code values are intentionally incompatible, and there is
-no translation migration.
+freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Until then the
+baseline (`M001`) can still be re-cut, release candidates included, so a database provisioned by any
+earlier build may need one reprovision on the way in. Bootstrap compares the baseline stamp recorded
+in the database against the one this build ships and refuses to start on a mismatch, so a database
+built from a different baseline generation fails loudly instead of taking a schema it was not built
+for; old renumbered code values are intentionally incompatible, and there is no translation
+migration.
 
 The stamp names the day the baseline was cut. rc.2 cuts `baseline-20260910`, so a database
 provisioned by rc.1, or by any earlier rc.2 build, refuses to start rather than running on a schema

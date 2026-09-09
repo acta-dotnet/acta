@@ -168,7 +168,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-- The migration history freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Before the release-candidate line, the schema baseline (`M001`) could be re-cut per release; a pre-rc database may therefore need one reprovision on the way in, and the bootstrap refuses to run rather than applying a mismatched baseline.
+- The migration history freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Until then the schema baseline (`M001`) can still be re-cut, release candidates included: `1.0.0-rc.2` re-cuts it and moves the baseline stamp, so a database provisioned by any earlier build needs one reprovision on the way in, and the bootstrap refuses to run rather than applying a mismatched baseline.
 - Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
 - Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
 - The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).
