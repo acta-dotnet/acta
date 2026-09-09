@@ -28,12 +28,26 @@ BEGIN
 
         /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
            is not a claim-generation change, so a buffered claim still passes the start CAS. */
-        UPDATE {{schema}}.runtimes
-        SET lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now)
-        OUTPUT INSERTED.job_id
+        DECLARE @inflight TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+
+        -- Read the ids first so the update locks base rows only, never an index key; start_execution
+        -- and complete_execution lock in the other order. See docs/internals/sql-execution-policy.md.
+        -- The read is lock-free under RCSI, so taking it through the heartbeat index is safe.
+        INSERT INTO @inflight (job_id)
+        SELECT job_id
+        FROM {{schema}}.runtimes
         WHERE
             leased_by_worker_id = @p_leased_by_worker_id
             AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+
+        UPDATE r
+        SET lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now)
+        OUTPUT INSERTED.job_id
+        FROM {{schema}}.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK)
+        INNER JOIN @inflight i ON i.job_id = r.job_id
+        WHERE
+            r.leased_by_worker_id = @p_leased_by_worker_id
+            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

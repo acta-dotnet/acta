@@ -16,6 +16,14 @@ RETURNS TABLE (ordinal INT, finalized SMALLINT)
 LANGUAGE plpgsql
 AS $$
 BEGIN
+    -- Take the row locks in job_id order first; extend_worker_leases takes the same order, so a
+    -- heartbeat and a flush cannot cross on an overlapping set. See docs/internals/sql-execution-policy.md.
+    PERFORM 1
+    FROM {{schema}}.runtimes r
+    WHERE r.job_id = ANY(p_b_job_id)
+    ORDER BY r.job_id
+    FOR UPDATE;
+
     RETURN QUERY
     WITH batch AS (
         SELECT

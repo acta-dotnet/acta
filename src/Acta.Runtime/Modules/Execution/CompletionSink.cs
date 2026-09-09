@@ -143,6 +143,11 @@ internal sealed class CompletionSink
             return;
         }
 
+        // Order the flush by job id so the batch locks rows in the same order the worker heartbeat does
+        // and the two cannot deadlock on an overlapping set. Ordinals are positions in this list, so
+        // sorting before they are assigned keeps each result aligned with its own completion.
+        batch.Sort(static (x, y) => x.Request.JobId.CompareTo(y.Request.JobId));
+
         var requests = new List<CompleteExecutionRequest>(batch.Count);
         foreach (var b in batch)
         {

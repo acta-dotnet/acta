@@ -89,6 +89,16 @@ such join predicate resolves through it, so a seek is always available and the h
 compile. The claim batch, the single claim, batch completion, and the stuck-job reclaim all take it.
 `StartExecution` does not: it filters on a point predicate and always seeks.
 
+Statements that touch many `runtimes` rows lock the base row first and never hold an index key while
+waiting for one. `StartExecution` and `CompleteExecution` change `status_code` and
+`leased_by_worker_id`, both key columns of `ix_runtimes_worker_inflight`, so they lock the clustered
+row and then move the index key; a worker heartbeat that walked that index instead would hold the key
+and wait for the row, which is the inversion that deadlocks. `ExtendWorkerLeases` therefore reads the
+in-flight ids first and updates through a primary-key seek. It must not use `READPAST`: the caller
+treats the returned set as authoritative and cancels any running attempt missing from it. On
+PostgreSQL the same pair is ordered by locking `runtimes` rows in `job_id` order in both the heartbeat
+and batch completion, and the buffered flush is sorted by job id before its ordinals are assigned.
+
 ## Provisioning, compatibility, and SQL access
 
 Tables, columns, indexes, constraints, and durable types belong in numbered `MNNN` migrations.

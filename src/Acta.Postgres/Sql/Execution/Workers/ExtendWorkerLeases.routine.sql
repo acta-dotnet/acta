@@ -20,11 +20,22 @@ BEGIN
 
     /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
        is not a claim-generation change, so a buffered claim still passes the start CAS. */
+    -- Lock the rows in job_id order; complete_executions_batch takes the same order, so the two
+    -- cannot cross on an overlapping set. See docs/internals/sql-execution-policy.md.
     RETURN QUERY
     UPDATE {{schema}}.runtimes r
     SET lease_expires_at_utc = v_new_expiry
     WHERE
-        r.leased_by_worker_id = p_leased_by_worker_id
+        r.job_id IN (
+            SELECT r0.job_id
+            FROM {{schema}}.runtimes r0
+            WHERE
+                r0.leased_by_worker_id = p_leased_by_worker_id
+                AND r0.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            ORDER BY r0.job_id
+            FOR UPDATE
+        )
+        AND r.leased_by_worker_id = p_leased_by_worker_id
         AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
     RETURNING r.job_id;
 END;

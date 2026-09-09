@@ -2237,6 +2237,14 @@ RETURNS TABLE (ordinal INT, finalized SMALLINT)
 LANGUAGE plpgsql
 AS $$
 BEGIN
+    -- Take the row locks in job_id order first; extend_worker_leases takes the same order, so a
+    -- heartbeat and a flush cannot cross on an overlapping set. See docs/internals/sql-execution-policy.md.
+    PERFORM 1
+    FROM acta.runtimes r
+    WHERE r.job_id = ANY(p_b_job_id)
+    ORDER BY r.job_id
+    FOR UPDATE;
+
     RETURN QUERY
     WITH batch AS (
         SELECT
@@ -6695,11 +6703,22 @@ BEGIN
 
     /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
        is not a claim-generation change, so a buffered claim still passes the start CAS. */
+    -- Lock the rows in job_id order; complete_executions_batch takes the same order, so the two
+    -- cannot cross on an overlapping set. See docs/internals/sql-execution-policy.md.
     RETURN QUERY
     UPDATE acta.runtimes r
     SET lease_expires_at_utc = v_new_expiry
     WHERE
-        r.leased_by_worker_id = p_leased_by_worker_id
+        r.job_id IN (
+            SELECT r0.job_id
+            FROM acta.runtimes r0
+            WHERE
+                r0.leased_by_worker_id = p_leased_by_worker_id
+                AND r0.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            ORDER BY r0.job_id
+            FOR UPDATE
+        )
+        AND r.leased_by_worker_id = p_leased_by_worker_id
         AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
     RETURNING r.job_id;
 END;
