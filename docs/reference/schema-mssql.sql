@@ -5485,7 +5485,13 @@ BEGIN
         WHERE
             j.namespace_id = @p_namespace_id
             AND j.parent_id IS NULL
-            AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+            AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
+            -- EXCEPT compares NULL-safely, which <> does not.
+            AND EXISTS (
+                SELECT r.status_code, r.priority_code, r.next_run_at_utc
+                EXCEPT
+                SELECT d.slot_status_code, jd.priority_code_effective, d.slot_next_run_at_utc);
 
         INSERT INTO acta.jobs (
             job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
@@ -5579,7 +5585,15 @@ BEGIN
         INNER JOIN @p_schedules AS src
             ON
                 src.definition_id = sl.definition_id
-                AND src.name = tgt.name;
+                AND src.name = tgt.name
+        WHERE
+            tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
+            OR EXISTS (
+                SELECT tgt.expression, tgt.time_zone_id, tgt.expression_kind_code, tgt.misfire_strategy_code,
+                    tgt.next_run_at_utc, tgt.definition_id, tgt.description
+                EXCEPT
+                SELECT src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
+                    src.next_run_at_utc, src.definition_id, src.description);
 
         INSERT INTO acta.schedules (
             namespace_id, job_id, definition_id, name, origin_code,

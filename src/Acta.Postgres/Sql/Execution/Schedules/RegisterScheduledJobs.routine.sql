@@ -102,7 +102,14 @@ BEGIN
         next_run_at_utc = EXCLUDED.next_run_at_utc,
         modified_at_utc = now(),
         version = {{schema}}.runtimes.version + 1
-    WHERE {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+    WHERE
+        {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
+        AND (
+            {{schema}}.runtimes.status_code IS DISTINCT FROM EXCLUDED.status_code
+            OR {{schema}}.runtimes.priority_code IS DISTINCT FROM EXCLUDED.priority_code
+            OR {{schema}}.runtimes.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
+        );
 
     INSERT INTO {{schema}}.schedules (
         namespace_id,
@@ -158,7 +165,16 @@ BEGIN
             THEN 10 /* ScheduleStatusCode.Active */ ELSE {{schema}}.schedules.status_code END,
         description = EXCLUDED.description,
         modified_at_utc = now(),
-        version = {{schema}}.schedules.version + 1;
+        version = {{schema}}.schedules.version + 1
+    WHERE
+        {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
+        OR {{schema}}.schedules.expression IS DISTINCT FROM EXCLUDED.expression
+        OR {{schema}}.schedules.time_zone_id IS DISTINCT FROM EXCLUDED.time_zone_id
+        OR {{schema}}.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
+        OR {{schema}}.schedules.misfire_strategy_code IS DISTINCT FROM EXCLUDED.misfire_strategy_code
+        OR {{schema}}.schedules.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
+        OR {{schema}}.schedules.definition_id IS DISTINCT FROM EXCLUDED.definition_id
+        OR {{schema}}.schedules.description IS DISTINCT FROM EXCLUDED.description;
 
     UPDATE {{schema}}.schedules AS js
     SET

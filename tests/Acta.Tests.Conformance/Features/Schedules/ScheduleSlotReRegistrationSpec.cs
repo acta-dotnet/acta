@@ -16,10 +16,10 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.slot-re-registration",
     "A second host starting does not disturb a slot the first host is executing",
     Area = "Scheduling",
-    Contract = "Re-registration re-asserts the declaration on idle slots and skips slots in flight, leaving their status, lease, and cursor to the execution that owns them.",
+    Contract = "Re-registration writes an idle slot only when its declaration changed, and skips a slot in flight, leaving its status, lease, and cursor to its execution.",
     Arrange = "A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.",
-    Act = "The same definition is registered again, as a second host does on startup.",
-    Assert = "The in-flight slot keeps its status, lease, and cursor, while the schedule row still takes the new declaration."
+    Act = "The same definition is registered again, as a second host does on startup, with the declaration changed or identical.",
+    Assert = "The in-flight slot keeps its status, lease, and cursor, while an idle slot takes a changed declaration and is untouched by an identical one."
 )]
 [CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
 public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -84,6 +84,30 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
         Assert.Equal(secondCursor, slot.NextRunAtUtc);
+    }
+
+    [Fact(DisplayName = "Re-registering an unchanged declaration writes nothing: no version moves on the slot or its schedule")]
+    public async Task Re_registering_an_unchanged_declaration_writes_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobName = $"reregister-same-{Guid.NewGuid():N}";
+        var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
+
+        var defId = await CreateDefinitionAsync(jobName, ct);
+        await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
+        var slotId = await SlotIdAsync(jobName, ct);
+        var slotBefore = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var scheduleBefore = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+
+        // The restart of an unchanged build: same expression, same cursor, same status.
+        await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
+
+        var slotAfter = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var scheduleAfter = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+        Assert.Equal(slotBefore.Version, slotAfter.Version);
+        Assert.Equal(slotBefore.ModifiedAtUtc, slotAfter.ModifiedAtUtc);
+        Assert.Equal(scheduleBefore.Version, scheduleAfter.Version);
+        Assert.Equal(scheduleBefore.ModifiedAtUtc, scheduleAfter.ModifiedAtUtc);
     }
 
     /// <summary>Puts the slot in flight with a lease, as a claim on another host would leave it.</summary>

@@ -65,7 +65,14 @@ ON CONFLICT (job_id) DO UPDATE SET
     next_run_at_utc = excluded.next_run_at_utc,
     modified_at_utc = {{now}},
     version = {{schema}}.runtimes.version + 1
-WHERE {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+WHERE
+    {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
+    AND (
+        {{schema}}.runtimes.status_code IS NOT excluded.status_code
+        OR {{schema}}.runtimes.priority_code IS NOT excluded.priority_code
+        OR {{schema}}.runtimes.next_run_at_utc IS NOT excluded.next_run_at_utc
+    );
 
 DROP TABLE IF EXISTS temp._reg_slots;
 
@@ -123,7 +130,16 @@ ON CONFLICT (job_id, name) DO UPDATE SET
         ELSE {{schema}}.schedules.status_code END,
     description = excluded.description,
     modified_at_utc = {{now}},
-    version = {{schema}}.schedules.version + 1;
+    version = {{schema}}.schedules.version + 1
+WHERE
+    {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
+    OR {{schema}}.schedules.expression IS NOT excluded.expression
+    OR {{schema}}.schedules.time_zone_id IS NOT excluded.time_zone_id
+    OR {{schema}}.schedules.expression_kind_code IS NOT excluded.expression_kind_code
+    OR {{schema}}.schedules.misfire_strategy_code IS NOT excluded.misfire_strategy_code
+    OR {{schema}}.schedules.next_run_at_utc IS NOT excluded.next_run_at_utc
+    OR {{schema}}.schedules.definition_id IS NOT excluded.definition_id
+    OR {{schema}}.schedules.description IS NOT excluded.description;
 
 UPDATE {{schema}}.schedules
 SET

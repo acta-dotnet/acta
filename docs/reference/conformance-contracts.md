@@ -2196,13 +2196,14 @@
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### A second host starting does not disturb a slot the first host is executing
-- **Contract:** Re-registration re-asserts the declaration on idle slots and skips slots in flight, leaving their status, lease, and cursor to the execution that owns them.
+- **Contract:** Re-registration writes an idle slot only when its declaration changed, and skips a slot in flight, leaving its status, lease, and cursor to its execution.
 - **Arrange:** A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.
-- **Act:** The same definition is registered again, as a second host does on startup.
-- **Assert:** The in-flight slot keeps its status, lease, and cursor, while the schedule row still takes the new declaration.
+- **Act:** The same definition is registered again, as a second host does on startup, with the declaration changed or identical.
+- **Assert:** The in-flight slot keeps its status, lease, and cursor, while an idle slot takes a changed declaration and is untouched by an identical one.
 - **Guarantees:**
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
   - Re-registering an idle slot re-asserts the declared cursor and status
+  - Re-registering an unchanged declaration writes nothing: no version moves on the slot or its schedule
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 

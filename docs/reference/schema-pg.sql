@@ -5131,7 +5131,14 @@ BEGIN
         next_run_at_utc = EXCLUDED.next_run_at_utc,
         modified_at_utc = now(),
         version = acta.runtimes.version + 1
-    WHERE acta.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+    WHERE
+        acta.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
+        AND (
+            acta.runtimes.status_code IS DISTINCT FROM EXCLUDED.status_code
+            OR acta.runtimes.priority_code IS DISTINCT FROM EXCLUDED.priority_code
+            OR acta.runtimes.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
+        );
 
     INSERT INTO acta.schedules (
         namespace_id,
@@ -5187,7 +5194,16 @@ BEGIN
             THEN 10 /* ScheduleStatusCode.Active */ ELSE acta.schedules.status_code END,
         description = EXCLUDED.description,
         modified_at_utc = now(),
-        version = acta.schedules.version + 1;
+        version = acta.schedules.version + 1
+    WHERE
+        acta.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
+        OR acta.schedules.expression IS DISTINCT FROM EXCLUDED.expression
+        OR acta.schedules.time_zone_id IS DISTINCT FROM EXCLUDED.time_zone_id
+        OR acta.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
+        OR acta.schedules.misfire_strategy_code IS DISTINCT FROM EXCLUDED.misfire_strategy_code
+        OR acta.schedules.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
+        OR acta.schedules.definition_id IS DISTINCT FROM EXCLUDED.definition_id
+        OR acta.schedules.description IS DISTINCT FROM EXCLUDED.description;
 
     UPDATE acta.schedules AS js
     SET

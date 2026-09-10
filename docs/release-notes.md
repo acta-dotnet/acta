@@ -76,6 +76,13 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
   held under a live lease, on all three providers, and re-asserts the declaration on every other.
   Nothing is lost by skipping, because the `schedules` rows are updated regardless and a recurring
   completion reads its next run back from them.
+- **Restarting an unchanged build writes nothing to its schedules.** The same upsert bumped every
+  slot's and every schedule's `version` and `modified_at_utc` on every start, whether or not the
+  declaration had changed, so a fleet restart or a scale-out read as a catalog edit in the audit
+  trail and in the version an operator had just captured. Both writes are now gated on a real
+  difference: expression, time zone, kind, misfire, cursor, definition or description on the
+  schedule, status, priority or cursor on the slot, or an orphaned schedule being re-declared. An
+  identical declaration touches no row and moves no version, matching what definitions already did.
 - **A crash can no longer take a namespace's recovery down with it.** The reclaim sweep, which returns
   a job whose lease lapsed to `Ready`, ran only from the `sys.recovery` recurring slot, and that slot
   is an ordinary job a worker can die holding. The sweep that would have freed it was then the one
