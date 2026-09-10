@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.2
 
-Tagged 2026-09-09. A correctness round over the paths a release candidate has to get right before
+Tagged 2026-09-10. A correctness round over the paths a release candidate has to get right before
 anyone leans on them: crash recovery, the audit trail, and the bounds on what an operator or an
 attribute can declare. Nothing here adds a feature to the execution model; most of it makes a
 guarantee the docs already claimed actually hold on every provider.
