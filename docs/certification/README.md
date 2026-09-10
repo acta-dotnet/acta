@@ -20,6 +20,10 @@ drains in seconds, and a 100,000 backlog drains under bounded memory.
 
 | Seal | Shape | Released in |
 | --- | --- | --- |
+| [seal-20260910T175005Z](./seal-20260910T175005Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v1.0.0-rc.2` (final tree `22d74be6`) |
+| [seal-20260910T173838Z](./seal-20260910T173838Z.md) | SQLite reduced, one WAL file, 48 slots | `v1.0.0-rc.2` (final tree `22d74be6`) |
+| [seal-20260910T172124Z](./seal-20260910T172124Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v1.0.0-rc.2` (final tree `22d74be6`) |
+| [seal-20260910T170809Z](./seal-20260910T170809Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots | `v1.0.0-rc.2` (final tree `22d74be6`) |
 | [seal-20260822T115015Z](./seal-20260822T115015Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v1.0.0-rc.1` (near-final commit) |
 | [seal-20260822T113834Z](./seal-20260822T113834Z.md) | SQLite standard, one WAL file, 48 slots | `v1.0.0-rc.1` (near-final commit) |
 | [seal-20260822T092143Z](./seal-20260822T092143Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v1.0.0-rc.1` (near-final commit) |
@@ -32,6 +36,20 @@ drains in seconds, and a 100,000 backlog drains under bounded memory.
 | [seal-20260812T162619Z](./seal-20260812T162619Z.md) | First ensemble: 2 processes, one run id, PostgreSQL | `v0.9.0-beta.1` (pre-release commit) |
 | [seal-20260812T130035Z](./seal-20260812T130035Z.md) | 1,000,000 jobs, SQL Server | `v0.9.0-beta.1` (pre-release commit) |
 | [seal-20260812T101351Z](./seal-20260812T101351Z.md) | 1,000,000 jobs, PostgreSQL | `v0.9.0-beta.1` (pre-release commit) |
+
+The 2026-09-10 quartet is the `v1.0.0-rc.2` round: all four gates on the final tree `22d74be6`,
+the tree the tag is cut from, stamped `baseline-20260910`. Two earlier rc.2 rounds the same week
+were superseded and left the tree: the first stalled its SQL Server gate at 14,429 of 15,000 with
+the recovery slot itself stranded under a lapsed lease, which is the defect the recovery-slot
+monitor closes; the second passed all four gates on a tree that then changed again, for the
+schedule-version column the advance batch type now carries and the completion and registration
+guards beside it. What this round shows that the earlier ones could not: every worker's guarded
+repair of the recovery slot under real kills on all three providers, the re-cut table type carried
+through every recurring completion, and the ensemble's at-most-once and namespace-isolation checks
+holding with 830 orphaned attempts across 152 killed workers.
+
+[coverage-baseline-rc2.md](./coverage-baseline-rc2.md) is this round's coverage page: the same two
+suites at 88.4% line and 70.7% branch, and the blind-spot entry the round's own defect landed in.
 
 The 2026-08-22 quartet is the `v1.0.0-rc.1` round: all four gates on the near-final commit
 `a38af45`, after the release candidate's adversarial review wave and the namespace-id decision that

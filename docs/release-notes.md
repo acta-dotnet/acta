@@ -201,6 +201,33 @@ the four MapVerb bodies, reschedule, and reprioritize accept `expectedVersion`; 
 outcome uses. Purge, input amendment, and signals take no token: purge deletes the row, input
 amendment writes `jobs` rather than `runtimes`, and a signal is not a control transition.
 
+### Certification: four gates on the final tree, all sealed
+
+The four chaos gates ran on 2026-09-10 against `22d74be6`, the tree the tag is cut from, and file
+under `docs/certification/`. Two earlier rc.2 rounds the same week were superseded: the first found
+the stranded-recovery-slot defect this release fixes, the second certified a tree that then changed
+again for the advance type's version column. Every seal in this round carries the
+`baseline-20260910` stamp.
+
+- **`seal-20260910T170809Z.md` — PostgreSQL standard** (10,000 jobs, 64 slots, 7-minute kill
+  window): PASS — 15,000 of 15,000 rows terminal Succeeded, 5,000 outbox rows staged during the
+  chaos and every one drained and delivered, 567 orphaned attempts reclaimed across 72 workers
+  marked dead.
+- **`seal-20260910T172124Z.md` — SQL Server standard**: PASS at the same shape, 573 orphaned
+  attempts across 72 dead workers, nothing stranded. This is the shape that stalled at 14,429 of
+  15,000 on a pre-fix tree with the recovery slot itself held under a lapsed lease; it now drains,
+  and every recurring completion in it passed the re-cut table type.
+- **`seal-20260910T173838Z.md` — SQLite reduced**: PASS at 48 slots on one WAL file shared by six
+  processes, 575 orphaned attempts across 72 dead workers, reduced scope stated on its face.
+- **`seal-20260910T175005Z.md` — the 3-participant / 2-namespace ensemble**: PASS with the heaviest
+  chaos of the round, 830 orphaned attempts across 152 killed workers; `at-most-once` and
+  `namespace-isolation` held at zero rows, and the 29 terminal failures are the mid-body charge
+  interruptions this gate exists to produce, every one inside the declared envelope.
+
+The coverage page for this round is `coverage-baseline-rc2.md`: 88.4% line and 70.7% branch across
+the unit and SQLite conformance suites, no threshold, and the blind-spot entry the round's own
+defect landed in: `RecoveryJob.Handle` is still executed by no test.
+
 ### Housekeeping
 
 - The recovery-sweep retry in the conformance suite is bounded by fifteen seconds of wall clock, so
@@ -217,9 +244,12 @@ amendment writes `jobs` rather than `runtimes`, and a signal is not a control tr
 > trail as typed instead of with every non-ASCII character folded to `?`. `runtimes` gains
 > `ck_runtimes_status_lease`, `checkpoints` gains `ck_checkpoints_kind_shape`, and `settings` gains
 > `ck_settings_scope_pair`. `ix_runtimes_worker_inflight` is re-keyed on
-> `(leased_by_worker_id, job_id)` with `status_code` left in its filter. The routines re-install on
-> every start and need no action. An amendment made inside a release under development does not
-> move the stamp; [known limitations](technical/known-limitations.md) states that gap.
+> `(leased_by_worker_id, job_id)` with `status_code` left in its filter. SQL Server's
+> `job_schedule_advance_batch` table type gains `expected_version`, the schedule version a recurring
+> fire read, which completion checks before it advances the cursor. The routines re-install on every
+> start and need no action. Re-cutting on a later day moves the stamp to that day, so two cuts
+> collide only when they happen on the same day; [known limitations](technical/known-limitations.md)
+> states that one-day gap.
 >
 > The same applies to the host's outbox table on SQL Server: `last_error` is now `nvarchar(512)`
 > in the DDL Acta emits, so a handler's non-ASCII error text is kept instead of folded. An outbox
