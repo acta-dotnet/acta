@@ -1099,13 +1099,14 @@
 ### A stranded recovery slot is repaired under a guard by any worker
 - **Contract:** A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.
 - **Arrange:** The namespace's sys.recovery slot is put in flight under a lease that is live or lapsed, or its row is absent.
-- **Act:** The check runs, two repairs race on one lapsed slot, and the worker runtime initializes over a lapsed one.
-- **Assert:** A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a missing row is reported, and initialize re-arms.
+- **Act:** The check runs, two repairs race on one lapsed slot, a renewal commits under a waiting repair, and the worker runtime initializes over a lapsed one.
+- **Assert:** A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a renewal that commits first wins, and initialize re-arms.
 - **Guarantees:**
   - A recovery slot in flight under a live lease is left alone
   - A recovery slot in flight under a lapsed lease is re-armed once, with the lost attempt recorded
   - A slot claimed but not yet started when its worker died is recorded as lost from Dispatched
   - Two workers repairing the same lapsed slot at once commit one repair and one event
+  - A heartbeat renewal that commits while the repair waits on the row wins; the repair declines
   - A recovery slot whose row is gone is reported missing and never recreated
   - A worker starting over a lapsed recovery slot re-arms it before the catalog is read
 - **Store methods:**
