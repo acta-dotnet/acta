@@ -101,6 +101,14 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
   an orphaned schedule alone and reads the slot's next state from the schedules as they stand: Ready
   at the earliest surviving cursor, or Paused when none survives. A schedule added during the
   attempt takes part in that read. The rollover event carries the same derived status as the row.
+- **An edit made while the job ran is not overwritten by its completion.** The same stale plan
+  also overwrote a schedule an operator had edited during the attempt: a trigger-now, an override or
+  a re-registration that moved the cursor was replaced by the cursor computed before it existed.
+  Each planned advance now carries the schedule version it was read at, and completion applies it
+  only if the row still carries that version; an edited schedule keeps its edit and the slot re-arms
+  from the schedules as they stand. The version rides with the advance itself: one more array on
+  PostgreSQL, one more field in SQLite's JSON, and a third column on SQL Server's
+  `job_schedule_advance_batch` table type, which is why this cut of `M001` carries it.
 - **Fractional windows round up, not down.** `WorkerRetention` and `WorkerDeadAfter` were floored
   to whole seconds: retention could delete up to a second before the configured instant, and a live
   worker could be tombstoned up to a second early.

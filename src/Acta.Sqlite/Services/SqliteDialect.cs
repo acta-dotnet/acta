@@ -385,6 +385,14 @@ internal sealed class SqliteDialect : ISqlDialect
             {
                 writer.WriteNumber("schedule_id", advance.ScheduleId);
                 WriteUtcOrNull(writer, "next_run_at_utc", advance.NextRunAtUtc);
+                if (advance.ExpectedVersion is { } expected)
+                {
+                    writer.WriteNumber("expected_version", expected);
+                }
+                else
+                {
+                    writer.WriteNull("expected_version");
+                }
             }
         );
         AddText(command, "@p_schedule_advances", json);

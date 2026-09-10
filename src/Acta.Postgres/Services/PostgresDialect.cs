@@ -444,14 +444,17 @@ internal sealed class PostgresDialect : ISqlDialect
         var advances = request.ScheduleAdvances ?? (IReadOnlyList<ScheduleAdvance>)[];
         var scheduleIds = new long[advances.Count];
         var nextRuns = new DateTime?[advances.Count];
+        var versions = new int?[advances.Count];
         for (var i = 0; i < advances.Count; i++)
         {
             scheduleIds[i] = advances[i].ScheduleId;
             nextRuns[i] = advances[i].NextRunAtUtc;
+            versions[i] = advances[i].ExpectedVersion;
         }
 
         AddArray(postgres, "@p_advance_schedule_ids", NpgsqlDbType.Bigint, scheduleIds);
         AddArray(postgres, "@p_advance_next_runs", NpgsqlDbType.TimestampTz, nextRuns);
+        AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, versions);
     }
 
     public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema)

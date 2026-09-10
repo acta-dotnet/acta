@@ -2185,7 +2185,8 @@ BEGIN
                         FROM acta.schedules js
                         INNER JOIN @p_schedule_advances adv ON adv.schedule_id = js.id
                         WHERE
-                            @c_audit = 20 /* JobAuditLevelCode.Audit */
+                            (adv.expected_version IS NULL OR js.version = adv.expected_version)
+                            AND @c_audit = 20 /* JobAuditLevelCode.Audit */
                             AND js.status_code = 30 /* ScheduleStatusCode.Paused */
                             AND js.paused_until_utc IS NOT NULL
                             AND js.paused_until_utc <= @now;
@@ -2204,8 +2205,10 @@ BEGIN
                         FROM acta.schedules js
                         INNER JOIN @p_schedule_advances adv ON adv.schedule_id = js.id
                         WHERE
+                            -- Edited while this attempt ran: the plan was made against an older version, and the edit wins.
+                            (adv.expected_version IS NULL OR js.version = adv.expected_version)
                             -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
-                            js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                            AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
                             AND (
                                 js.status_code <> 30 /* ScheduleStatusCode.Paused */
                                 OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= @now)

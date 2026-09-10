@@ -38,7 +38,8 @@ internal static class ScheduleWalker
                     s.ExpressionKind,
                     (s.NextRunAtUtc ?? s.PausedUntilUtc)!.Value,
                     nowUtc
-                )
+                ),
+                s.Version
             ))
             .ToList();
 

@@ -555,6 +555,7 @@ internal sealed class SqlServerDialect : ISqlDialect
     [
         new("schedule_id", SqlDbType.BigInt),
         new("next_run_at_utc", SqlDbType.DateTime2),
+        new("expected_version", SqlDbType.Int),
     ];
 
     private static IEnumerable<SqlDataRecord>? BuildScheduleAdvanceRecords(IReadOnlyList<ScheduleAdvance>? advances)
@@ -568,6 +569,15 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 record.SetInt64(0, advance.ScheduleId);
                 SetNullableDateTime(record, 1, advance.NextRunAtUtc);
+                if (advance.ExpectedVersion is { } expected)
+                {
+                    record.SetInt32(2, expected);
+                }
+                else
+                {
+                    record.SetDBNull(2);
+                }
+
                 yield return record;
             }
         }

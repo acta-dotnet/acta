@@ -144,7 +144,10 @@ SELECT
     js.name
 FROM _ce_done d
 JOIN {{schema}}.schedules js
-    ON js.id IN (SELECT json_extract(a.value, '$.schedule_id') FROM json_each(@p_schedule_advances) a)
+    ON EXISTS (
+        SELECT 1 FROM json_each(@p_schedule_advances) a
+        WHERE json_extract(a.value, '$.schedule_id') = js.id
+          AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version))
 WHERE
     @p_final_status IS NOT NULL
     AND d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
@@ -163,7 +166,11 @@ SET
 WHERE
     @p_final_status IS NOT NULL
     AND EXISTS (SELECT 1 FROM _ce_done)
-    AND id IN (SELECT json_extract(a.value, '$.schedule_id') FROM json_each(@p_schedule_advances) a)
+    -- Edited while this attempt ran: the plan was made against an older version, and the edit wins.
+    AND EXISTS (
+        SELECT 1 FROM json_each(@p_schedule_advances) a
+        WHERE json_extract(a.value, '$.schedule_id') = {{schema}}.schedules.id
+          AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = {{schema}}.schedules.version))
     -- An operator pause inside the fire window wins; only an elapsed TIMED pause auto-resumes here.
     -- Same predicate as the audit insert above, so the two cannot disagree.
     -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.

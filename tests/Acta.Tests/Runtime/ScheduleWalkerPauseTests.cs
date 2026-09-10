@@ -25,7 +25,8 @@ public class ScheduleWalkerPauseTests
             ScheduleStatusCode.Active,
             null,
             Cron5,
-            "UTC"
+            "UTC",
+            1
         );
 
     private static LiveSchedule Paused(long id, string name, DateTime? cursor, DateTime? pausedUntil) =>
@@ -40,7 +41,8 @@ public class ScheduleWalkerPauseTests
             ScheduleStatusCode.Paused,
             pausedUntil,
             Cron5,
-            "UTC"
+            "UTC",
+            1
         );
 
     [Fact]

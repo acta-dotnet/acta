@@ -7,7 +7,8 @@ namespace Acta.Runtime.Modules.Execution.Schedules;
 /// (override falling back to original). <c>NextRunAtUtc</c> is the stored cursor; null means the
 /// schedule has no pending occurrence. <c>BaseExpression</c>/<c>BaseTimeZone</c> are the un-overridden
 /// defaults, carried so a caller clearing an override (e.g. set-overrides) can compute the resulting
-/// effective value without a second read.
+/// effective value without a second read. <c>Version</c> is the row version the read observed, which a
+/// fire plan hands back so its advance is refused if the row moved in the meantime.
 /// </summary>
 internal sealed record LiveSchedule(
     long Id,
@@ -20,7 +21,8 @@ internal sealed record LiveSchedule(
     ScheduleStatusCode Status,
     DateTime? PausedUntilUtc,
     string BaseExpression,
-    string BaseTimeZone
+    string BaseTimeZone,
+    int Version
 );
 
 /// <summary>

@@ -1689,7 +1689,8 @@ CREATE OR REPLACE FUNCTION acta.complete_execution(
     p_failure_count SMALLINT DEFAULT NULL,
     p_recurring_result_cap INT DEFAULT 0,
     p_advance_schedule_ids BIGINT [] DEFAULT NULL,
-    p_advance_next_runs TIMESTAMPTZ [] DEFAULT NULL
+    p_advance_next_runs TIMESTAMPTZ [] DEFAULT NULL,
+    p_advance_versions INT [] DEFAULT NULL
 )
 RETURNS TABLE (
     action SMALLINT,
@@ -1854,8 +1855,9 @@ BEGIN
                     NULL,
                     js.name
                 FROM acta.schedules js
-                JOIN unnest(p_advance_schedule_ids) AS a (schedule_id) ON a.schedule_id = js.id
-                WHERE js.status_code = 30 /* ScheduleStatusCode.Paused */
+                JOIN unnest(p_advance_schedule_ids, p_advance_versions) AS a (schedule_id, expected_version) ON a.schedule_id = js.id
+                WHERE (a.expected_version IS NULL OR js.version = a.expected_version)
+                  AND js.status_code = 30 /* ScheduleStatusCode.Paused */
                   AND js.paused_until_utc IS NOT NULL
                   AND js.paused_until_utc <= now();
             END IF;
@@ -1871,8 +1873,11 @@ BEGIN
             -- An operator pause inside the fire window wins: the advance was planned before the pause
             -- existed. Only an elapsed TIMED pause auto-resumes here, and the audit insert above shares
             -- this predicate so the event and the write cannot disagree.
-            FROM unnest(p_advance_schedule_ids, p_advance_next_runs) AS adv (schedule_id, next_run)
+            FROM unnest(p_advance_schedule_ids, p_advance_next_runs, p_advance_versions) AS adv (schedule_id, next_run, expected_version)
             WHERE js.id = adv.schedule_id
+              -- Edited while this attempt ran: the plan is older than the row, and the edit wins. NULL is a
+              -- caller from before the guard, applied as before.
+              AND (adv.expected_version IS NULL OR js.version = adv.expected_version)
               -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
               AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
               AND (
@@ -2238,6 +2243,13 @@ BEGIN
     RETURN QUERY SELECT CAST(1 /* CompleteExecutionAction.Completed */ AS SMALLINT), v_to_status, v_next_run, now(), v_parent_released;
 END;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload, not a replacement: drop the signature without
+-- p_advance_versions so a caller from before the guard resolves to this body with them NULL.
+DROP FUNCTION IF EXISTS acta.complete_execution(
+    BIGINT, INT, INT, SMALLINT, VARCHAR, SMALLINT, BYTEA, BOOLEAN, INT, SMALLINT, INT, TIMESTAMPTZ, VARCHAR,
+    SMALLINT, INT, SMALLINT, TIMESTAMPTZ, SMALLINT, INT, BIGINT [], TIMESTAMPTZ []
+);
 
 CREATE OR REPLACE FUNCTION acta.complete_executions_batch(
     p_b_ordinal INT [],

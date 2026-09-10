@@ -9,7 +9,8 @@ SELECT
     t.status_code,
     t.paused_until_utc,
     t.expression AS base_expression,
-    t.time_zone_id AS base_time_zone
+    t.time_zone_id AS base_time_zone,
+    t.version
 FROM {{schema}}.schedules t
 WHERE
     t.job_id = @p_job_id

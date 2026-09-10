@@ -1113,14 +1113,15 @@
   - `Acta.Runtime.Modules.Execution.IExecutionStore.RepairRecoverySlotAsync`
 
 ### Completing an in-flight attempt respects schedule changes made while it ran
-- **Contract:** A recurring completion never advances or reactivates an orphaned schedule, and derives the slot's status and next run from the schedules current at completion.
-- **Arrange:** A slot is leased in flight, then its schedules are removed, partly removed, or extended by a re-registration, as a deployment does.
+- **Contract:** A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion.
+- **Arrange:** A slot is leased in flight, then its schedules are removed, partly removed, extended by a re-registration, or one of them is edited.
 - **Act:** The attempt completes with the advances it planned before the handler ran.
-- **Assert:** Orphaned schedules stay orphaned, the slot pauses when nothing survives or re-arms at the earliest surviving cursor, and the events and result row match it.
+- **Assert:** Orphaned schedules stay orphaned, an edited one keeps its edit, the slot re-arms from the schedules as they stand, and the events and result row match it.
 - **Guarantees:**
   - Removing the last schedule during execution: completion leaves it orphaned and pauses the slot
   - Removing the earliest of several schedules: completion re-arms at the earliest survivor
   - Adding a schedule during execution: its cursor takes part in the slot's next run
+  - Editing a schedule during execution: completion keeps the edit and refuses its stale advance
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
 

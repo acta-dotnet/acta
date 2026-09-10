@@ -1,3 +1,4 @@
+using Acta.Relational.Commands;
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Schedules;
@@ -18,10 +19,10 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "execution.schedules-changed-during-execution",
     "Completing an in-flight attempt respects schedule changes made while it ran",
     Area = "Execution",
-    Contract = "A recurring completion never advances or reactivates an orphaned schedule, and derives the slot's status and next run from the schedules current at completion.",
-    Arrange = "A slot is leased in flight, then its schedules are removed, partly removed, or extended by a re-registration, as a deployment does.",
+    Contract = "A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion.",
+    Arrange = "A slot is leased in flight, then its schedules are removed, partly removed, extended by a re-registration, or one of them is edited.",
     Act = "The attempt completes with the advances it planned before the handler ran.",
-    Assert = "Orphaned schedules stay orphaned, the slot pauses when nothing survives or re-arms at the earliest surviving cursor, and the events and result row match it."
+    Assert = "Orphaned schedules stay orphaned, an edited one keeps its edit, the slot re-arms from the schedules as they stand, and the events and result row match it."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class SchedulesChangedDuringExecutionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -159,7 +160,7 @@ public abstract class SchedulesChangedDuringExecutionSpec<TFixture> : ActaRuntim
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(existingRow.Id, existingNext)],
+            [new ScheduleAdvance(existingRow.Id, existingNext, existingRow.Version)],
             JobStatusCode.Ready,
             existingNext,
             ct
@@ -172,6 +173,56 @@ public abstract class SchedulesChangedDuringExecutionSpec<TFixture> : ActaRuntim
         Assert.Equal(added, runtime.NextRunAtUtc);
         await AssertRolledOverAsync(slotId, ct);
     }
+
+    [Fact(DisplayName = "Editing a schedule during execution: completion keeps the edit and refuses its stale advance")]
+    public async Task Schedule_edited_during_execution_keeps_the_edit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobName = $"changed-edited-{Guid.NewGuid():N}";
+        var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
+        var edited = FloorSeconds(DateTime.UtcNow.AddHours(2));
+
+        var defId = await CreateDefinitionAsync(jobName, ct);
+        await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
+        var slotId = await SlotIdAsync(jobName, ct);
+        var read = Assert.Single(await SchedulesAsync(slotId, ct));
+
+        var workerId = await LeaseInFlightAsync(slotId, ct);
+
+        // An operator moves the cursor while the attempt runs; every edit verb bumps the version.
+        await EditCursorAsync(read.Id, edited, ct);
+
+        // The plan was made against the version read before the edit.
+        var plannedNext = cursor.AddMinutes(5);
+        var result = await CompleteAsync(
+            slotId,
+            workerId,
+            [new ScheduleAdvance(read.Id, plannedNext, read.Version)],
+            JobStatusCode.Ready,
+            plannedNext,
+            ct
+        );
+
+        var after = Assert.Single(await SchedulesAsync(slotId, ct));
+        Assert.Equal(edited, after.NextRunAtUtc);
+        Assert.Equal(read.Version + 1, after.Version);
+        Assert.Equal(ScheduleStatusCode.Active, after.Status);
+
+        // The slot re-arms from the schedule as it stands, and the result row says so.
+        var runtime = await RuntimeAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, runtime.Status);
+        Assert.Equal(edited, runtime.NextRunAtUtc);
+        Assert.Equal(edited, result.FinalNextRunAtUtc);
+    }
+
+    /// <summary>An operator edit as the verbs leave it: a new cursor, a new version, a new modified stamp.</summary>
+    private Task EditCursorAsync(long scheduleId, DateTime nextRunAtUtc, CancellationToken ct) =>
+        Db.ExecuteRawAsync(
+            "UPDATE {schema}.schedules SET next_run_at_utc = @p_next, modified_at_utc = @p_next, version = version + 1 WHERE id = @p_id",
+            ct,
+            ("@p_next", DbValueCoercion.Coerce(nextRunAtUtc, typeof(DateTime), Db.Provider)),
+            ("@p_id", scheduleId)
+        );
 
     /// <summary>The audit trail of a re-armed slot: one finished and one rolled-over event, both saying Ready.</summary>
     private async Task AssertRolledOverAsync(long slotId, CancellationToken ct)

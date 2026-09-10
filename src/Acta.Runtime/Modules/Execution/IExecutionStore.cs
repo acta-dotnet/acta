@@ -50,8 +50,10 @@ internal interface IExecutionStore
     /// <para>A recurring rollover applies the cursor advances planned before the handler ran, then reads
     /// the slot's next state from the schedules as they stand now: a schedule the deployment orphaned
     /// while the attempt ran is never advanced or reactivated, and the slot lands Ready at the earliest
-    /// surviving cursor or Paused when none survives. The rollover event carries that derived status,
-    /// so the audit row and the runtime row cannot disagree.</para>
+    /// surviving cursor or Paused when none survives. An advance is applied only if the schedule still
+    /// carries the version the plan read, so an edit made during the attempt keeps its cursor. The
+    /// rollover event carries that derived status, so the audit row and the runtime row cannot
+    /// disagree.</para>
     /// </summary>
     Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct);
 
