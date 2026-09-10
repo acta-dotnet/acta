@@ -1096,6 +1096,33 @@
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
 
+### A stranded recovery slot is repaired under a guard by any worker
+- **Contract:** A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.
+- **Arrange:** The namespace's sys.recovery slot is put in flight under a lease that is live or lapsed, or its row is absent.
+- **Act:** The check runs, two repairs race on one lapsed slot, and the worker runtime initializes over a lapsed one.
+- **Assert:** A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a missing row is reported, and initialize re-arms.
+- **Guarantees:**
+  - A recovery slot in flight under a live lease is left alone
+  - A recovery slot in flight under a lapsed lease is re-armed once, with the lost attempt recorded
+  - A slot claimed but not yet started when its worker died is recorded as lost from Dispatched
+  - Two workers repairing the same lapsed slot at once commit one repair and one event
+  - A recovery slot whose row is gone is reported missing and never recreated
+  - A worker starting over a lapsed recovery slot re-arms it before the catalog is read
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.RepairRecoverySlotAsync`
+
+### Completing an in-flight attempt respects schedule changes made while it ran
+- **Contract:** A recurring completion never advances or reactivates an orphaned schedule, and derives the slot's status and next run from the schedules current at completion.
+- **Arrange:** A slot is leased in flight, then its schedules are removed, partly removed, or extended by a re-registration, as a deployment does.
+- **Act:** The attempt completes with the advances it planned before the handler ran.
+- **Assert:** Orphaned schedules stay orphaned, the slot pauses when nothing survives or re-arms at the earliest surviving cursor, and the events and result row match it.
+- **Guarantees:**
+  - Removing the last schedule during execution: completion leaves it orphaned and pauses the slot
+  - Removing the earliest of several schedules: completion re-arms at the earliest survivor
+  - Adding a schedule during execution: its cursor takes part in the slot's next run
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+
 ### Heartbeat extends a live lease and stamps last_seen
 - **Contract:** The heartbeat pushes a live lease further out and advances the worker's last_seen without bumping the runtime version, and a reclaim sweep leaves it claimed.
 - **Arrange:** A job is enqueued and claimed by a worker so a live lease exists at the default TTL.
@@ -2174,7 +2201,6 @@
 - **Assert:** The in-flight slot keeps its status, lease, and cursor, while the schedule row still takes the new declaration.
 - **Guarantees:**
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
-  - Initialize reclaims a slot stranded by a dead worker, so the recovery slot is never the one left stuck
   - Re-registering an idle slot re-asserts the declared cursor and status
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
@@ -2569,13 +2595,14 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
 | `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, drains the backlog, and reports the empty horizon<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
 | `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
-| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
+| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget |
 | `IExecutionStore.RecordJobNoteAsync` | A handler writes application-authored notes onto the job's own timeline |
+| `IExecutionStore.RepairRecoverySlotAsync` | A stranded recovery slot is repaired under a guard by any worker |
 | `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IJobStore.CancelJobAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
@@ -2710,6 +2737,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Namespaces/UpdateNamespace` | yes | yes | yes |
 | `Execution/Notes/RecordJobNote` | yes | yes | yes |
 | `Execution/ReclaimStuckJobs` | yes | yes | yes |
+| `Execution/RepairRecoverySlot` | yes | yes | yes |
 | `Execution/Schedules/GetLiveSchedules` | yes | yes | yes |
 | `Execution/Schedules/GetScheduleState` | yes | yes | yes |
 | `Execution/Schedules/ListJobSchedules` | yes | yes | yes |

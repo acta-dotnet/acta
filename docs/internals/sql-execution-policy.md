@@ -4,9 +4,10 @@ PostgreSQL and SQL Server execute Acta ledger mutations through atomic routines;
 SQL and installed views; SQLite implements the same store contracts with transactional inline SQL.
 
 This is the rc.2 execution policy referenced by [the design decisions](design.md). The server
-providers each install 56 routines: the existing 54 mutation operations plus `UpdateAlertDelivery`
-and `ResolveJobAlerts`. Hot paths, control operations, catalog registration, and maintenance all
-follow the same rule. Routine placement is a compatibility decision, not an inference from SQL size.
+providers each install 57 routines: the existing 54 mutation operations plus `UpdateAlertDelivery`,
+`ResolveJobAlerts`, and `RepairRecoverySlot`. Hot paths, control operations, catalog registration,
+recovery, and maintenance all follow the same rule. Routine placement is a compatibility decision,
+not an inference from SQL size.
 
 ## Resources and execution
 

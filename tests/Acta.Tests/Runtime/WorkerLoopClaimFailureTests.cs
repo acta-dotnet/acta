@@ -183,6 +183,9 @@ public sealed class WorkerLoopClaimFailureTests
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
             throw new NotSupportedException();
 

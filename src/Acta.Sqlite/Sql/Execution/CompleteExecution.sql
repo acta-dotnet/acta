@@ -166,10 +166,33 @@ WHERE
     AND id IN (SELECT json_extract(a.value, '$.schedule_id') FROM json_each(@p_schedule_advances) a)
     -- An operator pause inside the fire window wins; only an elapsed TIMED pause auto-resumes here.
     -- Same predicate as the audit insert above, so the two cannot disagree.
+    -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
+    AND status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND (
         status_code <> 30 /* ScheduleStatusCode.Paused */
         OR (paused_until_utc IS NOT NULL AND paused_until_utc <= {{now}})
     );
+
+-- The slot's next state is read from the schedules as they stand now, not from the plan made before
+-- the handler ran; see IExecutionStore.CompleteExecutionAsync.
+UPDATE {{schema}}.runtimes
+SET
+    status_code = CASE WHEN (SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
+        FROM {{schema}}.schedules js
+        WHERE js.job_id = @p_id AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */) IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END,
+    next_run_at_utc = (SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
+        FROM {{schema}}.schedules js
+        WHERE js.job_id = @p_id AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */)
+WHERE
+    job_id = @p_id
+    AND @p_final_status IS NOT NULL
+    AND EXISTS (SELECT 1 FROM _ce_done);
+
+-- The decision row is what every event below reports; it takes the derived state so the finished
+-- and rollover events say what the runtime row says.
+UPDATE _ce_done
+SET to_status = (SELECT status_code FROM {{schema}}.runtimes WHERE job_id = @p_id)
+WHERE @p_final_status IS NOT NULL;
 
 DELETE FROM {{schema}}.results
 WHERE
@@ -255,7 +278,7 @@ INSERT INTO {{schema}}.events (
     reason_code,
     reason_message)
 SELECT
-    CASE WHEN @p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */ ELSE 71 /* EventCode.JobPaused */ END,
+    CASE WHEN d.to_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */ ELSE 71 /* EventCode.JobPaused */ END,
     {{now}},
     d.namespace_id,
     70 /* ActorCode.Worker */,
@@ -528,7 +551,8 @@ SELECT
         ELSE 3 /* CompleteExecutionAction.AlreadyTerminal */
     END AS action,
     CASE
-        WHEN EXISTS (SELECT 1 FROM _ce_done) THEN (SELECT to_status FROM _ce_done)
+        -- The live row, not the plan: a recurring rollover may have derived a different status.
+        WHEN EXISTS (SELECT 1 FROM _ce_done) THEN (SELECT status_code FROM {{schema}}.runtimes WHERE job_id = @p_id)
         ELSE (SELECT cur_status FROM _ce_pre)
     END AS final_status_code,
     CASE

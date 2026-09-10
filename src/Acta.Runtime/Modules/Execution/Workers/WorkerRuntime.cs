@@ -37,6 +37,7 @@ internal sealed class WorkerRuntime
     private readonly WorkerHeartbeat _heartbeat;
     private readonly LockLeaseHeartbeat _lockHeartbeat;
     private readonly AttemptWatchdog _watchdog;
+    private readonly RecoverySlotMonitor _recoveryMonitor;
     private readonly DefinitionPolicyReloader _policyReloader;
 
     /// <summary>
@@ -130,6 +131,13 @@ internal sealed class WorkerRuntime
         _heartbeat = new WorkerHeartbeat(rootServices.GetRequiredService<IWorkerStore>(), options, workerRegistration, _context, logger);
         _lockHeartbeat = new LockLeaseHeartbeat(lockStore, options, workerRegistration, _context, logger);
         _watchdog = new AttemptWatchdog(options, workerRegistration, _context, logger);
+        _recoveryMonitor = new RecoverySlotMonitor(
+            rootServices.GetRequiredService<IExecutionStore>(),
+            publisher,
+            workerRegistration,
+            _context,
+            logger
+        );
         _policyReloader = new DefinitionPolicyReloader(
             rootServices.GetRequiredService<IDefinitionStore>(),
             options,
@@ -193,6 +201,7 @@ internal sealed class WorkerRuntime
             _heartbeat.RunAsync(ct),
             _lockHeartbeat.RunAsync(ct),
             _watchdog.RunAsync(ct),
+            _recoveryMonitor.RunAsync(ct),
             _policyReloader.RunAsync(ct)
         );
     }

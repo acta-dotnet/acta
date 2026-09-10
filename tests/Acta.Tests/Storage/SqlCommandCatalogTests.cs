@@ -10,7 +10,7 @@ namespace Acta.Tests.Storage;
 public sealed class SqlCommandCatalogTests
 {
     [Fact]
-    public void Server_ledgers_have_56_matching_routines_and_sqlite_uses_inline_commands()
+    public void Server_ledgers_have_57_matching_routines_and_sqlite_uses_inline_commands()
     {
         Assembly[] servers = [typeof(PostgresProviderOptions).Assembly, typeof(SqlServerProviderOptions).Assembly];
         var sqlite = new SqlResourceCatalog(typeof(SqliteProviderOptions).Assembly, "acta");
@@ -18,7 +18,7 @@ public sealed class SqlCommandCatalogTests
         foreach (var assembly in servers)
         {
             var catalog = new SqlResourceCatalog(assembly, "acta");
-            Assert.Equal(56, catalog.Routines().Count());
+            Assert.Equal(57, catalog.Routines().Count());
             var prefix = assembly.GetName().Name + ".Sql.";
             foreach (var resource in assembly.GetManifestResourceNames().Where(n => n.EndsWith(".routine.sql", StringComparison.Ordinal)))
             {

@@ -67,38 +67,6 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(secondCursor, schedule.NextRunAtUtc);
     }
 
-    [Fact(DisplayName = "Initialize reclaims a slot stranded by a dead worker, so the recovery slot is never the one left stuck")]
-    public async Task Initialize_reclaims_a_stranded_slot()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        // The manifest's own recurring slot, so re-registration re-asserts it rather than orphan-sweeping
-        // it the way it would an undeclared one.
-        var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping"), ct);
-        Assert.NotNull(slotId);
-
-        // A worker claimed the slot and was killed: the row still reads Executing, but its lease lapsed
-        // and nothing is running behind it. sys.recovery is itself a slot and the only caller of the
-        // reclaim sweep, so when it is the stranded one no sweep can free it. Initialize runs the sweep
-        // directly, which is what stops a crash from taking a namespace's recovery down with it.
-        await LeaseInFlightAsync(Db, slotId!.Value, DateTime.UtcNow.AddMinutes(-5), ct);
-
-        await Runtime.InitializeAsync(ct);
-
-        var slot = await ReadJobAsync(slotId!.Value, ct);
-        Assert.Equal(JobStatusCode.Ready, slot.Status);
-
-        var runtime = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId!.Value).ToListAsync(ct));
-        Assert.Null(runtime.LeasedByWorkerId);
-
-        // The sweep accounts for what it frees: the lost attempt gets its finished event, which a bare
-        // status flip would have left unpaired in the ledger forever.
-        var finished = await Db.From<JobEvent>()
-            .Where(e => e.JobId == slotId!.Value && e.EventCode == EventCode.JobExecutionFinished)
-            .ToListAsync(ct);
-        Assert.NotEmpty(finished);
-    }
-
     [Fact(DisplayName = "Re-registering an idle slot re-asserts the declared cursor and status")]
     public async Task Re_registering_an_idle_slot_re_asserts_the_declaration()
     {

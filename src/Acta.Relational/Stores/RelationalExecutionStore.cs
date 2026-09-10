@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
@@ -240,6 +241,23 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
         );
 
         return ReclaimResultMapper.Map(rows);
+    }
+
+    public async Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct)
+    {
+        var rows = await session.ExecuteAsync(
+            new StoreCommand("Execution", "RepairRecoverySlot"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(new DbParameterSpec("p_job_id", jobId, DbKind.Int64)));
+            },
+            // Widened through Convert: SQLite hands every integer back as Int64.
+            static reader =>
+                (RecoverySlotRepair)Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+            ct
+        );
+        return rows.Count == 0 ? RecoverySlotRepair.Missing : rows[0];
     }
 
     public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>

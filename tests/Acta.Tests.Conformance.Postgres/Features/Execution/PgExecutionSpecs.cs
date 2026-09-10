@@ -14,3 +14,7 @@ public sealed class PgReclaimStuckJobsSpec : ReclaimStuckJobsSpec<PgConformanceF
 public sealed class PgStartExecutionStaleVersionSpec : StartExecutionStaleVersionSpec<PgConformanceFixture>;
 
 public sealed class PgWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<PgConformanceFixture>;
+
+public sealed class PgSchedulesChangedDuringExecutionSpec : SchedulesChangedDuringExecutionSpec<PgConformanceFixture>;
+
+public sealed class PgRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<PgConformanceFixture>;

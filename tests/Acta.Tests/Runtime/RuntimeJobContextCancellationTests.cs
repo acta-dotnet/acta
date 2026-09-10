@@ -175,6 +175,9 @@ public sealed class RuntimeJobContextCancellationTests
 
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
+
+        public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 
     private sealed class ThrowingSerializerRegistry : IJobPayloadSerializerRegistry

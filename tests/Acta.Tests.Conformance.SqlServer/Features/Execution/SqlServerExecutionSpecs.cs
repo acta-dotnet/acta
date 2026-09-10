@@ -14,3 +14,7 @@ public sealed class SqlServerReclaimStuckJobsSpec : ReclaimStuckJobsSpec<SqlServ
 public sealed class SqlServerStartExecutionStaleVersionSpec : StartExecutionStaleVersionSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerSchedulesChangedDuringExecutionSpec : SchedulesChangedDuringExecutionSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<SqlServerConformanceFixture>;

@@ -172,14 +172,6 @@ internal sealed class WorkerRuntimeInitializer(
 
         var namespaceId = _context.NamespaceIds[ns];
 
-        // Free what a dead worker left in flight, before anything else reads the catalog. The sweep
-        // normally runs from the sys.recovery slot, and that slot is an ordinary job a worker can die
-        // holding; the sweep that would free it is then the one that never runs, and everything
-        // stranded from then on queues behind it. Calling the sweep here does not go through the slot, so a host
-        // start is the way out. Its FailedChildren are left to the slot's own stale-latch backstop,
-        // which runs within the minute now that the slot is free again.
-        await _execution.ReclaimStuckJobsAsync(namespaceId, ct);
-
         var perNamespaceDefIds = new Dictionary<string, int>(StringComparer.Ordinal);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
@@ -492,6 +484,29 @@ internal sealed class WorkerRuntimeInitializer(
         foreach (var slot in slots)
         {
             _context.RecurringSlotJobIds.Add(slot.SlotId);
+        }
+
+        // The recovery monitor watches exactly this row for the life of the worker, and the first
+        // check runs here, ahead of any periodic one: a slot a dead worker left in flight under a
+        // lapsed lease is re-armed at startup instead of waiting out a check interval. See
+        // RecoverySlotMonitor.
+        var recoveryDefinitionId = definitions.FirstOrDefault(d => d.JobName == "sys.recovery")?.DefinitionId;
+        if (
+            recoveryDefinitionId is { } recoveryDefId
+            && slots.Where(s => s.DefinitionId == recoveryDefId).Select(s => (long?)s.SlotId).FirstOrDefault() is { } recoverySlotId
+        )
+        {
+            _context.RecoverySlotJobIdByNamespace[namespaceId] = recoverySlotId;
+            var namespaceName = _context.NamespaceIds.First(kv => kv.Value == namespaceId).Key;
+            await RecoverySlotMonitor.CheckAndRepairAsync(
+                _execution,
+                publisher: null,
+                namespaceId,
+                namespaceName,
+                recoverySlotId,
+                _log,
+                ct
+            );
         }
     }
 

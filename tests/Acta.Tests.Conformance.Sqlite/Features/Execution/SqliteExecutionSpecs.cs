@@ -14,3 +14,7 @@ public sealed class SqliteReclaimStuckJobsSpec : ReclaimStuckJobsSpec<SqliteConf
 public sealed class SqliteStartExecutionStaleVersionSpec : StartExecutionStaleVersionSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteSchedulesChangedDuringExecutionSpec : SchedulesChangedDuringExecutionSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<SqliteConformanceFixture>;

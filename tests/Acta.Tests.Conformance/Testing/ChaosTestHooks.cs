@@ -125,6 +125,9 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
     public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
         inner.ReclaimStuckJobsAsync(namespaceId, ct);
 
+    public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
+        inner.RepairRecoverySlotAsync(namespaceId, jobId, ct);
+
     public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
         inner.StartStepAsync(jobId, name, atMostOnce, ct);
 

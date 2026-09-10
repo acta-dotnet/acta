@@ -289,6 +289,9 @@ internal sealed class JobExecutionHarness(
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
             throw new NotSupportedException();
 

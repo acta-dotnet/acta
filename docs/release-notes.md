@@ -9,8 +9,8 @@ guarantee the docs already claimed actually hold on every provider.
 
 ### What a consumer must change
 
-**Server ledger mutations are stored routines on both server providers**, 56 per provider, now
-including alert delivery and automatic resolution. Reads remain embedded SQL and installed views
+**Server ledger mutations are stored routines on both server providers**, 57 per provider, now
+including alert delivery, automatic resolution, and the recovery-slot repair. Reads remain embedded SQL and installed views
 remain queryable. Resource discovery selects execution without a provider-wide routine flag. SQL
 Server operations own one transaction or join the caller's; retention commits one bounded batch per
 invocation, with sweep iteration in the runtime. Client-side mapping and disposal failures cannot
@@ -79,12 +79,21 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
 - **A crash can no longer take a namespace's recovery down with it.** The reclaim sweep, which returns
   a job whose lease lapsed to `Ready`, ran only from the `sys.recovery` recurring slot, and that slot
   is an ordinary job a worker can die holding. The sweep that would have freed it was then the one
-  that never ran, and every later stranded job queued behind it. A starting worker now runs the sweep
-  directly, before it touches the catalog, which does not go through the slot and so frees it. The
-  sweep is unchanged and still accounts for what it frees, giving each lost attempt its finished event
-  and its charge; it already takes rows with `SKIP LOCKED` / `READPAST`, so simultaneous starts claim
-  disjoint sets rather than double-charging. See
-  [known limitations](technical/known-limitations.md) for the case that remains.
+  that never ran, and every later stranded job queued behind it. Every worker now watches that
+  one slot, with one guarded statement at startup and once an hour after, that re-arms it only if
+  it is in flight on a lapsed lease. The guard reads the lease against database time inside the
+  statement, so simultaneous checks commit one repair and one event between them, and a heartbeat
+  that renewed the lease is never overtaken. Normal claiming then decides which worker runs the sweep; no worker sweeps the
+  namespace on its own. See [known limitations](technical/known-limitations.md) for the delay this
+  bounds.
+- **Finishing an in-flight attempt can no longer resurrect a removed schedule.** A recurring slot
+  plans its cursor advances before the handler runs and applies them at completion. If a deployment
+  orphaned one of those schedules in between, completion advanced it anyway and set it back to
+  Active, so a schedule that had been removed carried on firing; and the slot itself was re-armed
+  from the stale plan, so it ran once more even when every schedule was gone. Completion now leaves
+  an orphaned schedule alone and reads the slot's next state from the schedules as they stand: Ready
+  at the earliest surviving cursor, or Paused when none survives. A schedule added during the
+  attempt takes part in that read. The rollover event carries the same derived status as the row.
 - **Fractional windows round up, not down.** `WorkerRetention` and `WorkerDeadAfter` were floored
   to whole seconds: retention could delete up to a second before the configured instant, and a live
   worker could be tombstoned up to a second early.

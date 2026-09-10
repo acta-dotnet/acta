@@ -849,3 +849,9 @@ dotnet_diagnostic.CA1875.severity = none
 [tests/Acta.Tests.TestJobs/JobVariableProbes.cs]
 dotnet_diagnostic.CA1819.severity = none
 dotnet_diagnostic.CA1820.severity = none
+
+# CA1031: one catch on the recovery-slot monitor loop. A failed check must cost one interval: escaping
+# would end the loop, and this loop is the only path that can free a stranded sys.recovery slot
+# outside a worker start, so a namespace would be left with no repair while the fleet kept running.
+[src/Acta.Runtime/Modules/Execution/Workers/RecoverySlotMonitor.cs]
+dotnet_diagnostic.CA1031.severity = none

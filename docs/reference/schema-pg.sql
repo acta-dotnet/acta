@@ -1711,6 +1711,7 @@ DECLARE
     v_sig_state SMALLINT;
     v_sig_due TIMESTAMPTZ;
     v_to_status SMALLINT;
+    v_slot_wake TIMESTAMPTZ;
     v_ns INT;
     v_lineage BIGINT;
     v_def INT;
@@ -1872,11 +1873,30 @@ BEGIN
             -- this predicate so the event and the write cannot disagree.
             FROM unnest(p_advance_schedule_ids, p_advance_next_runs) AS adv (schedule_id, next_run)
             WHERE js.id = adv.schedule_id
+              -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
+              AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
               AND (
                   js.status_code <> 30 /* ScheduleStatusCode.Paused */
                   OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= now())
               );
         END IF;
+
+        -- The slot's next state is read from the schedules as they stand now, not from the plan made
+        -- before the handler ran; see IExecutionStore.CompleteExecutionAsync.
+        SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
+        INTO v_slot_wake
+        FROM acta.schedules js
+        WHERE js.job_id = p_id
+          AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
+
+        v_to_status := CASE WHEN v_slot_wake IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END;
+        v_next_run := v_slot_wake;
+
+        UPDATE acta.runtimes r
+        SET
+            status_code = v_to_status,
+            next_run_at_utc = v_slot_wake
+        WHERE r.job_id = p_id;
 
         IF p_recurring_result_cap > 0 THEN
             DELETE FROM acta.results r
@@ -1962,7 +1982,7 @@ BEGIN
             reason_message)
         VALUES (
             CASE
-                WHEN p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
+                WHEN v_to_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
                 ELSE 71 /* EventCode.JobPaused */
             END,
             now(),
@@ -4802,6 +4822,89 @@ BEGIN
     SELECT r.id, r.new_status, r.job_parent_id
     FROM reclaimed r;
 END;
+$$;
+
+-- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
+CREATE OR REPLACE FUNCTION acta.repair_recovery_slot(
+    p_namespace_id INT,
+    p_job_id BIGINT
+)
+RETURNS TABLE (outcome INT)
+LANGUAGE sql
+AS $$
+WITH target AS (
+    -- Locked and read before the update so the event can say which in-flight state the slot was in.
+    SELECT r.job_id, r.execution_number, r.status_code AS from_status
+    FROM acta.runtimes r
+    WHERE
+        r.job_id = p_job_id
+        AND r.namespace_id = p_namespace_id
+        AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        AND r.lease_expires_at_utc IS NOT NULL
+        AND r.lease_expires_at_utc < now()
+    FOR UPDATE
+),
+repaired AS (
+    UPDATE acta.runtimes r
+    SET
+        status_code = 10 /* JobStatusCode.Ready */,
+        next_run_at_utc = now(),
+        failure_count = LEAST(r.failure_count + 1, 32767),
+        leased_by_worker_id = NULL,
+        lease_expires_at_utc = NULL,
+        modified_at_utc = now(),
+        version = r.version + 1
+    FROM target t
+    WHERE r.job_id = t.job_id
+    RETURNING r.job_id, t.execution_number, t.from_status
+),
+event_insert AS (
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    SELECT
+        41 /* EventCode.JobExecutionFinished */,
+        now(),
+        j.namespace_id,
+        10 /* ActorCode.Sys */,
+        NULL,
+        j.id,
+        j.job_ref,
+        x.execution_number,
+        COALESCE(j.lineage_root_id, j.id),
+        j.definition_id,
+        j.tenant_id,
+        NULL,
+        x.from_status,
+        10 /* JobStatusCode.Ready */,
+        230 /* ExecutionStatusCode.Orphaned */,
+        NULL,
+        21 /* JobEventReasonCode.JobLeaseExpired */,
+        'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
+    FROM repaired x
+    JOIN acta.jobs j ON j.id = x.job_id
+    RETURNING 1
+)
+SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RecoverySlotRepair.Repaired */
+    WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
+    ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.pause_schedule(

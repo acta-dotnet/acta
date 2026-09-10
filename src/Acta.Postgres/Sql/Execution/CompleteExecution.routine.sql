@@ -41,6 +41,7 @@ DECLARE
     v_sig_state SMALLINT;
     v_sig_due TIMESTAMPTZ;
     v_to_status SMALLINT;
+    v_slot_wake TIMESTAMPTZ;
     v_ns INT;
     v_lineage BIGINT;
     v_def INT;
@@ -202,11 +203,30 @@ BEGIN
             -- this predicate so the event and the write cannot disagree.
             FROM unnest(p_advance_schedule_ids, p_advance_next_runs) AS adv (schedule_id, next_run)
             WHERE js.id = adv.schedule_id
+              -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
+              AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
               AND (
                   js.status_code <> 30 /* ScheduleStatusCode.Paused */
                   OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= now())
               );
         END IF;
+
+        -- The slot's next state is read from the schedules as they stand now, not from the plan made
+        -- before the handler ran; see IExecutionStore.CompleteExecutionAsync.
+        SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
+        INTO v_slot_wake
+        FROM {{schema}}.schedules js
+        WHERE js.job_id = p_id
+          AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
+
+        v_to_status := CASE WHEN v_slot_wake IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END;
+        v_next_run := v_slot_wake;
+
+        UPDATE {{schema}}.runtimes r
+        SET
+            status_code = v_to_status,
+            next_run_at_utc = v_slot_wake
+        WHERE r.job_id = p_id;
 
         IF p_recurring_result_cap > 0 THEN
             DELETE FROM {{schema}}.results r
@@ -292,7 +312,7 @@ BEGIN
             reason_message)
         VALUES (
             CASE
-                WHEN p_final_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
+                WHEN v_to_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
                 ELSE 71 /* EventCode.JobPaused */
             END,
             now(),

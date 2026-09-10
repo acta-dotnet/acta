@@ -47,6 +47,11 @@ internal interface IExecutionStore
     /// <c>results</c> when the outcome carries bytes, inlines <c>job.execution-finished</c>, and raises
     /// the job's child-done latch on its parent. CAS-guarded on (job id, worker, execution number).
     /// Every exit path returns one row.
+    /// <para>A recurring rollover applies the cursor advances planned before the handler ran, then reads
+    /// the slot's next state from the schedules as they stand now: a schedule the deployment orphaned
+    /// while the attempt ran is never advanced or reactivated, and the slot lands Ready at the earliest
+    /// surviving cursor or Paused when none survives. The rollover event carries that derived status,
+    /// so the audit row and the runtime row cannot disagree.</para>
     /// </summary>
     Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct);
 
@@ -68,6 +73,15 @@ internal interface IExecutionStore
     /// resolves the timeout as the waiting overload defines it.</para>
     /// </summary>
     Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct);
+
+    /// <summary>
+    /// Re-arms the namespace's <c>sys.recovery</c> slot when it is in flight under a lapsed lease, in one
+    /// guarded update that records the lost attempt's finished event in the same transaction. The
+    /// guard reads the lease against database time inside the statement, so a heartbeat that renewed
+    /// it is never overtaken and two workers checking at once commit one repair between them. Reports
+    /// whether the row was missing, healthy, or repaired; a missing slot is never recreated here.
+    /// </summary>
+    Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct);
 
     /// <summary>
     /// Reads or inserts the <c>(job_id, name)</c> step slot under a job-row lock and decides
@@ -140,3 +154,11 @@ internal sealed record CheckpointSlotCommand(
 
 /// <summary>Validated sleep arm/consume; exactly one of the two due-instant inputs is set.</summary>
 internal sealed record ArmOrConsumeSleepTimerCommand(long JobId, string Name, int? DelaySeconds, DateTime? ResumeAtUtc);
+
+/// <summary>What the recovery-slot repair found: the row absent, in no need of repair, or re-armed by this call.</summary>
+internal enum RecoverySlotRepair
+{
+    Missing = 0,
+    Healthy = 1,
+    Repaired = 2,
+}

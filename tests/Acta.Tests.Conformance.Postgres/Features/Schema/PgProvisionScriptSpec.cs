@@ -88,7 +88,7 @@ public sealed partial class PgProvisionScriptSpec
             Assert.True(await reader.ReadAsync(ct));
             Assert.Equal(migrations, reader.GetInt64(0));
             Assert.Equal(0, reader.GetInt64(1));
-            Assert.Equal(56, reader.GetInt64(2));
+            Assert.Equal(57, reader.GetInt64(2));
         }
         finally
         {

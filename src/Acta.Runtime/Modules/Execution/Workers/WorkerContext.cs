@@ -39,6 +39,13 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public HashSet<long> RecurringSlotJobIds { get; } = [];
 
     /// <summary>
+    /// The <c>sys.recovery</c> slot job id per namespace this worker registered, captured at the startup
+    /// schedule upsert. The recovery monitor checks exactly this row and never recreates it: a slot an
+    /// operator removed stays removed.
+    /// </summary>
+    public ConcurrentDictionary<int, long> RecoverySlotJobIdByNamespace { get; } = new();
+
+    /// <summary>
     /// Jobs this worker is mid-execution on: job_id to the attempt's cancellation source + held
     /// locks. The dispatcher registers an entry around each attempt; the heartbeat cancels the
     /// source when extend_worker_leases reports the job left this worker's lease set (externally

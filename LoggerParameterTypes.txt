@@ -39,6 +39,9 @@ JobId;System.Int64
 # The job definition's name.
 JobName;System.String
 
+# The attempt (execution_number) a line is about, where the job alone would not say which try.
+Attempt;System.Int32
+
 # The minted entity ref the line is about, rendered - alr_..., job_..., wrk_.... Declared string rather
 # than the ref struct so a sink that serializes the property object cannot reach past ToString() and
 # store the wrapped uuid, which is the internal form no operator can read or address.
