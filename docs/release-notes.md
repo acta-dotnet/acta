@@ -142,6 +142,16 @@ statements are internal.
   unnest order. Both now lock in `job_id` order, and the buffered flush is sorted by job id before
   its ordinals are assigned, which puts SQL Server's batch completion on that order for free.
 
+What the locking work does to throughput is measured, once, on the release tree. On SQL Server the
+rc.1-era matrix does not rise with executors - Direct falls from 589 to 162 jobs/s between two and
+four executors, Bulk opens at 89 and 174 before jumping to 2,015 - because those cells compiled the
+escalating plan and others did not. All three profiles now rise monotonically, and seventeen of the
+eighteen cells are above that baseline; Buffered at 32 executors is about 2% below it. PostgreSQL
+neither gains nor needs to: it does not have the pathology, and its Bulk sweep reads 1% to 5% under
+the baseline, a dip with a plausible cause in the `job_id` sort that one round cannot separate from
+ordinary movement. [The benchmark record](benchmarks/rc2-benchmarks-20260910.md) carries the three
+matrices and says what a single round does and does not establish.
+
 ### The audit trail
 
 - **An operator's name is stored as typed.** `events.actor_key` was an ASCII column and every
