@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **226 columns**, **32 indexes**, **29 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **226 columns**, **32 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -105,7 +105,7 @@ One durable substrate slot per `(JobId, Kind, Name)` in the merged `checkpoints`
 | Name | SQL expression |
 |---|---|
 | `ck_checkpoints_value_pair` | `(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)` |
-| `ck_checkpoints_kind_shape` | `(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100))` |
+| `ck_checkpoints_kind_shape` | `(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)` |
 
 **Foreign keys**
 
@@ -390,13 +390,13 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 | `status_code`<a id="column-acta-runtimes--status-code"></a> | `Byte` | · | no | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled). |
 | `priority_code`<a id="column-acta-runtimes--priority-code"></a> | `Byte` | · | no | · | [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) (`job-priority`) | Claim-order key set from the definition policy, definition override, or per-enqueue override. |
 | `next_run_at_utc`<a id="column-acta-runtimes--next-run-at-utc"></a> | `UtcInstant` | · | yes | · | · | Next claim instant; the hot-path claim filter compares against this. On a `Suspended` row it carries the awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait unclaimable while a bounded one wakes at its deadline. |
-| `execution_number`<a id="column-acta-runtimes--execution-number"></a> | `Int32` | · | no | · | · | Monotonic-lifetime claim counter; incremented atomically on each claim. |
+| `execution_number`<a id="column-acta-runtimes--execution-number"></a> | `Int32` | · | no | · | · | Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a recurring slot claimed once a second for its whole life would take about sixty-eight years to exhaust it, and exhaustion lies outside the supported lifetime of one durable slot. The providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32 mapper rejects it on read), so the failure mode is an error, never a negative attempt number. |
 | `failure_count`<a id="column-acta-runtimes--failure-count"></a> | `Int16` | · | no | · | · | Failure counter for the current cycle, compared against `MaxAttempts` on a one-off job. A recurring slot is not terminalized for crossing that budget, so its counter keeps climbing across occurrences and every increment path saturates at `MaxValue` rather than overflowing: at the ceiling the value means "that many or more", not an exact lifetime count. |
-| `leased_by_worker_id`<a id="column-acta-runtimes--leased-by-worker-id"></a> | `Int32` | · | yes | · | · | Worker that currently holds the in-flight execution lease, if any. No FK; write-time validation in the claim routine. Paired with `LeaseExpiresAtUtc` by `ck_runtimes_lease_consistency`, and released before `Status` leaves `Dispatched` or `Executing` by `ck_runtimes_status_lease`. |
+| `leased_by_worker_id`<a id="column-acta-runtimes--leased-by-worker-id"></a> | `Int32` | · | yes | · | · | Worker that currently holds the in-flight execution lease, if any. No FK; write-time validation in the claim routine. Paired with `LeaseExpiresAtUtc` by `ck_runtimes_lease_consistency`, and bound to `Status` in both directions by `ck_runtimes_status_lease` and `ck_runtimes_inflight_leased`: set exactly while the status is `Dispatched` or `Executing`, NULL otherwise. |
 | `lease_expires_at_utc`<a id="column-acta-runtimes--lease-expires-at-utc"></a> | `UtcInstant` | · | yes | · | · | Execution lease expiry instant; the heartbeat pushes it forward without bumping `Version`, and `sys.recovery` reclaims in-flight rows past it. |
 | `retention_until_utc`<a id="column-acta-runtimes--retention-until-utc"></a> | `UtcInstant` | · | yes | · | · | When `sys.retention` deletes the owning job row (this row cascades with it). |
 | `modified_at_utc`<a id="column-acta-runtimes--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the runtime row was last updated. Set server-side on every mutation. |
-| `version`<a id="column-acta-runtimes--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token for job state transitions; operations manually increment via `SET version = version + 1` on every UPDATE. Heartbeats never bump it: a lease TTL refresh is not a claim-generation change, so a buffered claim still passes the start CAS. |
+| `version`<a id="column-acta-runtimes--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token for job state transitions; operations manually increment via `SET version = version + 1` on every UPDATE. Heartbeats never bump it: a lease TTL refresh is not a claim-generation change, so a buffered claim still passes the start CAS. Int32 is a deliberate width, and the same token type is the public `expectedVersion`. A continuously successful recurring slot firing once a second, at the normal three increments per occurrence (claim, start, complete), would take about twenty-two years to exhaust it; retries, recovery, and operator controls consume versions faster, and exhaustion lies outside the supported lifetime of one durable slot. The providers raise on overflow rather than wrap, so a token can never come back negative. |
 
 **Indexes**
 
@@ -413,6 +413,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 | `ck_runtimes_lease_consistency` | `(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)` |
 | `ck_runtimes_counters` | `execution_number >= 0 AND failure_count >= 0` |
 | `ck_runtimes_status_lease` | `status_code IN (40, 50) OR leased_by_worker_id IS NULL` |
+| `ck_runtimes_inflight_leased` | `status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL` |
 
 **Foreign keys**
 
@@ -531,10 +532,10 @@ Substrate row carrying durable retry / result state for one step slot inside a J
 | `name`<a id="column-acta-steps--name"></a> | `AsciiString` | 128 | no | · | · | Step slot name. Kebab-case ASCII. Part of the natural identity carried by `ux_steps_job_name`. |
 | `status_code`<a id="column-acta-steps--status-code"></a> | `Byte` | · | no | · | [`JobStepStatusCode`](./code-families.md#code-family-jobstepstatuscode) (`job-step-status`) | `Pending` while retrying; `Succeeded` / `Exhausted` on terminal. CHECK rejects 0. |
 | `attempt_number`<a id="column-acta-steps--attempt-number"></a> | `Int16` | · | no | · | · | Step attempt ordinal across retries (1-based; incremented on each failure within budget). |
-| `next_retry_at_utc`<a id="column-acta-steps--next-retry-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the next retry attempt is scheduled. NULL on terminal rows. |
-| `reason_code`<a id="column-acta-steps--reason-code"></a> | `Byte` | · | yes | · | [`JobEventReasonCode`](./code-families.md#code-family-jobeventreasoncode) (`job-event-reason`) | Machine-readable reason of the most recent failed attempt. NULL until first failure; preserved on terminal `Exhausted` rows so post-mortem reads always have the final failure context. |
-| `reason_message`<a id="column-acta-steps--reason-message"></a> | `UnicodeString` | 512 | yes | · | · | Free-form prose paired with `ReasonCode`. NULL until first failure; truncated by `MessageTruncator`. |
-| `result_format_id`<a id="column-acta-steps--result-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Result`; `0` means no result (void step or in-flight or exhausted). `ck_steps_result_pair` enforces `(result_format_id = 0) = (result IS NULL)`. |
+| `next_retry_at_utc`<a id="column-acta-steps--next-retry-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the next retry attempt is scheduled. `ck_steps_terminal_no_retry` keeps it NULL on terminal rows. |
+| `reason_code`<a id="column-acta-steps--reason-code"></a> | `Byte` | · | yes | · | [`JobEventReasonCode`](./code-families.md#code-family-jobeventreasoncode) (`job-event-reason`) | Machine-readable reason of the most recent failed attempt. NULL until first failure, and cleared again by a succeeding attempt; preserved on terminal `Exhausted` and `Interrupted` rows so post-mortem reads always have the final failure context. |
+| `reason_message`<a id="column-acta-steps--reason-message"></a> | `UnicodeString` | 512 | yes | · | · | Free-form prose paired with `ReasonCode` by `ck_steps_reason_pair`. NULL until first failure; truncated by `MessageTruncator`. |
+| `result_format_id`<a id="column-acta-steps--result-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Result`; `0` means no result (void step or in-flight or exhausted). `ck_steps_result_pair` enforces `(result_format_id = 0) = (result IS NULL)`, and `ck_steps_result_succeeded` admits a non-zero id only on a `Succeeded` row. |
 | `result`<a id="column-acta-steps--result"></a> | `BinaryPayload` | max | yes | · | · | Encoded step result; opaque bytes. NULL when `ResultFormatId` is 0. |
 | `created_at_utc`<a id="column-acta-steps--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | First-invocation instant; the wall-clock anchor for the `complete_step``RetryWindow` predicate (`nextRetryAtUtc > CreatedAtUtc + RetryWindow` exhausts the step). Rendered server-side via `UtcNow` on the initial INSERT and never updated thereafter. |
 | `modified_at_utc`<a id="column-acta-steps--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | Last-write instant. Advances on every `Status` transition or attempt update. |
@@ -552,6 +553,9 @@ Substrate row carrying durable retry / result state for one step slot inside a J
 |---|---|
 | `ck_steps_result_pair` | `(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)` |
 | `ck_steps_attempt_number` | `attempt_number >= 1` |
+| `ck_steps_terminal_no_retry` | `status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL` |
+| `ck_steps_result_succeeded` | `result_format_id = 0 OR status_code = 100` |
+| `ck_steps_reason_pair` | `reason_message IS NULL OR reason_code IS NOT NULL` |
 
 **Foreign keys**
 

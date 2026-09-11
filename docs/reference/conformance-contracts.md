@@ -2272,10 +2272,14 @@
   - ck_alerts_job_ref_pair and ck_alerts_occurrence_count each reject their violating INSERT
   - ux_alerts_dedupe admits one unresolved row per (namespace_id, dedupe_key) and stops filtering once it is resolved
   - ck_runtimes_counters rejects an UPDATE to a negative failure_count
+  - ck_runtimes_inflight_leased rejects Dispatched and Executing with no lease and admits a complete lease pair
   - Closed-family constraints reject unassigned values and 255
   - Consumer payload format 255 remains storable
   - ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE
   - ck_steps_attempt_number rejects an INSERT with attempt_number zero
+  - ck_steps_terminal_no_retry rejects a retry instant on every terminal status, on INSERT and on UPDATE
+  - ck_steps_result_succeeded admits a stored result only on a Succeeded row
+  - ck_steps_reason_pair rejects a reason message with no reason code, on INSERT and on UPDATE
   - ck_workers_max_concurrency rejects an INSERT with max_concurrency zero
   - runtimes and tags agree with jobs on namespace_id after EnqueueOne, EnqueueBatch, a child enqueue, and Restart
   - A recurring slot's schedule row agrees with its job on namespace_id and definition_id
@@ -2396,21 +2400,23 @@
 ### At-most-once step re-entered before completion is interrupted
 - **Contract:** AtMostOnce runs the body 0 or 1 times: a pending slot re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently.
 - **Arrange:** A durable step slot is durably started (pending, never completed) to model a worker that died mid-flight.
-- **Act:** The step is re-entered under AtMostOnce, both directly through start_step and through the runtime with the exception uncaught and caught.
-- **Assert:** start_step returns Interrupted with no second version bump, the body never re-runs, an uncaught interruption fails the parent and a caught one lets it proceed.
+- **Act:** The step is re-entered under AtMostOnce, directly through start_step (also on a slot with a due retry instant) and through the runtime, uncaught and caught.
+- **Assert:** start_step returns Interrupted with one bump and no retry instant left, the body never re-runs, an uncaught throw fails the parent while a caught one proceeds.
 - **Guarantees:**
   - A first invocation of an at-most-once step still runs the body (Invoke)
   - A pending step re-entered under at-most-once terminalizes Interrupted, version-idempotent
+  - An interrupted slot drops the due retry instant its failed attempt left behind
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
   - Caught StepInterruptedException lets the parent proceed to Succeeded
 - **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
 
 ### Nonzero backoff defers the parent to the retry instant and re-invokes the body
 - **Contract:** A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant.
 - **Arrange:** A deferred-retry step that fails once then succeeds is registered with MaxAttempts 3 and a 30s initial backoff.
 - **Act:** The job runs, is re-run before the retry instant, and runs again after the clock advances to it.
-- **Assert:** The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Succeeded.
+- **Assert:** The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Succeeded, reason gone.
 - **Guarantees:**
   - After a step failure with nonzero backoff the parent is Ready at the retry instant and NothingClaimed before it
   - At the retry instant the step body is re-invoked on attempt 2 and the parent completes Succeeded
@@ -2628,7 +2634,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
 | `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler in this deployment is handed back, not stranded<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
-| `IExecutionStore.CompleteStepAsync` | Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
+| `IExecutionStore.CompleteStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes |
 | `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget |

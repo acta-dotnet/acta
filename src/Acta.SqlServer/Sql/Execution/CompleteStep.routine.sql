@@ -40,6 +40,10 @@ BEGIN
                     result_format_id = @p_result_format_id,
                     result = @p_result,
                     next_retry_at_utc = NULL,
+                    /* A success supersedes any earlier failed attempt, so the row must not keep that attempt's
+                       reason: a Succeeded row with a reason reads as a failure to every post-mortem query. */
+                    reason_code = NULL,
+                    reason_message = NULL,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND name = @p_name AND version = @p_version;

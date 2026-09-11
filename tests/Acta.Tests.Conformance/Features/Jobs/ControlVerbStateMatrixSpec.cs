@@ -216,12 +216,7 @@ public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase
         new(new JobControlActor(ActorCode.Operator, "test"), JobEventReasonCode.JobControlManual, reason);
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status WHERE job_id = @p_id",
-            ct,
-            ("@p_status", statusCode),
-            ("@p_id", jobId)
-        );
+        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 
     private static Task SetFailureCountAsync(IDbSession db, long jobId, short count, CancellationToken ct) =>
         db.ExecuteRawAsync(

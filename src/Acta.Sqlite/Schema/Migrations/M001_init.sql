@@ -246,6 +246,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     , CONSTRAINT ck_runtimes_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
     , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
+    , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
@@ -328,6 +329,9 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
+    , CONSTRAINT ck_steps_terminal_no_retry CHECK (status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
+    , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR status_code = 100)
+    , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
     , CONSTRAINT ck_steps_status_code CHECK (status_code IN (10, 100, 200, 230))
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
@@ -404,7 +408,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100)))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
     , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
     , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 30, 100))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
@@ -413,7 +417,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-f31af964f50a97421ff814fa8d69a57c', '{{schema}}')
+VALUES (0, 'baseline-8b9f74b1c959e09d87eb4193967d0642', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

@@ -97,6 +97,7 @@ BEGIN
                 UPDATE {{schema}}.steps
                 SET
                     status_code = 230 /* JobStepStatusCode.Interrupted */,
+                    next_retry_at_utc = NULL,
                     reason_code = 63 /* JobEventReasonCode.JobStepInterrupted */,
                     reason_message = N'At-most-once step re-entered before completion; outcome unknown.',
                     modified_at_utc = @now,

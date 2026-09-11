@@ -200,10 +200,5 @@ public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixtur
     }
 
     private Task SetJobStatusAsync(long jobId, byte statusCode, CancellationToken ct) =>
-        Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status WHERE job_id = @p_id",
-            ct,
-            ("@p_status", statusCode),
-            ("@p_id", jobId)
-        );
+        RuntimeStateStaging.SetStatusAsync(Db, jobId, statusCode, ct);
 }

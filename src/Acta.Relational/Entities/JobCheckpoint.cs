@@ -34,7 +34,7 @@ namespace Acta.Relational.Entities;
     Name = "ck_checkpoints_kind_shape",
     Sql = "(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL)"
         + " OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30))"
-        + " OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100))"
+        + " OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)"
 )]
 internal sealed class JobCheckpoint : IEntity
 {

@@ -5,6 +5,7 @@ UPDATE {{schema}}.steps
 SET
     status_code = CASE WHEN @p_at_most_once THEN 230 /* JobStepStatusCode.Interrupted */ ELSE status_code END,
     attempt_number = attempt_number + CASE WHEN @p_at_most_once THEN 0 ELSE 1 END,
+    next_retry_at_utc = CASE WHEN @p_at_most_once THEN NULL ELSE next_retry_at_utc END,
     reason_code = CASE WHEN @p_at_most_once THEN 63 /* JobEventReasonCode.JobStepInterrupted */ ELSE reason_code END,
     reason_message
     = CASE WHEN @p_at_most_once THEN 'At-most-once step re-entered before completion; outcome unknown.' ELSE reason_message END,

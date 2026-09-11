@@ -87,7 +87,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
     Contract = "A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant.",
     Arrange = "A deferred-retry step that fails once then succeeds is registered with MaxAttempts 3 and a 30s initial backoff.",
     Act = "The job runs, is re-run before the retry instant, and runs again after the clock advances to it.",
-    Assert = "The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Succeeded."
+    Assert = "The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Succeeded, reason gone."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
@@ -159,6 +159,10 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.NotNull(step1.NextRetryAtUtc);
         var retryInstant = step1.NextRetryAtUtc!.Value;
 
+        // The failed attempt stamps its reason on the slot; the success below has to take it back off.
+        Assert.Equal(JobEventReasonCode.JobUnhandledException, step1.ReasonCode);
+        Assert.NotNull(step1.ReasonMessage);
+
         // Parent is ready at retryInstant; confirm it matches before DB manipulation.
         var job1 = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(retryInstant, job1.NextRunAtUtc);
@@ -179,6 +183,11 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Equal(JobStepStatusCode.Succeeded, step3.Status);
         Assert.Equal((short)2, step3.AttemptNumber);
         Assert.Null(step3.NextRetryAtUtc);
+
+        // The earlier attempt's reason does not survive the success: a Succeeded row carrying one would
+        // read as a failure to every post-mortem query.
+        Assert.Null(step3.ReasonCode);
+        Assert.Null(step3.ReasonMessage);
 
         // Parent: Succeeded, failure_count still untouched.
         var job3 = await ReadJobAsync(enqueued.JobId, ct);

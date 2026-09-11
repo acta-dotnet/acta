@@ -133,10 +133,5 @@ public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
     }
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status WHERE job_id = @p_id",
-            ct,
-            ("@p_status", statusCode),
-            ("@p_id", jobId)
-        );
+        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 }

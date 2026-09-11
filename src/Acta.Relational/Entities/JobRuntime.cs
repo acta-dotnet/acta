@@ -57,10 +57,13 @@ namespace Acta.Relational.Entities;
     Sql = "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_runtimes_counters", Sql = "execution_number >= 0 AND failure_count >= 0")]
-// One direction only: a row that is not in flight cannot still carry a lease. The converse is left
-// unenforced because no run has established that every in-flight row is leased at every instant, and
-// a CHECK that turns out to be wrong fails the write rather than reporting the disagreement.
+// Both directions, so with ck_runtimes_lease_consistency an in-flight status and a complete lease pair
+// are the same fact. ClaimOne, ClaimBatch and StartExecution are the only routines that enter 40/50,
+// and each writes the lease in the same statement. Every routine that nulls the lease leaves 40/50 in
+// the same statement: CompleteExecution, CompleteExecutionsBatch, ReclaimStuckJobs, RepairRecoverySlot,
+// CancelJob, RestartJob, RegisterJobDefinitions.
 [DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
+[DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
 internal sealed class JobRuntime : IEntity<long>
 {
     /// <summary>
@@ -99,7 +102,12 @@ internal sealed class JobRuntime : IEntity<long>
     public DateTime? NextRunAtUtc { get; set; }
 
     /// <summary>
-    /// Monotonic-lifetime claim counter; incremented atomically on each claim.
+    /// Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not
+    /// scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a
+    /// recurring slot claimed once a second for its whole life would take about sixty-eight years to
+    /// exhaust it, and exhaustion lies outside the supported lifetime of one durable slot. The
+    /// providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32
+    /// mapper rejects it on read), so the failure mode is an error, never a negative attempt number.
     /// </summary>
     [DbColumn("execution_number", DbKind.Int32)]
     public int ExecutionNumber { get; set; }
@@ -116,8 +124,9 @@ internal sealed class JobRuntime : IEntity<long>
     /// <summary>
     /// Worker that currently holds the in-flight execution lease, if any. No FK; write-time
     /// validation in the claim routine. Paired with <see cref="LeaseExpiresAtUtc"/> by
-    /// <c>ck_runtimes_lease_consistency</c>, and released before <see cref="Status"/> leaves
-    /// <c>Dispatched</c> or <c>Executing</c> by <c>ck_runtimes_status_lease</c>.
+    /// <c>ck_runtimes_lease_consistency</c>, and bound to <see cref="Status"/> in both directions by
+    /// <c>ck_runtimes_status_lease</c> and <c>ck_runtimes_inflight_leased</c>: set exactly while the
+    /// status is <c>Dispatched</c> or <c>Executing</c>, NULL otherwise.
     /// </summary>
     [DbColumn("leased_by_worker_id", DbKind.Int32)]
     public int? LeasedByWorkerId { get; set; }
@@ -143,6 +152,12 @@ internal sealed class JobRuntime : IEntity<long>
     /// Optimistic-concurrency token for job state transitions; operations manually increment via
     /// <c>SET version = version + 1</c> on every UPDATE. Heartbeats never bump it: a lease TTL
     /// refresh is not a claim-generation change, so a buffered claim still passes the start CAS.
+    /// Int32 is a deliberate width, and the same token type is the public <c>expectedVersion</c>. A
+    /// continuously successful recurring slot firing once a second, at the normal three increments
+    /// per occurrence (claim, start, complete), would take about twenty-two years to exhaust it;
+    /// retries, recovery, and operator controls consume versions faster, and exhaustion lies outside
+    /// the supported lifetime of one durable slot. The providers raise on overflow rather than wrap,
+    /// so a token can never come back negative.
     /// </summary>
     [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
     [DbConcurrencyToken]

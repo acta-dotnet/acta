@@ -145,6 +145,43 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         );
     }
 
+    [Fact(DisplayName = "ck_runtimes_inflight_leased rejects Dispatched and Executing with no lease and admits a complete lease pair")]
+    public async Task Runtimes_in_flight_status_requires_a_lease()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+
+        Task<int> SetLeasedAsync(JobStatusCode status) =>
+            Db.ExecuteRawAsync(
+                "UPDATE {schema}.runtimes SET status_code = @p_status, leased_by_worker_id = @p_worker, lease_expires_at_utc = @p_expires "
+                    + "WHERE job_id = @p_job_id",
+                ct,
+                ("@p_status", (byte)status),
+                ("@p_worker", 424_242),
+                ("@p_expires", DateTime.UtcNow.AddMinutes(5)),
+                ("@p_job_id", enq.JobId)
+            );
+
+        Task<int> SetUnleasedAsync(JobStatusCode status) =>
+            Db.ExecuteRawAsync(
+                "UPDATE {schema}.runtimes SET status_code = @p_status, leased_by_worker_id = NULL, lease_expires_at_utc = NULL "
+                    + "WHERE job_id = @p_job_id",
+                ct,
+                ("@p_status", (byte)status),
+                ("@p_job_id", enq.JobId)
+            );
+
+        // The shape every claim writes: the in-flight status and the whole lease in one statement.
+        Assert.Equal(1, await SetLeasedAsync(JobStatusCode.Dispatched));
+        Assert.Equal(1, await SetLeasedAsync(JobStatusCode.Executing));
+
+        // Releasing the lease on the way out of flight is the control for the two rejections below.
+        Assert.Equal(1, await SetUnleasedAsync(JobStatusCode.Ready));
+
+        await Assert.ThrowsAnyAsync<DbException>(() => SetUnleasedAsync(JobStatusCode.Dispatched));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetUnleasedAsync(JobStatusCode.Executing));
+    }
+
     [Fact(DisplayName = "Closed-family constraints reject unassigned values and 255")]
     public async Task Closed_code_family_rejects_unassigned_and_255()
     {
@@ -263,12 +300,29 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-variable-due", JobCheckpointKindCode.Variable, null, due));
         await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-progress-due", JobCheckpointKindCode.Progress, null, due));
 
+        // A timer with no due instant is a wait nothing can wake. The three arm routines always compute
+        // one, so the shape only exists if something wrote around them.
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertAsync("bad-timer-no-due", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Pending, null)
+        );
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertAsync("bad-timer-consumed-no-due", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Consumed, null)
+        );
+
         // The constraint is re-evaluated on every write, and an UPDATE is how a live slot would
         // actually reach a bad shape, so the same shapes have to be unreachable that way too.
         Assert.Equal(1, await SetStatusAsync("ok-signal", JobCheckpointStatusCode.Set));
         await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-signal", null));
         await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-timer", JobCheckpointStatusCode.Set));
         await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-variable", JobCheckpointStatusCode.Pending));
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            Db.ExecuteRawAsync(
+                "UPDATE {schema}.checkpoints SET due_at_utc = NULL WHERE job_id = @p_job_id AND name = @p_name",
+                ct,
+                ("@p_job_id", enq.JobId),
+                ("@p_name", "ok-timer")
+            )
+        );
     }
 
     [Fact(DisplayName = "ck_steps_attempt_number rejects an INSERT with attempt_number zero")]
@@ -292,6 +346,156 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(1, await InsertStepAsync("step-valid", 1));
         await Assert.ThrowsAnyAsync<DbException>(() => InsertStepAsync("step-invalid", 0));
     }
+
+    [Fact(DisplayName = "ck_steps_terminal_no_retry rejects a retry instant on every terminal status, on INSERT and on UPDATE")]
+    public async Task Steps_terminal_rows_carry_no_retry_instant()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var retry = DateTime.UtcNow.AddMinutes(5);
+
+        // Pending is the one status a retry instant belongs to.
+        Assert.Equal(1, await InsertStepAsync(enq.JobId, "retry-pending", JobStepStatusCode.Pending, ct, nextRetryAtUtc: retry));
+
+        foreach (var terminal in new[] { JobStepStatusCode.Succeeded, JobStepStatusCode.Exhausted, JobStepStatusCode.Interrupted })
+        {
+            Assert.Equal(1, await InsertStepAsync(enq.JobId, $"terminal-{(byte)terminal}", terminal, ct));
+            await Assert.ThrowsAnyAsync<DbException>(() =>
+                InsertStepAsync(enq.JobId, $"terminal-retry-{(byte)terminal}", terminal, ct, nextRetryAtUtc: retry)
+            );
+        }
+
+        // The live path into a terminal status is an UPDATE of the pending row, which is where
+        // start_step and complete_step have to drop the instant as part of the transition.
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "retry-pending", JobStepStatusCode.Interrupted, ct));
+    }
+
+    [Fact(DisplayName = "ck_steps_result_succeeded admits a stored result only on a Succeeded row")]
+    public async Task Steps_result_lives_only_on_a_succeeded_row()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+
+        Assert.Equal(1, await InsertStepAsync(enq.JobId, "result-succeeded", JobStepStatusCode.Succeeded, ct, resultFormatId: 1));
+
+        foreach (var status in new[] { JobStepStatusCode.Pending, JobStepStatusCode.Exhausted, JobStepStatusCode.Interrupted })
+        {
+            Assert.Equal(1, await InsertStepAsync(enq.JobId, $"no-result-{(byte)status}", status, ct));
+            await Assert.ThrowsAnyAsync<DbException>(() =>
+                InsertStepAsync(enq.JobId, $"result-{(byte)status}", status, ct, resultFormatId: 1)
+            );
+        }
+
+        // complete_step writes the status and the result together, so a Succeeded row can never be moved
+        // off that status while the result stays behind.
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", JobStepStatusCode.Exhausted, ct));
+    }
+
+    [Fact(DisplayName = "ck_steps_reason_pair rejects a reason message with no reason code, on INSERT and on UPDATE")]
+    public async Task Steps_reason_message_requires_a_reason_code()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+
+        // Both legal shapes: no reason at all, and the full pair complete_step writes on a failure.
+        Assert.Equal(1, await InsertStepAsync(enq.JobId, "reason-none", JobStepStatusCode.Pending, ct));
+        Assert.Equal(
+            1,
+            await InsertStepAsync(
+                enq.JobId,
+                "reason-pair",
+                JobStepStatusCode.Pending,
+                ct,
+                reasonCode: JobEventReasonCode.JobUnhandledException,
+                reasonMessage: "boom"
+            )
+        );
+
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertStepAsync(enq.JobId, "reason-orphan", JobStepStatusCode.Pending, ct, reasonMessage: "boom")
+        );
+
+        // The same orphan reached by UPDATE: clearing only the code off a paired row.
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            Db.ExecuteRawAsync(
+                "UPDATE {schema}.steps SET reason_code = NULL WHERE job_id = @p_job_id AND name = @p_name",
+                ct,
+                ("@p_job_id", enq.JobId),
+                ("@p_name", "reason-pair")
+            )
+        );
+    }
+
+    // Raw composition for the same reason the attempt_number fixture above gives: nullable columns are
+    // omitted rather than bound explicit-NULL, and code columns are rendered as literals, because
+    // SQL Server infers no type for a null TINYINT or VARBINARY parameter.
+    private Task<int> InsertStepAsync(
+        long jobId,
+        string name,
+        JobStepStatusCode status,
+        CancellationToken ct,
+        DateTime? nextRetryAtUtc = null,
+        byte resultFormatId = 0,
+        JobEventReasonCode? reasonCode = null,
+        string? reasonMessage = null
+    )
+    {
+        List<string> columns = ["job_id", "name", "status_code", "attempt_number", "result_format_id"];
+        List<string> values =
+        [
+            "@p_job_id",
+            "@p_name",
+            ((byte)status).ToString(CultureInfo.InvariantCulture),
+            "1",
+            resultFormatId.ToString(CultureInfo.InvariantCulture),
+        ];
+        List<(string Name, object? Value)> parameters = [("@p_job_id", jobId), ("@p_name", name)];
+
+        if (resultFormatId != 0)
+        {
+            // ck_steps_result_pair binds the payload to the format id, so a non-zero id has to carry
+            // bytes; without them that constraint fires first and the rejection proves nothing.
+            columns.Add("result");
+            values.Add("@p_result");
+            parameters.Add(("@p_result", new byte[] { 0x01 }));
+        }
+
+        if (nextRetryAtUtc is { } retry)
+        {
+            columns.Add("next_retry_at_utc");
+            values.Add("@p_retry");
+            parameters.Add(("@p_retry", retry));
+        }
+
+        if (reasonCode is { } code)
+        {
+            columns.Add("reason_code");
+            values.Add(((byte)code).ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (reasonMessage is { } message)
+        {
+            columns.Add("reason_message");
+            values.Add("@p_message");
+            parameters.Add(("@p_message", message));
+        }
+
+        return Db.ExecuteRawAsync(
+            $"INSERT INTO {{schema}}.steps ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)})",
+            ct,
+            [.. parameters]
+        );
+    }
+
+    private Task<int> SetStepStatusAsync(long jobId, string name, JobStepStatusCode status, CancellationToken ct) =>
+        Db.ExecuteRawAsync(
+            "UPDATE {schema}.steps SET status_code = "
+                + ((byte)status).ToString(CultureInfo.InvariantCulture)
+                + " WHERE job_id = @p_job_id AND name = @p_name",
+            ct,
+            ("@p_job_id", jobId),
+            ("@p_name", name)
+        );
 
     [Fact(DisplayName = "ck_workers_max_concurrency rejects an INSERT with max_concurrency zero")]
     public async Task Workers_check_rejects_max_concurrency_zero()

@@ -26,6 +26,9 @@ namespace Acta.Relational.Entities;
     Sql = "(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_steps_attempt_number", Sql = "attempt_number >= 1")]
+[DbCheck(Name = "ck_steps_terminal_no_retry", Sql = "status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL")]
+[DbCheck(Name = "ck_steps_result_succeeded", Sql = "result_format_id = 0 OR status_code = 100")]
+[DbCheck(Name = "ck_steps_reason_pair", Sql = "reason_message IS NULL OR reason_code IS NOT NULL")]
 internal sealed class JobStep : IEntity<long>
 {
     /// <summary>
@@ -60,21 +63,23 @@ internal sealed class JobStep : IEntity<long>
     public short AttemptNumber { get; set; }
 
     /// <summary>
-    /// When the next retry attempt is scheduled. NULL on terminal rows.
+    /// When the next retry attempt is scheduled. <c>ck_steps_terminal_no_retry</c> keeps it NULL on
+    /// terminal rows.
     /// </summary>
     [DbColumn("next_retry_at_utc", DbKind.UtcInstant)]
     public DateTime? NextRetryAtUtc { get; set; }
 
     /// <summary>
-    /// Machine-readable reason of the most recent failed attempt. NULL until first failure; preserved on
-    /// terminal <c>Exhausted</c> rows so post-mortem reads always have the final failure context.
+    /// Machine-readable reason of the most recent failed attempt. NULL until first failure, and cleared
+    /// again by a succeeding attempt; preserved on terminal <c>Exhausted</c> and <c>Interrupted</c> rows
+    /// so post-mortem reads always have the final failure context.
     /// </summary>
     [DbColumn("reason_code")]
     public JobEventReasonCode? ReasonCode { get; set; }
 
     /// <summary>
-    /// Free-form prose paired with <see cref="ReasonCode"/>. NULL until first failure; truncated by
-    /// <c>MessageTruncator</c>.
+    /// Free-form prose paired with <see cref="ReasonCode"/> by <c>ck_steps_reason_pair</c>. NULL until
+    /// first failure; truncated by <c>MessageTruncator</c>.
     /// </summary>
     [DbColumn("reason_message", DbKind.UnicodeString, Size = 512)]
     public string? ReasonMessage { get; set; }
@@ -82,7 +87,8 @@ internal sealed class JobStep : IEntity<long>
     /// <summary>
     /// Format-id selector for <see cref="Result"/>; <c>0</c> means no result (void step or in-flight
     /// or exhausted). <c>ck_steps_result_pair</c> enforces
-    /// <c>(result_format_id = 0) = (result IS NULL)</c>.
+    /// <c>(result_format_id = 0) = (result IS NULL)</c>, and <c>ck_steps_result_succeeded</c> admits a
+    /// non-zero id only on a <c>Succeeded</c> row.
     /// </summary>
     [DbColumn("result_format_id", DbKind.Byte)]
     public byte ResultFormatId { get; set; }

@@ -96,10 +96,11 @@ public sealed class AtMostOnceStepManifest : IJobManifest
     Area = "Steps",
     Contract = "AtMostOnce runs the body 0 or 1 times: a pending slot re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently.",
     Arrange = "A durable step slot is durably started (pending, never completed) to model a worker that died mid-flight.",
-    Act = "The step is re-entered under AtMostOnce, both directly through start_step and through the runtime with the exception uncaught and caught.",
-    Assert = "start_step returns Interrupted with no second version bump, the body never re-runs, an uncaught interruption fails the parent and a caught one lets it proceed."
+    Act = "The step is re-entered under AtMostOnce, directly through start_step (also on a slot with a due retry instant) and through the runtime, uncaught and caught.",
+    Assert = "start_step returns Interrupted with one bump and no retry instant left, the body never re-runs, an uncaught throw fails the parent while a caught one proceeds."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
+[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
 public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixture, AtMostOnceStepManifest>
     where TFixture : IConformanceFixture, new()
 {
@@ -149,6 +150,53 @@ public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         var row2 = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(JobStepStatusCode.Interrupted, row2.Status);
         Assert.Equal(versionAfterInterrupt, row2.Version);
+    }
+
+    [Fact(DisplayName = "An interrupted slot drops the due retry instant its failed attempt left behind")]
+    public async Task Re_entry_clears_a_due_retry_instant_when_it_interrupts()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = Services.GetRequiredService<IExecutionStore>();
+        var enqueued = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
+            ct
+        );
+
+        // A failure inside budget leaves the slot Pending with a retry instant. Once that instant is
+        // due the slot is re-enterable, and this is the only state in which an interrupt meets one.
+        var staged = await store.StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
+        var failed = await store.CompleteStepAsync(
+            new CompleteStepCommand(
+                enqueued.JobId,
+                StepName,
+                Succeeded: false,
+                ResultFormatId: 0,
+                Result: null,
+                JobEventReasonCode.JobUnhandledException,
+                "first attempt failed",
+                DelaySeconds: 60,
+                MaxAttempts: 5,
+                RetryWindowSeconds: null,
+                staged.Version
+            ),
+            ct
+        );
+        Assert.Equal(CompleteStepOutcomeCode.RetryScheduled, failed.Outcome);
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.steps SET next_retry_at_utc = @p_next WHERE job_id = @p_id AND name = @p_name",
+            ct,
+            ("@p_next", DateTime.UtcNow.AddMinutes(-1)),
+            ("@p_id", enqueued.JobId),
+            ("@p_name", StepName)
+        );
+
+        var interrupted = await store.StartStepAsync(enqueued.JobId, StepName, atMostOnce: true, ct);
+        Assert.Equal(StartStepOutcomeCode.Interrupted, interrupted.Outcome);
+
+        var row = await ReadStepAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStepStatusCode.Interrupted, row.Status);
+        Assert.Null(row.NextRetryAtUtc);
+        Assert.Equal(JobEventReasonCode.JobStepInterrupted, row.ReasonCode);
     }
 
     [Fact(DisplayName = "Uncaught StepInterruptedException fails the parent terminally without re-invoking the body")]

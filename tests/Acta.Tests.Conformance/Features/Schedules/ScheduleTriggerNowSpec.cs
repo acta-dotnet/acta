@@ -181,12 +181,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         new(name, Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor);
 
     private static Task SetRuntimeStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status WHERE job_id = @p_id",
-            ct,
-            ("@p_status", statusCode),
-            ("@p_id", jobId)
-        );
+        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 
     private async Task<int> CreateDefinitionAsync(IDbSession db, ISqlDialect dialect, string jobName, CancellationToken ct)
     {

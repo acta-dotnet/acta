@@ -26,8 +26,10 @@ SET
             THEN NULL
         ELSE {{now}} + (@p_delay_seconds) * 1000
     END,
-    reason_code = CASE WHEN @p_succeeded THEN reason_code ELSE @p_reason_code END,
-    reason_message = CASE WHEN @p_succeeded THEN reason_message ELSE @p_reason_message END,
+    -- A success supersedes any earlier failed attempt, so the row must not keep that attempt's reason:
+    -- a Succeeded row with a reason reads as a failure to every post-mortem query.
+    reason_code = CASE WHEN @p_succeeded THEN NULL ELSE @p_reason_code END,
+    reason_message = CASE WHEN @p_succeeded THEN NULL ELSE @p_reason_message END,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE job_id = @p_job_id AND name = @p_name AND version = @p_version;
