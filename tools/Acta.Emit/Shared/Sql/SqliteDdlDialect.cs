@@ -121,10 +121,10 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
         }
     }
 
-    public override string MigrationStamp(int version, string name) =>
+    public override string MigrationStamp(int version, string name, string? stamp) =>
         string.Join(
             "\n",
-            StampRows(version, name)
+            StampRows(version, name, stamp)
                 .Select(r =>
                     $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
                     + $"VALUES ({r.Version}, '{r.Name}', '{SchemaPlaceholder}')\n"

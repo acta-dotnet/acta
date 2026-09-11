@@ -13,15 +13,21 @@ public sealed class MigrationHistoryPreflightTests
 {
     private static readonly SchemaMigration[] Shipped = [new(1, "M001_init", ""), new(2, "M002_add_flags", "")];
 
+    // Stands in for the content hash a shipped provider's baseline migration carries. Every verdict
+    // below turns on whether the version-0 row equals what the caller requires, never on how the
+    // required value was derived.
+    private const string ShippedStamp = "baseline-0123456789abcdef0123456789abcdef";
+
     private static Dictionary<int, string> History(params (int Version, string Name)[] rows) =>
         rows.ToDictionary(r => r.Version, r => r.Name);
 
-    private static void Verify(Dictionary<int, string> applied) => MigrationHistoryPreflight.Verify(Shipped, applied, "sqlite");
+    private static void Verify(Dictionary<int, string> applied) =>
+        MigrationHistoryPreflight.Verify(Shipped, applied, "sqlite", ShippedStamp);
 
     [Fact]
     public void Complete_history_at_this_baseline_passes()
     {
-        Verify(History((0, SchemaMigrationRunner.RequiredBaselineStamp), (1, "init"), (2, "add_flags")));
+        Verify(History((0, ShippedStamp), (1, "init"), (2, "add_flags")));
     }
 
     [Fact]
@@ -29,15 +35,13 @@ public sealed class MigrationHistoryPreflightTests
     {
         // An older worker against a newer database is a supported deployment shape, not drift: the
         // preflight requires what this build ships and ignores everything past it.
-        Verify(History((0, SchemaMigrationRunner.RequiredBaselineStamp), (1, "init"), (2, "add_flags"), (3, "added_later")));
+        Verify(History((0, ShippedStamp), (1, "init"), (2, "add_flags"), (3, "added_later")));
     }
 
     [Fact]
     public void Missing_shipped_migration_is_named_with_the_provisioning_script()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            Verify(History((0, SchemaMigrationRunner.RequiredBaselineStamp), (1, "init")))
-        );
+        var exception = Assert.Throws<InvalidOperationException>(() => Verify(History((0, ShippedStamp), (1, "init"))));
 
         Assert.Contains("M002_add_flags", exception.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("M001_init", exception.Message, StringComparison.Ordinal);
@@ -58,9 +62,7 @@ public sealed class MigrationHistoryPreflightTests
     [Fact]
     public void Migration_renamed_on_disk_is_refused()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            Verify(History((0, SchemaMigrationRunner.RequiredBaselineStamp), (1, "init"), (2, "add_columns")))
-        );
+        var exception = Assert.Throws<InvalidOperationException>(() => Verify(History((0, ShippedStamp), (1, "init"), (2, "add_columns"))));
 
         Assert.Contains("'add_columns'", exception.Message, StringComparison.Ordinal);
         Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
@@ -72,7 +74,7 @@ public sealed class MigrationHistoryPreflightTests
         // A provider added after M002 embeds M003 onward; the leading versions it never shipped are a
         // legal gap in its history, not a missing migration.
         SchemaMigration[] lateJoiner = [new(3, "M003_init", "")];
-        MigrationHistoryPreflight.Verify(lateJoiner, History((0, SchemaMigrationRunner.RequiredBaselineStamp), (3, "init")), "sqlite");
+        MigrationHistoryPreflight.Verify(lateJoiner, History((0, ShippedStamp), (3, "init")), "sqlite", ShippedStamp);
     }
 
     [Fact]

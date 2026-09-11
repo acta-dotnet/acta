@@ -16,7 +16,8 @@ internal static class SqliteSchemaMigrator
     private static readonly SchemaMigrationProviderHooks Hooks = new(
         ProviderAssembly: typeof(SqliteSchemaMigrator).Assembly,
         DialectToken: "sqlite",
-        SplitBatches: static script => [script]
+        SplitBatches: static script => [script],
+        RequiredBaselineStamp: BaselineStamps.Sqlite
     );
 
     public static async Task ApplyAsync(SqliteConnection connection, string schemaName, CancellationToken ct)

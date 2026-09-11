@@ -13,10 +13,16 @@ namespace Acta.Tests.Schema;
 /// </summary>
 public sealed class SchemaMigrationChainTests
 {
+    // The fabricated provider's own baseline generation. A shipped provider's stamp is a content hash
+    // the emitter writes into its baseline migration; this one is hand-written on both sides, so the
+    // literal here and the literal in Fixtures/MigrationChain/M001_init.sql are the whole contract.
+    private const string FixtureStamp = "baseline-fixture";
+
     private static readonly SchemaMigrationProviderHooks Hooks = new(
         ProviderAssembly: typeof(SchemaMigrationChainTests).Assembly,
         DialectToken: "sqlite",
-        SplitBatches: static script => [script]
+        SplitBatches: static script => [script],
+        RequiredBaselineStamp: FixtureStamp
     );
 
     private static Task Apply(SqliteConnection conn) =>
@@ -59,7 +65,7 @@ public sealed class SchemaMigrationChainTests
     }
 
     [Fact]
-    public void Fixture_baseline_stamp_matches_the_shipped_stamp()
+    public void Fixture_records_the_stamp_its_hooks_require()
     {
         using var stream = typeof(SchemaMigrationChainTests).Assembly.GetManifestResourceStream(
             "Acta.Tests.Schema.Migrations.M001_init.sql"
@@ -67,14 +73,8 @@ public sealed class SchemaMigrationChainTests
         using var reader = new StreamReader(stream);
         var fixture = reader.ReadToEnd();
 
-        // A `schema reset` bumps the stamp in SqlDdlDialect.BaselineStamp and
-        // SchemaMigrationRunner.RequiredBaselineStamp; this fixture is the third copy. Update the
-        // literal in Fixtures/MigrationChain/M001_init.sql when this fails.
-        Assert.Contains(
-            $"VALUES (0, '{SchemaMigrationRunner.RequiredBaselineStamp}', '{{{{schema}}}}')",
-            fixture,
-            StringComparison.Ordinal
-        );
+        // Every scenario below would fail on a stamp mismatch without saying why; this one names it.
+        Assert.Contains($"VALUES (0, '{FixtureStamp}', '{{{{schema}}}}')", fixture, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public sealed class SchemaMigrationChainTests
 
         var history = await HistoryAsync(conn);
         Assert.Equal(3, history.Count);
-        Assert.Equal(SchemaMigrationRunner.RequiredBaselineStamp, history[0]);
+        Assert.Equal(FixtureStamp, history[0]);
         Assert.Equal("init", history[1]);
         Assert.Equal("add_widgets", history[2]);
         Assert.True(await TableExistsAsync(conn, "gadgets"));

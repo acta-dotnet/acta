@@ -65,11 +65,15 @@ internal static class SchemaAddCommand
         {
             // Each provider owns its own Schema/Migrations folder, so create the target directory per file.
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, sql);
+            // A full baseline carries the stamp token; substituting here, one file at a time, is what
+            // makes each provider's stamp the hash of its own body and of nothing else. A delta has no
+            // token and passes through untouched.
+            File.WriteAllText(path, BaselineStamp.Substitute(sql));
             Console.WriteLine($"  wrote {path}");
         }
 
         SnapshotPair.Save(new SnapshotPair(to, current), snapshotPath);
+        BaselineStampsEmitter.Write(repoRoot);
         DocsCommand.Emit(repoRoot);
 
         if (diff is not null)

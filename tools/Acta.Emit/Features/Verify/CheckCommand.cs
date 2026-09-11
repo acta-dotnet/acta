@@ -3,14 +3,16 @@ using Acta.Emit.Features.Docs;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Model;
+using Acta.Emit.Shared.Sql;
 
 namespace Acta.Emit.Features.Verify;
 
 /// <summary>
 /// Drift gate. Verifies the generated reference docs are current and that the committed snapshot still
-/// equals the live model (i.e. no entity/routine change is missing a `schema add`). It does NOT
-/// drift-check migration SQL, which is hand-edited history; the round-trip conformance test is what
-/// proves the applied history reconstructs the model.
+/// equals the live model (i.e. no entity/routine change is missing a `schema add`), and that each
+/// provider's baseline migration still hashes to the stamp it records. Migration SQL is otherwise
+/// hand-edited history and is not compared against the model; the round-trip conformance test is what
+/// proves the applied history reconstructs it.
 /// </summary>
 internal static class CheckCommand
 {
@@ -44,6 +46,49 @@ internal static class CheckCommand
             {
                 Console.WriteLine($"  ok:      {path}");
             }
+        }
+
+        // Each provider's baseline stamp is a content hash of that provider's baseline migration, so a
+        // hand-edit to committed migration SQL is caught here even though migration history is
+        // otherwise the engineer's to edit.
+        foreach (var provider in ProviderCatalog.All)
+        {
+            var path = MigrationFiles.BaselineFile(repoRoot, provider.Suffix);
+            if (path is null)
+            {
+                Console.Error.WriteLine($"  MISSING: no baseline migration for {provider.Token}; run `Acta.Emit schema add`.");
+                drifted++;
+                continue;
+            }
+
+            var body = File.ReadAllText(path);
+            var recorded = BaselineStamp.Recorded(body)!;
+            var recomputed = BaselineStamp.Of(body);
+            if (!string.Equals(recorded, recomputed, StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine($"  DRIFT:   {path} records {recorded} but hashes to {recomputed} (run `Acta.Emit schema amend`)");
+                drifted++;
+            }
+            else
+            {
+                Console.WriteLine($"  ok:      {path} {recorded}");
+            }
+        }
+
+        var stampsPath = BaselineStampsEmitter.PathFor(repoRoot);
+        if (!File.Exists(stampsPath))
+        {
+            Console.Error.WriteLine($"  MISSING: {stampsPath}");
+            drifted++;
+        }
+        else if (!NewlineEqual(File.ReadAllText(stampsPath), BaselineStampsEmitter.Emit(repoRoot)))
+        {
+            Console.Error.WriteLine($"  DRIFT:   {stampsPath} (run `Acta.Emit schema amend`)");
+            drifted++;
+        }
+        else
+        {
+            Console.WriteLine($"  ok:      {stampsPath}");
         }
 
         var snapshotPath = SnapshotFile.Path(repoRoot);

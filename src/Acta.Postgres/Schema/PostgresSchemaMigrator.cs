@@ -13,7 +13,8 @@ internal static class PostgresSchemaMigrator
     private static readonly SchemaMigrationProviderHooks Hooks = new(
         ProviderAssembly: typeof(PostgresSchemaMigrator).Assembly,
         DialectToken: "pg",
-        SplitBatches: static script => [script]
+        SplitBatches: static script => [script],
+        RequiredBaselineStamp: BaselineStamps.Pg
     );
 
     public static async Task ApplyAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)

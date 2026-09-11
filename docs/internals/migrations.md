@@ -157,27 +157,31 @@ baseline. The one destructive command, hence `--force`-gated and pre-1.0 only.
 
 The migration history freezes at 1.0.0, and from there `schema reset` remains only as a
 rebuild-and-compare tool for verifying that the emitters still reproduce the committed baseline.
-Until then a re-cut is a supported move rather than a last resort, and each one stamps the day it
-was cut: rc.2 carries `baseline-20260910`. The older version-style stamps read the same way, one
-generation each. `baseline-1.0.1` was rc.1's, and its `.1` is that era's honest ending: rc.1 certification surfaced a namespace-id sequence burn whose fix argued for widening the
-id before the freeze rather than after, so the baseline was amended once more — catching exactly
-this kind of thing is what a release candidate is for — and the stamp moved with it so no database
-provisioned from the earlier cut could silently pass as current. A re-cut baseline carries no
-translation migration, which is why every pre-freeze re-cut required dropping and recreating any
-database built from the previous one.
+Until then a re-cut is a supported move rather than a last resort, and each one identifies itself:
+the stamp is `baseline-` followed by the first 32 hex characters of the SHA-256 of that provider's
+emitted `M001`. The hash is taken over the body with a fixed token in the stamp's own position, in
+UTF-8 without a byte-order mark and with LF line endings; nothing else is normalized, so every other
+byte of the file is part of the identity. Each provider carries its own stamp, so PostgreSQL's does
+not move when SQL Server's table types change or when a fourth provider joins. Earlier candidates
+named a date (`baseline-20260910`) or a version (`baseline-1.0.1`); both read the same way, one
+generation each, and both could name two different cuts by oversight, which a content hash cannot.
+A re-cut baseline carries no translation migration, which is why every pre-freeze re-cut requires
+dropping and recreating any database built from the previous one.
 
-**The stamp lives in two places and both always moved together:**
-
-- `SqlDdlDialect.BaselineStamp` (`tools/Acta.Emit`), written into the generated `M001` bodies.
-- `SchemaMigrationRunner.RequiredBaselineStamp` (`src/Acta.Relational`), required at bootstrap.
+**The stamp has one source and two readers.** `schema add` and `schema amend` compute it and write
+it into `M001` and into `src/Acta.Relational/Schema/BaselineStamps.g.cs` in the same pass.
+`SchemaMigrationRunner` requires the generated constant at bootstrap, and `Acta.Emit check` rehashes
+each committed `M001` and fails on any hand edit. The stamp is a literal in the applied script: an
+operator who adapts the script for their environment (partitioning, filegroups, tablespaces) keeps
+the row as written, and bootstrap never recomputes a hash from the live database.
 
 The stamp is recorded as a version-0 sentinel row in `migrations`, written by `M001` alongside its
 own history row; every migration's `name` is its plain snake name (`init`, not the stamp). Bootstrap
 compares the stamp recorded in the database against the one the build ships and throws on a
 mismatch, so a stale database fails loudly with a reprovision instruction instead of silently taking
-a schema it was not built for. Skipping the bump defeats that check. Bootstrap also rejects an
-applied version whose recorded name differs from the shipped one, so a migration amended after a
-database already applied it fails loudly instead of being silently skipped.
+a schema it was not built for. Bootstrap also rejects an applied version whose recorded name differs
+from the shipped one, so a migration amended after a database already applied it fails loudly
+instead of being silently skipped.
 
 These checks run on **every** start, not only when migrations are applied. A host with
 `ApplyMigrationsOnStartup = false` runs a read-only **migration-history preflight**

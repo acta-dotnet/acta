@@ -73,7 +73,9 @@ internal static class SqlSchemaEmitter
         }
 
         sb.AppendLine();
-        sb.AppendLine(dialect.MigrationStamp(version, name));
+        // The stamp renders as a token: its value is a hash of this whole body, which is not finished
+        // until this line is in it. The emitting command substitutes the computed literal.
+        sb.AppendLine(dialect.MigrationStamp(version, name, BaselineStamp.Token));
         AppendTerminator(sb, dialect);
 
         return sb.ToString();

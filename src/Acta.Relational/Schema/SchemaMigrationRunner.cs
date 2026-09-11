@@ -12,21 +12,6 @@ namespace Acta.Relational.Schema;
 internal static class SchemaMigrationRunner
 {
     /// <summary>
-    /// A re-cut baseline cannot be translated onto a database built from an older one, and this stamp
-    /// is how that fails loudly instead of silently applying a mismatched schema. Two places own it:
-    /// SqlDdlDialect.BaselineStamp (which writes it into the generated M001 bodies) and the constant
-    /// here (which requires it at bootstrap); BaselineStampParityTests fails the build if they drift.
-    /// The stamp names the day the baseline was cut, so a re-cut identifies itself and no two cuts
-    /// can share a value by oversight: rc.1 shipped `baseline-1.0.1` under the older version-style
-    /// naming, and rc.2 cuts `baseline-20260910`. Two cuts on one day would share a stamp, which makes
-    /// a same-day re-cut one generation by construction; that is the intermediate development build,
-    /// and it is why a stamp is never reused across days. A database from any earlier generation is
-    /// reprovisioned rather than upgraded, because the re-cut M001's existence guards would otherwise
-    /// skip every statement in silence and leave it running a schema nobody chose.
-    /// </summary>
-    internal const string RequiredBaselineStamp = "baseline-20260910";
-
-    /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the
     /// migrations table, read applied versions, run every missing script, then install current
     /// operator views and routines. Concurrent bootstrappers serialize on the lock.
@@ -51,7 +36,7 @@ internal static class SchemaMigrationRunner
             await SchemaCommands.EnsureMigrations(conn, tx, hooks, sql, ct);
             var applied = await SchemaCommands.LoadAppliedVersions(conn, tx, hooks, sql, ct);
 
-            VerifyBaselineStamp(applied);
+            VerifyBaselineStamp(applied, hooks.RequiredBaselineStamp);
             VerifyAppliedNames(migrations, applied);
 
             foreach (var migration in migrations.Where(m => !applied.ContainsKey(m.Version)))
@@ -85,13 +70,15 @@ internal static class SchemaMigrationRunner
     /// <summary>
     /// The version-0 sentinel row carries the baseline stamp; a non-empty history without it (or with
     /// a different stamp) was built by another baseline generation, including the pre-sentinel
-    /// bookkeeping shape, and cannot be translated onto this build's schema. Shared with
-    /// <see cref="MigrationHistoryPreflight"/> so the apply path and the always-runs read-only
-    /// preflight cannot drift into two different verdicts on the same history.
+    /// bookkeeping shape, and cannot be translated onto this build's schema: every baseline statement
+    /// is existence-guarded, so such a database would take this build's baseline as a no-op and keep
+    /// running the shape it already has. Refusing here is what turns that silence into a verdict.
+    /// Shared with <see cref="MigrationHistoryPreflight"/> so the apply path and the always-runs
+    /// read-only preflight cannot drift into two different verdicts on the same history.
     /// </summary>
-    internal static void VerifyBaselineStamp(IReadOnlyDictionary<int, string> applied)
+    internal static void VerifyBaselineStamp(IReadOnlyDictionary<int, string> applied, string requiredStamp)
     {
-        if (applied.Count == 0 || string.Equals(applied.GetValueOrDefault(0), RequiredBaselineStamp, StringComparison.Ordinal))
+        if (applied.Count == 0 || string.Equals(applied.GetValueOrDefault(0), requiredStamp, StringComparison.Ordinal))
         {
             return;
         }
@@ -99,8 +86,8 @@ internal static class SchemaMigrationRunner
         var recorded = applied.GetValueOrDefault(0) ?? applied.GetValueOrDefault(1) ?? "unknown";
         throw new InvalidOperationException(
             $"This database was built from Acta baseline '{recorded}', but this build ships baseline "
-                + $"'{RequiredBaselineStamp}'. The schema baseline is re-cuttable before 1.0 and carries no "
-                + "translation path, so drop and reprovision the database to move to this build."
+                + $"'{requiredStamp}'. One baseline carries no translation path onto another, so drop and "
+                + "reprovision the database to move to this build."
         );
     }
 
@@ -149,6 +136,10 @@ internal sealed record SchemaMigrationProviderHooks(
     Assembly ProviderAssembly,
     string DialectToken,
     Func<string, IEnumerable<string>> SplitBatches,
+    // The generation of the baseline migration this provider embeds, from BaselineStamps: the value
+    // the emitter wrote into that migration's version-0 row, and so the only history this package can
+    // run against.
+    string RequiredBaselineStamp,
     string? PreludeSql = null,
     int CommandTimeoutSeconds = 120,
     string? ObjectDefinitionSql = null

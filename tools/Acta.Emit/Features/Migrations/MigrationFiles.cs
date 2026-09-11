@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Acta.Emit.Shared.Sql;
 
 namespace Acta.Emit.Features.Migrations;
 
@@ -114,6 +115,31 @@ internal static partial class MigrationFiles
             }
         }
     }
+
+    /// <summary>
+    /// The provider's full baseline migration: the one file of its history that writes the version-0
+    /// stamp row. Null when the provider has no migrations yet.
+    /// </summary>
+    internal static string? BaselineFile(string repoRoot, string suffix)
+    {
+        var dir = Dir(repoRoot, suffix);
+        if (!Directory.Exists(dir))
+        {
+            return null;
+        }
+        return Directory
+            .EnumerateFiles(dir, "M*.sql")
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .FirstOrDefault(f => BaselineStamp.Recorded(File.ReadAllText(f)) is not null);
+    }
+
+    /// <summary>
+    /// The stamp recorded in the provider's committed baseline migration, read from the file rather
+    /// than from the generated constants: everything the emitter writes in one pass then agrees with
+    /// the SQL of that same pass, without waiting for a rebuild to pick the constants up.
+    /// </summary>
+    internal static string? BaselineStampFor(string repoRoot, string suffix) =>
+        BaselineFile(repoRoot, suffix) is { } path ? BaselineStamp.Recorded(File.ReadAllText(path)) : null;
 
     internal static string PathFor(string repoRoot, string suffix, int version, string name) =>
         Path.Combine(Dir(repoRoot, suffix), $"M{version:D3}_{name}.sql");

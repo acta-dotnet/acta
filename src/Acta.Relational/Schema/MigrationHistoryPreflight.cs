@@ -46,7 +46,8 @@ internal static class MigrationHistoryPreflight
         Verify(
             SchemaMigrationDiscovery.Discover(hooks.ProviderAssembly),
             await SchemaCommands.LoadAppliedVersions(conn, tx: null, hooks, sql, ct),
-            hooks.DialectToken
+            hooks.DialectToken,
+            hooks.RequiredBaselineStamp
         );
     }
 
@@ -55,9 +56,14 @@ internal static class MigrationHistoryPreflight
     /// migration re-cut after this database applied it, then a migration this build ships that the
     /// database has never applied.
     /// </summary>
-    internal static void Verify(IReadOnlyList<SchemaMigration> migrations, IReadOnlyDictionary<int, string> applied, string dialectToken)
+    internal static void Verify(
+        IReadOnlyList<SchemaMigration> migrations,
+        IReadOnlyDictionary<int, string> applied,
+        string dialectToken,
+        string requiredStamp
+    )
     {
-        SchemaMigrationRunner.VerifyBaselineStamp(applied);
+        SchemaMigrationRunner.VerifyBaselineStamp(applied, requiredStamp);
         SchemaMigrationRunner.VerifyAppliedNames(migrations, applied);
 
         var missing = migrations.Where(m => !applied.ContainsKey(m.Version)).ToList();

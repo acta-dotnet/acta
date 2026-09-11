@@ -107,7 +107,7 @@ internal static class MigrationDeltaEmitter
 
         // Self-stamp so the runner records this version as applied (else it re-runs every boot).
         sb.AppendLine();
-        sb.AppendLine(dialect.MigrationStamp(version, name));
+        sb.AppendLine(dialect.MigrationStamp(version, name, stamp: null));
         if (dialect.Terminator is { } terminator)
         {
             sb.AppendLine(terminator);

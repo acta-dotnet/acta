@@ -89,7 +89,7 @@ public abstract class MigrationHistoryPreflightSpec<TFixture> : IntegrationSpec<
     /// </summary>
     private IReadOnlyList<(int Version, string Name)> ShippedHistory() =>
         [
-            (0, SchemaMigrationRunner.RequiredBaselineStamp),
+            (0, BaselineStamps.ForDialect(Fixture.DialectToken)),
             .. SchemaMigrationDiscovery
                 .Discover(Assembly.Load(ProviderSqlResources.ProviderAssemblyName(Fixture.DialectToken)))
                 .Select(migration => (migration.Version, Name: migration.Name[5..])),

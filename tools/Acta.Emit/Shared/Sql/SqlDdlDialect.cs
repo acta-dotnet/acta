@@ -12,20 +12,12 @@ internal abstract class SqlDdlDialect
 {
     public const string SchemaPlaceholder = "{{schema}}";
 
-    // Identity of the baseline generation, written into the generated M001 bodies and required at
-    // bootstrap by SchemaMigrationRunner.RequiredBaselineStamp, so a database built from a different
-    // one fails loudly rather than taking a mismatched schema. It names the day the baseline was cut,
-    // so a re-cut identifies itself. Every M001 statement is existence-guarded, so a database built
-    // from an earlier generation would take the re-cut M001 as a no-op and run on the old shape;
-    // moving the stamp is what turns that silence into a refusal.
-    protected const string BaselineStamp = "baseline-20260910";
-
     // Every migration records its plain snake name; the baseline generation identity lives in a
-    // dedicated version-0 sentinel row that every full baseline ('init' at any version - a provider
-    // joining mid-stream baselines above 1) writes alongside its own, so the bootstrap's stamp check
-    // holds for every provider database.
-    protected static (int Version, string Name)[] StampRows(int version, string name) =>
-        string.Equals(name, "init", StringComparison.Ordinal) ? [(0, BaselineStamp), (version, name)] : [(version, name)];
+    // dedicated version-0 sentinel row that every full baseline writes alongside its own (a provider
+    // joining mid-stream baselines above version 1), so the bootstrap's stamp check holds for every
+    // provider database. A delta passes null and writes only its own row.
+    protected static (int Version, string Name)[] StampRows(int version, string name, string? stamp) =>
+        stamp is null ? [(version, name)] : [(0, stamp), (version, name)];
 
     public abstract string ProviderToolName { get; }
 
@@ -114,9 +106,10 @@ internal abstract class SqlDdlDialect
     /// <summary>
     /// Idempotent INSERT recording this migration in <c>migrations</c> (the table itself is
     /// created by the runner's EnsureMigrations step); <c>applied_at_utc</c> fills from the
-    /// table's DB-clock default.
+    /// table's DB-clock default. A full baseline passes <see cref="BaselineStamp.Token"/> as
+    /// <paramref name="stamp"/> and so also writes the version-0 generation row; a delta passes null.
     /// </summary>
-    public abstract string MigrationStamp(int version, string name);
+    public abstract string MigrationStamp(int version, string name, string? stamp);
 
     /// <summary>
     /// Provider table-type (TVP) definitions appended verbatim after the entity schema. These are
