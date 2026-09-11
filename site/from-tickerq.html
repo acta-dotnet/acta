@@ -75,7 +75,11 @@
     .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
     .chrome nav a { text-decoration: none; }
     .chrome nav a:hover { color: var(--verdi); }
-    @media (max-width: 700px) { .chrome .meta { display: none; } }
+    @media (max-width: 700px) {
+      .chrome .meta { display: none; }
+      .chrome nav { gap: 1rem; }
+      .chrome nav .nav-more { display: none; }
+    }
 
     /* ---- record line: the section device ---- */
     .record {
@@ -103,6 +107,7 @@
 
     /* code pair */
     .pair { display: grid; grid-template-columns: 1fr 1.15fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
+    .pair > * { min-width: 0; }
     @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
     .panel { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
     .panel.solo { margin-top: 2.4rem; }
@@ -179,10 +184,10 @@
     <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
     <nav aria-label="Primary links">
       <a href="/">Home</a>
-      <a href="/#compare">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
       <a href="https://github.com/acta-dotnet/acta">GitHub</a>
-      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
-      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
     </nav>
   </div>
 
@@ -313,7 +318,8 @@
       Apache-2.0 · built in the open
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>
 </body>

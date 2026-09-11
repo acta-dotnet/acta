@@ -81,7 +81,11 @@
     .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
     .chrome nav a { text-decoration: none; }
     .chrome nav a:hover { color: var(--verdi); }
-    @media (max-width: 700px) { .chrome .meta { display: none; } }
+    @media (max-width: 700px) {
+      .chrome .meta { display: none; }
+      .chrome nav { gap: 1rem; }
+      .chrome nav .nav-more { display: none; }
+    }
 
     /* ---- record line: the section device ---- */
     .record {
@@ -186,6 +190,7 @@
 
     /* code pair */
     .pair { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
+    .pair > * { min-width: 0; }
     @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
     .panel { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
     .panel-tab {
@@ -393,7 +398,7 @@
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skip-link { transition: none; } }
   </style>
   <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Acta","description":"SQL-native durable background jobs and work ledger for .NET.","url":"https://useacta.net/","codeRepository":"https://github.com/acta-dotnet/acta","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"C#","runtimePlatform":".NET 10"}
+    {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Acta","description":"SQL-native durable background jobs and work ledger for .NET.","url":"https://useacta.net/","codeRepository":"https://github.com/acta-dotnet/acta","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"C#","runtimePlatform":".NET 10","author":{"@type":"Person","name":"Marko Vončina","url":"https://www.linkedin.com/in/marko-voncina"}}
   </script>
 </head>
 <body>
@@ -403,10 +408,10 @@
     <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
     <nav aria-label="Primary links">
       <a href="/start">Get started</a>
-      <a href="#compare">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="#compare" class="nav-more">Compare</a>
       <a href="https://github.com/acta-dotnet/acta">GitHub</a>
-      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
-      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
     </nav>
   </div>
 
@@ -414,7 +419,7 @@
     <header class="wrap hero">
       <p class="record">open source · postgres · sql server · sqlite</p>
       <div class="mast-row">
-        <h1 class="masthead">Acta<span class="dot">.</span><span class="sr-only">: the durable work ledger for .NET</span></h1>
+        <h1 class="masthead"><span aria-hidden="true">Acta<span class="dot">.</span></span><span class="sr-only">Acta: the durable work ledger for .NET</span></h1>
         <p class="dict"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
       </div>
       <hr class="hero-rule" />
@@ -451,8 +456,8 @@
       <div class="stats" aria-label="Key numbers">
         <div><b><em>3</em></b><span>SQL providers: pg · mssql · sqlite</span></div>
         <div><b><em>1</em></b><span>SQL round-trip per state change</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" style="text-decoration:none">88</a></b><span>runnable concepts &amp; labs</span></div>
-        <div><b>5 min</b><span>fresh clone → dashboard, zero Docker (Node 20.19+/22.12+ builds the UI)</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/concepts" style="text-decoration:none">88</a></b><span>runnable concepts &amp; labs</span></div>
+        <div><b>5 min</b><span>empty folder → durable job + dashboard · .NET 10 only · zero Docker</span></div>
       </div>
     </header>
 
@@ -502,7 +507,7 @@
 
     <section class="wrap" id="install">
       <p class="record">Install</p>
-      <h2>One package. Nothing new to run.</h2>
+      <h2>One provider package. Nothing new to run.</h2>
       <p class="lede">The provider package carries the runtime, the source generator, the analyzers, and the operator CLI. No broker to stand up, no sidecar, no service to operate. The embedded dashboard is one more package, <code>Acta.AspNetCore</code>, when you want it.</p>
       <div class="install">
         <div class="install-row primary">
@@ -521,7 +526,7 @@
           <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
         </div>
       </div>
-      <p class="hiw-note">Requires .NET 10. <code>--prerelease</code> until 1.0, and the release candidate line is <code>1.0.0-rc.1</code>. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work. Use Acta when the work must outlive the process that started it.</p>
+      <p class="hiw-note">Requires .NET 10. <code>--prerelease</code> until 1.0, and the release candidate line is <code>1.0.0-rc.3</code>. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work. Use Acta when the work must outlive the process that started it.</p>
     </section>
 
     <section class="wrap" id="model">
@@ -534,7 +539,7 @@
         </div>
         <aside class="example-note">
           <b>The common thread</b>
-          <p>Each of these has a step you must not pay for twice and a wait you must not hold a thread for. That is the whole product: a step that already succeeded is not re-run, and a job waiting on a human or a cure time occupies a row, not a worker.</p>
+          <p>Each of these has a step you must not pay for twice and a wait you must not hold a thread for. That is the whole product: a step whose successful outcome was recorded is not re-run, and a job waiting on a human or a cure time occupies a row, not a worker.</p>
         </aside>
       </div>
 
@@ -551,7 +556,7 @@
         </div>
         <div class="build">
           <h3>Media and video encoding</h3>
-          <p>A render measured in hours, several renditions per source, and a publish step that must happen exactly once even though the encode around it may be attempted many times.</p>
+          <p>A render measured in hours, several renditions per source, and a publish step where doing it twice is worse than reconciling an uncertain outcome, even though the encode around it may be attempted many times.</p>
           <span class="carries"><b>ParallelAsync</b> per rendition<br /><b>AtMostOnce()</b> on the publish<br />leases reclaimed when the encoder box dies</span>
         </div>
         <div class="build">
@@ -561,7 +566,7 @@
         </div>
         <div class="build">
           <h3>Orders, billing, and payments</h3>
-          <p>The job and the business row commit together or not at all, so there is no window where the order exists and the work to fulfil it does not. Then one customer's work runs in order, without a queue per customer.</p>
+          <p>When they share a database transaction, the job and the business row commit together or not at all, so there is no window where the order exists and the work to fulfil it does not. Then one customer's work runs in order, without a queue per customer.</p>
           <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>ExclusiveKey</b> serializes per customer</span>
         </div>
         <div class="build">
@@ -634,13 +639,13 @@
       <p class="record">Numbers &amp; boundaries</p>
       <h2>Measured, not promised.</h2>
       <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260822T134457Z.md" style="text-decoration:none">39,931</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260822T134457Z.md" style="text-decoration:none">212,930</a></b><span>jobs/s batch enqueue · Postgres · 500k-job fleet insert</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/baseline-20260822T134457Z.md" style="text-decoration:none">3.4 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc2-benchmarks-20260910.md" style="text-decoration:none">40,080</a></b><span>jobs/s peak drain · Postgres · Bulk · 16 workers</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc2-benchmarks-20260910.md" style="text-decoration:none">235,682</a></b><span>jobs/s batch enqueue · Postgres · 500k-job fleet insert</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc2-benchmarks-20260910.md" style="text-decoration:none">3.5 ms</a></b><span>p50 end-to-end latency · Direct</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">1,000,000 / 1,000,000</a></b><span>jobs succeeded while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
         <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>
-      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 1.0.0-rc.1 on the tagged tree, for regression tracking and rough sizing, not capacity claims.</p>
+      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 1.0.0-rc.2 on the release tree, for regression tracking and rough sizing, not capacity claims.</p>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
         <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
@@ -822,7 +827,7 @@ Hello, World!</span>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
-      <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>
   <script>

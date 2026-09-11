@@ -76,7 +76,11 @@
     .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
     .chrome nav a { text-decoration: none; }
     .chrome nav a:hover { color: var(--verdi); }
-    @media (max-width: 700px) { .chrome .meta { display: none; } }
+    @media (max-width: 700px) {
+      .chrome .meta { display: none; }
+      .chrome nav { gap: 1rem; }
+      .chrome nav .nav-more { display: none; }
+    }
 
     /* ---- record line: the section device ---- */
     .record {
@@ -104,6 +108,7 @@
 
     /* code pair */
     .pair { display: grid; grid-template-columns: 1fr 1.15fr; gap: 1.8rem; margin-top: 2.4rem; align-items: start; }
+    .pair > * { min-width: 0; }
     @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
     .panel { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
     .panel.solo { margin-top: 2.4rem; }
@@ -173,13 +178,14 @@
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skip-link { transition: none; } }
   </style>
   <style>
-    .prompt { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 1.1rem 0; }
+    .prompt { position: relative; background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; margin: 1.1rem 0; }
     .prompt pre { white-space: pre-wrap; }
     .prompt .button { position: absolute; top: 0.8rem; right: 0.9rem; cursor: pointer; }
+    @media (max-width: 700px) { .prompt .button { position: static; display: block; margin: 0.9rem 0.9rem 0 auto; } .prompt pre { padding-top: 0.6rem; } }
     .checks { list-style: none; padding: 0; font-family: var(--mono); font-size: 0.95rem; }
     .checks li { margin: 0.35rem 0; color: #CBD6E5; }
     .checks .ok { color: var(--verdi); margin-right: 0.5rem; }
-    .code-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 1.1rem 0; }
+    .code-card { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; margin: 1.1rem 0; }
   </style>
 </head>
 <body>
@@ -189,10 +195,10 @@
     <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
     <nav aria-label="Primary links">
       <a href="/">Home</a>
-      <a href="/#compare">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
       <a href="https://github.com/acta-dotnet/acta">GitHub</a>
-      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">Quickstart</a>
-      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
     </nav>
   </div>
 
@@ -295,7 +301,8 @@ public static class ShippingHandlers
       <p class="record">Next</p>
       <h2>What to learn after the first job.</h2>
       <div class="actions">
-        <a class="button primary" href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">The full quickstart</a>
+        <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts">Explore the runnable concepts</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">The full quickstart</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md">Retries, steps, and waits</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Running it in production</a>
       </div>
@@ -306,7 +313,8 @@ public static class ShippingHandlers
       Apache-2.0 · built in the open
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://www.linkedin.com/in/marko-voncina">LinkedIn</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>
   <script>
