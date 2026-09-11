@@ -80,6 +80,8 @@ internal sealed class PostgresDdlDialect : SqlDdlDialect
 
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) => "";
 
+    public override string IndexTrailingOptions(DbIndexSpec idx) => "";
+
     public override void EmitProviderColumnChecks(StringBuilder sb, EntityModel e)
     {
         // Postgres has no tinyint; emit a range CHECK 0..255 for every plain Byte column so out-of-range

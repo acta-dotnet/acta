@@ -252,7 +252,7 @@ CREATE TABLE {{schema}}.results (
     result_format_id tinyint NOT NULL,
     result varbinary(max) NOT NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
-    , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number)
+    , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
     , CONSTRAINT fk_results_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 ) WITH (DATA_COMPRESSION = PAGE);
@@ -285,7 +285,7 @@ CREATE TABLE {{schema}}.runtimes (
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 CREATE INDEX ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);
-CREATE INDEX ix_runtimes_retention ON {{schema}}.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
+CREATE INDEX ix_runtimes_retention ON {{schema}}.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON);
 CREATE INDEX ix_runtimes_worker_inflight ON {{schema}}.runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 END
 GO
@@ -614,7 +614,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-5605533bc82687ffdf1fbb8dba407507', '{{schema}}');
+VALUES (0, 'baseline-aa93f53cf6367c57e93fa81919337723', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

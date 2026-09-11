@@ -37,11 +37,14 @@ namespace Acta.Relational.Entities;
     Filter = "status_code IN (10, 20)",
     Usage = "claim_hot_path"
 )]
+// OptimizeForSequentialKey: retention instants ascend, so completions insert at this index's tail; a
+// per-index page-latch attribution measured 9.5 s of wait on that tail page at 16 workers.
 [DbIndex(
     Name = "ix_runtimes_retention",
     Columns = ["namespace_id", "retention_until_utc", "job_id"],
     Filter = "retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)",
-    Usage = "maintenance"
+    Usage = "maintenance",
+    OptimizeForSequentialKey = true
 )]
 // status_code stays in the filter but out of the key, which is all the heartbeat needs: keying on it
 // would move every in-flight entry to a new key on the Dispatched-to-Executing transition, and one

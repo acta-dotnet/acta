@@ -97,6 +97,28 @@ public class M001CodeChecksTests
     }
 
     [Fact]
+    public void SqlServerM001_OptimizeForSequentialKey_OnMeasuredTailInsertObjects()
+    {
+        // ix_runtimes_retention and pk_results both take rows in ascending key order; a per-index
+        // page-latch attribution measured tail-page contention on both (see JobRuntime.cs, JobResult.cs).
+        Assert.Contains(
+            "CREATE INDEX ix_runtimes_retention ON {{schema}}.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON);",
+            SqlServerM001
+        );
+        Assert.Contains(
+            "CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)",
+            SqlServerM001
+        );
+    }
+
+    [Fact]
+    public void PgAndSqliteM001_NeverEmitOptimizeForSequentialKey()
+    {
+        Assert.DoesNotContain("OPTIMIZE_FOR_SEQUENTIAL_KEY", PgM001, StringComparison.Ordinal);
+        Assert.DoesNotContain("OPTIMIZE_FOR_SEQUENTIAL_KEY", SqliteM001, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SqlServerM001_CompleteExecutionsBatch_DmlIsInsideOneTransaction()
     {
         var routine = ExtractRoutine(CompleteExecutionsBatchMssql, "complete_executions_batch");

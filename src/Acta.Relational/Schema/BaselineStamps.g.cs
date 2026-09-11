@@ -12,7 +12,7 @@ namespace Acta.Relational.Schema;
 /// </summary>
 internal static class BaselineStamps
 {
-    internal const string Mssql = "baseline-5605533bc82687ffdf1fbb8dba407507";
+    internal const string Mssql = "baseline-aa93f53cf6367c57e93fa81919337723";
 
     internal const string Pg = "baseline-53d6247cd65f698742252a1902e0a562";
 

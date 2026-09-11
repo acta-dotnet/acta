@@ -83,6 +83,11 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) =>
         pk.OptimizeForSequentialKey ? " WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)" : "";
 
+    // Same hint, opted in per-index via [DbIndex(OptimizeForSequentialKey = true)] for a non-PK
+    // index that also takes tail inserts in key order (e.g. a retention scan keyed by instant).
+    public override string IndexTrailingOptions(DbIndexSpec idx) =>
+        idx.OptimizeForSequentialKey ? " WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)" : "";
+
     public override void EmitProviderColumnChecks(StringBuilder sb, EntityModel e)
     {
         // SQL Server's tinyint and varbinary(N) already enforce byte range / payload length at the

@@ -72,7 +72,8 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
         $"{(i.IsUnique ? "U" : "I")}|cols={string.Join(",", i.Columns)}"
         + $"|inc={(i.Includes is null ? "" : string.Join(",", i.Includes))}"
         + $"|desc={(i.Descending is null ? "" : string.Join(",", i.Descending))}"
-        + $"|filter={i.Filter}";
+        + $"|filter={i.Filter}"
+        + $"|seq={i.OptimizeForSequentialKey}";
 
     private static string ForeignKeySignature(DbForeignKeySpec f) => $"{f.Column}->{f.Target.FullName}.{f.TargetColumn}|{f.OnDelete}";
 }

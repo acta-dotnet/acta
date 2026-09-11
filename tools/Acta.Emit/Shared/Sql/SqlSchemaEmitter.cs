@@ -202,7 +202,8 @@ internal static class SqlSchemaEmitter
         var includes =
             dialect.SupportsIndexInclude && idx.Includes is { Count: > 0 } ? $" INCLUDE ({string.Join(", ", idx.Includes)})" : "";
         var filter = idx.Filter is null ? "" : $" WHERE {idx.Filter}";
-        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){includes}{filter};";
+        var trailing = dialect.IndexTrailingOptions(idx);
+        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){includes}{filter}{trailing};";
     }
 
     // True when this entity's primary key is a sole integer PK that the dialect folds inline on the

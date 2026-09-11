@@ -25,6 +25,8 @@ public sealed record CellParams(
 /// The measured metrics for one cell. Rates are jobs/sec; latencies are milliseconds. Fields that a
 /// given scenario does not measure are left at zero. <c>Extra</c> carries scenario-specific scalars
 /// (recovery ms, query ms, purge seconds, fairness, etc.) keyed by name; null when unused.
+/// <c>PageLatchByIndex</c> carries SQL Server's busiest page-latch waiters for the cell, keyed
+/// <c>"table.index"</c>; null on every other provider and when the cell saw no page-latch waits.
 /// </summary>
 public sealed record CellMetrics(
     double EnqueueRatePerSec,
@@ -38,7 +40,8 @@ public sealed record CellMetrics(
     double EnqueueSeconds,
     double DrainSeconds,
     int JobsObserved,
-    IReadOnlyDictionary<string, double>? Extra = null
+    IReadOnlyDictionary<string, double>? Extra = null,
+    IReadOnlyDictionary<string, PageLatchIndexStat>? PageLatchByIndex = null
 );
 
 /// <summary>

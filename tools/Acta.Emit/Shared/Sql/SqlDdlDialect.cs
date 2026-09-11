@@ -97,6 +97,13 @@ internal abstract class SqlDdlDialect
     public abstract string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk);
 
     /// <summary>
+    /// Trailing <c>WITH (...)</c> clause for a standalone <c>CREATE INDEX</c>, driven by the index's
+    /// storage flags (e.g. <see cref="DbIndexAttribute.OptimizeForSequentialKey"/>). Empty when none
+    /// apply.
+    /// </summary>
+    public abstract string IndexTrailingOptions(DbIndexSpec idx);
+
+    /// <summary>
     /// Per-table CHECK constraints the dialect requires beyond the shared set (e.g. Postgres byte
     /// range / bytes octet length, both of which SQL Server enforces natively via tinyint /
     /// varbinary(N)).

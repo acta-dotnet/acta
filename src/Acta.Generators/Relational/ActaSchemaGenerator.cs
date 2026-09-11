@@ -587,7 +587,8 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         var desc = ReadArrayNamedArg(a, "Descending");
         var filt = ReadNamedArg(a, "Filter") as string;
         var usage = ReadNamedArg(a, "Usage") as string ?? "";
-        return new IndexInfo(name, cols, incs, desc, filt, usage, isUnique);
+        var optimizeForSequentialKey = ReadNamedArg(a, "OptimizeForSequentialKey") is bool osk && osk;
+        return new IndexInfo(name, cols, incs, desc, filt, usage, isUnique, optimizeForSequentialKey);
     }
 
     private static object? ReadNamedArg(AttributeData a, string name)
@@ -985,7 +986,12 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         sb.Append("                        Descending: ").Append(StringArrayLiteralOrNull(ix.Descending)).AppendLine(",");
         sb.Append("                        Filter: ").Append(StringLiteral(ix.Filter)).AppendLine(",");
         sb.Append("                        Usage: ").Append(StringLiteral(ix.Usage)).AppendLine(",");
-        sb.Append("                        IsUnique: ").Append(ix.IsUnique ? "true" : "false").AppendLine("),");
+        sb.Append("                        IsUnique: ").Append(ix.IsUnique ? "true" : "false").Append(')');
+        if (ix.OptimizeForSequentialKey)
+        {
+            sb.Append(" { OptimizeForSequentialKey = true }");
+        }
+        sb.AppendLine(",");
     }
 
     private static string StringArrayLiteralOrNull(ImmutableArray<string> arr)
@@ -1182,7 +1188,8 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         ImmutableArray<string> Descending,
         string? Filter,
         string Usage,
-        bool IsUnique
+        bool IsUnique,
+        bool OptimizeForSequentialKey
     );
 
     private readonly record struct CheckInfo(string Name, string Sql);

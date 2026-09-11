@@ -157,6 +157,12 @@ internal sealed class DbIndexAttribute : Attribute
     /// Documentation-only; never affects DDL.
     /// </summary>
     public required string Usage { get; init; }
+
+    /// <summary>
+    /// Opts this index into SQL Server <c>OPTIMIZE_FOR_SEQUENTIAL_KEY = ON</c>; reserve for a
+    /// monotonic key that takes tail inserts. No-op on providers without the hint.
+    /// </summary>
+    public bool OptimizeForSequentialKey { get; init; }
 }
 
 /// <summary>

@@ -98,6 +98,8 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
 
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) => "";
 
+    public override string IndexTrailingOptions(DbIndexSpec idx) => "";
+
     public override void EmitProviderColumnChecks(StringBuilder sb, EntityModel e)
     {
         // SQLite stores all integers as 64-bit; emit the 0..255 range CHECK for plain Byte columns so

@@ -227,7 +227,14 @@ internal sealed record DbIndexSpec(
     string? Filter,
     string Usage,
     bool IsUnique
-);
+)
+{
+    /// <summary>
+    /// <c>true</c> when <see cref="DbIndexAttribute.OptimizeForSequentialKey"/> opts this index into
+    /// SQL Server <c>OPTIMIZE_FOR_SEQUENTIAL_KEY = ON</c>; no-op elsewhere.
+    /// </summary>
+    public bool OptimizeForSequentialKey { get; init; }
+}
 
 /// <summary>
 /// One multi-column CHECK constraint declared on an entity. <see cref="Sql"/> references column

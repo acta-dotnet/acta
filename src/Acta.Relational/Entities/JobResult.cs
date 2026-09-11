@@ -16,7 +16,9 @@ namespace Acta.Relational.Entities;
 /// this row; the event ledger has its own retention.
 /// </remarks>
 [DbTable("results", PageCompression = true)]
-[DbPrimaryKey(Name = "pk_results", Columns = ["job_id", "execution_number"])]
+// OptimizeForSequentialKey: results arrive by ascending job id, so they insert at this key's tail; a
+// per-index page-latch attribution measured 17 s of wait on that tail page at 16 workers.
+[DbPrimaryKey(Name = "pk_results", Columns = ["job_id", "execution_number"], OptimizeForSequentialKey = true)]
 [DbForeignKey(
     Name = "fk_results_jobs",
     Target = typeof(Job),

@@ -81,7 +81,8 @@ public sealed record BaselineMetrics(
     int JobsObserved,
     long AllocatedBytes,
     int GcCollections,
-    IReadOnlyDictionary<string, double>? ExtraMetrics
+    IReadOnlyDictionary<string, double>? ExtraMetrics,
+    IReadOnlyDictionary<string, PageLatchIndexStat>? PageLatchByIndex = null
 );
 
 public sealed record BaselineCellResult(
@@ -463,8 +464,9 @@ public static class BaselineCapture
 
     /// <summary>
     /// Attaches the cell's server-side locking cost as extra metrics: <c>deadlocks</c> (pg and
-    /// mssql) plus <c>lockWaits</c> / <c>lockWaitMs</c> (mssql only) as before/after counter deltas.
-    /// The healthy value is zero deadlocks on every cell; a nonzero delta after a refactoring is the
+    /// mssql) plus <c>lockWaits</c> / <c>lockWaitMs</c> (mssql only) as before/after counter deltas,
+    /// plus mssql's busiest page-latch waiters by index (see <see cref="PageLatchIndexDelta"/>). The
+    /// healthy value is zero deadlocks on every cell; a nonzero delta after a refactoring is the
     /// deterministic "we introduced lock contention" signal recorded in the baseline output.
     /// </summary>
     private static async Task<CellMetrics> WithLockStatsAsync(
@@ -506,7 +508,8 @@ public static class BaselineCapture
         {
             extra["writeLogWaitMs"] = log1 - log0;
         }
-        return metrics with { Extra = extra };
+        var pageLatchByIndex = PageLatchIndexDelta.Compute(before.PageLatchByIndex, after.PageLatchByIndex);
+        return metrics with { Extra = extra, PageLatchByIndex = pageLatchByIndex };
     }
 
     public static void Write(BaselineFile baseline, string path)
@@ -604,6 +607,7 @@ public static class BaselineAggregator
                         ),
                     StringComparer.Ordinal
                 );
+        var pageLatchByIndex = MedianPageLatchByIndex(metrics);
 
         return new BaselineMetrics(
             Median(metrics.Select(m => m.JobsPerSecond).ToArray()),
@@ -620,8 +624,39 @@ public static class BaselineAggregator
             (int)Math.Round(Median(metrics.Select(m => (double)m.JobsObserved).ToArray())),
             (long)Math.Round(Median(metrics.Select(m => (double)m.AllocatedBytes).ToArray())),
             (int)Math.Round(Median(metrics.Select(m => (double)m.GcCollections).ToArray())),
-            extra
+            extra,
+            pageLatchByIndex
         );
+    }
+
+    /// <summary>
+    /// Medians each repeat's <see cref="PageLatchIndexStat"/> map across the union of index keys
+    /// seen (a repeat missing a key contributes zero), then keeps the busiest
+    /// <see cref="PageLatchIndexDelta.TopCount"/> entries.
+    /// </summary>
+    private static IReadOnlyDictionary<string, PageLatchIndexStat>? MedianPageLatchByIndex(IReadOnlyList<BaselineMetrics> metrics)
+    {
+        var keys = metrics.SelectMany(m => m.PageLatchByIndex?.Keys ?? []).Distinct(StringComparer.Ordinal).ToArray();
+        if (keys.Length == 0)
+        {
+            return null;
+        }
+
+        double WaitMsOf(BaselineMetrics m, string k) =>
+            m.PageLatchByIndex is not null && m.PageLatchByIndex.TryGetValue(k, out var v) ? v.WaitMs : 0;
+        double WaitsOf(BaselineMetrics m, string k) =>
+            m.PageLatchByIndex is not null && m.PageLatchByIndex.TryGetValue(k, out var v) ? v.Waits : 0;
+
+        return keys.Select(k => new KeyValuePair<string, PageLatchIndexStat>(
+                k,
+                new PageLatchIndexStat(
+                    (long)Math.Round(Median(metrics.Select(m => WaitMsOf(m, k)).ToArray())),
+                    (long)Math.Round(Median(metrics.Select(m => WaitsOf(m, k)).ToArray()))
+                )
+            ))
+            .OrderByDescending(kv => kv.Value.WaitMs)
+            .Take(PageLatchIndexDelta.TopCount)
+            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
     }
 
     public static double Median(double[] values)
@@ -655,7 +690,8 @@ public static class BaselineMetricMapper
             JobsObserved: m.JobsObserved,
             AllocatedBytes: 0,
             GcCollections: 0,
-            ExtraMetrics: m.Extra
+            ExtraMetrics: m.Extra,
+            PageLatchByIndex: m.PageLatchByIndex
         );
 }
 
@@ -1240,4 +1276,5 @@ public static class BaselineEnvironment
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(BaselineFile))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, double>))]
+[JsonSerializable(typeof(IReadOnlyDictionary<string, PageLatchIndexStat>))]
 internal sealed partial class BaselineJsonContext : JsonSerializerContext;

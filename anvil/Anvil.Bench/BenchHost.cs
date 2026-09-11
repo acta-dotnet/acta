@@ -186,8 +186,9 @@ public static class ProviderConn
     /// <summary>
     /// Reads the server's cumulative locking counters so a cell can report the delta it caused:
     /// deadlocks for Postgres (per-database) and deadlocks + lock waits + lock wait time for SQL
-    /// Server (instance-wide, so keep the lab quiet during a run). SQLite is single-writer and has
-    /// no server counters; unreachable databases also return null so the cell metrics stay intact.
+    /// Server (instance-wide, so keep the lab quiet during a run), plus SQL Server's per-index page
+    /// latch waits scoped to the cell's own schema. SQLite is single-writer and has no server
+    /// counters; unreachable databases also return null so the cell metrics stay intact.
     /// </summary>
     public static async Task<BenchLockStats?> TryReadLockStatsAsync(string provider, string schema, CancellationToken ct)
     {
@@ -205,31 +206,40 @@ public static class ProviderConn
             {
                 await using var c = new SqlConnection(Resolve(provider, schema));
                 await c.OpenAsync(ct);
-                await using var cmd = c.CreateCommand();
-                cmd.CommandText = """
-                    SELECT
-                        (SELECT MAX(CASE WHEN RTRIM(counter_name) = 'Number of Deadlocks/sec' THEN cntr_value END)
-                           FROM sys.dm_os_performance_counters
-                          WHERE object_name LIKE '%:Locks%' AND RTRIM(instance_name) = '_Total'),
-                        (SELECT MAX(CASE WHEN RTRIM(counter_name) = 'Lock Waits/sec' THEN cntr_value END)
-                           FROM sys.dm_os_performance_counters
-                          WHERE object_name LIKE '%:Locks%' AND RTRIM(instance_name) = '_Total'),
-                        (SELECT MAX(CASE WHEN RTRIM(counter_name) = 'Lock Wait Time (ms)' THEN cntr_value END)
-                           FROM sys.dm_os_performance_counters
-                          WHERE object_name LIKE '%:Locks%' AND RTRIM(instance_name) = '_Total'),
-                        (SELECT ISNULL(SUM(wait_time_ms), 0) FROM sys.dm_os_wait_stats WHERE wait_type LIKE 'PAGELATCH%'),
-                        (SELECT ISNULL(SUM(wait_time_ms), 0) FROM sys.dm_os_wait_stats WHERE wait_type = 'WRITELOG')
-                    """;
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                return !await reader.ReadAsync(ct) || reader.IsDBNull(0)
-                    ? null
-                    : new BenchLockStats(
-                        reader.GetInt64(0),
-                        reader.GetInt64(1),
-                        reader.GetInt64(2),
-                        reader.GetInt64(3),
-                        reader.GetInt64(4)
-                    );
+                long deadlocks;
+                long lockWaits;
+                long lockWaitMs;
+                long pageLatchWaitMs;
+                long writeLogWaitMs;
+                await using (var cmd = c.CreateCommand())
+                {
+                    cmd.CommandText = """
+                        SELECT
+                            (SELECT MAX(CASE WHEN RTRIM(counter_name) = 'Number of Deadlocks/sec' THEN cntr_value END)
+                               FROM sys.dm_os_performance_counters
+                              WHERE object_name LIKE '%:Locks%' AND RTRIM(instance_name) = '_Total'),
+                            (SELECT MAX(CASE WHEN RTRIM(counter_name) = 'Lock Waits/sec' THEN cntr_value END)
+                               FROM sys.dm_os_performance_counters
+                              WHERE object_name LIKE '%:Locks%' AND RTRIM(instance_name) = '_Total'),
+                            (SELECT MAX(CASE WHEN RTRIM(counter_name) = 'Lock Wait Time (ms)' THEN cntr_value END)
+                               FROM sys.dm_os_performance_counters
+                              WHERE object_name LIKE '%:Locks%' AND RTRIM(instance_name) = '_Total'),
+                            (SELECT ISNULL(SUM(wait_time_ms), 0) FROM sys.dm_os_wait_stats WHERE wait_type LIKE 'PAGELATCH%'),
+                            (SELECT ISNULL(SUM(wait_time_ms), 0) FROM sys.dm_os_wait_stats WHERE wait_type = 'WRITELOG')
+                        """;
+                    await using var reader = await cmd.ExecuteReaderAsync(ct);
+                    if (!await reader.ReadAsync(ct) || reader.IsDBNull(0))
+                    {
+                        return null;
+                    }
+                    deadlocks = reader.GetInt64(0);
+                    lockWaits = reader.GetInt64(1);
+                    lockWaitMs = reader.GetInt64(2);
+                    pageLatchWaitMs = reader.GetInt64(3);
+                    writeLogWaitMs = reader.GetInt64(4);
+                }
+                var pageLatchByIndex = await ReadPageLatchByIndexAsync(c, schema, ct);
+                return new BenchLockStats(deadlocks, lockWaits, lockWaitMs, pageLatchWaitMs, writeLogWaitMs, pageLatchByIndex);
             }
             return null;
         }
@@ -237,6 +247,43 @@ public static class ProviderConn
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Reads SQL Server's cumulative page-latch waits per index (or heap) for the cell's own schema,
+    /// keyed <c>"table.index"</c>. These <c>sys.dm_db_index_operational_stats</c> counters are
+    /// cumulative since the index was created or the metadata cache was cleared, so callers must
+    /// delta them around the cell themselves.
+    /// </summary>
+    private static async Task<IReadOnlyDictionary<string, PageLatchIndexStat>?> ReadPageLatchByIndexAsync(
+        SqlConnection connection,
+        string schema,
+        CancellationToken ct
+    )
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            SELECT
+                o.name AS table_name,
+                ISNULL(i.name, 'heap') AS index_name,
+                ios.page_latch_wait_count,
+                ios.page_latch_wait_in_ms
+            FROM sys.dm_db_index_operational_stats(DB_ID(), NULL, NULL, NULL) AS ios
+            JOIN sys.objects AS o ON o.object_id = ios.object_id
+            JOIN sys.schemas AS s ON s.schema_id = o.schema_id
+            LEFT JOIN sys.indexes AS i ON i.object_id = ios.object_id AND i.index_id = ios.index_id
+            WHERE s.name = @p_schema
+            """;
+        cmd.Parameters.Add(new SqlParameter("@p_schema", System.Data.SqlDbType.NVarChar, 128) { Value = schema });
+
+        var byIndex = new Dictionary<string, PageLatchIndexStat>(StringComparer.Ordinal);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var key = $"{reader.GetString(0)}.{reader.GetString(1)}";
+            byIndex[key] = new PageLatchIndexStat(reader.GetInt64(3), reader.GetInt64(2));
+        }
+        return byIndex.Count == 0 ? null : byIndex;
     }
 
     private static async Task EnableSqliteWalAsync(SqliteConnection connection, CancellationToken ct)
@@ -253,8 +300,57 @@ public sealed record BenchLockStats(
     long? LockWaits,
     long? LockWaitMs,
     long? PageLatchWaitMs = null,
-    long? WriteLogWaitMs = null
+    long? WriteLogWaitMs = null,
+    IReadOnlyDictionary<string, PageLatchIndexStat>? PageLatchByIndex = null
 );
+
+/// <summary>One index's (or heap's) cumulative page-latch wait count and total wait time.</summary>
+public sealed record PageLatchIndexStat(long WaitMs, long Waits);
+
+/// <summary>
+/// Deltas <see cref="PageLatchIndexStat"/> maps around a cell and keeps only the busiest entries.
+/// The source counters are cumulative since the index was created or the metadata cache was
+/// cleared, so a negative delta means the counter reset mid-cell; that entry is dropped rather than
+/// reported as a negative wait, same as a rebuild or a stats-cache clear would do to any other
+/// cumulative DMV counter.
+/// </summary>
+public static class PageLatchIndexDelta
+{
+    /// <summary>How many index entries a cell keeps, busiest by wait time first.</summary>
+    public const int TopCount = 5;
+
+    /// <summary>Deltas <paramref name="before"/> and <paramref name="after"/>; null when <paramref name="after"/> is null.</summary>
+    public static IReadOnlyDictionary<string, PageLatchIndexStat>? Compute(
+        IReadOnlyDictionary<string, PageLatchIndexStat>? before,
+        IReadOnlyDictionary<string, PageLatchIndexStat>? after
+    )
+    {
+        if (after is null)
+        {
+            return null;
+        }
+
+        var deltas = new List<KeyValuePair<string, PageLatchIndexStat>>();
+        foreach (var (key, stat1) in after)
+        {
+            var stat0 = before is not null && before.TryGetValue(key, out var b) ? b : new PageLatchIndexStat(0, 0);
+            var waitMs = stat1.WaitMs - stat0.WaitMs;
+            var waits = stat1.Waits - stat0.Waits;
+            if (waitMs < 0 || waits < 0 || (waitMs == 0 && waits == 0))
+            {
+                continue;
+            }
+            deltas.Add(new KeyValuePair<string, PageLatchIndexStat>(key, new PageLatchIndexStat(waitMs, waits)));
+        }
+
+        return deltas.Count == 0
+            ? null
+            : deltas
+                .OrderByDescending(kv => kv.Value.WaitMs)
+                .Take(TopCount)
+                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+    }
+}
 
 /// <summary>The wake transport a benchmark host uses, so scenarios can isolate wakeup-fallback latency.</summary>
 public enum BenchWakeupMode

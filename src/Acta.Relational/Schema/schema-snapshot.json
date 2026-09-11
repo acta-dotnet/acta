@@ -97,27 +97,27 @@
         "Indexes": [
           {
             "Name": "ix_alerts_dedupe_identity",
-            "Signature": "I|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL"
+            "Signature": "I|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL|seq=False"
           },
           {
             "Name": "ix_alerts_delivery_due",
-            "Signature": "I|cols=namespace_id,delivery_status_code,retry_after_utc,id|inc=|desc=|filter="
+            "Signature": "I|cols=namespace_id,delivery_status_code,retry_after_utc,id|inc=|desc=|filter=|seq=False"
           },
           {
             "Name": "ix_alerts_namespace_created",
-            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter="
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=|seq=False"
           },
           {
             "Name": "ix_alerts_namespace_unresolved",
-            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=resolved_at_utc IS NULL"
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=resolved_at_utc IS NULL|seq=False"
           },
           {
             "Name": "ux_alerts_dedupe",
-            "Signature": "U|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL AND resolved_at_utc IS NULL"
+            "Signature": "U|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL AND resolved_at_utc IS NULL|seq=False"
           },
           {
             "Name": "ux_alerts_ref",
-            "Signature": "U|cols=alert_ref|inc=|desc=|filter="
+            "Signature": "U|cols=alert_ref|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
@@ -423,7 +423,7 @@
         "Indexes": [
           {
             "Name": "ux_definitions_namespace_name",
-            "Signature": "U|cols=namespace_id,name|inc=|desc=|filter="
+            "Signature": "U|cols=namespace_id,name|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
@@ -554,19 +554,19 @@
         "Indexes": [
           {
             "Name": "ix_events_job_timeline",
-            "Signature": "I|cols=job_id,created_at_utc,id|inc=|desc=|filter=job_id IS NOT NULL"
+            "Signature": "I|cols=job_id,created_at_utc,id|inc=|desc=|filter=job_id IS NOT NULL|seq=False"
           },
           {
             "Name": "ix_events_lineage_timeline",
-            "Signature": "I|cols=lineage_root_id,created_at_utc,id|inc=|desc=|filter=lineage_root_id IS NOT NULL"
+            "Signature": "I|cols=lineage_root_id,created_at_utc,id|inc=|desc=|filter=lineage_root_id IS NOT NULL|seq=False"
           },
           {
             "Name": "ix_events_namespace_created",
-            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter="
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=|seq=False"
           },
           {
             "Name": "ix_events_namespace_timeline",
-            "Signature": "I|cols=namespace_id,event_code,created_at_utc,id|inc=|desc=|filter="
+            "Signature": "I|cols=namespace_id,event_code,created_at_utc,id|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
@@ -641,23 +641,23 @@
         "Indexes": [
           {
             "Name": "ix_jobs_namespace_created",
-            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter="
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=|seq=False"
           },
           {
             "Name": "ix_jobs_parent",
-            "Signature": "I|cols=parent_id|inc=|desc=|filter=parent_id IS NOT NULL"
+            "Signature": "I|cols=parent_id|inc=|desc=|filter=parent_id IS NOT NULL|seq=False"
           },
           {
             "Name": "ux_jobs_deduplication_key_child",
-            "Signature": "U|cols=parent_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NOT NULL"
+            "Signature": "U|cols=parent_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NOT NULL|seq=False"
           },
           {
             "Name": "ux_jobs_deduplication_key_root",
-            "Signature": "U|cols=namespace_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NULL"
+            "Signature": "U|cols=namespace_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NULL|seq=False"
           },
           {
             "Name": "ux_jobs_ref",
-            "Signature": "U|cols=job_ref|inc=|desc=|filter="
+            "Signature": "U|cols=job_ref|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
@@ -692,7 +692,7 @@
         "Indexes": [
           {
             "Name": "ix_locks_reclaim_expired",
-            "Signature": "I|cols=expires_at_utc|inc=|desc=|filter="
+            "Signature": "I|cols=expires_at_utc|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [],
@@ -742,7 +742,7 @@
         "Indexes": [
           {
             "Name": "ux_namespaces_name",
-            "Signature": "U|cols=name|inc=|desc=|filter="
+            "Signature": "U|cols=name|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [],
@@ -750,7 +750,7 @@
       },
       {
         "Table": "results",
-        "PrimaryKey": "pk_results(job_id,execution_number)|manual=False|seq=False",
+        "PrimaryKey": "pk_results(job_id,execution_number)|manual=False|seq=True",
         "Columns": [
           {
             "Name": "job_id",
@@ -843,15 +843,15 @@
         "Indexes": [
           {
             "Name": "ix_runtimes_claim_ready",
-            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id,status_code|inc=|desc=priority_code|filter=status_code IN (10, 20)"
+            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id,status_code|inc=|desc=priority_code|filter=status_code IN (10, 20)|seq=False"
           },
           {
             "Name": "ix_runtimes_retention",
-            "Signature": "I|cols=namespace_id,retention_until_utc,job_id|inc=|desc=|filter=retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)"
+            "Signature": "I|cols=namespace_id,retention_until_utc,job_id|inc=|desc=|filter=retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)|seq=True"
           },
           {
             "Name": "ix_runtimes_worker_inflight",
-            "Signature": "I|cols=leased_by_worker_id,job_id|inc=|desc=|filter=leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)"
+            "Signature": "I|cols=leased_by_worker_id,job_id|inc=|desc=|filter=leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)|seq=False"
           }
         ],
         "Checks": [
@@ -979,11 +979,11 @@
         "Indexes": [
           {
             "Name": "ix_schedules_namespace_next",
-            "Signature": "I|cols=namespace_id,next_run_at_utc,id|inc=|desc=|filter=status_code \u003C\u003E 230"
+            "Signature": "I|cols=namespace_id,next_run_at_utc,id|inc=|desc=|filter=status_code \u003C\u003E 230|seq=False"
           },
           {
             "Name": "ux_schedules_job_name",
-            "Signature": "U|cols=job_id,name|inc=|desc=|filter="
+            "Signature": "U|cols=job_id,name|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
@@ -1055,11 +1055,11 @@
         "Indexes": [
           {
             "Name": "ux_settings_global_name",
-            "Signature": "U|cols=scope_code,name|inc=|desc=|filter=scope_id IS NULL"
+            "Signature": "U|cols=scope_code,name|inc=|desc=|filter=scope_id IS NULL|seq=False"
           },
           {
             "Name": "ux_settings_scope_name",
-            "Signature": "U|cols=scope_code,scope_id,name|inc=|desc=|filter=scope_id IS NOT NULL"
+            "Signature": "U|cols=scope_code,scope_id,name|inc=|desc=|filter=scope_id IS NOT NULL|seq=False"
           }
         ],
         "Checks": [
@@ -1134,7 +1134,7 @@
         "Indexes": [
           {
             "Name": "ux_steps_job_name",
-            "Signature": "U|cols=job_id,name|inc=|desc=|filter="
+            "Signature": "U|cols=job_id,name|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
@@ -1198,7 +1198,7 @@
         "Indexes": [
           {
             "Name": "ix_tags_namespace_name_value_search",
-            "Signature": "I|cols=namespace_id,name,value_search,scope_code,scope_id|inc=|desc=|filter="
+            "Signature": "I|cols=namespace_id,name,value_search,scope_code,scope_id|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
@@ -1261,7 +1261,7 @@
         "Indexes": [
           {
             "Name": "ux_tenants_key",
-            "Signature": "U|cols=tenant_key|inc=|desc=|filter="
+            "Signature": "U|cols=tenant_key|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [],
@@ -1331,19 +1331,19 @@
         "Indexes": [
           {
             "Name": "ix_workers_namespace_last_seen",
-            "Signature": "I|cols=namespace_id,last_seen_at_utc,id|inc=|desc=last_seen_at_utc,id|filter="
+            "Signature": "I|cols=namespace_id,last_seen_at_utc,id|inc=|desc=last_seen_at_utc,id|filter=|seq=False"
           },
           {
             "Name": "ix_workers_namespace_status_last_seen",
-            "Signature": "I|cols=namespace_id,status_code,last_seen_at_utc|inc=|desc=|filter="
+            "Signature": "I|cols=namespace_id,status_code,last_seen_at_utc|inc=|desc=|filter=|seq=False"
           },
           {
             "Name": "ix_workers_status_last_seen",
-            "Signature": "I|cols=status_code,last_seen_at_utc|inc=|desc=|filter="
+            "Signature": "I|cols=status_code,last_seen_at_utc|inc=|desc=|filter=|seq=False"
           },
           {
             "Name": "ux_workers_ref",
-            "Signature": "U|cols=worker_ref|inc=|desc=|filter="
+            "Signature": "U|cols=worker_ref|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [
