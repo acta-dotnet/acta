@@ -77,7 +77,7 @@ public sealed partial class CommentStyleTests
         "src/Acta.Runtime/Modules/Execution/Signals/SignalSuspendSignal.cs",
         "src/Acta.Runtime/Modules/Execution/SuspendSignal.cs",
         "src/Acta.Runtime/Modules/Alerting/AlertsJob.cs",
-        "src/Acta.Runtime/Modules/Execution/RecoveryJob.cs",
+        "src/Acta.Runtime/Modules/Execution/RecoveryPass.cs",
         "src/Acta.Runtime/Maintenance/RetentionJob.cs",
         "src/Acta.Runtime/Modules/Execution/CompletionTypes.cs",
         "src/Acta.Runtime/Modules/Execution/Jobs/JobEnqueueRow.cs",

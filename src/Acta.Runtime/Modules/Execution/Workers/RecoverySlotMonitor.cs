@@ -9,30 +9,33 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// it is then the one that never runs, and everything stranded from then on queues behind it. This loop
 /// checks only that slot, on its own timer, and re-arms it when its lease has lapsed. Normal claiming
 /// then decides which worker runs the sweep. It never sweeps the namespace itself, so a hundred workers
-/// cost a hundred point statements an hour rather than a hundred sweeps, and it never recreates a slot
-/// an operator removed.
+/// cost a hundred point statements every seven minutes rather than a hundred sweeps, and it never
+/// recreates a slot an operator removed.
 /// </summary>
 internal sealed class RecoverySlotMonitor(
     IExecutionStore execution,
     WorkerWakeupPublisher publisher,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
-    ILogger log
+    ILogger log,
+    TimeProvider? time = null
 )
 {
     /// <summary>
-    /// One check per worker per hour, each worker offset by a random fraction of that hour. A slot that
-    /// strands is found within the interval by whichever worker's check falls next, so more workers find
-    /// it sooner; a lone worker can take the whole hour. That is a bound on delay, not a promised
-    /// recovery deadline, and the trade is deliberate: no cross-worker coordination and no schema.
+    /// One check per worker every seven minutes, each worker offset by a random fraction of that
+    /// window. A slot that strands is found within the interval by whichever worker's check falls next,
+    /// so more workers find it sooner; a lone worker can take the whole seven minutes. That is a bound
+    /// on delay, not a promised recovery deadline, and the trade is deliberate: no cross-worker
+    /// coordination and no schema.
     /// </summary>
-    internal static readonly TimeSpan Interval = TimeSpan.FromHours(1);
+    internal static readonly TimeSpan Interval = TimeSpan.FromMinutes(7);
 
     private readonly IExecutionStore _execution = execution;
     private readonly WorkerWakeupPublisher _publisher = publisher;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log;
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -45,9 +48,9 @@ internal sealed class RecoverySlotMonitor(
         {
             // The startup check already ran in the initializer, so the first periodic one waits out a
             // random slice of the interval; that is what staggers a fleet started together.
-            await Task.Delay(TimeSpan.FromTicks((long)(Interval.Ticks * Random.Shared.NextDouble())), ct);
+            await Task.Delay(TimeSpan.FromTicks((long)(Interval.Ticks * Random.Shared.NextDouble())), _time, ct);
 
-            using var timer = new PeriodicTimer(Interval);
+            using var timer = new PeriodicTimer(Interval, _time);
             do
             {
                 try

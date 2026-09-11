@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Acta.Relational.Commands;
 using Acta.Relational.Entities;
+using Acta.Runtime.Hosting;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Tests.Conformance.Contracts;
@@ -16,7 +17,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
 /// the sweep that would free it is the one that never runs. Every worker therefore checks exactly that
 /// row, at startup and on a timer, with one guarded statement. These facts pin the guard: a live lease
 /// is never touched, a lapsed one is repaired once however many workers see it, the finished event
-/// names the state the slot was actually in, and a worker start heals a slot that is already lapsed.
+/// names the state the slot was actually in, and both arms that reach the check heal a slot that is
+/// already lapsed: a worker start, and the monitor's own loop once its first delay elapses.
 /// </summary>
 [ConformanceSpec(
     "execution.recovery-slot-monitor",
@@ -24,8 +26,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Execution",
     Contract = "A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.",
     Arrange = "The namespace's sys.recovery slot is put in flight under a lease that is live or lapsed, or its row is absent.",
-    Act = "The check runs, two repairs race on one lapsed slot, a renewal commits under a waiting repair, and the worker runtime initializes over a lapsed one.",
-    Assert = "A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a renewal that commits first wins, and initialize re-arms."
+    Act = "The check runs, two repairs race on one lapsed slot, a renewal commits under a waiting repair, a worker starts over a lapsed one, and the loop ticks.",
+    Assert = "A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a renewal wins the race, and startup and the loop each re-arm."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.RepairRecoverySlotAsync))]
 public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -201,6 +203,51 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, after.Status);
         Assert.Null(after.LeasedByWorkerId);
+    }
+
+    [Fact(DisplayName = "The monitor's own periodic loop repairs a stranded slot once its first delay elapses")]
+    public async Task Periodic_loop_repairs_a_stranded_slot()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await RecoverySlotIdAsync(ct);
+        await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
+
+        // The monitor reads its namespace and slot from the worker context the initializer fills in;
+        // this one is built by hand so the loop can run without a second runtime claiming alongside it.
+        var registration = new WorkerRegistration(TestNamespace, null, null, [], []);
+        var context = new WorkerContext(registration);
+        context.NamespaceIds[TestNamespace] = TestNamespaceId;
+        context.RecoverySlotJobIdByNamespace[TestNamespaceId] = slotId;
+
+        var wakeups = new RecordingWakeup();
+        var time = new ManualTimeProvider();
+        var monitor = new RecoverySlotMonitor(
+            Execution,
+            new WorkerWakeupPublisher(wakeups),
+            registration,
+            context,
+            NullLogger.Instance,
+            time
+        );
+
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var loop = monitor.RunAsync(stop.Token);
+
+        await time.FirstTimerArmed.WaitAsync(SpecWaits.Gate, ct);
+
+        // The first delay is a random fraction of one interval, so advancing a whole interval passes it
+        // whatever fraction this run drew. The loop checks before it waits for the next tick, so this
+        // one move is the whole act.
+        time.Advance(RecoverySlotMonitor.Interval);
+        await wakeups.FirstPublish.WaitAsync(SpecWaits.Gate, ct);
+
+        var after = await RuntimeAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, after.Status);
+        Assert.Null(after.LeasedByWorkerId);
+        Assert.Equal(WorkerWakeupChannelKind.WorkerNamespace, Assert.Single(wakeups.Published).Kind);
+
+        await stop.CancelAsync();
+        await loop.WaitAsync(SpecWaits.Gate, ct);
     }
 
     private Task<bool> CheckAsync(long slotId, CancellationToken ct) =>

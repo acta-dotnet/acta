@@ -1099,8 +1099,8 @@
 ### A stranded recovery slot is repaired under a guard by any worker
 - **Contract:** A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.
 - **Arrange:** The namespace's sys.recovery slot is put in flight under a lease that is live or lapsed, or its row is absent.
-- **Act:** The check runs, two repairs race on one lapsed slot, a renewal commits under a waiting repair, and the worker runtime initializes over a lapsed one.
-- **Assert:** A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a renewal that commits first wins, and initialize re-arms.
+- **Act:** The check runs, two repairs race on one lapsed slot, a renewal commits under a waiting repair, a worker starts over a lapsed one, and the loop ticks.
+- **Assert:** A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a renewal wins the race, and startup and the loop each re-arm.
 - **Guarantees:**
   - A recovery slot in flight under a live lease is left alone
   - A recovery slot in flight under a lapsed lease is re-armed once, with the lost attempt recorded
@@ -1109,6 +1109,7 @@
   - A heartbeat renewal that commits while the repair waits on the row wins; the repair declines
   - A recovery slot whose row is gone is reported missing and never recreated
   - A worker starting over a lapsed recovery slot re-arms it before the catalog is read
+  - The monitor's own periodic loop repairs a stranded slot once its first delay elapses
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.RepairRecoverySlotAsync`
 
@@ -1874,6 +1875,18 @@
 
 ## Recovery
 
+### One sys.recovery tick reclaims, releases, and wakes
+- **Contract:** One sys.recovery tick returns lease-expired jobs to Ready, re-raises child latches lost to a crash, and wakes the workers that can claim them.
+- **Arrange:** A claimed job's lease is lapsed and a terminal child's latch raise is lost, in the namespace whose sys.recovery slot is due.
+- **Act:** The runtime claims the due sys.recovery slot by id, and the generated dispatch invokes its handler.
+- **Assert:** The stranded job is Ready again, the waiting parent is released, and both the namespace and the all-namespaces wakeup are published.
+- **Guarantees:**
+  - A due sys.recovery tick reclaims the stranded job, raises the latch its crashed child never set, and wakes both channels
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.GetStaleChildLatchesAsync`
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.MarkDeadWorkersAsync`
+
 ### Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts
 - **Contract:** An expired-lease job returns to Ready with failure_count incremented, or lands terminal Failed once MaxAttempts is reached.
 - **Arrange:** An add-numbers job is enqueued and claimed with a negative lease TTL so its lease is already expired.
@@ -2615,8 +2628,8 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |
-| `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades |
-| `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget |
+| `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes |
+| `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget |
 | `IExecutionStore.RecordJobNoteAsync` | A handler writes application-authored notes onto the job's own timeline |
 | `IExecutionStore.RepairRecoverySlotAsync` | A stranded recovery slot is repaired under a guard by any worker |
 | `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
@@ -2670,7 +2683,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IWorkerStore.ExtendWorkerLeasesAsync` | Heartbeat extends a live lease and stamps last_seen |
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
-| `IWorkerStore.MarkDeadWorkersAsync` | Stale workers in any namespace are marked Dead by a global sweep |
+| `IWorkerStore.MarkDeadWorkersAsync` | One sys.recovery tick reclaims, releases, and wakes<br>Stale workers in any namespace are marked Dead by a global sweep |
 | `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker allocates a namespace id only when it creates the namespace<br>StartWorker hash-gates the namespace write and appends a fresh worker row |
 | `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
 | `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |

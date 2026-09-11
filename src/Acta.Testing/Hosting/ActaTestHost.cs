@@ -1,11 +1,8 @@
 using Acta.Relational.Entities;
 using Acta.Runtime.Hosting;
 using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.ChildLatches;
-using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace Acta.Testing.Hosting;
 
@@ -128,6 +125,11 @@ public static class ActaTestHost
     /// <see cref="IActaBuilder"/> and the target schema; the integrator calls e.g.
     /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.ApplyMigrationsOnStartup = true; }).Run&lt;TManifest&gt;(ns)</c>
     /// (or <c>j.Run(ns, w =&gt; w.AddManifest&lt;TManifest&gt;())</c> for several manifests).
+    /// <para>
+    /// Set the provider's <c>ApplyMigrationsOnStartup</c> whenever the host owns its schema: nothing has
+    /// provisioned a throwaway schema, so without it the bootstrap's migration-history preflight throws
+    /// instead of migrating.
+    /// </para>
     /// </summary>
     public static async Task<IActaTestHost> StartAsync(
         Action<IActaBuilder, string> configureJobs,
@@ -144,21 +146,8 @@ public static class ActaTestHost
         options.ConfigureServices?.Invoke(services);
         var provider = services.BuildServiceProvider(validateScopes: true);
 
-        // Same startup order as WorkerRuntimeHost: provider bootstraps before any worker's catalog
-        // upserts. With the provider's ApplyMigrationsOnStartup set they migrate the throwaway schema;
-        // without it they still check the driver major and the existing migration history, which on a
-        // per-test schema nothing has provisioned means the bootstrap throws here - so a test host that
-        // owns its schema wants that option on.
-        foreach (var bootstrap in provider.GetServices<IProviderBootstrap>())
-        {
-            await bootstrap.RunAsync(ct);
-        }
-
         var runtimes = provider.GetServices<WorkerRuntime>().ToArray();
-        foreach (var runtime in runtimes)
-        {
-            await runtime.InitializeAsync(ct);
-        }
+        await WorkerRuntimeStartup.RunAsync(provider.GetServices<IProviderBootstrap>(), runtimes, ct);
 
         return new HostImpl(provider, runtimes, schema);
     }
@@ -218,41 +207,8 @@ public static class ActaTestHost
                 throw new InvalidOperationException($"Namespace '{jobNamespace}' has no id yet. Call InitializeAsync before recovery.");
             }
 
-            var options = provider.GetRequiredService<IOptions<JobsOptions>>().Value;
-            var signals = provider.GetRequiredService<ISignalStore>();
-            var deadWorkers = await provider
-                .GetRequiredService<IWorkerStore>()
-                .MarkDeadWorkersAsync((int)options.WorkerDeadAfter.TotalSeconds, ct);
-            var reclaimed = await provider.GetRequiredService<IExecutionStore>().ReclaimStuckJobsAsync(namespaceId, ct);
-
-            var released = 0;
-            foreach (var (childId, parentId) in reclaimed.FailedChildren)
-            {
-                if (await RaiseChildLatch.Run(signals, childId, parentId, JobStatusCode.Failed, ct))
-                {
-                    released++;
-                }
-            }
-
-            foreach (var latch in await provider.GetRequiredService<IExecutionStore>().GetStaleChildLatchesAsync(namespaceId, ct))
-            {
-                if (await RaiseChildLatch.Run(signals, latch.ChildJobId, latch.ParentJobId, latch.ChildStatus ?? JobStatusCode.Failed, ct))
-                {
-                    released++;
-                }
-            }
-
-            var wakeup = provider.GetService<WorkerWakeupPublisher>();
-            if (wakeup is not null && reclaimed.Reclaimed > 0)
-            {
-                await wakeup.WakeAsync(WorkerWakeupChannel.WorkerNamespace(jobNamespace), WorkerWakeupReason.WorkAvailable, ct);
-            }
-            if (wakeup is not null && released > 0)
-            {
-                await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-            }
-
-            return new ActaRecoveryOutcome(deadWorkers, reclaimed.Reclaimed, released);
+            var outcome = await provider.GetRequiredService<RecoveryPass>().RunAsync(namespaceId, jobNamespace, ct);
+            return new ActaRecoveryOutcome(outcome.DeadWorkersMarked, outcome.ReclaimedJobs, outcome.ReleasedChildLatches);
         }
 
         public async Task ForceJobDueAsync(long jobId, CancellationToken ct = default)

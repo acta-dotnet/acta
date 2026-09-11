@@ -71,6 +71,9 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IWorkerWakeup, InProcessWakeup>();
         services.TryAddSingleton<WorkerWakeupPublisher>();
 
+        // One recovery pass, shared by the sys.recovery handler and the test host's recovery drive.
+        services.TryAddSingleton<RecoveryPass>();
+
         // The three built-in serializers register through TryAddEnumerable so the registry's
         // IEnumerable<IJobPayloadSerializer> ctor sees all of them (consumer apps add more by
         // registering additional implementations). Per-handler invokers and (de)serializers live on
