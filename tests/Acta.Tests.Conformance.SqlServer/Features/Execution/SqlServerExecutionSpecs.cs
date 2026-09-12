@@ -18,3 +18,5 @@ public sealed class SqlServerWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<Sql
 public sealed class SqlServerSchedulesChangedDuringExecutionSpec : SchedulesChangedDuringExecutionSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerUnsupportedDefinitionClaimSpec : UnsupportedDefinitionClaimSpec<SqlServerConformanceFixture>;

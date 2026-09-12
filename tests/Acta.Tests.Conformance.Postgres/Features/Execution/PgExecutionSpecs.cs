@@ -18,3 +18,5 @@ public sealed class PgWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<PgConforma
 public sealed class PgSchedulesChangedDuringExecutionSpec : SchedulesChangedDuringExecutionSpec<PgConformanceFixture>;
 
 public sealed class PgRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<PgConformanceFixture>;
+
+public sealed class PgUnsupportedDefinitionClaimSpec : UnsupportedDefinitionClaimSpec<PgConformanceFixture>;

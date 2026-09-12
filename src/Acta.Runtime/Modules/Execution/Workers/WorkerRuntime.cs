@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Acta.Runtime.Hosting;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
@@ -240,6 +241,13 @@ internal sealed class WorkerRuntime
 
     /// <summary>This runtime's live in-flight attempt count; exposed for observability and drain assertions.</summary>
     public int InFlightCount => _context.RunningAttempts.Count;
+
+    /// <summary>
+    /// This runtime's live descriptor index, keyed by <c>definitions.id</c>: what this deployment can
+    /// actually run, which is not what the namespace holds jobs for. The policy reloader rewrites
+    /// entries here while executors read them, and an entry a deployment dropped stays dropped.
+    /// </summary>
+    internal ConcurrentDictionary<int, JobDescriptor> Descriptors => _context.DescriptorByDefinitionId;
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete

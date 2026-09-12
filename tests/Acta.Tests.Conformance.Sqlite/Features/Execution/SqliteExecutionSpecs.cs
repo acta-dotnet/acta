@@ -18,3 +18,5 @@ public sealed class SqliteWaitTimeoutReclaimSpec : WaitTimeoutReclaimSpec<Sqlite
 public sealed class SqliteSchedulesChangedDuringExecutionSpec : SchedulesChangedDuringExecutionSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteUnsupportedDefinitionClaimSpec : UnsupportedDefinitionClaimSpec<SqliteConformanceFixture>;

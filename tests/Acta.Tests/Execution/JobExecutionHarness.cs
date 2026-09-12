@@ -4,6 +4,7 @@ using Acta.Runtime.Modules.Execution.ChildLatches;
 using Acta.Runtime.Modules.Execution.Timers;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
+using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -130,6 +131,45 @@ internal sealed class JobExecutionHarness(
             WorkerId,
             isRecurring: false,
             fireOutcome: null,
+            alreadyStarted: false,
+            CancellationToken.None
+        );
+    }
+
+    /// <summary>
+    /// Drives one claimed job through the real <see cref="JobExecutor"/> with an EMPTY descriptor
+    /// index: the state a deployment that dropped the definition leaves a worker in. The scripted
+    /// store is the same one, so a test reads the released claim off <see cref="Submitted"/> and the
+    /// bounce off <see cref="Log"/>.
+    /// </summary>
+    public async Task<RunOnceOutcome> RunWithNoDescriptorAsync()
+    {
+        var options = Options.Create(new JobsOptions());
+        var serializers = new HarnessSerializers();
+        var executor = new JobExecutor(
+            new UnusedLockStore(),
+            new HarnessClock(),
+            serializers,
+            new StoreOnlyServices(_store),
+            options,
+            new WorkerContext(null),
+            new JobExecution(
+                jobStore: null!,
+                _store,
+                serializers,
+                options,
+                new JobBehaviorPipeline([]),
+                new WorkerWakeupPublisher(new InProcessWakeup()),
+                _log
+            ),
+            _log
+        );
+
+        return await executor.ExecuteClaimedJobAsync(
+            Job(failureCount),
+            namespaceName: "harness",
+            namespaceId: 1,
+            WorkerId,
             alreadyStarted: false,
             CancellationToken.None
         );
@@ -333,6 +373,18 @@ internal sealed class JobExecutionHarness(
         public static readonly EmptyServices Instance = new();
 
         public object? GetService(Type serviceType) => null;
+    }
+
+    // The root provider JobExecutor resolves its store from. Only the store is answered, so a path
+    // that starts resolving anything else fails loudly instead of silently taking a null.
+    private sealed class StoreOnlyServices(IExecutionStore store) : IServiceProvider
+    {
+        public object? GetService(Type serviceType) => serviceType == typeof(IExecutionStore) ? store : null;
+    }
+
+    private sealed class HarnessClock : IActaClock
+    {
+        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(DateTime.UnixEpoch);
     }
 
     // The attempt itself carries no payload, but a handler can write a variable or progress value, and

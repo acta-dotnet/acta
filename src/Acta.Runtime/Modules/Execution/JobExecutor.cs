@@ -20,6 +20,8 @@ namespace Acta.Runtime.Modules.Execution;
 /// then hands the start-invoke-complete lifecycle to <see cref="JobExecution"/> (which takes the
 /// exclusive-key lock after the start CAS and bounces a loser back to Ready). Claiming jobs from the
 /// DB and dispatching them to executors is the worker loop's job.
+/// <para>A claim this deployment carries no handler for is returned to Ready instead of executed;
+/// see <see cref="ExecuteClaimedJobAsync"/>.</para>
 /// </summary>
 internal sealed class JobExecutor(
     ILockStore lockStore,
@@ -45,6 +47,13 @@ internal sealed class JobExecutor(
         rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.IExecutionStore>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
+
+    // Re-arm delay for a claim this deployment cannot run, in whole seconds (the store verb's unit).
+    // SafetyPollInterval is the honest unit for it: the option is documented as the bound on how long
+    // a Ready row waits to be found by a process this one shares no wakeup transport with, and a
+    // process that carries the missing handler is exactly who has to pick this job up. Validation
+    // keeps it at or above one second, so the delay never rounds to zero.
+    private readonly int _unsupportedClaimDelaySeconds = (int)Math.Ceiling(options.Value.SafetyPollInterval.TotalSeconds);
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
@@ -82,6 +91,12 @@ internal sealed class JobExecutor(
         return await ExecuteClaimedJobAsync(claim.Jobs[0], namespaceName, namespaceId, workerId, alreadyStarted: false, ct);
     }
 
+    /// <summary>
+    /// Runs one claimed job through the attempt lifecycle. A claim whose definition this deployment
+    /// carries no descriptor for is returned to Ready instead (see
+    /// <see cref="ReleaseUnsupportedClaimAsync"/>), because claims are by namespace and a worker is
+    /// therefore free to claim work it cannot run.
+    /// </summary>
     public async Task<RunOnceOutcome> ExecuteClaimedJobAsync(
         ClaimedJob job,
         string namespaceName,
@@ -93,10 +108,7 @@ internal sealed class JobExecutor(
     {
         if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
         {
-            throw new InvalidOperationException(
-                $"Claimed job with definition_id={job.DefinitionId} (job {job.JobId}) "
-                    + "has no descriptor binding. Was AddManifest called for the right manifest before InitializeAsync?"
-            );
+            return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, alreadyStarted, ct);
         }
 
         // One scope per attempt carrying the job identity. Opened on the runtime logger, which shares
@@ -228,5 +240,89 @@ internal sealed class JobExecutor(
             attemptCts.Dispose();
             timeoutCts.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Returns a claim this deployment has no handler for to Ready: budget-neutral, lease cleared, due
+    /// again after <see cref="JobsOptions.SafetyPollInterval"/>, so a worker that carries the
+    /// definition can take it. Claims are selected by namespace, so a namespace that still holds jobs
+    /// for a definition dropped from the manifest - and every rolling deploy - hands some worker a job
+    /// it cannot run.
+    /// <para>The claim was never an attempt: nothing is registered in
+    /// <c>WorkerContext.RunningAttempts</c>, no per-attempt scope is opened, and no handler is
+    /// invoked. Refusing the claim by throwing instead would strand the row - the claim has already
+    /// stamped the lease and the in-flight status, the worker loop swallows the exception and stays
+    /// healthy, and <c>extend_worker_leases</c> renews every row this worker leases from database
+    /// state alone, so the lease never lapses and <c>sys.recovery</c> never reclaims it.</para>
+    /// </summary>
+    private async Task<RunOnceOutcome> ReleaseUnsupportedClaimAsync(
+        ClaimedJob job,
+        string namespaceName,
+        int workerId,
+        bool alreadyStarted,
+        CancellationToken ct
+    )
+    {
+        // complete_execution's CAS matches an Executing row only, so the claim is walked through the
+        // start CAS first even though nothing will run. The combined claim loop already started the
+        // execution in the claim itself.
+        if (!alreadyStarted)
+        {
+            var start = await _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, ct);
+            if (start != StartExecutionAction.Started)
+            {
+                // The claim was lost before the bounce: reclaimed on lease expiry, reassigned, or moved
+                // out of Dispatched by a control verb. The CAS guard means nothing was mutated.
+                _log.LogInformation(
+                    "WorkerRuntime: lost claim on job {JobId} ({Detail}) before releasing it: ({Outcome}); skipping.",
+                    job.JobId,
+                    $"definition_id {job.DefinitionId}",
+                    start.ToString()
+                );
+                return RunOnceOutcome.NothingClaimed;
+            }
+        }
+
+        // Unclassified rather than a borrowed code: no catalog reason describes a worker declining a
+        // claim, and the two candidates would both misreport it - JobAttemptAborted is published as a
+        // mid-flight abort retried under the failure budget, JobDefinitionRetired as a catalog
+        // retirement that cancels. Unclassified is the writer saying the story is in the message, and
+        // it stays out of both the alertable set and the Failures audit level, which a bounce belongs
+        // outside of: nothing failed.
+        var request = new CompleteExecutionRequest(
+            job.JobId,
+            workerId,
+            job.ExecutionNumber,
+            ExecutionOutcome.Rescheduled,
+            0,
+            ReadOnlyMemory<byte>.Empty,
+            JobEventReasonCode.Unclassified,
+            $"No handler for definition_id={job.DefinitionId} in this deployment; returned to Ready for a worker that has one.".Truncate(
+                ActaTextLimits.ReasonMessage
+            ),
+            DurationMs: 0
+        )
+        {
+            RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
+            RescheduleDelaySeconds = _unsupportedClaimDelaySeconds,
+        };
+
+        // One warning per bounce: the ping-pong between an incapable worker and the queue is bounded
+        // by the delay but otherwise invisible, and this is the only place the pair (namespace,
+        // definition id) is known. The job name is not - resolving it is what the missing descriptor
+        // would have done - so the ref is what an operator takes to `jobs explain`.
+        _log.LogWarning(
+            "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms.",
+            namespaceName,
+            job.JobId,
+            $"ref {job.JobRef}, definition_id {job.DefinitionId}",
+            _unsupportedClaimDelaySeconds * 1000
+        );
+
+        // No wakeup publish, deliberately: every claim loop re-polls within SafetyPollInterval, which
+        // is the delay itself, and waking this namespace would wake this worker's own loops first and
+        // tighten the bounce into a spin.
+        var complete = await _execution.CompleteExecutionAsync(request, ct);
+        return complete.Action == CompleteExecutionAction.Completed ? RunOnceOutcome.Rearmed : RunOnceOutcome.NothingClaimed;
     }
 }

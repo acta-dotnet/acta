@@ -77,6 +77,17 @@ Stored rows keep their durable job name. They are not rewritten to another handl
 definition registered until runnable/waiting rows drain or expire, or deploy a compatible/versioned
 migration plan. Search retained failed jobs too: an operator restart can make them runnable again.
 
+A worker that claims such a job hands it straight back. Claims are selected by namespace, not by
+what a process can run, so during a rolling deploy either version can claim either version's jobs.
+A worker with no handler for a claimed job returns it to `Ready` with the lease cleared, no failure
+charged and no retry consumed, due again one safety-poll interval later, and logs a warning naming
+the job ref and definition id. Under audit level `Audit` the bounce writes one
+`job.execution-finished` row with reason `job.unclassified` whose message names the definition;
+under `Failures` it writes nothing, because nothing failed. A job whose definition no live worker
+carries bounces indefinitely at that cadence and sits `Ready` without progressing; that is the
+symptom to look for, and the fix is still to keep the old definition registered until the rows
+drain.
+
 ## …a checkpoint name changes during a deployment?
 
 The new name is a different durable slot. A step can repeat, a variable can appear absent, or a
