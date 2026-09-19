@@ -91,6 +91,26 @@ public sealed class JobExecutionRateAdmissionTests
     }
 
     [Fact]
+    public async Task A_provider_error_on_the_reservation_bounces_and_gives_the_slot_back()
+    {
+        var harness = new JobExecutionHarness(concurrencyKey: "customer-1", concurrencyLimit: 4, rateLimit: "10/s", rateThrows: true);
+
+        var outcome = await harness.RunAsync();
+
+        // The meter could not answer, so the attempt bounces with the fixed delay rather than a
+        // reserved instant, the slot it took goes back, and nothing is charged; a reservation the
+        // meter may have booked without answering is honoured when the job returns.
+        var completion = harness.Completion;
+        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.False(harness.HandlerRan);
+        Assert.Equal(JobEventReasonCode.JobConcurrencyKeyHeld, completion.JobEventReasonCode);
+        Assert.Equal(new JobsOptions().ConcurrencyKeyBounceDelaySeconds, completion.RescheduleDelaySeconds);
+        Assert.Null(completion.RescheduleResumeAtUtc);
+        Assert.Null(completion.FailureCount);
+        Assert.Equal(1, harness.SlotReleases);
+    }
+
+    [Fact]
     public async Task A_bounced_concurrency_slot_never_spends_a_rate_turn()
     {
         // The slot is the outer gate, so a job that cannot run must not move the meter: spending a

@@ -34,7 +34,9 @@ internal sealed class JobExecutionHarness(
     bool slotGranted = true,
     string? rateLimit = null,
     string? rateKey = null,
-    DateTime? rateResumeAtUtc = null
+    DateTime? rateResumeAtUtc = null,
+    bool slotThrows = false,
+    bool rateThrows = false
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -49,7 +51,7 @@ internal sealed class JobExecutionHarness(
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce, startAfterFailure);
-    private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc);
+    private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, slotThrows, rateThrows);
     private readonly RecordingLogger _log = new();
 
     /// <summary>Every concurrency-slot acquire the runner issued, in order.</summary>
@@ -298,9 +300,6 @@ internal sealed class JobExecutionHarness(
             return Task.FromResult(StartAttempts > 1 && startAfterFailure is { } after ? after : startAction);
         }
 
-        // The one exception class the retry helper repeats: a provider fault, not a handler fault.
-        private sealed class ProviderDown() : System.Data.Common.DbException("connection dropped");
-
         public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct)
         {
             _startedSteps.Add(name);
@@ -455,7 +454,11 @@ internal sealed class JobExecutionHarness(
     /// script says, records what the runner asked for, and counts releases; the handler-facing acquire
     /// stays unsupported, so an attempt that starts using it is visible rather than silent.
     /// </summary>
-    private sealed class ScriptedLockStore(bool slotGranted, DateTime? rateResumeAtUtc) : ILockStore
+    // The one exception class the retry helper repeats and admission bounces on: a provider fault, not
+    // a handler fault.
+    private sealed class ProviderDown() : System.Data.Common.DbException("connection dropped");
+
+    private sealed class ScriptedLockStore(bool slotGranted, DateTime? rateResumeAtUtc, bool slotThrows, bool rateThrows) : ILockStore
     {
         private readonly List<SlotRequest> _slotRequests = [];
         private readonly List<RateRequest> _rateRequests = [];
@@ -472,6 +475,10 @@ internal sealed class JobExecutionHarness(
         public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct)
         {
             _slotRequests.Add(new SlotRequest(keyPrefix, limit));
+            if (slotThrows)
+            {
+                throw new ProviderDown();
+            }
             return Task.FromResult(slotGranted ? new LockToken($"{keyPrefix}.0", Guid.NewGuid()) : (LockToken?)null);
         }
 
@@ -484,6 +491,10 @@ internal sealed class JobExecutionHarness(
         )
         {
             _rateRequests.Add(new RateRequest(bucketKey, intervalMilliseconds, burst));
+            if (rateThrows)
+            {
+                throw new ProviderDown();
+            }
             return Task.FromResult(
                 rateResumeAtUtc is { } resumeAt ? new RateReservation(false, resumeAt) : new RateReservation(true, DateTime.UtcNow)
             );

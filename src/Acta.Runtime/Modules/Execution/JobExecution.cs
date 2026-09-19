@@ -5,6 +5,7 @@ using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Runtime.Modules.Execution.Schedules;
 using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime.Services.Locks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -115,11 +116,34 @@ internal sealed class JobExecution(
         // costs no join on the claim path.
         var concurrencyKey = job.ConcurrencyKey ?? (descriptor.ConcurrencyLimit is not null ? descriptor.JobName : null);
         var concurrencyBounced = false;
+        var admissionFailed = false;
         if (!deadlineHitAtAdmission && concurrencyKey is not null)
         {
             var concurrencyLimit = descriptor.ConcurrencyLimit ?? 1;
-            concurrencyBounced = !await jobContext.TryAcquireConcurrencySlotAsync(concurrencyKey, concurrencyLimit, ct);
-            if (concurrencyBounced)
+            try
+            {
+                concurrencyBounced = !await jobContext.TryAcquireConcurrencySlotAsync(concurrencyKey, concurrencyLimit, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // An admission error must not escape: the row is Executing under this worker and the
+                // heartbeat renews it from database state alone, so an escaped exception would strand
+                // it until the process restarts. The attempt bounces instead. A slot the acquire may
+                // have committed without answering is untracked and expires with its lease TTL.
+                concurrencyBounced = true;
+                admissionFailed = true;
+                _log.LogWarning(
+                    ex,
+                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); the slot acquire for concurrency key ({Detail}) failed, so the job re-armed Ready in {DurationMs}ms.",
+                    "concurrency-admission",
+                    "Bounced",
+                    job.JobId,
+                    "admission-error",
+                    concurrencyKey,
+                    _concurrencyKeyBounceDelaySeconds * 1000
+                );
+            }
+            if (concurrencyBounced && !admissionFailed)
             {
                 _log.LogDebug(
                     "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); concurrency key ({Detail}) has every slot held, so the job re-armed Ready in {DurationMs}ms.",
@@ -141,8 +165,32 @@ internal sealed class JobExecution(
         var rateLimited = false;
         if (!deadlineHitAtAdmission && !concurrencyBounced && descriptor.Rate is { } rate)
         {
-            var reservation = await jobContext.ReserveRateAsync(descriptor.RateKey ?? descriptor.JobName, rate, ct);
-            rateLimited = !reservation.Admitted;
+            RateReservation reservation;
+            try
+            {
+                reservation = await jobContext.ReserveRateAsync(descriptor.RateKey ?? descriptor.JobName, rate, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Same rule as the slot above: the error becomes a bounce with the fixed delay, and the
+                // slot just taken goes back. A reservation the meter may have booked without answering
+                // is honoured when the job returns, so nothing is double-counted.
+                await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
+                concurrencyBounced = true;
+                admissionFailed = true;
+                _log.LogWarning(
+                    ex,
+                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); the reservation for rate key ({Detail}) failed, so the job re-armed Ready in {DurationMs}ms.",
+                    "rate-admission",
+                    "Bounced",
+                    job.JobId,
+                    "admission-error",
+                    descriptor.RateKey ?? descriptor.JobName,
+                    _concurrencyKeyBounceDelaySeconds * 1000
+                );
+                reservation = new RateReservation(true, DateTime.UtcNow);
+            }
+            rateLimited = !admissionFailed && !reservation.Admitted;
             if (rateLimited)
             {
                 await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
@@ -469,7 +517,9 @@ internal sealed class JobExecution(
             // Concurrency bounce: settle the attempt as a budget-neutral re-arm with the fixed delay.
             outcome = ExecutionOutcome.Rescheduled;
             failureReason = JobEventReasonCode.JobConcurrencyKeyHeld;
-            failureMessage = "Every concurrency slot for this key is held by another execution.";
+            failureMessage = admissionFailed
+                ? "Admission failed on a provider error; the attempt re-armed instead of running."
+                : "Every concurrency slot for this key is held by another execution.";
             rescheduleDelaySeconds = _concurrencyKeyBounceDelaySeconds;
         }
 

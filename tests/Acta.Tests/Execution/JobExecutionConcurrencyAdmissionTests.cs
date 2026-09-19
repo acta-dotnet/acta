@@ -82,4 +82,24 @@ public sealed class JobExecutionConcurrencyAdmissionTests
         // Nothing was taken, so nothing is released; a release here would free another holder's slot.
         Assert.Equal(0, harness.SlotReleases);
     }
+
+    [Fact]
+    public async Task A_provider_error_on_slot_admission_bounces_instead_of_escaping()
+    {
+        var harness = new JobExecutionHarness(concurrencyKey: "customer-1", slotThrows: true);
+
+        var outcome = await harness.RunAsync();
+
+        // The row is Executing under this worker and the heartbeat renews it from database state, so
+        // an exception that escaped here would strand it until the process restarts. The attempt
+        // bounces like a held slot: budget-neutral, the fixed delay, no handler run.
+        var completion = harness.Completion;
+        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.False(harness.HandlerRan);
+        Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
+        Assert.Equal(JobEventReasonCode.JobConcurrencyKeyHeld, completion.JobEventReasonCode);
+        Assert.Equal(new JobsOptions().ConcurrencyKeyBounceDelaySeconds, completion.RescheduleDelaySeconds);
+        Assert.Null(completion.FailureCount);
+        Assert.Equal(0, harness.SlotReleases);
+    }
 }
