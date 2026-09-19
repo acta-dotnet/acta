@@ -65,6 +65,20 @@ public sealed class JobExecutorUnsupportedClaimTests
     }
 
     [Fact]
+    public async Task A_start_that_committed_and_lost_its_response_is_still_released()
+    {
+        var harness = new JobExecutionHarness(startFailsOnce: true, startAfterFailure: StartExecutionAction.LostClaim);
+
+        var outcome = await harness.RunWithNoDescriptorAsync();
+
+        // The retry resubmits the stale version and hears LostClaim, but the row is this worker's:
+        // the guarded completion is the reconciliation, and it lands the release.
+        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(2, harness.StartAttempts);
+        Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
+    }
+
+    [Fact]
     public async Task A_claim_lost_before_the_release_writes_nothing()
     {
         var harness = new JobExecutionHarness(startAction: StartExecutionAction.LostClaim);

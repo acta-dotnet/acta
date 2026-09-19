@@ -27,7 +27,8 @@ internal sealed class JobExecutionHarness(
     short failureCount = 0,
     int? maxInlinePayloadBytes = null,
     StartExecutionAction startAction = StartExecutionAction.Started,
-    bool startFailsOnce = false
+    bool startFailsOnce = false,
+    StartExecutionAction? startAfterFailure = null
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -41,7 +42,7 @@ internal sealed class JobExecutionHarness(
     // The execution-timeout source, handed to the RunningAttempt so a cancellation can be told from an
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
-    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce);
+    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce, startAfterFailure);
     private readonly RecordingLogger _log = new();
 
     /// <summary>Every completion command the runner handed the store, in submission order.</summary>
@@ -230,7 +231,8 @@ internal sealed class JobExecutionHarness(
         CompleteStepOutcomeCode stepOutcome,
         CompleteExecutionAction completionAction,
         StartExecutionAction startAction,
-        bool startFailsOnce
+        bool startFailsOnce,
+        StartExecutionAction? startAfterFailure
     ) : IExecutionStore
     {
         private readonly List<CompleteExecutionRequest> _submitted = [];
@@ -264,7 +266,9 @@ internal sealed class JobExecutionHarness(
                 _startFailsOnce = false;
                 throw new ProviderDown();
             }
-            return Task.FromResult(startAction);
+            // startAfterFailure models a first try that committed and lost only its response: the retry
+            // resubmits a stale version and the CAS answers LostClaim although this worker holds the row.
+            return Task.FromResult(StartAttempts > 1 && startAfterFailure is { } after ? after : startAction);
         }
 
         // The one exception class the retry helper repeats: a provider fault, not a handler fault.

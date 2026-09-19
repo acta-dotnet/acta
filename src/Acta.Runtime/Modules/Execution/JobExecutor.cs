@@ -270,13 +270,17 @@ internal sealed class JobExecutor(
         {
             // Retried like the completion below: a provider error here would otherwise escape to the
             // worker loop and leave the Dispatched row under a lease the heartbeat keeps renewing.
-            var (start, _) = await CompletionWrite.RetryAsync(
+            var (start, retried) = await CompletionWrite.RetryAsync(
                 token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, token),
                 _log,
                 job.JobId,
                 ct
             );
-            if (start != StartExecutionAction.Started)
+            // A retried start that answers LostClaim is ambiguous: the first try may have committed and
+            // lost only its response, in which case this worker holds the Executing row and the version
+            // it resubmitted is stale. The completion below is the reconciliation, because its CAS
+            // matches only a row this worker holds at this execution number and mutates nothing else.
+            if (start != StartExecutionAction.Started && !(retried && start == StartExecutionAction.LostClaim))
             {
                 // The claim was lost before the bounce: reclaimed on lease expiry, reassigned, or moved
                 // out of Dispatched by a control verb. The CAS guard means nothing was mutated.
