@@ -51,6 +51,20 @@ public sealed class JobExecutorUnsupportedClaimTests
     }
 
     [Fact]
+    public async Task A_provider_error_on_the_start_write_is_retried_before_the_release()
+    {
+        var harness = new JobExecutionHarness(startFailsOnce: true);
+
+        var outcome = await harness.RunWithNoDescriptorAsync();
+
+        // The start CAS is repeated like the completion: one dropped connection must not escape to
+        // the worker loop, which would leave the Dispatched row under a lease the heartbeat renews.
+        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(2, harness.StartAttempts);
+        Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
+    }
+
+    [Fact]
     public async Task A_claim_lost_before_the_release_writes_nothing()
     {
         var harness = new JobExecutionHarness(startAction: StartExecutionAction.LostClaim);

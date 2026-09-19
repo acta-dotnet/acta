@@ -26,7 +26,8 @@ internal sealed class JobExecutionHarness(
     short maxAttempts = 3,
     short failureCount = 0,
     int? maxInlinePayloadBytes = null,
-    StartExecutionAction startAction = StartExecutionAction.Started
+    StartExecutionAction startAction = StartExecutionAction.Started,
+    bool startFailsOnce = false
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -40,11 +41,14 @@ internal sealed class JobExecutionHarness(
     // The execution-timeout source, handed to the RunningAttempt so a cancellation can be told from an
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
-    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction);
+    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce);
     private readonly RecordingLogger _log = new();
 
     /// <summary>Every completion command the runner handed the store, in submission order.</summary>
     public IReadOnlyList<CompleteExecutionRequest> Submitted => _store.Submitted;
+
+    /// <summary>How many times the runner issued the start write.</summary>
+    public int StartAttempts => _store.StartAttempts;
 
     /// <summary>Every log line the runner wrote, for the arms whose whole contract is what they say.</summary>
     public IReadOnlyList<LogEntry> Log => _log.Entries;
@@ -225,12 +229,17 @@ internal sealed class JobExecutionHarness(
     private sealed class ScriptedExecutionStore(
         CompleteStepOutcomeCode stepOutcome,
         CompleteExecutionAction completionAction,
-        StartExecutionAction startAction
+        StartExecutionAction startAction,
+        bool startFailsOnce
     ) : IExecutionStore
     {
         private readonly List<CompleteExecutionRequest> _submitted = [];
         private readonly List<CompleteExecutionRequest> _applied = [];
         private readonly List<string> _startedSteps = [];
+        private bool _startFailsOnce = startFailsOnce;
+
+        /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
+        public int StartAttempts { get; private set; }
 
         public IReadOnlyList<CompleteExecutionRequest> Submitted => _submitted;
         public IReadOnlyList<CompleteExecutionRequest> Applied => _applied;
@@ -247,7 +256,19 @@ internal sealed class JobExecutionHarness(
             int expectedVersion,
             int leaseTtlSeconds,
             CancellationToken ct
-        ) => Task.FromResult(startAction);
+        )
+        {
+            StartAttempts++;
+            if (_startFailsOnce)
+            {
+                _startFailsOnce = false;
+                throw new ProviderDown();
+            }
+            return Task.FromResult(startAction);
+        }
+
+        // The one exception class the retry helper repeats: a provider fault, not a handler fault.
+        private sealed class ProviderDown() : System.Data.Common.DbException("connection dropped");
 
         public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct)
         {

@@ -268,7 +268,14 @@ internal sealed class JobExecutor(
         // execution in the claim itself.
         if (!alreadyStarted)
         {
-            var start = await _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, ct);
+            // Retried like the completion below: a provider error here would otherwise escape to the
+            // worker loop and leave the Dispatched row under a lease the heartbeat keeps renewing.
+            var (start, _) = await CompletionWrite.RetryAsync(
+                token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, token),
+                _log,
+                job.JobId,
+                ct
+            );
             if (start != StartExecutionAction.Started)
             {
                 // The claim was lost before the bounce: reclaimed on lease expiry, reassigned, or moved
