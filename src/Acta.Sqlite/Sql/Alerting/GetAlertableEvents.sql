@@ -1,5 +1,6 @@
 SELECT
     e.id,
+    e.created_at_utc,
     e.job_id,
     e.definition_id,
     jd.name,
@@ -13,10 +14,14 @@ FROM {{schema}}.events e
 INNER JOIN {{schema}}.definitions jd ON jd.id = e.definition_id
 WHERE
     e.namespace_id = @p_namespace_id
-    AND e.id > @p_cursor_event_id
-    /* Safe horizon: one writer at a time makes SQLite immune to the commit-order race, but the predicate
-       is here for uniformity with the other two providers. created_at_utc is epoch milliseconds. */
-    AND e.created_at_utc <= {{now}} - (@p_alert_lag_seconds * 1000)
+    /* Cursored by (created_at_utc, id), never by id alone: one writer at a time makes SQLite immune to the
+       commit-order race the other two providers have, but the walk is written once for all three.
+       created_at_utc, and both instant parameters the dialect binds against it, are epoch milliseconds. */
+    AND e.created_at_utc <= @p_horizon_utc
+    AND (
+        e.created_at_utc > @p_cursor_utc
+        OR (e.created_at_utc = @p_cursor_utc AND e.id > @p_cursor_event_id)
+    )
     AND e.job_id IS NOT NULL
     AND e.event_code = 41 /* EventCode.JobExecutionFinished */
     AND (
@@ -37,5 +42,5 @@ WHERE
         )
         OR e.execution_status_code = 100 /* ExecutionStatusCode.Succeeded */
     )
-ORDER BY e.id
+ORDER BY e.created_at_utc, e.id
 LIMIT @p_alert_batch_size;

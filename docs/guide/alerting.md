@@ -41,7 +41,16 @@ Four consequences an operator sees:
   batch — guarantees a pass cut short by a bound, a crash, or the framework's 300 s execution
   timeout keeps everything it already projected. The lag grows until the burst clears.
 - **Generate walks `events` forward from a durable cursor** kept on the slot's own variable bag
-  (`AlertsJob.CursorVariableName`, `AlertsJob.GenerateAsync`).
+  (`AlertsJob.CursorVariableName`, `AlertsJob.GenerateAsync`). The cursor is the pair
+  `(created_at_utc, id)` in one variable, never the id alone: the stamp is set inside the writing
+  transaction and the id at insert, so a slow writer commits a low stamp under a high id, and a
+  cursor keyed on id would step over its neighbour for good. One variable, because two writers can
+  overlap when a pass outlives its lease, and a whole older checkpoint only replays where mixed
+  halves would skip. A short batch is the proof that nothing alertable is left behind the horizon,
+  so it advances the cursor instant to the horizon and the next pass never rescans the history this
+  one walked. The walk assumes the database clock does not step backwards; what a step costs and how
+  an operator rewinds the cursor by hand are in
+  [known limitations](../technical/known-limitations.md).
 
 A deterministic poison event — a channel name or deduplication key that fails canonicalization, or a
 job row purged between the event write and its projection — is recorded as a durable variable on the

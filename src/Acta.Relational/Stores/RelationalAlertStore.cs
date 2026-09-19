@@ -64,10 +64,14 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         }
     }
 
+    public TimeSpan SafeHorizonLag => TimeSpan.FromSeconds(_safeHorizonLagSeconds);
+
     public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
         int namespaceId,
+        DateTime cursorUtc,
         long cursorEventId,
         int batchSize,
+        DateTime horizonUtc,
         CancellationToken ct
     ) =>
         session.QueryAsync<IReadOnlyList<AlertableEvent>>(
@@ -75,8 +79,9 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.NamespaceId, namespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertCursorUtc, cursorUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorEventId, cursorEventId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertLagSeconds, _safeHorizonLagSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertHorizonUtc, horizonUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, batchSize));
             },
             async (reader, token) =>

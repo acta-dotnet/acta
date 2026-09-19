@@ -29,15 +29,31 @@ internal interface IAlertStore
     Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct);
 
     /// <summary>
-    /// Reads the namespace's alert-relevant <c>events</c> rows above the <c>sys.alerts</c> cursor,
-    /// ordered by the monotonic event id so the caller resumes from the last id it consumed.
-    ///
-    /// <para>The read stops short of the present: an event is offered only once its <c>created_at_utc</c>
-    /// is older than a safe horizon behind the database's own clock, so no transaction can still commit a
-    /// lower id than one the caller has already checkpointed. The horizon is the implementation's to size;
-    /// the caller sees it only as latency between an event landing and the pass that projects it.</para>
+    /// How far behind the pass's database clock the projection read stops: wide enough that every
+    /// alertable row stamped at or before that instant has committed, since alertable rows are written
+    /// by Acta's own short transactions. The lag is the implementation's to size; the caller sees it as
+    /// latency between an event landing and the pass that projects it, and as the instant a short batch
+    /// may checkpoint to.
     /// </summary>
-    Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(int namespaceId, long cursorEventId, int batchSize, CancellationToken ct);
+    TimeSpan SafeHorizonLag { get; }
+
+    /// <summary>
+    /// Reads the namespace's alert-relevant <c>events</c> rows past the <c>sys.alerts</c> cursor and
+    /// stamped at or before <paramref name="horizonUtc"/>, ordered by (created_at_utc, id). The cursor is
+    /// that same pair: a row is offered when it is stamped after <paramref name="cursorUtc"/>, or
+    /// stamped the same and carrying a higher id than <paramref name="cursorEventId"/>. Stamps, not ids,
+    /// order the walk because the two can invert: the stamp is set inside the writing transaction and
+    /// the id at insert, so a slow writer commits a low stamp under a high id and a cursor keyed on id
+    /// alone would step over its neighbour for good.
+    /// </summary>
+    Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
+        int namespaceId,
+        DateTime cursorUtc,
+        long cursorEventId,
+        int batchSize,
+        DateTime horizonUtc,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Reads the namespace's unresolved alerts due for delivery. Both arms key off

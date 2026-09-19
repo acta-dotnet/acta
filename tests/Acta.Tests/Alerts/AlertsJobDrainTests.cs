@@ -19,7 +19,7 @@ public sealed class AlertsJobDrainTests
     private static readonly AlertDrainBudget SmallBatches = new(BatchSize: 4, MaxBatches: 40, TimeBudget: TimeSpan.FromSeconds(30));
 
     [Fact]
-    public async Task Idle_pass_reads_once_and_leaves_no_cursor()
+    public async Task Idle_pass_reads_once_and_checkpoints_the_horizon_alone()
     {
         var store = new BacklogAlertStore(backlog: 0);
         var ctx = new CursorRecordingContext();
@@ -27,11 +27,11 @@ public sealed class AlertsJobDrainTests
 
         await CreateJob(store, SmallBatches).Handle(ctx, ct);
 
-        // One read that came back empty, and nothing written: no checkpoint of an unmoved cursor, and
-        // no second read to confirm what the first already said.
+        // One read that came back empty, no second read to confirm what the first already said, and one
+        // checkpoint: the id half stays at zero because no event was read, while the instant moves up to
+        // the horizon, which is what keeps the next pass from rescanning the history this one looked past.
         Assert.Single(store.Reads);
-        Assert.Empty(ctx.CursorWrites);
-        Assert.False(await ctx.ExistsVariableAsync(AlertsJob.CursorVariableName, ct));
+        Assert.Equal([new AlertsCursor(store.HorizonUtc.Ticks, 0L)], ctx.Checkpoints);
     }
 
     [Fact]
@@ -48,6 +48,39 @@ public sealed class AlertsJobDrainTests
         Assert.Equal([(0L, 4), (4L, 4), (8L, 4)], store.Reads);
         Assert.Equal([4L, 8L, 10L], ctx.CursorWrites);
         Assert.Equal(10, store.Raises);
+    }
+
+    [Fact]
+    public async Task Short_batch_advances_the_cursor_instant_to_the_horizon_the_read_never_returns()
+    {
+        // Ten failures, then a horizon forty seconds past them that the read does not return anything
+        // from. The short batch is the proof that nothing alertable is left behind the horizon, so the
+        // instant lands on it while the id stays at the last event read; the next pass starts at the
+        // horizon instead of rescanning forty seconds of history.
+        var store = new BacklogAlertStore(backlog: 10) { HorizonUtc = BacklogAlertStore.Stamp(50) };
+        var ctx = new CursorRecordingContext();
+        var ct = TestContext.Current.CancellationToken;
+
+        await CreateJob(store, SmallBatches).Handle(ctx, ct);
+
+        Assert.Equal([4L, 8L, 10L], ctx.CursorWrites);
+        Assert.Equal([BacklogAlertStore.Stamp(4), BacklogAlertStore.Stamp(8), BacklogAlertStore.Stamp(50)], ctx.InstantWrites);
+        Assert.Equal(10, store.Raises);
+    }
+
+    [Fact]
+    public async Task Full_batches_never_checkpoint_past_what_they_read()
+    {
+        // Every batch came back full, so the pass cannot know the backlog is drained and must not
+        // step over anything it has not read, whatever lies behind the horizon.
+        var store = new BacklogAlertStore(backlog: 8) { HorizonUtc = BacklogAlertStore.Stamp(50) };
+        var ctx = new CursorRecordingContext();
+        var ct = TestContext.Current.CancellationToken;
+
+        await CreateJob(store, SmallBatches with { MaxBatches = 2 }).Handle(ctx, ct);
+
+        Assert.Equal([4L, 8L], ctx.CursorWrites);
+        Assert.Equal([BacklogAlertStore.Stamp(4), BacklogAlertStore.Stamp(8)], ctx.InstantWrites);
     }
 
     [Fact]
@@ -93,7 +126,7 @@ public sealed class AlertsJobDrainTests
         await Assert.ThrowsAsync<TimeoutException>(() => CreateJob(crashing, SmallBatches).Handle(ctx, ct));
 
         Assert.Equal([4L, 8L], ctx.CursorWrites);
-        Assert.Equal(8L, await ctx.GetRequiredVariableAsync<long>(AlertsJob.CursorVariableName, ct));
+        Assert.Equal(8L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
 
         // The next invocation resumes from that cursor and re-offers nothing below it.
         var recovering = new BacklogAlertStore(backlog: 20);
@@ -101,7 +134,7 @@ public sealed class AlertsJobDrainTests
 
         Assert.Equal(8L, recovering.Reads[0].Cursor);
         Assert.Equal(12, recovering.Raises);
-        Assert.Equal(20L, await ctx.GetRequiredVariableAsync<long>(AlertsJob.CursorVariableName, ct));
+        Assert.Equal(20L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
     }
 
     private static AlertsJob CreateJob(IAlertStore store, AlertDrainBudget drain) =>
@@ -113,13 +146,17 @@ public sealed class AlertsJobDrainTests
     /// </summary>
     private sealed class CursorRecordingContext : RecordingJobContext
     {
-        public List<long> CursorWrites { get; } = [];
+        public List<AlertsCursor> Checkpoints { get; } = [];
+
+        public IEnumerable<long> CursorWrites => Checkpoints.Select(c => c.EventId);
+
+        public IEnumerable<DateTime> InstantWrites => Checkpoints.Select(c => c.Utc);
 
         protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
         {
-            if (string.Equals(name, AlertsJob.CursorVariableName, StringComparison.Ordinal) && value is long cursor)
+            if (string.Equals(name, AlertsJob.CursorVariableName, StringComparison.Ordinal) && value is AlertsCursor cursor)
             {
-                CursorWrites.Add(cursor);
+                Checkpoints.Add(cursor);
             }
 
             return base.SetVariableCoreAsync(name, value, ct);
@@ -139,10 +176,22 @@ public sealed class AlertsJobDrainTests
 
         public int ThrowOnRead { get; init; }
 
+        /// <summary>
+        /// The horizon the fake hands every pass, whatever the clock read: the backlog's own last stamp
+        /// unless a fact sets it later to model history the read never returns. A short batch checkpoints
+        /// its instant here.
+        /// </summary>
+        public DateTime HorizonUtc { get; init; } = Stamp(backlog);
+
+        // The fixed clock reads the epoch, so this lag lands every pass's horizon exactly on HorizonUtc.
+        public TimeSpan SafeHorizonLag => DateTime.UnixEpoch - HorizonUtc;
+
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
             int namespaceId,
+            DateTime cursorUtc,
             long cursorEventId,
             int batchSize,
+            DateTime horizonUtc,
             CancellationToken ct
         )
         {
@@ -152,10 +201,11 @@ public sealed class AlertsJobDrainTests
                 return Task.FromException<IReadOnlyList<AlertableEvent>>(new TimeoutException("provider timeout"));
             }
 
+            // The real read's predicate: behind the horizon, past the (stamp, id) cursor, in (stamp, id) order.
             var rows = Enumerable
                 .Range(1, backlog)
                 .Select(i => (long)i)
-                .Where(id => id > cursorEventId)
+                .Where(id => Stamp(id) <= horizonUtc && (Stamp(id) > cursorUtc || (Stamp(id) == cursorUtc && id > cursorEventId)))
                 .Take(batchSize)
                 .Select(Event)
                 .ToArray();
@@ -193,11 +243,15 @@ public sealed class AlertsJobDrainTests
 
         public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => throw new NotSupportedException();
 
+        // Stamps climb with ids, one second apart, so the stream orders the same way by either half.
+        public static DateTime Stamp(long eventId) => DateTime.UnixEpoch.AddSeconds(eventId);
+
         // OnTerminal plus a terminal transition: one FinalFailure raise per event, with no escalation
         // arm and no resolution arm in play, so the raise count is the projected-event count.
         private static AlertableEvent Event(long eventId) =>
             new(
                 eventId,
+                Stamp(eventId),
                 JobId: 101,
                 DefinitionId: 7,
                 JobName: "probe",

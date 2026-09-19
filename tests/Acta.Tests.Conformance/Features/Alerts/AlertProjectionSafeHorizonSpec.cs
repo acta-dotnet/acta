@@ -20,15 +20,19 @@ namespace Acta.Tests.Conformance.Features.Alerts;
 /// about it. Withholding is asserted alone and layered under a projected event, because a cursor that
 /// stops short only matters when the pass had somewhere to move it to - and "not yet" is only a
 /// guarantee if "then" follows.</para>
+///
+/// <para>The cursor is the pair (stamp, id), never the id alone, because the two can invert: the stamp
+/// is set inside the writing transaction and the id at insert, so a slow writer commits a low stamp
+/// under a high id. A cursor keyed on id would step over a withheld neighbour with a lower id for good.</para>
 /// </summary>
 [ConformanceSpec(
     "alerts-projection.safe-horizon",
     "The alerts projector reads behind a safe horizon rather than up to the present",
     Area = "Alerts",
-    Contract = "The sys.alerts projection read offers an event only once its created_at_utc is older than the safe horizon, so the cursor never steps over an uncommitted id.",
-    Arrange = "Alertable failure events are written for a seeded job with the database's own created_at_utc stamps, aged past the horizon or left inside it.",
+    Contract = "The sys.alerts read offers an event only once its stamp is behind the safe horizon, cursored by (created_at_utc, id) so no uncommitted event is stepped over.",
+    Arrange = "Alertable failure events are written with the database's own stamps, aged past the horizon or left inside it, one under a lower id than a projected neighbour.",
     Act = "The projector passes over them while a stamp is still inside the horizon, and again once that stamp has been aged past it.",
-    Assert = "A pass projects only what is behind the horizon and stops its cursor below the withheld event, which the next pass takes once it ages out."
+    Assert = "A pass projects only what is behind the horizon and stops its cursor below the withheld event, which the next pass takes once it ages out, lower id or not."
 )]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
 [CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
@@ -42,14 +46,56 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
     {
         var ct = TestContext.Current.CancellationToken;
         var subject = await SeedAlertingJobAsync(ct);
-        await StageFailureEventAsync(subject, executionNumber: 1, ct);
+        var eventId = await StageFailureEventAsync(subject, executionNumber: 1, ct);
 
         await RunAlertsWithoutAgingAsync(subject.JobId, ct);
 
-        // Nothing projected, and - the load-bearing half - no cursor either. A pass that checkpointed
-        // the horizon away would leave this event permanently behind a cursor that had passed it.
+        // Nothing projected, and - the load-bearing half - both halves of the cursor stay below the
+        // event. A pass that checkpointed the present away would leave it permanently behind a cursor
+        // that had passed it.
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
-        Assert.Equal(0, await CountVariableAsync(subject.JobId, AlertsJob.CursorVariableName, ct));
+        Assert.True(await ReadCursorAsync(subject.JobId, ct) < eventId, "the cursor must not step over an event still inside the horizon");
+        Assert.True(
+            await ReadCursorInstantAsync(subject.JobId, ct) < await StampOfAsync(eventId, ct),
+            "the cursor instant must stay below the withheld stamp"
+        );
+    }
+
+    [Fact(DisplayName = "A withheld event under a lower id than a projected neighbour is still taken once it ages out")]
+    public async Task Withheld_event_with_a_lower_id_is_taken_once_it_ages_out()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var subject = await SeedAlertingJobAsync(ct);
+        var neighbour = await SeedSecondJobAsync(subject, ct);
+
+        // The inversion: the slow writer's row takes the lower id but keeps the later stamp, and the
+        // quick neighbour is already behind the horizon under a higher id. Two jobs, because one job's
+        // attempts are serialized and its own events never invert; the inversion is between writers.
+        var slow = await StageFailureEventAsync(subject, executionNumber: 1, ct);
+        var quick = await StageFailureEventAsync(neighbour, executionNumber: 1, ct);
+        await BackdateToHorizonAsync(quick, ct);
+        Assert.True(
+            quick > slow && await StampOfAsync(quick, ct) < await StampOfAsync(slow, ct),
+            "the staged rows must invert stamp order against id order"
+        );
+
+        await RunAlertsWithoutAgingAsync(subject.JobId, ct);
+
+        // The quick row projects and the cursor's id half is now above the slow row's id. Keyed on id
+        // alone, that would have been the end of the slow row.
+        Assert.Equal(neighbour.JobId, Assert.Single(await ReadAlertsAsync(NamespaceId, ct)).JobId);
+        Assert.Equal(quick, await ReadCursorAsync(subject.JobId, ct));
+
+        // Aging lands the slow row exactly on the horizon of the moment, which has to be strictly later
+        // than the horizon the last pass checkpointed to: on a millisecond clock that needs a beat.
+        await Task.Delay(TimeSpan.FromMilliseconds(10), ct);
+        await AlertTestOps.AgeEventsPastHorizonAsync(Services, NamespaceId, ct);
+        await RunAlertsWithoutAgingAsync(subject.JobId, ct);
+
+        var incidents = await ReadAlertsAsync(NamespaceId, ct);
+        Assert.Equal(2, incidents.Count);
+        Assert.Single(incidents, a => a.JobId == subject.JobId);
+        Assert.Equal(slow, await ReadCursorAsync(subject.JobId, ct));
     }
 
     [Fact(DisplayName = "An event aged past the horizon projects on the next pass")]
@@ -113,6 +159,13 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
         return new AlertingSubject(definitionId, jobId);
     }
 
+    /// <summary>A second job under the same definition, for a fact that needs two independent writers.</summary>
+    private async Task<AlertingSubject> SeedSecondJobAsync(AlertingSubject subject, CancellationToken ct)
+    {
+        var (jobId, _) = await new ActaTestSeeder(Db).SeedJobAsync(NamespaceId, subject.DefinitionId, ct: ct);
+        return subject with { JobId = jobId };
+    }
+
     /// <summary>
     /// One terminal-failure <c>job.execution-finished</c> row, with <c>created_at_utc</c> left to the
     /// column default so the stamp is the database's own clock rather than this process's.
@@ -152,6 +205,25 @@ public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTest
 
     private Task<long> ReadCursorAsync(long cursorOwnerJobId, CancellationToken ct) =>
         AlertTestOps.ReadAlertsCursorAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, ct);
+
+    private Task<DateTime> ReadCursorInstantAsync(long cursorOwnerJobId, CancellationToken ct) =>
+        AlertTestOps.ReadAlertsCursorInstantAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, ct);
+
+    private async Task<DateTime> StampOfAsync(long eventId, CancellationToken ct) =>
+        DateTime.SpecifyKind(
+            Assert.Single(await Db.From<JobEvent>().Where(e => e.Id == eventId).ToListAsync(ct)).CreatedAtUtc,
+            DateTimeKind.Utc
+        );
+
+    /// <summary>
+    /// Ages one row to the horizon of this moment and leaves every other row where it is, which is how a
+    /// fact stages a projected row beside a withheld one that was inserted earlier.
+    /// </summary>
+    private async Task BackdateToHorizonAsync(long eventId, CancellationToken ct)
+    {
+        var aged = await AlertTestOps.HorizonOfThisMomentAsync(Services, ct);
+        await Db.From<JobEvent>().Where(e => e.Id == eventId).UpdateOnlyAsync(() => new JobEvent { CreatedAtUtc = aged }, ct);
+    }
 
     private sealed record AlertingSubject(int DefinitionId, long JobId);
 }

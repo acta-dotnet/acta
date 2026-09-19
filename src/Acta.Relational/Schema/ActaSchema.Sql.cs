@@ -350,12 +350,27 @@ internal static partial class ActaSchema
         );
 
         /// <summary>
-        /// sys.alerts projection cursor: the highest events.id consumed on the prior tick; the read
-        /// returns rows with id strictly greater, so the monotonic event id is the resumable watermark.
+        /// sys.alerts projection cursor, id half: the events.id consumed last on the prior tick. It only
+        /// breaks the tie among rows sharing the cursor's instant; AlertCursorUtc is what orders the walk.
         /// </summary>
         public static readonly DbValueSpec<long> CursorEventId = new(
             ParameterName: "p_cursor_event_id",
             Kind: DbKind.Int64,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
+        /// <summary>
+        /// sys.alerts projection cursor, instant half: the created_at_utc of the last event consumed, or
+        /// the horizon a short batch advanced to. Paired with CursorEventId; the read takes rows stamped
+        /// after it, or stamped the same under a higher id, so an id that inverted against its stamp is
+        /// never stepped over.
+        /// </summary>
+        public static readonly DbValueSpec<DateTime> AlertCursorUtc = new(
+            ParameterName: "p_cursor_utc",
+            Kind: DbKind.UtcInstant,
             Size: null,
             Precision: null,
             Scale: null,
@@ -377,13 +392,14 @@ internal static partial class ActaSchema
         );
 
         /// <summary>
-        /// sys.alerts safe horizon: how many seconds behind the database's own clock the projection read
-        /// stops, so an event whose id was allocated before a still-open transaction's is never stepped
-        /// over. Derived from the provider command timeout; see RelationalAlertStore.SafeHorizonLagSeconds.
+        /// sys.alerts safe horizon: the instant the projection read stops at, computed once per pass
+        /// from the database clock less the command-timeout lag (RelationalAlertStore.SafeHorizonLagSeconds)
+        /// and handed to every read of that pass, so an event whose id was allocated before a still-open
+        /// transaction's is never stepped over, and no two reads of one pass can disagree on the boundary.
         /// </summary>
-        public static readonly DbValueSpec<int> AlertLagSeconds = new(
-            ParameterName: "p_alert_lag_seconds",
-            Kind: DbKind.Int32,
+        public static readonly DbValueSpec<DateTime> AlertHorizonUtc = new(
+            ParameterName: "p_horizon_utc",
+            Kind: DbKind.UtcInstant,
             Size: null,
             Precision: null,
             Scale: null,

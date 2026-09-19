@@ -225,7 +225,7 @@
   - The batch cap ends the pass at the last completed batch, and the next pass continues
   - A crash between batches replays only the batch that was in flight
   - A spent time budget ends the pass after the batch in flight, not inside it
-  - An idle pass leaves no cursor and no rows behind
+  - An idle pass leaves no rows behind and moves only the cursor instant, up to the horizon
 - **Store methods:**
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
@@ -258,12 +258,13 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
 
 ### The alerts projector reads behind a safe horizon rather than up to the present
-- **Contract:** The sys.alerts projection read offers an event only once its created_at_utc is older than the safe horizon, so the cursor never steps over an uncommitted id.
-- **Arrange:** Alertable failure events are written for a seeded job with the database's own created_at_utc stamps, aged past the horizon or left inside it.
+- **Contract:** The sys.alerts read offers an event only once its stamp is behind the safe horizon, cursored by (created_at_utc, id) so no uncommitted event is stepped over.
+- **Arrange:** Alertable failure events are written with the database's own stamps, aged past the horizon or left inside it, one under a lower id than a projected neighbour.
 - **Act:** The projector passes over them while a stamp is still inside the horizon, and again once that stamp has been aged past it.
-- **Assert:** A pass projects only what is behind the horizon and stops its cursor below the withheld event, which the next pass takes once it ages out.
+- **Assert:** A pass projects only what is behind the horizon and stops its cursor below the withheld event, which the next pass takes once it ages out, lower id or not.
 - **Guarantees:**
   - An event still inside the horizon is not projected and the cursor does not advance
+  - A withheld event under a lower id than a projected neighbour is still taken once it ages out
   - An event aged past the horizon projects on the next pass
   - A pass projects the aged event and stops its cursor below the one still inside the horizon
 - **Store methods:**

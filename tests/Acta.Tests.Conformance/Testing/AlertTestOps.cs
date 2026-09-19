@@ -1,5 +1,4 @@
 using Acta.Relational.Entities;
-using Acta.Relational.Stores;
 using Acta.Runtime.Modules.Alerting;
 using Acta.Runtime.Modules.Alerting.Api;
 using Acta.Runtime.Modules.Execution;
@@ -113,30 +112,58 @@ internal static class AlertTestOps
     /// <remarks>
     /// The instant comes from <see cref="IServerClock"/> - the database's own clock, which is what the
     /// horizon predicate compares against - so the whole alert family rides on no assumption about this
-    /// host's clock agreeing with the database's. One second of slack puts the stamp strictly inside the
-    /// horizon rather than exactly on its boundary; nothing larger is needed, because the read that
-    /// follows reads its own <c>now()</c>, which cannot precede the one taken here.
+    /// host's clock agreeing with the database's. Only rows still inside the horizon move, and they land
+    /// exactly on it: the projector's cursor instant sits at the horizon of the last pass, so a stamp any
+    /// earlier could fall behind the cursor, and a stamp any later stays inside the horizon the next pass
+    /// computes. Rows already behind it keep their stamps, so a cursor that passed them is not rewound.
     /// </remarks>
     public static async Task AgeEventsPastHorizonAsync(IServiceProvider services, int namespaceId, CancellationToken ct)
     {
-        var lag = TimeSpan.FromSeconds(
-            RelationalAlertStore.SafeHorizonLagSeconds(services.GetRequiredService<SqlProviderOptions>().CommandTimeout)
-        );
-        var serverNowUtc = await services.GetRequiredService<IServerClock>().GetUtcNowAsync(ct);
-        var aged = serverNowUtc - lag - TimeSpan.FromSeconds(1);
+        var aged = await HorizonOfThisMomentAsync(services, ct);
         await services
             .GetRequiredService<IDbSession>()
             .From<JobEvent>()
-            .Where(e => e.NamespaceId == namespaceId)
+            .Where(e => e.NamespaceId == namespaceId && e.CreatedAtUtc > aged)
             .UpdateOnlyAsync(() => new JobEvent { CreatedAtUtc = aged }, ct);
     }
+
+    /// <summary>
+    /// The safe horizon a pass starting now would compute, from the database's own clock and the
+    /// container's command timeout through the projector's own arithmetic: the newest stamp such a
+    /// pass would still read.
+    /// </summary>
+    public static async Task<DateTime> HorizonOfThisMomentAsync(IServiceProvider services, CancellationToken ct) =>
+        AlertsJob.SafeHorizon(
+            await services.GetRequiredService<IServerClock>().GetUtcNowAsync(ct),
+            services.GetRequiredService<IAlertStore>().SafeHorizonLag
+        );
 
     /// <summary>
     /// The projector's cursor as the projector itself reads it, through a stand-in context on the
     /// same slot: a spec asserting how far a pass drained compares against this rather than decoding
     /// the checkpoint row's payload by hand. Zero when no pass has checkpointed yet.
     /// </summary>
-    public static Task<long> ReadAlertsCursorAsync(
+    public static async Task<long> ReadAlertsCursorAsync(
+        IServiceProvider services,
+        string jobNamespace,
+        int namespaceId,
+        long cursorOwnerJobId,
+        CancellationToken ct
+    ) => (await ReadCursorAsync(services, jobNamespace, namespaceId, cursorOwnerJobId, ct)).EventId;
+
+    /// <summary>
+    /// The instant half of the projector's cursor, read the same way: the stamp the last pass checkpointed
+    /// to, or a short batch's horizon. <see cref="DateTime.MinValue"/> when no pass has checkpointed yet.
+    /// </summary>
+    public static async Task<DateTime> ReadAlertsCursorInstantAsync(
+        IServiceProvider services,
+        string jobNamespace,
+        int namespaceId,
+        long cursorOwnerJobId,
+        CancellationToken ct
+    ) => (await ReadCursorAsync(services, jobNamespace, namespaceId, cursorOwnerJobId, ct)).Utc;
+
+    private static Task<AlertsCursor> ReadCursorAsync(
         IServiceProvider services,
         string jobNamespace,
         int namespaceId,
@@ -144,24 +171,29 @@ internal static class AlertTestOps
         CancellationToken ct
     ) =>
         BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
-            .GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, 0L, ct);
+            .GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, new AlertsCursor(0L, 0L), ct);
 
     /// <summary>
     /// Rewinds the projector's cursor to <paramref name="cursorEventId"/> through the same variable
     /// write the projector uses, which is how a spec stages a crash that lost one batch's checkpoint
-    /// while every alert write that batch made stands. Deleting the row (the whole-pass crash) is the
-    /// coarser sibling of this and lives in the specs that need it.
+    /// while every alert write that batch made stands. The instant half is that event's own stamp when
+    /// the row exists, else zero. Deleting the row (the whole-pass crash) is the coarser sibling of this
+    /// and lives in the specs that need it.
     /// </summary>
-    public static Task RewindAlertsCursorAsync(
+    public static async Task RewindAlertsCursorAsync(
         IServiceProvider services,
         string jobNamespace,
         int namespaceId,
         long cursorOwnerJobId,
         long cursorEventId,
         CancellationToken ct
-    ) =>
-        BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
-            .SetVariableAsync(AlertsJob.CursorVariableName, cursorEventId, ct);
+    )
+    {
+        var row = await services.GetRequiredService<IDbSession>().From<JobEvent>().Where(e => e.Id == cursorEventId).ToListAsync(ct);
+        var ticks = row.Count == 1 ? DateTime.SpecifyKind(row[0].CreatedAtUtc, DateTimeKind.Utc).Ticks : 0L;
+        await BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
+            .SetVariableAsync(AlertsJob.CursorVariableName, new AlertsCursor(ticks, cursorEventId), ct);
+    }
 
     /// <summary>
     /// Records one poison-skip variable for <paramref name="eventId"/> through the same checkpoint

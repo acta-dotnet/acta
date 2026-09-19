@@ -119,6 +119,16 @@ to hear about**; it alerts on
 each failure transition, and incident identity collapses a repeating nightly failure onto one row
 rather than one per night.
 
+The alert projector walks `events` by `(created_at_utc, id)` behind a horizon on the database clock,
+and assumes that clock does not step backwards (slewing, the way NTP corrects small drift, is fine).
+After a backward step, failures stamped on the new clock below the cursor's instant are never offered
+to the projector, and failures of one job that straddle the step can be collapsed onto one incident
+instead of counted per attempt. Recovery is manual: rewind the cursor by editing the `alerts-cursor`
+variable row of the namespace's `sys.alerts` slot in `checkpoints` to `{"Ticks":<UTC ticks of an
+instant before the step>,"EventId":0}`, no further back than `AlertRetention`, since older replayed
+failures have no incident row left to absorb them and would open fresh ones. The next pass replays
+from there idempotently.
+
 ## Ordering
 
 Acta orders claims, not work. The claim scan reads ready rows by priority (highest first), then by
@@ -126,8 +136,8 @@ next-run instant, then by `JobId`, and that is a claim-time sort, not a queue di
 a stable tie-breaker inside one claim, not a multi-producer FIFO guarantee: database identities are
 allocation order, not commit order.
 
-The alert projector reads the event log by that same identity, so it withholds events until they are
-older than a safe horizon rather than trusting the id to mean committed. The horizon is twice the
+The alert projector does not trust that identity to mean committed: it walks by `(created_at_utc, id)`
+and withholds events until they are older than a safe horizon. The horizon is twice the
 configured command timeout, which covers an event whose transaction commits after a later-numbered
 one because a routine writing an alertable event is a single statement inside a single transaction
 and cannot outlive its own timeout. That bound is enforced by the client, not the server: a writer

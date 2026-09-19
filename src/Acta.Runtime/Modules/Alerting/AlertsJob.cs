@@ -116,9 +116,21 @@ internal sealed class AlertsJob(
         // flight, so measuring from after the response drops the round trip and stamps every
         // settlement - and the reminder and retry instants derived from it - early by that much.
         var clockRequestedAt = Stopwatch.GetTimestamp();
-        var settlement = new AlertSettlementClock(await _clock.GetUtcNowAsync(ct), clockRequestedAt);
-        await GenerateAsync(ctx, ct);
+        var nowUtc = await _clock.GetUtcNowAsync(ct);
+        var settlement = new AlertSettlementClock(nowUtc, clockRequestedAt);
+        await GenerateAsync(ctx, nowUtc, ct);
         await DeliverAsync(ctx, settlement, ct);
+    }
+
+    /// <summary>
+    /// The horizon of a pass whose database clock read <paramref name="nowUtc"/>: the store's lag behind
+    /// it, floored to the millisecond, the coarsest precision a provider keeps a stamp at, so the instant
+    /// a short batch checkpoints is one a stored stamp can equal exactly rather than fall a rounding short of.
+    /// </summary>
+    internal static DateTime SafeHorizon(DateTime nowUtc, TimeSpan lag)
+    {
+        var ticks = (nowUtc - lag).Ticks;
+        return new DateTime(ticks - (ticks % TimeSpan.TicksPerMillisecond), DateTimeKind.Utc);
     }
 
     /// <summary>
@@ -128,16 +140,19 @@ internal sealed class AlertsJob(
     /// crash, the execution timeout - keeps every batch already projected and the next invocation
     /// resumes behind it. Re-offering the one batch that was in flight is safe by construction: the
     /// raise and resolve paths refuse to move an incident an equal-or-newer event already marked.
-    /// <para>The cursor is the highest id the READ returned, which is only a safe checkpoint because
-    /// the store's read is horizon-bounded: it withholds events too recent for every transaction
-    /// that could still commit a lower id to have finished. Without that bound this fold would step
-    /// over an id whose transaction had not committed yet, and nothing would ever read that event
-    /// again. Any change here that reads events from a source other than
-    /// IAlertStore.GetAlertableEventsAsync reopens that.</para>
+    /// <para>The cursor is the (stamp, id) pair of the last row read, never an id alone, because the
+    /// two orders can invert and an id cursor would step over a row for good. The read is bounded by
+    /// the store's safe horizon, behind which every alertable row has committed; a short batch is the
+    /// proof that nothing alertable is left behind that horizon, so the cursor's instant advances to
+    /// it and the next pass never rescans the history this one walked. Any change here that reads
+    /// events from a source other than IAlertStore.GetAlertableEventsAsync reopens that.</para>
     /// </summary>
-    private async Task GenerateAsync(JobContext ctx, CancellationToken ct)
+    private async Task GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {
-        var cursor = await ctx.GetVariableOrDefaultAsync<long>(CursorVariableName, 0L, ct);
+        var horizonUtc = SafeHorizon(nowUtc, _store.SafeHorizonLag);
+        var cursor = await ctx.GetVariableOrDefaultAsync(CursorVariableName, new AlertsCursor(0L, 0L), ct);
+        var cursorUtc = cursor.Utc;
+        var cursorId = cursor.EventId;
         // Monotonic, because this is a local cooperative budget rather than a correctness instant: it
         // decides only whether THIS pass keeps going, so it must not move with the database's clock.
         var elapsed = Stopwatch.StartNew();
@@ -145,16 +160,10 @@ internal sealed class AlertsJob(
 
         for (var batch = 0; batch < Drain.MaxBatches; batch++)
         {
-            var events = await _store.GetAlertableEventsAsync(ctx.NamespaceId, cursor, Drain.BatchSize, ct);
-            if (events.Count == 0)
-            {
-                return;
-            }
+            var events = await _store.GetAlertableEventsAsync(ctx.NamespaceId, cursorUtc, cursorId, Drain.BatchSize, horizonUtc, ct);
 
-            var maxId = cursor;
             foreach (var e in events)
             {
-                maxId = Math.Max(maxId, e.EventId);
                 try
                 {
                     await ProjectAsync(ctx, e, ct);
@@ -166,17 +175,35 @@ internal sealed class AlertsJob(
             }
 
             projected += events.Count;
-            if (maxId > cursor)
+            var nextUtc = cursorUtc;
+            var nextId = cursorId;
+            if (events.Count > 0)
             {
-                await ctx.SetVariableAsync(CursorVariableName, maxId, ct);
-                cursor = maxId;
+                nextUtc = events[^1].CreatedAtUtc;
+                nextId = events[^1].EventId;
             }
 
-            // A short read is the end of what this pass can have: the query takes everything above the
-            // cursor and behind the horizon, up to the limit, so asking again would come back empty.
+            // A short read is the end of what this pass can have: the query takes everything past the
+            // cursor and behind the horizon, up to the limit, so asking again would come back empty, and
+            // every row stamped at or before the horizon is committed, so the instant may move up to it.
             // Events newer than the horizon are not a backlog this pass is behind on - they are not
             // eligible yet, and the next pass picks them up once they age past it.
-            if (events.Count < Drain.BatchSize)
+            var shortBatch = events.Count < Drain.BatchSize;
+            if (shortBatch && horizonUtc > nextUtc)
+            {
+                nextUtc = horizonUtc;
+            }
+
+            // One write for both halves: a stale writer past its lease can only ever put back a whole
+            // older checkpoint, which replays, never a mixed one, which would skip.
+            if (nextId != cursorId || nextUtc != cursorUtc)
+            {
+                await ctx.SetVariableAsync(CursorVariableName, new AlertsCursor(nextUtc.Ticks, nextId), ct);
+                cursorId = nextId;
+                cursorUtc = nextUtc;
+            }
+
+            if (shortBatch)
             {
                 return;
             }

@@ -137,19 +137,30 @@ public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<T
         Assert.Equal(staged[(SpentBudgetDrain.BatchSize * 2) - 1], await ReadCursorAsync(subject.JobId, ct));
     }
 
-    [Fact(DisplayName = "An idle pass leaves no cursor and no rows behind")]
-    public async Task Idle_invocation_writes_no_cursor_and_no_alerts()
+    [Fact(DisplayName = "An idle pass leaves no rows behind and moves only the cursor instant, up to the horizon")]
+    public async Task Idle_invocation_writes_no_alerts_and_no_moving_cursor()
     {
         var ct = TestContext.Current.CancellationToken;
         var subject = await SeedAlertingJobAsync(ct);
 
+        var horizonBefore = await AlertTestOps.HorizonOfThisMomentAsync(Services, ct);
         await RunAlertsAsync(subject.JobId, drain: null, ct);
 
-        // The empty first read ends the pass before anything is written. The absent checkpoint row is
-        // the observable half of "no loop artifacts": a drain that checkpointed an unchanged cursor,
-        // or looped once more to confirm the emptiness, would have left one here.
-        Assert.Equal(0, await CountVariableAsync(subject.JobId, AlertsJob.CursorVariableName, ct));
+        // The empty first read ends the pass. With nothing alertable, the only write a pass may make is
+        // the instant checkpoint at its horizon, which is what keeps the next pass from rescanning the
+        // history this one looked past; the id half is never written, because no event was read.
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
+        Assert.Equal(0, await ReadCursorAsync(subject.JobId, ct));
+        Assert.Equal(1, await CountVariableAsync(subject.JobId, AlertsJob.CursorVariableName, ct));
+        var instant = await AlertTestOps.ReadAlertsCursorInstantAsync(Services, TestNamespace, NamespaceId, subject.JobId, ct);
+        Assert.True(instant >= horizonBefore, "an idle pass checkpoints its instant at the horizon");
+
+        await RunAlertsAsync(subject.JobId, drain: null, ct);
+        Assert.Equal(0, await ReadCursorAsync(subject.JobId, ct));
+        Assert.True(
+            await AlertTestOps.ReadAlertsCursorInstantAsync(Services, TestNamespace, NamespaceId, subject.JobId, ct) >= instant,
+            "the instant never moves backwards"
+        );
     }
 
     /// <summary>

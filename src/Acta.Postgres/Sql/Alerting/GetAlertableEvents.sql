@@ -1,5 +1,6 @@
 SELECT
     e.id,
+    e.created_at_utc,
     e.job_id,
     e.definition_id,
     jd.name,
@@ -13,11 +14,14 @@ FROM {{schema}}.events e
 INNER JOIN {{schema}}.definitions jd ON jd.id = e.definition_id
 WHERE
     e.namespace_id = @p_namespace_id
-    AND e.id > @p_cursor_event_id
-    /* Safe horizon: ids are allocated mid-transaction, so a lower id can commit after a higher one was
-       already read and checkpointed. created_at_utc is stamped inside the writing transaction, so an
-       event this old outlives every transaction that could still commit a lower id. */
-    AND e.created_at_utc <= now() - (@p_alert_lag_seconds * interval '1 second')
+    /* Cursored by (created_at_utc, id), never by id alone: the stamp is set inside the writing transaction
+       and the id at insert, so a slow writer commits a low stamp under a high id and an id cursor would
+       step over its neighbour for good. Every alertable row is visible once its stamp is behind the horizon. */
+    AND e.created_at_utc <= @p_horizon_utc
+    AND (
+        e.created_at_utc > @p_cursor_utc
+        OR (e.created_at_utc = @p_cursor_utc AND e.id > @p_cursor_event_id)
+    )
     AND e.job_id IS NOT NULL
     AND e.event_code = 41 /* EventCode.JobExecutionFinished */
     AND (
@@ -28,5 +32,5 @@ WHERE
         OR (e.to_status_code = 20 /* JobStatusCode.Suspended */ AND e.reason_code = 21 /* JobEventReasonCode.JobLeaseExpired */)
         OR e.execution_status_code = 100 /* ExecutionStatusCode.Succeeded */
     )
-ORDER BY e.id
+ORDER BY e.created_at_utc, e.id
 LIMIT @p_alert_batch_size;

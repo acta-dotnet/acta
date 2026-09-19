@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
+using Acta.Relational.Schema;
 using Acta.Relational.Stores;
 using Acta.Runtime.Modules.Alerting;
 using Acta.Sqlite.Configuration;
@@ -43,11 +44,32 @@ public sealed class AlertProjectionSafeHorizonTests
             new SqliteProviderOptions { ConnectionString = "Data Source=:memory:", CommandTimeout = TimeSpan.FromSeconds(45) }
         );
 
-        await store.GetAlertableEventsAsync(namespaceId: 7, cursorEventId: 100, batchSize: 256, TestContext.Current.CancellationToken);
+        var nowUtc = new DateTime(2026, 9, 11, 12, 0, 0, DateTimeKind.Utc);
+        var cursorUtc = nowUtc.AddMinutes(-5);
+        var horizonUtc = AlertsJob.SafeHorizon(nowUtc, store.SafeHorizonLag);
+        await store.GetAlertableEventsAsync(
+            namespaceId: 7,
+            cursorUtc,
+            cursorEventId: 100,
+            batchSize: 256,
+            horizonUtc,
+            TestContext.Current.CancellationToken
+        );
 
+        // Two command timeouts of 45 s behind the pass clock.
+        Assert.Equal(nowUtc.AddSeconds(-90), horizonUtc);
         Assert.Equal("Sql/Alerting/GetAlertableEvents.sql", session.SqlPath);
-        var parameter = Assert.Single(session.Command.Parameters.Cast<DbParameter>(), p => p.ParameterName == "@p_alert_lag_seconds");
-        Assert.Equal(90, Convert.ToInt32(parameter.Value, System.Globalization.CultureInfo.InvariantCulture));
+        // Both instants reach the SQL bound the way the dialect binds every instant, under their own names.
+        var dialect = new SqliteDialect(ExecutionProfile.Direct);
+        var parameters = session.Command.Parameters.Cast<DbParameter>().ToList();
+        Assert.Equal(
+            dialect.CreateParameter(ActaSchema.Sql.AlertHorizonUtc, horizonUtc).Value,
+            Assert.Single(parameters, p => p.ParameterName == "@p_horizon_utc").Value
+        );
+        Assert.Equal(
+            dialect.CreateParameter(ActaSchema.Sql.AlertCursorUtc, cursorUtc).Value,
+            Assert.Single(parameters, p => p.ParameterName == "@p_cursor_utc").Value
+        );
     }
 
     // Runs the store's bind action against a real provider command and stops there: the read delegate is

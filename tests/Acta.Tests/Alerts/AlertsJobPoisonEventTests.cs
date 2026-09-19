@@ -21,7 +21,7 @@ public sealed class AlertsJobPoisonEventTests
         await job.Handle(ctx, ct);
 
         Assert.Equal([11L, 12L], store.RaiseAttempts);
-        Assert.Equal(12L, await ctx.GetRequiredVariableAsync<long>(AlertsJob.CursorVariableName, ct));
+        Assert.Equal(12L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
         var skip = await ctx.GetRequiredVariableAsync<string>("alerts-skip-11", ct);
         Assert.Contains("namespace=test-ns", skip);
         Assert.Contains("eventId=11", skip);
@@ -42,7 +42,7 @@ public sealed class AlertsJobPoisonEventTests
 
         await Assert.ThrowsAsync<TimeoutException>(() => job.Handle(ctx, ct));
 
-        Assert.Equal(0L, await ctx.GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, 0L, ct));
+        Assert.False(await ctx.ExistsVariableAsync(AlertsJob.CursorVariableName, ct));
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
     }
 
@@ -59,7 +59,7 @@ public sealed class AlertsJobPoisonEventTests
 
         await Assert.ThrowsAsync<ArgumentException>(() => job.Handle(ctx, ct));
 
-        Assert.Equal(0L, await ctx.GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, 0L, ct));
+        Assert.False(await ctx.ExistsVariableAsync(AlertsJob.CursorVariableName, ct));
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
     }
 
@@ -88,10 +88,16 @@ public sealed class AlertsJobPoisonEventTests
                 : Task.FromResult(new AlertRaiseOutcome(1, command.SourceEventId));
         }
 
+        // Zero lag against the fixed epoch clock puts every staged event exactly on the horizon, so this
+        // double's subject stays what it is about: which events a raise failure does and does not skip.
+        public TimeSpan SafeHorizonLag => TimeSpan.Zero;
+
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
             int namespaceId,
+            DateTime cursorUtc,
             long cursorEventId,
             int batchSize,
+            DateTime horizonUtc,
             CancellationToken ct
         ) => Task.FromResult<IReadOnlyList<AlertableEvent>>(Events.Where(e => e.EventId > cursorEventId).Take(batchSize).ToArray());
 
@@ -123,6 +129,7 @@ public sealed class AlertsJobPoisonEventTests
         private static AlertableEvent Event(long eventId, long jobId) =>
             new(
                 eventId,
+                DateTime.UnixEpoch,
                 jobId,
                 DefinitionId: 7,
                 JobName: "probe",

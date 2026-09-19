@@ -152,10 +152,14 @@ public sealed class FacadeReadValidationTests
         public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public TimeSpan SafeHorizonLag => throw new NotSupportedException();
+
         public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
             int namespaceId,
+            DateTime cursorUtc,
             long cursorEventId,
             int batchSize,
+            DateTime horizonUtc,
             CancellationToken ct
         ) => throw new NotSupportedException();
 
