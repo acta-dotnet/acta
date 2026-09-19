@@ -65,7 +65,8 @@ holds the row. Open the dashboard URL and the completed job is the first thing y
 
 > **The `using Shipping;` line is not decoration.** The manifest is generated into your project's
 > root namespace, while top-level statements live in the global namespace, so without it
-> `ShippingJobs` will not resolve.
+> `ShippingJobs` will not resolve. The naming rule and the fix are in
+> [Troubleshooting](./guide/troubleshooting.md#the-generated-manifest-type-does-not-resolve).
 
 ## No web host?
 

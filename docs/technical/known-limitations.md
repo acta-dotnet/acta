@@ -49,6 +49,22 @@ A provider outage longer than that leaves the attempt's row Executing under a le
 heartbeat keeps renewing, until that worker process restarts and its rows are reclaimed as a dead
 worker's.
 
+A shared rate meter is kept to one rate by registration and by the override write, which applies a
+rate to every participant at once; two shapes can still leave a meter's participants at different
+effective rates. A definition whose manifest moves it onto another meter keeps the override it
+carried, and a retune that lands between a starting worker's catalog read and its registration
+write is not seen by that registration. Both are reported: the worker logs one warning per split
+meter at startup and on every policy reload, naming the participants and their rates, and the
+dashboard shows each definition's effective rate. The repair is one override on any participant,
+which lands on all of them. Until then the meter admits at a rate between the two declared ones,
+never above the faster.
+
+A provider error during admission, when the concurrency slot is taken or the rate turn is reserved,
+bounces the attempt instead of escaping, so the row is never stranded that way. What it can leave
+behind is a slot the acquire committed without answering: that row is untracked by the worker and
+expires with its lease TTL, so one slot of that key is unavailable for up to that long. A rate turn
+booked without an answer is honoured when the job returns, so nothing is double-counted.
+
 Crash recovery has one bootstrap dependency. The reclaim sweep, which returns a job whose lease
 lapsed to `Ready`, runs from the `sys.recovery` recurring slot, and that slot is an ordinary job: a
 worker claims it and can die holding it. Reclaim covers every other stranded row in the namespace,
@@ -118,6 +134,12 @@ no alert profile fires on a cancellation. **Choose `AlertProfile.OnFailure` for 
 to hear about**; it alerts on
 each failure transition, and incident identity collapses a repeating nightly failure onto one row
 rather than one per night.
+
+Under `AuditLevel.Failures` a successful attempt writes no `events` row, and the projector closes
+an incident only from a success event, so an incident opened for a job at that level does not
+resolve on its own; an operator resolves it, or the job runs under `Audit`. `sys.alerts` itself runs
+under `Failures`, so its own `SysCritical` incident has the same shape. The design that fixes this
+from events alone, without a schema change, is written up for a later release.
 
 The alert projector walks `events` by `(created_at_utc, id)` behind a horizon on the database clock,
 and assumes that clock does not step backwards (slewing, the way NTP corrects small drift, is fine).

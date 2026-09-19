@@ -194,6 +194,20 @@ No worker loop starts. This is intentional.
 Use `j.DisableCli()` only for applications that own their own command-line surface. The CLI expects
 an already-configured provider and schema; the normal worker owns migration and catalog setup.
 
+## The Generated Manifest Type Does Not Resolve
+
+`CS0246: The type or namespace name 'ShippingJobs' could not be found` on the `j.Run<...>` line
+means the generated manifest exists but is not in scope. The generator names it from the last
+segment of the project's `RootNamespace` plus `Jobs` (`Shipping` gives `ShippingJobs`,
+`Acme.Shipping.Web` gives `WebJobs`) and emits it into that root namespace, while top-level
+statements live in the global namespace.
+
+Add `using <RootNamespace>;` at the top of `Program.cs`, or fully qualify the type. If the name
+still surprises you, check the `RootNamespace` property in the project file; a project whose
+namespace already ends in `Jobs` gets `Manifest` appended instead, so `Acme.Jobs` gives
+`JobsManifest`. A build with no `[Job]` methods at all generates no manifest, and the same
+error then means the attribute is missing, not the `using`.
+
 ## Local Environment Setup Fails
 
 Run `dotnet run --project tools/Acta.Doctor` first: it checks the SDK, the SQLite path, env vars,
