@@ -89,5 +89,6 @@ internal sealed class DefinitionPolicyReloader(
                 _context.DescriptorByDefinitionId[c.Id] = EffectivePolicyOverlay.Apply(descriptor, c.Effective);
             }
         }
+        MeterConsistencyCheck.Check(ns, catalog, _log);
     }
 }

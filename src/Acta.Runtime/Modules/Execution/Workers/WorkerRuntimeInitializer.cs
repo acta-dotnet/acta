@@ -211,6 +211,7 @@ internal sealed class WorkerRuntimeInitializer(
 
         var effectiveDescriptors = perNamespaceDefIds.Values.Select(id => _context.DescriptorByDefinitionId[id]).ToImmutableArray();
         _alertRouting?.ValidateRouting(ns, effectiveDescriptors);
+        MeterConsistencyCheck.Check(ns, catalog, _log);
 
         await ReconcileSchedulesAsync(namespaceId, ct);
     }

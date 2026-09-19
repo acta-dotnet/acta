@@ -243,7 +243,9 @@ meter never carries two rates; clear the override on one and it clears on all of
 operators retuning the same meter at once do not split it - the last write to reach the database wins
 for every participant, not just the one addressed. A definition that joins a meter whose participants
 already carry an override must declare the meter's effective rate (the override, not the bare code
-value) or worker startup rejects it, naming the meter and its effective rate.
+value) or worker startup rejects it, naming the meter and its effective rate. A meter whose
+participants disagree is reported by a startup and policy-reload warning; retune it by overriding
+any participant.
 
 **Admission is a reservation, not a retry loop.** The meter keeps the instant the next admission is
 due. A job that arrives after that instant runs immediately. A job that arrives early is given the

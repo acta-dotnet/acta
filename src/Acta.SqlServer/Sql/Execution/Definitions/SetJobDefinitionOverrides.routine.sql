@@ -31,12 +31,11 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @ns INT, @existing_version INT, @rate_limit VARCHAR(16), @rate_key VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
+        DECLARE @ns INT, @existing_version INT, @rate_key VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
 
         SELECT
             @ns = jd.namespace_id,
             @existing_version = jd.version,
-            @rate_limit = jd.rate_limit,
             @rate_key = jd.rate_key,
             @name = jd.name
         FROM {{schema}}.definitions jd WITH (UPDLOCK, ROWLOCK)
@@ -77,20 +76,19 @@ BEGIN
         FROM {{schema}}.definitions jd
         WHERE jd.id = @p_id AND jd.version = @p_version;
 
-        -- A definition on a meter carries every sibling on the same effective key along with it here:
-        -- the meter never carries two rates, and the last write to reach it wins for every
-        -- participant, not just the addressed one. See JobDefinitionPolicyOverrides.RateLimit.
-        IF @rate_limit IS NOT NULL
-            UPDATE {{schema}}.definitions
-            SET
-                rate_limit_override = @p_rate_limit_override,
-                modified_at_utc = @now,
-                version = version + 1
-            WHERE
-                namespace_id = @ns
-                AND id <> @p_id
-                AND rate_limit IS NOT NULL
-                AND LOWER(COALESCE(rate_key, name)) = @meter;
+        -- A definition on a meter carries every sibling that already has a rate (declared or overridden)
+        -- on the same effective key along with it here, so the meter never carries two rates and the
+        -- last write wins for every participant. See JobDefinitionPolicyOverrides.RateLimit.
+        UPDATE {{schema}}.definitions
+        SET
+            rate_limit_override = @p_rate_limit_override,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE
+            namespace_id = @ns
+            AND id <> @p_id
+            AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
+            AND LOWER(COALESCE(rate_key, name)) = @meter;
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,

@@ -65,9 +65,9 @@ SET
     version = version + 1
 WHERE id = @p_id AND version = @p_version;
 
--- A definition on a meter carries every sibling on the same key along with it here: the meter never
--- carries two rates. This batch has no early-return, so the version is re-checked against the
--- pre-write snapshot - the same guard the row-locking providers get for free from their row lock.
+-- A definition on a meter carries every sibling that already has a rate (declared or overridden) on
+-- the same key along with it here, so the meter never carries two rates. This batch has no
+-- early-return, so the version is re-checked against the pre-write snapshot, the same guard row locking gets for free.
 UPDATE {{schema}}.definitions
 SET
     rate_limit_override = @p_rate_limit_override,
@@ -75,10 +75,10 @@ SET
     version = version + 1
 WHERE
     id <> @p_id
-    AND rate_limit IS NOT NULL
+    AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
     AND namespace_id = (SELECT s.namespace_id FROM temp._set_job_def_overrides s)
     AND LOWER(COALESCE(rate_key, name)) = (
-        SELECT s.meter FROM temp._set_job_def_overrides s WHERE s.rate_limit IS NOT NULL AND s.version = @p_version
+        SELECT s.meter FROM temp._set_job_def_overrides s WHERE s.version = @p_version
     );
 
 SELECT

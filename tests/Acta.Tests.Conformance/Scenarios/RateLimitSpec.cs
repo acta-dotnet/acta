@@ -364,6 +364,60 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         Assert.Equal(RateLimitProbes.SharedRate, right?.RateLimitEffective);
     }
 
+    [Fact(DisplayName = "Overriding a meter's own-name definition, which declares no rate, still lands on the sibling that declares one")]
+    public async Task Overriding_the_meters_own_name_definition_lands_on_the_declared_sibling()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var stripe = await Definitions.GetAsync(TestNamespace, "stripe", ct);
+        Assert.NotNull(stripe);
+
+        var outcome = await Definitions.UpdateOverridesAsync(
+            TestNamespace,
+            "stripe",
+            stripe.Version,
+            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            ct: ct
+        );
+        Assert.Equal(ControlAction.Applied, outcome.Action);
+
+        // "stripe" declares no rate of its own, yet it names the meter "charge" spends from: the
+        // override still reaches "charge", the meter's only declared participant.
+        var charge = await Definitions.GetAsync(TestNamespace, "charge", ct);
+        Assert.Equal("1/s", charge?.RateLimitOverride);
+        Assert.Equal("1/s", charge?.RateLimitEffective);
+    }
+
+    [Fact(DisplayName = "Clearing the override on a meter's own-name definition clears it on the declared sibling too")]
+    public async Task Clearing_the_override_on_the_meters_own_name_definition_clears_the_declared_sibling_too()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var stripe = await Definitions.GetAsync(TestNamespace, "stripe", ct);
+        Assert.NotNull(stripe);
+        var set = await Definitions.UpdateOverridesAsync(
+            TestNamespace,
+            "stripe",
+            stripe.Version,
+            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            ct: ct
+        );
+        Assert.Equal(ControlAction.Applied, set.Action);
+
+        var stripeOverridden = await Definitions.GetAsync(TestNamespace, "stripe", ct);
+        Assert.NotNull(stripeOverridden);
+        var cleared = await Definitions.UpdateOverridesAsync(
+            TestNamespace,
+            "stripe",
+            stripeOverridden.Version,
+            new JobDefinitionPolicyOverrides(RateLimit: null),
+            ct: ct
+        );
+        Assert.Equal(ControlAction.Applied, cleared.Action);
+
+        var charge = await Definitions.GetAsync(TestNamespace, "charge", ct);
+        Assert.Null(charge?.RateLimitOverride);
+        Assert.Equal(RateLimitProbes.ChargeRate, charge?.RateLimitEffective);
+    }
+
     [Fact(DisplayName = "A definition metered on its own name is unaffected by a shared meter's override")]
     public async Task A_definition_on_its_own_meter_is_unaffected_by_a_shared_meters_override()
     {

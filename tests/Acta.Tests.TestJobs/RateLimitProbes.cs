@@ -61,6 +61,24 @@ public static class RateLimitProbes
         return Task.CompletedTask;
     }
 
+    /// <summary>The declared rate of <c>charge</c>, the only declared participant of the "stripe" meter.</summary>
+    public const string ChargeRate = "10/s";
+
+    /// <summary><c>stripe</c> declares no rate of its own: it names the meter, it does not spend from it.</summary>
+    [Job("stripe")]
+    public static Task RunStripe(JobContext ctx, CancellationToken ct)
+    {
+        Record(ctx.JobNamespace);
+        return Task.CompletedTask;
+    }
+
+    [Job("charge", RateLimit = ChargeRate, RateKey = "stripe")]
+    public static Task RunCharge(JobContext ctx, CancellationToken ct)
+    {
+        Record(ctx.JobNamespace);
+        return Task.CompletedTask;
+    }
+
     private static void Record(string jobNamespace) =>
         Admissions.GetOrAdd(jobNamespace, static _ => new ConcurrentQueue<DateTime>()).Enqueue(DateTime.UtcNow);
 }

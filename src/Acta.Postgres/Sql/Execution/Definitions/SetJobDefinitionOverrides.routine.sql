@@ -27,10 +27,9 @@ AS $$
 DECLARE
     v_ns INT;
     v_version INT;
-    v_rate_limit VARCHAR;
     v_meter TEXT;
 BEGIN
-    SELECT jd.namespace_id, jd.version, jd.rate_limit INTO v_ns, v_version, v_rate_limit
+    SELECT jd.namespace_id, jd.version INTO v_ns, v_version
     FROM {{schema}}.definitions jd WHERE jd.id = p_id FOR UPDATE;
 
     IF v_ns IS NULL THEN
@@ -65,21 +64,19 @@ BEGIN
     WHERE id = p_id AND version = p_version
     RETURNING lower(COALESCE(rate_key, name)) INTO v_meter;
 
-    -- A definition on a meter carries every sibling on the same effective key along with it here: the
-    -- meter never carries two rates, and the last write to reach it wins for every participant, not
-    -- just the addressed one. See JobDefinitionPolicyOverrides.RateLimit for the full contract.
-    IF v_rate_limit IS NOT NULL THEN
-        UPDATE {{schema}}.definitions sib
-        SET
-            rate_limit_override = p_rate_limit_override,
-            modified_at_utc = now(),
-            version = sib.version + 1
-        WHERE
-            sib.namespace_id = v_ns
-            AND sib.id <> p_id
-            AND sib.rate_limit IS NOT NULL
-            AND lower(COALESCE(sib.rate_key, sib.name)) = v_meter;
-    END IF;
+    -- A definition on a meter carries every sibling that already has a rate (declared or overridden) on
+    -- the same effective key along with it here, so the meter never carries two rates and the last
+    -- write wins for every participant. See JobDefinitionPolicyOverrides.RateLimit for the full contract.
+    UPDATE {{schema}}.definitions sib
+    SET
+        rate_limit_override = p_rate_limit_override,
+        modified_at_utc = now(),
+        version = sib.version + 1
+    WHERE
+        sib.namespace_id = v_ns
+        AND sib.id <> p_id
+        AND (sib.rate_limit IS NOT NULL OR sib.rate_limit_override IS NOT NULL)
+        AND lower(COALESCE(sib.rate_key, sib.name)) = v_meter;
 
     INSERT INTO {{schema}}.events (
         event_code,
