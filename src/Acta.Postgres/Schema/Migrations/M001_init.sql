@@ -69,6 +69,10 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     concurrency_limit smallint NULL,
     concurrency_limit_override smallint NULL,
     concurrency_limit_effective smallint GENERATED ALWAYS AS (COALESCE(concurrency_limit_override, concurrency_limit)) STORED,
+    rate_limit varchar(16) NULL,
+    rate_limit_override varchar(16) NULL,
+    rate_limit_effective varchar(16) GENERATED ALWAYS AS (COALESCE(rate_limit_override, rate_limit)) STORED,
+    rate_key varchar(128) NULL,
     backoff varchar(64) NOT NULL,
     backoff_override varchar(64) NULL,
     backoff_effective varchar(64) GENERATED ALWAYS AS (COALESCE(backoff_override, backoff)) STORED,
@@ -432,7 +436,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-ec8b8cf28e61a145168a0c5c74ed2157', '{{schema}}')
+VALUES (0, 'baseline-e1a1f3207caf5a295743ba88d8c3ca26', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

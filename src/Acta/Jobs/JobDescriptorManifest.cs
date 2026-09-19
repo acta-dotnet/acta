@@ -47,6 +47,34 @@ public sealed record JobDescriptor(
     public short? ConcurrencyLimit { get; init; }
 
     /// <summary>
+    /// How often attempts of this definition may start, as <c>N/s</c> / <c>N/m</c> / <c>N/h</c>; null =
+    /// no rate limit. Overlaid with the definition's effective value at startup and on every policy
+    /// reload, and parsed into <see cref="Rate"/> as it is set so admission never parses.
+    /// </summary>
+    public string? RateLimit
+    {
+        get => _rateLimit;
+        init
+        {
+            _rateLimit = value;
+            // Never throws, so a value that bypassed the gates cannot fail a policy reload: the text is
+            // kept for the gates to reject and admission simply reads no rate.
+            Rate = RateLimitSpec.TryParse(value, out var parsed, out _) ? parsed : null;
+        }
+    }
+
+    private readonly string? _rateLimit;
+
+    /// <summary>The parsed <see cref="RateLimit"/>, or null when this definition declares no usable rate.</summary>
+    internal RateLimitSpec? Rate { get; private init; }
+
+    /// <summary>
+    /// Meter this definition's <see cref="RateLimit"/> spends from; null means the definition name.
+    /// Code-owned, so unlike the rate it is never overlaid from an operator override.
+    /// </summary>
+    public string? RateKey { get; init; }
+
+    /// <summary>
     /// Declared recurring schedules (one per <c>[JobSchedule]</c>). Empty for non-scheduled jobs.
     /// </summary>
     public ImmutableArray<ScheduleDescriptor> Schedules { get; init; } = [];

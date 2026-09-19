@@ -6,7 +6,8 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 /// only the operator-overridable policy fields are replaced with the DB-computed effective values. The
 /// worker holds the overlaid descriptors in <c>WorkerContext.DescriptorByDefinitionId</c> as its live,
 /// reloadable policy view, so the execution hot path (which reads the descriptor, not the DB) honors
-/// operator overrides.
+/// operator overrides. <c>RateKey</c> is absent on purpose: it is code-owned and has no override, so
+/// the descriptor's declared value is already the effective one.
 /// </summary>
 internal static class EffectivePolicyOverlay
 {
@@ -16,6 +17,7 @@ internal static class EffectivePolicyOverlay
             Priority = p.Priority,
             MaxAttempts = p.MaxAttempts,
             ConcurrencyLimit = p.ConcurrencyLimit,
+            RateLimit = p.RateLimit,
             AuditLevel = p.AuditLevel,
             AlertProfile = p.AlertProfile,
             Backoff = p.Backoff,

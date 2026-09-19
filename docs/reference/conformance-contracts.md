@@ -622,6 +622,23 @@
 - **Store methods:**
   - `Acta.Runtime.Services.Locks.ILockStore.TryAcquireSlotAsync`
 
+### A definition's rate limit admits at the rate and books every early job a turn
+- **Contract:** A rate key admits its burst at once and then one per interval, booking each early job exactly one re-arm.
+- **Arrange:** Definitions declaring a rate, alone and sharing a key, plus meters driven through the lock store.
+- **Act:** Real handlers drain a backlog through the rate, and store-level requests spend and stage turns.
+- **Assert:** Admissions stay inside the rate, each denied job re-arms once at its reserved instant, and one key means one bucket.
+- **Guarantees:**
+  - A fresh meter admits its burst at once and then one per interval
+  - A booked turn is handed back unchanged until it arrives, and the meter stays put
+  - A turn that has arrived admits once and is spent
+  - An unspent turn is collected by the lock expiry sweep
+  - A backlog drains at the declared rate with one re-arm per denied job
+  - Two definitions on one rate key meter from one bucket
+  - Definitions that share a rate key must declare the same rate
+  - A rate denial hands the concurrency slot back and takes one again on the turn
+- **Store methods:**
+  - `Acta.Runtime.Services.Locks.ILockStore.ReserveRateAsync`
+
 ## Control
 
 ### Operator acknowledge/resolve verbs on IAlerts.
@@ -2730,6 +2747,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IOutboxSignalStore.RecordAppliedAsync` | An applied operator command leaves an always-emitted evidence event |
 | `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
 | `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
+| `ILockStore.ReserveRateAsync` | A definition's rate limit admits at the rate and books every early job a turn |
 | `ILockStore.TryAcquireAsync` | Acquire lands a lease row and blocks a competing acquire on a live key |
 | `ILockStore.TryAcquireSlotAsync` | A definition's concurrency limit is how many of its key's slots exist |
 
@@ -2845,5 +2863,6 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Services/Locks/AcquireSlot` | yes | yes | yes |
 | `Services/Locks/ExtendLock` | yes | yes | yes |
 | `Services/Locks/ReleaseLock` | yes | yes | yes |
+| `Services/Locks/ReserveRate` | yes | yes | yes |
 | `Services/Time/GetUtcNow` | yes | yes | yes |
 

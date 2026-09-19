@@ -120,6 +120,7 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.PriorityCodeOverride, o.Priority));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.MaxAttemptsOverride, o.MaxAttempts));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.ConcurrencyLimitOverride, o.ConcurrencyLimit));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.RateLimitOverride, o.RateLimit));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.BackoffOverride, o.Backoff));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.ExecutionTimeoutSecondsOverride, o.ExecutionTimeoutSeconds));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DeadlineSecondsOverride, o.DeadlineSeconds));

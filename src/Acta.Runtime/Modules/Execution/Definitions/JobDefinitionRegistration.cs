@@ -37,4 +37,10 @@ internal static class JobDefinitionRegistration
     /// </summary>
     public const short MinConcurrencyLimit = 1;
     public const short MaxConcurrencyLimit = 1024;
+
+    /// <summary>
+    /// The longest a rate key may be, matching <c>definitions.rate_key</c> and the concurrency key it
+    /// shares a lock-key budget with.
+    /// </summary>
+    public const int MaxRateKeyLength = 128;
 }

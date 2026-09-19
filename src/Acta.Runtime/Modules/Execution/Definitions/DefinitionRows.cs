@@ -10,6 +10,8 @@ internal sealed record EffectiveJobPolicy(
     JobPriorityCode Priority,
     short MaxAttempts,
     short? ConcurrencyLimit,
+    string? RateLimit,
+    string? RateKey,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,
@@ -57,6 +59,8 @@ internal sealed record StoredDefinitionContractRow(
     JobPriorityCode Priority,
     short MaxAttempts,
     short? ConcurrencyLimit,
+    string? RateLimit,
+    string? RateKey,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,
@@ -81,6 +85,8 @@ internal sealed record StoredDefinitionContractRow(
                 Priority,
                 MaxAttempts,
                 ConcurrencyLimit,
+                RateLimit,
+                RateKey,
                 Backoff,
                 ExecutionTimeoutSeconds,
                 DeadlineSeconds,
@@ -122,6 +128,10 @@ internal sealed record JobDefinitionDetailRow(
     short? ConcurrencyLimit,
     short? ConcurrencyLimitOverride,
     short? ConcurrencyLimitEffective,
+    string? RateLimit,
+    string? RateLimitOverride,
+    string? RateLimitEffective,
+    string? RateKey,
     string Backoff,
     string? BackoffOverride,
     string BackoffEffective,
@@ -162,10 +172,10 @@ internal sealed record JobDefinitionDetailRow(
 
 /// <summary>
 /// One <c>definitions</c> row trimmed to what the dashboard definitions grid shows: identity,
-/// status, contract type names, and the three policy fields surfaced as columns (priority, max
-/// attempts, and concurrency limit, each as effective + override so the grid can flag an operator
-/// override). The full row - every policy triple, formats, audit bookkeeping - is read on demand by
-/// <c>GetDefinitionAsync</c>.
+/// status, contract type names, and the four policy fields surfaced as columns (priority, max
+/// attempts, concurrency limit, and rate limit, each as effective + override so the grid can flag an
+/// operator override). The full row - every policy triple, formats, audit bookkeeping - is read on
+/// demand by <c>GetDefinitionAsync</c>.
 /// </summary>
 internal sealed record JobDefinitionListRow(
     int DefinitionId,
@@ -180,6 +190,8 @@ internal sealed record JobDefinitionListRow(
     short MaxAttemptsEffective,
     short? ConcurrencyLimitOverride,
     short? ConcurrencyLimitEffective,
+    string? RateLimitOverride,
+    string? RateLimitEffective,
     DateTime ModifiedAtUtc,
     int Version
 );
@@ -197,6 +209,8 @@ internal sealed record JobDefinitionRow(
     byte PriorityCode,
     short MaxAttempts,
     short? ConcurrencyLimit,
+    string? RateLimit,
+    string? RateKey,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,
@@ -265,6 +279,8 @@ internal static class DefinitionRowMapping
             row.MaxAttemptsEffective,
             row.ConcurrencyLimitOverride,
             row.ConcurrencyLimitEffective,
+            row.RateLimitOverride,
+            row.RateLimitEffective,
             row.ModifiedAtUtc,
             row.Version
         );
@@ -292,6 +308,10 @@ internal static class DefinitionRowMapping
             row.ConcurrencyLimit,
             row.ConcurrencyLimitOverride,
             row.ConcurrencyLimitEffective,
+            row.RateLimit,
+            row.RateLimitOverride,
+            row.RateLimitEffective,
+            row.RateKey,
             row.Backoff,
             row.BackoffOverride,
             row.BackoffEffective,

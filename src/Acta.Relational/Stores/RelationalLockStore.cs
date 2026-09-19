@@ -1,3 +1,4 @@
+using System.Globalization;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
@@ -11,7 +12,8 @@ namespace Acta.Relational.Stores;
 /// token-CAS. Minting the token in code keeps the SQL free of per-dialect uuid generation and
 /// makes acquire success a plain row-count. The provider mechanics (routine vs inline write) live
 /// behind the session. The slot acquire is one round trip whatever the limit: the provider SQL
-/// enumerates the slots and inserts the first free one.
+/// enumerates the slots and inserts the first free one. The rate reserve is one round trip too, and
+/// the only path here that writes rows nobody holds: the meter's bucket and reservation.
 /// </summary>
 internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialect) : ILockStore
 {
@@ -53,6 +55,36 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
             ct
         );
         return rows.Count > 0 ? new LockToken(rows[0], holdToken) : null;
+    }
+
+    public async Task<RateReservation> ReserveRateAsync(
+        string bucketKey,
+        long jobId,
+        int intervalMilliseconds,
+        int burst,
+        CancellationToken ct
+    )
+    {
+        var rows = await session.ExecuteAsync(
+            new StoreCommand("Services", "Locks/ReserveRate"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.LockKey, bucketKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RateIntervalMilliseconds, intervalMilliseconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RateBurst, burst));
+                // The meter's rows are bookkeeping, never holds, and Guid.Empty is the sentinel that
+                // says so. Minted here like every other hold token, so the SQL stays free of
+                // per-dialect uuid literals and each provider binds it in its own wire form.
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.HoldToken, Guid.Empty));
+            },
+            static reader => new RateReservation(
+                Convert.ToBoolean(reader.GetValue(1), CultureInfo.InvariantCulture),
+                reader.GetDateTimeUtc(0)
+            ),
+            ct
+        );
+        return rows[0];
     }
 
     public async Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)

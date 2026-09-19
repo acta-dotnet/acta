@@ -33,8 +33,29 @@ public sealed class JobAttribute(string name) : Attribute
     /// smaller-limit definition competes for the first N slots only, so lowering one definition never
     /// reduces another participant's slots. A changed limit reaches a worker on its next definition
     /// policy reload, so admissions may use the old limit until every worker has observed the change.
+    /// See <see cref="RateLimit"/> for the other half of admission control: how often, rather than how many.
     /// </summary>
     public short ConcurrencyLimit { get; init; }
+
+    /// <summary>
+    /// How often attempts of this definition may start, cluster-wide, as <c>N/s</c>, <c>N/m</c>, or
+    /// <c>N/h</c> (<c>"10/s"</c>). Null means no rate limit. N is a positive whole number and the rate
+    /// may not exceed 1000 per second. Admission is a reservation, not a retry loop: a job that arrives
+    /// early is re-armed exactly once, at the instant the meter will admit it, so a backlog drains at
+    /// the rate with one re-arm per job. Rate and <see cref="ConcurrencyLimit"/> are independent gates
+    /// and a job passes both; the concurrency slot is taken first and released when the rate denies.
+    /// The meter is per <see cref="RateKey"/>, and the limit is an operator-overridable policy slot.
+    /// </summary>
+    public string? RateLimit { get; init; }
+
+    /// <summary>
+    /// Which meter <see cref="RateLimit"/> spends from, kebab-case; null means the definition name, so a
+    /// rate alone throttles just this definition. Definitions sharing a key share one meter and must
+    /// declare the same rate, which worker startup enforces. Unlike the rate itself the key is code-owned
+    /// and has no operator override: moving a definition to another meter changes who it competes with,
+    /// which is a contract change, not a dial.
+    /// </summary>
+    public string? RateKey { get; init; }
 
     /// <summary>
     /// Strict ordering on claim, with no aging or anti-starvation budget.

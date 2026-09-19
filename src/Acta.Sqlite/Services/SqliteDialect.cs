@@ -275,6 +275,8 @@ internal sealed class SqliteDialect : ISqlDialect
                 writer.WriteNumber("priority_code", row.PriorityCode);
                 writer.WriteNumber("max_attempts", row.MaxAttempts);
                 WriteNumberOrNull(writer, "concurrency_limit", row.ConcurrencyLimit);
+                WriteStringOrNull(writer, "rate_limit", row.RateLimit);
+                WriteStringOrNull(writer, "rate_key", row.RateKey);
                 writer.WriteString("backoff", row.Backoff);
                 writer.WriteNumber("execution_timeout_seconds", row.ExecutionTimeoutSeconds);
                 writer.WriteNumber("deadline_seconds", row.DeadlineSeconds);

@@ -33,6 +33,8 @@ public sealed class DefinitionKeyResolutionTests
             MaxAttemptsEffective: 3,
             ConcurrencyLimitOverride: null,
             ConcurrencyLimitEffective: null,
+            RateLimitOverride: null,
+            RateLimitEffective: null,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
         );
@@ -138,6 +140,10 @@ public sealed class DefinitionKeyResolutionTests
                 ConcurrencyLimit: null,
                 ConcurrencyLimitOverride: null,
                 ConcurrencyLimitEffective: null,
+                RateLimit: null,
+                RateLimitOverride: null,
+                RateLimitEffective: null,
+                RateKey: null,
                 Backoff: "1s..1m x2",
                 BackoffOverride: null,
                 BackoffEffective: "1s..1m x2",

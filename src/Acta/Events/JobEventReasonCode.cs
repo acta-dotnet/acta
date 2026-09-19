@@ -128,6 +128,12 @@ public enum JobEventReasonCode : byte
     )]
     JobWaitTimedOut = 65,
 
+    [Code(
+        "job.rate-limited",
+        "A claimed job reached its definition's rate limit at execution admission; the meter reserved its turn and the job re-armed Ready at exactly that instant (budget-neutral). Not a failure: it never writes a Failures-level event and never raises an alert."
+    )]
+    JobRateLimited = 66,
+
     /// <summary>
     /// worker.* events carry job_id = null; the reason lives on events, never on a job row.
     /// </summary>

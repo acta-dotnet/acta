@@ -5,6 +5,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.register_job_definitions(
     p_d_priority_code SMALLINT [],
     p_d_max_attempts SMALLINT [],
     p_d_concurrency_limit SMALLINT [],
+    p_d_rate_limit VARCHAR [],
+    p_d_rate_key VARCHAR [],
     p_d_backoff VARCHAR [],
     p_d_execution_timeout INT [],
     p_d_deadline_seconds INT [],
@@ -36,6 +38,7 @@ BEGIN
     WITH batch AS (
         SELECT * FROM unnest(
             p_d_name, p_d_priority_code, p_d_max_attempts, p_d_concurrency_limit,
+            p_d_rate_limit, p_d_rate_key,
             p_d_backoff,
             p_d_execution_timeout, p_d_deadline_seconds, p_d_deadline_behavior, p_d_job_retention,
             p_d_input_type_name, p_d_output_type_name,
@@ -43,6 +46,7 @@ BEGIN
             p_d_audit_level_code, p_d_alert_profile_code, p_d_tenant_requirement,
             p_d_alert_channel_name, p_d_runbook_url, p_d_display_name, p_d_description, p_d_definition_hash
         ) AS b(name, priority_code, max_attempts, concurrency_limit,
+            rate_limit, rate_key,
             backoff,
             execution_timeout_seconds, deadline_seconds,
             deadline_behavior_code, retention_seconds,
@@ -65,6 +69,8 @@ BEGIN
             priority_code,
             max_attempts,
             concurrency_limit,
+            rate_limit,
+            rate_key,
             backoff,
             execution_timeout_seconds,
             deadline_seconds,
@@ -95,6 +101,8 @@ BEGIN
             b.priority_code,
             b.max_attempts,
             b.concurrency_limit,
+            b.rate_limit,
+            b.rate_key,
             b.backoff,
             b.execution_timeout_seconds,
             b.deadline_seconds,
@@ -124,6 +132,8 @@ BEGIN
             priority_code = EXCLUDED.priority_code,
             max_attempts = EXCLUDED.max_attempts,
             concurrency_limit = EXCLUDED.concurrency_limit,
+            rate_limit = EXCLUDED.rate_limit,
+            rate_key = EXCLUDED.rate_key,
             backoff = EXCLUDED.backoff,
             execution_timeout_seconds = EXCLUDED.execution_timeout_seconds,
             deadline_seconds = EXCLUDED.deadline_seconds,
@@ -242,9 +252,9 @@ END;
 $$;
 
 -- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (without concurrency_limit) so pre-existing installs cannot resolve the stale form.
+-- signature (without rate_limit and rate_key) so pre-existing installs cannot resolve the stale form.
 DROP FUNCTION IF EXISTS {{schema}}.register_job_definitions(
-    INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], SMALLINT [], VARCHAR [], INT [], INT [], SMALLINT [], INT [],
+    INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [], VARCHAR [], INT [], INT [], SMALLINT [], INT [],
     VARCHAR [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [],
     VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR []
 );

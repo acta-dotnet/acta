@@ -278,6 +278,8 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("priority_code", SqlDbType.TinyInt),
         new("max_attempts", SqlDbType.SmallInt),
         new("concurrency_limit", SqlDbType.SmallInt),
+        new("rate_limit", SqlDbType.VarChar, 16),
+        new("rate_key", SqlDbType.VarChar, 128),
         new("backoff", SqlDbType.NVarChar, 64),
         new("execution_timeout_seconds", SqlDbType.Int),
         new("deadline_seconds", SqlDbType.Int),
@@ -312,25 +314,27 @@ internal sealed class SqlServerDialect : ISqlDialect
                 record.SetByte(1, row.PriorityCode);
                 record.SetInt16(2, row.MaxAttempts);
                 SetNullableInt16(record, 3, row.ConcurrencyLimit);
-                record.SetString(4, row.Backoff);
-                record.SetInt32(5, row.ExecutionTimeoutSeconds);
-                record.SetInt32(6, row.DeadlineSeconds);
-                record.SetByte(7, row.DeadlineBehaviorCode);
-                record.SetInt32(8, row.JobRetentionSeconds);
-                record.SetString(9, row.InputTypeName);
-                SetNullableString(record, 10, row.OutputTypeName);
-                record.SetByte(11, row.InputFormatId);
-                record.SetString(12, row.InputFormatName);
-                record.SetByte(13, row.OutputFormatId);
-                record.SetString(14, row.OutputFormatName);
-                record.SetByte(15, row.AuditLevelCode);
-                record.SetByte(16, row.AlertProfileCode);
-                SetNullableString(record, 17, row.AlertChannelName);
-                SetNullableString(record, 18, row.RunbookUrl);
-                SetNullableString(record, 19, row.DisplayName);
-                SetNullableString(record, 20, row.Description);
-                record.SetString(21, row.DefinitionHash);
-                record.SetByte(22, row.TenantRequirementCode);
+                SetNullableString(record, 4, row.RateLimit);
+                SetNullableString(record, 5, row.RateKey);
+                record.SetString(6, row.Backoff);
+                record.SetInt32(7, row.ExecutionTimeoutSeconds);
+                record.SetInt32(8, row.DeadlineSeconds);
+                record.SetByte(9, row.DeadlineBehaviorCode);
+                record.SetInt32(10, row.JobRetentionSeconds);
+                record.SetString(11, row.InputTypeName);
+                SetNullableString(record, 12, row.OutputTypeName);
+                record.SetByte(13, row.InputFormatId);
+                record.SetString(14, row.InputFormatName);
+                record.SetByte(15, row.OutputFormatId);
+                record.SetString(16, row.OutputFormatName);
+                record.SetByte(17, row.AuditLevelCode);
+                record.SetByte(18, row.AlertProfileCode);
+                SetNullableString(record, 19, row.AlertChannelName);
+                SetNullableString(record, 20, row.RunbookUrl);
+                SetNullableString(record, 21, row.DisplayName);
+                SetNullableString(record, 22, row.Description);
+                record.SetString(23, row.DefinitionHash);
+                record.SetByte(24, row.TenantRequirementCode);
                 yield return record;
             }
         }

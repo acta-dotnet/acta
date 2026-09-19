@@ -21,6 +21,8 @@ public sealed class SqlServerConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<S
 
 public sealed class SqlServerConcurrencyLimitSpec : ConcurrencyLimitSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerRateLimitSpec : RateLimitSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerControlVerbsSpec : ControlVerbsSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerGoldenPathSpec : GoldenPathSpec<SqlServerConformanceFixture>;

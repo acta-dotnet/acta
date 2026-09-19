@@ -141,6 +141,46 @@ await lab.ShowAsync(
     ORDER BY job_id
     """
 );
+
+// The third gate: how OFTEN, not how many. [Job(RateLimit = "5/s")] meters starts against the
+// database clock, and a job that arrives early is booked the next free instant rather than retried.
+var pings = new List<JobEnqueueOutcome>();
+for (var i = 0; i < 12; i++)
+{
+    pings.Add(await jobs.EnqueueAsync(new PingEndpoint(i)));
+}
+Console.WriteLine("Enqueued twelve jobs against a definition limited to five a second.");
+
+using var pingTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+foreach (var ping in pings)
+{
+    while ((await jobs.GetAsync(ping, pingTimeout.Token))?.Status.IsTerminal != true)
+    {
+        await Task.Delay(100, pingTimeout.Token);
+    }
+}
+
+// The meter is two row shapes in `locks`, never a counter table: one bucket row holding the next
+// arrival time, plus one reservation row per job still waiting for its turn. Both are usually gone by
+// the time the backlog has drained, which is itself the point.
+await lab.ShowAsync(
+    "The rate meter is a bucket row plus one reservation per waiting job",
+    """
+    SELECT lock_key, job_id, expires_at_utc
+    FROM {{schema}}.locks
+    WHERE lock_key LIKE '%.rate.ping-endpoint%'
+    ORDER BY lock_key
+    """
+);
+await lab.ShowAsync(
+    "Every early job re-armed exactly once, budget-neutral, at its reserved instant",
+    """
+    SELECT job_id, event, to_status, reason, execution_number
+    FROM events_view
+    WHERE job_name = 'ping-endpoint' AND reason = 'job.rate-limited'
+    ORDER BY event_id
+    """
+);
 await host.StopAsync();
 
 static async Task<int> ExecutingShardCountAsync(IJobs jobs, List<JobEnqueueOutcome> shards, CancellationToken ct)
@@ -161,6 +201,21 @@ namespace Acta.Concepts.ConcurrencyKey
     public sealed record RebuildIndex(string Tenant);
 
     public sealed record ReindexShard(int Shard);
+
+    public sealed record PingEndpoint(int Sequence);
+
+    public sealed class PingEndpointJob
+    {
+        // RateLimit is the other admission gate: five starts a second across the whole fleet, metered
+        // on the definition name because no RateKey was given. Like ConcurrencyLimit it is an
+        // operator-overridable policy slot on the definitions row.
+        [Job("ping-endpoint", RateLimit = "5/s")]
+        public Task Handle(PingEndpoint input, CancellationToken ct)
+        {
+            Console.WriteLine($"ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}");
+            return Task.CompletedTask;
+        }
+    }
 
     public sealed class ReindexShardJob
     {

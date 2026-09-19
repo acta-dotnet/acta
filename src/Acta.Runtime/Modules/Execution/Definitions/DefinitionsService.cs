@@ -157,6 +157,12 @@ internal sealed class DefinitionsService(IDefinitionStore store)
                     + $"and {JobDefinitionRegistration.MaxConcurrencyLimit}."
             );
         }
+        // A rate is a DSL value like Backoff, so a malformed override is REJECTED rather than coerced:
+        // the meter would otherwise silently stop metering.
+        if (overrides.RateLimit is { } rateLimit && !RateLimitSpec.TryParse(rateLimit, out _, out var rateError))
+        {
+            throw new ArgumentException($"RateLimit override \"{rateLimit}\" is not a rate limit. {rateError}", nameof(overrides));
+        }
         if (overrides.ExecutionTimeoutSeconds is <= 0 or > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         {
             throw new ArgumentOutOfRangeException(
@@ -275,6 +281,8 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             rows.Add(BuildRow(descriptor, namespaceId));
         }
 
+        ValidateSharedRateKeys(rows, namespaceId);
+
         var storedByName = new Dictionary<string, StoredDefinitionContract>(stored.Count, StringComparer.Ordinal);
         foreach (var s in stored)
         {
@@ -379,6 +387,20 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             );
         }
 
+        // Same last gate for the rate pair: the generator checks a declared rate at compile time, but a
+        // hand-authored IJobManifest descriptor reaches registration unchecked.
+        if (descriptor.RateLimit is { } rateLimit && !RateLimitSpec.TryParse(rateLimit, out _, out var rateError))
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares a RateLimit of "
+                    + $"\"{rateLimit}\", which is not a rate limit. {rateError}"
+            );
+        }
+        if (descriptor.RateKey is { } rateKey)
+        {
+            IdentifierSyntax.ValidateKebab(rateKey, nameof(descriptor.RateKey), JobDefinitionRegistration.MaxRateKeyLength);
+        }
+
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         if (executionTimeout > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         {
@@ -414,11 +436,48 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         }
     }
 
+    /// <summary>
+    /// Rejects a namespace whose definitions disagree about the rate on a shared key. One meter cannot
+    /// run at two rates: whichever definition's worker asked last would set the interval, so the
+    /// realized rate would depend on arrival order rather than on anything declared.
+    /// </summary>
+    private static void ValidateSharedRateKeys(List<JobDefinitionRow> rows, int namespaceId)
+    {
+        var rateByKey = new Dictionary<string, (string Name, string? RateLimit)>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            // A definition without an explicit key meters on its own name, so it shares with nobody.
+            if (row.RateKey is not { } key)
+            {
+                continue;
+            }
+            if (!rateByKey.TryGetValue(key, out var first))
+            {
+                rateByKey[key] = (row.Name, row.RateLimit);
+                continue;
+            }
+            if (!string.Equals(first.RateLimit, row.RateLimit, StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    $"Job definitions \"{first.Name}\" and \"{row.Name}\" (namespace {namespaceId.ToString(CultureInfo.InvariantCulture)}) "
+                        + $"share the RateKey \"{key}\" but declare different rate limits "
+                        + $"({Describe(first.RateLimit)} and {Describe(row.RateLimit)}): definitions on one meter must declare the same rate."
+                );
+            }
+        }
+
+        static string Describe(string? rateLimit) => rateLimit is null ? "none" : $"\"{rateLimit}\"";
+    }
+
     private static JobDefinitionRow BuildRow(JobDescriptor descriptor, int namespaceId)
     {
         var priorityCode = (byte)descriptor.Priority;
         var maxAttempts = descriptor.MaxAttempts;
         var concurrencyLimit = descriptor.ConcurrencyLimit;
+        // Stored canonical so two spellings of one rate ("10/s" and " 10/s") are one value on a shared
+        // key and one hash. Null stays null: no rate is a real state, not a rate of zero.
+        var rateLimit = descriptor.Rate?.Text;
+        var rateKey = descriptor.RateKey;
         var backoff = descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression;
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         var deadlineSeconds = descriptor.DeadlineSeconds ?? 0;
@@ -444,6 +503,8 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             priorityCode.ToString(c),
             maxAttempts.ToString(c),
             concurrencyLimit?.ToString(c),
+            rateLimit,
+            rateKey,
             backoff,
             executionTimeout.ToString(c),
             deadlineSeconds.ToString(c),
@@ -469,6 +530,8 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             PriorityCode: priorityCode,
             MaxAttempts: maxAttempts,
             ConcurrencyLimit: concurrencyLimit,
+            RateLimit: rateLimit,
+            RateKey: rateKey,
             Backoff: backoff,
             ExecutionTimeoutSeconds: executionTimeout,
             DeadlineSeconds: deadlineSeconds,

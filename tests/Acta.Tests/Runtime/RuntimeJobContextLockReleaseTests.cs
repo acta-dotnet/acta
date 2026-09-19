@@ -67,6 +67,14 @@ public sealed class RuntimeJobContextLockReleaseTests
         public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             Task.FromResult<LockToken?>(new LockToken($"{keyPrefix}.0", Guid.NewGuid()));
 
+        public Task<RateReservation> ReserveRateAsync(
+            string bucketKey,
+            long jobId,
+            int intervalMilliseconds,
+            int burst,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct)

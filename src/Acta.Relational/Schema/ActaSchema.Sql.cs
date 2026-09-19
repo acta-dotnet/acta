@@ -136,6 +136,29 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
+        /// <summary>
+        /// Whole milliseconds between two rate admissions; reserve_rate moves the bucket by exactly
+        /// this much per request. At least 1, which is what caps a declared rate at 1000 per second.
+        /// </summary>
+        public static readonly DbValueSpec<int> RateIntervalMilliseconds = new(
+            ParameterName: "p_rate_interval_ms",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
+        /// <summary>How many admissions an idle bucket may hand out back to back: the declared count.</summary>
+        public static readonly DbValueSpec<int> RateBurst = new(
+            ParameterName: "p_rate_burst",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
         public static readonly DbValueSpec<int> DeadAfterSeconds = new(
             ParameterName: "p_dead_after_seconds",
             Kind: DbKind.Int32,

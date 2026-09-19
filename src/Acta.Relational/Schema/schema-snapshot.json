@@ -288,6 +288,22 @@
             "Signature": "Int16|0|0|0|True|None|COALESCE(concurrency_limit_override, concurrency_limit)|coded=False|codeKind=|values="
           },
           {
+            "Name": "rate_limit",
+            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "rate_limit_override",
+            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "rate_limit_effective",
+            "Signature": "AsciiString|16|0|0|True|None|COALESCE(rate_limit_override, rate_limit)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "rate_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
             "Name": "backoff",
             "Signature": "UnicodeString|64|0|0|False|None||coded=False|codeKind=|values="
           },

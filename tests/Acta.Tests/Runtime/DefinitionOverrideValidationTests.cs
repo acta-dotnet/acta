@@ -7,7 +7,8 @@ namespace Acta.Tests.Runtime;
 /// <summary>
 /// Boundary validation in <see cref="DefinitionsService.UpdateOverridesAsync"/> for the override
 /// values that would otherwise fail later and worse: an execution timeout past CancelAfter's
-/// ceiling crashes the attempt after the claim, a non-ASCII or over-length runbook URL fails or
+/// ceiling crashes the attempt after the claim, a malformed rate limit stops metering silently, a
+/// non-ASCII or over-length runbook URL fails or
 /// mangles per provider, and free-form display text truncates to its column instead of surfacing
 /// a provider write error.
 /// </summary>
@@ -29,6 +30,8 @@ public sealed class DefinitionOverrideValidationTests
             MaxAttemptsEffective: 3,
             ConcurrencyLimitOverride: null,
             ConcurrencyLimitEffective: null,
+            RateLimitOverride: null,
+            RateLimitEffective: null,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
         );
@@ -70,6 +73,24 @@ public sealed class DefinitionOverrideValidationTests
             service,
             new JobDefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         );
+        Assert.Equal(ControlAction.Applied, outcome.Action);
+    }
+
+    [Theory]
+    [InlineData("10")]
+    [InlineData("10/d")]
+    [InlineData("0/s")]
+    [InlineData("1001/s")]
+    public async Task A_rate_limit_override_that_is_not_a_rate_is_rejected(string rateLimit)
+    {
+        var (service, store) = Build();
+
+        // Rejected rather than coerced, like Backoff: a meter that silently stops metering is worse
+        // than a refused write.
+        await Assert.ThrowsAsync<ArgumentException>(() => UpdateAsync(service, new JobDefinitionPolicyOverrides(RateLimit: rateLimit)));
+        Assert.Empty(store.OverrideWrites);
+
+        var outcome = await UpdateAsync(service, new JobDefinitionPolicyOverrides(RateLimit: "1000/s"));
         Assert.Equal(ControlAction.Applied, outcome.Action);
     }
 

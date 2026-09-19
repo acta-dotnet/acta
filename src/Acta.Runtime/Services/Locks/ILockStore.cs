@@ -23,6 +23,20 @@ internal interface ILockStore
     Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct);
 
     /// <summary>
+    /// Spends one turn from a rate meter, reserving the next one when the meter is ahead of now. The
+    /// meter is a GCRA bucket row at <paramref name="bucketKey"/> holding its theoretical arrival
+    /// time; every request moves it forward by <paramref name="intervalMilliseconds"/>, and an idle
+    /// bucket is treated as far enough behind to hand out exactly <paramref name="burst"/> admissions
+    /// back to back, which is what makes the burst a burst. Admitted means the returned instant has
+    /// passed and the caller may run now. Not admitted means the caller must re-arm at the returned
+    /// instant, where a reservation row is already waiting for this job: the turn is booked, so the
+    /// caller bounces once rather than racing the meter again, and a queue drains at the rate with one
+    /// re-arm each. Both rows carry an instant rather than a lease, and the bucket's is offset so that
+    /// it expires exactly when an idle meter stops differing from a missing one.
+    /// </summary>
+    Task<RateReservation> ReserveRateAsync(string bucketKey, long jobId, int intervalMilliseconds, int burst, CancellationToken ct);
+
+    /// <summary>
     /// CAS on the hold token, which is unchanged so the same token still releases; false when the
     /// lock had been stolen/reacquired. Called by the worker heartbeat to keep a long-running
     /// handler's concurrency lock alive - a Redis store extends via key expiry, the provider
@@ -40,3 +54,10 @@ internal interface ILockStore
 /// successor's lock.
 /// </summary>
 internal readonly record struct LockToken(string Key, Guid HoldToken);
+
+/// <summary>
+/// One rate-meter answer. <paramref name="ResumeAtUtc"/> is the instant this job's turn comes and is
+/// meaningful only when <paramref name="Admitted"/> is false; an admitted request reads back the
+/// store's clock, because the turn is now.
+/// </summary>
+internal readonly record struct RateReservation(bool Admitted, DateTime ResumeAtUtc);

@@ -220,6 +220,39 @@ has observed it, admissions may still use the old limit, and attempts already ho
 run to completion; the overshoot after a decrease is therefore bounded by the old limit until the
 last worker observes the change, plus one attempt's duration.
 
+### Rate limit
+
+`[Job("send-invoice", RateLimit = "10/s", RateKey = "stripe")]` caps how *often* attempts of that
+definition start, where the concurrency limit caps how *many* run at once. The two are independent
+gates and a job passes both. The format is `N/s`, `N/m`, or `N/h` with `N` a positive whole number,
+and the rate may not exceed 1000 per second: the interval between admissions is the period divided by
+`N`, rounded up to whole milliseconds, which is the resolution the meter is stored at. Anything else
+is rejected at build time by the source generator, again at worker startup, and again at the override
+gate. Like every other policy slot the rate has an operator override on the definition row.
+
+`RateKey` names the meter. Omit it and the meter is the definition name, so a rate alone throttles
+just that definition. Definitions that share a key share one meter and **must declare the same rate**;
+worker startup rejects a namespace where two of them disagree, because one meter cannot run at two
+rates. Unlike the rate, the key has no operator override: moving a definition onto another meter
+changes which definitions it competes with, which is a contract change rather than a dial.
+
+**Admission is a reservation, not a retry loop.** The meter keeps the instant the next admission is
+due. A job that arrives after that instant runs immediately. A job that arrives early is given the
+next free instant, and the attempt re-arms Ready at exactly that instant without spending retry
+budget, carrying the reason `job.rate-limited`; that is never a failure, so it writes no
+`Failures`-level event and raises no alert. Because the turn is booked rather than contended for, a
+backlog costs **one re-arm per job** and drains in arrival order at the rate, with no re-racing.
+
+The contract: at most `R*T + N` admissions in any window of `T` seconds, where `N` is the declared
+count (an idle meter hands out that many back to back), and within 10% of `R` over 60 seconds of
+continuous demand as long as executors are free. Executors are the other half of that: the rate caps
+how fast jobs *start*, so if every executor is busy the realized rate is lower.
+
+A reserved turn that is never spent - the job was cancelled, or its worker was reclaimed before it
+came back - is simply lost, and the row is collected by the ordinary lock expiry sweep. The meter
+itself is swept the same way once it falls behind the current instant, which restores it to a fresh
+meter with its full burst.
+
 For production-oriented defaults and tradeoffs, including provider choice, migration ownership,
 worker sizing, leases, dashboard exposure, alerts, and retention, see
 [`production.md`](./production.md).

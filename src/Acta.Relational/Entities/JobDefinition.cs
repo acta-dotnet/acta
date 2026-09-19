@@ -177,6 +177,31 @@ internal sealed class JobDefinition : IEntity<int>
     public short? ConcurrencyLimitEffective { get; internal set; }
 
     /// <summary>
+    /// How often attempts of this definition may start, as <c>N/s</c> / <c>N/m</c> / <c>N/h</c>; NULL
+    /// means no rate limit. Metered on <see cref="RateKey"/> through the GCRA bucket row
+    /// <c>{ns_id}.rate.{key}</c> in <c>locks</c>, so no table carries a counter.
+    /// </summary>
+    [DbColumn("rate_limit", DbKind.AsciiString, Size = 16)]
+    public string? RateLimit { get; internal set; }
+
+    /// <summary>Operator override of <see cref="RateLimit"/>; NULL = inherit the default.</summary>
+    [DbColumn("rate_limit_override", DbKind.AsciiString, Size = 16)]
+    public string? RateLimitOverride { get; internal set; }
+
+    /// <summary>Effective rate limit (DB-computed); read-only. NULL when neither is set.</summary>
+    [DbColumn("rate_limit_effective", DbKind.AsciiString, Size = 16, Generated = "COALESCE(rate_limit_override, rate_limit)")]
+    public string? RateLimitEffective { get; internal set; }
+
+    /// <summary>
+    /// Which meter <see cref="RateLimit"/> spends from; NULL means the definition name. Code-owned and
+    /// deliberately without an override triple: moving a definition to another meter changes which
+    /// definitions it competes with, which is a contract change rather than an operator dial.
+    /// Definitions sharing a key must declare the same rate, which registration enforces.
+    /// </summary>
+    [DbColumn("rate_key", DbKind.AsciiString, Size = 128)]
+    public string? RateKey { get; internal set; }
+
+    /// <summary>
     /// Retry backoff policy as an Acta backoff expression, e.g. <c>"1m..8h x2 ~10%"</c>. Resolved to a
     /// concrete expression at registration (framework default <c>"1m..1d x2 ~10%"</c> when the attribute sets
     /// none); parsed by workers, never by SQL.

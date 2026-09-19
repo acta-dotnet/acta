@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Acta.Generators.Shared;
@@ -232,6 +233,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             PriorityName: policy.PriorityName,
             MaxAttempts: policy.MaxAttempts,
             ConcurrencyLimit: policy.ConcurrencyLimit,
+            RateLimit: policy.RateLimit,
+            RateKey: policy.RateKey,
             AuditLevelName: auditLevelName,
             AlertProfileName: policy.AlertProfileName,
             TenantRequirementId: policy.TenantRequirementId,
@@ -278,6 +281,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         var priorityName = DefaultPriorityName;
         var maxAttempts = DefaultMaxAttempts;
         short? concurrencyLimit = null;
+        string? rateLimit = null;
+        string? rateKey = null;
         string? auditLevelName = null;
         var alertProfileName = DefaultAlertProfileName;
         byte tenantRequirementId = 0;
@@ -458,6 +463,31 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                     }
                     break;
 
+                case "RateLimit":
+                    rateLimit = ReadRateLimit(named, diagnostics, location);
+                    break;
+
+                case "RateKey":
+                    if (named.Value.Value is string rk && !string.IsNullOrWhiteSpace(rk))
+                    {
+                        if (KebabName.IsValid(rk, maxLength: 128, allowSystemPrefix: false))
+                        {
+                            rateKey = rk;
+                        }
+                        else
+                        {
+                            diagnostics.Add(
+                                Diagnostics.InvalidPolicyValue(
+                                    named.Key,
+                                    $"\"{rk}\"",
+                                    "Rate keys are lowercase kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars.",
+                                    location
+                                )
+                            );
+                        }
+                    }
+                    break;
+
                 case "Backoff":
                     backoffExpression = ReadBackoff(named, diagnostics, location);
                     break;
@@ -547,6 +577,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             priorityName,
             maxAttempts,
             concurrencyLimit,
+            rateLimit,
+            rateKey,
             auditLevelName,
             alertProfileName,
             tenantRequirementId,
@@ -562,6 +594,50 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             description
         );
     }
+
+    /// <summary>
+    /// Validates the raw `RateLimit` string against the same format `RateLimitSpec` parses at runtime,
+    /// so a typo is a build error rather than a definition that quietly meters nothing. The rate is
+    /// carried forward as written; registration stores its canonical form.
+    /// </summary>
+    private static string? ReadRateLimit(KeyValuePair<string, TypedConstant> named, List<DiagnosticRecord> diagnostics, Location location)
+    {
+        if (named.Value.Value is not string text || string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var slash = text.IndexOf('/');
+        var periodMilliseconds = slash > 0 && slash == text.Length - 2 ? PeriodMilliseconds(text[text.Length - 1]) : 0;
+        if (
+            periodMilliseconds != 0
+            && int.TryParse(text.Substring(0, slash), NumberStyles.None, CultureInfo.InvariantCulture, out var count)
+            && count >= 1
+            && count <= periodMilliseconds
+        )
+        {
+            return text;
+        }
+
+        diagnostics.Add(
+            Diagnostics.InvalidPolicyValue(
+                named.Key,
+                $"\"{text}\"",
+                "A rate limit is a positive count, a slash, and a period of s, m, or h (\"10/s\"), at most 1000 per second.",
+                location
+            )
+        );
+        return null;
+    }
+
+    private static int PeriodMilliseconds(char period) =>
+        period switch
+        {
+            's' => 1_000,
+            'm' => 60_000,
+            'h' => 3_600_000,
+            _ => 0,
+        };
 
     /// <summary>
     /// Validates the raw `Backoff` DSL string (format + the 64-char storage ceiling) but carries the
@@ -703,6 +779,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string PriorityName,
         short MaxAttempts,
         short? ConcurrencyLimit,
+        string? RateLimit,
+        string? RateKey,
         string? AuditLevelName,
         string AlertProfileName,
         byte TenantRequirementId,
@@ -1515,6 +1593,16 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 policyLines.Add($"ConcurrencyLimit = {concurrencyLimit},");
             }
 
+            if (j.RateLimit is { } rateLimitRaw)
+            {
+                policyLines.Add($"RateLimit = {FormatString(rateLimitRaw)},");
+            }
+
+            if (j.RateKey is { } rateKeyRaw)
+            {
+                policyLines.Add($"RateKey = {FormatString(rateKeyRaw)},");
+            }
+
             if (j.Backoff is { } backoffRaw)
             {
                 policyLines.Add($"Backoff = {FormatString(backoffRaw)},");
@@ -2249,6 +2337,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string PriorityName,
         short MaxAttempts,
         short? ConcurrencyLimit,
+        string? RateLimit,
+        string? RateKey,
         string AuditLevelName,
         string AlertProfileName,
         byte TenantRequirementId,

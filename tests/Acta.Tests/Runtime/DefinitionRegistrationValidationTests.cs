@@ -8,7 +8,8 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// Registration-time bounds in <see cref="DefinitionsService"/>: a code-declared ExecutionTimeout past
-/// CancelAfter's ceiling, a ConcurrencyLimit outside 1..1024, a non-ASCII or over-length RunbookUrl,
+/// CancelAfter's ceiling, a ConcurrencyLimit outside 1..1024, a malformed RateLimit or RateKey, two
+/// definitions disagreeing about the rate on a shared key, a non-ASCII or over-length RunbookUrl,
 /// or over-length display text fails worker init with a named error, the same contract the operator
 /// override gate holds, instead of a silent clamp at execution or a provider-specific write failure.
 /// </summary>
@@ -41,11 +42,11 @@ public sealed class DefinitionRegistrationValidationTests
             SerializeOutput: null
         );
 
-    private static Task RegisterAsync(JobDescriptor descriptor) =>
+    private static Task RegisterAsync(params JobDescriptor[] descriptors) =>
         new DefinitionsService(new RejectingDefinitionStore()).RegisterAsync(
             1,
             Gen,
-            [descriptor],
+            [.. descriptors],
             [],
             TestContext.Current.CancellationToken
         );
@@ -97,6 +98,58 @@ public sealed class DefinitionRegistrationValidationTests
         );
     }
 
+    [Theory]
+    [InlineData("10")]
+    [InlineData("10/d")]
+    [InlineData("0/s")]
+    [InlineData("1001/s")]
+    public async Task A_rate_limit_that_is_not_a_rate_fails_registration(string rateLimit)
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(Descriptor("metered") with { RateLimit = rateLimit }));
+
+        Assert.Contains("metered", ex.Message);
+        Assert.Contains("RateLimit", ex.Message);
+    }
+
+    [Fact]
+    public async Task A_rate_key_that_is_not_kebab_fails_registration()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            RegisterAsync(Descriptor("metered") with { RateLimit = "10/s", RateKey = "Stripe Payments" })
+        );
+
+        Assert.Contains("RateKey", ex.Message);
+    }
+
+    [Fact]
+    public async Task Definitions_sharing_a_rate_key_must_declare_the_same_rate()
+    {
+        // One meter cannot run at two rates: whichever worker asked last would set the interval, so
+        // the realized rate would depend on arrival order instead of on anything declared.
+        var left = Descriptor("left") with
+        {
+            RateLimit = "10/s",
+            RateKey = "stripe",
+        };
+        var right = Descriptor("right") with { RateLimit = "5/s", RateKey = "stripe" };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(left, right));
+
+        Assert.Contains("left", ex.Message);
+        Assert.Contains("right", ex.Message);
+        Assert.Contains("stripe", ex.Message);
+    }
+
+    [Fact]
+    public async Task Definitions_on_separate_rate_keys_may_declare_different_rates()
+    {
+        var left = Descriptor("left") with { RateLimit = "10/s", RateKey = "stripe" };
+        var right = Descriptor("right") with { RateLimit = "5/s", RateKey = "twilio" };
+
+        // The store fake rejects every call, so reaching it is the proof that the gate let both through.
+        await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(left, right));
+    }
+
     [Fact]
     public async Task Values_at_the_bounds_pass_the_gate_and_reach_the_store()
     {
@@ -104,6 +157,8 @@ public sealed class DefinitionRegistrationValidationTests
         {
             ExecutionTimeoutSeconds = JobDefinitionRegistration.MaxExecutionTimeoutSeconds,
             ConcurrencyLimit = JobDefinitionRegistration.MaxConcurrencyLimit,
+            RateLimit = "1000/s",
+            RateKey = new string('r', JobDefinitionRegistration.MaxRateKeyLength),
             RunbookUrl = new string('r', ActaTextLimits.DefinitionRunbookUrl),
             DisplayName = new string('d', ActaTextLimits.DefinitionDisplayName),
             Description = new string('x', ActaTextLimits.DefinitionDescription),

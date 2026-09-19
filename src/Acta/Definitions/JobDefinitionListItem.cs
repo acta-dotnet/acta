@@ -4,9 +4,9 @@ namespace Acta;
 
 /// <summary>
 /// One job definition row in a <see cref="IDefinitions.ListAsync"/> page, trimmed to what
-/// the dashboard definitions grid renders: identity, status, contract type names, and the three policy
-/// columns it surfaces (priority, max attempts, and concurrency limit, each as effective + override so
-/// the grid can flag an operator override). The full row - every policy triple, formats, audit bookkeeping - is read on
+/// the dashboard definitions grid renders: identity, status, contract type names, and the four policy
+/// columns it surfaces (priority, max attempts, concurrency limit, and rate limit, each as effective +
+/// override so the grid can flag an operator override). The full row - every policy triple, formats, audit bookkeeping - is read on
 /// demand via <see cref="IDefinitions.GetAsync"/> (<see cref="JobDefinitionDetail"/>). A definition is
 /// addressed by its natural key (namespace + name); the catalog id stays off the wire.
 /// </summary>
@@ -23,6 +23,8 @@ public sealed record JobDefinitionListItem(
     short MaxAttemptsEffective,
     short? ConcurrencyLimitOverride,
     short? ConcurrencyLimitEffective,
+    string? RateLimitOverride,
+    string? RateLimitEffective,
     DateTime ModifiedAtUtc,
     int Version
 );

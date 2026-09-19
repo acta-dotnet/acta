@@ -168,6 +168,13 @@ supplies no key, the definition name is the key, so a limit alone throttles the 
 definitions on the same key share its slots and the key's capacity is the largest limit among them.
 It is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy.
 
+`[Job("send-invoice", RateLimit = "10/s")]` caps how OFTEN attempts start, which is a different
+gate from how many run at once, and a job passes both. `RateKey` names the meter when several
+definitions should share one; omitted, the meter is the definition name. Definitions on one meter must
+declare the same rate. A job that arrives early is BOOKED the next free instant and re-arms Ready at
+exactly that instant without spending retry budget (reason `job.rate-limited`, never a failure and
+never an alert), so a backlog costs one re-arm per job and drains in arrival order at the rate.
+
 ## Payloads
 
 Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlinePayloadBytes`).

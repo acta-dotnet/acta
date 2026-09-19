@@ -142,6 +142,14 @@ another participant's share. The limit is an operator-overridable policy slot on
 change reaches each worker on its next policy reload, so a decrease is honored gradually: admissions
 may use the old limit until every worker has seen the new one, and attempts already running finish.
 
+**`RateLimit` caps how often, where the limit caps how many.** `[Job("send-invoice", RateLimit =
+"10/s")]` meters starts against a shared clock: ten a second cluster-wide, with `RateKey` naming the
+meter when several definitions should share one (omit it and the meter is the definition name). A job
+that arrives before its turn is *given* the next free instant and re-arms Ready at exactly that
+instant, budget-neutral, carrying `job.rate-limited`. That booking is what makes it cheap: a backlog
+of a thousand jobs costs one re-arm each and drains in arrival order at the rate, rather than a
+thousand workers re-racing a counter. Rate and limit are independent gates and a job passes both.
+
 There are three levels to choose between, and only the third one orders anything:
 
 | Level | What it gives you | How you get it |

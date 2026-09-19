@@ -555,6 +555,18 @@ internal sealed class RuntimeJobContext(
         return token is not null;
     }
 
+    /// <summary>
+    /// Rate admission, taken by the runner after the concurrency slot and before the handler. The meter
+    /// is the bucket row {ns_id}.rate.{key}, disjoint from the lock and slot key spaces, and holds
+    /// nothing: it is moved, never acquired, so there is no release. The key is normalized defensively
+    /// so one meter across case never depends on the stored value alone.
+    /// </summary>
+    internal Task<RateReservation> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
+    {
+        var bucket = $"{_namespaceId}.rate.{IdentifierSyntax.NormalizeKey(rateKey, nameof(rateKey))}";
+        return _lockStore.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Count, ct);
+    }
+
     internal async Task ReleaseConcurrencySlotAsync(CancellationToken ct)
     {
         if (_concurrencySlotToken is not { } token)

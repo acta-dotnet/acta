@@ -35,7 +35,7 @@
     'job.non-retryable-exception', 'job.deadline-exceeded', 'job.schedules-exhausted',
     'job.control-manual', 'job.parent-cancelled', 'job.definition-retired',
     'job.handler-rescheduled', 'job.handler-suspended', 'job.handler-failed', 'job.handler-cancelled', 'job.handler-paused',
-    'job.signal-released', 'job.step-retry-scheduled', 'job.concurrency-key-held', 'job.step-interrupted',
+    'job.signal-released', 'job.step-retry-scheduled', 'job.concurrency-key-held', 'job.rate-limited', 'job.step-interrupted',
     'worker.clean-shutdown', 'worker.heartbeat-stale'
   ];
 

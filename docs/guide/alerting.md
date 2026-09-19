@@ -85,10 +85,10 @@ Everything else is invisible to alerting. Two exclusions are worth stating outri
   "next retry would exceed the deadline" paths (`JobExecution.RunAsync`) — all land the job
   `Cancelled`, and the alertable set has no `Cancelled` branch.
 - **Not every re-arm alerts.** A budget-neutral re-arm carrying `job.concurrency-key-held` (62),
-  `job.step-retry-scheduled` (61), or `job.attempt-aborted` (25) falls outside the three reason codes
-  above, so the attempt ends without producing an alert even though it did not succeed
-  (`JobEventReasonCode.JobConcurrencyKeyHeld`, `JobEventReasonCode.JobStepRetryScheduled`,
-  `JobEventReasonCode.JobAttemptAborted`).
+  `job.rate-limited` (66), `job.step-retry-scheduled` (61), or `job.attempt-aborted` (25) falls
+  outside the three reason codes above, so the attempt ends without producing an alert even though it
+  did not succeed (`JobEventReasonCode.JobConcurrencyKeyHeld`, `JobEventReasonCode.JobRateLimited`,
+  `JobEventReasonCode.JobStepRetryScheduled`, `JobEventReasonCode.JobAttemptAborted`).
 
 A recurring slot's rollover carries the failed attempt's reason through onto its `Ready` event
 (`JobExecution.ComputeRecurringOutcome`). That is the only reason a nightly job that throws every

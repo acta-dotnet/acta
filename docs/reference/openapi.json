@@ -6552,6 +6552,7 @@
                 "job.step-interrupted",
                 "job.result-oversized",
                 "job.wait-timed-out",
+                "job.rate-limited",
                 "worker.clean-shutdown",
                 "worker.heartbeat-stale"
               ],
@@ -8567,6 +8568,10 @@
           "concurrencyLimit",
           "concurrencyLimitOverride",
           "concurrencyLimitEffective",
+          "rateLimit",
+          "rateLimitOverride",
+          "rateLimitEffective",
+          "rateKey",
           "backoff",
           "backoffOverride",
           "backoffEffective",
@@ -8720,6 +8725,30 @@
               "string"
             ],
             "format": "int16"
+          },
+          "rateLimit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateLimitOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateLimitEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateKey": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "backoff": {
             "type": "string"
@@ -8960,6 +8989,8 @@
           "maxAttemptsEffective",
           "concurrencyLimitOverride",
           "concurrencyLimitEffective",
+          "rateLimitOverride",
+          "rateLimitEffective",
           "modifiedAtUtc",
           "version"
         ],
@@ -9031,6 +9062,18 @@
             ],
             "format": "int16"
           },
+          "rateLimitOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateLimitEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "modifiedAtUtc": {
             "type": "string",
             "format": "date-time"
@@ -9044,7 +9087,7 @@
             "format": "int32"
           }
         },
-        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the three policy\ncolumns it surfaces (priority, max attempts, and concurrency limit, each as effective + override so\nthe grid can flag an operator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
+        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the four policy\ncolumns it surfaces (priority, max attempts, concurrency limit, and rate limit, each as effective +\noverride so the grid can flag an operator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
       },
       "JobDefinitionPolicyOverrides": {
         "type": "object",
@@ -9067,6 +9110,12 @@
               "string"
             ],
             "format": "int16"
+          },
+          "rateLimit": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "backoff": {
             "type": [

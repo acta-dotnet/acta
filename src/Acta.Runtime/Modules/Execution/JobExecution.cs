@@ -14,7 +14,8 @@ namespace Acta.Runtime.Modules.Execution;
 /// <summary>
 /// The start-invoke-complete lifecycle of a single attempt: the <c>start_execution</c> CAS, the
 /// concurrency slot (taken after the CAS, released when the handler finishes; a loser re-arms
-/// Ready after the fixed bounce delay), input deserialization, the generator-emitted
+/// Ready after the fixed bounce delay), the rate meter (taken after the slot; a job that is early
+/// gives the slot back and re-arms at its reserved instant), input deserialization, the generator-emitted
 /// <c>descriptor.Invoker</c> invocation wrapped in the registered pipeline behaviors, result
 /// serialization, and the <c>complete_execution</c> write (including recurring-completion outcome
 /// math). With no behaviors registered, dispatch uses <c>descriptor.Invoker</c> directly.
@@ -132,7 +133,33 @@ internal sealed class JobExecution(
             }
         }
 
-        if (!deadlineHitAtAdmission && !concurrencyBounced)
+        // Rate admission, after the concurrency slot because the rate is the scarcer gate: a job that
+        // is early gives its slot straight back, so a held slot never waits out someone else's turn.
+        // A denial is not a race to re-run: the meter has already booked this job's instant, so the
+        // attempt settles as a budget-neutral re-arm at exactly that instant and comes back once.
+        // The parsed rate rides on the descriptor, which the policy reload keeps current.
+        var rateLimited = false;
+        if (!deadlineHitAtAdmission && !concurrencyBounced && descriptor.Rate is { } rate)
+        {
+            var reservation = await jobContext.ReserveRateAsync(descriptor.RateKey ?? descriptor.JobName, rate, ct);
+            rateLimited = !reservation.Admitted;
+            if (rateLimited)
+            {
+                await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
+                rescheduleResumeAtUtc = reservation.ResumeAtUtc;
+                _log.LogDebug(
+                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate key ({Detail}) is at its limit, so the job re-armed Ready in {DurationMs}ms.",
+                    "rate-admission",
+                    "Bounced",
+                    job.JobId,
+                    "turn-reserved",
+                    descriptor.RateKey ?? descriptor.JobName,
+                    (int)Math.Max(0, (reservation.ResumeAtUtc - DateTime.UtcNow).TotalMilliseconds)
+                );
+            }
+        }
+
+        if (!deadlineHitAtAdmission && !concurrencyBounced && !rateLimited)
         {
             var sw = Stopwatch.StartNew();
             var inputDeserialized = false;
@@ -427,6 +454,15 @@ internal sealed class JobExecution(
             failureMessage = "Job passed its deadline before execution started.";
             handlerStatusCode = (byte)JobStatusCode.Cancelled;
             _log.LogInformation("WorkerRuntime: job {JobId} overdue at admission; cancelling without running the handler.", job.JobId);
+        }
+        else if (rateLimited)
+        {
+            // Rate bounce: settle the attempt as a budget-neutral re-arm at the reserved instant, which
+            // the admission above already put in rescheduleResumeAtUtc. An absolute instant rather than
+            // a delay, because the turn is a place in the meter's queue, not a cooldown.
+            outcome = ExecutionOutcome.Rescheduled;
+            failureReason = JobEventReasonCode.JobRateLimited;
+            failureMessage = "The rate limit for this key reserved this job its next turn.";
         }
         else
         {

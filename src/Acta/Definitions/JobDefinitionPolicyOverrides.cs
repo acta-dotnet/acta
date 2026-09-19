@@ -14,6 +14,7 @@ public sealed record JobDefinitionPolicyOverrides(
     JobPriorityCode? Priority = null,
     short? MaxAttempts = null,
     short? ConcurrencyLimit = null,
+    string? RateLimit = null,
     string? Backoff = null,
     int? ExecutionTimeoutSeconds = null,
     int? DeadlineSeconds = null,

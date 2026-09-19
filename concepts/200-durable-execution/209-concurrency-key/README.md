@@ -17,6 +17,7 @@ serialize the work, but the loser has already consumed an executor while it wait
 | --- | --- |
 | `RunWithLockAsync` | A critical section inside a handler |
 | `ConcurrencyKey` (+ `ConcurrencyLimit`) | Admission control for the whole execution, one job at a time or N |
+| `RateLimit` | Admission control on how often, not how many |
 | Queue partitioning | High-volume, stable partition keys |
 | Database uniqueness | Preventing duplicate durable records |
 | External distributed lock | Coordination beyond Acta's database |
@@ -31,6 +32,13 @@ visible instead of looking like an application failure.
 attempts run together and the N+1th bounces the same way. The lab's second handler, `reindex-shard`,
 declares a limit of 2 and supplies no enqueue key, so the definition name is the key: a limit alone
 throttles the whole definition. The limit is an operator-overridable policy slot on the definition row.
+
+`[Job(RateLimit = "N/s")]` is the third gate and meters how often attempts start, which a limit cannot
+express: five a second is not the same shape as five at once. The lab's third handler,
+`ping-endpoint`, declares "5/s". A job that arrives before its turn is booked the next free instant
+and re-arms once at exactly that instant, so twelve jobs cost twelve starts and seven bounces rather
+than a crowd re-racing a counter. `RateKey` puts several definitions on one meter; definitions that
+share one must declare the same rate.
 
 `ConcurrencyKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
 no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a

@@ -1,4 +1,5 @@
 using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime.Querying;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,11 +53,14 @@ public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFi
         // bake in .NET string ordering, which disagrees with locale-collated providers (Postgres
         // ignores the hyphen in names like 'jobref-probe', .NET CompareOrdinal does not). The contract
         // is that paging preserves the operation's own order, not ASCII order.
+        // One read is capped at MaxPageSize whatever the caller asks for, so the comparison covers the
+        // walk's first page-worth; the total is still checked against every row the walk saw.
+        var comparable = Math.Min(seen.Count, JobsQueryLimits.MaxPageSize);
         var single = await queries.Definitions.ListAsync(
-            new ListDefinitionsQuery(JobNamespace: TestNamespace, PageSize: seen.Count, IncludeTotal: true),
+            new ListDefinitionsQuery(JobNamespace: TestNamespace, PageSize: comparable, IncludeTotal: true),
             ct
         );
-        Assert.Equal(seen.Select(static i => i.DefinitionId), single.Items.Select(static i => i.DefinitionId));
+        Assert.Equal(seen.Take(comparable).Select(static i => i.DefinitionId), single.Items.Select(static i => i.DefinitionId));
         Assert.Equal(seen.Count, single.TotalCount);
     }
 

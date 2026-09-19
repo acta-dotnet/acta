@@ -11,6 +11,8 @@ public sealed class SqliteConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<Sqli
 
 public sealed class SqliteConcurrencyLimitSpec : ConcurrencyLimitSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteRateLimitSpec : RateLimitSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteChildJobSpec : ChildJobSpec<SqliteConformanceFixture>;
