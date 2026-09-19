@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime.Modules.Execution.Workers;
 
 /// <summary>
-/// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency-key mutex) running attempts
+/// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency slot) running attempts
 /// hold, through the swappable <see cref="ILockStore"/>, on its own loop - separate from the worker
 /// heartbeat because the lock store is a distinct failure domain (relational today, Redis tomorrow). Each
 /// tick feeds a still-held lock's deadline on a confirmed extend and cancels the attempt when a still-held

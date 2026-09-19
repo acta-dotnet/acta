@@ -264,6 +264,9 @@ public sealed class RenewalLoopFailureArmTests
         public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
         {
             if (Interlocked.Increment(ref _calls) != failOn)

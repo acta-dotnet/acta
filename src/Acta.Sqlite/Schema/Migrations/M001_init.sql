@@ -66,6 +66,9 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     max_attempts integer NOT NULL,
     max_attempts_override integer NULL,
     max_attempts_effective integer AS (COALESCE(max_attempts_override, max_attempts)) STORED,
+    concurrency_limit integer NULL,
+    concurrency_limit_override integer NULL,
+    concurrency_limit_effective integer AS (COALESCE(concurrency_limit_override, concurrency_limit)) STORED,
     backoff text NOT NULL,
     backoff_override text NULL,
     backoff_effective text AS (COALESCE(backoff_override, backoff)) STORED,
@@ -418,7 +421,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-f8dd05f8f5a92b73c12bf6fb1a244f6a', '{{schema}}')
+VALUES (0, 'baseline-6010c91e6bb3eeda0c78f4615a993dfa', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

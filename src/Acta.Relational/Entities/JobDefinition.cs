@@ -161,6 +161,22 @@ internal sealed class JobDefinition : IEntity<int>
     public short MaxAttemptsEffective { get; internal set; }
 
     /// <summary>
+    /// How many attempts of this definition may execute at once, 1..1024; NULL means no limit unless
+    /// the job row carries a concurrency key, which alone admits one at a time. Nullable where the
+    /// other defaults are not: "no limit" is a real state of the policy, not a sentinel number.
+    /// </summary>
+    [DbColumn("concurrency_limit", DbKind.Int16)]
+    public short? ConcurrencyLimit { get; internal set; }
+
+    /// <summary>Operator override of <see cref="ConcurrencyLimit"/>; NULL = inherit the default.</summary>
+    [DbColumn("concurrency_limit_override", DbKind.Int16)]
+    public short? ConcurrencyLimitOverride { get; internal set; }
+
+    /// <summary>Effective concurrency limit (DB-computed); read-only. NULL when neither is set.</summary>
+    [DbColumn("concurrency_limit_effective", DbKind.Int16, Generated = "COALESCE(concurrency_limit_override, concurrency_limit)")]
+    public short? ConcurrencyLimitEffective { get; internal set; }
+
+    /// <summary>
     /// Retry backoff policy as an Acta backoff expression, e.g. <c>"1m..8h x2 ~10%"</c>. Resolved to a
     /// concrete expression at registration (framework default <c>"1m..1d x2 ~10%"</c> when the attribute sets
     /// none); parsed by workers, never by SQL.

@@ -48,6 +48,7 @@ UPDATE {{schema}}.definitions
 SET
     priority_code_override = @p_priority_code_override,
     max_attempts_override = @p_max_attempts_override,
+    concurrency_limit_override = @p_concurrency_limit_override,
     backoff_override = @p_backoff_override,
     execution_timeout_seconds_override = @p_execution_timeout_seconds_override,
     deadline_seconds_override = @p_deadline_seconds_override,

@@ -338,6 +338,9 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
         {
             _extended.Add(token);
@@ -350,6 +353,9 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     private sealed class ThrowingLockStore(LockToken flaky, Action? onExtend = null) : ILockStore
     {
         public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)

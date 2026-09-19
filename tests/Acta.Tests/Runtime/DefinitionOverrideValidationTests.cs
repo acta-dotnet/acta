@@ -27,6 +27,8 @@ public sealed class DefinitionOverrideValidationTests
             PriorityEffective: JobPriorityCode.Normal,
             MaxAttemptsOverride: null,
             MaxAttemptsEffective: 3,
+            ConcurrencyLimitOverride: null,
+            ConcurrencyLimitEffective: null,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
         );

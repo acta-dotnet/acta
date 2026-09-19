@@ -133,12 +133,21 @@ wait. Use it for exclusive *unordered* work. A job that finds the key held is re
 of seconds out without consuming retry budget, and while it waits it is not a claim candidate: a job
 enqueued later can take the key the moment it frees.
 
+**`ConcurrencyLimit` is that same gate with a size.** `[Job("rebuild-index", ConcurrencyLimit = 4)]`
+gives the key four slots instead of one, so four attempts run at once and the fifth bounces. The gate
+is still the key — the enqueue's `ConcurrencyKey` when the job carries one, otherwise the definition
+name — so two definitions sharing a key share its slots, and the key's capacity is the largest limit
+among them; a definition with a smaller limit competes for the low slots only and never shrinks
+another participant's share. The limit is an operator-overridable policy slot on the definition, and a
+change reaches each worker on its next policy reload, so a decrease is honored gradually: admissions
+may use the old limit until every worker has seen the new one, and attempts already running finish.
+
 There are three levels to choose between, and only the third one orders anything:
 
 | Level | What it gives you | How you get it |
 | --- | --- | --- |
 | **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, jobs due immediately. |
-| **Exclusive unordered work** | At most one job at a time per key, unbounded wait for any individual job. | `ConcurrencyKey`. |
+| **Bounded unordered work** | At most N jobs at a time per key (N = 1 by default), unbounded wait for any individual job. | `ConcurrencyKey`, sized by `[Job(ConcurrencyLimit = N)]`. |
 | **Strict ordered processing** | Item N+1 starts only after item N reached the required outcome. | A durable coordinator or chain job you write: one job holds the sequence and releases the next item itself. |
 
 The first level's conditions are real constraints, not tuning hints. Retries, delayed eligibility,

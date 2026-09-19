@@ -231,6 +231,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             RequiresCancellationToken: parameterModel?.HasCancellationToken ?? false,
             PriorityName: policy.PriorityName,
             MaxAttempts: policy.MaxAttempts,
+            ConcurrencyLimit: policy.ConcurrencyLimit,
             AuditLevelName: auditLevelName,
             AlertProfileName: policy.AlertProfileName,
             TenantRequirementId: policy.TenantRequirementId,
@@ -257,6 +258,13 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     /// Framework defaults: keep aligned with JobAttribute's defaults.
     /// </summary>
     private const short DefaultMaxAttempts = 15;
+
+    /// <summary>
+    /// The declared concurrency limit's range, the same 1..1024 band JobsOptions allows for
+    /// MaxConcurrentExecutors: a limit above the largest possible executor pool cannot bind.
+    /// </summary>
+    private const short MinConcurrencyLimit = 1;
+    private const short MaxConcurrencyLimit = 1024;
     private const string DefaultPriorityName = "Normal";
     private const string DefaultAuditLevelName = "Audit";
     private const string DefaultAlertProfileName = "OnFailure";
@@ -269,6 +277,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? outputFormat = null;
         var priorityName = DefaultPriorityName;
         var maxAttempts = DefaultMaxAttempts;
+        short? concurrencyLimit = null;
         string? auditLevelName = null;
         var alertProfileName = DefaultAlertProfileName;
         byte tenantRequirementId = 0;
@@ -362,6 +371,27 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                                     named.Key,
                                     m.ToString(System.Globalization.CultureInfo.InvariantCulture),
                                     "The failure budget is at least 1.",
+                                    location
+                                )
+                            );
+                        }
+                    }
+                    break;
+
+                case "ConcurrencyLimit":
+                    if (named.Value.Value is short cl)
+                    {
+                        if (cl is >= MinConcurrencyLimit and <= MaxConcurrencyLimit)
+                        {
+                            concurrencyLimit = cl;
+                        }
+                        else
+                        {
+                            diagnostics.Add(
+                                Diagnostics.InvalidPolicyValue(
+                                    named.Key,
+                                    cl.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                    $"The concurrency limit is between {MinConcurrencyLimit} and {MaxConcurrencyLimit}.",
                                     location
                                 )
                             );
@@ -516,6 +546,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             outputFormat,
             priorityName,
             maxAttempts,
+            concurrencyLimit,
             auditLevelName,
             alertProfileName,
             tenantRequirementId,
@@ -671,6 +702,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? OutputFormat,
         string PriorityName,
         short MaxAttempts,
+        short? ConcurrencyLimit,
         string? AuditLevelName,
         string AlertProfileName,
         byte TenantRequirementId,
@@ -1478,6 +1510,11 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 policyLines.Add($"TenantRequirement = (Acta.JobTenantRequirementCode){j.TenantRequirementId},");
             }
 
+            if (j.ConcurrencyLimit is { } concurrencyLimit)
+            {
+                policyLines.Add($"ConcurrencyLimit = {concurrencyLimit},");
+            }
+
             if (j.Backoff is { } backoffRaw)
             {
                 policyLines.Add($"Backoff = {FormatString(backoffRaw)},");
@@ -2211,6 +2248,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         bool RequiresCancellationToken,
         string PriorityName,
         short MaxAttempts,
+        short? ConcurrencyLimit,
         string AuditLevelName,
         string AlertProfileName,
         byte TenantRequirementId,

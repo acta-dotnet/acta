@@ -23,6 +23,7 @@
   const FIELDS = [
     { key: 'priority', label: 'Priority', kind: 'enum' },
     { key: 'maxAttempts', label: 'Max attempts', kind: 'int' },
+    { key: 'concurrencyLimit', label: 'Concurrency limit', kind: 'int' },
     { key: 'backoff', label: 'Backoff', kind: 'str' },
     { key: 'executionTimeoutSeconds', label: 'Exec timeout (s)', kind: 'int' },
     { key: 'deadlineSeconds', label: 'Deadline (s)', kind: 'int' },

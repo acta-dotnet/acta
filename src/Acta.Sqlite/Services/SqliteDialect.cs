@@ -274,6 +274,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 writer.WriteString("name", row.Name);
                 writer.WriteNumber("priority_code", row.PriorityCode);
                 writer.WriteNumber("max_attempts", row.MaxAttempts);
+                WriteNumberOrNull(writer, "concurrency_limit", row.ConcurrencyLimit);
                 writer.WriteString("backoff", row.Backoff);
                 writer.WriteNumber("execution_timeout_seconds", row.ExecutionTimeoutSeconds);
                 writer.WriteNumber("deadline_seconds", row.DeadlineSeconds);
@@ -479,6 +480,18 @@ internal sealed class SqliteDialect : ISqlDialect
         }
 
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
+    private static void WriteNumberOrNull(Utf8JsonWriter writer, string name, short? value)
+    {
+        if (value is { } present)
+        {
+            writer.WriteNumber(name, present);
+        }
+        else
+        {
+            writer.WriteNull(name);
+        }
     }
 
     private static void WriteStringOrNull(Utf8JsonWriter writer, string name, string? value)

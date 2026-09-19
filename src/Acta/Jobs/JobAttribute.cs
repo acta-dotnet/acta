@@ -26,6 +26,17 @@ public sealed class JobAttribute(string name) : Attribute
     public short MaxAttempts { get; init; } = 15;
 
     /// <summary>
+    /// How many attempts of this definition may execute at once, 1..1024. Unset means no limit unless
+    /// an enqueue supplied a <c>ConcurrencyKey</c>, which alone means 1. The gate is the key: the
+    /// enqueue's key when there is one, otherwise the definition name, so two definitions that share a
+    /// key share its slots. Shared-key capacity is the largest limit among the participants; a
+    /// smaller-limit definition competes for the first N slots only, so lowering one definition never
+    /// reduces another participant's slots. A changed limit reaches a worker on its next definition
+    /// policy reload, so admissions may use the old limit until every worker has observed the change.
+    /// </summary>
+    public short ConcurrencyLimit { get; init; }
+
+    /// <summary>
     /// Strict ordering on claim, with no aging or anti-starvation budget.
     /// </summary>
     public JobPriorityCode Priority { get; init; } = JobPriorityCode.Normal;

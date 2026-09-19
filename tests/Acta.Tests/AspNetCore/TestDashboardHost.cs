@@ -1057,6 +1057,9 @@ internal static class TestDashboardHost
                             MaxAttempts: 3,
                             MaxAttemptsOverride: null,
                             MaxAttemptsEffective: 3,
+                            ConcurrencyLimit: null,
+                            ConcurrencyLimitOverride: null,
+                            ConcurrencyLimitEffective: null,
                             Backoff: "1s..1m x2",
                             BackoffOverride: null,
                             BackoffEffective: "1s..1m x2",
@@ -1131,6 +1134,8 @@ internal static class TestDashboardHost
                                     JobPriorityCode.Normal,
                                     null,
                                     3,
+                                    null,
+                                    null,
                                     new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
                                     2
                                 ),

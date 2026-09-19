@@ -40,6 +40,13 @@ public sealed record JobDescriptor(
     public JobTenantRequirementCode TenantRequirement { get; init; } = JobTenantRequirementCode.Optional;
 
     /// <summary>
+    /// How many attempts of this definition may execute at once. Null = unlimited unless the job row
+    /// carries a <c>ConcurrencyKey</c>, which alone admits one at a time. Overlaid with the
+    /// definition's effective value at startup and on every policy reload.
+    /// </summary>
+    public short? ConcurrencyLimit { get; init; }
+
+    /// <summary>
     /// Declared recurring schedules (one per <c>[JobSchedule]</c>). Empty for non-scheduled jobs.
     /// </summary>
     public ImmutableArray<ScheduleDescriptor> Schedules { get; init; } = [];

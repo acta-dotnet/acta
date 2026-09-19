@@ -4,8 +4,8 @@ namespace Acta.Relational.Entities;
 
 /// <summary>
 /// One row per held named lock in the <c>locks</c> table: the rows behind both the handler-facing
-/// <c>JobContext.RunWithLockAsync</c> and the <c>concurrency_key</c> execution mutex the runner takes
-/// after claim. Execution ownership/TTL is not a row here - it lives on the <c>runtimes</c> row.
+/// <c>JobContext.RunWithLockAsync</c> and the concurrency slots the runner takes after claim.
+/// Execution ownership/TTL is not a row here - it lives on the <c>runtimes</c> row.
 /// Lifecycle is <see cref="ExpiresAtUtc"/> alone (no status column): held while ahead of now.
 /// Acquire is a steal-on-expiry upsert; release DELETEs the row - concurrency keys are unbounded
 /// per-job user strings, so the table stays O(currently held) by construction
@@ -14,9 +14,9 @@ namespace Acta.Relational.Entities;
 /// counter, no other hold can ever re-mint it, so a stale holder that slept through a full
 /// steal-release-reacquire cycle still cannot free or extend its successor's lock.
 /// <see cref="LockKey"/> is an opaque discriminator-segmented composite
-/// (<c>{namespace_id}.lock.{key}</c>, <c>global.lock.{key}</c>, <c>{namespace_id}.excl.{key}</c>)
+/// (<c>{namespace_id}.lock.{key}</c>, <c>global.lock.{key}</c>, <c>{namespace_id}.sem.{key}.{slot}</c>)
 /// so the lock spaces never collide on identical user text; keying on namespace id keeps the key
-/// compact and stable across renames.
+/// compact and stable across renames. A concurrency key with limit N owns slots 0..N-1, one row each.
 /// </summary>
 [DbTable("locks")]
 [DbPrimaryKey(Name = "pk_locks", Columns = ["lock_key"])]
@@ -25,7 +25,7 @@ internal sealed class Lock : IEntity
 {
     /// <summary>
     /// Opaque composite lock identity and primary key. Holds a discriminator-segmented string
-    /// (<c>{ns}.lock.{key}</c> / <c>global.lock.{key}</c> / <c>{ns}.excl.{key}</c>); never parsed for
+    /// (<c>{ns}.lock.{key}</c> / <c>global.lock.{key}</c> / <c>{ns}.sem.{key}.{slot}</c>); never parsed for
     /// safety, since keys are compared as whole strings.
     /// </summary>
     [DbColumn("lock_key", DbKind.AsciiString, Size = 256)]

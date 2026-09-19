@@ -3,6 +3,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.set_job_definition_overrides
     @p_version INT,
     @p_priority_code_override TINYINT,
     @p_max_attempts_override SMALLINT,
+    @p_concurrency_limit_override SMALLINT,
     @p_backoff_override NVARCHAR(64),
     @p_execution_timeout_seconds_override INT,
     @p_deadline_seconds_override INT,
@@ -52,6 +53,7 @@ BEGIN
         UPDATE {{schema}}.definitions SET
             priority_code_override = @p_priority_code_override,
             max_attempts_override = @p_max_attempts_override,
+            concurrency_limit_override = @p_concurrency_limit_override,
             backoff_override = @p_backoff_override,
             execution_timeout_seconds_override = @p_execution_timeout_seconds_override,
             deadline_seconds_override = @p_deadline_seconds_override,

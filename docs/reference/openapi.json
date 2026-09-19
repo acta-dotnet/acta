@@ -8564,6 +8564,9 @@
           "maxAttempts",
           "maxAttemptsOverride",
           "maxAttemptsEffective",
+          "concurrencyLimit",
+          "concurrencyLimitOverride",
+          "concurrencyLimitEffective",
           "backoff",
           "backoffOverride",
           "backoffEffective",
@@ -8686,6 +8689,33 @@
           "maxAttemptsEffective": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
+          "concurrencyLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
+          "concurrencyLimitOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
+          "concurrencyLimitEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -8928,6 +8958,8 @@
           "priorityEffective",
           "maxAttemptsOverride",
           "maxAttemptsEffective",
+          "concurrencyLimitOverride",
+          "concurrencyLimitEffective",
           "modifiedAtUtc",
           "version"
         ],
@@ -8981,6 +9013,24 @@
             ],
             "format": "int16"
           },
+          "concurrencyLimitOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
+          "concurrencyLimitEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
           "modifiedAtUtc": {
             "type": "string",
             "format": "date-time"
@@ -8994,13 +9044,22 @@
             "format": "int32"
           }
         },
-        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the two policy\ncolumns it surfaces (priority and max attempts, each as effective + override so the grid can flag an\noperator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
+        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the three policy\ncolumns it surfaces (priority, max attempts, and concurrency limit, each as effective + override so\nthe grid can flag an operator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
       },
       "JobDefinitionPolicyOverrides": {
         "type": "object",
         "properties": {
           "priority": { },
           "maxAttempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int16"
+          },
+          "concurrencyLimit": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",

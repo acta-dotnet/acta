@@ -28,7 +28,10 @@ internal sealed class JobExecutionHarness(
     int? maxInlinePayloadBytes = null,
     StartExecutionAction startAction = StartExecutionAction.Started,
     bool startFailsOnce = false,
-    StartExecutionAction? startAfterFailure = null
+    StartExecutionAction? startAfterFailure = null,
+    string? concurrencyKey = null,
+    short? concurrencyLimit = null,
+    bool slotGranted = true
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -43,7 +46,14 @@ internal sealed class JobExecutionHarness(
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce, startAfterFailure);
+    private readonly ScriptedLockStore _locks = new(slotGranted);
     private readonly RecordingLogger _log = new();
+
+    /// <summary>Every concurrency-slot acquire the runner issued, in order.</summary>
+    public IReadOnlyList<SlotRequest> SlotRequests => _locks.SlotRequests;
+
+    /// <summary>How many held slots the runner released.</summary>
+    public int SlotReleases => _locks.SlotReleases;
 
     /// <summary>Every completion command the runner handed the store, in submission order.</summary>
     public IReadOnlyList<CompleteExecutionRequest> Submitted => _store.Submitted;
@@ -94,7 +104,7 @@ internal sealed class JobExecutionHarness(
             options.Value.MaxInlinePayloadBytes = configuredCap;
         }
 
-        var job = Job(failureCount);
+        var job = Job(failureCount, concurrencyKey);
         var context = new RuntimeJobContext(
             job,
             jobName: JobName,
@@ -106,7 +116,7 @@ internal sealed class JobExecutionHarness(
             alerts: null!,
             executionStore: _store,
             new HarnessSerializers(),
-            new UnusedLockStore(),
+            _locks,
             cancellationToken: _attemptCts.Token,
             triggeringScheduleNames: [],
             deadlineAtUtc: null,
@@ -130,7 +140,7 @@ internal sealed class JobExecutionHarness(
 
         return await execution.RunAsync(
             EmptyServices.Instance,
-            Descriptor(handler, maxAttempts),
+            Descriptor(handler, maxAttempts, concurrencyLimit),
             job,
             context,
             WorkerId,
@@ -152,7 +162,7 @@ internal sealed class JobExecutionHarness(
         var options = Options.Create(new JobsOptions());
         var serializers = new HarnessSerializers();
         var executor = new JobExecutor(
-            new UnusedLockStore(),
+            _locks,
             new HarnessClock(),
             serializers,
             new StoreOnlyServices(_store),
@@ -171,7 +181,7 @@ internal sealed class JobExecutionHarness(
         );
 
         return await executor.ExecuteClaimedJobAsync(
-            Job(failureCount),
+            Job(failureCount, concurrencyKey),
             namespaceName: "harness",
             namespaceId: 1,
             WorkerId,
@@ -180,7 +190,7 @@ internal sealed class JobExecutionHarness(
         );
     }
 
-    private static ClaimedJob Job(short failureCount) =>
+    private static ClaimedJob Job(short failureCount, string? concurrencyKey) =>
         new(
             JobId: 4242,
             JobRef: Guid.CreateVersion7(),
@@ -190,7 +200,7 @@ internal sealed class JobExecutionHarness(
             ExecutionNumber: 3,
             DeduplicationKey: null,
             CorrelationKey: null,
-            ConcurrencyKey: null,
+            ConcurrencyKey: concurrencyKey,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,
@@ -200,7 +210,11 @@ internal sealed class JobExecutionHarness(
             Version: 1
         );
 
-    private static JobDescriptor Descriptor(Func<JobContext, CancellationToken, Task> handler, short maxAttempts) =>
+    private static JobDescriptor Descriptor(
+        Func<JobContext, CancellationToken, Task> handler,
+        short maxAttempts,
+        short? concurrencyLimit
+    ) =>
         new(
             JobName: JobName,
             HandlerType: typeof(JobExecutionHarness),
@@ -223,7 +237,10 @@ internal sealed class JobExecutionHarness(
             },
             DeserializeInput: static (_, _) => new NoInput(),
             SerializeOutput: null
-        );
+        )
+        {
+            ConcurrencyLimit = concurrencyLimit,
+        };
 
     // The scripted store. Only the five calls one attempt makes are implemented; everything else
     // throws so a future change that starts leaning on another port is visible rather than silent.
@@ -423,13 +440,37 @@ internal sealed class JobExecutionHarness(
         public bool IsRegistered(byte formatId) => formatId == JobPayloadFormat.Json.Id;
     }
 
-    private sealed class UnusedLockStore : ILockStore
+    /// <summary>
+    /// Scripted concurrency-slot store. It answers the slot acquire the way the script says, records
+    /// what the runner asked for, and counts releases; the handler-facing acquire stays unsupported,
+    /// so an attempt that starts using it is visible rather than silent.
+    /// </summary>
+    private sealed class ScriptedLockStore(bool slotGranted) : ILockStore
     {
+        private readonly List<SlotRequest> _slotRequests = [];
+
+        public IReadOnlyList<SlotRequest> SlotRequests => _slotRequests;
+
+        public int SlotReleases { get; private set; }
+
         public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct)
+        {
+            _slotRequests.Add(new SlotRequest(keyPrefix, limit));
+            return Task.FromResult(slotGranted ? new LockToken($"{keyPrefix}.0", Guid.NewGuid()) : (LockToken?)null);
+        }
+
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct)
+        {
+            SlotReleases++;
+            return Task.FromResult(true);
+        }
     }
+
+    /// <summary>One concurrency-slot acquire the runner issued: the composed key prefix and the limit.</summary>
+    internal readonly record struct SlotRequest(string KeyPrefix, int Limit);
 }

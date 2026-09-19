@@ -9,6 +9,7 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 internal sealed record EffectiveJobPolicy(
     JobPriorityCode Priority,
     short MaxAttempts,
+    short? ConcurrencyLimit,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,
@@ -55,6 +56,7 @@ internal sealed record StoredDefinitionContractRow(
     DateTime ModifiedAtUtc,
     JobPriorityCode Priority,
     short MaxAttempts,
+    short? ConcurrencyLimit,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,
@@ -78,6 +80,7 @@ internal sealed record StoredDefinitionContractRow(
             new EffectiveJobPolicy(
                 Priority,
                 MaxAttempts,
+                ConcurrencyLimit,
                 Backoff,
                 ExecutionTimeoutSeconds,
                 DeadlineSeconds,
@@ -116,6 +119,9 @@ internal sealed record JobDefinitionDetailRow(
     short MaxAttempts,
     short? MaxAttemptsOverride,
     short MaxAttemptsEffective,
+    short? ConcurrencyLimit,
+    short? ConcurrencyLimitOverride,
+    short? ConcurrencyLimitEffective,
     string Backoff,
     string? BackoffOverride,
     string BackoffEffective,
@@ -156,9 +162,10 @@ internal sealed record JobDefinitionDetailRow(
 
 /// <summary>
 /// One <c>definitions</c> row trimmed to what the dashboard definitions grid shows: identity,
-/// status, contract type names, and the two policy fields surfaced as columns (priority and max
-/// attempts, each as effective + override so the grid can flag an operator override). The full row -
-/// every policy triple, formats, audit bookkeeping - is read on demand by <c>GetDefinitionAsync</c>.
+/// status, contract type names, and the three policy fields surfaced as columns (priority, max
+/// attempts, and concurrency limit, each as effective + override so the grid can flag an operator
+/// override). The full row - every policy triple, formats, audit bookkeeping - is read on demand by
+/// <c>GetDefinitionAsync</c>.
 /// </summary>
 internal sealed record JobDefinitionListRow(
     int DefinitionId,
@@ -171,6 +178,8 @@ internal sealed record JobDefinitionListRow(
     JobPriorityCode PriorityEffective,
     short? MaxAttemptsOverride,
     short MaxAttemptsEffective,
+    short? ConcurrencyLimitOverride,
+    short? ConcurrencyLimitEffective,
     DateTime ModifiedAtUtc,
     int Version
 );
@@ -187,6 +196,7 @@ internal sealed record JobDefinitionRow(
     string Name,
     byte PriorityCode,
     short MaxAttempts,
+    short? ConcurrencyLimit,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,
@@ -253,6 +263,8 @@ internal static class DefinitionRowMapping
             row.PriorityEffective,
             row.MaxAttemptsOverride,
             row.MaxAttemptsEffective,
+            row.ConcurrencyLimitOverride,
+            row.ConcurrencyLimitEffective,
             row.ModifiedAtUtc,
             row.Version
         );
@@ -277,6 +289,9 @@ internal static class DefinitionRowMapping
             row.MaxAttempts,
             row.MaxAttemptsOverride,
             row.MaxAttemptsEffective,
+            row.ConcurrencyLimit,
+            row.ConcurrencyLimitOverride,
+            row.ConcurrencyLimitEffective,
             row.Backoff,
             row.BackoffOverride,
             row.BackoffEffective,

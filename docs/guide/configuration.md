@@ -185,9 +185,9 @@ the builder and is independent of the ledger provider. Full guide:
 
 ## Handler Policy Lives Elsewhere
 
-Retries, backoff, execution timeout, deadline, retention, alert profile, audit level, priority, and
-schedule policy are per-definition contract values from `[Job(...)]` / `[JobSchedule(...)]` and the
-registered manifest. They are catalog state, not `JobsOptions`.
+Retries, backoff, execution timeout, deadline, retention, alert profile, audit level, priority,
+concurrency limit, and schedule policy are per-definition contract values from `[Job(...)]` /
+`[JobSchedule(...)]` and the registered manifest. They are catalog state, not `JobsOptions`.
 
 Use `JobsOptions` for deployment behavior and worker/runtime tuning. Use attributes for job
 contract behavior that must travel with the job definition.
@@ -197,6 +197,28 @@ failing job keeps retrying for roughly 4.4 days before it lands terminal Failed:
 delay doubles from one minute up to a one-a-day ceiling, so a dependency that breaks on a Friday
 evening still has attempts left when someone reads the alert on Monday. Safe and deliberate, but
 worth knowing before you go looking for why a broken job hasn't dead-lettered yet.
+
+### Concurrency limit
+
+`[Job("rebuild-index", ConcurrencyLimit = 4)]` caps how many attempts of that definition execute at
+once, cluster-wide, between 1 and 1024. Like every other policy slot it has an operator override on
+the definition row, so the effective limit is the override when one is set and the declared value
+otherwise.
+
+The limit is enforced on a key, and the key is the enqueue's `ConcurrencyKey` when the job carries
+one, otherwise the definition name. A key with no limit admits one at a time, which is what a
+concurrency key has always meant. Each admitted attempt holds one slot lease for as long as its
+handler runs; a job that finds every slot held skips its handler and re-arms Ready after the fixed
+bounce delay, without spending a retry.
+
+Two definitions that share a key share its slots, and the key's capacity is the largest limit among
+the participants. A definition with the smaller limit competes for the first N slots only, so
+lowering one definition never reduces another participant's capacity.
+
+A changed limit reaches a worker on its next successful definition-policy reload. Until every worker
+has observed it, admissions may still use the old limit, and attempts already holding higher slots
+run to completion; the overshoot after a decrease is therefore bounded by the old limit until the
+last worker observes the change, plus one attempt's duration.
 
 For production-oriented defaults and tradeoffs, including provider choice, migration ownership,
 worker sizing, leases, dashboard exposure, alerts, and retention, see

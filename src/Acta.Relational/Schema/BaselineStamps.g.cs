@@ -12,11 +12,11 @@ namespace Acta.Relational.Schema;
 /// </summary>
 internal static class BaselineStamps
 {
-    internal const string Mssql = "baseline-f8de93b5fdff26cc459f870e15f36542";
+    internal const string Mssql = "baseline-4b272df9c7611c7636f602c1e4abdf4f";
 
-    internal const string Pg = "baseline-d435bd0c197e9b1f101c207677fee0d7";
+    internal const string Pg = "baseline-ec8b8cf28e61a145168a0c5c74ed2157";
 
-    internal const string Sqlite = "baseline-f8dd05f8f5a92b73c12bf6fb1a244f6a";
+    internal const string Sqlite = "baseline-6010c91e6bb3eeda0c78f4615a993dfa";
 
     /// <summary>The stamp for one dialect, named by the token the provider hooks carry.</summary>
     internal static string ForDialect(string dialectToken) =>

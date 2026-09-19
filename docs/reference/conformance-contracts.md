@@ -607,6 +607,21 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
 
+### A definition's concurrency limit is how many of its key's slots exist
+- **Contract:** A concurrency key admits at most its definition's limit at once, one lock row per slot, taken lowest free slot first.
+- **Arrange:** A definition declaring a limit and a shared key whose slots are seeded by the lock store.
+- **Act:** Admissions take slots through the store, and real same-key handlers drain past an externally held slot.
+- **Assert:** Admission fills the lowest free slot, stops when every slot is held, and reuses a slot whose lease expired.
+- **Guarantees:**
+  - Limit 1 is the single-slot mutex the exclusive key always was
+  - Admission fills the lowest free slot and stops at the limit
+  - A shared key's capacity is the largest limit among its participants
+  - A lowered limit admits into the low slots while the high holders run on
+  - A slot whose lease expired is stolen by the next admission
+  - Real same-key handlers run at the limit minus the slots held elsewhere
+- **Store methods:**
+  - `Acta.Runtime.Services.Locks.ILockStore.TryAcquireSlotAsync`
+
 ## Control
 
 ### Operator acknowledge/resolve verbs on IAlerts.
@@ -2716,6 +2731,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
 | `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
 | `ILockStore.TryAcquireAsync` | Acquire lands a lease row and blocks a competing acquire on a live key |
+| `ILockStore.TryAcquireSlotAsync` | A definition's concurrency limit is how many of its key's slots exist |
 
 ### Provider SQL resources
 
@@ -2826,6 +2842,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Outbox/RequeueQuarantinedRows` | yes | yes | yes |
 | `Outbox/RescheduleRow` | yes | yes | yes |
 | `Services/Locks/AcquireLock` | yes | yes | yes |
+| `Services/Locks/AcquireSlot` | yes | yes | yes |
 | `Services/Locks/ExtendLock` | yes | yes | yes |
 | `Services/Locks/ReleaseLock` | yes | yes | yes |
 | `Services/Time/GetUtcNow` | yes | yes | yes |

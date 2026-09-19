@@ -276,6 +276,18 @@
             "Signature": "Int16|0|0|0|False|None|COALESCE(max_attempts_override, max_attempts)|coded=False|codeKind=|values="
           },
           {
+            "Name": "concurrency_limit",
+            "Signature": "Int16|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "concurrency_limit_override",
+            "Signature": "Int16|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "concurrency_limit_effective",
+            "Signature": "Int16|0|0|0|True|None|COALESCE(concurrency_limit_override, concurrency_limit)|coded=False|codeKind=|values="
+          },
+          {
             "Name": "backoff",
             "Signature": "UnicodeString|64|0|0|False|None||coded=False|codeKind=|values="
           },

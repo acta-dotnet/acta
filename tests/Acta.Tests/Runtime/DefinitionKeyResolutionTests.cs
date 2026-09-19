@@ -31,6 +31,8 @@ public sealed class DefinitionKeyResolutionTests
             PriorityEffective: JobPriorityCode.Normal,
             MaxAttemptsOverride: null,
             MaxAttemptsEffective: 3,
+            ConcurrencyLimitOverride: null,
+            ConcurrencyLimitEffective: null,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
         );
@@ -133,6 +135,9 @@ public sealed class DefinitionKeyResolutionTests
                 MaxAttempts: 3,
                 MaxAttemptsOverride: null,
                 MaxAttemptsEffective: 3,
+                ConcurrencyLimit: null,
+                ConcurrencyLimitOverride: null,
+                ConcurrencyLimitEffective: null,
                 Backoff: "1s..1m x2",
                 BackoffOverride: null,
                 BackoffEffective: "1s..1m x2",

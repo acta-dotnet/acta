@@ -8,9 +8,9 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// Registration-time bounds in <see cref="DefinitionsService"/>: a code-declared ExecutionTimeout past
-/// CancelAfter's ceiling, a non-ASCII or over-length RunbookUrl, or over-length display text fails
-/// worker init with a named error, the same contract the operator override gate holds, instead of a
-/// silent clamp at execution or a provider-specific write failure.
+/// CancelAfter's ceiling, a ConcurrencyLimit outside 1..1024, a non-ASCII or over-length RunbookUrl,
+/// or over-length display text fails worker init with a named error, the same contract the operator
+/// override gate holds, instead of a silent clamp at execution or a provider-specific write failure.
 /// </summary>
 public sealed class DefinitionRegistrationValidationTests
 {
@@ -62,6 +62,18 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Theory]
+    [InlineData((short)0)]
+    [InlineData((short)-1)]
+    [InlineData((short)(JobDefinitionRegistration.MaxConcurrencyLimit + 1))]
+    public async Task A_concurrency_limit_outside_the_band_fails_registration(short limit)
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(Descriptor("hot") with { ConcurrencyLimit = limit }));
+
+        Assert.Contains("hot", ex.Message);
+        Assert.Contains("ConcurrencyLimit", ex.Message);
+    }
+
+    [Theory]
     [InlineData("https://rb/é")]
     [InlineData("https://rb/\U0001F600")]
     public async Task A_non_ascii_runbook_url_fails_registration(string url)
@@ -91,6 +103,7 @@ public sealed class DefinitionRegistrationValidationTests
         var descriptor = Descriptor("edge") with
         {
             ExecutionTimeoutSeconds = JobDefinitionRegistration.MaxExecutionTimeoutSeconds,
+            ConcurrencyLimit = JobDefinitionRegistration.MaxConcurrencyLimit,
             RunbookUrl = new string('r', ActaTextLimits.DefinitionRunbookUrl),
             DisplayName = new string('d', ActaTextLimits.DefinitionDisplayName),
             Description = new string('x', ActaTextLimits.DefinitionDescription),

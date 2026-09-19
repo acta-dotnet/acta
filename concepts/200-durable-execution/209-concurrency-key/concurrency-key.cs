@@ -80,6 +80,31 @@ await lab.ShowAsync(
     new { ownerJobId }
 );
 
+// The same gate with a size: [Job(ConcurrencyLimit = 2)] gives the key two slots, so two of these
+// four run together and the rest bounce. No enqueue key here, so the definition name is the key.
+var shards = new List<JobEnqueueOutcome>();
+for (var i = 0; i < 4; i++)
+{
+    shards.Add(await jobs.EnqueueAsync(new ReindexShard(i)));
+}
+Console.WriteLine("Enqueued four jobs against a definition limited to two at a time.");
+
+// Wait for the slots to be taken; the rows below only exist while handlers hold them.
+using var slotTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+while (await ExecutingShardCountAsync(jobs, shards, slotTimeout.Token) < 2)
+{
+    await Task.Delay(50, slotTimeout.Token);
+}
+await lab.ShowAsync(
+    "A sized key is two lock rows, one per slot",
+    """
+    SELECT lock_key, job_id, expires_at_utc
+    FROM {{schema}}.locks
+    WHERE lock_key LIKE '%.sem.reindex-shard.%'
+    ORDER BY lock_key
+    """
+);
+
 using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while (
     (await jobs.GetAsync(first, completionTimeout.Token))?.Status.IsTerminal != true
@@ -98,11 +123,57 @@ await lab.ShowAsync(
     """,
     new { firstJobId = first.JobId, secondJobId = second.JobId }
 );
+
+using var shardTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+foreach (var shard in shards)
+{
+    while ((await jobs.GetAsync(shard, shardTimeout.Token))?.Status.IsTerminal != true)
+    {
+        await Task.Delay(100, shardTimeout.Token);
+    }
+}
+await lab.ShowAsync(
+    "All four shards finish, two at a time",
+    """
+    SELECT job_id, job_name, status, concurrency_key
+    FROM jobs_view
+    WHERE job_name = 'reindex-shard'
+    ORDER BY job_id
+    """
+);
 await host.StopAsync();
+
+static async Task<int> ExecutingShardCountAsync(IJobs jobs, List<JobEnqueueOutcome> shards, CancellationToken ct)
+{
+    var executing = 0;
+    foreach (var shard in shards)
+    {
+        if ((await jobs.GetAsync(shard, ct))?.Status == JobStatusCode.Executing)
+        {
+            executing++;
+        }
+    }
+    return executing;
+}
 
 namespace Acta.Concepts.ConcurrencyKey
 {
     public sealed record RebuildIndex(string Tenant);
+
+    public sealed record ReindexShard(int Shard);
+
+    public sealed class ReindexShardJob
+    {
+        // ConcurrencyLimit is a per-definition policy slot, so an operator can raise or lower it on the
+        // definitions row without a deploy. Two at a time, whatever the fleet size.
+        [Job("reindex-shard", ConcurrencyLimit = 2)]
+        public async Task Handle(ReindexShard input, CancellationToken ct)
+        {
+            Console.WriteLine($"shard {input.Shard} started");
+            await Task.Delay(1000, ct);
+            Console.WriteLine($"shard {input.Shard} finished");
+        }
+    }
 
     public sealed class RebuildIndexJob
     {

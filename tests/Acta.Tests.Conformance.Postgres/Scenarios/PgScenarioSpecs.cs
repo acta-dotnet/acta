@@ -19,6 +19,8 @@ public sealed class PgChildGroupTimeoutSpec : ChildGroupTimeoutSpec<PgConformanc
 
 public sealed class PgConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<PgConformanceFixture>;
 
+public sealed class PgConcurrencyLimitSpec : ConcurrencyLimitSpec<PgConformanceFixture>;
+
 public sealed class PgControlVerbsSpec : ControlVerbsSpec<PgConformanceFixture>;
 
 public sealed class PgGoldenPathSpec : GoldenPathSpec<PgConformanceFixture>;

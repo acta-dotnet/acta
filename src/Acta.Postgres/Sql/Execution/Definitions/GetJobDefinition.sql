@@ -4,6 +4,7 @@ SELECT
     jd.output_type_name, jd.output_format_id, jd.output_format_name,
     jd.priority_code, jd.priority_code_override, jd.priority_code_effective,
     jd.max_attempts, jd.max_attempts_override, jd.max_attempts_effective,
+    jd.concurrency_limit, jd.concurrency_limit_override, jd.concurrency_limit_effective,
     jd.backoff, jd.backoff_override, jd.backoff_effective,
     jd.execution_timeout_seconds, jd.execution_timeout_seconds_override, jd.execution_timeout_seconds_effective,
     jd.deadline_seconds, jd.deadline_seconds_override, jd.deadline_seconds_effective,

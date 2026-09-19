@@ -534,34 +534,34 @@ internal sealed class RuntimeJobContext(
     protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
         RecordLockReleaseFailure(scope == LockScope.Global ? "handler_global" : "handler_namespace", ComposeLockKey(key, scope), exception);
 
-    private LockToken? _concurrencyKeyToken;
+    private LockToken? _concurrencySlotToken;
 
     /// <summary>
-    /// Concurrency-key admission mutex, taken by the runner after the start CAS and before the
-    /// handler. Key space {ns_id}.excl.{key} is disjoint from RunWithLock's {ns_id}.lock.{key} /
-    /// global.lock.{key}. Normalized defensively so one mutex group across case never depends on
-    /// the stored value alone.
+    /// Concurrency-slot admission, taken by the runner after the start CAS and before the handler.
+    /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLock's
+    /// {ns_id}.lock.{key} / global.lock.{key}; limit 1 is slot 0 alone, the mutex. The key is
+    /// normalized defensively so one group across case never depends on the stored value alone.
     /// </summary>
-    internal async Task<bool> TryAcquireConcurrencyKeyLockAsync(string concurrencyKey, CancellationToken ct)
+    internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
-        var key = $"{_namespaceId}.excl.{IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey))}";
+        var prefix = $"{_namespaceId}.sem.{IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey))}";
         var requestedAt = Stopwatch.GetTimestamp();
-        var token = await _lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
+        var token = await _lockStore.TryAcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
         if (token is { } held)
         {
             _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());
-            _concurrencyKeyToken = held;
+            _concurrencySlotToken = held;
         }
         return token is not null;
     }
 
-    internal async Task ReleaseConcurrencyKeyLockAsync(CancellationToken ct)
+    internal async Task ReleaseConcurrencySlotAsync(CancellationToken ct)
     {
-        if (_concurrencyKeyToken is not { } token)
+        if (_concurrencySlotToken is not { } token)
         {
             return;
         }
-        _concurrencyKeyToken = null;
+        _concurrencySlotToken = null;
         _runningAttempt?.UntrackLock(token);
         try
         {
@@ -569,7 +569,7 @@ internal sealed class RuntimeJobContext(
         }
         catch (Exception ex)
         {
-            RecordLockReleaseFailure("concurrency_key", token.Key, ex);
+            RecordLockReleaseFailure("concurrency_slot", token.Key, ex);
         }
     }
 

@@ -7,7 +7,7 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 /// <remarks>
 /// Every <c>definitions</c> policy column is sourced from the <c>[Job]</c> attribute via the
 /// descriptor; a null override falls back to the constant here. Centralizing the defaults keeps
-/// SqlServer + Postgres from drifting on the resolved row shape. All three constants must stay
+/// SqlServer + Postgres from drifting on the resolved row shape. Every constant here must stay
 /// aligned with the values the JobAttribute XML docs and entity invariants state.
 /// </remarks>
 internal static class JobDefinitionRegistration
@@ -29,4 +29,12 @@ internal static class JobDefinitionRegistration
     /// claimed, turning one oversized policy value into a claim-and-crash loop.
     /// </summary>
     public const int MaxExecutionTimeoutSeconds = int.MaxValue / 1000;
+
+    /// <summary>
+    /// The band a concurrency limit must fall in, declared or overridden: the same 1..1024 range
+    /// <c>JobsOptions.MaxConcurrentExecutors</c> allows, since a limit above the largest possible
+    /// executor pool can never bind.
+    /// </summary>
+    public const short MinConcurrencyLimit = 1;
+    public const short MaxConcurrencyLimit = 1024;
 }

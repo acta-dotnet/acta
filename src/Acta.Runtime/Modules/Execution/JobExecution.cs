@@ -13,7 +13,7 @@ namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// The start-invoke-complete lifecycle of a single attempt: the <c>start_execution</c> CAS, the
-/// concurrency-key lock (taken after the CAS, released when the handler finishes; a loser re-arms
+/// concurrency slot (taken after the CAS, released when the handler finishes; a loser re-arms
 /// Ready after the fixed bounce delay), input deserialization, the generator-emitted
 /// <c>descriptor.Invoker</c> invocation wrapped in the registered pipeline behaviors, result
 /// serialization, and the <c>complete_execution</c> write (including recurring-completion outcome
@@ -104,29 +104,35 @@ internal sealed class JobExecution(
         byte? handlerStatusCode = null;
         var durationMs = 0;
 
-        // Concurrency-key admission: the mutex is a lock-store row taken here, after the start CAS
-        // proved ownership, and held only while the handler runs. A loser skips the handler and
-        // settles the attempt as a budget-neutral re-arm with the fixed bounce delay (the contention
-        // throttle): mutual exclusion of execution only, no per-key ordering.
-        var concurrencyKeyBounced = false;
-        if (!deadlineHitAtAdmission && job.ConcurrencyKey is { } concurrencyKey)
+        // Concurrency admission: the slot is a lock-store row taken here, after the start CAS proved
+        // ownership, and held only while the handler runs. The gate is the key - the enqueue's key
+        // when the row carries one, else the definition name once the definition declares a limit -
+        // and the limit is how many of its slots exist, 1 when only a key was given. A loser skips
+        // the handler and settles the attempt as a budget-neutral re-arm with the fixed bounce delay
+        // (the contention throttle): mutual exclusion of execution only, no per-key ordering.
+        // The limit comes off the descriptor, which the policy reload keeps current, so admission
+        // costs no join on the claim path.
+        var concurrencyKey = job.ConcurrencyKey ?? (descriptor.ConcurrencyLimit is not null ? descriptor.JobName : null);
+        var concurrencyBounced = false;
+        if (!deadlineHitAtAdmission && concurrencyKey is not null)
         {
-            concurrencyKeyBounced = !await jobContext.TryAcquireConcurrencyKeyLockAsync(concurrencyKey, ct);
-            if (concurrencyKeyBounced)
+            var concurrencyLimit = descriptor.ConcurrencyLimit ?? 1;
+            concurrencyBounced = !await jobContext.TryAcquireConcurrencySlotAsync(concurrencyKey, concurrencyLimit, ct);
+            if (concurrencyBounced)
             {
                 _log.LogDebug(
-                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); concurrency key ({Detail}) is held elsewhere, so the job re-armed Ready in {DurationMs}ms.",
-                    "concurrency-key-admission",
+                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); concurrency key ({Detail}) has every slot held, so the job re-armed Ready in {DurationMs}ms.",
+                    "concurrency-admission",
                     "Bounced",
                     job.JobId,
-                    "key-held",
+                    "slots-held",
                     concurrencyKey,
                     _concurrencyKeyBounceDelaySeconds * 1000
                 );
             }
         }
 
-        if (!deadlineHitAtAdmission && !concurrencyKeyBounced)
+        if (!deadlineHitAtAdmission && !concurrencyBounced)
         {
             var sw = Stopwatch.StartNew();
             var inputDeserialized = false;
@@ -408,7 +414,7 @@ internal sealed class JobExecution(
                 // path (success, catches, the worker-shutdown return, control rethrows). Release is
                 // best-effort and non-throwing; failure self-heals via the lock's TTL while durable
                 // completion continues below.
-                await jobContext.ReleaseConcurrencyKeyLockAsync(CancellationToken.None);
+                await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
             }
 
             durationMs = (int)Math.Min(sw.ElapsedMilliseconds, int.MaxValue);
@@ -424,10 +430,10 @@ internal sealed class JobExecution(
         }
         else
         {
-            // Concurrency-key bounce: settle the attempt as a budget-neutral re-arm with the fixed delay.
+            // Concurrency bounce: settle the attempt as a budget-neutral re-arm with the fixed delay.
             outcome = ExecutionOutcome.Rescheduled;
             failureReason = JobEventReasonCode.JobConcurrencyKeyHeld;
-            failureMessage = "Concurrency key lock held by another execution.";
+            failureMessage = "Every concurrency slot for this key is held by another execution.";
             rescheduleDelaySeconds = _concurrencyKeyBounceDelaySeconds;
         }
 

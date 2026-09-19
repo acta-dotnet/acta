@@ -19,6 +19,8 @@ public sealed class SqlServerChildGroupTimeoutSpec : ChildGroupTimeoutSpec<SqlSe
 
 public sealed class SqlServerConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerConcurrencyLimitSpec : ConcurrencyLimitSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerControlVerbsSpec : ControlVerbsSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerGoldenPathSpec : GoldenPathSpec<SqlServerConformanceFixture>;

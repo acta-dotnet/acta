@@ -13,6 +13,7 @@ SELECT
     jd.modified_at_utc,
     jd.priority_code_effective,
     jd.max_attempts_effective,
+    jd.concurrency_limit_effective,
     jd.backoff_effective,
     jd.execution_timeout_seconds_effective,
     jd.deadline_seconds_effective,

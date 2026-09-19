@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Concurrency-key mutex spec. The invariant is mutual exclusion of EXECUTION, owned by the executor:
 /// the claim admits every same-key Ready row (no claim-time gating: that shape collapsed the whole
-/// namespace under a hot-key backlog), and the runner takes the <c>{ns_id}.excl.{key}</c> lock-store
+/// namespace under a hot-key backlog), and the runner takes the <c>{ns_id}.sem.{key}.0</c> lock-store
 /// lock after the start CAS, before the handler. A loser skips the handler and is re-armed Ready
 /// (budget-neutral) with the fixed <c>ConcurrencyKeyBounceDelaySeconds</c> delay: mutual exclusion
 /// only, no per-key ordering. Each test claims from its own private namespace with system jobs
@@ -146,11 +146,12 @@ public abstract class ConcurrencyKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TF
         var key = TestKey("ck-bounce");
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        // Hold the key's execution lock on behalf of a foreign owner, as another worker's live
-        // execution would. Same composition the runner uses ({ns_id}.excl.{canonical key}).
+        // Hold the key's only execution slot on behalf of a foreign owner, as another worker's live
+        // execution would. Same composition the runner uses ({ns_id}.sem.{canonical key}).
         var lockStore = Services.GetRequiredService<ILockStore>();
-        var held = await lockStore.TryAcquireAsync(
-            $"{ns}.excl.{IdentifierSyntax.NormalizeLowerInvariant(key)}",
+        var held = await lockStore.TryAcquireSlotAsync(
+            $"{ns}.sem.{IdentifierSyntax.NormalizeLowerInvariant(key)}",
+            limit: 1,
             TimeSpan.FromMinutes(5),
             ownerJobId: long.MaxValue,
             ct

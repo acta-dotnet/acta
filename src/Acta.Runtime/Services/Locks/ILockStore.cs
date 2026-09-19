@@ -1,16 +1,26 @@
 namespace Acta.Runtime.Services.Locks;
 
 /// <summary>
-/// Swappable mutual-exclusion seam behind <c>JobContext.RunWithLock</c> and the
-/// <c>concurrency_key</c> execution mutex (<c>{ns_id}.excl.{key}</c> rows taken by the runner after
-/// claim, before the handler; a loser re-arms Ready after the fixed bounce delay). The provider
-/// locks-backed store is the default, Redis-free implementation; a Redis-backed store substitutes
-/// with no caller change. No-wait: a single attempt, so the caller owns any retry/backoff.
+/// Swappable mutual-exclusion seam behind <c>JobContext.RunWithLock</c> and the concurrency-slot
+/// admission (<c>{ns_id}.sem.{key}.{slot}</c> rows taken by the runner after claim; a loser re-arms
+/// Ready after the fixed bounce delay). The provider locks-backed store is the default, Redis-free
+/// implementation; a Redis-backed store substitutes with no caller change. No-wait: a single
+/// attempt, so the caller owns any retry/backoff.
 /// </summary>
 internal interface ILockStore
 {
     /// <summary>Null when the lock is currently held; carry the token to ReleaseAsync.</summary>
     Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct);
+
+    /// <summary>
+    /// Takes the lowest-numbered free slot of a counted key in one round trip, whatever the limit:
+    /// the slots are the rows <c>{keyPrefix}.0</c> .. <c>{keyPrefix}.{limit-1}</c>, and a slot is free
+    /// when it has no row or its hold expired (steal on expiry, as TryAcquireAsync does). Null when
+    /// every slot is held, and also when a racer took the chosen slot first: the routine makes one
+    /// attempt and never retries, so the caller settles the loss rather than waiting.
+    /// The returned token carries the slot's own key, so extend and release need no slot arithmetic.
+    /// </summary>
+    Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct);
 
     /// <summary>
     /// CAS on the hold token, which is unchanged so the same token still releases; false when the

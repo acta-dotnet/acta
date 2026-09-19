@@ -16,7 +16,7 @@ serialize the work, but the loser has already consumed an executor while it wait
 | Mechanism | Best fit |
 | --- | --- |
 | `RunWithLockAsync` | A critical section inside a handler |
-| `ConcurrencyKey` | Admission control for the whole execution |
+| `ConcurrencyKey` (+ `ConcurrencyLimit`) | Admission control for the whole execution, one job at a time or N |
 | Queue partitioning | High-volume, stable partition keys |
 | Database uniqueness | Preventing duplicate durable records |
 | External distributed lock | Coordination beyond Acta's database |
@@ -26,6 +26,11 @@ serialize the work, but the loser has already consumed an executor while it wait
 Acta acquires the concurrency-key lease after claim but before handler invocation. A loser is re-armed
 `ready` with a short delay and releases its worker. The event reason makes this budget-neutral bounce
 visible instead of looking like an application failure.
+
+`[Job(ConcurrencyLimit = N)]` sizes that gate. The key then owns N slot leases instead of one, so N
+attempts run together and the N+1th bounces the same way. The lab's second handler, `reindex-shard`,
+declares a limit of 2 and supplies no enqueue key, so the definition name is the key: a limit alone
+throttles the whole definition. The limit is an operator-overridable policy slot on the definition row.
 
 `ConcurrencyKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
 no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a

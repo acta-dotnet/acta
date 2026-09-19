@@ -147,6 +147,16 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         {
             throw new ArgumentOutOfRangeException(nameof(overrides), "MaxAttempts override must be at least 1.");
         }
+        if (
+            overrides.ConcurrencyLimit is < JobDefinitionRegistration.MinConcurrencyLimit or > JobDefinitionRegistration.MaxConcurrencyLimit
+        )
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(overrides),
+                $"ConcurrencyLimit override must be between {JobDefinitionRegistration.MinConcurrencyLimit} "
+                    + $"and {JobDefinitionRegistration.MaxConcurrencyLimit}."
+            );
+        }
         if (overrides.ExecutionTimeoutSeconds is <= 0 or > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         {
             throw new ArgumentOutOfRangeException(
@@ -354,6 +364,21 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             );
         }
 
+        // A hand-authored IJobManifest descriptor bypasses the generator's compile-time range check,
+        // so this is the last gate before an unsatisfiable slot count reaches the definitions row.
+        if (
+            descriptor.ConcurrencyLimit
+            is < JobDefinitionRegistration.MinConcurrencyLimit
+                or > JobDefinitionRegistration.MaxConcurrencyLimit
+        )
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares a ConcurrencyLimit of "
+                    + $"{descriptor.ConcurrencyLimit}: it must be between {JobDefinitionRegistration.MinConcurrencyLimit} "
+                    + $"and {JobDefinitionRegistration.MaxConcurrencyLimit}."
+            );
+        }
+
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         if (executionTimeout > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         {
@@ -393,6 +418,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
     {
         var priorityCode = (byte)descriptor.Priority;
         var maxAttempts = descriptor.MaxAttempts;
+        var concurrencyLimit = descriptor.ConcurrencyLimit;
         var backoff = descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression;
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         var deadlineSeconds = descriptor.DeadlineSeconds ?? 0;
@@ -417,6 +443,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         var definitionHash = CatalogHash.Of(
             priorityCode.ToString(c),
             maxAttempts.ToString(c),
+            concurrencyLimit?.ToString(c),
             backoff,
             executionTimeout.ToString(c),
             deadlineSeconds.ToString(c),
@@ -441,6 +468,7 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             Name: descriptor.JobName,
             PriorityCode: priorityCode,
             MaxAttempts: maxAttempts,
+            ConcurrencyLimit: concurrencyLimit,
             Backoff: backoff,
             ExecutionTimeoutSeconds: executionTimeout,
             DeadlineSeconds: deadlineSeconds,

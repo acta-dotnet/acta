@@ -244,6 +244,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var names = new string[count];
         var priorityCodes = new short[count];
         var maxAttempts = new short[count];
+        var concurrencyLimits = new short?[count];
         var backoff = new string[count];
         var executionTimeout = new int[count];
         var deadlineSeconds = new int[count];
@@ -270,6 +271,7 @@ internal sealed class PostgresDialect : ISqlDialect
             names[i] = row.Name;
             priorityCodes[i] = row.PriorityCode;
             maxAttempts[i] = row.MaxAttempts;
+            concurrencyLimits[i] = row.ConcurrencyLimit;
             backoff[i] = row.Backoff;
             executionTimeout[i] = row.ExecutionTimeoutSeconds;
             deadlineSeconds[i] = row.DeadlineSeconds;
@@ -297,6 +299,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_name", NpgsqlDbType.Varchar, names);
         AddArray(postgres, "@p_d_priority_code", NpgsqlDbType.Smallint, priorityCodes);
         AddArray(postgres, "@p_d_max_attempts", NpgsqlDbType.Smallint, maxAttempts);
+        AddArray(postgres, "@p_d_concurrency_limit", NpgsqlDbType.Smallint, concurrencyLimits);
         AddArray(postgres, "@p_d_backoff", NpgsqlDbType.Varchar, backoff);
         AddArray(postgres, "@p_d_execution_timeout", NpgsqlDbType.Integer, executionTimeout);
         AddArray(postgres, "@p_d_deadline_seconds", NpgsqlDbType.Integer, deadlineSeconds);

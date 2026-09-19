@@ -8,14 +8,14 @@ namespace Acta.Tests.Runtime;
 public sealed class RuntimeJobContextLockReleaseTests
 {
     [Fact]
-    public async Task Concurrency_key_release_failure_is_logged_and_does_not_escape()
+    public async Task Concurrency_slot_release_failure_is_logged_and_does_not_escape()
     {
         var lockStore = new ReleaseFailureLockStore();
         var logger = new RecordingLogger();
         var ctx = CreateContext(lockStore, logger);
-        Assert.True(await ctx.TryAcquireConcurrencyKeyLockAsync("customer-1", CancellationToken.None));
+        Assert.True(await ctx.TryAcquireConcurrencySlotAsync("customer-1", limit: 1, CancellationToken.None));
 
-        await ctx.ReleaseConcurrencyKeyLockAsync(CancellationToken.None);
+        await ctx.ReleaseConcurrencySlotAsync(CancellationToken.None);
 
         Assert.Equal(1, lockStore.ReleaseCalls);
         Assert.Equal(LogLevel.Warning, Assert.Single(logger.Levels));
@@ -63,6 +63,9 @@ public sealed class RuntimeJobContextLockReleaseTests
 
         public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             Task.FromResult<LockToken?>(new LockToken(key, Guid.NewGuid()));
+
+        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+            Task.FromResult<LockToken?>(new LockToken($"{keyPrefix}.0", Guid.NewGuid()));
 
         public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 

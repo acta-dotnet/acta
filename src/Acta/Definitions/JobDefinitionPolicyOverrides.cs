@@ -13,6 +13,7 @@ namespace Acta;
 public sealed record JobDefinitionPolicyOverrides(
     JobPriorityCode? Priority = null,
     short? MaxAttempts = null,
+    short? ConcurrencyLimit = null,
     string? Backoff = null,
     int? ExecutionTimeoutSeconds = null,
     int? DeadlineSeconds = null,

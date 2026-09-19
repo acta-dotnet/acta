@@ -158,6 +158,16 @@ and `record-response` re-sends with the same key, which is the at-least-once con
 | starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` (or with a timeout) | the parent parks instead of occupying a worker |
 | `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
 
+## Limiting how much runs at once
+
+`options.ConcurrencyKey("rebuild:acme")` on an enqueue admits one job of that key at a time,
+cluster-wide: the runner takes the key's lease after the claim and before the handler, and a loser
+re-arms Ready a couple of seconds out without spending retry budget. `[Job("rebuild-index",
+ConcurrencyLimit = 4)]` sizes that gate: the key gets four slots instead of one. When an enqueue
+supplies no key, the definition name is the key, so a limit alone throttles the whole definition. Two
+definitions on the same key share its slots and the key's capacity is the largest limit among them.
+It is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy.
+
 ## Payloads
 
 Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlinePayloadBytes`).

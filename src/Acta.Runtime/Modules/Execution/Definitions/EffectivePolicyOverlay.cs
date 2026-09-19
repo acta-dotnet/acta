@@ -15,6 +15,7 @@ internal static class EffectivePolicyOverlay
         {
             Priority = p.Priority,
             MaxAttempts = p.MaxAttempts,
+            ConcurrencyLimit = p.ConcurrencyLimit,
             AuditLevel = p.AuditLevel,
             AlertProfile = p.AlertProfile,
             Backoff = p.Backoff,

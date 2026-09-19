@@ -113,6 +113,29 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
+        /// <summary>
+        /// acquire_slot's counted-key prefix: the whole lock key minus its <c>.{slot}</c> tail, which
+        /// the routine appends. Sized like <c>locks.lock_key</c> so a prefix can never bind wider.
+        /// </summary>
+        public static readonly DbValueSpec<string> LockKeyPrefix = new(
+            ParameterName: "p_lock_key_prefix",
+            Kind: DbKind.AsciiString,
+            Size: 256,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
+        /// <summary>How many slots the counted key has; acquire_slot scans 0..n-1 in order.</summary>
+        public static readonly DbValueSpec<int> SlotCount = new(
+            ParameterName: "p_slot_count",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
         public static readonly DbValueSpec<int> DeadAfterSeconds = new(
             ParameterName: "p_dead_after_seconds",
             Kind: DbKind.Int32,

@@ -9,6 +9,8 @@ public sealed class SqliteScenarioSessionSpec : ScenarioSessionSpec<SqliteConfor
 
 public sealed class SqliteConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteConcurrencyLimitSpec : ConcurrencyLimitSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteChildJobSpec : ChildJobSpec<SqliteConformanceFixture>;
