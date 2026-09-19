@@ -559,12 +559,14 @@ internal sealed class RuntimeJobContext(
     /// Rate admission, taken by the runner after the concurrency slot and before the handler. The meter
     /// is the bucket row {ns_id}.rate.{key}, disjoint from the lock and slot key spaces, and holds
     /// nothing: it is moved, never acquired, so there is no release. The key is normalized defensively
-    /// so one meter across case never depends on the stored value alone.
+    /// so one meter across case never depends on the stored value alone. The lease TTL is the grace a
+    /// booked turn gets before the sweep may take it: a worker that has not come back within its own
+    /// lease is not coming back for that turn at all.
     /// </summary>
     internal Task<RateReservation> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
     {
         var bucket = $"{_namespaceId}.rate.{IdentifierSyntax.NormalizeKey(rateKey, nameof(rateKey))}";
-        return _lockStore.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Count, ct);
+        return _lockStore.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Count, _leaseTtlSeconds, ct);
     }
 
     internal async Task ReleaseConcurrencySlotAsync(CancellationToken ct)

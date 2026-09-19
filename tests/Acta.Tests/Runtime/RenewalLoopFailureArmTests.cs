@@ -272,6 +272,7 @@ public sealed class RenewalLoopFailureArmTests
             long jobId,
             int intervalMilliseconds,
             int burst,
+            int graceSeconds,
             CancellationToken ct
         ) => throw new NotSupportedException();
 

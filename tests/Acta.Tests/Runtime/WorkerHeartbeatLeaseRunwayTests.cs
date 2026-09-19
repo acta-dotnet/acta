@@ -346,6 +346,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             long jobId,
             int intervalMilliseconds,
             int burst,
+            int graceSeconds,
             CancellationToken ct
         ) => throw new NotSupportedException();
 
@@ -371,6 +372,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             long jobId,
             int intervalMilliseconds,
             int burst,
+            int graceSeconds,
             CancellationToken ct
         ) => throw new NotSupportedException();
 

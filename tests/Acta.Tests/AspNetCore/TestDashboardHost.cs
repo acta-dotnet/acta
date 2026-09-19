@@ -1142,6 +1142,7 @@ internal static class TestDashboardHost
                                     null,
                                     null,
                                     null,
+                                    null,
                                     new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
                                     2
                                 ),

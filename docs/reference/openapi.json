@@ -8991,6 +8991,7 @@
           "concurrencyLimitEffective",
           "rateLimitOverride",
           "rateLimitEffective",
+          "rateKey",
           "modifiedAtUtc",
           "version"
         ],
@@ -9074,6 +9075,12 @@
               "string"
             ]
           },
+          "rateKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "modifiedAtUtc": {
             "type": "string",
             "format": "date-time"
@@ -9087,7 +9094,7 @@
             "format": "int32"
           }
         },
-        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, and the four policy\ncolumns it surfaces (priority, max attempts, concurrency limit, and rate limit, each as effective +\noverride so the grid can flag an operator override). The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
+        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, the four policy\ncolumns it surfaces (priority, max attempts, concurrency limit, and rate limit, each as effective +\noverride so the grid can flag an operator override), and the rate key, which names the meter the\nrate is spent from and so says which definitions share it. The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
       },
       "JobDefinitionPolicyOverrides": {
         "type": "object",

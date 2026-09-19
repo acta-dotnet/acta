@@ -487,6 +487,7 @@ internal sealed class JobExecutionHarness(
             long jobId,
             int intervalMilliseconds,
             int burst,
+            int graceSeconds,
             CancellationToken ct
         )
         {

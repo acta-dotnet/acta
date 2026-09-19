@@ -4,6 +4,7 @@ SELECT
     jd.max_attempts_override, jd.max_attempts_effective,
     jd.concurrency_limit_override, jd.concurrency_limit_effective,
     jd.rate_limit_override, jd.rate_limit_effective,
+    jd.rate_key,
     jd.modified_at_utc, jd.version
 FROM {{schema}}.definitions jd
 JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id

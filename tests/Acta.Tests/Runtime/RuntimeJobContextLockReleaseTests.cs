@@ -72,6 +72,7 @@ public sealed class RuntimeJobContextLockReleaseTests
             long jobId,
             int intervalMilliseconds,
             int burst,
+            int graceSeconds,
             CancellationToken ct
         ) => throw new NotSupportedException();
 

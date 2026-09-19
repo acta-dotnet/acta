@@ -192,6 +192,7 @@ internal sealed record JobDefinitionListRow(
     short? ConcurrencyLimitEffective,
     string? RateLimitOverride,
     string? RateLimitEffective,
+    string? RateKey,
     DateTime ModifiedAtUtc,
     int Version
 );
@@ -281,6 +282,7 @@ internal static class DefinitionRowMapping
             row.ConcurrencyLimitEffective,
             row.RateLimitOverride,
             row.RateLimitEffective,
+            row.RateKey,
             row.ModifiedAtUtc,
             row.Version
         );

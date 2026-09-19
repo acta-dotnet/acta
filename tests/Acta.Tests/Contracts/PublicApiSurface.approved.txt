@@ -1238,7 +1238,7 @@ sealed class Acta.JobDefinitionDetail
     System.String RunbookUrlEffective { get;init; }
     System.String RunbookUrlOverride { get;init; }
 sealed class Acta.JobDefinitionListItem
-    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.Nullable<System.Int16> ConcurrencyLimitOverride, System.Nullable<System.Int16> ConcurrencyLimitEffective, System.String RateLimitOverride, System.String RateLimitEffective, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int16> MaxAttemptsOverride, System.Int16 MaxAttemptsEffective, System.Nullable<System.Int16> ConcurrencyLimitOverride, System.Nullable<System.Int16> ConcurrencyLimitEffective, System.String RateLimitOverride, System.String RateLimitEffective, System.String RateKey, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.JobDefinitionStatusCode Status { get;init; }
     Acta.JobPriorityCode PriorityEffective { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
@@ -1253,6 +1253,7 @@ sealed class Acta.JobDefinitionListItem
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String OutputTypeName { get;init; }
+    System.String RateKey { get;init; }
     System.String RateLimitEffective { get;init; }
     System.String RateLimitOverride { get;init; }
 sealed class Acta.JobDefinitionPolicyOverrides

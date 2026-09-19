@@ -159,6 +159,19 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
+        /// <summary>
+        /// How long past its turn a rate reservation stays sweepable-proof. The caller passes the
+        /// worker lease TTL, which bounds how late a live job can come back for a turn it holds.
+        /// </summary>
+        public static readonly DbValueSpec<int> RateGraceSeconds = new(
+            ParameterName: "p_grace_seconds",
+            Kind: DbKind.Int32,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
         public static readonly DbValueSpec<int> DeadAfterSeconds = new(
             ParameterName: "p_dead_after_seconds",
             Kind: DbKind.Int32,

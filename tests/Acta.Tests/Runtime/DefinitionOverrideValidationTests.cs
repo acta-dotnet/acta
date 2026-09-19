@@ -16,7 +16,7 @@ public sealed class DefinitionOverrideValidationTests
 {
     private const string Namespace = "billing";
 
-    private static JobDefinitionListItem Row(int id, string name) =>
+    private static JobDefinitionListItem Row(int id, string name, string? rateLimit = null, string? rateKey = null) =>
         new(
             DefinitionId: id,
             JobNamespace: Namespace,
@@ -31,7 +31,8 @@ public sealed class DefinitionOverrideValidationTests
             ConcurrencyLimitOverride: null,
             ConcurrencyLimitEffective: null,
             RateLimitOverride: null,
-            RateLimitEffective: null,
+            RateLimitEffective: rateLimit,
+            RateKey: rateKey,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
         );
@@ -92,6 +93,50 @@ public sealed class DefinitionOverrideValidationTests
 
         var outcome = await UpdateAsync(service, new JobDefinitionPolicyOverrides(RateLimit: "1000/s"));
         Assert.Equal(ControlAction.Applied, outcome.Action);
+    }
+
+    [Fact]
+    public async Task A_rate_override_that_splits_a_shared_meter_is_rejected()
+    {
+        // Two definitions on one meter, both at 10/s. Retuning one of them alone would leave the meter
+        // running at whichever rate its last requester asked for.
+        var store = new RecordingDefinitionStore([Row(1, "invoice", "10/s", "billing-api"), Row(2, "receipt", "10/s", "billing-api")]);
+        var service = new DefinitionsService(store);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            UpdateAsync(service, new JobDefinitionPolicyOverrides(RateLimit: "5/s"))
+        );
+
+        Assert.Contains("billing-api", ex.Message);
+        Assert.Contains("receipt", ex.Message);
+        Assert.Empty(store.OverrideWrites);
+    }
+
+    [Fact]
+    public async Task A_rate_override_matching_every_participant_is_applied()
+    {
+        // The second half of retuning a shared meter: once the sibling carries the new rate too, the
+        // override that brings this one into line is the write that completes the change.
+        var store = new RecordingDefinitionStore([Row(1, "invoice", "10/s", "billing-api"), Row(2, "receipt", "5/s", "billing-api")]);
+        var service = new DefinitionsService(store);
+
+        var outcome = await UpdateAsync(service, new JobDefinitionPolicyOverrides(RateLimit: "5/s"));
+
+        Assert.Equal(ControlAction.Applied, outcome.Action);
+        Assert.Single(store.OverrideWrites);
+    }
+
+    [Fact]
+    public async Task A_rate_override_on_a_meter_of_its_own_is_applied()
+    {
+        // A definition that shares nothing meters on its own name, so no sibling constrains it.
+        var store = new RecordingDefinitionStore([Row(1, "invoice", "10/s"), Row(2, "receipt", "100/s")]);
+        var service = new DefinitionsService(store);
+
+        var outcome = await UpdateAsync(service, new JobDefinitionPolicyOverrides(RateLimit: "1/h"));
+
+        Assert.Equal(ControlAction.Applied, outcome.Action);
+        Assert.Single(store.OverrideWrites);
     }
 
     [Theory]

@@ -35,6 +35,7 @@ public sealed class DefinitionKeyResolutionTests
             ConcurrencyLimitEffective: null,
             RateLimitOverride: null,
             RateLimitEffective: null,
+            RateKey: null,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
         );

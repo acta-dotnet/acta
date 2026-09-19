@@ -141,6 +141,34 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Fact]
+    public async Task A_default_meter_name_collides_with_another_definitions_rate_key()
+    {
+        // The meter is RateKey ?? Name, so "stripe" and RateKey = "stripe" are the same bucket even
+        // though only one of them names it. Grouping on the declared key alone would miss this.
+        var named = Descriptor("stripe") with
+        {
+            RateLimit = "1/s",
+        };
+        var keyed = Descriptor("charge-card") with { RateLimit = "100/s", RateKey = "stripe" };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(named, keyed));
+
+        Assert.Contains("stripe", ex.Message);
+        Assert.Contains("charge-card", ex.Message);
+    }
+
+    [Fact]
+    public async Task A_definition_with_no_rate_never_joins_a_meter()
+    {
+        // It never asks the meter anything, so sharing a bucket key with a metered definition is not
+        // a disagreement about the rate.
+        var unmetered = Descriptor("stripe");
+        var metered = Descriptor("charge-card") with { RateLimit = "100/s", RateKey = "stripe" };
+
+        await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(unmetered, metered));
+    }
+
+    [Fact]
     public async Task Definitions_on_separate_rate_keys_may_declare_different_rates()
     {
         var left = Descriptor("left") with { RateLimit = "10/s", RateKey = "stripe" };

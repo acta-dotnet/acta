@@ -630,7 +630,10 @@
 - **Guarantees:**
   - A fresh meter admits its burst at once and then one per interval
   - A booked turn is handed back unchanged until it arrives, and the meter stays put
-  - A turn that has arrived admits once and is spent
+  - A turn returned on time admits once, is spent, and never moves the meter
+  - A turn gone stale is re-metered rather than honoured
+  - A backlog of turns gone stale releases at most one burst at once
+  - A booked turn outlives the lock expiry sweep until its grace runs out
   - An unspent turn is collected by the lock expiry sweep
   - A backlog drains at the declared rate with one re-arm per denied job
   - Two definitions on one rate key meter from one bucket

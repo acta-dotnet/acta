@@ -30,6 +30,7 @@
     concurrencyLimitOverride: number | null;
     rateLimitEffective: string | null;
     rateLimitOverride: string | null;
+    rateKey: string | null;
     modifiedAtUtc: string;
   }
 
@@ -89,7 +90,7 @@
     {#snippet priorityCell(def: DefinitionRow)}{def.priorityEffective}{#if def.priorityOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet attemptsCell(def: DefinitionRow)}{displayFormatter.number(def.maxAttemptsEffective)}{#if def.maxAttemptsOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet concurrencyCell(def: DefinitionRow)}{def.concurrencyLimitEffective == null ? 'unlimited' : displayFormatter.number(def.concurrencyLimitEffective)}{#if def.concurrencyLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
-    {#snippet rateCell(def: DefinitionRow)}{def.rateLimitEffective ?? 'unlimited'}{#if def.rateLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
+    {#snippet rateCell(def: DefinitionRow)}<span title={def.rateKey ? 'meter: ' + def.rateKey : ''}>{def.rateLimitEffective ?? 'unlimited'}</span>{#if def.rateLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet modifiedCell(def: DefinitionRow)}<RelativeTime value={def.modifiedAtUtc} />{/snippet}
 
     <ActaGrid

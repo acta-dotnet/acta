@@ -231,10 +231,16 @@ is rejected at build time by the source generator, again at worker startup, and 
 gate. Like every other policy slot the rate has an operator override on the definition row.
 
 `RateKey` names the meter. Omit it and the meter is the definition name, so a rate alone throttles
-just that definition. Definitions that share a key share one meter and **must declare the same rate**;
-worker startup rejects a namespace where two of them disagree, because one meter cannot run at two
-rates. Unlike the rate, the key has no operator override: moving a definition onto another meter
-changes which definitions it competes with, which is a contract change rather than a dial.
+just that definition - and a definition *named* `stripe` is on the same meter as one declaring
+`RateKey = "stripe"`. Definitions that share a meter **must declare the same rate**; worker startup
+rejects a namespace where two of them disagree, because one meter cannot run at two rates. Unlike the
+rate, the key has no operator override: moving a definition onto another meter changes which
+definitions it competes with, which is a contract change rather than a dial.
+
+**Retune a shared meter by overriding every definition on it.** The override gate holds the same rule
+registration does: a `RateLimit` override that would leave this definition on a different rate from
+another definition on the same meter is rejected, naming the one it disagrees with. Override them one
+by one to the new rate and the last write completes the change.
 
 **Admission is a reservation, not a retry loop.** The meter keeps the instant the next admission is
 due. A job that arrives after that instant runs immediately. A job that arrives early is given the
@@ -243,15 +249,23 @@ budget, carrying the reason `job.rate-limited`; that is never a failure, so it w
 `Failures`-level event and raises no alert. Because the turn is booked rather than contended for, a
 backlog costs **one re-arm per job** and drains in arrival order at the rate, with no re-racing.
 
+**A turn is honoured only while it is fresh**: up to one interval past its instant. A job that comes
+back inside that window runs without touching the meter, because the meter already counted it when it
+booked the turn. A job whose turn went stale - every executor was busy when its instant came round -
+goes back through the meter and is given a new one, which costs it a second re-arm. That is what
+stops a queue of overdue jobs from all starting the moment executors free up: after an idle stretch
+they are released at the burst, not in one crowd.
+
 The contract: at most `R*T + N` admissions in any window of `T` seconds, where `N` is the declared
 count (an idle meter hands out that many back to back), and within 10% of `R` over 60 seconds of
 continuous demand as long as executors are free. Executors are the other half of that: the rate caps
 how fast jobs *start*, so if every executor is busy the realized rate is lower.
 
-A reserved turn that is never spent - the job was cancelled, or its worker was reclaimed before it
-came back - is simply lost, and the row is collected by the ordinary lock expiry sweep. The meter
-itself is swept the same way once it falls behind the current instant, which restores it to a fresh
-meter with its full burst.
+A booked turn is held for the worker lease TTL past its instant, so a late but living job never loses
+one. Past that, the ordinary lock expiry sweep collects it: a job that was cancelled, or reclaimed
+before it came back, simply loses its place and is metered afresh when it next asks - one more re-arm,
+at the tail of the queue. The meter itself is swept the same way once it has been idle for a full
+burst, which restores it to a fresh meter with its full burst.
 
 For production-oriented defaults and tradeoffs, including provider choice, migration ownership,
 worker sizing, leases, dashboard exposure, alerts, and retention, see

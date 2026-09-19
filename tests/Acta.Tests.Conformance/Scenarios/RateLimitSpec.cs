@@ -6,6 +6,7 @@ using Acta.Runtime.Services.Locks;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 using LockRow = Acta.Relational.Entities.Lock;
@@ -36,6 +37,10 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
     private const int Burst = 10;
     private const int IntervalMilliseconds = 100;
 
+    // The grace a booked turn gets past its instant before the sweep may take it. Production passes the
+    // worker lease TTL; a spec picks its own so it can stage a turn at a chosen age.
+    private const int GraceSeconds = 30;
+
     [Fact(DisplayName = "A fresh meter admits its burst at once and then one per interval")]
     public async Task A_fresh_meter_admits_its_burst_at_once_and_then_one_per_interval()
     {
@@ -64,10 +69,10 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var ct = TestContext.Current.CancellationToken;
         var bucket = Bucket(TestKey("rl-booked"));
 
-        for (var i = 0; i < Burst; i++)
-        {
-            await ReserveAsync(bucket, jobId: 1300 + i, ct);
-        }
+        // Parked minutes ahead so the first request has to wait, and so the row stays well clear of
+        // any concurrent sweep in this shared database: a charge below must be the only thing that
+        // moves it.
+        Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1201, ct));
 
         var booked = await ReserveAsync(bucket, jobId, ct);
         Assert.False(booked.Admitted);
@@ -81,33 +86,100 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         Assert.Equal(meterAfterBooking, await MeterAsync(bucket, ct));
     }
 
-    [Fact(DisplayName = "A turn that has arrived admits once and is spent")]
-    public async Task A_turn_that_has_arrived_admits_once_and_is_spent()
+    [Fact(DisplayName = "A turn returned on time admits once, is spent, and never moves the meter")]
+    public async Task A_turn_returned_on_time_admits_once_and_never_moves_the_meter()
     {
         const long jobId = 1400;
         var ct = TestContext.Current.CancellationToken;
-        var bucket = Bucket(TestKey("rl-staged"));
+        var bucket = Bucket(TestKey("rl-ontime"));
         var reservation = $"{bucket}.{jobId}";
 
         // The meter is parked minutes ahead, so an admission below can only come from the turn.
         Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1401, ct));
+        await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-IntervalMilliseconds / 2), ct);
+        var meterBefore = await MeterAsync(bucket, ct);
 
-        // The state a worker that died holding a booked turn leaves behind: a reservation row whose
-        // instant has already passed. That also makes it ordinary garbage for any concurrent lock
-        // sweep in this shared database, so a stage collected inside the round trip is staged again.
-        RateReservation admitted;
-        DateTime? meterBefore;
-        var attempt = 0;
-        do
-        {
-            await StageDueTurnAsync(reservation, jobId, ct);
-            meterBefore = await MeterAsync(bucket, ct);
-            admitted = await ReserveAsync(bucket, jobId, ct);
-        } while (!admitted.Admitted && ++attempt < 5);
+        var admitted = await ReserveAsync(bucket, jobId, ct);
 
-        Assert.True(admitted.Admitted, "the staged turn was not honoured");
+        // The meter counted this job when it allocated the turn; charging it again would meter it twice.
+        Assert.True(admitted.Admitted, "a turn barely past its instant was not honoured");
         Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
         Assert.Null(await ReadLockAsync(reservation, ct));
+    }
+
+    [Fact(DisplayName = "A turn gone stale is re-metered rather than honoured")]
+    public async Task A_turn_gone_stale_is_re_metered_rather_than_honoured()
+    {
+        const long jobId = 1450;
+        var ct = TestContext.Current.CancellationToken;
+        var bucket = Bucket(TestKey("rl-stale"));
+        var reservation = $"{bucket}.{jobId}";
+
+        // A turn that went by while every executor was busy: still inside its grace, so the row is
+        // there, but further past its instant than one interval.
+        Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1451, ct));
+        await StageTurnAsync(reservation, jobId, TimeSpan.FromSeconds(-5), ct);
+        var meterBefore = await MeterAsync(bucket, ct);
+
+        var denied = await ReserveAsync(bucket, jobId, ct);
+
+        // Back through the meter: the stale turn buys nothing, the bucket moves, and the job is booked
+        // a fresh instant. Honouring it instead is what would let a queue of overdue jobs start at once.
+        Assert.False(denied.Admitted);
+        Assert.NotEqual(meterBefore, await MeterAsync(bucket, ct));
+        Assert.Equal(denied.ResumeAtUtc, (await ReadLockAsync(reservation, ct))?.ExpiresAtUtc.AddSeconds(-GraceSeconds));
+    }
+
+    [Fact(DisplayName = "A backlog of turns gone stale releases at most one burst at once")]
+    public async Task A_backlog_of_turns_gone_stale_releases_at_most_one_burst_at_once()
+    {
+        const int waiting = Burst + 20;
+        var ct = TestContext.Current.CancellationToken;
+        var bucket = Bucket(TestKey("rl-catchup"));
+
+        // Every one of them holds a turn that passed while the fleet was busy, on a meter that has
+        // since gone idle. Honouring stale turns would admit all of them in the same instant.
+        for (var i = 0; i < waiting; i++)
+        {
+            await StageTurnAsync($"{bucket}.{1460 + i}", 1460 + i, TimeSpan.FromSeconds(-5), ct);
+        }
+
+        var admitted = 0;
+        var started = DateTime.UtcNow;
+        for (var i = 0; i < waiting; i++)
+        {
+            if ((await ReserveAsync(bucket, 1460 + i, ct)).Admitted)
+            {
+                admitted++;
+            }
+        }
+        var window = DateTime.UtcNow - started;
+
+        // The R*T + N ceiling, measured over however long these round trips took: an idle meter's
+        // burst plus whatever the rate itself earned while they ran, and nothing like all of them.
+        var earned = (int)(window.TotalMilliseconds / IntervalMilliseconds);
+        Assert.InRange(admitted, Burst, Burst + earned + 1);
+    }
+
+    [Fact(DisplayName = "A booked turn outlives the lock expiry sweep until its grace runs out")]
+    public async Task A_booked_turn_outlives_the_lock_expiry_sweep_until_its_grace_runs_out()
+    {
+        const long jobId = 1480;
+        var ct = TestContext.Current.CancellationToken;
+        var bucket = Bucket(TestKey("rl-grace"));
+        var reservation = $"{bucket}.{jobId}";
+
+        // A turn whose instant has already gone by but whose grace has not: the row a job that is
+        // late but still alive is coming back for.
+        Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1481, ct));
+        await StageTurnAsync(reservation, jobId, TimeSpan.FromSeconds(-1), ct);
+        var staged = await ReadLockAsync(reservation, ct);
+
+        await PurgeAsync(ct);
+
+        // Untouched. The sweep reads expires_at_utc, which sits a grace past the turn precisely so a
+        // job that is late but still inside its lease keeps the place the meter gave it.
+        Assert.Equal(staged?.ExpiresAtUtc, (await ReadLockAsync(reservation, ct))?.ExpiresAtUtc);
     }
 
     [Fact(DisplayName = "An unspent turn is collected by the lock expiry sweep")]
@@ -117,7 +189,8 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var ct = TestContext.Current.CancellationToken;
         var reservation = $"{Bucket(TestKey("rl-swept"))}.{jobId}";
 
-        // A cancelled or reclaimed job leaves its turn behind; it is past, so it is ordinary garbage.
+        // A cancelled or reclaimed job leaves its turn behind. Past its grace as well as its instant,
+        // so no live job can still be coming back for it and it is ordinary garbage.
         Assert.NotNull(await Locks.TryAcquireAsync(reservation, TimeSpan.FromSeconds(-1), jobId, ct));
 
         await RetentionTestOps.PurgeUntilAsync(
@@ -255,14 +328,15 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         Assert.Null(await ReadLockAsync($"{slotPrefix}.0", ct));
         Assert.Null(await ReadLockAsync($"{slotPrefix}.1", ct));
 
-        // Bring the booked turn forward and the job with it: the meter is still minutes ahead, so an
-        // admission here can only come from the reservation, and the slot has to be taken again.
+        // Bring the booked turn just past its instant, and the job with it: the meter is still minutes
+        // ahead, so an admission here can only come from the turn, and the slot has to be taken again.
+        // The runner's grace is the worker lease, so the row is stamped relative to that.
         var reservation = $"{bucket}.{enqueued.JobId}";
+        var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
+        var justPast = DateTime.UtcNow.AddSeconds(leaseTtl).AddMilliseconds(-50);
         Assert.Equal(
             1,
-            await Db.From<LockRow>()
-                .Where(l => l.LockKey == reservation)
-                .UpdateOnlyAsync(() => new LockRow { ExpiresAtUtc = DateTime.UtcNow.AddSeconds(-1) }, ct)
+            await Db.From<LockRow>().Where(l => l.LockKey == reservation).UpdateOnlyAsync(() => new LockRow { ExpiresAtUtc = justPast }, ct)
         );
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
 
@@ -279,22 +353,39 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
     private string Bucket(string key) => $"{NamespaceId}.rate.{IdentifierSyntax.NormalizeLowerInvariant(key)}";
 
     private Task<RateReservation> ReserveAsync(string bucket, long jobId, CancellationToken ct) =>
-        Locks.ReserveRateAsync(bucket, jobId, IntervalMilliseconds, Burst, ct);
+        Locks.ReserveRateAsync(bucket, jobId, IntervalMilliseconds, Burst, GraceSeconds, ct);
 
     /// <summary>The meter's stored arrival time, which every charged request moves and nothing else does.</summary>
     private async Task<DateTime?> MeterAsync(string bucket, CancellationToken ct) => (await ReadLockAsync(bucket, ct))?.ExpiresAtUtc;
 
-    /// <summary>Puts a reservation row at an instant already past, whether or not one is there.</summary>
-    private async Task StageDueTurnAsync(string reservation, long jobId, CancellationToken ct)
+    /// <summary>
+    /// Puts a reservation row whose turn sits <paramref name="age"/> from now, whether or not one is
+    /// already there. The row stores the turn plus the grace, which is what the sweep reads, so the
+    /// stage goes through the stored form rather than through the acquire's lease arithmetic.
+    /// </summary>
+    private async Task StageTurnAsync(string reservation, long jobId, TimeSpan age, CancellationToken ct)
     {
-        if (await Locks.TryAcquireAsync(reservation, TimeSpan.FromSeconds(-1), jobId, ct) is null)
-        {
-            var affected = await Db.From<LockRow>()
-                .Where(l => l.LockKey == reservation)
-                .UpdateOnlyAsync(() => new LockRow { ExpiresAtUtc = DateTime.UtcNow.AddSeconds(-1) }, ct);
-            Assert.Equal(1, affected);
-        }
+        // Created through the store so the row carries the store's shape, then stamped to the exact
+        // instant: the acquire's lease is whole seconds and a turn is staged to the millisecond.
+        await Locks.TryAcquireAsync(reservation, TimeSpan.FromMinutes(10), jobId, ct);
+        var expires = DateTime.UtcNow.Add(age).AddSeconds(GraceSeconds);
+        var affected = await Db.From<LockRow>()
+            .Where(l => l.LockKey == reservation)
+            .UpdateOnlyAsync(() => new LockRow { ExpiresAtUtc = expires }, ct);
+        Assert.Equal(1, affected);
     }
+
+    private Task PurgeAsync(CancellationToken ct) =>
+        RetentionTestOps.PurgeAsync(
+            Services,
+            NamespaceId,
+            eventsRetentionDays: 3650,
+            alertRetentionDays: 3650,
+            workerRetentionSeconds: int.MaxValue,
+            batchSize: 500,
+            maxIterations: 20,
+            ct
+        );
 
     private Task<LockRow?> ReadLockAsync(string lockKey, CancellationToken ct) =>
         Db.From<LockRow>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);

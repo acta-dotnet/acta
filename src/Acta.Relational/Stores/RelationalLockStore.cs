@@ -62,6 +62,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
         long jobId,
         int intervalMilliseconds,
         int burst,
+        int graceSeconds,
         CancellationToken ct
     )
     {
@@ -73,6 +74,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RateIntervalMilliseconds, intervalMilliseconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RateBurst, burst));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RateGraceSeconds, graceSeconds));
                 // The meter's rows are bookkeeping, never holds, and Guid.Empty is the sentinel that
                 // says so. Minted here like every other hold token, so the SQL stays free of
                 // per-dialect uuid literals and each provider binds it in its own wire form.

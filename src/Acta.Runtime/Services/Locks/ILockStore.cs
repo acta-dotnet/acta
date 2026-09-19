@@ -30,11 +30,22 @@ internal interface ILockStore
     /// back to back, which is what makes the burst a burst. Admitted means the returned instant has
     /// passed and the caller may run now. Not admitted means the caller must re-arm at the returned
     /// instant, where a reservation row is already waiting for this job: the turn is booked, so the
-    /// caller bounces once rather than racing the meter again, and a queue drains at the rate with one
-    /// re-arm each. Both rows carry an instant rather than a lease, and the bucket's is offset so that
-    /// it expires exactly when an idle meter stops differing from a missing one.
+    /// caller bounces once rather than racing the meter again. Both rows carry an instant rather than a
+    /// lease, offset so each expires only once it stops mattering: the bucket's when an idle meter
+    /// stops differing from a missing one, a reservation's <paramref name="graceSeconds"/> past its
+    /// turn, sized by the caller from the worker lease so a live job keeps a turn it is coming back for.
+    /// A turn is honoured only while it is fresh - at most one interval past its instant - so jobs whose
+    /// turns went stale while executors were busy are re-metered rather than released at once, at the
+    /// cost of a second re-arm each.
     /// </summary>
-    Task<RateReservation> ReserveRateAsync(string bucketKey, long jobId, int intervalMilliseconds, int burst, CancellationToken ct);
+    Task<RateReservation> ReserveRateAsync(
+        string bucketKey,
+        long jobId,
+        int intervalMilliseconds,
+        int burst,
+        int graceSeconds,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// CAS on the hold token, which is unchanged so the same token still releases; false when the
