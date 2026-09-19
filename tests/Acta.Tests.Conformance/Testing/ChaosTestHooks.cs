@@ -8,6 +8,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Acta.Tests.Conformance.Testing;
 
+internal sealed class InjectedProviderError() : System.Data.Common.DbException("Injected provider error before CompleteExecution.");
+
 internal sealed class StoreFaultPlan
 {
     private int _throwBeforeComplete;
@@ -16,6 +18,10 @@ internal sealed class StoreFaultPlan
     private TimeSpan? _getUtcNowSkew;
 
     public void ThrowBeforeCompleteOnce() => Interlocked.Exchange(ref _throwBeforeComplete, 1);
+
+    // A provider-shaped fault, the kind the completion write repeats; the TimeoutException above is
+    // deliberately not one, so the crash-shaped facts keep staging an attempt that never lands.
+    public void ThrowProviderErrorBeforeCompleteOnce() => Interlocked.Exchange(ref _throwBeforeComplete, 2);
 
     public void ThrowAfterCompleteOnce() => Interlocked.Exchange(ref _throwAfterComplete, 1);
 
@@ -45,9 +51,12 @@ internal sealed class StoreFaultPlan
             action().GetAwaiter().GetResult();
         }
 
-        if (Interlocked.Exchange(ref _throwBeforeComplete, 0) == 1)
+        switch (Interlocked.Exchange(ref _throwBeforeComplete, 0))
         {
-            throw new TimeoutException("Injected transient failure before CompleteExecution.");
+            case 1:
+                throw new TimeoutException("Injected transient failure before CompleteExecution.");
+            case 2:
+                throw new InjectedProviderError();
         }
     }
 

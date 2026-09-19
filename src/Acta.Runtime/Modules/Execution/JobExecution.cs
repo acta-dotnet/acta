@@ -638,15 +638,25 @@ internal sealed class JobExecution(
             };
         }
 
-        var complete = await _execution.CompleteExecutionAsync(completeCommand, ct);
+        var (complete, retried) = await CompletionWrite.RetryAsync(
+            token => _execution.CompleteExecutionAsync(completeCommand, token),
+            _log,
+            job.JobId,
+            ct
+        );
 
         if (complete.Action != CompleteExecutionAction.Completed)
         {
             // An external cancel, cascade, or stolen lease moved the row out of execution while the
             // handler ran, so the compare-and-swap completed no work. A terminal row is always a
             // clean skip because a fast handler can finish before heartbeat cancellation reaches the
-            // attempt token. Losing ownership without a cancelled token is a genuine anomaly.
-            return complete.Action == CompleteExecutionAction.AlreadyTerminal || jobContext.CancellationToken.IsCancellationRequested
+            // attempt token, and so is a lost lease after a retried write: the first try committed
+            // and cleared the lease before its answer was lost, so the row already holds this
+            // outcome. Losing ownership on a first try with an uncancelled token is a genuine anomaly.
+            return
+                complete.Action == CompleteExecutionAction.AlreadyTerminal
+                || retried
+                || jobContext.CancellationToken.IsCancellationRequested
                 ? RunOnceOutcome.NothingClaimed
                 : throw new InvalidOperationException($"CompleteExecution for job {job.JobId} returned {complete.Action}.");
         }

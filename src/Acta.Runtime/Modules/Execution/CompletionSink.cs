@@ -159,14 +159,21 @@ internal sealed class CompletionSink
         {
             // One set-based round trip finalizes the simple terminal rows; it self-filters and reports
             // which ordinals it did NOT finalize (a parent, or a lost lease).
-            finalized = await _execution.CompleteExecutionsBatchAsync(requests, CancellationToken.None).ConfigureAwait(false);
+            (finalized, _) = await CompletionWrite
+                .RetryAsync(token => _execution.CompleteExecutionsBatchAsync(requests, token), _log, batch[0].JobId, CancellationToken.None)
+                .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            // One statement, one commit, so nothing landed: every job in the batch stays Executing and
-            // sys.recovery reclaims them. Bulk's at-least-once contract; log and take the next batch.
+            // One statement, one commit, so nothing landed, and the bounded retry is spent: every job in
+            // the batch stays Executing under this worker's lease until the process restarts, since the
+            // heartbeat renews what the database says this worker holds. Log and take the next batch.
             // This is the only path that may claim the whole batch rolled back.
-            _log.LogError(ex, "Bulk completion flush of {Count} jobs failed; they remain Executing for recovery.", batch.Count);
+            _log.LogError(
+                ex,
+                "Bulk completion flush of {Count} jobs failed; they remain Executing under this worker's lease.",
+                batch.Count
+            );
             return;
         }
 
@@ -187,7 +194,14 @@ internal sealed class CompletionSink
             try
             {
                 // Not finalized in the batch: complete per-job with full semantics (parent child-done latch).
-                results[i] = await _execution.CompleteExecutionAsync(batch[i].Request, CancellationToken.None).ConfigureAwait(false);
+                (results[i], _) = await CompletionWrite
+                    .RetryAsync(
+                        token => _execution.CompleteExecutionAsync(batch[i].Request, token),
+                        _log,
+                        batch[i].JobId,
+                        CancellationToken.None
+                    )
+                    .ConfigureAwait(false);
                 if (results[i] is { Action: CompleteExecutionAction.Completed })
                 {
                     RecordDurableCompletion(batch[i]);

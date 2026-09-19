@@ -322,7 +322,12 @@ internal sealed class JobExecutor(
         // No wakeup publish, deliberately: every claim loop re-polls within SafetyPollInterval, which
         // is the delay itself, and waking this namespace would wake this worker's own loops first and
         // tighten the bounce into a spin.
-        var complete = await _execution.CompleteExecutionAsync(request, ct);
+        var (complete, _) = await CompletionWrite.RetryAsync(
+            token => _execution.CompleteExecutionAsync(request, token),
+            _log,
+            job.JobId,
+            ct
+        );
         return complete.Action == CompleteExecutionAction.Completed ? RunOnceOutcome.Rearmed : RunOnceOutcome.NothingClaimed;
     }
 }

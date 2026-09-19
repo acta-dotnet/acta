@@ -445,9 +445,10 @@
 - **Contract:** Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization.
 - **Arrange:** A counting probe job is enqueued with store fault injection armed to fail CompleteExecution once, before or after its commit.
 - **Act:** The runtime runs the job through the injected completion failure, and the before-commit case is then reclaimed and rerun.
-- **Assert:** A before-commit failure reruns to exactly one Succeeded finish while an after-commit failure leaves the job Succeeded with no rerun.
+- **Assert:** A before-commit failure reruns to one Succeeded finish, a provider error is retried in place, and an after-commit failure leaves Succeeded with no rerun.
 - **Guarantees:**
   - A complete before-commit failure leaves Executing with no success event, and reclaim reruns to a single Succeeded finish
+  - A provider error before the completion commit is retried and the attempt lands once
   - A complete after-commit failure leaves Succeeded with one success event and is not rerun
 
 ### Duplicated maintenance registration still has one slot and one claimant

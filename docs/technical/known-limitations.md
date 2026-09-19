@@ -41,8 +41,13 @@ A claim carries no capability check. The claim selects by namespace and the desc
 process-side, so a worker can claim a job it has no handler for; it releases the claim
 budget-neutral, due again one safety-poll interval later, instead of running it. While no live
 worker carries the definition the job cycles `Ready`, claimed, `Ready` at that cadence, writing one
-event and one warning per cycle and never progressing. Claim-time filtering on the polling worker's
+warning per cycle (and one event under `Audit`) and never progressing. Claim-time filtering on the polling worker's
 supported set would remove the bounce; it is not in 1.0.
+
+A completion write that fails on a provider error is retried, five tries over about fifteen seconds.
+A provider outage longer than that leaves the attempt's row Executing under a lease the worker's
+heartbeat keeps renewing, until that worker process restarts and its rows are reclaimed as a dead
+worker's.
 
 Crash recovery has one bootstrap dependency. The reclaim sweep, which returns a job whose lease
 lapsed to `Ready`, runs from the `sys.recovery` recurring slot, and that slot is an ordinary job: a

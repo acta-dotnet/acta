@@ -43,7 +43,7 @@ public sealed class CompletionSinkDegradedFlushTests
         var entry = Assert.Single(log.Entries);
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("Bulk completion flush of 3 jobs failed", entry.Message, StringComparison.Ordinal);
-        Assert.Contains("remain Executing for recovery", entry.Message, StringComparison.Ordinal);
+        Assert.Contains("remain Executing under this worker's lease", entry.Message, StringComparison.Ordinal);
         Assert.Same(store.BatchFailure, entry.Exception);
     }
 

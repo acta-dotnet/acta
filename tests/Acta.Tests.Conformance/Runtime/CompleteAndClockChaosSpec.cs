@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Contract = "Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization.",
     Arrange = "A counting probe job is enqueued with store fault injection armed to fail CompleteExecution once, before or after its commit.",
     Act = "The runtime runs the job through the injected completion failure, and the before-commit case is then reclaimed and rerun.",
-    Assert = "A before-commit failure reruns to exactly one Succeeded finish while an after-commit failure leaves the job Succeeded with no rerun."
+    Assert = "A before-commit failure reruns to one Succeeded finish, a provider error is retried in place, and an after-commit failure leaves Succeeded with no rerun."
 )]
 public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -57,6 +57,24 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
         ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
         Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);
+    }
+
+    [Fact(DisplayName = "A provider error before the completion commit is retried and the attempt lands once")]
+    public async Task Provider_error_before_complete_commit_is_retried_in_place()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
+
+        // A dropped connection on the write, not a crash: the same attempt repeats the write and lands,
+        // so nothing waits for a lease to lapse, the handler ran once, and no recovery event exists.
+        _faults.ThrowProviderErrorBeforeCompleteOnce();
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
+
+        var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
+        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
+        Assert.DoesNotContain(events, e => e.ExecutionStatus == ExecutionStatusCode.Orphaned);
     }
 
     [Fact(DisplayName = "A complete after-commit failure leaves Succeeded with one success event and is not rerun")]
