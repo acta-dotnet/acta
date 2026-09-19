@@ -1,3 +1,5 @@
+using System.Data;
+using System.Data.Common;
 using System.Globalization;
 using System.Net.Sockets;
 using Acta;
@@ -115,6 +117,170 @@ public static class ProviderConn
         {
             throw new BenchDbUnavailableException(provider, ex);
         }
+    }
+
+    /// <summary>
+    /// Turns every job above <paramref name="afterJobId"/> into settled history in one set-based
+    /// pass: the runtime goes Succeeded and out of the claim index, <c>created_at_utc</c> spreads
+    /// over the last <paramref name="spreadDays"/> days so the retention-shaped indexes see a real
+    /// date range, and each job gains one <c>job.execution-finished</c> event plus one result row.
+    /// The retention stamp is <paramref name="retentionDays"/> out, so <c>sys.retention</c> cannot
+    /// delete the seeded rows mid-cell.
+    /// </summary>
+    public static async Task SeedTerminalHistoryAsync(
+        string provider,
+        string schema,
+        long afterJobId,
+        int spreadDays,
+        int retentionDays,
+        CancellationToken ct
+    )
+    {
+        var now = DateTime.UtcNow;
+        try
+        {
+            await using var connection = await OpenAsync(provider, schema, ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText = SeedHistorySql(provider, schema, spreadDays);
+            command.CommandTimeout = 0;
+            AddParameter(command, "@p_after_job_id", afterJobId);
+            AddParameter(command, "@p_now_utc", Instant(provider, now));
+            AddParameter(command, "@p_retention_until_utc", Instant(provider, now.AddDays(retentionDays)));
+            AddParameter(command, "@p_result", """{"ok":1}"""u8.ToArray());
+            await command.ExecuteNonQueryAsync(ct);
+        }
+        catch (Exception ex) when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException)
+        {
+            throw new BenchDbUnavailableException(provider, ex);
+        }
+    }
+
+    /// <summary>The highest job id currently in the schema, or 0 when the ledger is empty.</summary>
+    public static async Task<long> MaxJobIdAsync(string provider, string schema, CancellationToken ct)
+    {
+        try
+        {
+            await using var connection = await OpenAsync(provider, schema, ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT COALESCE(MAX(id), 0) FROM {Qualifier(provider, schema)}jobs";
+            return Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException)
+        {
+            throw new BenchDbUnavailableException(provider, ex);
+        }
+    }
+
+    /// <summary>
+    /// Counts the rows the cell leaves behind in the four ledger tables, keyed for
+    /// <c>extraMetrics</c>. Returns null when the counts cannot be read, so a cell's own metrics
+    /// survive a database that went away after the measured window.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<string, double>?> TryReadRetainedCountsAsync(
+        string provider,
+        string schema,
+        CancellationToken ct
+    )
+    {
+        var q = Qualifier(provider, schema);
+        try
+        {
+            await using var connection = await OpenAsync(provider, schema, ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                $"SELECT (SELECT COUNT(*) FROM {q}jobs), (SELECT COUNT(*) FROM {q}runtimes), "
+                + $"(SELECT COUNT(*) FROM {q}events), (SELECT COUNT(*) FROM {q}results)";
+            command.CommandTimeout = 0;
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct))
+            {
+                return null;
+            }
+
+            return new Dictionary<string, double>(StringComparer.Ordinal)
+            {
+                ["retainedJobs"] = Convert.ToDouble(reader.GetValue(0), CultureInfo.InvariantCulture),
+                ["retainedRuntimes"] = Convert.ToDouble(reader.GetValue(1), CultureInfo.InvariantCulture),
+                ["retainedEvents"] = Convert.ToDouble(reader.GetValue(2), CultureInfo.InvariantCulture),
+                ["retainedResults"] = Convert.ToDouble(reader.GetValue(3), CultureInfo.InvariantCulture),
+            };
+        }
+        catch (Exception ex) when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException)
+        {
+            return null;
+        }
+    }
+
+    // SQLite keeps the bench file's one schema unqualified; the server providers scope every table
+    // to the cell's own schema.
+    private static string Qualifier(string provider, string schema) => LocalDatabase.IsSqlite(provider) ? "" : $"{schema}.";
+
+    // SQLite stores instants as epoch milliseconds; Postgres and SQL Server bind the DateTime.
+    private static object Instant(string provider, DateTime utc) =>
+        LocalDatabase.IsSqlite(provider) ? (long)(utc - DateTime.UnixEpoch).TotalMilliseconds : utc;
+
+    private static string SeedHistorySql(string provider, string schema, int spreadDays)
+    {
+        var q = Qualifier(provider, schema);
+        // Age each row by (id mod days) days plus (id mod 1440) minutes, so the spread is set-based
+        // arithmetic over the ids just written rather than a parameter per row.
+        var spread =
+            LocalDatabase.IsSqlite(provider) ? $"@p_now_utc - ((id % {spreadDays}) * 86400000) - ((id % 1440) * 60000)"
+            : LocalDatabase.IsPostgres(provider)
+                ? $"@p_now_utc - (CAST(id % {spreadDays} AS double precision) * INTERVAL '1 day')"
+                    + " - (CAST(id % 1440 AS double precision) * INTERVAL '1 minute')"
+            : $"DATEADD(minute, -CAST(id % 1440 AS int), DATEADD(day, -CAST(id % {spreadDays} AS int), @p_now_utc))";
+
+        return $"""
+            UPDATE {q}jobs SET created_at_utc = {spread} WHERE id > @p_after_job_id;
+
+            UPDATE {q}runtimes
+               SET status_code = 100,
+                   next_run_at_utc = NULL,
+                   execution_number = 1,
+                   failure_count = 0,
+                   leased_by_worker_id = NULL,
+                   lease_expires_at_utc = NULL,
+                   retention_until_utc = @p_retention_until_utc
+             WHERE job_id > @p_after_job_id;
+
+            INSERT INTO {q}events (
+                event_code, created_at_utc, namespace_id, actor_code, job_id, job_ref, execution_number,
+                definition_id, from_status_code, to_status_code, execution_status_code, duration_ms, detail_format_id)
+            SELECT 41, j.created_at_utc, j.namespace_id, 10, j.id, j.job_ref, 1,
+                   j.definition_id, 50, 100, 100, 1, 0
+              FROM {q}jobs j
+             WHERE j.id > @p_after_job_id;
+
+            INSERT INTO {q}results (job_id, execution_number, result_format_id, result, created_at_utc)
+            SELECT j.id, 1, 1, @p_result, j.created_at_utc
+              FROM {q}jobs j
+             WHERE j.id > @p_after_job_id;
+            """;
+    }
+
+    private static async Task<DbConnection> OpenAsync(string provider, string schema, CancellationToken ct)
+    {
+        var conn = Resolve(provider, schema);
+        DbConnection connection =
+            LocalDatabase.IsSqlite(provider) ? new SqliteConnection(conn)
+            : LocalDatabase.IsPostgres(provider) ? new NpgsqlConnection(conn)
+            : new SqlConnection(conn);
+        await connection.OpenAsync(ct);
+        return connection;
+    }
+
+    private static void AddParameter(DbCommand command, string name, object value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        if (value is DateTime && command is SqlCommand)
+        {
+            // SqlClient infers the legacy datetime type for a DateTime; the columns are datetime2.
+            parameter.DbType = DbType.DateTime2;
+        }
+        command.Parameters.Add(parameter);
     }
 
     public static async Task<int> AgeAllEventsAsync(string provider, string schema, int days, CancellationToken ct)
@@ -294,6 +460,36 @@ public static class ProviderConn
     }
 }
 
+/// <summary>
+/// Stages settled history in a cell's schema so a measurement runs against a ledger that already
+/// holds rows. Seeding is never timed: it finishes inside <see cref="BenchHost.StartAsync"/>, before
+/// the scenario starts its own clock, and the workload that follows is the same one a fresh cell runs.
+/// </summary>
+internal static class BenchHistory
+{
+    /// <summary>The <c>created_at_utc</c> window the seeded rows are spread across.</summary>
+    public const int SpreadDays = 30;
+
+    // Far enough out that no sys.retention sweep inside a cell can reach the seeded jobs.
+    private const int RetentionDays = 365;
+
+    // Seeded jobs are enqueued behind a horizon no cell outlives, so a running worker cannot claim
+    // one between the enqueue and the update that settles it.
+    private const int IdleHorizonSeconds = 36_000;
+
+    /// <summary>
+    /// Batch-enqueues <paramref name="count"/> jobs, then settles exactly those rows: one terminal
+    /// runtime, one <c>job.execution-finished</c> event, and one result each, dated across the last
+    /// <see cref="SpreadDays"/> days.
+    /// </summary>
+    public static async Task SeedAsync(IJobs jobs, string provider, string schema, int count, CancellationToken ct)
+    {
+        var afterJobId = await ProviderConn.MaxJobIdAsync(provider, schema, ct);
+        await Workload.EnqueueAsync(jobs, count, payloadBytes: 0, IdleHorizonSeconds, ct);
+        await ProviderConn.SeedTerminalHistoryAsync(provider, schema, afterJobId, SpreadDays, RetentionDays, ct);
+    }
+}
+
 /// <summary>Cumulative server locking counters at one instant; deltas around a cell are the cell's cost.</summary>
 public sealed record BenchLockStats(
     long Deadlocks,
@@ -390,9 +586,8 @@ internal sealed class NoOpWakeup : IWorkerWakeup
 }
 
 /// <summary>
-/// Tuning for one benchmark host. A scenario that needs only the defaults uses the thin
-/// <see cref="BenchHost.StartAsync(string, string, int, int, CancellationToken)"/> overload; the
-/// multi-worker, recovery, wakeup, and purge scenarios set the extra knobs here.
+/// Tuning for one benchmark host. Every scenario states its provider, schema, and sizing here; the
+/// multi-worker, recovery, wakeup, and purge scenarios set the extra knobs as well.
 /// </summary>
 public sealed record BenchHostOptions
 {
@@ -430,6 +625,13 @@ public sealed record BenchHostOptions
 
     /// <summary>A cluster resets the schema once on host 0, then starts the rest with this false.</summary>
     public bool ResetSchema { get; init; } = true;
+
+    /// <summary>
+    /// Terminal jobs seeded into the freshly reset schema before this host returns, so the cell
+    /// measures against a populated ledger. Zero seeds nothing; only the host that reset the schema
+    /// seeds, so a cluster seeds once.
+    /// </summary>
+    public int SeedHistory { get; init; }
 }
 
 /// <summary>
@@ -504,22 +706,6 @@ public sealed class BenchHost : IAsyncDisposable
     {
         return ProviderConn.CountExpiredEventsAsync(Provider, Schema, olderThanDays, ct);
     }
-
-    /// <summary>
-    /// Thin overload for the original scenarios: in-process wakeup, no system jobs, fresh sink,
-    /// resets the schema first.
-    /// </summary>
-    public static Task<BenchHost> StartAsync(string provider, string schema, int executors, int claimBatch, CancellationToken ct) =>
-        StartAsync(
-            new BenchHostOptions
-            {
-                Provider = provider,
-                Schema = schema,
-                Executors = executors,
-                ClaimBatch = claimBatch,
-            },
-            ct
-        );
 
     /// <summary>
     /// Resets the schema (unless the caller opted out), builds the host with the given tuning, and
@@ -618,6 +804,10 @@ public sealed class BenchHost : IAsyncDisposable
 
         var jobs = host.Services.GetRequiredService<IJobs>();
         var queries = host.Services.GetRequiredService<IActaOperations>();
+        if (opt.ResetSchema && opt.SeedHistory > 0)
+        {
+            await BenchHistory.SeedAsync(jobs, opt.Provider, opt.Schema, opt.SeedHistory, ct);
+        }
         return new BenchHost(host, jobs, queries, sink, opt.Provider, opt.Schema);
     }
 

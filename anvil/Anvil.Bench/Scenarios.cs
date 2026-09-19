@@ -236,6 +236,7 @@ public sealed class ThroughputScenario : IScenario
                 Executors = p.Executors,
                 ClaimBatch = p.ClaimBatch,
                 Profile = p.Profile,
+                SeedHistory = cfg.SeedHistory,
             },
             ct
         );
@@ -297,6 +298,7 @@ public sealed class DrainScenario : IScenario
             Executors = p.Executors,
             ClaimBatch = p.ClaimBatch,
             Profile = p.Profile,
+            SeedHistory = cfg.SeedHistory,
             // Fast heartbeat so lease extension runs inside short benchmark cells.
             LeaseTtlSeconds = 30,
         };
@@ -384,6 +386,7 @@ public sealed class LatencyScenario : IScenario
                 Executors = Math.Max(1, p.Executors),
                 ClaimBatch = Math.Max(1, p.ClaimBatch),
                 Profile = p.Profile,
+                SeedHistory = cfg.SeedHistory,
             },
             ct
         );
@@ -465,6 +468,7 @@ public sealed class EnqueueScenario : IScenario
                 Executors = p.Executors,
                 ClaimBatch = p.ClaimBatch,
                 Profile = p.Profile,
+                SeedHistory = cfg.SeedHistory,
             },
             ct
         );
@@ -545,6 +549,7 @@ public sealed class EnqueueBatchScenario : IScenario
                 Executors = p.Executors,
                 ClaimBatch = p.ClaimBatch,
                 Profile = p.Profile,
+                SeedHistory = cfg.SeedHistory,
             },
             ct
         );
@@ -609,6 +614,7 @@ public sealed class RecoveryScenario : IScenario
             ClaimBatch = p.ClaimBatch,
             LeaseTtlSeconds = cfg.LeaseTtlSeconds,
             RegisterSystemJobs = true,
+            SeedHistory = cfg.SeedHistory,
         };
         await using var cluster = await BenchCluster.StartAsync(template, workers: 2, ct);
         cluster.Sink.Expect(1);
@@ -702,9 +708,10 @@ public sealed class WakeupScenario : IScenario
             null,
             samples,
             resetSchema: true,
+            cfg.SeedHistory,
             ct
         );
-        var noOp = await MeasureAsync(p, schema, poll, BenchWakeupMode.NoOp, null, samples, resetSchema: true, ct);
+        var noOp = await MeasureAsync(p, schema, poll, BenchWakeupMode.NoOp, null, samples, resetSchema: true, cfg.SeedHistory, ct);
 
         var extra = new Dictionary<string, double>
         {
@@ -716,7 +723,17 @@ public sealed class WakeupScenario : IScenario
         };
         if (cfg.RedisConfig is not null)
         {
-            var redis = await MeasureAsync(p, schema, poll, BenchWakeupMode.Redis, cfg.RedisConfig, samples, resetSchema: true, ct);
+            var redis = await MeasureAsync(
+                p,
+                schema,
+                poll,
+                BenchWakeupMode.Redis,
+                cfg.RedisConfig,
+                samples,
+                resetSchema: true,
+                cfg.SeedHistory,
+                ct
+            );
             extra["pickupRedisP50Ms"] = redis.P50;
             extra["pickupRedisP95Ms"] = redis.P95;
         }
@@ -746,6 +763,7 @@ public sealed class WakeupScenario : IScenario
         string? redis,
         int samples,
         bool resetSchema,
+        int seedHistory,
         CancellationToken ct
     )
     {
@@ -759,6 +777,7 @@ public sealed class WakeupScenario : IScenario
             Wakeup = mode,
             RedisConfig = redis,
             ResetSchema = resetSchema,
+            SeedHistory = seedHistory,
         };
         await using var host = await BenchHost.StartAsync(opt, ct);
         host.Sink.Expect(int.MaxValue);
@@ -803,7 +822,17 @@ public sealed class QueryScenario : IScenario
     public async Task<CellMetrics> RunAsync(CellParams p, string schema, BenchConfig cfg, CancellationToken ct)
     {
         var rows = p.Rows > 0 ? p.Rows : DefaultRows;
-        await using var host = await BenchHost.StartAsync(p.Provider, schema, executors: 1, claimBatch: 1, ct);
+        await using var host = await BenchHost.StartAsync(
+            new BenchHostOptions
+            {
+                Provider = p.Provider,
+                Schema = schema,
+                Executors = 1,
+                ClaimBatch = 1,
+                SeedHistory = cfg.SeedHistory,
+            },
+            ct
+        );
 
         await Workload.EnqueueAsync(host.Jobs, rows, p.PayloadBytes, IdleHorizonSeconds, ct);
 
@@ -875,6 +904,9 @@ public sealed class PurgeScenario : IScenario
             Executors = p.Executors,
             ClaimBatch = p.ClaimBatch,
             RegisterSystemJobs = true,
+            // Seeded events land inside this cell's expired set by design: the sweep it measures is
+            // the one that deletes them, which is the point of purging against a populated ledger.
+            SeedHistory = cfg.SeedHistory,
             // Retention must be >= 1 day; we age the events past it below rather than zeroing the window.
             JobEventsRetentionDays = 1,
         };
@@ -1004,6 +1036,7 @@ public sealed class LoadProfileScenario : IScenario
                 Executors = p.Executors,
                 ClaimBatch = p.ClaimBatch,
                 Profile = p.Profile,
+                SeedHistory = cfg.SeedHistory,
             },
             ct
         );

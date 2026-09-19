@@ -59,7 +59,11 @@ public sealed record BenchConfig(
     int RatePerSec = 2000,
     // Run the throughput/drain workload on the audit-on handler so internal probes can measure the
     // per-job event write cost. Cell keys do not record this value.
-    bool AuditOn = false
+    bool AuditOn = false,
+    // Terminal jobs seeded into every cell after its schema reset and before its timed window, so a
+    // measurement runs against a ledger with history in it instead of an empty one. Zero keeps the
+    // original empty-ledger behavior. Cell keys do not record this value.
+    int SeedHistory = 0
 );
 
 /// <summary>

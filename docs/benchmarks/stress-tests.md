@@ -50,6 +50,26 @@ dotnet run --project anvil/Anvil.Bench -- full --db all
 
 SQLite is only included when selected explicitly or when `--db all` is used.
 
+## Seeded History
+
+By default every cell measures against a ledger that was just created, so the tables hold only the
+rows the scenario writes itself. `--seed-history <N>` fills each cell with `N` terminal jobs after
+its schema reset and before its timed window: a settled runtime row, one `job.execution-finished`
+event, and one result row each, with `created_at_utc` spread across the last 30 days so the
+retention-shaped indexes see a real date range. The seeded jobs carry a retention stamp a year out,
+so no retention sweep removes them mid-cell.
+
+```bash
+dotnet run --project anvil/Anvil.Bench -- quick --db pg --seed-history 1000000
+```
+
+Seeding is excluded from every measurement and the workload a seeded cell runs is identical to the
+unseeded one, so numbers from the two runs answer the same question against different table sizes.
+Each cell records `seedHistory` plus the `retainedJobs`, `retainedRuntimes`, `retainedEvents`, and
+`retainedResults` counts it ended with under `extraMetrics` in the JSON, and the Markdown report
+repeats them per cell in a **Seeded history** table. The default, `--seed-history 0`, is the
+empty-ledger run this harness has always done.
+
 ## Presets
 
 `quick` is the normal local check when you have limited time. It uses:

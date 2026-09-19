@@ -393,14 +393,15 @@ public static class BaselineCapture
         BaselineCellRunner? runner = null,
         IReadOnlyList<BaselineDatabaseInfo>? databaseInfo = null,
         IReadOnlyList<string>? providers = null,
-        IReadOnlyList<string>? scenarios = null
+        IReadOnlyList<string>? scenarios = null,
+        BenchConfig? config = null
     )
     {
         var normalizedProviders = BaselineSuite.NormalizeProviders(providers);
         var databases = databaseInfo ?? await BaselineEnvironment.CaptureDatabasesAsync(ct, normalizedProviders).ConfigureAwait(false);
         var byProvider = databases.ToDictionary(d => d.Provider, StringComparer.OrdinalIgnoreCase);
         var specs = BaselineSuite.Cells(preset, byProvider, normalizedProviders, scenarios);
-        runner ??= (spec, repeatIndex, warmup, runCt) => RunCellAsync(spec, repeatIndex, warmup, runCt);
+        runner ??= (spec, repeatIndex, warmup, runCt) => RunCellAsync(spec, repeatIndex, warmup, runCt, config);
 
         var results = new List<BaselineCellResult>(specs.Count);
         foreach (var spec in specs)
@@ -448,11 +449,13 @@ public static class BaselineCapture
             ScenarioRegistry.Find(spec.ActualScenario)
             ?? throw new ArgumentException($"Unknown baseline scenario '{spec.ActualScenario}'.", nameof(spec));
         var schema = BenchIdentity.NewSchema(DateTime.UtcNow, $"{repeatIndex:x2}{(warmup ? "w" : "m")}");
+        var cfg = config ?? new BenchConfig();
         try
         {
             var locksBefore = await ProviderConn.TryReadLockStatsAsync(spec.Provider, schema, ct).ConfigureAwait(false);
-            var metrics = await scenario.RunAsync(spec.ActualParams, schema, config ?? new BenchConfig(), ct).ConfigureAwait(false);
+            var metrics = await scenario.RunAsync(spec.ActualParams, schema, cfg, ct).ConfigureAwait(false);
             metrics = await WithLockStatsAsync(metrics, spec.Provider, schema, locksBefore, ct).ConfigureAwait(false);
+            metrics = await WithHistoryCountsAsync(metrics, spec.Provider, schema, cfg.SeedHistory, ct).ConfigureAwait(false);
             var status = metrics.JobsObserved >= scenario.ExpectedObserved(spec.ActualParams) ? "ok" : "incomplete";
             return new CellResult(spec.Scenario, spec.ActualParams, metrics, status, null);
         }
@@ -510,6 +513,38 @@ public static class BaselineCapture
         }
         var pageLatchByIndex = PageLatchIndexDelta.Compute(before.PageLatchByIndex, after.PageLatchByIndex);
         return metrics with { Extra = extra, PageLatchByIndex = pageLatchByIndex };
+    }
+
+    /// <summary>
+    /// Attaches how full the ledger was for this cell: <c>seedHistory</c> (the depth asked for) plus
+    /// the <c>retained*</c> row counts left in jobs, runtimes, events, and results. Counted after the
+    /// measured window, so reading them costs the cell's numbers nothing.
+    /// </summary>
+    private static async Task<CellMetrics> WithHistoryCountsAsync(
+        CellMetrics metrics,
+        string provider,
+        string schema,
+        int seedHistory,
+        CancellationToken ct
+    )
+    {
+        var extra = metrics.Extra is null
+            ? new Dictionary<string, double>(StringComparer.Ordinal)
+            : new Dictionary<string, double>(metrics.Extra, StringComparer.Ordinal);
+        extra["seedHistory"] = seedHistory;
+        var counts = await ProviderConn.TryReadRetainedCountsAsync(provider, schema, ct).ConfigureAwait(false);
+        if (counts is not null)
+        {
+            foreach (var (key, value) in counts)
+            {
+                extra[key] = value;
+            }
+        }
+
+        return metrics with
+        {
+            Extra = extra,
+        };
     }
 
     public static void Write(BaselineFile baseline, string path)
@@ -730,6 +765,7 @@ public static class BaselineReport
         );
         sb.AppendLine();
 
+        AppendSeededHistory(sb, baseline.Cells);
         AppendThroughput(sb, baseline.Cells);
         AppendDrain(sb, baseline.Cells);
         AppendLatency(sb, baseline.Cells);
@@ -738,6 +774,75 @@ public static class BaselineReport
         AppendQuery(sb, baseline.Cells);
         return sb.ToString();
     }
+
+    /// <summary>
+    /// One cell's parameters as a short line: scenario, provider, profile, then only the sweep
+    /// dimensions that cell actually uses. Shared by the live progress bar and the report.
+    /// </summary>
+    public static string DescribeCell(BaselineCellKey c)
+    {
+        var parts = new List<string> { c.Scenario, c.Provider };
+        if (c.ExecutionProfile is { } profile)
+        {
+            parts.Add(profile.ToLowerInvariant());
+        }
+        if (c.Jobs > 0)
+        {
+            parts.Add($"j={c.Jobs}");
+        }
+        if (c.Executors > 0)
+        {
+            parts.Add($"e={c.Executors}");
+        }
+        if (c.ClaimBatch > 0)
+        {
+            parts.Add($"b={c.ClaimBatch}");
+        }
+        if (c.Workers > 0)
+        {
+            parts.Add($"w={c.Workers}");
+        }
+        if (c.Rows > 0)
+        {
+            parts.Add($"r={c.Rows}");
+        }
+        return string.Join(' ', parts);
+    }
+
+    // Skipped entirely on an unseeded run, so a --seed-history 0 report is byte-for-byte the report
+    // this harness always wrote.
+    private static void AppendSeededHistory(StringBuilder sb, IReadOnlyList<BaselineCellResult> cells)
+    {
+        var rows = cells.Where(c => Extra(c, "seedHistory") > 0).ToArray();
+        if (rows.Length == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("## Seeded history: rows in the ledger per cell");
+        sb.AppendLine();
+        sb.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Each cell was seeded with terminal jobs spread over the last {BenchHistory.SpreadDays} days before its timed window; seeding is not measured."
+        );
+        sb.AppendLine("Retained counts are the rows standing in the cell's schema afterwards.");
+        sb.AppendLine();
+        sb.AppendLine("| cell | seeded | jobs | runtimes | events | results |");
+        sb.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: |");
+        foreach (var row in rows)
+        {
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"| {DescribeCell(row.Key)} | {FormatWhole(Extra(row, "seedHistory"))} | {FormatWhole(Extra(row, "retainedJobs"))} "
+                    + $"| {FormatWhole(Extra(row, "retainedRuntimes"))} | {FormatWhole(Extra(row, "retainedEvents"))} "
+                    + $"| {FormatWhole(Extra(row, "retainedResults"))} |"
+            );
+        }
+        sb.AppendLine();
+    }
+
+    private static double Extra(BaselineCellResult cell, string key) =>
+        cell.MedianMetrics.ExtraMetrics is { } extra && extra.TryGetValue(key, out var value) ? value : 0;
 
     // Production-default first, then combined-durable, then relaxed - so a reader scans profiles in
     // increasing-speed / decreasing-durability order rather than alphabetically.

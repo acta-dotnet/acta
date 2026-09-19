@@ -40,6 +40,71 @@ public static class CellSummary
     private static string Deadlocks(CellMetrics m) => Ex(m, "deadlocks") > 0 ? $"  DEADLOCKS {Ex(m, "deadlocks"):F0}" : "";
 }
 
+/// <summary>
+/// The scripted-run tail of a command line: which databases to measure, an optional scenario filter,
+/// and how many terminal jobs to seed into every cell before it is timed.
+/// </summary>
+public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyList<string>? Scenarios, int SeedHistory)
+{
+    /// <summary>
+    /// Parses the arguments after the preset name. <c>--db</c> is required; <c>--scenario</c> repeats
+    /// to select cells; <c>--seed-history</c> takes a non-negative count and defaults to 0, which is
+    /// the empty-ledger run. Throws <see cref="ArgumentException"/> on an unknown or malformed option.
+    /// </summary>
+    public static BenchRunOptions Parse(string[] args)
+    {
+        string? db = null;
+        List<string>? scenarios = null;
+        var seedHistory = 0;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i] is not ("--db" or "--scenario" or "--seed-history"))
+            {
+                throw new ArgumentException($"Unknown option '{args[i]}'.");
+            }
+            if (i + 1 >= args.Length || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+            {
+                throw new ArgumentException($"Missing value for {args[i]}.");
+            }
+
+            if (args[i] == "--db")
+            {
+                db = args[++i];
+            }
+            else if (args[i] == "--seed-history")
+            {
+                seedHistory = SeedHistoryFromArg(args[++i]);
+            }
+            else
+            {
+                (scenarios ??= []).Add(args[++i]);
+            }
+        }
+
+        return db is null
+            ? throw new ArgumentException("Missing --db sqlite|pg|mssql|all.")
+            : new BenchRunOptions(ProvidersFromDb(db), scenarios, seedHistory);
+    }
+
+    /// <summary>Expands a <c>--db</c> value to the providers it names; <c>all</c> is the full matrix.</summary>
+    public static IReadOnlyList<string> ProvidersFromDb(string db)
+    {
+        if (string.Equals(db, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return BaselineSuite.NormalizeProviders(null);
+        }
+
+        var providers = BaselineSuite.NormalizeProviders([db]);
+        return providers.Count != 1 ? throw new ArgumentException("Choose one database or all.") : providers;
+    }
+
+    private static int SeedHistoryFromArg(string raw) =>
+        int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value >= 0
+            ? value
+            : throw new ArgumentException($"--seed-history takes a job count of 0 or more, not '{raw}'.");
+}
+
 /// <summary>Simple benchmark CLI dispatch for the Anvil.Bench executable.</summary>
 public static class BenchCli
 {
@@ -79,15 +144,16 @@ public static class BenchCli
     private static async Task<int> ScriptedRunAsync(string presetName, string[] args, CancellationToken ct)
     {
         var preset = BaselineSuite.Preset(presetName);
-        var (providers, scenarios) = OptionsFromArgs(args);
-        return await RunPresetAsync(preset, providers, ct, scenarios);
+        var options = BenchRunOptions.Parse(args);
+        return await RunPresetAsync(preset, options.Providers, ct, options.Scenarios, options.SeedHistory);
     }
 
     private static async Task<int> RunPresetAsync(
         BenchPreset preset,
         IReadOnlyList<string> providers,
         CancellationToken ct,
-        IReadOnlyList<string>? scenarios = null
+        IReadOnlyList<string>? scenarios = null,
+        int seedHistory = 0
     )
     {
         if (!await CheckDatabasesAsync(providers, ct).ConfigureAwait(false))
@@ -97,18 +163,21 @@ public static class BenchCli
 
         var measurements = MeasurementCount(preset, providers, scenarios);
         var outputDir = BaselineCapture.OutputDirectory();
+        var config = new BenchConfig(SeedHistory: seedHistory);
         Console.WriteLine(
             $"Running {preset.Name} benchmark for {string.Join(", ", providers)} "
-                + $"(jobs={preset.Jobs}, batchJobs={preset.EnqueueBatchJobs}, rows={preset.QueryRows})  -  {measurements} measurements, ETA shown live"
+                + $"(jobs={preset.Jobs}, batchJobs={preset.EnqueueBatchJobs}, rows={preset.QueryRows}"
+                + $"{(seedHistory > 0 ? $", seedHistory={seedHistory}" : "")})  -  {measurements} measurements, ETA shown live"
         );
         Console.WriteLine($"Output: {outputDir}");
 
         var baseline = await BaselineCapture.CaptureAsync(
             preset,
             ct,
-            ProgressRunner(preset, providers, scenarios),
+            ProgressRunner(preset, providers, scenarios, config),
             providers: providers,
-            scenarios: scenarios
+            scenarios: scenarios,
+            config: config
         );
         var outPath = BaselineCapture.OutputPath(baseline, outputDir);
         BaselineCapture.Write(baseline, outPath);
@@ -196,55 +265,13 @@ public static class BenchCli
 
             try
             {
-                return ProvidersFromDb(value);
+                return BenchRunOptions.ProvidersFromDb(value);
             }
             catch (ArgumentException)
             {
                 Console.WriteLine("Choose pg, mssql, sqlite, or all.");
             }
         }
-    }
-
-    private static (IReadOnlyList<string> Providers, IReadOnlyList<string>? Scenarios) OptionsFromArgs(string[] args)
-    {
-        string? db = null;
-        List<string>? scenarios = null;
-
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (args[i] is not ("--db" or "--scenario"))
-            {
-                throw new ArgumentException($"Unknown option '{args[i]}'.");
-            }
-            if (i + 1 >= args.Length || args[i + 1].StartsWith("--", StringComparison.Ordinal))
-            {
-                throw new ArgumentException($"Missing value for {args[i]}.");
-            }
-
-            if (args[i] == "--db")
-            {
-                db = args[++i];
-            }
-            else
-            {
-                (scenarios ??= []).Add(args[++i]);
-            }
-        }
-
-        return db is null
-            ? throw new ArgumentException("Missing --db sqlite|pg|mssql|all.")
-            : ((IReadOnlyList<string> Providers, IReadOnlyList<string>? Scenarios))(ProvidersFromDb(db), scenarios);
-    }
-
-    private static IReadOnlyList<string> ProvidersFromDb(string db)
-    {
-        if (string.Equals(db, "all", StringComparison.OrdinalIgnoreCase))
-        {
-            return BaselineSuite.NormalizeProviders(null);
-        }
-
-        var providers = BaselineSuite.NormalizeProviders([db]);
-        return providers.Count != 1 ? throw new ArgumentException("Choose one database or all.") : providers;
     }
 
     /// <summary>Total measured cells (median-of-N counted) - the denominator for the progress bar.</summary>
@@ -257,7 +284,8 @@ public static class BenchCli
     private static BaselineCellRunner ProgressRunner(
         BenchPreset preset,
         IReadOnlyList<string> providers,
-        IReadOnlyList<string>? scenarios = null
+        IReadOnlyList<string>? scenarios,
+        BenchConfig config
     )
     {
         var total = MeasurementCount(preset, providers, scenarios);
@@ -271,7 +299,7 @@ public static class BenchCli
             var phase = warmup
                 ? $"warmup {repeatIndex + 1}/{preset.Policy.WarmupIterations}"
                 : $"run {repeatIndex + 1}/{preset.Policy.MeasuredRepeats}";
-            var cell = DescribeBaselineCell(spec.Key);
+            var cell = BaselineReport.DescribeCell(spec.Key);
             var number = Interlocked.Increment(ref done);
             var finished = number - 1;
             var pct = total > 0 ? (int)(100.0 * finished / total) : 0;
@@ -281,7 +309,7 @@ public static class BenchCli
                     : "-";
             Console.Write($"[{Bar(finished, total, 20)} {pct, 3}%] {number, 3}/{total}  ETA {eta, -7} | {phase, -10} {cell, -60} ... ");
             var started = DateTime.UtcNow;
-            var result = await BaselineCapture.RunCellAsync(spec, repeatIndex, warmup, ct).ConfigureAwait(false);
+            var result = await BaselineCapture.RunCellAsync(spec, repeatIndex, warmup, ct, config).ConfigureAwait(false);
             var elapsed = DateTime.UtcNow - started;
             Console.WriteLine(
                 $"{CellSummary.Summarize(spec.ActualScenario, result.Metrics).Trim()} [{result.Status}] {elapsed.TotalSeconds:F1}s"
@@ -301,36 +329,6 @@ public static class BenchCli
         : t.TotalMinutes < 60 ? $"{(int)t.TotalMinutes}m{t.Seconds:D2}s"
         : $"{(int)t.TotalHours}h{t.Minutes:D2}m";
 
-    private static string DescribeBaselineCell(BaselineCellKey c)
-    {
-        var parts = new List<string> { c.Scenario, c.Provider };
-        if (c.ExecutionProfile is { } profile)
-        {
-            parts.Add(profile.ToLowerInvariant());
-        }
-        if (c.Jobs > 0)
-        {
-            parts.Add($"j={c.Jobs}");
-        }
-        if (c.Executors > 0)
-        {
-            parts.Add($"e={c.Executors}");
-        }
-        if (c.ClaimBatch > 0)
-        {
-            parts.Add($"b={c.ClaimBatch}");
-        }
-        if (c.Workers > 0)
-        {
-            parts.Add($"w={c.Workers}");
-        }
-        if (c.Rows > 0)
-        {
-            parts.Add($"r={c.Rows}");
-        }
-        return string.Join(' ', parts);
-    }
-
     private static int Usage()
     {
         Console.WriteLine(
@@ -339,12 +337,21 @@ public static class BenchCli
 
             Usage:
               acta-bench
-              acta-bench quick --db sqlite|pg|mssql|all
-              acta-bench full --db sqlite|pg|mssql|all
+              acta-bench quick --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>]
+              acta-bench full --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>]
 
             Presets:
               quick   Local 5-10 minute run for one database. Uses 1 measured run, 1,000 jobs, and 10,000 query rows.
               full    Canonical full matrix. Uses 1 warmup, median of 3 measured runs, 10,000 jobs, and 100,000 query rows.
+
+            Options:
+              --scenario <name>     Measure only this scenario; repeat to select several.
+              --seed-history <N>    Seed N terminal jobs (runtime, event, and result rows each) into every cell after
+                                    its schema reset and before its timed window, dated across the last 30 days, so the
+                                    cell measures against a populated ledger. Seeding is never timed and the workload is
+                                    unchanged. Default 0, the empty-ledger run. The seeded depth and the resulting row
+                                    counts are reported per cell as seedHistory / retainedJobs / retainedRuntimes /
+                                    retainedEvents / retainedResults.
 
             Output:
               Every run writes JSON and Markdown to anvil/Anvil.Bench/.benchmarks/.
@@ -358,6 +365,7 @@ public static class BenchCli
               acta-bench full --db mssql
               acta-bench quick --db all
               acta-bench full --db mssql --scenario throughput:bulk --scenario drain:bulk
+              acta-bench full --db pg --seed-history 1000000
 
             Exit codes: 0 ok; 2 usage.
             """
