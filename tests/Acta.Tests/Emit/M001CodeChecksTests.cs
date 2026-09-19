@@ -112,6 +112,28 @@ public class M001CodeChecksTests
     }
 
     [Fact]
+    public void PgM001_ClaimIndex_CarriesNoNullsClause()
+    {
+        // The claim orders by next_run_at_utc ASC with PostgreSQL's default NULLS LAST, which the
+        // index must match key for key or every claim sorts its candidates instead of walking them.
+        // ck_runtimes_ready_due is what removed the NULL a Ready row could once carry, so the index
+        // stays exactly as rc.2 rendered it.
+        Assert.Contains(
+            "CREATE INDEX IF NOT EXISTS ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);",
+            PgM001,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void NoM001_EmitsNullsFirst()
+    {
+        Assert.DoesNotContain("NULLS FIRST", PgM001, StringComparison.Ordinal);
+        Assert.DoesNotContain("NULLS FIRST", SqlServerM001, StringComparison.Ordinal);
+        Assert.DoesNotContain("NULLS FIRST", SqliteM001, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PgAndSqliteM001_NeverEmitOptimizeForSequentialKey()
     {
         Assert.DoesNotContain("OPTIMIZE_FOR_SEQUENTIAL_KEY", PgM001, StringComparison.Ordinal);

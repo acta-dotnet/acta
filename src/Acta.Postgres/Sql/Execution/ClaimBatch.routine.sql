@@ -28,9 +28,9 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace;
-           exclusive-key admission is executor-owned (lock store) after the start CAS, so no jobs join
-           here. Ready admits a NULL next run, Suspended does not: a NULL there is an unbounded wait. */
+        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; exclusive-key
+           admission is executor-owned (lock store) after the start CAS, so no jobs join here. A Ready row
+           always carries its due instant (ck_runtimes_ready_due); a Suspended NULL is an unbounded wait. */
         SELECT r.job_id AS id, r.status_code AS from_status
         FROM {{schema}}.runtimes r
         WHERE
@@ -40,12 +40,12 @@ AS $$
                falls back to a full runtimes scan and sort. */
             AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND (
-                (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= now()))
+                (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= now())
                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
             )
         ORDER BY
             r.priority_code DESC,
-            r.next_run_at_utc ASC NULLS FIRST,
+            r.next_run_at_utc ASC,
             r.job_id ASC
         LIMIT p_claim_limit
         FOR UPDATE OF r SKIP LOCKED
@@ -170,7 +170,7 @@ AS $$
         NULL::uuid,
         NULL::int,
         c.db_now,
-        (SELECT MIN(COALESCE(r.next_run_at_utc, c.db_now))
+        (SELECT MIN(r.next_run_at_utc)
             FROM {{schema}}.runtimes r
             WHERE
                 r.namespace_id = p_namespace_id

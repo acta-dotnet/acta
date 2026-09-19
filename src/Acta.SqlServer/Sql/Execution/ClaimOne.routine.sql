@@ -46,8 +46,8 @@ BEGIN
 
         WITH candidates AS (
             /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
-               matches top-level AND-terms only. Ready admits a NULL next run; Suspended does not,
-               because a NULL there is an unbounded wait and only a raise may release it. */
+               matches top-level AND-terms only. A Ready row always carries its due instant, enforced
+               by ck_runtimes_ready_due; Suspended keeps a NULL for an unbounded wait. */
             SELECT r.job_id AS id
             FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
@@ -55,7 +55,7 @@ BEGIN
                 AND r.namespace_id = @p_namespace_id
                 AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                 AND (
-                    (r.status_code = 10 /* JobStatusCode.Ready */ AND (r.next_run_at_utc IS NULL OR r.next_run_at_utc <= @due_now))
+                    (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= @due_now)
                     OR (
                         r.status_code = 20 /* JobStatusCode.Suspended */
                         AND r.next_run_at_utc IS NOT NULL

@@ -40,6 +40,9 @@ public abstract class OutboxSignalEvidenceSpec<TFixture> : ActaStorageTestBase<T
                     NamespaceId = TestNamespaceId,
                     Status = JobStatusCode.Ready,
                     Priority = JobPriorityCode.Critical,
+                    // Ready carries its due instant the way register_scheduled_jobs writes the real
+                    // slot row; ck_runtimes_ready_due rejects the pair otherwise.
+                    NextRunAtUtc = DateTime.UtcNow,
                     ExecutionNumber = 1,
                 },
                 ct

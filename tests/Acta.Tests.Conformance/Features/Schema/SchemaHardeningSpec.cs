@@ -145,8 +145,10 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         );
     }
 
-    [Fact(DisplayName = "ck_runtimes_inflight_leased rejects Dispatched and Executing with no lease and admits a complete lease pair")]
-    public async Task Runtimes_in_flight_status_requires_a_lease()
+    [Fact(
+        DisplayName = "ck_runtimes_inflight_leased and ck_runtimes_ready_due bind a status to the column it requires, on INSERT and on UPDATE"
+    )]
+    public async Task Runtimes_status_requires_its_paired_column()
     {
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
@@ -180,6 +182,45 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
 
         await Assert.ThrowsAnyAsync<DbException>(() => SetUnleasedAsync(JobStatusCode.Dispatched));
         await Assert.ThrowsAnyAsync<DbException>(() => SetUnleasedAsync(JobStatusCode.Executing));
+
+        // ck_runtimes_ready_due is the same shape of rule on the other hot column: a Ready row is due
+        // at a known instant, so the claim can walk ix_runtimes_claim_ready instead of sorting.
+        var seeder = new ActaTestSeeder(Db);
+        var nsId = await seeder.SeedJobNamespaceAsync(TestKey("ready-due"), ct: ct);
+        var defId = await seeder.SeedJobDefinitionAsync(nsId, TestKey("ready-due-def"), ct: ct);
+
+        async Task<long> InsertRuntimeAsync(JobStatusCode status, DateTime? nextRunAtUtc)
+        {
+            var (jobId, _) = await seeder.SeedJobAsync(nsId, defId, ct: ct);
+            return await Db.From<JobRuntime>()
+                .InsertAsync<long>(
+                    new JobRuntime
+                    {
+                        Id = jobId,
+                        NamespaceId = nsId,
+                        Status = status,
+                        Priority = JobPriorityCode.Normal,
+                        NextRunAtUtc = nextRunAtUtc,
+                    },
+                    ct
+                );
+        }
+
+        // The two shapes the write paths produce: Ready on a known instant, and a Suspended row parked
+        // on an unbounded wait. They are the control for the rejections below.
+        var readyId = await InsertRuntimeAsync(JobStatusCode.Ready, DateTime.UtcNow.AddMinutes(5));
+        var suspendedId = await InsertRuntimeAsync(JobStatusCode.Suspended, null);
+
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertRuntimeAsync(JobStatusCode.Ready, null));
+
+        // A live row reaches the bad shape by UPDATE, which is how the sleep timer could null the
+        // instant under a worker whose lease had already been reclaimed.
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            Db.From<JobRuntime>().Where(r => r.Id == readyId).UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = null }, ct)
+        );
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            Db.From<JobRuntime>().Where(r => r.Id == suspendedId).UpdateOnlyAsync(() => new JobRuntime { Status = JobStatusCode.Ready }, ct)
+        );
     }
 
     [Fact(DisplayName = "Closed-family constraints reject unassigned values and 255")]

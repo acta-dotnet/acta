@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **226 columns**, **32 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **226 columns**, **32 indexes**, **34 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -389,7 +389,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 | `namespace_id`<a id="column-acta-runtimes--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the owning Job's namespace, denormalized so the hot claim, reclaim, and retention scans filter and seek without joining `jobs` (`ix_runtimes_claim_ready` / `ix_runtimes_retention` lead with it). Written once at insert, never updated. |
 | `status_code`<a id="column-acta-runtimes--status-code"></a> | `Byte` | · | no | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled). |
 | `priority_code`<a id="column-acta-runtimes--priority-code"></a> | `Byte` | · | no | · | [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) (`job-priority`) | Claim-order key set from the definition policy, definition override, or per-enqueue override. |
-| `next_run_at_utc`<a id="column-acta-runtimes--next-run-at-utc"></a> | `UtcInstant` | · | yes | · | · | Next claim instant; the hot-path claim filter compares against this. On a `Suspended` row it carries the awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait unclaimable while a bounded one wakes at its deadline. |
+| `next_run_at_utc`<a id="column-acta-runtimes--next-run-at-utc"></a> | `UtcInstant` | · | yes | · | · | Next claim instant; the hot-path claim filter compares against this. A `Ready` row always carries it, enforced by `ck_runtimes_ready_due`. On a `Suspended` row it carries the awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait unclaimable while a bounded one wakes at its deadline. |
 | `execution_number`<a id="column-acta-runtimes--execution-number"></a> | `Int32` | · | no | · | · | Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a recurring slot claimed once a second for its whole life would take about sixty-eight years to exhaust it, and exhaustion lies outside the supported lifetime of one durable slot. The providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32 mapper rejects it on read), so the failure mode is an error, never a negative attempt number. |
 | `failure_count`<a id="column-acta-runtimes--failure-count"></a> | `Int16` | · | no | · | · | Failure counter for the current cycle, compared against `MaxAttempts` on a one-off job. A recurring slot is not terminalized for crossing that budget, so its counter keeps climbing across occurrences and every increment path saturates at `MaxValue` rather than overflowing: at the ceiling the value means "that many or more", not an exact lifetime count. |
 | `leased_by_worker_id`<a id="column-acta-runtimes--leased-by-worker-id"></a> | `Int32` | · | yes | · | · | Worker that currently holds the in-flight execution lease, if any. No FK; write-time validation in the claim routine. Paired with `LeaseExpiresAtUtc` by `ck_runtimes_lease_consistency`, and bound to `Status` in both directions by `ck_runtimes_status_lease` and `ck_runtimes_inflight_leased`: set exactly while the status is `Dispatched` or `Executing`, NULL otherwise. |
@@ -414,6 +414,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 | `ck_runtimes_counters` | `execution_number >= 0 AND failure_count >= 0` |
 | `ck_runtimes_status_lease` | `status_code IN (40, 50) OR leased_by_worker_id IS NULL` |
 | `ck_runtimes_inflight_leased` | `status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL` |
+| `ck_runtimes_ready_due` | `status_code <> 10 OR next_run_at_utc IS NOT NULL` |
 
 **Foreign keys**
 

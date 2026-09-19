@@ -280,6 +280,7 @@ CREATE TABLE {{schema}}.runtimes (
     , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL)
+    , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
     , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
@@ -614,7 +615,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-aa93f53cf6367c57e93fa81919337723', '{{schema}}');
+VALUES (0, 'baseline-eddfbf4a4f499773cf5078d0877c7db6', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

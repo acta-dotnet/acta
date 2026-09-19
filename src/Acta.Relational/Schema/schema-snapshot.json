@@ -868,6 +868,10 @@
             "Sql": "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
           },
           {
+            "Name": "ck_runtimes_ready_due",
+            "Sql": "status_code \u003C\u003E 10 OR next_run_at_utc IS NOT NULL"
+          },
+          {
             "Name": "ck_runtimes_status_lease",
             "Sql": "status_code IN (40, 50) OR leased_by_worker_id IS NULL"
           }

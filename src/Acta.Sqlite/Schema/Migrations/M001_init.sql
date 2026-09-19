@@ -247,6 +247,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL)
+    , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
     , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
@@ -417,7 +418,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-8b9f74b1c959e09d87eb4193967d0642', '{{schema}}')
+VALUES (0, 'baseline-34b57a65907d3270ce845a2797aa5224', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

@@ -67,6 +67,12 @@ namespace Acta.Relational.Entities;
 // CancelJob, RestartJob, RegisterJobDefinitions.
 [DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
 [DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
+// A Ready row is due at a known instant, which is what lets the claim seek ix_runtimes_claim_ready in
+// its own order instead of sorting every ready row. Every routine that lands Ready writes the instant
+// in the same statement: EnqueueOne, EnqueueBatch, RegisterScheduledJobs, RestartJob, ResumeJob,
+// RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecution (re-arm and signal release),
+// ReclaimStuckJobs, RepairRecoverySlot. NULL is reserved for a Suspended row's unbounded wait.
+[DbCheck(Name = "ck_runtimes_ready_due", Sql = "status_code <> 10 OR next_run_at_utc IS NOT NULL")]
 internal sealed class JobRuntime : IEntity<long>
 {
     /// <summary>
@@ -97,9 +103,10 @@ internal sealed class JobRuntime : IEntity<long>
     public JobPriorityCode Priority { get; set; }
 
     /// <summary>
-    /// Next claim instant; the hot-path claim filter compares against this. On a <c>Suspended</c> row it
-    /// carries the awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an
-    /// unbounded wait unclaimable while a bounded one wakes at its deadline.
+    /// Next claim instant; the hot-path claim filter compares against this. A <c>Ready</c> row always
+    /// carries it, enforced by <c>ck_runtimes_ready_due</c>. On a <c>Suspended</c> row it carries the
+    /// awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait
+    /// unclaimable while a bounded one wakes at its deadline.
     /// </summary>
     [DbColumn("next_run_at_utc", DbKind.UtcInstant)]
     public DateTime? NextRunAtUtc { get; set; }

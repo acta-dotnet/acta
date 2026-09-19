@@ -8,6 +8,8 @@ WHERE
     AND jt.status_code = 10 /* JobCheckpointStatusCode.Pending */
     AND jt.due_at_utc <= {{now}};
 
+/* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an instant
+   the reclaim owns, and ck_runtimes_ready_due requires a Ready row to keep one. */
 UPDATE {{schema}}.runtimes
 SET
     next_run_at_utc = NULL,
@@ -15,6 +17,7 @@ SET
     version = version + 1
 WHERE
     job_id = @p_job_id
+    AND status_code = 50 /* JobStatusCode.Executing */
     AND EXISTS (SELECT 1 FROM temp._due_timer);
 
 UPDATE {{schema}}.checkpoints

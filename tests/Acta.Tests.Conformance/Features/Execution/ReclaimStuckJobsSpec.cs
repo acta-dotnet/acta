@@ -1,5 +1,6 @@
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Timers;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -194,6 +195,67 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
             )
             .ToListAsync(ct);
         Assert.Empty(leaseExpiredEvents);
+    }
+
+    [Fact(DisplayName = "A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone")]
+    public async Task Sleep_timer_consume_does_not_clear_a_reclaimed_rows_next_run()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var workerId = await WorkerIdAsync(Db, ns, ct);
+        var execution = Services.GetRequiredService<IExecutionStore>();
+
+        var enqueued = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            ct
+        );
+
+        const int LiveLeaseTtl = 30;
+        const string TimerName = "t.stale-worker";
+        var claimed = Assert.Single(await execution.ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
+        Assert.Equal(
+            StartExecutionAction.Started,
+            await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+        );
+
+        var armed = await execution.ArmOrConsumeSleepTimerAsync(
+            new ArmOrConsumeSleepTimerCommand(enqueued.JobId, TimerName, 600, null),
+            ct
+        );
+        Assert.Equal(SleepOutcome.Suspend, armed.Outcome);
+
+        // Back-dating the arm's due instant is what puts the next call on the consume arm, which is the
+        // one that clears next_run_at_utc; without it the call would simply re-suspend.
+        Assert.Equal(
+            1,
+            await Db.ExecuteRawAsync(
+                "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_job_id AND kind_code = @p_kind AND name = @p_name",
+                ct,
+                ("@p_due", DateTime.UtcNow.AddMinutes(-5)),
+                ("@p_job_id", enqueued.JobId),
+                ("@p_kind", (byte)JobCheckpointKindCode.Timer),
+                ("@p_name", TimerName)
+            )
+        );
+
+        await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
+        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
+
+        var reclaimed = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
+        Assert.NotNull(reclaimed.NextRunAtUtc);
+
+        // The reclaim owns the instant now. The stale worker's call still retires its own checkpoint,
+        // but writing NULL over a Ready row would hide it from the claim's index order for good.
+        var consumed = await execution.ArmOrConsumeSleepTimerAsync(
+            new ArmOrConsumeSleepTimerCommand(enqueued.JobId, TimerName, 600, null),
+            ct
+        );
+        Assert.Equal(SleepOutcome.Continue, consumed.Outcome);
+
+        var after = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Ready, after.Status);
+        Assert.Equal(reclaimed.NextRunAtUtc, after.NextRunAtUtc);
     }
 
     private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)

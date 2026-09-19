@@ -50,12 +50,14 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND name = @p_name;
 
+                /* Only the worker still executing may clear the instant. A reclaimed row is Ready again
+                   on an instant the reclaim owns, and ck_runtimes_ready_due requires Ready to keep one. */
                 UPDATE {{schema}}.runtimes
                 SET
                     next_run_at_utc = NULL,
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id;
+                WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
 
                 SET @outcome = 2 /* SleepOutcome.Continue */;
             END

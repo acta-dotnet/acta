@@ -1899,6 +1899,7 @@
   - Job goes terminal Failed once failure_count reaches MaxAttempts
   - Expired EXECUTING lease is reclaimed as Orphaned, returning the job to Ready with failure_count bumped
   - Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event
+  - A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
 
@@ -2272,7 +2273,7 @@
   - ck_alerts_job_ref_pair and ck_alerts_occurrence_count each reject their violating INSERT
   - ux_alerts_dedupe admits one unresolved row per (namespace_id, dedupe_key) and stops filtering once it is resolved
   - ck_runtimes_counters rejects an UPDATE to a negative failure_count
-  - ck_runtimes_inflight_leased rejects Dispatched and Executing with no lease and admits a complete lease pair
+  - ck_runtimes_inflight_leased and ck_runtimes_ready_due bind a status to the column it requires, on INSERT and on UPDATE
   - Closed-family constraints reject unassigned values and 255
   - Consumer payload format 255 remains storable
   - ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE

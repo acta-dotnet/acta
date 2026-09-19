@@ -40,12 +40,16 @@ BEGIN
             jt.job_id = p_job_id
             AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
             AND jt.name = p_name;
+        /* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an
+           instant the reclaim owns, and ck_runtimes_ready_due requires a Ready row to keep one. */
         UPDATE {{schema}}.runtimes r2
         SET
             next_run_at_utc = NULL,
             modified_at_utc = now(),
             version = r2.version + 1
-        WHERE r2.job_id = p_job_id;
+        WHERE
+            r2.job_id = p_job_id
+            AND r2.status_code = 50 /* JobStatusCode.Executing */;
         RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_state IS NOT NULL THEN
 
