@@ -66,7 +66,7 @@ internal static class DbSetClauseBuilder
             var p = cmd.CreateParameter();
             p.ParameterName = name;
             p.Value = DbValueCoercion.Coerce(value, assign.Expression.Type, provider);
-            DbValueCoercion.ApplyType(p, assign.Expression.Type);
+            DbValueCoercion.ApplyType(p, assign.Expression.Type, provider);
             cmd.Parameters.Add(p);
         }
     }

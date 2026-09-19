@@ -60,16 +60,24 @@ internal static class DbValueCoercion
     }
 
     /// <summary>
-    /// Pins the parameter's type where the driver cannot infer it from the value. A null
+    /// Pins the parameter's type where the driver infers it wrongly from the value. A null
     /// <c>byte[]</c> binds as <see cref="DBNull"/>, which SQL Server infers as <c>nvarchar</c> and then
     /// refuses to assign to a <c>varbinary</c> column; the CLR property type is the only thing that
-    /// still knows it is binary. Values the driver infers correctly are left alone.
+    /// still knows it is binary. SQL Server infers a <see cref="DateTime"/> as legacy <c>datetime</c>,
+    /// whose 1/300 s ticks round a millisecond-exact instant (.306 becomes .307) before it reaches a
+    /// <c>datetime2(3)</c> column, so it is pinned to <c>datetime2</c> there; PostgreSQL maps that
+    /// <see cref="System.Data.DbType"/> to a naive timestamp and is left to infer. Other values are left alone.
     /// </summary>
-    public static void ApplyType(System.Data.Common.DbParameter parameter, Type clrType)
+    public static void ApplyType(System.Data.Common.DbParameter parameter, Type clrType, DbProvider provider)
     {
-        if ((Nullable.GetUnderlyingType(clrType) ?? clrType) == typeof(byte[]))
+        var type = Nullable.GetUnderlyingType(clrType) ?? clrType;
+        if (type == typeof(byte[]))
         {
             parameter.DbType = System.Data.DbType.Binary;
+        }
+        else if (type == typeof(DateTime) && provider == DbProvider.SqlServer)
+        {
+            parameter.DbType = System.Data.DbType.DateTime2;
         }
     }
 }

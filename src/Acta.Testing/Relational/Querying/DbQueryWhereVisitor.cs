@@ -205,7 +205,7 @@ internal sealed class WhereVisitor(
         var p = _command.CreateParameter();
         p.ParameterName = name;
         p.Value = DbValueCoercion.Coerce(value, clrType, _provider);
-        DbValueCoercion.ApplyType(p, clrType);
+        DbValueCoercion.ApplyType(p, clrType, _provider);
         _command.Parameters.Add(p);
         return name;
     }
