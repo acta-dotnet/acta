@@ -42,13 +42,51 @@ public sealed class DefinitionRegistrationValidationTests
             SerializeOutput: null
         );
 
-    private static Task RegisterAsync(params JobDescriptor[] descriptors) =>
+    private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
+
+    private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
         new DefinitionsService(new RejectingDefinitionStore()).RegisterAsync(
             1,
             Gen,
             [.. descriptors],
-            [],
+            stored,
             TestContext.Current.CancellationToken
+        );
+
+    /// <summary>A catalog row as <c>RegisterAsync</c> reads it back: its effective (override ?? declared) rate is
+    /// all this gate looks at, so every other policy field is an arbitrary but valid placeholder.</summary>
+    private static StoredDefinitionContract Stored(string name, string? effectiveRate, string? rateKey = null) =>
+        new(
+            Name: name,
+            ManifestGenerationAtUtc: Gen,
+            Contract: new DefinitionContract(
+                "Input",
+                null,
+                JobPayloadFormat.None.Id,
+                JobPayloadFormat.None.Name,
+                0,
+                JobPayloadFormat.NoneName
+            ),
+            Id: 1,
+            DefinitionHash: "hash",
+            Status: JobDefinitionStatusCode.Active,
+            ModifiedAtUtc: Gen,
+            Effective: new EffectiveJobPolicy(
+                JobPriorityCode.Normal,
+                MaxAttempts: 3,
+                ConcurrencyLimit: null,
+                RateLimit: effectiveRate,
+                RateKey: rateKey,
+                Backoff: JobDefinitionRegistration.DefaultBackoffExpression,
+                ExecutionTimeoutSeconds: JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
+                DeadlineSeconds: 0,
+                DeadlineBehavior: DeadlineBehaviorCode.Strict,
+                JobRetentionSeconds: JobDefinitionRegistration.DefaultJobRetentionSeconds,
+                AuditLevel: JobAuditLevelCode.Audit,
+                AlertProfile: AlertProfileCode.None,
+                AlertChannelName: null,
+                RunbookUrl: null
+            )
         );
 
     [Fact]
@@ -155,6 +193,43 @@ public sealed class DefinitionRegistrationValidationTests
 
         Assert.Contains("stripe", ex.Message);
         Assert.Contains("charge-card", ex.Message);
+    }
+
+    [Fact]
+    public async Task A_definition_joining_an_overridden_meter_must_declare_its_effective_rate()
+    {
+        // "left" is already in the catalog, overridden down to 1/s. "right" is new to the meter and
+        // declares the bare code value (10/s), which is not what the meter is actually running at.
+        var stored = new[] { Stored("left", effectiveRate: "1/s", rateKey: "stripe") };
+        var joining = Descriptor("right") with { RateLimit = "10/s", RateKey = "stripe" };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync([joining], stored));
+
+        Assert.Contains("right", ex.Message);
+        Assert.Contains("stripe", ex.Message);
+        Assert.Contains("1/s", ex.Message);
+    }
+
+    [Fact]
+    public async Task A_definition_joining_an_overridden_meter_at_its_effective_rate_is_accepted()
+    {
+        var stored = new[] { Stored("left", effectiveRate: "1/s", rateKey: "stripe") };
+        var joining = Descriptor("right") with { RateLimit = "1/s", RateKey = "stripe" };
+
+        // The store fake rejects every call, so reaching it is the proof that the gate let it through.
+        await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync([joining], stored));
+    }
+
+    [Fact]
+    public async Task A_definitions_own_override_is_preserved_when_it_re_registers_alone()
+    {
+        // "left" is already in the catalog, overridden down to 1/s, and is the only stored row - so it
+        // is not joining anything. Re-registering its unchanged code-declared rate (10/s) is not a
+        // conflict with a meter it is the sole participant of.
+        var stored = new[] { Stored("left", effectiveRate: "1/s") };
+        var reregistering = Descriptor("left") with { RateLimit = "10/s" };
+
+        await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync([reregistering], stored));
     }
 
     [Fact]

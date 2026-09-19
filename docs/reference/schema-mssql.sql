@@ -3068,11 +3068,14 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @ns INT, @existing_version INT;
+        DECLARE @ns INT, @existing_version INT, @rate_limit VARCHAR(16), @rate_key VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
 
         SELECT
             @ns = jd.namespace_id,
-            @existing_version = jd.version
+            @existing_version = jd.version,
+            @rate_limit = jd.rate_limit,
+            @rate_key = jd.rate_key,
+            @name = jd.name
         FROM acta.definitions jd WITH (UPDLOCK, ROWLOCK)
         WHERE jd.id = @p_id;
 
@@ -3087,6 +3090,8 @@ BEGIN
                 SELECT CAST(3 /* DefinitionOverrideAction.VersionConflict */ AS TINYINT) AS action;
                 GOTO Finish;
             END;
+
+        SET @meter = LOWER(COALESCE(@rate_key, @name));
 
         UPDATE acta.definitions SET
             priority_code_override = @p_priority_code_override,
@@ -3108,6 +3113,21 @@ BEGIN
             version = jd.version + 1
         FROM acta.definitions jd
         WHERE jd.id = @p_id AND jd.version = @p_version;
+
+        -- A definition on a meter carries every sibling on the same effective key along with it here:
+        -- the meter never carries two rates, and the last write to reach it wins for every
+        -- participant, not just the addressed one. See JobDefinitionPolicyOverrides.RateLimit.
+        IF @rate_limit IS NOT NULL
+            UPDATE acta.definitions
+            SET
+                rate_limit_override = @p_rate_limit_override,
+                modified_at_utc = @now,
+                version = version + 1
+            WHERE
+                namespace_id = @ns
+                AND id <> @p_id
+                AND rate_limit IS NOT NULL
+                AND LOWER(COALESCE(rate_key, name)) = @meter;
 
         INSERT INTO acta.events (
             event_code, created_at_utc, namespace_id,
@@ -8248,6 +8268,10 @@ GO
 -- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
 -- only while it is fresh, at most one interval past its instant; one that went stale while executors
 -- were busy goes back through the meter, so a queue of overdue jobs cannot all start at once.
+
+-- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
+-- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
+-- is always persisted before it admits anything.
 CREATE OR ALTER PROCEDURE acta.reserve_rate
     @p_lock_key VARCHAR(256),
     @p_job_id BIGINT,

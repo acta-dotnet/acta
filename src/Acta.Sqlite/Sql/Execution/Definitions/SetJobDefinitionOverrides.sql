@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._set_job_def_overrides;
 
 CREATE TEMP TABLE _set_job_def_overrides AS
-SELECT jd.id, jd.namespace_id, jd.version
+SELECT jd.id, jd.namespace_id, jd.version, jd.rate_limit, LOWER(COALESCE(jd.rate_key, jd.name)) AS meter
 FROM {{schema}}.definitions jd
 WHERE jd.id = @p_id;
 
@@ -64,6 +64,22 @@ SET
     modified_at_utc = {{now}},
     version = version + 1
 WHERE id = @p_id AND version = @p_version;
+
+-- A definition on a meter carries every sibling on the same key along with it here: the meter never
+-- carries two rates. This batch has no early-return, so the version is re-checked against the
+-- pre-write snapshot - the same guard the row-locking providers get for free from their row lock.
+UPDATE {{schema}}.definitions
+SET
+    rate_limit_override = @p_rate_limit_override,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    id <> @p_id
+    AND rate_limit IS NOT NULL
+    AND namespace_id = (SELECT s.namespace_id FROM temp._set_job_def_overrides s)
+    AND LOWER(COALESCE(rate_key, name)) = (
+        SELECT s.meter FROM temp._set_job_def_overrides s WHERE s.rate_limit IS NOT NULL AND s.version = @p_version
+    );
 
 SELECT
     CASE

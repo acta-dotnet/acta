@@ -638,6 +638,9 @@
   - A backlog drains at the declared rate with one re-arm per denied job
   - Two definitions on one rate key meter from one bucket
   - Definitions that share a rate key must declare the same rate
+  - An override on one participant of a shared meter lands on every other participant
+  - Clearing the override on one participant clears it on every other participant
+  - A definition metered on its own name is unaffected by a shared meter's override
   - A rate denial hands the concurrency slot back and takes one again on the turn
 - **Store methods:**
   - `Acta.Runtime.Services.Locks.ILockStore.ReserveRateAsync`

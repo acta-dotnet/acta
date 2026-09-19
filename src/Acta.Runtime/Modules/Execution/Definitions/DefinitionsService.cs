@@ -235,11 +235,6 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             return new DefinitionControlResult(ControlAction.NotFound);
         }
 
-        if (overrides.RateLimit is { } newRate)
-        {
-            await RejectRateThatSplitsAMeterAsync(jobNamespace, jobName, definitionId.Value, newRate, ct);
-        }
-
         var outcome = await store.SetDefinitionOverridesAsync(
             new SetDefinitionOverridesCommand(
                 definitionId.Value,
@@ -293,6 +288,8 @@ internal sealed class DefinitionsService(IDefinitionStore store)
         {
             storedByName[s.Name] = s;
         }
+
+        ValidateJoiningRatesMatchOverriddenMeters(rows, storedByName, namespaceId);
 
         var manifestNames = new HashSet<string>(rows.Count, StringComparer.Ordinal);
         var anyChange = false;
@@ -442,81 +439,47 @@ internal sealed class DefinitionsService(IDefinitionStore store)
     }
 
     /// <summary>
-    /// Rejects a rate override that would leave one meter's participants disagreeing. Registration
-    /// holds the same rule over declared rates, and an override reaches the same column from another
-    /// surface, so a shared meter is retuned by overriding every participant, not one.
+    /// Rejects a definition that is new to a meter whose stored participants already carry an
+    /// override: it must declare the meter's effective rate (override ?? declared), not just the bare
+    /// value the code happens to carry, or the join would either desync a meter every other
+    /// participant already agrees on or silently ride an operator's retune without the operator ever
+    /// seeing this definition. Only <em>joining</em> is checked - a name absent from the stored
+    /// catalog - so re-registering an unchanged definition never re-litigates a decision an earlier
+    /// restart, or an override written since, already made stick; that is what keeps
+    /// <see cref="UpdateOverridesAsync"/> free to retune a meter without this gate rejecting the next
+    /// restart of every definition already on it.
     /// </summary>
-    /// <remarks>
-    /// The siblings are read just before the version-CAS write rather than inside it, so two operators
-    /// retuning one meter at the same instant can still land a split. That is the same window every
-    /// other cross-row operator rule here runs in, and the next registration reports it.
-    /// </remarks>
-    private async Task RejectRateThatSplitsAMeterAsync(
-        string jobNamespace,
-        string jobName,
-        int definitionId,
-        string newRate,
-        CancellationToken ct
+    private static void ValidateJoiningRatesMatchOverriddenMeters(
+        List<JobDefinitionRow> rows,
+        Dictionary<string, StoredDefinitionContract> storedByName,
+        int namespaceId
     )
     {
-        if (!RateLimitSpec.TryParse(newRate, out var parsed, out _))
+        foreach (var row in rows)
         {
-            return;
-        }
-
-        var siblings = await ReadNamespaceRateRowsAsync(jobNamespace, ct);
-        var meter = EffectiveRateKey(siblings.FirstOrDefault(r => r.DefinitionId == definitionId)?.RateKey, jobName);
-
-        foreach (var sibling in siblings)
-        {
-            if (
-                sibling.DefinitionId == definitionId
-                || sibling.RateLimitEffective is not { } siblingRate
-                || !string.Equals(EffectiveRateKey(sibling.RateKey, sibling.JobName), meter, StringComparison.Ordinal)
-                || string.Equals(siblingRate, parsed.Text, StringComparison.Ordinal)
-            )
+            if (row.RateLimit is not { } declared || storedByName.ContainsKey(row.Name))
             {
                 continue;
             }
 
-            throw new ArgumentException(
-                $"RateLimit override \"{newRate}\" would put definition \"{jobName}\" on meter \"{meter}\" at a different rate than "
-                    + $"\"{sibling.JobName}\", which is on it at \"{siblingRate}\": retune a shared meter by overriding every "
-                    + "definition on it.",
-                nameof(newRate)
-            );
-        }
-    }
-
-    /// <summary>Every definition row in the namespace, walked by the list read's own keyset order.</summary>
-    private async Task<List<JobDefinitionListItem>> ReadNamespaceRateRowsAsync(string jobNamespace, CancellationToken ct)
-    {
-        const int pageSize = 200;
-        var rows = new List<JobDefinitionListItem>();
-        string? cursorName = null;
-        int? cursorId = null;
-        while (true)
-        {
-            var page = await store.ListDefinitionsAsync(
-                new DefinitionPageRequest(
-                    jobNamespace,
-                    null,
-                    null,
-                    cursorName is null ? null : jobNamespace,
-                    cursorName,
-                    cursorId,
-                    pageSize,
-                    false
-                ),
-                ct
-            );
-            rows.AddRange(page.Rows);
-            if (page.Rows.Count < pageSize)
+            var meter = EffectiveRateKey(row.RateKey, row.Name);
+            foreach (var stored in storedByName.Values)
             {
-                return rows;
+                if (
+                    stored.Effective.RateLimit is not { } effective
+                    || string.Equals(effective, declared, StringComparison.Ordinal)
+                    || !string.Equals(EffectiveRateKey(stored.Effective.RateKey, stored.Name), meter, StringComparison.Ordinal)
+                )
+                {
+                    continue;
+                }
+
+                throw new ArgumentException(
+                    $"Job definition \"{row.Name}\" (namespace {namespaceId.ToString(CultureInfo.InvariantCulture)}) declares a "
+                        + $"RateLimit of \"{declared}\", but it is joining meter \"{meter}\", whose effective rate is \"{effective}\": "
+                        + "declare the meter's effective rate, or clear the override on it first."
+                );
             }
-            cursorName = page.Rows[^1].JobName;
-            cursorId = page.Rows[^1].DefinitionId;
         }
     }
 

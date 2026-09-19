@@ -35,7 +35,9 @@ internal interface IDefinitionStore
 
     /// <summary>
     /// Applies an operator's policy-override set: writes only the override columns, version-guarded,
-    /// and emits the definition-scoped policy-changed event in the same transaction.
+    /// and emits the definition-scoped policy-changed event in the same transaction. When the
+    /// addressed definition is on a rate meter, the same rate override also lands on every other
+    /// definition sharing it, unguarded by a version of their own.
     /// </summary>
     Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct);
 }

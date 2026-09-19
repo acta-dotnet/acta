@@ -1,6 +1,9 @@
 -- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
 -- only while it is fresh, at most one interval past its instant; one that went stale while executors
 -- were busy goes back through the meter, so a queue of overdue jobs cannot all start at once.
+
+-- The bucket row is created-or-locked by one statement below, so the expiry sweep can never delete
+-- it between a create and a lock: the charge this call books is always persisted before it admits.
 CREATE OR REPLACE FUNCTION {{schema}}.reserve_rate(
     p_lock_key VARCHAR,
     p_job_id BIGINT,
@@ -28,16 +31,13 @@ DECLARE
 BEGIN
     -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an idle
     -- meter stops saying anything a missing one would not. A missing meter starts at now.
+
+    -- Create-or-lock in one statement: the DO UPDATE (a no-op assignment) takes the row lock, and
+    -- RETURNING hands back whichever value is now locked in - freshly inserted, or already there.
     INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
     VALUES (p_lock_key, p_job_id, v_now, p_hold_token)
-    ON CONFLICT (lock_key) DO NOTHING;
-
-    -- Held for the rest of the call, so consume, hand back and allocate all decide against one
-    -- serialized meter and no instant is ever handed to two jobs.
-    SELECT b.expires_at_utc INTO v_stored
-    FROM {{schema}}.locks b
-    WHERE b.lock_key = p_lock_key
-    FOR UPDATE;
+    ON CONFLICT (lock_key) DO UPDATE SET lock_key = EXCLUDED.lock_key
+    RETURNING expires_at_utc INTO v_stored;
 
     -- The row count decides consumption, never a later absence: the sweep cannot slip between a read
     -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
@@ -75,6 +75,12 @@ BEGIN
         expires_at_utc = v_stored + v_interval,
         hold_token = p_hold_token
     WHERE lock_key = p_lock_key;
+
+    -- The row lock has been held since the create-or-lock statement above, so this can never miss;
+    -- if it ever did, admitting without a persisted charge would be worse than failing the call.
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'reserve_rate: bucket % vanished while its row lock was held', p_lock_key;
+    END IF;
 
     IF v_turn <= v_now THEN
         RETURN QUERY SELECT v_turn, TRUE;

@@ -229,14 +229,16 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         Assert.Equal(jobs, admitted.Count);
 
         // The safety property, stated over the window the drain actually took: a meter of R per second
-        // with a burst of N admits at most R*T + N in any T seconds. The instants are stamped by the
-        // handler, a scheduling hop after the meter admitted it and on the host clock rather than the
-        // database's, so the window is read with a tolerance for that hop in either direction.
+        // with a burst of N allocates at most R*T + N turns in any T seconds, and a turn may be taken
+        // up to one interval late, so the window can see one admission more than that: R*T + N + 1. The
+        // instants are stamped by the handler, a scheduling hop after the meter admitted it and on the
+        // host clock rather than the database's, so the window is read with a tolerance for that hop in
+        // either direction.
         const double clockHopSeconds = 0.25;
         var window = (admitted[^1] - admitted[0]).TotalSeconds;
         Assert.True(
-            admitted.Count <= (Burst * (window + clockHopSeconds)) + Burst,
-            $"{admitted.Count} admissions in {window:F3}s exceeds the declared 10/s plus a burst of {Burst}"
+            admitted.Count <= (Burst * (window + clockHopSeconds)) + Burst + 1,
+            $"{admitted.Count} admissions in {window:F3}s exceeds the declared 10/s plus a burst of {Burst}, plus one late turn"
         );
 
         // The liveness half: the meter really throttled. Everything past the burst waits its interval,
@@ -304,6 +306,86 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         Assert.Contains("rl-mismatch-right", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "An override on one participant of a shared meter lands on every other participant")]
+    public async Task An_override_on_one_participant_lands_on_every_other_participant()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var left = await Definitions.GetAsync(TestNamespace, "rate-shared-left", ct);
+        Assert.NotNull(left);
+
+        var outcome = await Definitions.UpdateOverridesAsync(
+            TestNamespace,
+            "rate-shared-left",
+            left.Version,
+            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            ct: ct
+        );
+        Assert.Equal(ControlAction.Applied, outcome.Action);
+
+        // Nobody asked "rate-shared-right" for anything, yet it carries the same override: it shares
+        // the meter "rate-shared-left" just retuned.
+        var right = await Definitions.GetAsync(TestNamespace, "rate-shared-right", ct);
+        Assert.Equal("1/s", right?.RateLimitOverride);
+        Assert.Equal("1/s", right?.RateLimitEffective);
+
+        var leftAfter = await Definitions.GetAsync(TestNamespace, "rate-shared-left", ct);
+        Assert.Equal("1/s", leftAfter?.RateLimitOverride);
+    }
+
+    [Fact(DisplayName = "Clearing the override on one participant clears it on every other participant")]
+    public async Task Clearing_the_override_on_one_participant_clears_it_on_every_other_participant()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var left = await Definitions.GetAsync(TestNamespace, "rate-shared-left", ct);
+        Assert.NotNull(left);
+        var set = await Definitions.UpdateOverridesAsync(
+            TestNamespace,
+            "rate-shared-left",
+            left.Version,
+            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            ct: ct
+        );
+        Assert.Equal(ControlAction.Applied, set.Action);
+
+        var leftOverridden = await Definitions.GetAsync(TestNamespace, "rate-shared-left", ct);
+        Assert.NotNull(leftOverridden);
+        var cleared = await Definitions.UpdateOverridesAsync(
+            TestNamespace,
+            "rate-shared-left",
+            leftOverridden.Version,
+            new JobDefinitionPolicyOverrides(RateLimit: null),
+            ct: ct
+        );
+        Assert.Equal(ControlAction.Applied, cleared.Action);
+
+        // The clear reached "rate-shared-right" too: the meter falls back to what both of them declare.
+        var right = await Definitions.GetAsync(TestNamespace, "rate-shared-right", ct);
+        Assert.Null(right?.RateLimitOverride);
+        Assert.Equal(RateLimitProbes.SharedRate, right?.RateLimitEffective);
+    }
+
+    [Fact(DisplayName = "A definition metered on its own name is unaffected by a shared meter's override")]
+    public async Task A_definition_on_its_own_meter_is_unaffected_by_a_shared_meters_override()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var left = await Definitions.GetAsync(TestNamespace, "rate-shared-left", ct);
+        Assert.NotNull(left);
+
+        var outcome = await Definitions.UpdateOverridesAsync(
+            TestNamespace,
+            "rate-shared-left",
+            left.Version,
+            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            ct: ct
+        );
+        Assert.Equal(ControlAction.Applied, outcome.Action);
+
+        // "rate-limited-probe" meters on its own name, nothing like "shared-meter", so it never sees it.
+        var solo = await Definitions.GetAsync(TestNamespace, "rate-limited-probe", ct);
+        Assert.Null(solo?.RateLimitOverride);
+        Assert.Equal(RateLimitProbes.Rate, solo?.RateLimitEffective);
+    }
+
     [Fact(DisplayName = "A rate denial hands the concurrency slot back and takes one again on the turn")]
     public async Task A_rate_denial_hands_the_concurrency_slot_back_and_takes_one_again_on_the_turn()
     {
@@ -348,6 +430,8 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     private ILockStore Locks => Services.GetRequiredService<ILockStore>();
+
+    private IDefinitions Definitions => Operations.Definitions;
 
     // The composition the runner uses: namespace id, the rate discriminator, and the canonical key.
     private string Bucket(string key) => $"{NamespaceId}.rate.{IdentifierSyntax.NormalizeLowerInvariant(key)}";

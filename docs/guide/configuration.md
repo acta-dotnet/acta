@@ -237,10 +237,13 @@ rejects a namespace where two of them disagree, because one meter cannot run at 
 rate, the key has no operator override: moving a definition onto another meter changes which
 definitions it competes with, which is a contract change rather than a dial.
 
-**Retune a shared meter by overriding every definition on it.** The override gate holds the same rule
-registration does: a `RateLimit` override that would leave this definition on a different rate from
-another definition on the same meter is rejected, naming the one it disagrees with. Override them one
-by one to the new rate and the last write completes the change.
+**An override applies to every definition sharing the meter.** Write a `RateLimit` override on one
+participant and the same write lands on every other definition on that meter in one statement, so the
+meter never carries two rates; clear the override on one and it clears on all of them too. Two
+operators retuning the same meter at once do not split it - the last write to reach the database wins
+for every participant, not just the one addressed. A definition that joins a meter whose participants
+already carry an override must declare the meter's effective rate (the override, not the bare code
+value) or worker startup rejects it, naming the meter and its effective rate.
 
 **Admission is a reservation, not a retry loop.** The meter keeps the instant the next admission is
 due. A job that arrives after that instant runs immediately. A job that arrives early is given the
@@ -256,10 +259,11 @@ goes back through the meter and is given a new one, which costs it a second re-a
 stops a queue of overdue jobs from all starting the moment executors free up: after an idle stretch
 they are released at the burst, not in one crowd.
 
-The contract: at most `R*T + N` admissions in any window of `T` seconds, where `N` is the declared
-count (an idle meter hands out that many back to back), and within 10% of `R` over 60 seconds of
-continuous demand as long as executors are free. Executors are the other half of that: the rate caps
-how fast jobs *start*, so if every executor is busy the realized rate is lower.
+The contract: the meter allocates at most `R*T + N` turns in any `T` seconds, where `N` is the declared
+count (an idle meter hands out that many back to back). A turn may be taken up to one interval late, so
+any window of admissions can see one more than that: at most `R*T + N + 1`. Within 10% of `R` over 60
+seconds of continuous demand holds as long as executors are free - the other half of the contract, since
+the rate caps how fast jobs *start*, so if every executor is busy the realized rate is lower.
 
 A booked turn is held for the worker lease TTL past its instant, so a late but living job never loses
 one. Past that, the ordinary lock expiry sweep collects it: a job that was cancelled, or reclaimed

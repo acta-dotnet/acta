@@ -1,6 +1,10 @@
 -- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
 -- only while it is fresh, at most one interval past its instant; one that went stale while executors
 -- were busy goes back through the meter, so a queue of overdue jobs cannot all start at once.
+
+-- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
+-- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
+-- is always persisted before it admits anything.
 CREATE OR ALTER PROCEDURE {{schema}}.reserve_rate
     @p_lock_key VARCHAR(256),
     @p_job_id BIGINT,

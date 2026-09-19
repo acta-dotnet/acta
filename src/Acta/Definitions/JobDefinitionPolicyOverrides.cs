@@ -8,7 +8,9 @@ namespace Acta;
 /// touches the code-owned defaults, the contract/formats, or <c>definition_hash</c>. A
 /// <c>DeadlineSeconds</c> override on a scheduled definition lands but is ignored: a deadline anchors
 /// to job creation, and a recurring slot's row lives forever, so the runtime never hands a slot a
-/// deadline.
+/// deadline. <c>RateLimit</c> is the one field that is not this definition's alone: it applies to
+/// every definition sharing the meter (declared <c>RateKey</c>, or the definition name) in one write,
+/// clearing included, so the meter never carries two rates.
 /// </summary>
 public sealed record JobDefinitionPolicyOverrides(
     JobPriorityCode? Priority = null,

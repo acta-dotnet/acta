@@ -3,8 +3,8 @@
 -- were busy goes back through the meter, so a queue of overdue jobs cannot all start at once.
 
 -- The batch runs inside the session's immediate write transaction, SQLite's single writer, so every
--- statement here sees one serialized meter without a row hint and the sweep cannot race the
--- read-then-delete of a turn below.
+-- statement here sees one serialized meter without a row hint or a separate create-or-lock step: the
+-- sweep (its own whole-batch transaction) cannot interleave, so a charge is always persisted first.
 DROP TABLE IF EXISTS temp._rate_step;
 
 -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an idle meter
