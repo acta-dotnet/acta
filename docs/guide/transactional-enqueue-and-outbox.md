@@ -365,7 +365,7 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 | `input` | no | Provider binary payload; null exactly when the format id is `0`. |
 | `deduplication_key` | yes | ASCII, 128 characters; target root-job identity within the namespace. |
 | `correlation_key` | no | ASCII, 64 characters. |
-| `exclusive_key` | no | ASCII, 128 characters. |
+| `concurrency_key` | no | ASCII, 128 characters. |
 | `priority_code` | no | Byte-sized target priority override; null leaves it to the definition. |
 | `next_run_at_utc` | no | Absolute target earliest-run instant. |
 | `delay_seconds` | no | Non-negative delay resolved at target ingestion. |

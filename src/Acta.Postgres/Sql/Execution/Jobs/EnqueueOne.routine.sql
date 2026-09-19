@@ -10,7 +10,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_one(
     p_priority_override SMALLINT DEFAULT NULL,
     p_input_format_id SMALLINT DEFAULT NULL,
     p_input BYTEA DEFAULT NULL,
-    p_exclusive_key VARCHAR DEFAULT NULL,
+    p_concurrency_key VARCHAR DEFAULT NULL,
     p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
     p_delay_seconds INT DEFAULT NULL,
     p_parent_id BIGINT DEFAULT NULL,
@@ -116,7 +116,7 @@ BEGIN
             tenant_id,
             input_format_id,
             input,
-            exclusive_key,
+            concurrency_key,
             audit_level_code,
             created_at_utc)
         VALUES (
@@ -131,7 +131,7 @@ BEGIN
                 ELSE COALESCE(v_tenant_id, v_parent_tenant) END,
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END),
             p_input,
-            p_exclusive_key,
+            p_concurrency_key,
             v_def_audit,
             now())
         ON CONFLICT (parent_id, deduplication_key)
@@ -155,7 +155,7 @@ BEGIN
             tenant_id,
             input_format_id,
             input,
-            exclusive_key,
+            concurrency_key,
             audit_level_code,
             created_at_utc)
         VALUES (
@@ -169,7 +169,7 @@ BEGIN
             v_tenant_id,
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END),
             p_input,
-            p_exclusive_key,
+            p_concurrency_key,
             v_def_audit,
             now())
         ON CONFLICT (namespace_id, deduplication_key)

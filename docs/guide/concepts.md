@@ -82,9 +82,9 @@ final key. `AcrossDefinitions` is the explicit cross-definition form. Cross-defi
 are intentionally not exposed as a combined helper; derive that business key in application code
 only when the use case genuinely spans job definitions.
 
-Deduplication and exclusive keys are namespace-scoped, never tenant-scoped: `invoice-123` used by
+Deduplication and concurrency keys are namespace-scoped, never tenant-scoped: `invoice-123` used by
 two tenants is one key. When the business identity is tenant-relative, compose the key with
-`DeduplicationKey.ForTenant(tenantKey, businessKey)` (also valid for `ExclusiveKey` values, and
+`DeduplicationKey.ForTenant(tenantKey, businessKey)` (also valid for `ConcurrencyKey` values, and
 nestable as the business key of `ForDefinition`).
 
 A deduplication key is unique only while the job holding it exists. Retention purges the job row, and
@@ -96,7 +96,7 @@ by the key itself. A caller that needs an identity to outlive retention owns tha
 Namespace and tenant answer two different questions and never substitute for each other.
 
 - **`JobNamespace` = who owns and runs the work**: the microservice / work-ownership boundary. It owns workers, job definitions, schedules, and system jobs, and it is the hot-path claim filter. Good namespaces name a service or work domain: `billing`, `cards`, `kyc`, `notifications`. Bad namespaces smuggle in a customer, environment, or worker identity: `tenant-acme`, `premium-customers`, `prod`, `worker-a`. Enqueuing into another service's namespace is service-to-service routing, not multi-tenancy.
-- **Tenant = who the work is about**: the customer / business entity a single job concerns. A tenant does **not** own workers, namespaces, job definitions, schedules, or system jobs. It is set per job at enqueue (`TenantKey`, resolved to `tenant_id`), immutable afterward, and inherited by child jobs; a child naming a different tenant than its parent is rejected unless the enqueue opts in with `TenantKey(key, overrideParent: true)`. It is **audit / query / runtime scope**: it surfaces on `JobContext.TenantId` and `JobContext.TenantKey`, snapshots, lists, and job-scoped events, and as a filter on job/event queries. It is **not** a scheduling, claim, idempotency, or exclusive-key scope: those stay namespace-scoped.
+- **Tenant = who the work is about**: the customer / business entity a single job concerns. A tenant does **not** own workers, namespaces, job definitions, schedules, or system jobs. It is set per job at enqueue (`TenantKey`, resolved to `tenant_id`), immutable afterward, and inherited by child jobs; a child naming a different tenant than its parent is rejected unless the enqueue opts in with `TenantKey(key, overrideParent: true)`. It is **audit / query / runtime scope**: it surfaces on `JobContext.TenantId` and `JobContext.TenantKey`, snapshots, lists, and job-scoped events, and as a filter on job/event queries. It is **not** a scheduling, claim, idempotency, or concurrency-key scope: those stay namespace-scoped.
 
 The `TenantKey` is an **opaque external identifier** (a GUID, ULID, or customer code, not a human label: that goes in the tenant's `display_name`, with longer notes in `description`). Register tenants with `operations.Tenants.RegisterAsync(tenantKey, displayName?, description?)`: insert-or-return-existing, so a new tenant is created Active and an existing one is returned untouched. Status changes go through `SuspendAsync`/`ResumeAsync`, metadata through `UpdateAsync`, and `GetAsync(tenantKey)` is the point read. Enqueuing an unknown or suspended tenant key is rejected atomically. A job with no tenant (including every system job) carries `tenant_id = NULL`; a definition can make the choice durable with `[Job(TenantRequirement = Required)]` (or `Forbidden`), enforced at the enqueue boundary in the database.
 
@@ -125,8 +125,8 @@ namespaces, which claim and execute independently. `JobId` is a stable tie-break
 guarantee: database identities are allocation order, not commit order, so two producers can commit
 their rows in the opposite order to the ids they were given.
 
-**`ExclusiveKey` provides mutual exclusion, not ordering.** While a worker holds a valid lease on the
-key, no other job with that `(namespace, ExclusiveKey)` is admitted — the exclusion is as strong as
+**`ConcurrencyKey` provides mutual exclusion, not ordering.** While a worker holds a valid lease on the
+key, no other job with that `(namespace, ConcurrencyKey)` is admitted — the exclusion is as strong as
 the lease, so a stalled heartbeat can let it expire while the handler still runs. Admission order is unspecified: under sustained
 arrivals that keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its
 wait. Use it for exclusive *unordered* work. A job that finds the key held is re-armed Ready a couple
@@ -138,7 +138,7 @@ There are three levels to choose between, and only the third one orders anything
 | Level | What it gives you | How you get it |
 | --- | --- | --- |
 | **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, jobs due immediately. |
-| **Exclusive unordered work** | At most one job at a time per key, unbounded wait for any individual job. | `ExclusiveKey`. |
+| **Exclusive unordered work** | At most one job at a time per key, unbounded wait for any individual job. | `ConcurrencyKey`. |
 | **Strict ordered processing** | Item N+1 starts only after item N reached the required outcome. | A durable coordinator or chain job you write: one job holds the sequence and releases the next item itself. |
 
 The first level's conditions are real constraints, not tuning hints. Retries, delayed eligibility,

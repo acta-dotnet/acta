@@ -11,16 +11,16 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Exclusive-key mutex spec. The invariant is mutual exclusion of EXECUTION, owned by the executor:
+/// Concurrency-key mutex spec. The invariant is mutual exclusion of EXECUTION, owned by the executor:
 /// the claim admits every same-key Ready row (no claim-time gating: that shape collapsed the whole
 /// namespace under a hot-key backlog), and the runner takes the <c>{ns_id}.excl.{key}</c> lock-store
 /// lock after the start CAS, before the handler. A loser skips the handler and is re-armed Ready
-/// (budget-neutral) with the fixed <c>ExclusiveKeyBounceDelaySeconds</c> delay: mutual exclusion
+/// (budget-neutral) with the fixed <c>ConcurrencyKeyBounceDelaySeconds</c> delay: mutual exclusion
 /// only, no per-key ordering. Each test claims from its own private namespace with system jobs
 /// disabled, so only the spec's same-key rows are ever due there.
 /// </summary>
 [ConformanceSpec(
-    "exclusive-key.mutex",
+    "concurrency-key.mutex",
     "At most one same-key handler executes, admitted at execution time",
     Area = "Concurrency",
     Contract = "At most one same-key handler executes at a time: the runner takes the key lock after claim and a loser is re-armed Ready after a fixed bounce delay.",
@@ -29,7 +29,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Assert = "At most one same-key handler executes at a time and a loser skips its handler, re-arming Ready budget-neutral after the bounce delay."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
-public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
+public abstract class ConcurrencyKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
@@ -38,12 +38,12 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         services.Configure<JobsOptions>(o =>
         {
             o.RegisterSystemJobs = false;
-            o.ExclusiveKeyBounceDelaySeconds = 1;
+            o.ConcurrencyKeyBounceDelaySeconds = 1;
         });
     }
 
     [Fact(DisplayName = "Same-key jobs all drain to Succeeded through the runtime")]
-    public async Task Same_exclusive_key_jobs_all_drain_through_the_runtime()
+    public async Task Same_concurrency_key_jobs_all_drain_through_the_runtime()
     {
         const int jobs = 4;
         var ct = TestContext.Current.CancellationToken;
@@ -109,7 +109,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         ExclusiveProbe.Reset(TestNamespace);
         for (var i = 0; i < jobs; i++)
         {
-            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "exclusive-probe", JobPayload.None) { ExclusiveKey = key }, ct);
+            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "exclusive-probe", JobPayload.None) { ConcurrencyKey = key }, ct);
         }
 
         // Parallel single-tick executors race the claim and the execution-time lock; losers bounce
@@ -160,7 +160,7 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         // attempt-overlap is audit-level, so the bounce's job.rescheduled event row is written.
         // The handler must never run (a bounce skips it), so its gate needs no release.
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "attempt-overlap", JobPayload.None) { ExclusiveKey = key },
+            new JobEnqueueRequest(TestNamespace, "attempt-overlap", JobPayload.None) { ConcurrencyKey = key },
             ct
         );
 
@@ -174,20 +174,20 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
         Assert.Equal(0, row.FailureCount);
 
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
-        Assert.Equal(JobEventReasonCode.JobExclusiveKeyHeld, bounce.ReasonCode);
+        Assert.Equal(JobEventReasonCode.JobConcurrencyKeyHeld, bounce.ReasonCode);
 
         await lockStore.ReleaseAsync(held.Value, ct);
     }
 
-    // Enqueues through the public IJobs surface with JobEnqueueRequest.ExclusiveKey, so these specs
-    // also exercise the exclusive-key path end-to-end (request to row via enqueue_batch).
+    // Enqueues through the public IJobs surface with JobEnqueueRequest.ConcurrencyKey, so these specs
+    // also exercise the concurrency-key path end-to-end (request to row via enqueue_batch).
     private async Task<IReadOnlyList<long>> EnqueueSameKeyAsync(string key, int count, CancellationToken ct)
     {
         var ids = new long[count];
         for (var i = 0; i < count; i++)
         {
             var enqueued = await Jobs.EnqueueAsync(
-                new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))) { ExclusiveKey = key },
+                new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))) { ConcurrencyKey = key },
                 ct
             );
             ids[i] = enqueued.JobId;
@@ -201,14 +201,14 @@ public abstract class ExclusiveKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFix
 
     private async Task<int> TotalCountAsync(string key, CancellationToken ct)
     {
-        return await Db.From<Job>().Where(j => j.ExclusiveKey == key).CountAsync(ct);
+        return await Db.From<Job>().Where(j => j.ConcurrencyKey == key).CountAsync(ct);
     }
 
     // Status lives on the runtimes row since the jobs/runtimes split; the fluent reader has no
     // joins, so resolve the key's job ids first and read each 1:1 runtime row (tiny per-test sets).
     private async Task<int> CountByStatusAsync(string key, Func<JobStatusCode, bool> match, CancellationToken ct)
     {
-        var jobs = await Db.From<Job>().Where(j => j.ExclusiveKey == key).ToListAsync(ct);
+        var jobs = await Db.From<Job>().Where(j => j.ConcurrencyKey == key).ToListAsync(ct);
         var count = 0;
         foreach (var job in jobs)
         {

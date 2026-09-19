@@ -15,9 +15,9 @@ namespace Acta.Tests.Conformance.Features.Locks;
 /// </summary>
 /// <remarks>
 /// The row-absence assert is load-bearing: release must DELETE, not expire the row in place.
-/// Exclusive-key mutexes put arbitrary per-job user strings into <c>lock_key</c>, so a release
+/// Concurrency-key mutexes put arbitrary per-job user strings into <c>lock_key</c>, so a release
 /// that keeps the row turns this table from O(currently held) into O(keys used per retention
-/// window) - the order of the jobs table itself under an exclusive-key workload, bloating a
+/// window) - the order of the jobs table itself under a concurrency-key workload, bloating a
 /// claim-path table until the reap catches up. Near-emptiness by construction is the table's
 /// design property, and deletion is what provides it. The accepted cost: the row's version
 /// restarts on re-acquire after a delete, so version-CAS alone cannot fence a stale holder

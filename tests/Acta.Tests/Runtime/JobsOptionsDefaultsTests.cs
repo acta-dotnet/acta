@@ -15,8 +15,8 @@ public sealed class JobsOptionsDefaultsTests
     }
 
     [Fact]
-    public void Default_ExclusiveKeyBounceDelaySeconds_is_2()
+    public void Default_ConcurrencyKeyBounceDelaySeconds_is_2()
     {
-        Assert.Equal(2, new JobsOptions().ExclusiveKeyBounceDelaySeconds);
+        Assert.Equal(2, new JobsOptions().ConcurrencyKeyBounceDelaySeconds);
     }
 }

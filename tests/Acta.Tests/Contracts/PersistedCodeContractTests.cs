@@ -93,7 +93,7 @@ public sealed class PersistedCodeContractTests
         JobEventReasonCode.JobHandlerPaused=54|job.handler-paused
         JobEventReasonCode.JobSignalReleased=60|job.signal-released
         JobEventReasonCode.JobStepRetryScheduled=61|job.step-retry-scheduled
-        JobEventReasonCode.JobExclusiveKeyHeld=62|job.exclusive-key-held
+        JobEventReasonCode.JobConcurrencyKeyHeld=62|job.concurrency-key-held
         JobEventReasonCode.JobStepInterrupted=63|job.step-interrupted
         JobEventReasonCode.JobResultOversized=64|job.result-oversized
         JobEventReasonCode.JobWaitTimedOut=65|job.wait-timed-out
@@ -175,7 +175,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "B78E1FB785DE5697CD46895E7AE7EF433517C2C7012C6FD9F93FD2E2CF004DE1";
+    private const string ExpectedDescriptionHash = "2A89110D93C798DE9DCE8FD18B3A8728BF1F94F940C9E5B061F05DF08BD0DA01";
 
     [Fact]
     public void Frozen_contract_covers_all_29_families_and_164_values()

@@ -22,7 +22,7 @@ public sealed class OutboxStagingCoreTests
             JobPayload.Bytes([5, 6, 7]),
             DeduplicationKey: "order-9",
             CorrelationKey: "corr-9",
-            ExclusiveKey: "excl-9",
+            ConcurrencyKey: "excl-9",
             Priority: JobPriorityCode.High,
             NextRunAtUtc: null,
             DelaySeconds: 45,
@@ -41,7 +41,7 @@ public sealed class OutboxStagingCoreTests
             input,
             row.DeduplicationKey,
             row.CorrelationKey,
-            row.ExclusiveKey,
+            row.ConcurrencyKey,
             row.PriorityCode is { } priority ? (JobPriorityCode)priority : null,
             row.NextRunAtUtc,
             row.DelaySeconds,
@@ -64,7 +64,7 @@ public sealed class OutboxStagingCoreTests
         Assert.Equal(request.Input.Data.ToArray(), rebuilt.Input.Data.ToArray());
         Assert.Equal(request.DeduplicationKey, rebuilt.DeduplicationKey);
         Assert.Equal(request.CorrelationKey, rebuilt.CorrelationKey);
-        Assert.Equal(request.ExclusiveKey, rebuilt.ExclusiveKey);
+        Assert.Equal(request.ConcurrencyKey, rebuilt.ConcurrencyKey);
         Assert.Equal(request.Priority, rebuilt.Priority);
         Assert.Equal(request.NextRunAtUtc, rebuilt.NextRunAtUtc);
         Assert.Equal(request.DelaySeconds, rebuilt.DelaySeconds);

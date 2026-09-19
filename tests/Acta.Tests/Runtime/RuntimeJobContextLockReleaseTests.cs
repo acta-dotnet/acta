@@ -8,14 +8,14 @@ namespace Acta.Tests.Runtime;
 public sealed class RuntimeJobContextLockReleaseTests
 {
     [Fact]
-    public async Task Exclusive_key_release_failure_is_logged_and_does_not_escape()
+    public async Task Concurrency_key_release_failure_is_logged_and_does_not_escape()
     {
         var lockStore = new ReleaseFailureLockStore();
         var logger = new RecordingLogger();
         var ctx = CreateContext(lockStore, logger);
-        Assert.True(await ctx.TryAcquireExclusiveKeyLockAsync("customer-1", CancellationToken.None));
+        Assert.True(await ctx.TryAcquireConcurrencyKeyLockAsync("customer-1", CancellationToken.None));
 
-        await ctx.ReleaseExclusiveKeyLockAsync(CancellationToken.None);
+        await ctx.ReleaseConcurrencyKeyLockAsync(CancellationToken.None);
 
         Assert.Equal(1, lockStore.ReleaseCalls);
         Assert.Equal(LogLevel.Warning, Assert.Single(logger.Levels));
@@ -32,7 +32,7 @@ public sealed class RuntimeJobContextLockReleaseTests
                 ExecutionNumber: 1,
                 DeduplicationKey: null,
                 CorrelationKey: null,
-                ExclusiveKey: "customer-1",
+                ConcurrencyKey: "customer-1",
                 InputFormatId: 0,
                 Input: ReadOnlyMemory<byte>.Empty,
                 NextRunAtUtc: null,

@@ -12,7 +12,7 @@ RETURNS TABLE (
     execution_number INT,
     deduplication_key VARCHAR,
     correlation_key VARCHAR,
-    exclusive_key VARCHAR,
+    concurrency_key VARCHAR,
     input_format_id SMALLINT,
     input BYTEA,
     next_run_at_utc TIMESTAMPTZ,
@@ -57,7 +57,7 @@ AS $$
         WHERE r.job_id = c.id
         RETURNING
             r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
-            r.execution_number, j.deduplication_key, j.correlation_key, j.exclusive_key,
+            r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
             r.failure_count, r.version, j.job_ref, c.from_status
     ),
@@ -111,7 +111,7 @@ AS $$
         u.execution_number,
         u.deduplication_key,
         u.correlation_key,
-        u.exclusive_key,
+        u.concurrency_key,
         u.input_format_id,
         u.input,
         u.next_run_at_utc,

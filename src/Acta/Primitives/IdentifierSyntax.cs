@@ -18,7 +18,7 @@ public static class IdentifierSyntax
     public const int DefaultMaxLength = 64;
 
     /// <summary>Extended length cap (128 chars). Matches the longer-identifier tier: job names,
-    /// substrate slot names (variable, signal, timer, step), deduplication keys, exclusive keys.</summary>
+    /// substrate slot names (variable, signal, timer, step), deduplication keys, concurrency keys.</summary>
     public const int ExtendedMaxLength = 128;
 
     /// <summary>

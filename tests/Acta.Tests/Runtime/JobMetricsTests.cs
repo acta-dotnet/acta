@@ -200,14 +200,14 @@ public sealed class JobMetricsTests
             Collect<long>(
                 metrics,
                 "acta.lock.release.failures",
-                () => metrics.RecordLockReleaseFailure("billing", "send-receipt", "exclusive_key", "TimeoutException")
+                () => metrics.RecordLockReleaseFailure("billing", "send-receipt", "concurrency_key", "TimeoutException")
             )
         );
 
         Assert.Equal(1, Value);
         Assert.Equal("billing", Tags["namespace"]);
         Assert.Equal("send-receipt", Tags["job_name"]);
-        Assert.Equal("exclusive_key", Tags["lock_kind"]);
+        Assert.Equal("concurrency_key", Tags["lock_kind"]);
         Assert.Equal("TimeoutException", Tags["exception_type"]);
     }
 

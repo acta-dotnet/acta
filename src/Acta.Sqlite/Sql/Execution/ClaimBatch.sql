@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._claimed;
 
 CREATE TEMP TABLE _claimed AS
-/* Pure claim-index scan; exclusive-key admission is executor-owned (lock store) after the start CAS,
+/* Pure claim-index scan; concurrency-key admission is executor-owned (lock store) after the start CAS,
    so no jobs join here. A Ready row always carries its due instant, enforced by ck_runtimes_ready_due,
    so the claim compares it directly; Suspended keeps a NULL for an unbounded wait and is excluded. */
 /* The status IN is redundant by the OR below but load-bearing: SQLite matches a partial index only
@@ -86,7 +86,7 @@ SELECT
     r.execution_number,
     j.deduplication_key,
     j.correlation_key,
-    j.exclusive_key,
+    j.concurrency_key,
     j.input_format_id,
     j.input,
     r.next_run_at_utc,

@@ -28,7 +28,7 @@ public static class SqlServerOutboxDdl
                 input varbinary(max) NULL,
                 deduplication_key varchar(128) NOT NULL,
                 correlation_key varchar(64) NULL,
-                exclusive_key varchar(128) NULL,
+                concurrency_key varchar(128) NULL,
                 priority_code tinyint NULL,
                 next_run_at_utc datetime2 NULL,
                 delay_seconds int NULL,

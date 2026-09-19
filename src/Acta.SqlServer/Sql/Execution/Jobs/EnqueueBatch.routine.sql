@@ -247,7 +247,7 @@ BEGIN
             deduplication_key, correlation_key,
             namespace_id, definition_id, tenant_id,
             input_format_id, input,
-            exclusive_key, audit_level_code,
+            concurrency_key, audit_level_code,
             created_at_utc
         )
         OUTPUT INSERTED.job_ref, INSERTED.id INTO @map (job_ref, id)
@@ -265,7 +265,7 @@ BEGIN
             END,
             b.input_format_id,
             b.input,
-            b.exclusive_key,
+            b.concurrency_key,
             r.def_audit_level,
             @now
         FROM @p_batch b

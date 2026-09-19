@@ -26,7 +26,7 @@ public sealed record JobDetail(
     string? TenantKey,
     string? DeduplicationKey,
     string? CorrelationKey,
-    string? ExclusiveKey,
+    string? ConcurrencyKey,
     byte InputFormatId,
     JobStatusCode Status,
     JobPriorityCode Priority,

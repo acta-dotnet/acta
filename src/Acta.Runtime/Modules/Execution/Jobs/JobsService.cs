@@ -660,7 +660,7 @@ internal sealed class JobsService(
             DeduplicationKey: request.DeduplicationKey,
             CorrelationKey: request.CorrelationKey,
             Tags: request.Tags,
-            ExclusiveKey: request.ExclusiveKey,
+            ConcurrencyKey: request.ConcurrencyKey,
             NextRunAtUtc: request.NextRunAtUtc,
             DelaySeconds: request.DelaySeconds,
             ParentId: request.ParentJobId,

@@ -31,7 +31,7 @@ public class JobEnqueueOptions
     /// Named mutual-exclusion key; at most one Job per <c>(namespace, key)</c> executes at a time
     /// (mutual exclusion only, no per-key ordering).
     /// </summary>
-    public string? ExclusiveKey { get; init; }
+    public string? ConcurrencyKey { get; init; }
 
     /// <summary>
     /// Claim-order priority override. <c>null</c> = the definition's declared priority.

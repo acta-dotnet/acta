@@ -60,7 +60,7 @@ BEGIN
             job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
             namespace_id, definition_id,
             input_format_id, input,
-            exclusive_key, audit_level_code,
+            concurrency_key, audit_level_code,
             created_at_utc
         )
         SELECT

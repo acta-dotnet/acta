@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "Acta keys normalize to lowercase while Acta names reject mixed case",
     Area = "Enqueue",
     Contract = "Acta-owned keys are normalized to lowercase for provider-stable equality, while Acta-owned names must already be lowercase kebab/dotted-kebab.",
-    Arrange = "Tenant, idempotency, and exclusive keys are prepared in mixed case while namespace and signal controls use mixed-case names.",
+    Arrange = "Tenant, idempotency, and concurrency keys are prepared in mixed case while namespace and signal controls use mixed-case names.",
     Act = "Keys are written and resolved using different casing while mixed-case names are submitted at control/query boundaries.",
     Assert = "Key lookups converge on canonical lowercase rows, and mixed-case Acta names are rejected before hitting storage."
 )]
@@ -68,19 +68,19 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(key, stored!.DeduplicationKey);
     }
 
-    [Fact(DisplayName = "An exclusive key differing only by case is one mutex group")]
-    public async Task Exclusive_key_is_case_insensitive()
+    [Fact(DisplayName = "A concurrency key differing only by case is one mutex group")]
+    public async Task Concurrency_key_is_case_insensitive()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("ek.fold-ex");
         var upper = key.ToUpperInvariant();
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        await EnqueueAsync([Row(exclusiveKey: upper)], ct);
-        await EnqueueAsync([Row(exclusiveKey: key)], ct);
+        await EnqueueAsync([Row(concurrencyKey: upper)], ct);
+        await EnqueueAsync([Row(concurrencyKey: key)], ct);
 
         // Filter by namespace (unique per test run) + canonical key so reruns don't accumulate.
-        var rows = await Db.From<Job>().Where(j => j.NamespaceId == namespaceId && j.ExclusiveKey == key).ToListAsync(ct);
+        var rows = await Db.From<Job>().Where(j => j.NamespaceId == namespaceId && j.ConcurrencyKey == key).ToListAsync(ct);
         Assert.Equal(2, rows.Count);
     }
 
@@ -133,7 +133,7 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
     }
 
-    private JobEnqueueRow Row(string? deduplicationKey = null, string? exclusiveKey = null)
+    private JobEnqueueRow Row(string? deduplicationKey = null, string? concurrencyKey = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
@@ -142,7 +142,7 @@ public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<
             JobName: "add-numbers",
             Input: payload,
             DeduplicationKey: deduplicationKey,
-            ExclusiveKey: exclusiveKey
+            ConcurrencyKey: concurrencyKey
         );
     }
 

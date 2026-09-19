@@ -392,7 +392,7 @@ internal static class TestDashboardHost
                 NextRunAtUtc: null,
                 LeasedByWorkerId: null,
                 LeaseExpiresAtUtc: null,
-                ExclusiveKey: null,
+                ConcurrencyKey: null,
                 RetentionUntilUtc: null,
                 CreatedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
                 ModifiedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),

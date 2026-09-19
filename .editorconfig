@@ -682,7 +682,7 @@ dotnet_diagnostic.CA1031.severity = none
 [src/Acta.Runtime/Modules/Execution/JobExecution.cs]
 dotnet_diagnostic.CA1031.severity = none
 
-# CA1031: best-effort release of the exclusive-key lease, on a path that runs after the attempt's
+# CA1031: best-effort release of the concurrency-key lease, on a path that runs after the attempt's
 # outcome is already decided. Escaping would replace that outcome with a cleanup failure, reporting a
 # job that ran correctly as failed. Recorded through RecordLockReleaseFailure; the lease TTL reclaims
 # the key.

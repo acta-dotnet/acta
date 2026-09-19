@@ -115,7 +115,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var priorityOverrides = new short?[count];
         var inputFormatIds = new short[count];
         var inputs = new byte[]?[count];
-        var exclusiveKeys = new string?[count];
+        var concurrencyKeys = new string?[count];
         var nextRunAtUtcs = new DateTime?[count];
         var delaySeconds = new int?[count];
         var parentIds = new long?[count];
@@ -134,7 +134,7 @@ internal sealed class PostgresDialect : ISqlDialect
             priorityOverrides[i] = row.PriorityOverride is { } priority ? (short)priority : null;
             inputFormatIds[i] = row.Input.Format.Id;
             inputs[i] = row.Input.Format.IsNone ? null : row.Input.Data.ToArray();
-            exclusiveKeys[i] = row.ExclusiveKey;
+            concurrencyKeys[i] = row.ConcurrencyKey;
             nextRunAtUtcs[i] = row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : null;
             delaySeconds[i] = row.DelaySeconds;
             parentIds[i] = row.ParentId;
@@ -151,7 +151,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_priority_override", NpgsqlDbType.Smallint, priorityOverrides);
         AddArray(postgres, "@p_b_input_format_id", NpgsqlDbType.Smallint, inputFormatIds);
         AddArray(postgres, "@p_b_input", NpgsqlDbType.Bytea, inputs);
-        AddArray(postgres, "@p_b_exclusive_key", NpgsqlDbType.Varchar, exclusiveKeys);
+        AddArray(postgres, "@p_b_concurrency_key", NpgsqlDbType.Varchar, concurrencyKeys);
         AddArray(postgres, "@p_b_next_run_at_utc", NpgsqlDbType.TimestampTz, nextRunAtUtcs);
         AddArray(postgres, "@p_b_delay_seconds", NpgsqlDbType.Integer, delaySeconds);
         AddArray(postgres, "@p_b_parent_id", NpgsqlDbType.Bigint, parentIds);
@@ -203,7 +203,7 @@ internal sealed class PostgresDialect : ISqlDialect
         );
         AddScalar(postgres, "@p_input_format_id", NpgsqlDbType.Smallint, (short)row.Input.Format.Id);
         AddScalar(postgres, "@p_input", NpgsqlDbType.Bytea, row.Input.Format.IsNone ? DBNull.Value : row.Input.Data.ToArray());
-        AddScalar(postgres, "@p_exclusive_key", NpgsqlDbType.Varchar, (object?)row.ExclusiveKey ?? DBNull.Value);
+        AddScalar(postgres, "@p_concurrency_key", NpgsqlDbType.Varchar, (object?)row.ConcurrencyKey ?? DBNull.Value);
         AddScalar(
             postgres,
             "@p_next_run_at_utc",

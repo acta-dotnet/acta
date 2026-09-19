@@ -12,7 +12,7 @@ RETURNS TABLE (
     execution_number INT,
     deduplication_key VARCHAR,
     correlation_key VARCHAR,
-    exclusive_key VARCHAR,
+    concurrency_key VARCHAR,
     input_format_id SMALLINT,
     input BYTEA,
     next_run_at_utc TIMESTAMPTZ,
@@ -28,7 +28,7 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; exclusive-key
+        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key
            admission is executor-owned (lock store) after the start CAS, so no jobs join here. A Ready row
            always carries its due instant (ck_runtimes_ready_due); a Suspended NULL is an unbounded wait. */
         SELECT r.job_id AS id, r.status_code AS from_status
@@ -71,7 +71,7 @@ AS $$
             r.execution_number,
             j.deduplication_key,
             j.correlation_key,
-            j.exclusive_key,
+            j.concurrency_key,
             j.input_format_id,
             j.input,
             r.next_run_at_utc,
@@ -138,7 +138,7 @@ AS $$
         u.execution_number,
         u.deduplication_key,
         u.correlation_key,
-        u.exclusive_key,
+        u.concurrency_key,
         u.input_format_id,
         u.input,
         u.next_run_at_utc,

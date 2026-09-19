@@ -44,7 +44,7 @@ internal static class OutboxRequestReconstruction
             Input: input,
             DeduplicationKey: row.DeduplicationKey,
             CorrelationKey: row.CorrelationKey,
-            ExclusiveKey: row.ExclusiveKey,
+            ConcurrencyKey: row.ConcurrencyKey,
             Priority: row.PriorityCode is { } p ? (JobPriorityCode)p : null,
             NextRunAtUtc: row.NextRunAtUtc,
             DelaySeconds: row.DelaySeconds,

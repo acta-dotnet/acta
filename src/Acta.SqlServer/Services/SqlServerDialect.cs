@@ -125,7 +125,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_priority_override", SqlDbType.TinyInt, row.PriorityOverride is { } priority ? (byte)priority : DBNull.Value);
         AddScalar(sql, "@p_input_format_id", SqlDbType.TinyInt, row.Input.Format.Id);
         AddScalar(sql, "@p_input", SqlDbType.VarBinary, row.Input.Format.IsNone ? DBNull.Value : row.Input.Data.ToArray());
-        AddScalar(sql, "@p_exclusive_key", SqlDbType.VarChar, (object?)row.ExclusiveKey ?? DBNull.Value);
+        AddScalar(sql, "@p_concurrency_key", SqlDbType.VarChar, (object?)row.ConcurrencyKey ?? DBNull.Value);
         AddScalar(sql, "@p_next_run_at_utc", SqlDbType.DateTime2, row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : DBNull.Value);
         AddScalar(sql, "@p_delay_seconds", SqlDbType.Int, (object?)row.DelaySeconds ?? DBNull.Value);
         AddScalar(sql, "@p_parent_id", SqlDbType.BigInt, (object?)row.ParentId ?? DBNull.Value);
@@ -166,7 +166,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("priority_override", SqlDbType.TinyInt),
         new("input_format_id", SqlDbType.TinyInt),
         new("input", SqlDbType.VarBinary, -1),
-        new("exclusive_key", SqlDbType.VarChar, 128),
+        new("concurrency_key", SqlDbType.VarChar, 128),
         new("next_run_at_utc", SqlDbType.DateTime2),
         new("delay_seconds", SqlDbType.Int),
         new("parent_id", SqlDbType.BigInt),
@@ -196,7 +196,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             }
             record.SetByte(7, row.Input.Format.Id);
             SetBytesOrNull(record, 8, row.Input.Data, !row.Input.Format.IsNone);
-            SetNullableString(record, 9, row.ExclusiveKey);
+            SetNullableString(record, 9, row.ConcurrencyKey);
             SetNullableDateTime(record, 10, row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : null);
             SetNullableInt32(record, 11, row.DelaySeconds);
             if (row.ParentId is { } parentId)

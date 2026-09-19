@@ -4,7 +4,7 @@ using Acta;
 namespace TestJobs;
 
 /// <summary>
-/// Concurrency probe for the exclusive-key mutex: counts how many handler instances run at once per
+/// Concurrency probe for the concurrency-key mutex: counts how many handler instances run at once per
 /// namespace and remembers the maximum observed. A short dwell keeps each execution window open long
 /// enough that an overlapping same-key execution would be observed as a maximum above one.
 /// </summary>

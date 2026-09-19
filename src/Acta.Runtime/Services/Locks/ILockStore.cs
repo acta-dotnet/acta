@@ -2,7 +2,7 @@ namespace Acta.Runtime.Services.Locks;
 
 /// <summary>
 /// Swappable mutual-exclusion seam behind <c>JobContext.RunWithLock</c> and the
-/// <c>exclusive_key</c> execution mutex (<c>{ns_id}.excl.{key}</c> rows taken by the runner after
+/// <c>concurrency_key</c> execution mutex (<c>{ns_id}.excl.{key}</c> rows taken by the runner after
 /// claim, before the handler; a loser re-arms Ready after the fixed bounce delay). The provider
 /// locks-backed store is the default, Redis-free implementation; a Redis-backed store substitutes
 /// with no caller change. No-wait: a single attempt, so the caller owns any retry/backoff.

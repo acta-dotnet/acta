@@ -534,34 +534,34 @@ internal sealed class RuntimeJobContext(
     protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
         RecordLockReleaseFailure(scope == LockScope.Global ? "handler_global" : "handler_namespace", ComposeLockKey(key, scope), exception);
 
-    private LockToken? _exclusiveKeyToken;
+    private LockToken? _concurrencyKeyToken;
 
     /// <summary>
-    /// Exclusive-key admission mutex, taken by the runner after the start CAS and before the
+    /// Concurrency-key admission mutex, taken by the runner after the start CAS and before the
     /// handler. Key space {ns_id}.excl.{key} is disjoint from RunWithLock's {ns_id}.lock.{key} /
     /// global.lock.{key}. Normalized defensively so one mutex group across case never depends on
     /// the stored value alone.
     /// </summary>
-    internal async Task<bool> TryAcquireExclusiveKeyLockAsync(string exclusiveKey, CancellationToken ct)
+    internal async Task<bool> TryAcquireConcurrencyKeyLockAsync(string concurrencyKey, CancellationToken ct)
     {
-        var key = $"{_namespaceId}.excl.{IdentifierSyntax.NormalizeKey(exclusiveKey, nameof(exclusiveKey))}";
+        var key = $"{_namespaceId}.excl.{IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey))}";
         var requestedAt = Stopwatch.GetTimestamp();
         var token = await _lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
         if (token is { } held)
         {
             _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());
-            _exclusiveKeyToken = held;
+            _concurrencyKeyToken = held;
         }
         return token is not null;
     }
 
-    internal async Task ReleaseExclusiveKeyLockAsync(CancellationToken ct)
+    internal async Task ReleaseConcurrencyKeyLockAsync(CancellationToken ct)
     {
-        if (_exclusiveKeyToken is not { } token)
+        if (_concurrencyKeyToken is not { } token)
         {
             return;
         }
-        _exclusiveKeyToken = null;
+        _concurrencyKeyToken = null;
         _runningAttempt?.UntrackLock(token);
         try
         {
@@ -569,7 +569,7 @@ internal sealed class RuntimeJobContext(
         }
         catch (Exception ex)
         {
-            RecordLockReleaseFailure("exclusive_key", token.Key, ex);
+            RecordLockReleaseFailure("concurrency_key", token.Key, ex);
         }
     }
 

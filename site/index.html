@@ -567,7 +567,7 @@
         <div class="build">
           <h3>Orders, billing, and payments</h3>
           <p>When they share a database transaction, the job and the business row commit together or not at all, so there is no window where the order exists and the work to fulfil it does not. Then one customer's work runs in order, without a queue per customer.</p>
-          <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>ExclusiveKey</b> serializes per customer</span>
+          <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>ConcurrencyKey</b> serializes per customer</span>
         </div>
         <div class="build">
           <h3>Pipelines, backfills, and ETL</h3>
@@ -677,7 +677,7 @@
             <li><b>Durable sleeps &amp; signals</b>: wait days, hold no thread</li>
             <li><b>Checkpoint slots</b>: resume with intermediate results</li>
             <li><b>Child jobs</b>: fan-out / fan-in, lineage</li>
-            <li><b>Exclusive keys &amp; locks</b></li>
+            <li><b>Concurrency keys &amp; locks</b></li>
           </ul>
         </div>
         <div class="fcol" id="recovery">
@@ -742,7 +742,7 @@
           <div class="ref-row"><dt>Durable sleep</dt><dd>Sleep for minutes or days without occupying a worker thread. The job leaves the worker, the timer is durable state, and the job is re-dispatched when it fires: surviving deploys in between.</dd></div>
           <div class="ref-row"><dt>Signals</dt><dd>A job can suspend until a named signal arrives: a webhook, an approval, another job finishing. Deliver the signal from anywhere: code, CLI, or dashboard. No worker is held while waiting.</dd></div>
           <div class="ref-row" id="lineage"><dt>Child jobs, fan-out / fan-in</dt><dd>Spawn jobs from a handler; parent lineage is recorded, so a batch that fans out into a thousand items stays traceable, and the parent can wait on the children's results.</dd></div>
-          <div class="ref-row"><dt>Exclusive keys &amp; locks</dt><dd>Serialize work that shares a key: one settlement run per account at a time. An <code>ExclusiveKey</code> bounces the losing job back to the queue so no worker waits on it; <code>RunWithLockAsync</code> waits inside the running handler instead, for the small critical section that wants it. Exclusion rides the lease, and admission order is unspecified: exclusive, unordered work.</dd></div>
+          <div class="ref-row"><dt>Concurrency keys &amp; locks</dt><dd>Serialize work that shares a key: one settlement run per account at a time. A <code>ConcurrencyKey</code> bounces the losing job back to the queue so no worker waits on it; <code>RunWithLockAsync</code> waits inside the running handler instead, for the small critical section that wants it. Exclusion rides the lease, and admission order is unspecified: exclusive, unordered work.</dd></div>
           <div class="ref-row"><dt>Job results</dt><dd>Return a value from a handler and fetch it later by job reference: the result is durable state like everything else.</dd></div>
           <div class="ref-row"><dt>Handler-directed outcomes</dt><dd>A handler can end its own run deliberately: reschedule itself to a chosen instant, fail with a stated reason, cancel, or pause for an operator. The outcome is policy stated in code, not an exception dressed up as control flow.</dd></div>
         </dl>

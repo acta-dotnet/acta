@@ -105,10 +105,10 @@ public enum JobEventReasonCode : byte
     JobStepRetryScheduled = 61,
 
     [Code(
-        "job.exclusive-key-held",
-        "A claimed exclusive-key job found its key lock held at execution admission; re-armed Ready after the fixed bounce delay (budget-neutral)."
+        "job.concurrency-key-held",
+        "A claimed concurrency-key job found its key lock held at execution admission; re-armed Ready after the fixed bounce delay (budget-neutral)."
     )]
-    JobExclusiveKeyHeld = 62,
+    JobConcurrencyKeyHeld = 62,
 
     [Code(
         "job.step-interrupted",

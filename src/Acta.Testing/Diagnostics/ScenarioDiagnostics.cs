@@ -42,7 +42,7 @@ public sealed record ScenarioJobSnapshot
     public required long? LineageRootId { get; init; }
     public required string? DeduplicationKey { get; init; }
     public required string? CorrelationKey { get; init; }
-    public required string? ExclusiveKey { get; init; }
+    public required string? ConcurrencyKey { get; init; }
 }
 
 /// <summary>Testing snapshot of one job timeline event. Init-only for the same additive-growth reason as <see cref="ScenarioJobSnapshot"/>.</summary>
@@ -223,7 +223,7 @@ internal static class ScenarioDiagnostics
             LineageRootId = snapshot.LineageRootId,
             DeduplicationKey = snapshot.DeduplicationKey,
             CorrelationKey = snapshot.CorrelationKey,
-            ExclusiveKey = snapshot.ExclusiveKey,
+            ConcurrencyKey = snapshot.ConcurrencyKey,
         };
 
     public static ScenarioEventSnapshot ToScenario(EventListItem item) =>

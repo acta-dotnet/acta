@@ -9,7 +9,7 @@ internal sealed record ClaimRequest(int NamespaceId, int WorkerId, int MaxBatch,
 
 /// <summary>
 /// One claimed row: the full job row needed to dispatch (and for the runner to acquire the
-/// <c>exclusive_key</c> lock before the handler) without re-reading <c>jobs</c>. Cross-table
+/// <c>concurrency_key</c> lock before the handler) without re-reading <c>jobs</c>. Cross-table
 /// extras (tags, schedules) are loaded separately on demand, never joined into the hot claim.
 /// <c>FailureCount</c> feeds the failure-budget decision (re-arm vs. fail) computed in C# at
 /// completion. <c>Version</c> is the <c>runtimes.version</c> token as of this claim (claim bumps it),
@@ -25,7 +25,7 @@ internal sealed record ClaimedJob(
     int ExecutionNumber,
     string? DeduplicationKey,
     string? CorrelationKey,
-    string? ExclusiveKey,
+    string? ConcurrencyKey,
     byte InputFormatId,
     ReadOnlyMemory<byte> Input,
     DateTime? NextRunAtUtc,
@@ -38,7 +38,7 @@ internal sealed record ClaimedJob(
 /// <summary>
 /// The empty-claim horizon: the routine's clock reading and the earliest claimable row's effective run
 /// time in the namespace, <c>MIN(COALESCE(next_run_at_utc, db_now))</c> over every Ready row and every
-/// Suspended row carrying a durable wait's expiration, due-now rows included (an exclusive-key bounce
+/// Suspended row carrying a durable wait's expiration, due-now rows included (a concurrency-key bounce
 /// re-arms Ready with a forward-dated <c>next_run_at_utc</c>, so it appears here at its due instant).
 /// <c>NextReadyAtUtc</c> is null only when no such row exists; a value at or before <c>DbNowUtc</c>
 /// means due rows exist but were transiently locked away (SKIP-LOCKED), so the caller should retry
@@ -67,7 +67,7 @@ internal sealed record ClaimReadyRow(
     int? ExecutionNumber,
     string? DeduplicationKey,
     string? CorrelationKey,
-    string? ExclusiveKey,
+    string? ConcurrencyKey,
     byte? InputFormatId,
     byte[]? Input,
     DateTime? NextRunAtUtc,
@@ -123,7 +123,7 @@ internal static class ClaimResultMapper
                 ? null
                 : IdentifierSyntax.NormalizeKeyLookup(row.DeduplicationKey, nameof(row.DeduplicationKey)),
             CorrelationKey: row.CorrelationKey,
-            ExclusiveKey: row.ExclusiveKey,
+            ConcurrencyKey: row.ConcurrencyKey,
             InputFormatId: Required(row.InputFormatId, "input_format_id"),
             Input: row.Input ?? ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: row.NextRunAtUtc,

@@ -8,7 +8,7 @@ INSERT INTO {{schema}}.jobs (
     definition_id,
     input_format_id,
     input,
-    exclusive_key,
+    concurrency_key,
     audit_level_code)
 SELECT
     json_extract(d.value, '$.job_ref'),

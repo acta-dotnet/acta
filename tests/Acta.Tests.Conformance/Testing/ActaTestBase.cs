@@ -172,7 +172,7 @@ internal sealed record TestJobRow(Job Job, JobRuntime Runtime)
     public long? LineageRootId => Job.LineageRootId;
     public string? DeduplicationKey => Job.DeduplicationKey;
     public string? CorrelationKey => Job.CorrelationKey;
-    public string? ExclusiveKey => Job.ExclusiveKey;
+    public string? ConcurrencyKey => Job.ConcurrencyKey;
     public byte InputFormatId => Job.InputFormatId;
     public JobAuditLevelCode AuditLevel => Job.AuditLevel;
     public DateTime CreatedAtUtc => Job.CreatedAtUtc;

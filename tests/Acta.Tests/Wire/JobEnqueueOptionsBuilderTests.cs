@@ -17,7 +17,7 @@ public sealed class JobEnqueueOptionsBuilderTests
             .JobNamespace("payments")
             .DeduplicationKey("invoice-1")
             .CorrelationKey("corr-1")
-            .ExclusiveKey("acct-7")
+            .ConcurrencyKey("acct-7")
             .Priority(JobPriorityCode.High)
             .NextRunAt(when)
             .Tag("team", "payments")
@@ -26,7 +26,7 @@ public sealed class JobEnqueueOptionsBuilderTests
         Assert.Equal("payments", options.JobNamespace);
         Assert.Equal("invoice-1", options.DeduplicationKey);
         Assert.Equal("corr-1", options.CorrelationKey);
-        Assert.Equal("acct-7", options.ExclusiveKey);
+        Assert.Equal("acct-7", options.ConcurrencyKey);
         Assert.Equal(JobPriorityCode.High, options.Priority);
         Assert.Equal(when.UtcDateTime, options.NextRunAtUtc);
         var tag = Assert.Single(options.Tags!);

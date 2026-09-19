@@ -190,7 +190,7 @@ internal sealed class JobExecutionHarness(
             ExecutionNumber: 3,
             DeduplicationKey: null,
             CorrelationKey: null,
-            ExclusiveKey: null,
+            ConcurrencyKey: null,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,

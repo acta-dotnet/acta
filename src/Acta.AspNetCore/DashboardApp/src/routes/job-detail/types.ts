@@ -9,7 +9,7 @@ export interface JobDetail {
   tenantKey: string | null;
   deduplicationKey: string | null;
   correlationKey: string | null;
-  exclusiveKey: string | null;
+  concurrencyKey: string | null;
   inputFormatId: number;
   status: string;
   priority: string;

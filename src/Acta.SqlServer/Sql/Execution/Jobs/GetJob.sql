@@ -17,7 +17,7 @@ SELECT
     r.next_run_at_utc,
     r.leased_by_worker_id,
     r.lease_expires_at_utc,
-    j.exclusive_key,
+    j.concurrency_key,
     r.retention_until_utc,
     j.created_at_utc,
     r.modified_at_utc,

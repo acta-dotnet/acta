@@ -127,7 +127,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 priority_override TINYINT          NULL,
                 input_format_id   TINYINT          NOT NULL,
                 input             VARBINARY(MAX)   NULL,
-                exclusive_key   VARCHAR(128)     NULL,
+                concurrency_key   VARCHAR(128)     NULL,
                 next_run_at_utc   DATETIME2(3)     NULL,
                 delay_seconds     INT              NULL,
                 parent_id         BIGINT           NULL,

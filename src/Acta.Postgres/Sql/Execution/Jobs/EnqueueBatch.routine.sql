@@ -8,7 +8,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_batch(
     p_b_priority_override SMALLINT [],
     p_b_input_format_id SMALLINT [],
     p_b_input BYTEA [],
-    p_b_exclusive_key VARCHAR [],
+    p_b_concurrency_key VARCHAR [],
     p_b_next_run_at_utc TIMESTAMPTZ [],
     p_b_delay_seconds INT [],
     p_b_parent_id BIGINT [],
@@ -172,7 +172,7 @@ BEGIN
         tenant_id INT,
         input_format_id SMALLINT NOT NULL,
         input BYTEA,
-        exclusive_key VARCHAR,
+        concurrency_key VARCHAR,
         audit_level_code SMALLINT NOT NULL,
         priority_code SMALLINT NOT NULL,
         next_run_at_utc TIMESTAMPTZ NOT NULL,
@@ -193,7 +193,7 @@ BEGIN
         tenant_id,
         input_format_id,
         input,
-        exclusive_key,
+        concurrency_key,
         audit_level_code,
         priority_code,
         next_run_at_utc,
@@ -212,7 +212,7 @@ BEGIN
             ELSE COALESCE(t.id, pj.tenant_id) END,
         b.input_format_id,
         b.input,
-        b.exclusive_key,
+        b.concurrency_key,
         jd.audit_level_code_effective,
         COALESCE(b.priority_override, jd.priority_code_effective),
         COALESCE(b.next_run_at_utc, now() + make_interval(secs => COALESCE(b.delay_seconds, 0))),
@@ -220,11 +220,11 @@ BEGIN
     FROM unnest(
         p_b_ordinal, p_b_job_ref, p_b_namespace_name, p_b_job_name,
         p_b_deduplication_key, p_b_correlation_key, p_b_priority_override,
-        p_b_input_format_id, p_b_input, p_b_exclusive_key, p_b_next_run_at_utc,
+        p_b_input_format_id, p_b_input, p_b_concurrency_key, p_b_next_run_at_utc,
         p_b_delay_seconds, p_b_parent_id, p_b_tenant_key
     ) AS b(ordinal, job_ref, namespace_name, job_name,
         deduplication_key, correlation_key, priority_override,
-        input_format_id, input, exclusive_key, next_run_at_utc,
+        input_format_id, input, concurrency_key, next_run_at_utc,
         delay_seconds, parent_id, tenant_key)
     INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
@@ -248,7 +248,7 @@ BEGIN
             tenant_id,
             input_format_id,
             input,
-            exclusive_key,
+            concurrency_key,
             audit_level_code,
             created_at_utc)
         OVERRIDING SYSTEM VALUE
@@ -264,7 +264,7 @@ BEGIN
             e.tenant_id,
             e.input_format_id,
             e.input,
-            e.exclusive_key,
+            e.concurrency_key,
             e.audit_level_code,
             now()
         FROM _enq_batch e
@@ -287,7 +287,7 @@ BEGIN
             tenant_id,
             input_format_id,
             input,
-            exclusive_key,
+            concurrency_key,
             audit_level_code,
             created_at_utc)
         OVERRIDING SYSTEM VALUE
@@ -303,7 +303,7 @@ BEGIN
             e.tenant_id,
             e.input_format_id,
             e.input,
-            e.exclusive_key,
+            e.concurrency_key,
             e.audit_level_code,
             now()
         FROM _enq_batch e

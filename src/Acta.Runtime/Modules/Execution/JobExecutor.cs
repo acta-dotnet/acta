@@ -18,7 +18,7 @@ namespace Acta.Runtime.Modules.Execution;
 /// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans
 /// a recurring slot fire, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope,
 /// then hands the start-invoke-complete lifecycle to <see cref="JobExecution"/> (which takes the
-/// exclusive-key lock after the start CAS and bounces a loser back to Ready). Claiming jobs from the
+/// concurrency-key lock after the start CAS and bounces a loser back to Ready). Claiming jobs from the
 /// DB and dispatching them to executors is the worker loop's job.
 /// <para>A claim this deployment carries no handler for is returned to Ready instead of executed;
 /// see <see cref="ExecuteClaimedJobAsync"/>.</para>
@@ -57,7 +57,7 @@ internal sealed class JobExecutor(
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
-    /// lifecycle (including the exclusive-key lock). The deterministic single-shot primitive: the
+    /// lifecycle (including the concurrency-key lock). The deterministic single-shot primitive: the
     /// production loop drives it from N executor loops; tests drive it directly.
     /// </summary>
     public Task<RunOnceOutcome> RunOnceAsync(string namespaceName, CancellationToken ct) =>

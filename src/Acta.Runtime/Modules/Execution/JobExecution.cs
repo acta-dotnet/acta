@@ -13,7 +13,7 @@ namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// The start-invoke-complete lifecycle of a single attempt: the <c>start_execution</c> CAS, the
-/// exclusive-key lock (taken after the CAS, released when the handler finishes; a loser re-arms
+/// concurrency-key lock (taken after the CAS, released when the handler finishes; a loser re-arms
 /// Ready after the fixed bounce delay), input deserialization, the generator-emitted
 /// <c>descriptor.Invoker</c> invocation wrapped in the registered pipeline behaviors, result
 /// serialization, and the <c>complete_execution</c> write (including recurring-completion outcome
@@ -46,7 +46,7 @@ internal sealed class JobExecution(
     private readonly ExecutionProfile _executionProfile = options.Value.ExecutionProfile;
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-    private readonly int _exclusiveKeyBounceDelaySeconds = options.Value.ExclusiveKeyBounceDelaySeconds;
+    private readonly int _concurrencyKeyBounceDelaySeconds = options.Value.ConcurrencyKeyBounceDelaySeconds;
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -104,29 +104,29 @@ internal sealed class JobExecution(
         byte? handlerStatusCode = null;
         var durationMs = 0;
 
-        // Exclusive-key admission: the mutex is a lock-store row taken here, after the start CAS
+        // Concurrency-key admission: the mutex is a lock-store row taken here, after the start CAS
         // proved ownership, and held only while the handler runs. A loser skips the handler and
         // settles the attempt as a budget-neutral re-arm with the fixed bounce delay (the contention
         // throttle): mutual exclusion of execution only, no per-key ordering.
-        var exclusiveKeyBounced = false;
-        if (!deadlineHitAtAdmission && job.ExclusiveKey is { } exclusiveKey)
+        var concurrencyKeyBounced = false;
+        if (!deadlineHitAtAdmission && job.ConcurrencyKey is { } concurrencyKey)
         {
-            exclusiveKeyBounced = !await jobContext.TryAcquireExclusiveKeyLockAsync(exclusiveKey, ct);
-            if (exclusiveKeyBounced)
+            concurrencyKeyBounced = !await jobContext.TryAcquireConcurrencyKeyLockAsync(concurrencyKey, ct);
+            if (concurrencyKeyBounced)
             {
                 _log.LogDebug(
-                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); exclusive key ({Detail}) is held elsewhere, so the job re-armed Ready in {DurationMs}ms.",
-                    "exclusive-key-admission",
+                    "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); concurrency key ({Detail}) is held elsewhere, so the job re-armed Ready in {DurationMs}ms.",
+                    "concurrency-key-admission",
                     "Bounced",
                     job.JobId,
                     "key-held",
-                    exclusiveKey,
-                    _exclusiveKeyBounceDelaySeconds * 1000
+                    concurrencyKey,
+                    _concurrencyKeyBounceDelaySeconds * 1000
                 );
             }
         }
 
-        if (!deadlineHitAtAdmission && !exclusiveKeyBounced)
+        if (!deadlineHitAtAdmission && !concurrencyKeyBounced)
         {
             var sw = Stopwatch.StartNew();
             var inputDeserialized = false;
@@ -408,7 +408,7 @@ internal sealed class JobExecution(
                 // path (success, catches, the worker-shutdown return, control rethrows). Release is
                 // best-effort and non-throwing; failure self-heals via the lock's TTL while durable
                 // completion continues below.
-                await jobContext.ReleaseExclusiveKeyLockAsync(CancellationToken.None);
+                await jobContext.ReleaseConcurrencyKeyLockAsync(CancellationToken.None);
             }
 
             durationMs = (int)Math.Min(sw.ElapsedMilliseconds, int.MaxValue);
@@ -424,11 +424,11 @@ internal sealed class JobExecution(
         }
         else
         {
-            // Exclusive-key bounce: settle the attempt as a budget-neutral re-arm with the fixed delay.
+            // Concurrency-key bounce: settle the attempt as a budget-neutral re-arm with the fixed delay.
             outcome = ExecutionOutcome.Rescheduled;
-            failureReason = JobEventReasonCode.JobExclusiveKeyHeld;
-            failureMessage = "Exclusive key lock held by another execution.";
-            rescheduleDelaySeconds = _exclusiveKeyBounceDelaySeconds;
+            failureReason = JobEventReasonCode.JobConcurrencyKeyHeld;
+            failureMessage = "Concurrency key lock held by another execution.";
+            rescheduleDelaySeconds = _concurrencyKeyBounceDelaySeconds;
         }
 
         // Resolved once and passed on every completion shape; complete_execution stamps it onto

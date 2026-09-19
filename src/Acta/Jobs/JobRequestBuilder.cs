@@ -25,7 +25,7 @@ public sealed class JobRequestBuilder
     private JobPayload _input;
     private string? _deduplicationKey;
     private string? _correlationKey;
-    private string? _exclusiveKey;
+    private string? _concurrencyKey;
     private JobPriorityCode? _priority;
     private DateTime? _nextRunAtUtc;
     private int? _delaySeconds;
@@ -124,15 +124,15 @@ public sealed class JobRequestBuilder
     }
 
     /// <summary>
-    /// Set the exclusive key: at most one Job per <c>(namespace, exclusive key)</c> executes at a
+    /// Set the concurrency key: at most one Job per <c>(namespace, concurrency key)</c> executes at a
     /// time (the worker takes a namespace-scoped lock after claim, before the handler; a job whose
     /// key is held returns to Ready after a short delay). Mutual exclusion only, no per-key
     /// ordering. Not calling this leaves the Job unconstrained.
     /// </summary>
-    public JobRequestBuilder ExclusiveKey(string exclusiveKey)
+    public JobRequestBuilder ConcurrencyKey(string concurrencyKey)
     {
-        exclusiveKey = IdentifierSyntax.NormalizeKey(exclusiveKey, nameof(exclusiveKey));
-        _exclusiveKey = exclusiveKey;
+        concurrencyKey = IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey));
+        _concurrencyKey = concurrencyKey;
         return this;
     }
 
@@ -257,7 +257,7 @@ public sealed class JobRequestBuilder
         )
         {
             Tags = SnapshotTags(),
-            ExclusiveKey = _exclusiveKey,
+            ConcurrencyKey = _concurrencyKey,
             NextRunAtUtc = _nextRunAtUtc,
             DelaySeconds = _delaySeconds,
             ParentJobId = _parentId,

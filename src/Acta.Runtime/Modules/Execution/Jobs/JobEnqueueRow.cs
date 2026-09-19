@@ -5,8 +5,8 @@ namespace Acta.Runtime.Modules.Execution.Jobs;
 /// batched <c>EnqueueBatch</c> operations.
 /// </summary>
 /// <remarks>
-/// <paramref name="ExclusiveKey"/> is a named mutual-exclusion key (null is unconstrained): at most
-/// one Job per <c>(JobNamespace, ExclusiveKey)</c> executes at a time. The worker enforces this at
+/// <paramref name="ConcurrencyKey"/> is a named mutual-exclusion key (null is unconstrained): at most
+/// one Job per <c>(JobNamespace, ConcurrencyKey)</c> executes at a time. The worker enforces this at
 /// execution admission: after claim it takes the key's lock-store lock, and a loser re-arms Ready
 /// after a fixed bounce delay (mutual exclusion only, no per-key ordering). Two mutually exclusive
 /// delayed-enqueue channels feed the earliest claim instant: <paramref name="NextRunAtUtc"/> is a
@@ -21,7 +21,7 @@ internal sealed record JobEnqueueRow(
     JobPriorityCode? PriorityOverride = null,
     string? DeduplicationKey = null,
     string? CorrelationKey = null,
-    string? ExclusiveKey = null,
+    string? ConcurrencyKey = null,
     DateTime? NextRunAtUtc = null,
     int? DelaySeconds = null,
     IReadOnlyList<TagInput>? Tags = null,
@@ -57,7 +57,9 @@ internal static class JobEnqueueRows
             DeduplicationKey = row.DeduplicationKey is null
                 ? null
                 : IdentifierSyntax.NormalizeKey(row.DeduplicationKey, nameof(row.DeduplicationKey)),
-            ExclusiveKey = row.ExclusiveKey is null ? null : IdentifierSyntax.NormalizeKey(row.ExclusiveKey, nameof(row.ExclusiveKey)),
+            ConcurrencyKey = row.ConcurrencyKey is null
+                ? null
+                : IdentifierSyntax.NormalizeKey(row.ConcurrencyKey, nameof(row.ConcurrencyKey)),
             TenantKey = row.TenantKey is null ? null : IdentifierSyntax.NormalizeTenantKey(row.TenantKey, nameof(row.TenantKey)),
             Tags = tags,
         };

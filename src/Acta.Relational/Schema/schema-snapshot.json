@@ -618,7 +618,7 @@
             "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|values="
           },
           {
-            "Name": "exclusive_key",
+            "Name": "concurrency_key",
             "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
           },
           {

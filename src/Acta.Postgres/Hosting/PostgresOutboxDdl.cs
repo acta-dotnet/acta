@@ -27,7 +27,7 @@ public static class PostgresOutboxDdl
                 input bytea NULL,
                 deduplication_key varchar(128) NOT NULL,
                 correlation_key varchar(64) NULL,
-                exclusive_key varchar(128) NULL,
+                concurrency_key varchar(128) NULL,
                 priority_code smallint NULL,
                 next_run_at_utc timestamptz NULL,
                 delay_seconds integer NULL,

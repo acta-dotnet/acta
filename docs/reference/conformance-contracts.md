@@ -937,13 +937,13 @@
 
 ### Acta keys normalize to lowercase while Acta names reject mixed case
 - **Contract:** Acta-owned keys are normalized to lowercase for provider-stable equality, while Acta-owned names must already be lowercase kebab/dotted-kebab.
-- **Arrange:** Tenant, idempotency, and exclusive keys are prepared in mixed case while namespace and signal controls use mixed-case names.
+- **Arrange:** Tenant, idempotency, and concurrency keys are prepared in mixed case while namespace and signal controls use mixed-case names.
 - **Act:** Keys are written and resolved using different casing while mixed-case names are submitted at control/query boundaries.
 - **Assert:** Key lookups converge on canonical lowercase rows, and mixed-case Acta names are rejected before hitting storage.
 - **Guarantees:**
   - A tenant key differing only by case resolves to one tenant on every provider
   - An deduplication key differing only by case dedups onto one job
-  - An exclusive key differing only by case is one mutex group
+  - A concurrency key differing only by case is one mutex group
   - Namespace filter rejects mixed case
   - Deduplication-key resolve is case-insensitive (C1 guard)
   - Signal names reject mixed case
@@ -1041,7 +1041,7 @@
 
 ### CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals
 - **Contract:** CompleteExecutionsBatch finalizes plain Executing rows, declines parented or mismatched-lease rows, and accepts duplicate job ids, one bool per ordinal.
-- **Arrange:** Plain, child, exclusive-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.
+- **Arrange:** Plain, child, concurrency-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.
 - **Act:** CompleteExecutionsBatch runs over the Executing rows batched in interleaved order.
 - **Assert:** The returned bool list aligns to the original ordinals, finalizing eligible rows and declining the rest, even when one job id appears twice.
 - **Guarantees:**

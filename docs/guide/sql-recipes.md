@@ -314,7 +314,7 @@ scoping to Quarantined makes the intent explicit and the statement idempotent.
 ## Identifier Casing In Raw SQL
 
 Acta-owned identifier and key columns store canonical lowercase. Opaque keys (tenant, idempotency,
-exclusive, dedupe, lock) are folded to lowercase at the API boundary; registered names (namespace,
+concurrency, dedupe, lock) are folded to lowercase at the API boundary; registered names (namespace,
 job, schedule, signal, channel, and other catalog names) are validated as lowercase at registration.
 Column collations stay at the database default: matching is canonical-by-construction, not
 collation-dependent.

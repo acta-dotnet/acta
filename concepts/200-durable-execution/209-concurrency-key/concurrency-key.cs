@@ -1,5 +1,5 @@
 using Acta;
-using Acta.Concepts.ExclusiveKey;
+using Acta.Concepts.ConcurrencyKey;
 using Acta.Labs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,7 +10,7 @@ var lab = new ConceptLab(builder.Configuration, args);
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run<ExclusiveKeyJobs>("exclusive-key");
+    j.Run<ConcurrencyKeyJobs>("concurrency-key");
 });
 
 using var host = builder.Build();
@@ -18,10 +18,10 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Shared exclusive key serializes whole jobs: the key is taken after claim, before the handler; a worker claiming the second job while it's held releases back to Ready (no executor tied up). Contrast 207-run-with-lock, which serializes only a section while the waiter holds its executor.
-var first = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ExclusiveKey("rebuild:acme"));
-var second = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ExclusiveKey("rebuild:acme"));
-Console.WriteLine("Enqueued two jobs with the same exclusive key.");
+// Shared concurrency key serializes whole jobs: the key is taken after claim, before the handler; a worker claiming the second job while it's held releases back to Ready (no executor tied up). Contrast 207-run-with-lock, which serializes only a section while the waiter holds its executor.
+var first = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ConcurrencyKey("rebuild:acme"));
+var second = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ConcurrencyKey("rebuild:acme"));
+Console.WriteLine("Enqueued two jobs with the same concurrency key.");
 
 long ownerJobId;
 long competitorJobId;
@@ -63,7 +63,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "One job executes; its competitor returns to Ready without holding a worker",
     """
-    SELECT job_id, job_ref, status, exclusive_key, leased_by_worker_id, next_run_at_utc
+    SELECT job_id, job_ref, status, concurrency_key, leased_by_worker_id, next_run_at_utc
     FROM jobs_view
     WHERE job_id IN (@ownerJobId, @competitorJobId)
     ORDER BY CASE WHEN job_id = @ownerJobId THEN 0 ELSE 1 END
@@ -71,7 +71,7 @@ await lab.ShowAsync(
     new { ownerJobId, competitorJobId }
 );
 await lab.ShowAsync(
-    "The exclusive key is a named lock owned by the running job",
+    "The concurrency key is a named lock owned by the running job",
     """
     SELECT lock_key, job_id, expires_at_utc, hold_token
     FROM {{schema}}.locks
@@ -100,7 +100,7 @@ await lab.ShowAsync(
 );
 await host.StopAsync();
 
-namespace Acta.Concepts.ExclusiveKey
+namespace Acta.Concepts.ConcurrencyKey
 {
     public sealed record RebuildIndex(string Tenant);
 

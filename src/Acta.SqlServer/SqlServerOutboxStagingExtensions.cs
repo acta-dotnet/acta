@@ -49,7 +49,7 @@ public static class SqlServerOutboxStagingExtensions
         p.Add(new SqlParameter("@input", SqlDbType.VarBinary, -1) { Value = (object?)row.Input ?? DBNull.Value });
         p.Add(new SqlParameter("@deduplication_key", SqlDbType.VarChar, 128) { Value = row.DeduplicationKey });
         p.Add(new SqlParameter("@correlation_key", SqlDbType.VarChar, 64) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
-        p.Add(new SqlParameter("@exclusive_key", SqlDbType.VarChar, 128) { Value = (object?)row.ExclusiveKey ?? DBNull.Value });
+        p.Add(new SqlParameter("@concurrency_key", SqlDbType.VarChar, 128) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
         p.Add(new SqlParameter("@priority_code", SqlDbType.TinyInt) { Value = row.PriorityCode is { } code ? code : DBNull.Value });
         p.Add(new SqlParameter("@next_run_at_utc", SqlDbType.DateTime2) { Value = (object?)row.NextRunAtUtc ?? DBNull.Value });
         p.Add(new SqlParameter("@delay_seconds", SqlDbType.Int) { Value = (object?)row.DelaySeconds ?? DBNull.Value });

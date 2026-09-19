@@ -79,7 +79,7 @@ SELECT
     r.execution_number,
     j.deduplication_key,
     j.correlation_key,
-    j.exclusive_key,
+    j.concurrency_key,
     j.input_format_id,
     j.input,
     r.next_run_at_utc,

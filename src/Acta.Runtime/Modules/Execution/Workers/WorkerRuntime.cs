@@ -251,7 +251,7 @@ internal sealed class WorkerRuntime
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
-    /// lifecycle (including the exclusive-key lock). Deterministic single-shot primitive for loop and tests.
+    /// lifecycle (including the concurrency-key lock). Deterministic single-shot primitive for loop and tests.
     /// </summary>
     public Task<RunOnceOutcome> RunOnceAsync(string namespaceName, CancellationToken ct) => _executor.RunOnceAsync(namespaceName, ct);
 

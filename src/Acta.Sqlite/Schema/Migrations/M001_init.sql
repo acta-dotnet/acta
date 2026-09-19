@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
     tenant_id integer NULL,
     deduplication_key text NULL,
     correlation_key text NULL,
-    exclusive_key text NULL,
+    concurrency_key text NULL,
     input_format_id integer NOT NULL,
     input blob NULL,
     audit_level_code integer NOT NULL,
@@ -418,7 +418,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-34b57a65907d3270ce845a2797aa5224', '{{schema}}')
+VALUES (0, 'baseline-f8dd05f8f5a92b73c12bf6fb1a244f6a', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

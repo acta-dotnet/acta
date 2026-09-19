@@ -282,7 +282,7 @@
       <ul class="changes">
         <li><b>An EF Core store becomes provider SQL with curated views.</b> Acta's providers write a documented schema directly, and <code>jobs_view</code> and <code>events_view</code> are the supported operator surface: no entity model between you and the rows.</li>
         <li><b>Chaining becomes child jobs with lineage.</b> A handler spawns children, parent lineage is recorded, the parent can wait on results, and a fan-out of a thousand items stays traceable.</li>
-        <li><b>Throttling becomes namespaces, priorities, and exclusive keys.</b> Route work by owning service, reprioritize a live job in place, and serialize work that shares a key without blocking unrelated jobs.</li>
+        <li><b>Throttling becomes namespaces, priorities, and concurrency keys.</b> Route work by owning service, reprioritize a live job in place, and serialize work that shares a key without blocking unrelated jobs.</li>
         <li><b>The dashboard gains a CLI.</b> Every host binary is also the admin tool, including <code>jobs debug</code>: claim a persisted job and step through its real handler under your debugger.</li>
       </ul>
     </section>

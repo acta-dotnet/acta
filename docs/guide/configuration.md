@@ -90,7 +90,7 @@ dead-worker window - and lengthen it to cut idle database chatter. Long-running 
 longer lease; they stay alive by heartbeating.
 
 Engine tuning with no operator-legible meaning is not configurable: the poll floor, claim jitter,
-exclusive-key bounce delay, alert delivery retries, and the Bulk-profile completion-buffer thresholds
+concurrency-key bounce delay, alert delivery retries, and the Bulk-profile completion-buffer thresholds
 are fixed. A value nobody can set correctly is a way to break a deployment, not a feature.
 
 `AlertReminderInterval` (24 hours) is the exception, and it is settable because the correct value

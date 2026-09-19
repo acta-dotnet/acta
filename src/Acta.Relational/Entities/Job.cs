@@ -121,8 +121,8 @@ internal sealed class Job : IEntity<long>
     /// execution-time lock (<c>{ns_id}.excl.{key}</c> lease row) the runner takes after claim;
     /// a claimed loser re-arms Ready after the fixed bounce delay.
     /// </summary>
-    [DbColumn("exclusive_key", DbKind.AsciiString, Size = 128)]
-    public string? ExclusiveKey { get; init; }
+    [DbColumn("concurrency_key", DbKind.AsciiString, Size = 128)]
+    public string? ConcurrencyKey { get; init; }
 
     // ---------- Input ----------
 

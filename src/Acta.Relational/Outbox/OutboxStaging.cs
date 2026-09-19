@@ -24,9 +24,9 @@ internal static class OutboxStaging
     /// </summary>
     private const string InsertColumnsAndValues = """
             (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
-             correlation_key, exclusive_key, priority_code, next_run_at_utc, delay_seconds, tenant_key, meta)
+             correlation_key, concurrency_key, priority_code, next_run_at_utc, delay_seconds, tenant_key, meta)
         VALUES (@outbox_id, @job_namespace, @job_name, @input_format_id, @input, @deduplication_key,
-                @correlation_key, @exclusive_key, @priority_code, @next_run_at_utc, @delay_seconds, @tenant_key, @meta);
+                @correlation_key, @concurrency_key, @priority_code, @next_run_at_utc, @delay_seconds, @tenant_key, @meta);
         """;
 
     /// <summary>
@@ -76,7 +76,7 @@ internal static class OutboxStaging
                 Input: normalized.Input.IsNone ? null : normalized.Input.Data.ToArray(),
                 DeduplicationKey: normalized.DeduplicationKey,
                 CorrelationKey: normalized.CorrelationKey,
-                ExclusiveKey: normalized.ExclusiveKey,
+                ConcurrencyKey: normalized.ConcurrencyKey,
                 PriorityCode: normalized.Priority is { } priority ? (byte)priority : null,
                 // Normalize to UTC exactly as the owned enqueue path does (DbParams.Coerce): a Local/Unspecified
                 // instant would otherwise persist wall-clock as UTC (mssql/sqlite) or be rejected (PG timestamptz).
@@ -104,7 +104,7 @@ internal readonly record struct OutboxStagingRow(
     byte[]? Input,
     string DeduplicationKey,
     string? CorrelationKey,
-    string? ExclusiveKey,
+    string? ConcurrencyKey,
     byte? PriorityCode,
     DateTime? NextRunAtUtc,
     int? DelaySeconds,

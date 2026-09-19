@@ -10,7 +10,7 @@ public sealed class JobEnqueueOptionsBuilder
     private string? _namespace;
     private string? _deduplicationKey;
     private string? _correlationKey;
-    private string? _exclusiveKey;
+    private string? _concurrencyKey;
     private JobPriorityCode? _priority;
     private DateTime? _nextRunAtUtc;
     private int? _delaySeconds;
@@ -56,10 +56,10 @@ public sealed class JobEnqueueOptionsBuilder
     /// <summary>
     /// Named mutual-exclusion key; at most one Job per (namespace, key) is in-flight at a time.
     /// </summary>
-    public JobEnqueueOptionsBuilder ExclusiveKey(string exclusiveKey)
+    public JobEnqueueOptionsBuilder ConcurrencyKey(string concurrencyKey)
     {
-        exclusiveKey = IdentifierSyntax.NormalizeKey(exclusiveKey, nameof(exclusiveKey));
-        _exclusiveKey = exclusiveKey;
+        concurrencyKey = IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey));
+        _concurrencyKey = concurrencyKey;
         return this;
     }
 
@@ -152,7 +152,7 @@ public sealed class JobEnqueueOptionsBuilder
             JobNamespace = _namespace,
             DeduplicationKey = _deduplicationKey,
             CorrelationKey = _correlationKey,
-            ExclusiveKey = _exclusiveKey,
+            ConcurrencyKey = _concurrencyKey,
             Priority = _priority,
             Tags = _tags.Count == 0 ? null : [.. _tags.Values],
             NextRunAtUtc = _nextRunAtUtc,

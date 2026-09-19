@@ -80,7 +80,7 @@ scheduling.
 | Scheduled jobs vanish or double-run after restarts | Jobs, schedules, cursors, leases, attempts, and events are persisted in SQL |
 | Nobody knows what happened last night | Job status, event timelines, alerts, dashboard/API, CLI, and SQL inspection |
 | A worker died mid-job | Worker leases lapse and recovery reclaims eligible jobs for retry |
-| A job must not repeat blindly | Deduplication keys, durable steps, locks, exclusive keys, and at-most-once step policy |
+| A job must not repeat blindly | Deduplication keys, durable steps, locks, concurrency keys, and at-most-once step policy |
 | Operators need control | Pause, resume, cancel, restart, signal, debug, explain, and schedule pause/resume |
 | Teams do not want more infrastructure | The worker is the app process; durable state is the app database |
 

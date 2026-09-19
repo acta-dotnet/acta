@@ -25,9 +25,9 @@ public static class DeduplicationKey
 
     /// <summary>
     /// Compose a tenant-relative key: <c>&lt;tenantKey&gt;:&lt;businessKey&gt;</c>, so equal business
-    /// keys under different tenants never collide. Deduplication and exclusive keys are both
+    /// keys under different tenants never collide. Deduplication and concurrency keys are both
     /// namespace-scoped opaque strings, so the same composition serves
-    /// <see cref="JobEnqueueRequest.ExclusiveKey"/> values, and the result nests as the business key
+    /// <see cref="JobEnqueueRequest.ConcurrencyKey"/> values, and the result nests as the business key
     /// of <see cref="ForDefinition"/> when definition and tenant qualification are both wanted.
     /// </summary>
     public static string ForTenant(string tenantKey, string businessKey)

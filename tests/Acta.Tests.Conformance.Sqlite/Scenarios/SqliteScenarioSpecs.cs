@@ -7,7 +7,7 @@ public sealed class SqliteStepSpec : StepSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteScenarioSessionSpec : ScenarioSessionSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteExclusiveKeyMutexSpec : ExclusiveKeyMutexSpec<SqliteConformanceFixture>;
+public sealed class SqliteConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<SqliteConformanceFixture>;
 

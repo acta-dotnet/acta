@@ -22,7 +22,7 @@ public sealed record JobEnqueueRequest(
     JobPayload Input = default,
     string? DeduplicationKey = null,
     string? CorrelationKey = null,
-    string? ExclusiveKey = null,
+    string? ConcurrencyKey = null,
     JobPriorityCode? Priority = null,
     DateTime? NextRunAtUtc = null,
     int? DelaySeconds = null,

@@ -44,11 +44,11 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
-    public void ExclusiveKeyBounceDelaySeconds_below_zero_fails()
+    public void ConcurrencyKeyBounceDelaySeconds_below_zero_fails()
     {
-        var result = Validate(o => o.ExclusiveKeyBounceDelaySeconds = -1);
+        var result = Validate(o => o.ConcurrencyKeyBounceDelaySeconds = -1);
         Assert.True(result.Failed);
-        Assert.Contains("ExclusiveKeyBounceDelaySeconds", result.FailureMessage);
+        Assert.Contains("ConcurrencyKeyBounceDelaySeconds", result.FailureMessage);
     }
 
     [Fact]

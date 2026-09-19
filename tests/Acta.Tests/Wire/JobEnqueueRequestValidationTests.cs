@@ -15,7 +15,7 @@ public sealed class JobEnqueueRequestValidationTests
             "send-invoice",
             DeduplicationKey: "Order-1",
             CorrelationKey: "Trace-A",
-            ExclusiveKey: "Mutex-A",
+            ConcurrencyKey: "Mutex-A",
             Tags: [new TagInput("env.prod", "EU-West")],
             TenantKey: "Tenant-A"
         );
@@ -26,7 +26,7 @@ public sealed class JobEnqueueRequestValidationTests
         Assert.Equal("send-invoice", normalized.JobName);
         Assert.Equal("order-1", normalized.DeduplicationKey);
         Assert.Equal("Trace-A", normalized.CorrelationKey);
-        Assert.Equal("mutex-a", normalized.ExclusiveKey);
+        Assert.Equal("mutex-a", normalized.ConcurrencyKey);
         Assert.Equal("tenant-a", normalized.TenantKey);
         var tag = Assert.Single(normalized.Tags!);
         Assert.Equal("env.prod", tag.Name);
@@ -47,7 +47,7 @@ public sealed class JobEnqueueRequestValidationTests
             new JobEnqueueRequest(Ns, "Send-Invoice"),
             new JobEnqueueRequest(Ns, new string('a', IdentifierSyntax.ExtendedMaxLength + 1)),
             new JobEnqueueRequest(Ns, Name, DeduplicationKey: "sys.reserved"),
-            new JobEnqueueRequest(Ns, Name, ExclusiveKey: new string('x', IdentifierSyntax.ExtendedMaxLength + 1)),
+            new JobEnqueueRequest(Ns, Name, ConcurrencyKey: new string('x', IdentifierSyntax.ExtendedMaxLength + 1)),
             new JobEnqueueRequest(Ns, Name, TenantKey: " "),
             new JobEnqueueRequest(Ns, Name, CorrelationKey: new string('c', IdentifierSyntax.DefaultMaxLength + 1)),
             new JobEnqueueRequest(Ns, Name, Tags: [new TagInput("bad tag", null)]),

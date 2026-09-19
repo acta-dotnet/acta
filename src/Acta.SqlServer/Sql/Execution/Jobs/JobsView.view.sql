@@ -7,7 +7,7 @@ SELECT
     r.status_code,
     j.deduplication_key,
     j.correlation_key,
-    j.exclusive_key,
+    j.concurrency_key,
     j.parent_id,
     COALESCE(j.lineage_root_id, j.id) AS lineage_root_job_id,
     root.job_ref AS lineage_root_job_ref,

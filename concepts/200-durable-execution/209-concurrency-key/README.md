@@ -16,18 +16,18 @@ serialize the work, but the loser has already consumed an executor while it wait
 | Mechanism | Best fit |
 | --- | --- |
 | `RunWithLockAsync` | A critical section inside a handler |
-| `ExclusiveKey` | Admission control for the whole execution |
+| `ConcurrencyKey` | Admission control for the whole execution |
 | Queue partitioning | High-volume, stable partition keys |
 | Database uniqueness | Preventing duplicate durable records |
 | External distributed lock | Coordination beyond Acta's database |
 
 ## Why this design
 
-Acta acquires the exclusive-key lease after claim but before handler invocation. A loser is re-armed
+Acta acquires the concurrency-key lease after claim but before handler invocation. A loser is re-armed
 `ready` with a short delay and releases its worker. The event reason makes this budget-neutral bounce
 visible instead of looking like an application failure.
 
-`ExclusiveKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
+`ConcurrencyKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
 no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a
 heartbeat renews while the handler runs. Admission order is unspecified: under sustained arrivals that
 keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for
@@ -47,7 +47,7 @@ unless they share the same protocol.
 ## Run the experiment
 
 ```bash
-dotnet run --project concepts/200-durable-execution/209-exclusive-key
+dotnet run --project concepts/200-durable-execution/209-concurrency-key
 ```
 
 The lab discovers which racing job acquired the key, then inspects the owner and competitor before both
@@ -60,7 +60,7 @@ queries select the fields that prove the lesson, and the text below explains the
 
 `jobs_view` shows the owner executing and the competitor ready without a worker. The lab also descends
 one level into the internal `leases` table to reveal the named holder, then uses `events_view` to show
-`job.exclusive-key-held`. Base tables are implementation detail; use the curated views or `IJobs` for
+`job.concurrency-key-held`. Base tables are implementation detail; use the curated views or `IJobs` for
 normal operations.
 
 ## Break it
@@ -70,7 +70,7 @@ Then give each job a different key to see concurrency return.
 
 ## When not to use
 
-Not when you need order. `ExclusiveKey` is the middle rung of three, and only the third one orders
+Not when you need order. `ConcurrencyKey` is the middle rung of three, and only the third one orders
 anything:
 
 1. **Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
@@ -81,7 +81,7 @@ anything:
    scan orders by priority, then by next-run instant, then by `JobId`; `JobId` is a stable
    tie-breaker within one claim, not a multi-producer FIFO guarantee, because database identities are
    allocation order, not commit order.
-2. **Exclusive unordered work.** `ExclusiveKey`, exactly as this lab shows it.
+2. **Exclusive unordered work.** `ConcurrencyKey`, exactly as this lab shows it.
 3. **Strict ordered processing.** A durable coordinator or chain that releases item N+1 only once
    item N has reached the required outcome. Head-of-line blocking is the price: one stuck item holds
    everything behind it, so the design needs a poison-item policy.
@@ -93,6 +93,6 @@ coordinate too.
 ## Source trail
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
-- [`exclusive-key.cs`](./exclusive-key.cs)
+- [`concurrency-key.cs`](./concurrency-key.cs)
 - [`JobExecution.cs`](../../../src/Acta.Runtime/Modules/Execution/JobExecution.cs)
 - [`Lock.cs`](../../../src/Acta.Relational/Entities/Lock.cs)

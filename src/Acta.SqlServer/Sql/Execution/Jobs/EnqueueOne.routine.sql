@@ -10,7 +10,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_one
     @p_priority_override TINYINT = NULL,
     @p_input_format_id TINYINT = NULL,
     @p_input VARBINARY(MAX) = NULL,
-    @p_exclusive_key VARCHAR(128) = NULL,
+    @p_concurrency_key VARCHAR(128) = NULL,
     @p_next_run_at_utc DATETIME2(3) = NULL,
     @p_delay_seconds INT = NULL,
     @p_parent_id BIGINT = NULL,
@@ -159,7 +159,7 @@ BEGIN
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
-                    exclusive_key, audit_level_code,
+                    concurrency_key, audit_level_code,
                     created_at_utc
                 )
                 VALUES (
@@ -175,7 +175,7 @@ BEGIN
                         CASE WHEN @p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END
                     ),
                     @p_input,
-                    @p_exclusive_key, @def_audit,
+                    @p_concurrency_key, @def_audit,
                     @now
                 );
 

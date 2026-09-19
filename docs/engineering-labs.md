@@ -42,7 +42,7 @@ Six labs, in order, that cover the model end to end:
 | [`501-payload-formats`](../concepts/500-payloads/501-payload-formats/) | JSON, MessagePack, and gzip payload codecs per job. |
 | [`211-child-jobs`](../concepts/200-durable-execution/211-child-jobs/) | Fan-out as ordinary jobs with recorded lineage. |
 | [`022-dashboard`](../concepts/000-fundamentals/022-dashboard/) | The embedded dashboard and opt-in operator controls. |
-| [`209-exclusive-key`](../concepts/200-durable-execution/209-exclusive-key/) | Serializing hot keys without blocking unrelated workers. |
+| [`209-concurrency-key`](../concepts/200-durable-execution/209-concurrency-key/) | Serializing hot keys without blocking unrelated workers. |
 | [`412-tenant-scope`](../concepts/400-observability-and-alerts/412-tenant-scope/) | A tenant as an audit boundary without becoming a queue. |
 | [`310-operator-restart`](../concepts/300-failure-and-recovery/310-operator-restart/) | Restart that preserves evidence without pretending to be exactly-once. |
 | [`903-redis-wakeup`](../concepts/900-runtime-and-tuning/903-redis-wakeup/) | Redis as a wakeup bell only, never a source of truth. |

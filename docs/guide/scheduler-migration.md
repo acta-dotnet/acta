@@ -131,7 +131,7 @@ public sealed class ImportJobs
 | `Status` | `jobs_view.status`, schedule status, worker lease state |
 | `Error` | failed execution event, reason code, alert, result/detail payload |
 | processor loop | Acta worker runtime |
-| manual lock row | worker leases, exclusive keys, durable locks |
+| manual lock row | worker leases, concurrency keys, durable locks |
 
 After migration, the operational question is no longer "what did our scheduler code do?" It is
 "what do the durable rows say?" Start with [SQL recipes](./sql-recipes.md), then use the dashboard

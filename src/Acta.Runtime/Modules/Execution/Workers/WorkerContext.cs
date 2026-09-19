@@ -96,7 +96,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 /// <summary>
 /// A job this worker is mid-execution on: the per-attempt linked <see cref="CancellationTokenSource"/>
 /// (cancelled to stop the handler) plus a conservative monotonic "good until" deadline for every lease it
-/// depends on - its job lease and each lock it holds through <c>RunWithLock</c> or the exclusive-key mutex.
+/// depends on - its job lease and each lock it holds through <c>RunWithLock</c> or the concurrency-key mutex.
 /// Two renewers feed these deadlines (the worker heartbeat the job lease, the lock heartbeat each lock via
 /// the swappable <see cref="ILockStore"/>) and the watchdog cancels once <see cref="EarliestLeaseGoodUntil"/>
 /// nears the unwind margin. Deadlines are monotonic Stopwatch timestamps so a clock correction cannot make

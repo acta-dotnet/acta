@@ -151,8 +151,8 @@ low-priority tail indefinitely. The intended remedy is a mechanism, not a knob: 
 low-urgency workloads their own namespace, because each declared worker runs its own claim loop and
 executor pool per namespace, so one namespace's flood cannot consume another's slots.
 
-`ExclusiveKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
-no other job with that `(namespace, ExclusiveKey)` is admitted. The exclusion is as strong as the
+`ConcurrencyKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
+no other job with that `(namespace, ConcurrencyKey)` is admitted. The exclusion is as strong as the
 lease and no stronger: a heartbeat renews it while the handler runs, so if that heartbeat stops — a
 stalled process, a long pause, a partition — the lease can expire while the handler is still running
 and another worker can admit the next job. That is the same at-least-once boundary described under
@@ -172,7 +172,7 @@ changes, and operator actions move a row's next-run instant and reorder what is 
 does not enforce that only one process claims a namespace, so the single-process condition is an
 operational promise, not a runtime invariant.
 
-**Exclusive unordered work.** `ExclusiveKey`, under the contract above.
+**Exclusive unordered work.** `ConcurrencyKey`, under the contract above.
 
 **Strict ordered processing.** A durable coordinator or chain job that releases item N+1 only after
 item N has reached the required outcome. Acta ships no built-in ordering key for this; you write the

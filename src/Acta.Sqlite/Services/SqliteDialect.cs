@@ -189,7 +189,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 WriteNumberOrNull(writer, "priority_override", row.PriorityOverride is { } priority ? (short)priority : (short?)null);
                 writer.WriteNumber("input_format_id", row.Input.Format.Id);
                 WriteBase64OrNull(writer, "input", row.Input.Format.IsNone ? (ReadOnlyMemory<byte>?)null : row.Input.Data);
-                WriteStringOrNull(writer, "exclusive_key", row.ExclusiveKey);
+                WriteStringOrNull(writer, "concurrency_key", row.ConcurrencyKey);
                 WriteUtcOrNull(writer, "next_run_at_utc", row.NextRunAtUtc);
                 WriteNumberOrNull(writer, "delay_seconds", row.DelaySeconds);
                 WriteNumberOrNull(writer, "parent_id", row.ParentId);
@@ -237,7 +237,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddNullableInt(command, "@p_priority_override", row.PriorityOverride is { } priority ? (short)priority : null);
         AddInt(command, "@p_input_format_id", row.Input.Format.Id);
         AddNullableBlob(command, "@p_input", row.Input.Format.IsNone ? null : row.Input.Data.ToArray());
-        AddNullableText(command, "@p_exclusive_key", row.ExclusiveKey);
+        AddNullableText(command, "@p_concurrency_key", row.ConcurrencyKey);
         AddNullableInt(command, "@p_next_run_at_utc", row.NextRunAtUtc is { } nextRun ? ToUnixMs(nextRun) : null);
         AddNullableInt(command, "@p_delay_seconds", row.DelaySeconds);
         AddNullableInt(command, "@p_parent_id", row.ParentId);

@@ -41,7 +41,7 @@ BEGIN
             definition_id,
             input_format_id,
             input,
-            exclusive_key,
+            concurrency_key,
             audit_level_code,
             created_at_utc)
         SELECT

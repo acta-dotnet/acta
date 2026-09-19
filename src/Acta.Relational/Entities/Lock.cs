@@ -4,10 +4,10 @@ namespace Acta.Relational.Entities;
 
 /// <summary>
 /// One row per held named lock in the <c>locks</c> table: the rows behind both the handler-facing
-/// <c>JobContext.RunWithLockAsync</c> and the <c>exclusive_key</c> execution mutex the runner takes
+/// <c>JobContext.RunWithLockAsync</c> and the <c>concurrency_key</c> execution mutex the runner takes
 /// after claim. Execution ownership/TTL is not a row here - it lives on the <c>runtimes</c> row.
 /// Lifecycle is <see cref="ExpiresAtUtc"/> alone (no status column): held while ahead of now.
-/// Acquire is a steal-on-expiry upsert; release DELETEs the row - exclusive keys are unbounded
+/// Acquire is a steal-on-expiry upsert; release DELETEs the row - concurrency keys are unbounded
 /// per-job user strings, so the table stays O(currently held) by construction
 /// (<c>ReleaseLockSpec</c> pins that); abandoned rows are swept by the <c>sys.retention</c> reap.
 /// <see cref="HoldToken"/> is minted fresh per hold and CAS-guards extend and release: unlike a

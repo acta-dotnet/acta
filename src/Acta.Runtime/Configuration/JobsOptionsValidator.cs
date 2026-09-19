@@ -73,10 +73,10 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.MaxConcurrentExecutors must be >= 1: a worker with no executors claims nothing.");
         }
 
-        if (options.ExclusiveKeyBounceDelaySeconds < 0)
+        if (options.ConcurrencyKeyBounceDelaySeconds < 0)
         {
             failures.Add(
-                "JobsOptions.ExclusiveKeyBounceDelaySeconds must be >= 0: it is the re-arm delay for a keyed job whose key lock is held."
+                "JobsOptions.ConcurrencyKeyBounceDelaySeconds must be >= 0: it is the re-arm delay for a keyed job whose key lock is held."
             );
         }
 
@@ -206,9 +206,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.MaxConcurrentExecutors must be <= 1024.");
         }
 
-        if (options.ExclusiveKeyBounceDelaySeconds > 3600)
+        if (options.ConcurrencyKeyBounceDelaySeconds > 3600)
         {
-            failures.Add("JobsOptions.ExclusiveKeyBounceDelaySeconds must be <= 3600 (1 hour).");
+            failures.Add("JobsOptions.ConcurrencyKeyBounceDelaySeconds must be <= 3600 (1 hour).");
         }
 
         if (options.MaxInlinePayloadBytes > 256 * 1024 * 1024)

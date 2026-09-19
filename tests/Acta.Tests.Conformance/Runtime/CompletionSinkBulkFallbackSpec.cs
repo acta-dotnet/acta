@@ -128,7 +128,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
             Assert.Skip("CompletionSink calls CompleteExecutionsBatch which is not supported on SQLite.");
         }
 
-        // Plain job: no parent, no exclusive key → batch finalizes it directly.
+        // Plain job: no parent, no concurrency key → batch finalizes it directly.
         var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
         var claimed = Assert.Single(
             await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, leaseTtl, enq.JobId, ct)
@@ -230,7 +230,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         return (child.Id, await ClaimAndStartAsync(child.Id, leaseTtl, ns, workerId, ct));
     }
 
-    // A plain row: no parent, no exclusive key, so the set-based routine finalizes it.
+    // A plain row: no parent, no concurrency key, so the set-based routine finalizes it.
     private async Task<(long JobId, ClaimedJob Claimed)> StartedPlainAsync(int leaseTtl, int ns, int workerId, CancellationToken ct)
     {
         var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);

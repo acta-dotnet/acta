@@ -50,7 +50,7 @@ public static class PostgresOutboxStagingExtensions
         p.Add(new NpgsqlParameter("@input", NpgsqlDbType.Bytea) { Value = (object?)row.Input ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@deduplication_key", NpgsqlDbType.Varchar) { Value = row.DeduplicationKey });
         p.Add(new NpgsqlParameter("@correlation_key", NpgsqlDbType.Varchar) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
-        p.Add(new NpgsqlParameter("@exclusive_key", NpgsqlDbType.Varchar) { Value = (object?)row.ExclusiveKey ?? DBNull.Value });
+        p.Add(new NpgsqlParameter("@concurrency_key", NpgsqlDbType.Varchar) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
         p.Add(
             new NpgsqlParameter("@priority_code", NpgsqlDbType.Smallint)
             {

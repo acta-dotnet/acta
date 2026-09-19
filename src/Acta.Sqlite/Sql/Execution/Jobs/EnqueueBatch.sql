@@ -103,7 +103,7 @@ WHERE EXISTS (
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
-    input_format_id, input, exclusive_key, audit_level_code
+    input_format_id, input, concurrency_key, audit_level_code
 )
 SELECT
     JSON_EXTRACT(r.value, '$.job_ref'),
@@ -119,7 +119,7 @@ SELECT
     ),
     JSON_EXTRACT(r.value, '$.input_format_id'),
     ACTA_BLOB(JSON_EXTRACT(r.value, '$.input')),
-    JSON_EXTRACT(r.value, '$.exclusive_key'),
+    JSON_EXTRACT(r.value, '$.concurrency_key'),
     jd.audit_level_code_effective
 FROM JSON_EACH(@p_rows) r
 JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
@@ -130,7 +130,7 @@ ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NUL
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
-    input_format_id, input, exclusive_key, audit_level_code
+    input_format_id, input, concurrency_key, audit_level_code
 )
 SELECT
     JSON_EXTRACT(r.value, '$.job_ref'),
@@ -152,7 +152,7 @@ SELECT
     END,
     JSON_EXTRACT(r.value, '$.input_format_id'),
     ACTA_BLOB(JSON_EXTRACT(r.value, '$.input')),
-    JSON_EXTRACT(r.value, '$.exclusive_key'),
+    JSON_EXTRACT(r.value, '$.concurrency_key'),
     jd.audit_level_code_effective
 FROM JSON_EACH(@p_rows) r
 JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')

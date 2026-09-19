@@ -268,7 +268,7 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             ExecutionNumber: ExecNo,
             DeduplicationKey: null,
             CorrelationKey: "corr-ctx",
-            ExclusiveKey: null,
+            ConcurrencyKey: null,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,

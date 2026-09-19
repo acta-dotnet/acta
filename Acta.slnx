@@ -45,7 +45,7 @@
     <Project Path="concepts/200-durable-execution/206-step-chain/206-step-chain.csproj" />
     <Project Path="concepts/200-durable-execution/207-run-with-lock/207-run-with-lock.csproj" />
     <Project Path="concepts/200-durable-execution/208-progress/208-progress.csproj" />
-    <Project Path="concepts/200-durable-execution/209-exclusive-key/209-exclusive-key.csproj" />
+    <Project Path="concepts/200-durable-execution/209-concurrency-key/209-concurrency-key.csproj" />
     <Project Path="concepts/200-durable-execution/210-step-retry/210-step-retry.csproj" />
     <Project Path="concepts/200-durable-execution/211-child-jobs/211-child-jobs.csproj" />
     <Project Path="concepts/200-durable-execution/212-fan-out-join/212-fan-out-join.csproj" />

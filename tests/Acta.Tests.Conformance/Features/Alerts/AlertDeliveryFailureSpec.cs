@@ -549,7 +549,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             ExecutionNumber: 1,
             DeduplicationKey: null,
             CorrelationKey: null,
-            ExclusiveKey: null,
+            ConcurrencyKey: null,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,

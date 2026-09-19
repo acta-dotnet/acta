@@ -74,12 +74,12 @@ public sealed class JobsOptions
     public int ClaimBatchSize { get; set; } = 32;
 
     /// <summary>
-    /// Fixed re-arm delay in seconds for a claimed exclusive-key job that finds its key lock held at
+    /// Fixed re-arm delay in seconds for a claimed concurrency-key job that finds its key lock held at
     /// execution admission. The loser returns to Ready with <c>next_run_at_utc</c> pushed this far
     /// forward (budget-neutral), so the delay is the contention throttle (no backoff, no counter).
     /// Fixed at 2s.
     /// </summary>
-    internal int ExclusiveKeyBounceDelaySeconds { get; set; } = 2;
+    internal int ConcurrencyKeyBounceDelaySeconds { get; set; } = 2;
 
     /// <summary>
     /// Coordination invariant, and the only one you set: cadence of the background loop that refreshes

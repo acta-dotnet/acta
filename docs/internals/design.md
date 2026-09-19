@@ -164,7 +164,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 
 - **`MaxAttempts` is the unified cap** on jobs and steps; `Reschedule`/`Suspend`/`Pause` never consume the budget. *Reason:* one retry mental model across both tiers.
 - **Strict priority ordering** in the claim path; no aging, no weighted fairness. *Reason:* predictable semantics; fairness = separate namespaces.
-- **`ExclusiveKey` is execution-time mutual exclusion (size 1), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
+- **`ConcurrencyKey` is execution-time mutual exclusion (size 1), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
 - **Delayed enqueue: relative delay is DB-clock; absolute is the only caller-instant path.** The two are mutually exclusive. *Reason:* an enqueue-only frontend must not silently depend on its own clock.
 - **Recurring schedules are a single slot job per `(namespace, definition)`** carrying many `schedules` rows; due schedules coalesce into one execution; cursors computed in C#, applied in SQL. *Reason:* single-cursor claim scan, no per-firing row inflation, no Cronos in SQL.
 - **Misfire is a two-strategy per-schedule choice.** `Skip` (default, forward-only) or `CatchUpOnce`. *Reason:* forward-only avoids startup catch-up bursts; catch-up is opt-in.

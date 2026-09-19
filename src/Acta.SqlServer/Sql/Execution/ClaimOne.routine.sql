@@ -33,7 +33,7 @@ BEGIN
                 execution_number INT NOT NULL,
                 deduplication_key VARCHAR(128) NULL,
                 correlation_key VARCHAR(64) NULL,
-                exclusive_key VARCHAR(128) NULL,
+                concurrency_key VARCHAR(128) NULL,
                 input_format_id TINYINT NOT NULL,
                 input VARBINARY(MAX) NULL,
                 next_run_at_utc DATETIME2(3) NULL,
@@ -74,13 +74,13 @@ BEGIN
             version = r.version + 1
         OUTPUT
             INSERTED.job_id, j.job_ref, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
-            INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.exclusive_key,
+            INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc, j.audit_level_code,
             INSERTED.failure_count, INSERTED.version, DELETED.status_code
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
-                deduplication_key, correlation_key, exclusive_key,
+                deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 audit_level_code, failure_count, version, from_status
             )
@@ -129,7 +129,7 @@ BEGIN
             execution_number,
             deduplication_key,
             correlation_key,
-            exclusive_key,
+            concurrency_key,
             input_format_id,
             input,
             next_run_at_utc,

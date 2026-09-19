@@ -22,7 +22,7 @@ const job = {
   nextRunAtUtc: null,
   leasedByWorkerRef: null,
   leaseExpiresAtUtc: null,
-  exclusiveKey: null,
+  concurrencyKey: null,
   retentionUntilUtc: '2026-08-14T08:00:00Z',
   createdAtUtc: '2026-07-14T07:55:00Z',
   modifiedAtUtc: timestamp

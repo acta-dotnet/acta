@@ -33,7 +33,7 @@ BEGIN
                 execution_number INT NOT NULL,
                 deduplication_key VARCHAR(128) NULL,
                 correlation_key VARCHAR(64) NULL,
-                exclusive_key VARCHAR(128) NULL,
+                concurrency_key VARCHAR(128) NULL,
                 input_format_id TINYINT NOT NULL,
                 input VARBINARY(MAX) NULL,
                 next_run_at_utc DATETIME2(3) NULL,
@@ -45,7 +45,7 @@ BEGIN
             );
 
         WITH candidates AS (
-            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; exclusive-key
+            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key
                admission is executor-owned (lock store) after the start CAS, so no jobs join here. A Ready
                row always carries its due instant (ck_runtimes_ready_due); a Suspended NULL is unbounded. */
             /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
@@ -88,7 +88,7 @@ BEGIN
             INSERTED.execution_number,
             j.deduplication_key,
             j.correlation_key,
-            j.exclusive_key,
+            j.concurrency_key,
             j.input_format_id,
             j.input,
             INSERTED.next_run_at_utc,
@@ -100,7 +100,7 @@ BEGIN
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
-                deduplication_key, correlation_key, exclusive_key,
+                deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 audit_level_code, failure_count, version, from_status
             )
@@ -154,7 +154,7 @@ BEGIN
                     execution_number,
                     deduplication_key,
                     correlation_key,
-                    exclusive_key,
+                    concurrency_key,
                     input_format_id,
                     input,
                     next_run_at_utc,
@@ -178,7 +178,7 @@ BEGIN
                     CAST(NULL AS INT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
                     CAST(NULL AS VARCHAR(64)) AS correlation_key,
-                    CAST(NULL AS VARCHAR(128)) AS exclusive_key,
+                    CAST(NULL AS VARCHAR(128)) AS concurrency_key,
                     CAST(NULL AS TINYINT) AS input_format_id,
                     CAST(NULL AS VARBINARY(MAX)) AS input,
                     CAST(NULL AS DATETIME2(3)) AS next_run_at_utc,

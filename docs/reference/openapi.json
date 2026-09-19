@@ -6548,7 +6548,7 @@
                 "job.handler-paused",
                 "job.signal-released",
                 "job.step-retry-scheduled",
-                "job.exclusive-key-held",
+                "job.concurrency-key-held",
                 "job.step-interrupted",
                 "job.result-oversized",
                 "job.wait-timed-out",
@@ -9085,7 +9085,7 @@
           "tenantKey",
           "deduplicationKey",
           "correlationKey",
-          "exclusiveKey",
+          "concurrencyKey",
           "inputFormatId",
           "status",
           "priority",
@@ -9148,7 +9148,7 @@
               "string"
             ]
           },
-          "exclusiveKey": {
+          "concurrencyKey": {
             "type": [
               "null",
               "string"

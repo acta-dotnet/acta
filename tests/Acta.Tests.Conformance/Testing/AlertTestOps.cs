@@ -289,7 +289,7 @@ internal static class AlertTestOps
             ExecutionNumber: 1,
             DeduplicationKey: null,
             CorrelationKey: null,
-            ExclusiveKey: null,
+            ConcurrencyKey: null,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,

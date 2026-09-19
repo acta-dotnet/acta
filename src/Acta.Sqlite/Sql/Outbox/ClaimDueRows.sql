@@ -20,5 +20,5 @@ WHERE
     )
 RETURNING
     outbox_id, job_namespace, job_name, input_format_id, input,
-    deduplication_key, correlation_key, exclusive_key, priority_code,
+    deduplication_key, correlation_key, concurrency_key, priority_code,
     next_run_at_utc, delay_seconds, tenant_key, meta, created_at_utc, failure_count;

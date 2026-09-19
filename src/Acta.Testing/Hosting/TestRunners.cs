@@ -27,7 +27,7 @@ internal static class TestRunners
     /// Claim and run the specific job <paramref name="jobId"/> in this runtime's (single) namespace,
     /// retrying the by-id claim while it is transiently skipped. The deterministic "run my job" drive.
     /// Retries only NothingClaimed: any settled outcome ends the loop, including Rearmed from an
-    /// exclusive-key bounce, so a test that expects completion past a held key must tick again itself.
+    /// concurrency-key bounce, so a test that expects completion past a held key must tick again itself.
     /// </summary>
     internal static async Task<RunOnceOutcome> RunOnceAsync(this WorkerRuntime runtime, long jobId, CancellationToken ct)
     {

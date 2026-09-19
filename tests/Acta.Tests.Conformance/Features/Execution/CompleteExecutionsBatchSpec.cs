@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
 /// <summary>
 /// Conformance for <c>CompleteExecutionsBatch.Run</c>: the routine self-filters rows with a parent,
 /// declines mismatched-lease rows, and aligns the returned <c>bool[]</c> to the original input
-/// ordinals. Executing rows without a parent and with a matching lease are finalized: exclusive-key
+/// ordinals. Executing rows without a parent and with a matching lease are finalized: concurrency-key
 /// rows included, since the key's lock is released C#-side, independent of the completion write; all
 /// others are declined (caller must retry via the scalar path). Duplicate job ids in one batch are
 /// legal (a stale attempt can be buffered alongside its reclaimed successor); correlation is by ordinal.
@@ -22,7 +22,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals",
     Area = "Execution",
     Contract = "CompleteExecutionsBatch finalizes plain Executing rows, declines parented or mismatched-lease rows, and accepts duplicate job ids, one bool per ordinal.",
-    Arrange = "Plain, child, exclusive-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.",
+    Arrange = "Plain, child, concurrency-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.",
     Act = "CompleteExecutionsBatch runs over the Executing rows batched in interleaved order.",
     Assert = "The returned bool list aligns to the original ordinals, finalizing eligible rows and declining the rest, even when one job id appears twice."
 )]
@@ -56,7 +56,10 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
             ct
         );
         var exclEnq = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2))) { ExclusiveKey = TestKey("excl-1") },
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2)))
+            {
+                ConcurrencyKey = TestKey("excl-1"),
+            },
             ct
         );
         var plainAEnq = await Jobs.EnqueueAsync(

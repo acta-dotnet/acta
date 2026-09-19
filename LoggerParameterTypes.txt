@@ -51,7 +51,7 @@ Ref;System.String
 # the alert it is and the job it is about. Rendered for the same reason as Ref.
 SubjectRef;System.String
 
-# What was attempted: exclusive-key-admission, outbox-relay. A closed set of verbs, low cardinality.
+# What was attempted: concurrency-key-admission, outbox-relay. A closed set of verbs, low cardinality.
 # Kebab-case, because these are labels this codebase invented rather than states C# already names.
 Operation;System.String
 

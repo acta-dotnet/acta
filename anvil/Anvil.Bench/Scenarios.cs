@@ -51,7 +51,7 @@ internal static class Workload
         int? delaySeconds,
         CancellationToken ct,
         string jobName = BenchHost.JobName,
-        string? exclusiveKey = null,
+        string? concurrencyKey = null,
         int workMs = 0
     )
     {
@@ -65,7 +65,7 @@ internal static class Workload
                     BenchHost.Namespace,
                     jobName,
                     BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp(), pad, workMs)),
-                    ExclusiveKey: exclusiveKey,
+                    ConcurrencyKey: concurrencyKey,
                     DelaySeconds: delaySeconds
                 )
             );
@@ -133,7 +133,7 @@ internal static class Workload
         int count,
         int payloadBytes,
         CancellationToken ct,
-        string? exclusiveKey = null,
+        string? concurrencyKey = null,
         string jobName = BenchHost.JobName,
         int workMs = 0
     )
@@ -147,7 +147,7 @@ internal static class Workload
             horizonSeconds,
             ct,
             jobName: jobName,
-            exclusiveKey: exclusiveKey,
+            concurrencyKey: concurrencyKey,
             workMs: workMs
         );
         var releaseStamp = enqueueStart + (long)(horizonSeconds * Stopwatch.Frequency);
@@ -275,7 +275,7 @@ public sealed class ThroughputScenario : IScenario
 /// <summary>
 /// Claim + execute + complete only, write cost removed. Parameterized by Workers (N>1 runs N in-process
 /// workers draining one preloaded backlog - the claim-contention sweep); SharedKey makes every job
-/// carry one exclusive key so the lock serializes them (the contention/fairness probe). The whole backlog
+/// carry one concurrency key so the lock serializes them (the contention/fairness probe). The whole backlog
 /// is enqueued behind a future horizon (nothing Ready), then the horizon passes and a fully-preloaded
 /// queue drains; the timed window is pure drain. Reports drain jobs/sec, per-job overhead, worker count,
 /// and (when shared-key) fairness spread (p99/p50 of queue residence).
@@ -327,7 +327,7 @@ public sealed class DrainScenario : IScenario
             p.Jobs,
             p.PayloadBytes,
             ct,
-            exclusiveKey: cfg.SharedKey ? SharedKey : null,
+            concurrencyKey: cfg.SharedKey ? SharedKey : null,
             jobName: BenchHost.WorkloadJobName(cfg.AuditOn),
             workMs: cfg.WorkMs
         );

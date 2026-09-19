@@ -226,7 +226,7 @@ public class CliRunnerClipboardTests
                         TenantKey: null,
                         DeduplicationKey: null,
                         CorrelationKey: null,
-                        ExclusiveKey: null,
+                        ConcurrencyKey: null,
                         InputFormatId: 0,
                         Status: JobStatusCode.Ready,
                         Priority: JobPriorityCode.Normal,

@@ -182,7 +182,7 @@ CREATE TABLE {{schema}}.jobs (
     tenant_id int NULL,
     deduplication_key varchar(128) NULL,
     correlation_key varchar(64) NULL,
-    exclusive_key varchar(128) NULL,
+    concurrency_key varchar(128) NULL,
     input_format_id tinyint NOT NULL,
     input varbinary(max) NULL,
     audit_level_code tinyint NOT NULL,
@@ -496,7 +496,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_enqueue_batch AS TABLE (
     priority_override TINYINT          NULL,
     input_format_id   TINYINT          NOT NULL,
     input             VARBINARY(MAX)   NULL,
-    exclusive_key   VARCHAR(128)     NULL,
+    concurrency_key   VARCHAR(128)     NULL,
     next_run_at_utc   DATETIME2(3)     NULL,
     delay_seconds     INT              NULL,
     parent_id         BIGINT           NULL,
@@ -615,7 +615,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-eddfbf4a4f499773cf5078d0877c7db6', '{{schema}}');
+VALUES (0, 'baseline-f8de93b5fdff26cc459f870e15f36542', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

@@ -102,7 +102,7 @@ WHERE
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
-    input_format_id, input, exclusive_key, audit_level_code
+    input_format_id, input, concurrency_key, audit_level_code
 )
 SELECT
     @p_job_ref,
@@ -118,7 +118,7 @@ SELECT
     ),
     @p_input_format_id,
     @p_input,
-    @p_exclusive_key,
+    @p_concurrency_key,
     jd.audit_level_code_effective
 FROM {{schema}}.namespaces ns
 JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
@@ -130,7 +130,7 @@ ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NUL
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
-    input_format_id, input, exclusive_key, audit_level_code
+    input_format_id, input, concurrency_key, audit_level_code
 )
 SELECT
     @p_job_ref,
@@ -152,7 +152,7 @@ SELECT
     END,
     @p_input_format_id,
     @p_input,
-    @p_exclusive_key,
+    @p_concurrency_key,
     jd.audit_level_code_effective
 FROM {{schema}}.namespaces ns
 JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name

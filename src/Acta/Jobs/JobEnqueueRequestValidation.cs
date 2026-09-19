@@ -34,7 +34,7 @@ internal static class JobEnqueueRequestValidation
             DeduplicationKey = request.DeduplicationKey is null
                 ? null
                 : IdentifierSyntax.NormalizeKey(request.DeduplicationKey, Field(paramName, nameof(JobEnqueueRequest.DeduplicationKey))),
-            ExclusiveKey = NormalizeOpaque(request.ExclusiveKey, Field(paramName, nameof(JobEnqueueRequest.ExclusiveKey))),
+            ConcurrencyKey = NormalizeOpaque(request.ConcurrencyKey, Field(paramName, nameof(JobEnqueueRequest.ConcurrencyKey))),
             TenantKey = request.TenantKey is null
                 ? null
                 : IdentifierSyntax.NormalizeTenantKey(request.TenantKey, Field(paramName, nameof(JobEnqueueRequest.TenantKey))),
