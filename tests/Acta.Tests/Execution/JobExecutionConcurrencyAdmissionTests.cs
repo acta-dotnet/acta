@@ -84,6 +84,20 @@ public sealed class JobExecutionConcurrencyAdmissionTests
     }
 
     [Fact]
+    public async Task A_system_definition_name_is_a_valid_default_key()
+    {
+        // The default key is the definition name, and a system job may carry a limit; the public
+        // system-prefix rule belongs to enqueue keys, which were validated there already. A rejection
+        // here would bounce every attempt of sys.recovery without ever running it.
+        var harness = new JobExecutionHarness(concurrencyLimit: 2, jobName: "sys.recovery");
+
+        var outcome = await harness.RunAsync();
+
+        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.EndsWith(".sem.sys.recovery", Assert.Single(harness.SlotRequests).KeyPrefix, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_provider_error_on_slot_admission_bounces_instead_of_escaping()
     {
         var harness = new JobExecutionHarness(concurrencyKey: "customer-1", slotThrows: true);

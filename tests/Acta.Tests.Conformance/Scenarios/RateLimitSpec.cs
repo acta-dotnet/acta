@@ -6,7 +6,6 @@ using Acta.Runtime.Services.Locks;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 using LockRow = Acta.Relational.Entities.Lock;
@@ -37,8 +36,8 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
     private const int Burst = 10;
     private const int IntervalMilliseconds = 100;
 
-    // The grace a booked turn gets past its instant before the sweep may take it. Production passes the
-    // worker lease TTL; a spec picks its own so it can stage a turn at a chosen age.
+    // The grace a booked turn gets past its instant before the sweep may take it. Production passes a
+    // fixed fifteen minutes; a spec picks its own so it can stage a turn at a chosen age.
     private const int GraceSeconds = 30;
 
     [Fact(DisplayName = "A fresh meter admits its burst at once and then one per interval")]
@@ -466,10 +465,9 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
 
         // Bring the booked turn just past its instant, and the job with it: the meter is still minutes
         // ahead, so an admission here can only come from the turn, and the slot has to be taken again.
-        // The runner's grace is the worker lease, so the row is stamped relative to that.
+        // The runner's grace is a fixed constant, so the row is stamped relative to that.
         var reservation = $"{bucket}.{enqueued.JobId}";
-        var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var justPast = DateTime.UtcNow.AddSeconds(leaseTtl).AddMilliseconds(-50);
+        var justPast = DateTime.UtcNow.AddSeconds(RuntimeJobContext.RateReservationGraceSeconds).AddMilliseconds(-50);
         Assert.Equal(
             1,
             await Db.From<LockRow>().Where(l => l.LockKey == reservation).UpdateOnlyAsync(() => new LockRow { ExpiresAtUtc = justPast }, ct)

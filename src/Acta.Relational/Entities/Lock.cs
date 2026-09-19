@@ -45,7 +45,7 @@ internal sealed class Lock : IEntity
     /// On the two <c>rate.</c> shapes this is an instant rather than a lease, and each is shifted so
     /// the row expires only once it stops mattering: a bucket row carries the meter's next theoretical
     /// arrival time plus the burst, so it expires when an idle meter stops differing from a missing
-    /// one; a reservation row carries its turn plus a grace sized from the worker lease, so it expires
+    /// one; a reservation row carries its turn plus a fixed grace longer than any worker lease, so it expires
     /// only once a job that has not come back for it cannot still be alive. The sweep therefore
     /// restores an idle meter to its full burst without disturbing a busy one, and drops an abandoned
     /// turn. A turn swept out from under a job that does come back costs one more re-arm, at the tail

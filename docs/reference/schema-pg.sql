@@ -7563,6 +7563,9 @@ $$;
 
 -- The bucket row is created-or-locked by one statement below, so the expiry sweep can never delete
 -- it between a create and a lock: the charge this call books is always persisted before it admits.
+
+-- That no-op DO UPDATE writes a new row version per request, so a hot meter leaves autovacuum one
+-- dead tuple per admission; the price of the single-statement lock, not a thing to optimize away.
 CREATE OR REPLACE FUNCTION acta.reserve_rate(
     p_lock_key VARCHAR,
     p_job_id BIGINT,

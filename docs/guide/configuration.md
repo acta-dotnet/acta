@@ -261,13 +261,16 @@ goes back through the meter and is given a new one, which costs it a second re-a
 stops a queue of overdue jobs from all starting the moment executors free up: after an idle stretch
 they are released at the burst, not in one crowd.
 
-The contract: the meter allocates at most `R*T + N` turns in any `T` seconds, where `N` is the declared
-count (an idle meter hands out that many back to back). A turn may be taken up to one interval late, so
-any window of admissions can see one more than that: at most `R*T + N + 1`. Within 10% of `R` over 60
+The contract: the meter allocates at most `R*T + B` turns in any `T` seconds, where `B` is the burst an
+idle meter hands out back to back: one second's worth of the rate, at least one, so `10/s` and `600/m`
+both admit ten at once and then one per 100 ms, and `5/m` admits one and then one every twelve seconds.
+A per-minute or per-hour rate therefore reads as a smooth rate with a small cushion, never a whole
+period's worth released at once. A turn may be taken up to one interval late, so any window of
+admissions can see one more than that: at most `R*T + B + 1`. Within 10% of `R` over 60
 seconds of continuous demand holds as long as executors are free - the other half of the contract, since
 the rate caps how fast jobs *start*, so if every executor is busy the realized rate is lower.
 
-A booked turn is held for the worker lease TTL past its instant, so a late but living job never loses
+A booked turn is held for fifteen minutes past its instant, a fixed grace that no worker setting moves, so a late but living job never loses
 one. Past that, the ordinary lock expiry sweep collects it: a job that was cancelled, or reclaimed
 before it came back, simply loses its place and is metered afresh when it next asks - one more re-arm,
 at the tail of the queue. The meter itself is swept the same way once it has been idle for a full

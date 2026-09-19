@@ -4,22 +4,29 @@ namespace Acta;
 
 /// <summary>
 /// A parsed rate-limit declaration: <c>N/s</c>, <c>N/m</c>, or <c>N/h</c> resolved to the pair the
-/// engine meters with, a whole-millisecond emission interval and a burst of N. The interval is the
-/// period divided by N and rounded UP, so the realized rate is at or just under the declared one
-/// rather than over it. The one parser for the format: the generator diagnostic, registration, the
-/// operator override gate, and admission all read a rate through here.
+/// engine meters with, a whole-millisecond emission interval and a burst. The interval is the period
+/// divided by N and rounded UP, so the realized rate is at or just under the declared one rather than
+/// over it. The burst is one second's worth of the rate, at least one, so <c>600/m</c> admits ten at
+/// once and then one per 100 ms rather than six hundred at once: a per-minute or per-hour rate reads
+/// as a smooth rate with a small cushion, and <c>N/s</c> keeps its N. The one parser for the format:
+/// the generator diagnostic, registration, the operator override gate, and admission all read a rate
+/// through here.
 /// </summary>
 internal readonly record struct RateLimitSpec
 {
-    private RateLimitSpec(int count, char period, int intervalMilliseconds)
+    private RateLimitSpec(int count, char period, int intervalMilliseconds, int burst)
     {
         Count = count;
         Period = period;
         IntervalMilliseconds = intervalMilliseconds;
+        Burst = burst;
     }
 
-    /// <summary>The declared N: how many admissions the bucket may hand out back to back.</summary>
+    /// <summary>The declared N, the count per period as written.</summary>
     public int Count { get; }
+
+    /// <summary>How many admissions an idle meter hands out back to back: one second's worth of the rate, floored, at least one.</summary>
+    public int Burst { get; }
 
     /// <summary>The declared period, one of <c>s</c>, <c>m</c>, <c>h</c>.</summary>
     public char Period { get; }
@@ -79,9 +86,15 @@ internal readonly record struct RateLimitSpec
             return false;
         }
 
-        if (!int.TryParse(text.AsSpan(0, slash), NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count < 1)
+        // No leading zero, so the text is canonical by construction and one meter's rate compares as
+        // text everywhere it is stored: "010/s" would otherwise read as a different rate from "10/s".
+        if (
+            !int.TryParse(text.AsSpan(0, slash), NumberStyles.None, CultureInfo.InvariantCulture, out var count)
+            || count < 1
+            || text[0] == '0'
+        )
         {
-            error = "A rate limit's count is a positive whole number.";
+            error = "A rate limit's count is a positive whole number with no leading zero.";
             return false;
         }
 
@@ -98,7 +111,10 @@ internal readonly record struct RateLimitSpec
 
         // Rounded up so the interval is never zero and the realized rate never exceeds the declared one.
         var interval = (periodMilliseconds + count - 1) / count;
-        spec = new RateLimitSpec(count, period, interval);
+        // One second of the rate, floored, never below one: the cushion that lets a short stall
+        // catch up without letting a per-minute rate release a whole minute's worth at once.
+        var burst = (int)Math.Max(1, count * 1_000L / periodMilliseconds);
+        spec = new RateLimitSpec(count, period, interval, burst);
         return true;
     }
 

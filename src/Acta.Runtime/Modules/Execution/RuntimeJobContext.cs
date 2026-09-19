@@ -540,11 +540,13 @@ internal sealed class RuntimeJobContext(
     /// Concurrency-slot admission, taken by the runner after the start CAS and before the handler.
     /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLock's
     /// {ns_id}.lock.{key} / global.lock.{key}; limit 1 is slot 0 alone, the mutex. The key is
-    /// normalized defensively so one group across case never depends on the stored value alone.
+    /// canonicalized so one group across case never depends on the stored value alone, without the
+    /// public system-prefix rule: an enqueue key was already rejected at enqueue, and a key derived
+    /// from a definition name may legitimately be a system job's (sys.recovery with a limit).
     /// </summary>
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
-        var prefix = $"{_namespaceId}.sem.{IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey))}";
+        var prefix = $"{_namespaceId}.sem.{IdentifierSyntax.NormalizeKeyLookup(concurrencyKey, nameof(concurrencyKey))}";
         var requestedAt = Stopwatch.GetTimestamp();
         var token = await _lockStore.TryAcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
         if (token is { } held)
@@ -558,16 +560,23 @@ internal sealed class RuntimeJobContext(
     /// <summary>
     /// Rate admission, taken by the runner after the concurrency slot and before the handler. The meter
     /// is the bucket row {ns_id}.rate.{key}, disjoint from the lock and slot key spaces, and holds
-    /// nothing: it is moved, never acquired, so there is no release. The key is normalized defensively
-    /// so one meter across case never depends on the stored value alone. The lease TTL is the grace a
-    /// booked turn gets before the sweep may take it: a worker that has not come back within its own
-    /// lease is not coming back for that turn at all.
+    /// nothing: it is moved, never acquired, so there is no release. The key is canonicalized like the
+    /// slot key, system names allowed for the same reason. The grace a booked turn gets before the
+    /// sweep may take it is a constant, not the lease TTL: the turn is decoded as expiry minus grace,
+    /// so a value that moved with worker settings would shift every booked turn on a fleet-wide
+    /// heartbeat change.
     /// </summary>
     internal Task<RateReservation> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
     {
-        var bucket = $"{_namespaceId}.rate.{IdentifierSyntax.NormalizeKey(rateKey, nameof(rateKey))}";
-        return _lockStore.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Count, _leaseTtlSeconds, ct);
+        var bucket = $"{_namespaceId}.rate.{IdentifierSyntax.NormalizeKeyLookup(rateKey, nameof(rateKey))}";
+        return _lockStore.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Burst, RateReservationGraceSeconds, ct);
     }
+
+    /// <summary>
+    /// How long a booked rate turn outlives its instant before the lock expiry sweep may take it:
+    /// fifteen minutes, longer than any default lease, and fixed so it never moves with settings.
+    /// </summary>
+    internal const int RateReservationGraceSeconds = 900;
 
     internal async Task ReleaseConcurrencySlotAsync(CancellationToken ct)
     {

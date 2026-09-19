@@ -10,19 +10,29 @@ namespace Acta.Tests.Runtime;
 public sealed class RateLimitSpecTests
 {
     [Theory]
-    [InlineData("10/s", 10, 100)]
-    [InlineData("1/s", 1, 1000)]
-    [InlineData("1000/s", 1000, 1)]
-    [InlineData("600/m", 600, 100)]
-    [InlineData("1/m", 1, 60_000)]
-    [InlineData("5000/h", 5000, 720)]
-    [InlineData("1/h", 1, 3_600_000)]
-    public void A_rate_resolves_to_a_burst_and_a_whole_millisecond_interval(string text, int count, int intervalMilliseconds)
+    [InlineData("10/s", 10, 100, 10)]
+    [InlineData("1/s", 1, 1000, 1)]
+    [InlineData("1000/s", 1000, 1, 1000)]
+    [InlineData("600/m", 600, 100, 10)]
+    [InlineData("90/m", 90, 667, 1)]
+    [InlineData("1/m", 1, 60_000, 1)]
+    [InlineData("7200/h", 7200, 500, 2)]
+    [InlineData("5000/h", 5000, 720, 1)]
+    [InlineData("1/h", 1, 3_600_000, 1)]
+    public void A_rate_resolves_to_a_whole_millisecond_interval_and_one_second_of_burst(
+        string text,
+        int count,
+        int intervalMilliseconds,
+        int burst
+    )
     {
+        // The burst is one second's worth of the rate, floored and at least one: "600/m" is a smooth
+        // ten per second with a cushion of ten, not six hundred released at once after an idle minute.
         Assert.True(RateLimitSpec.TryParse(text, out var spec, out _));
 
         Assert.Equal(count, spec.Count);
         Assert.Equal(intervalMilliseconds, spec.IntervalMilliseconds);
+        Assert.Equal(burst, spec.Burst);
         Assert.Equal(text, spec.Text);
     }
 
@@ -45,6 +55,7 @@ public sealed class RateLimitSpecTests
     [InlineData("10/d")]
     [InlineData("10/sec")]
     [InlineData("0/s")]
+    [InlineData("010/s")]
     [InlineData("-1/s")]
     [InlineData("1.5/s")]
     [InlineData("+1/s")]

@@ -33,7 +33,7 @@ internal interface ILockStore
     /// caller bounces once rather than racing the meter again. Both rows carry an instant rather than a
     /// lease, offset so each expires only once it stops mattering: the bucket's when an idle meter
     /// stops differing from a missing one, a reservation's <paramref name="graceSeconds"/> past its
-    /// turn, sized by the caller from the worker lease so a live job keeps a turn it is coming back for.
+    /// turn, a fixed grace longer than any lease so a live job keeps a turn it is coming back for.
     /// A turn is honoured only while it is fresh - at most one interval past its instant - so jobs whose
     /// turns went stale while executors were busy are re-metered rather than released at once, at the
     /// cost of a second re-arm each.

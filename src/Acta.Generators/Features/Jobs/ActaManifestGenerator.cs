@@ -614,6 +614,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             && int.TryParse(text.Substring(0, slash), NumberStyles.None, CultureInfo.InvariantCulture, out var count)
             && count >= 1
             && count <= periodMilliseconds
+            && text[0] != '0'
         )
         {
             return text;
@@ -623,7 +624,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             Diagnostics.InvalidPolicyValue(
                 named.Key,
                 $"\"{text}\"",
-                "A rate limit is a positive count, a slash, and a period of s, m, or h (\"10/s\"), at most 1000 per second.",
+                "A rate limit is a positive count with no leading zero, a slash, and a period of s, m, or h (\"10/s\"), at most 1000 per second.",
                 location
             )
         );

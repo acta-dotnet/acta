@@ -42,9 +42,11 @@ public sealed class JobAttribute(string name) : Attribute
     /// <c>N/h</c> (<c>"10/s"</c>). Null means no rate limit. N is a positive whole number and the rate
     /// may not exceed 1000 per second. Admission is a reservation, not a retry loop: a job that arrives
     /// early is re-armed exactly once, at the instant the meter will admit it, so a backlog drains at
-    /// the rate with one re-arm per job. The meter allocates at most <c>R*T + N</c> turns in any
-    /// <c>T</c> seconds, but a turn may be taken up to one interval late, so any window may see one
-    /// more: at most <c>R*T + N + 1</c>. Rate and <see cref="ConcurrencyLimit"/> are independent gates
+    /// the rate with one re-arm per job. An idle meter admits one second's worth of the rate at once,
+    /// at least one (<c>600/m</c> bursts ten, then one per 100 ms), and allocates at most
+    /// <c>R*T + B</c> turns in any <c>T</c> seconds for that burst <c>B</c>; a turn may be taken up to
+    /// one interval late, so any window may see one more: at most <c>R*T + B + 1</c>. Rate and
+    /// <see cref="ConcurrencyLimit"/> are independent gates
     /// and a job passes both; the concurrency slot is taken first and released when the rate denies.
     /// The meter is per <see cref="RateKey"/>, and the limit is an operator-overridable policy slot.
     /// </summary>

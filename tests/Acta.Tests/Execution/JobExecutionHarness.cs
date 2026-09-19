@@ -36,13 +36,13 @@ internal sealed class JobExecutionHarness(
     string? rateKey = null,
     DateTime? rateResumeAtUtc = null,
     bool slotThrows = false,
-    bool rateThrows = false
+    bool rateThrows = false,
+    string jobName = "harness-job"
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
     public const string StepName = "charge-card";
 
-    private const string JobName = "harness-job";
     private const int WorkerId = 7;
 
     private readonly CancellationTokenSource _attemptCts = new();
@@ -115,7 +115,7 @@ internal sealed class JobExecutionHarness(
         var job = Job(failureCount, concurrencyKey);
         var context = new RuntimeJobContext(
             job,
-            jobName: JobName,
+            jobName: jobName,
             namespaceName: "harness",
             namespaceId: 1,
             leaseTtlSeconds: options.Value.LeaseTtlSeconds,
@@ -148,7 +148,7 @@ internal sealed class JobExecutionHarness(
 
         return await execution.RunAsync(
             EmptyServices.Instance,
-            Descriptor(handler, maxAttempts, concurrencyLimit, rateLimit, rateKey),
+            Descriptor(jobName, handler, maxAttempts, concurrencyLimit, rateLimit, rateKey),
             job,
             context,
             WorkerId,
@@ -219,6 +219,7 @@ internal sealed class JobExecutionHarness(
         );
 
     private static JobDescriptor Descriptor(
+        string jobName,
         Func<JobContext, CancellationToken, Task> handler,
         short maxAttempts,
         short? concurrencyLimit,
@@ -226,7 +227,7 @@ internal sealed class JobExecutionHarness(
         string? rateKey
     ) =>
         new(
-            JobName: JobName,
+            JobName: jobName,
             HandlerType: typeof(JobExecutionHarness),
             MethodName: "N/A",
             InputType: typeof(NoInput),
@@ -491,7 +492,7 @@ internal sealed class JobExecutionHarness(
             CancellationToken ct
         )
         {
-            _rateRequests.Add(new RateRequest(bucketKey, intervalMilliseconds, burst));
+            _rateRequests.Add(new RateRequest(bucketKey, intervalMilliseconds, burst, graceSeconds));
             if (rateThrows)
             {
                 throw new ProviderDown();
@@ -514,5 +515,5 @@ internal sealed class JobExecutionHarness(
     internal readonly record struct SlotRequest(string KeyPrefix, int Limit);
 
     /// <summary>One rate reservation the runner issued: the composed bucket key and the meter's shape.</summary>
-    internal readonly record struct RateRequest(string BucketKey, int IntervalMilliseconds, int Burst);
+    internal readonly record struct RateRequest(string BucketKey, int IntervalMilliseconds, int Burst, int GraceSeconds);
 }

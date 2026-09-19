@@ -46,10 +46,11 @@ public sealed class JobExecutionRateAdmissionTests
 
         await harness.RunAsync();
 
+        // A per-minute rate meters with one second's worth of burst, not the whole minute's count.
         var request = Assert.Single(harness.RateRequests);
         Assert.Equal("1.rate.stripe", request.BucketKey);
         Assert.Equal(100, request.IntervalMilliseconds);
-        Assert.Equal(600, request.Burst);
+        Assert.Equal(10, request.Burst);
     }
 
     [Fact]
@@ -88,6 +89,19 @@ public sealed class JobExecutionRateAdmissionTests
 
         Assert.Single(harness.SlotRequests);
         Assert.Equal(1, harness.SlotReleases);
+    }
+
+    [Fact]
+    public async Task A_booked_turn_gets_a_fixed_grace_that_no_worker_setting_moves()
+    {
+        // The turn is decoded as expiry minus grace, so a grace taken from the lease TTL would shift
+        // every booked turn on a fleet-wide heartbeat change; the constant keeps old bookings honest.
+        var harness = new JobExecutionHarness(rateLimit: "10/s");
+
+        await harness.RunAsync();
+
+        Assert.Equal(RuntimeJobContext.RateReservationGraceSeconds, Assert.Single(harness.RateRequests).GraceSeconds);
+        Assert.Equal(900, RuntimeJobContext.RateReservationGraceSeconds);
     }
 
     [Fact]
