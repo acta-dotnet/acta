@@ -3,7 +3,7 @@
 Acta is a durable job execution engine for .NET backed by the application's own SQL database
 (PostgreSQL, SQL Server, or embedded SQLite). Jobs, schedules, steps, waits, and alerts are
 ordinary rows. This file is the contract an agent needs to add Acta to a project correctly; the
-runnable proof lives in the repository's `concepts/` directory (88 compiled examples) and the
+runnable proof lives in the repository's `concepts/` directory (compiled, one project per concept) and the
 complete demo apps under `demos/`. Start at useacta.net or github.com/acta-dotnet/acta.
 
 ## The one rule everything follows from

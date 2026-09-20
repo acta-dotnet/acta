@@ -91,7 +91,7 @@ Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md). Deeper docs star
 
 ### Or explore the repository
 
-88 runnable concept projects and the load-and-failure lab, if you would rather read the model than wire it up:
+A ladder of runnable concept projects and the load-and-failure lab, if you would rather read the model than wire it up:
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta

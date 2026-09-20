@@ -48,7 +48,7 @@ Six labs, in order, that cover the model end to end:
 | [`903-redis-wakeup`](../concepts/900-runtime-and-tuning/903-redis-wakeup/) | Redis as a wakeup bell only, never a source of truth. |
 | [`901-native-aot-json`](../concepts/900-runtime-and-tuning/901-native-aot-json/) | Jobs under Native AOT with source-generated JSON. |
 
-Beyond the labs, the full [`concepts/`](../concepts/) ladder holds 88 runnable projects from
+Beyond the labs, the full [`concepts/`](../concepts/) ladder holds a runnable project for every concept, from
 fundamentals through runtime tuning; [`docs/guide/tutorials.md`](./guide/tutorials.md) sequences
 them.
 

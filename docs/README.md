@@ -11,7 +11,7 @@ database you already run.
 | [Choosing Acta](./choosing-acta.md) | Whether Acta fits your problem, and when to keep what you have. |
 | [Quickstart](./quickstart.md) | Clone to a running durable job on embedded SQLite, then inspect the row. |
 | [Engineering Labs](./engineering-labs.md) | Runnable proof: crash recovery, durable steps, signals, the dashboard, deterministic tests. |
-| [Tutorials](./guide/tutorials.md) | The full concept ladder: 88 runnable projects in sequence. |
+| [Tutorials](./guide/tutorials.md) | The full concept ladder: runnable projects in sequence. |
 | [Known limitations](./technical/known-limitations.md) | What Acta does not do, and which limits are permanent. |
 | [Support](./support.md) | Supported .NET target, provider tiers, packages, and the patch policy. |
 | [Release notes](./release-notes.md) | What is in the current release. |

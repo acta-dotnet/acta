@@ -80,7 +80,7 @@ needs a web host.
 
 ## Or explore the repository
 
-88 runnable concept projects and the load-and-failure lab, if you would rather read the model first:
+A ladder of runnable concept projects and the load-and-failure lab, if you would rather read the model first:
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
